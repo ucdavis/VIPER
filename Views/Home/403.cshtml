@@ -1,0 +1,9 @@
+﻿@{
+	ViewData["Title"] = "Access Denied";
+}
+<h1 class="text-danger">Access Denied</h1>
+
+@if (!String.IsNullOrWhiteSpace(ViewBag.errorMessage))
+{
+	<h4>@ViewBag.errorMessage</h4>
+}

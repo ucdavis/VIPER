@@ -1,0 +1,101 @@
+﻿@model IEnumerable<Viper.Models.RAPS.TblRole>
+@{
+    ViewData["Title"] = "RAPS [Permission Management]";
+}
+<div id='RapsPage'>
+    <div class="q-pa-md q-gutter-sm">
+        <h2>Hi @ViewData["UserName"]</h2>
+        <h4>Count is: {{ rapsCount }}</h4>
+        <p>
+            <q-btn color="primary" v-on:click="rapsIncrementCount">Increment Count!</q-btn>
+        </p>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>
+                    @Html.DisplayNameFor(model => model.Role)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(model => model.ViewName)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(model => model.Description)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(model => model.Application)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(model => model.UpdateFreq)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(model => model.AccessCode)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(model => model.DisplayName)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(model => model.AllowAllUsers)
+                </th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.Role)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.ViewName)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.Description)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.Application)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.UpdateFreq)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.AccessCode)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.DisplayName)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.AllowAllUsers)
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+    <script asp-add-nonce="true">
+        vueObjects.rapsCount = @ViewData["Count"];
+        vueMethods.rapsIncrementCount = function () {
+            this.rapsCount = this.rapsCount + 1;
+
+            var headers = {
+                "RequestVerificationToken": $('input:hidden[name="__RequestVerificationToken"]').val()
+            }
+
+            $.ajax({
+                type: "POST",
+                url: 'RAPS/UpdateCounter/' + this.rapsCount,
+                headers:
+                {
+                    "X-CSRF-TOKEN": $('input:hidden[name="__RequestVerificationToken"]').val()
+                }
+            });
+        };
+
+        vueWatchers.rapsCount = function (newCount, oldCount) {
+            alert("Value changed from " + oldCount + " to " + newCount);
+        };
+    </script>
+}

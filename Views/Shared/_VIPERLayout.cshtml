@@ -1,0 +1,187 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    @RenderSection("Metatags", required: false)
+
+    <title>@ViewData["Title"] - VIPER(2.0)</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link href="~/lib/quasar/dist/quasar.prod.css" rel="stylesheet" type="text/css">
+
+    @RenderSection("Styles", required: false)
+
+</head>
+<body>
+    @Html.AntiForgeryToken()
+    <div id="siteHeaderNav">
+        <div class="q-pa-sm">
+            <div class="bg-primary text-white">
+                <q-toolbar>
+                    <q-btn flat round dense icon="home" label="VIPER 2.0" href="@Url.Content("~/")"></q-btn>
+                    <q-space></q-space>
+                    @*TODO - create sitemap and link search tool*@
+                    <q-btn flat round dense icon="search" class="q-mr-xs">
+                        <q-tooltip>
+                            Search
+                        </q-tooltip>
+                    </q-btn>
+                    @*TODO - link to profile pick and user page*@
+                    <q-btn round>
+                        <q-avatar size="40px">
+                            <img src="~/images/portrait.jpg" height="40" v-model="siteProfileAvatar" />
+                            <q-tooltip :target="siteProfileAvatar">
+                                Dan Ransom
+                            </q-tooltip>
+                        </q-avatar>
+                    </q-btn>
+                    <q-btn flat round dense icon="logout" class="q-mr-xs" href="@Url.Content("~/logout")">
+                        <q-tooltip>
+                            Logout
+                        </q-tooltip>
+                    </q-btn>
+                </q-toolbar>
+                <q-toolbar class="inset-shadow">
+                    <q-btn stretch flat icon="elderly" href="https://viper.vetmed.ucdavis.edu/" tool>
+                        <q-tooltip>
+                            VIPER 1.0
+                        </q-tooltip>
+                    </q-btn>
+                    <q-separator dark vertical></q-separator>
+                    <q-btn stretch flat label="CMS" href="@Url.Content("~/CMS")"></q-btn>
+                    <q-separator dark vertical></q-separator>
+                    <q-btn stretch flat label="RAPS" href="@Url.Content("~/RAPS")"></q-btn>
+                    <q-separator dark vertical></q-separator>
+                </q-toolbar>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <main role="main" class="pb-3">
+
+            @RenderBody()
+
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted">
+        <div class="container" id="siteFooter">
+            <div class="q-pa-md q-gutter-xs text-caption">
+                <hr />
+                <div id="ucdavislogo" class="float-right">
+                    <a href="http://vetmed.ucdavis.edu/"><img src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg" alt="UC Davis Veterinary Medicine logo" border="0" width="134" height="24"></a>
+                </div>
+                <q-breadcrumbs separator=" | " active-color="primary" class="text-blue">
+                    <q-breadcrumbs-el icon="help_center" label="SVM-IT ServiceDesk" href="https://svmithelp.vetmed.ucdavis.edu/"></q-breadcrumbs-el>
+                    <q-breadcrumbs-el label="SVM Home" icon="navigation" href="http://www.vetmed.ucdavis.edu/"></q-breadcrumbs-el>
+                    <q-breadcrumbs-el label="UC Davis" icon="school" href="http://www.ucdavis.edu/"></q-breadcrumbs-el>
+                </q-breadcrumbs>
+                <div class="q-pa-none">
+                    &copy; 2023 School of Veterinary Medicine
+                </div>
+            </div>
+        </div>
+    </footer>
+    <script src="~/lib/jquery/jquery.min.js"></script>
+    <script src="~/lib/vue/vue.global.min.js"></script>
+    <script src="~/lib/quasar/dist/quasar.umd.min.js"></script>
+    <script asp-add-nonce="true">
+        // define global Vue objects
+        const vueApp = Vue;
+        let vueObjects = {};
+        let vueMethods = {};
+        let vueWatchers = {};
+        let vueEmits = {};
+        let vueProps = {};
+        var vueBeforeCreateActions = [];
+        var vueCreatedActions = [];
+        var vueBeforeMountActions = [];
+        var vueMountedActions = [];
+        var vueBeforeUnmountActions = [];
+        var vueUnmountedActions = [];
+        var vueBeforeUpdateActions = [];
+        var vueUpdatedActions = [];
+    </script>
+
+    @* Pages or controls can update the global VUE objects
+    // BE SURE TO USE UNIQUE NAMES
+    vueObjects.rapsCount = @Model.Count;
+    vueMethods.rapsIncrementCount = function(){
+    this.rapsCount = this.rapsCount + 1;
+    var headers = {
+    "RequestVerificationToken": $('input:hidden[name="__RequestVerificationToken"]').val()
+    }
+    $.ajax({
+    type: "POST",
+    url: 'RAPS?counter=' + this.rapsCount,
+    headers:
+    {
+    "X-CSRF-TOKEN": $('input:hidden[name="__RequestVerificationToken"]').val()
+    }
+    });
+    };
+    vueWatchers.rapsCount = function(newCount, oldCount){
+    alert("Value changed from " + oldCount + " to " + newCount);
+    };
+    vueMountedActions.push(function(){alert('Vue is mounted!')});
+    *@
+    @await RenderSectionAsync("Scripts", required: false)
+
+    <script asp-add-nonce="true">
+        // initialize VUE and Quasar using global objects
+        vueApp.createApp({
+            data() {
+                return vueObjects
+            },
+            methods: vueMethods,
+            watch: vueWatchers,
+            emits: vueEmits,
+            props: vueProps,
+            beforeCreate() {
+                while (vueBeforeCreateActions.length) {
+                    vueBeforeCreateActions.shift().call();
+                }
+            },
+            createded() {
+                while (vueCreatedActions.length) {
+                    vueCreatedActions.shift().call();
+                }
+            },
+            beforeMount() {
+                while (vueBeforeMountActions.length) {
+                    vueBeforeMountActions.shift().call();
+                }
+            },
+            mounted() {
+                while (vueMountedActions.length) {
+                    vueMountedActions.shift().call();
+                }
+            },
+            beforeUpdate() {
+                while (vueBeforeUpdateActions.length) {
+                    vueBeforeUpdateActions.shift().call();
+                }
+            },
+            updated() {
+                while (vueUpdatedActions.length) {
+                    vueUpdatedActions.shift().call();
+                }
+            },
+            beforeUnmount() {
+                while (vueBeforeUnmountActions.length) {
+                    vueBeforeUnmountActions.shift().call();
+                }
+            },
+            unmounted() {
+                while (vueUnmountedActions.length) {
+                    vueUnmountedActions.shift().call();
+                }
+            }
+        }).use(Quasar).mount('body');
+    </script>
+
+    @await RenderSectionAsync("FinalScripts", required: false)
+
+</body>
+</html>

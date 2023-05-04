@@ -1,0 +1,6 @@
+﻿@using System.Net;
+@model HttpStatusCode
+@{
+	ViewData["Title"] = "Error";
+}
+<h1 class="text-danger">Status Code: @((int)Model); @(Enum.GetName(typeof(HttpStatusCode), Model.ToString()))</h1>
