@@ -1,9 +1,8 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
-using System;
+using System.Security.Claims;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 using Viper.Models.RAPS;
-using VIPER;
 
 namespace Viper
 {
@@ -21,14 +20,35 @@ namespace Viper
         /// <returns>Enumerable list of roles for the user</returns>
         public static IEnumerable<TblRole> GetRoles(RAPSContext rapsContext, AaudUser user)
         {
-            var result =
-                        (from role in rapsContext.TblRoles
-                         join memberRoles in rapsContext.TblRoleMembers
-                             on role.RoleId equals memberRoles.RoleId
-                         where memberRoles.MemberId == user.MothraId
-                         select role).ToList();
+            var result = new List<TblRole>();
 
-            return result;
+            if (HttpHelper.Cache != null && rapsContext != null)
+            {
+
+                result = HttpHelper.Cache.GetOrCreate("Roles-" + user.LoginId, entry =>
+                {
+                    return (from role in rapsContext.TblRoles
+                            join memberRoles in rapsContext.TblRoleMembers
+                                on role.RoleId equals memberRoles.RoleId
+                            where memberRoles.MemberId == user.MothraId
+                            select role).ToList();
+                });
+
+                if (result != null)
+                {
+                    return result;
+                }
+                else
+                {
+                    return new List<TblRole>();
+                }
+
+            }
+            else
+            {
+                return result;
+            }
+
         }
         #endregion
 
@@ -42,20 +62,39 @@ namespace Viper
         /// <returns>Whether or not the user is in the role specified</returns>
         public static bool IsInRole(RAPSContext rapsContext, AaudUser user, string roleName)
         {
-            var result =
-                        (from role in rapsContext.TblRoles
-                         join memberRoles in rapsContext.TblRoleMembers
-                             on role.RoleId equals memberRoles.RoleId
-                         where role.Role.ToLower() == roleName.ToLower()
-                         select role).FirstOrDefault();
-
-            if (result != null)
+            if (user.LoginId == HttpHelper.HttpContext?.User?.Identity?.Name)
             {
-                return true;
+                var claims = HttpHelper.HttpContext?.User?.Claims;
+
+                if (claims != null) { 
+
+                    foreach (var claim in claims)
+                    {
+                        if (claim.Type == ClaimTypes.Role && claim.Value == roleName)
+                        {
+                            return true;
+                        }
+
+                    }
+                    
+                }
+
+                return false;
             }
             else
             {
+                var roles = GetRoles(rapsContext, user);
+
+                foreach (var role in roles)
+                {
+                    if (role.Role.ToLower() == roleName.ToLower())
+                    {
+                        return true;
+                    }
+                }
+
                 return false;
+
             }
 
         }
@@ -70,14 +109,34 @@ namespace Viper
         /// <returns>Enumerable list of permission items assigned directly to the user</returns>
         public static IEnumerable<TblPermission> GetAssignedPermissions(RAPSContext rapsContext, AaudUser user)
         {
-            var result =
-                        (from permission in rapsContext.TblPermissions
-                         join memberPermissions in rapsContext.TblMemberPermissions
-                             on permission.PermissionId equals memberPermissions.PermissionId
-                         where memberPermissions.MemberId == user.MothraId
-                         select permission).ToList();
+            var result = new List<TblPermission>();
 
-            return result;
+            if (HttpHelper.Cache != null && rapsContext != null)
+            {
+                result = HttpHelper.Cache.GetOrCreate("PermissionsAssigned-" + user.LoginId, entry =>
+                {
+                    return (from permission in rapsContext.TblPermissions
+                            join memberPermissions in rapsContext.TblMemberPermissions
+                                on permission.PermissionId equals memberPermissions.PermissionId
+                            where memberPermissions.MemberId == user.MothraId
+                            select permission).ToList();
+                });
+
+                if (result != null)
+                {
+                    return result;
+                }
+                else
+                {
+                    return new List<TblPermission>();
+                }
+                
+            }
+            else
+            {
+                return result;
+            }
+
         }
         #endregion
 
@@ -90,16 +149,36 @@ namespace Viper
         /// <returns>Enumerable list of permission items assigned to the user from roles</returns>
         public static IEnumerable<TblPermission> GetInheritedPermissions(RAPSContext rapsContext, AaudUser user)
         {
-            var result =
-                        (from permission in rapsContext.TblPermissions
-                         join rolePermissions in rapsContext.TblRolePermissions
-                             on permission.PermissionId equals rolePermissions.PermissionId
-                         join memberRole in rapsContext.TblRoleMembers
-                             on rolePermissions.RoleId equals memberRole.RoleId
-                         where memberRole.MemberId == user.MothraId
-                         select permission).ToList();
+            var result = new List<TblPermission>();
 
-            return result;
+            if (HttpHelper.Cache != null && rapsContext != null)
+            {
+                result = HttpHelper.Cache.GetOrCreate("PermissionsInherited-" + user.LoginId, entry =>
+                {
+                    return (from permission in rapsContext.TblPermissions
+                            join rolePermissions in rapsContext.TblRolePermissions
+                                on permission.PermissionId equals rolePermissions.PermissionId
+                            join memberRole in rapsContext.TblRoleMembers
+                                on rolePermissions.RoleId equals memberRole.RoleId
+                            where memberRole.MemberId == user.MothraId
+                            select permission).ToList();
+                });
+
+                if (result != null)
+                {
+                    return result;
+                }
+                else
+                {
+                    return new List<TblPermission>();
+                }
+
+            }
+            else
+            {
+                return result;
+            }
+
         }
         #endregion
 
@@ -126,20 +205,22 @@ namespace Viper
         /// <param name="user">Must pass an AaudUser object</param>
         /// <param name="roleName">The name of the role to check</param>
         /// <returns>Whether or not the user is in the role specified</returns>
-        public static bool HasPermission(RAPSContext rapsContext, AaudUser user, string permissionName)
+        public static bool HasPermission(RAPSContext? rapsContext, AaudUser? user, string permissionName)
         {
-            var perrmissions = GetAllPermissions(rapsContext, user);
-
-            TblPermission test = new TblPermission();
-
-            if (perrmissions.Any(p => p.Permission.ToLower() == permissionName.ToLower()))
+            if (rapsContext != null && user != null)
             {
-                return true;
+                var perrmissions = GetAllPermissions(rapsContext, user);
+
+                TblPermission test = new TblPermission();
+
+                if (perrmissions.Any(p => p.Permission.ToLower() == permissionName.ToLower()))
+                {
+                    return true;
+                }
+
             }
-            else
-            {
-                return false;
-            }
+
+            return false;
 
         }
         #endregion
@@ -151,7 +232,7 @@ namespace Viper
         /// <param name="aaudContext">Dependency injection of the context</param>
         /// <param name="loginId">The login id of the user we are loading</param>
         /// <returns>An AaudUser object for the given loginid</returns>
-        public static AaudUser? GetByLoginId(AAUDContext aaudContext, string? loginId)
+        public static AaudUser? GetByLoginId(AAUDContext? aaudContext, string? loginId)
         {
             if (loginId != null)
             {
@@ -168,7 +249,7 @@ namespace Viper
                 {
                     return user;
                 }
-                else if (HttpHelper.Cache != null)
+                else if (HttpHelper.Cache != null && aaudContext != null)
                 {
                     user = HttpHelper.Cache.GetOrCreate("AaudUser-" + userLoginId, entry =>
                     {
@@ -187,6 +268,20 @@ namespace Viper
             }
 
             return null;
+        }
+        #endregion
+
+        #region public static AaudUser? GetCurrentUser()
+        /// <summary>
+        /// Gets the current logged in user
+        /// </summary>
+        /// <returns>An AaudUser object for the current user</returns>
+        public static AaudUser? GetCurrentUser()
+        {
+            AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
+            AaudUser? currentUser = UserHelper.GetByLoginId(aaudContext, HttpHelper.HttpContext?.User?.Identity?.Name);
+
+            return currentUser;
         }
         #endregion
     }

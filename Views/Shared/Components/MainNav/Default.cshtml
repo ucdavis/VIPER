@@ -1,0 +1,109 @@
+﻿@using Viper.Classes.SQLContext;
+@model Viper.Models.AAUD.AaudUser
+@{
+    RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
+}
+<q-toolbar class="inset-shadow bg-primary text-white gt-sm">
+    <q-btn stretch flat icon="elderly" href="@ViewData["OldViperURL"]" tool>
+        <q-tooltip>
+            VIPER 1.0
+        </q-tooltip>
+    </q-btn>
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Accreditation"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="Accreditation" href="@Url.Content(ViewData["OldViperURL"] + "/Accreditation/default.cfm")"></q-btn>
+    }
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.admin"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="Admin" href="@Url.Content(ViewData["OldViperURL"] + "/Admin/default.cfm")"></q-btn>
+    }
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Analytics"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="Analytics" href="@Url.Content(ViewData["OldViperURL"] + "/Analytics/default.cfm")"></q-btn>
+    }
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.CATS"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="Computing" href="@Url.Content(ViewData["OldViperURL"] + "/cats/default.cfm")"></q-btn>
+    }
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Curriculum"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="Curriculum" href="@Url.Content(ViewData["OldViperURL"] + "/curriculum/default.cfm")"></q-btn>
+    }
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Development"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="Development" href="@Url.Content(ViewData["OldViperURL"] + "/Development/default.cfm")"></q-btn>
+    }
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Facilities"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="Facilities" href="@Url.Content(ViewData["OldViperURL"] + "/facilities/default.cfm")"></q-btn>
+    }
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Faculty"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="Faculty" href="@Url.Content(ViewData["OldViperURL"] + "/faculty/default.cfm")"></q-btn>
+    }
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Fiscal"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="Fiscal" href="@Url.Content(ViewData["OldViperURL"] + "/fiscal/default.cfm")"></q-btn>
+    }
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.IDCards.Apply"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="IDCards" href="@Url.Content(ViewData["OldViperURL"] + "/IDCards/default.cfm")"></q-btn>
+    }
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Personnel"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="Personnel" href="@Url.Content(ViewData["OldViperURL"] + "/personnel/default.cfm")"></q-btn>
+    }
+
+    <q-separator dark vertical></q-separator>
+    <q-btn stretch flat label="Policies" href="@Url.Content(ViewData["OldViperURL"] + "/policy/default.cfm")"></q-btn>
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Research"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="Research" href="@Url.Content(ViewData["OldViperURL"] + "/research/default.cfm")"></q-btn>
+    }
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Schedule"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="Schedule" href="@Url.Content(ViewData["OldViperURL"] + "/schedule/default.cfm")"></q-btn>
+    }
+
+    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Students"))
+    {
+        <q-separator dark vertical></q-separator>
+        <q-btn stretch flat label="Students" href="@Url.Content(ViewData["OldViperURL"] + "/students/default.cfm")"></q-btn>
+    }
+
+    <q-separator dark vertical></q-separator>
+    <q-btn stretch flat label="VMTH" href="@Url.Content(ViewData["OldViperURL"] + "/Hospital/default.cfm")"></q-btn>
+    <q-separator dark vertical></q-separator>
+    <q-btn stretch flat icon="help" href="https://ucdsvm.knowledgeowl.com/help">
+        <q-tooltip>
+            Help
+        </q-tooltip>
+    </q-btn>
+    <q-separator dark vertical></q-separator>
+</q-toolbar>

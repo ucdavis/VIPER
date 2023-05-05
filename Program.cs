@@ -8,11 +8,11 @@ using Microsoft.Extensions.Caching.Memory;
 using Polly;
 using Polly.Extensions.Http;
 using Polly.Timeout;
-using System.Configuration;
 using System.Net;
 using System.Security.Claims;
+using Viper;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
-using VIPER;
 using Web.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -156,7 +156,11 @@ app.UseCsp(csp =>
         .FromSelf()// This domain
         .From("data:")// Allow data: images
         .From("https://www.google-analytics.com")
+        .From("*.ucdavis.edu")
         .From("vetmed.ucdavis.edu")
+        .From("viper.vetmed.ucdavis.edu")
+        .From("secure.vetmed.ucdavis.edu")
+        .From("secure-test.vetmed.ucdavis.edu")
         .From("*.vetmed.ucdavis.edu");
 
     csp.AllowPlugins
@@ -181,6 +185,7 @@ else
     app.UseDeveloperExceptionPage(); // Development error / exception page
 }
 
+app.UseSitemapMiddleware();
 app.UseStaticFiles(); // allow static file serving
 
 // apply settings define earlier

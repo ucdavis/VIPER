@@ -28,6 +28,7 @@
   <ItemGroup>
     <Folder Include="Areas\RAPS\Data\" />
     <Folder Include="Areas\RAPS\Models\" />
+    <Folder Include="wwwroot\images\" />
   </ItemGroup>
 
 </Project>

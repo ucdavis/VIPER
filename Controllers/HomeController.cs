@@ -9,7 +9,6 @@ using System.Xml.Linq;
 using Viper.Models;
 using Web.Authorization;
 using Microsoft.Extensions.Options;
-using VIPER;
 
 namespace Viper.Controllers
 {    

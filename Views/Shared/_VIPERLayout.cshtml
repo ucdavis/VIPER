@@ -17,51 +17,61 @@
     @Html.AntiForgeryToken()
     <div id="siteHeaderNav">
         <div class="q-pa-sm">
-            <div class="bg-primary text-white">
-                <q-toolbar>
-                    <q-btn flat round dense icon="home" label="VIPER 2.0" href="@Url.Content("~/")"></q-btn>
+            <div>
+                <q-toolbar class="bg-primary text-white">
+                    <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
+                        @await Component.InvokeAsync("MiniNav",
+                            new {
+                                user = UserHelper.GetCurrentUser()
+                            }
+                        )
+                    </q-btn>
+                    <q-btn flat dense label="Viper 2.0" class="lt-md" href="@Url.Content("~/")"></q-btn>
+
+                    @if (HttpHelper.Environment?.EnvironmentName == "Development")
+                    {
+                        <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0 -- DEVELOPMENT" href="@Url.Content("~/")"></q-btn>                        
+                    }
+                    else if (HttpHelper.Environment?.EnvironmentName == "Test")
+                    {
+                        <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0 - TEST" href="@Url.Content("~/")"></q-btn>
+                    }
+                    else
+                    {
+                        <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0" href="@Url.Content("~/")"></q-btn>
+                    }
+                    
                     <q-space></q-space>
                     @*TODO - create sitemap and link search tool*@
-                    <q-btn flat round dense icon="search" class="q-mr-xs">
-                        <q-tooltip>
-                            Search
-                        </q-tooltip>
-                    </q-btn>
-                    @*TODO - link to profile pick and user page*@
-                    <q-btn round>
-                        <q-avatar size="40px">
-                            <img src="~/images/portrait.jpg" height="40" v-model="siteProfileAvatar" />
-                            <q-tooltip :target="siteProfileAvatar">
-                                Dan Ransom
-                            </q-tooltip>
-                        </q-avatar>
-                    </q-btn>
+                    <q-input rounded dense standout v-model="text" color="white" label="Search" bg-color="grey" class="q-pa-xs">
+                        <q-btn flat round dense icon="search" color="black"></q-btn>
+                    </q-input>                    
+        
+                    @await Component.InvokeAsync("ProfilePic", 
+                        new {
+                            userName = UserHelper.GetCurrentUser()?.LoginId
+                        }
+                    )
+
                     <q-btn flat round dense icon="logout" class="q-mr-xs" href="@Url.Content("~/logout")">
                         <q-tooltip>
                             Logout
                         </q-tooltip>
                     </q-btn>
                 </q-toolbar>
-                <q-toolbar class="inset-shadow">
-                    <q-btn stretch flat icon="elderly" href="https://viper.vetmed.ucdavis.edu/" tool>
-                        <q-tooltip>
-                            VIPER 1.0
-                        </q-tooltip>
-                    </q-btn>
-                    <q-separator dark vertical></q-separator>
-                    <q-btn stretch flat label="CMS" href="@Url.Content("~/CMS")"></q-btn>
-                    <q-separator dark vertical></q-separator>
-                    <q-btn stretch flat label="RAPS" href="@Url.Content("~/RAPS")"></q-btn>
-                    <q-separator dark vertical></q-separator>
-                </q-toolbar>
+
+                @await Component.InvokeAsync("MainNav",
+                    new {
+                        user = UserHelper.GetCurrentUser()
+                    }
+                )
+
             </div>
         </div>
     </div>
     <div class="container">
-        <main role="main" class="pb-3">
-
+        <main role="main" class="q-layout-padding">
             @RenderBody()
-
         </main>
     </div>
 
@@ -70,12 +80,12 @@
             <div class="q-pa-md q-gutter-xs text-caption">
                 <hr />
                 <div id="ucdavislogo" class="float-right">
-                    <a href="http://vetmed.ucdavis.edu/"><img src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg" alt="UC Davis Veterinary Medicine logo" border="0" width="134" height="24"></a>
+                    <a href="@HttpHelper.GetOldViperRootURL()"><img src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg" alt="UC Davis Veterinary Medicine logo" border="0" width="134" height="24"></a>
                 </div>
-                <q-breadcrumbs separator=" | " active-color="primary" class="text-blue">
+                <q-breadcrumbs separator=" | " active-color="primary" class="text-primary">
                     <q-breadcrumbs-el icon="help_center" label="SVM-IT ServiceDesk" href="https://svmithelp.vetmed.ucdavis.edu/"></q-breadcrumbs-el>
                     <q-breadcrumbs-el label="SVM Home" icon="navigation" href="http://www.vetmed.ucdavis.edu/"></q-breadcrumbs-el>
-                    <q-breadcrumbs-el label="UC Davis" icon="school" href="http://www.ucdavis.edu/"></q-breadcrumbs-el>
+                    <q-breadcrumbs-el label="UC Davis" icon="school" href="http://www.ucdavis.edu/" ></q-breadcrumbs-el>
                 </q-breadcrumbs>
                 <div class="q-pa-none">
                     &copy; 2023 School of Veterinary Medicine
@@ -88,7 +98,8 @@
     <script src="~/lib/quasar/dist/quasar.umd.min.js"></script>
     <script asp-add-nonce="true">
         // define global Vue objects
-        const vueApp = Vue;
+        const { createApp, ref, computed, watch } = Vue;
+        let vueSetup = {};
         let vueObjects = {};
         let vueMethods = {};
         let vueWatchers = {};
@@ -129,8 +140,12 @@
     @await RenderSectionAsync("Scripts", required: false)
 
     <script asp-add-nonce="true">
+
         // initialize VUE and Quasar using global objects
-        vueApp.createApp({
+        createApp({
+            setup(){
+                return vueSetup
+            },
             data() {
                 return vueObjects
             },
@@ -179,6 +194,20 @@
                 }
             }
         }).use(Quasar).mount('body');
+
+        @if (HttpHelper.Environment?.EnvironmentName == "Development")
+        {
+            <text>
+            Quasar.setCssVar('primary', '#090');
+            </text>
+        }
+        else if (HttpHelper.Environment?.EnvironmentName == "Test")
+        {
+            <text>
+            Quasar.setCssVar('primary', '#D00');
+            </text>
+        }
+        
     </script>
 
     @await RenderSectionAsync("FinalScripts", required: false)

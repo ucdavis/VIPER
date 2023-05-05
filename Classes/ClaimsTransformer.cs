@@ -5,7 +5,6 @@ using Viper;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
-using VIPER;
 
 namespace Web.Authorization
 {

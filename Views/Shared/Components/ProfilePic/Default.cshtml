@@ -1,0 +1,20 @@
+﻿@model Viper.Models.AAUD.AaudUser
+@if (Model != null)
+{
+<q-btn round href="@String.Format("https://viper.vetmed.ucdavis.edu/default.cfm?page=userinfo&id={0}", Model.IamId)">
+    <q-avatar size="40px">
+        <img src="@String.Format("https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid={0}&altphoto=1", Model.LoginId)" height="40" v-model="siteProfileAvatar" />
+        <q-tooltip :target="siteProfileAvatar">
+            @Model.DisplayFirstName @Model.DisplayLastName
+        </q-tooltip>
+    </q-avatar>
+</q-btn>
+}
+else
+{
+    <q-btn round icon="person" href="@Url.Content("~/login")">
+        <q-tooltip>
+            Login
+        </q-tooltip>
+    </q-btn>
+}

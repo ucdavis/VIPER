@@ -1,11 +1,12 @@
 ﻿using Ganss.Xss;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using NLog;
 
-namespace VIPER
+namespace Viper
 {
     /// <summary>
 	/// HTTP Helper class (static) that provides access to a number of system-wide objects and JSON errors
@@ -24,12 +25,12 @@ namespace VIPER
         /// <param name="memoryCache"></param>
         public static void Configure(IMemoryCache? memoryCache, IConfiguration? configurationSettings, IWebHostEnvironment env, IHttpContextAccessor? httpContextAccessor, IAuthorizationService? authorizationService, IDataProtectionProvider? dataProtectionProvider)
         {
-            HttpHelper.Cache = memoryCache;
-            HttpHelper.Settings = configurationSettings;
-            HttpHelper.Environment = env;
+            Cache = memoryCache;
+            Settings = configurationSettings;
+            Environment = env;
             HttpHelper.httpContextAccessor = httpContextAccessor;
             HttpHelper.authorizationService = authorizationService;
-            HttpHelper.dataProtectionProvider = dataProtectionProvider;
+            HttpHelper.dataProtectionProvider = dataProtectionProvider;          
 
             var sanitizer = new HtmlSanitizer();
             sanitizer.AllowedAttributes.Add("class");
@@ -88,6 +89,48 @@ namespace VIPER
         /// Get our default HTML sanitizer
         /// </summary>
         public static HtmlSanitizer? HtmlSanitizer { get { return htmlSanitizer; } }
+
+        /// <summary>
+        /// Gets the root URL including protocol and port for Viper.Net
+        /// </summary>
+        public static string GetRootURL()
+        {
+            string rootURL = String.Empty;
+
+            HttpRequest? thisRequest = httpContextAccessor?.HttpContext?.Request;
+
+            if (thisRequest != null)
+            {
+                Uri url = new Uri(thisRequest.GetDisplayUrl());
+                rootURL = url.GetLeftPart(UriPartial.Authority);
+
+                if (thisRequest.Path.ToString().StartsWith("/2/") && rootURL != null)
+                {
+                    rootURL += "/2";
+                }
+
+            }
+            
+            return (rootURL != null) ? rootURL : String.Empty;
+        }
+        /// <summary>
+        /// Gets the root URL for ColdFusion Viper based off the enviroment
+        /// </summary>
+        public static string GetOldViperRootURL()
+        {
+            string oldViperURL = "https://viper.vetmed.ucdavis.edu";
+
+            if (Environment?.EnvironmentName == "Development")
+            {
+                oldViperURL = "http://localhost";
+            }
+            else if (Environment?.EnvironmentName == "Test")
+            {
+                oldViperURL = "https://secure-test.vetmed.ucdavis.edu";
+            }
+
+            return oldViperURL;
+        }
 
         /// <summary>
         /// Respond with a 500 error in JSON fromat
