@@ -140,42 +140,42 @@
             props: vueProps,
             beforeCreate() {
                 while (vueBeforeCreateActions.length) {
-                    vueBeforeCreateActions.shift().call();
+                    vueBeforeCreateActions.shift().call(this);
                 }
             },
-            createded() {
+            created() {
                 while (vueCreatedActions.length) {
-                    vueCreatedActions.shift().call();
+                    vueCreatedActions.shift().call(this);
                 }
             },
             beforeMount() {
                 while (vueBeforeMountActions.length) {
-                    vueBeforeMountActions.shift().call();
+                    vueBeforeMountActions.shift().call(this);
                 }
             },
             mounted() {
                 while (vueMountedActions.length) {
-                    vueMountedActions.shift().call();
+                    vueMountedActions.shift().call(this);
                 }
             },
             beforeUpdate() {
                 while (vueBeforeUpdateActions.length) {
-                    vueBeforeUpdateActions.shift().call();
+                    vueBeforeUpdateActions.shift().call(this);
                 }
             },
             updated() {
                 while (vueUpdatedActions.length) {
-                    vueUpdatedActions.shift().call();
+                    vueUpdatedActions.shift().call(this);
                 }
             },
             beforeUnmount() {
                 while (vueBeforeUnmountActions.length) {
-                    vueBeforeUnmountActions.shift().call();
+                    vueBeforeUnmountActions.shift().call(this);
                 }
             },
             unmounted() {
                 while (vueUnmountedActions.length) {
-                    vueUnmountedActions.shift().call();
+                    vueUnmountedActions.shift().call(this);
                 }
             }
         }).use(Quasar).mount('body');
