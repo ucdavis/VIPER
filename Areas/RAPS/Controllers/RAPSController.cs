@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Data;
+using Viper.Views.Shared.Components.VueTableDefault;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -26,33 +26,20 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]")]
         public async Task<IActionResult> Index()
         {
-            int? tempCount = HttpContext.Session.GetInt32("RAPSCounter");
+            ViewData["KeyColumnName"] = "RoleId";
 
-            if (tempCount != null)
-            {
-                Count = tempCount.Value;
-            }
-            else
-            {
-                Count = 0;
-            }
+            var data = await _RAPSContext.TblRoles.ToListAsync();
+            //var skipList = new List<string> { "Description" };
+            //var altColumnNames = new List<Tuple<string, string>> { new Tuple<string, string>("ViewName","Viewer") };
 
-            UserName = User?.Identity?.Name;
-
-            ViewData["Count"] = Count;
-            ViewData["UserName"] = UserName;
+            //ViewData["Columns"] = VueTableDefaultViewComponent.GetDefaultColumnNames(data, skipList, altColumnNames);
+            //ViewData["Rows"] = VueTableDefaultViewComponent.GetDefaultRows(data, skipList);
+            //ViewData["VisibleColumns"] = VueTableDefaultViewComponent.GetDefaultVisibleColumns(data, skipList);
 
             return _RAPSContext.TblRoles != null ?
-                        View("~/Areas/RAPS/Views/Index.cshtml", await _RAPSContext.TblRoles.ToListAsync()) :
+                        View("~/Areas/RAPS/Views/Index.cshtml", data) :
                         Problem("Entity set 'RAPSContext.TblRoles'  is null.");
         }
 
-        [Route("/[area]/[action]/{counter}")]
-        [HttpPost]
-        public void UpdateCounter(int counter)
-        {
-            ViewData["Count"] = counter;
-            HttpContext.Session.SetInt32("RAPSCounter", counter);
-        }
     }
 }

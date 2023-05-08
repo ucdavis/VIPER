@@ -15,91 +15,128 @@
 </head>
 <body>
     @Html.AntiForgeryToken()
-    <div id="siteHeaderNav">
-        <div class="q-pa-sm">
-            <div>
-                <q-toolbar class="bg-primary text-white">
-                    <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
-                        @await Component.InvokeAsync("MiniNav",
-                            new {
-                                user = UserHelper.GetCurrentUser()
-                            }
-                        )
-                    </q-btn>
-                    <q-btn flat dense label="Viper 2.0" class="lt-md" href="@Url.Content("~/")"></q-btn>
+    <q-layout view="hHh lpR fFf">
+        <q-header elevated class="bg-primary text-white" height-hint="98">
 
-                    @if (HttpHelper.Environment?.EnvironmentName == "Development")
-                    {
-                        <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0 -- DEVELOPMENT" href="@Url.Content("~/")"></q-btn>                        
-                    }
-                    else if (HttpHelper.Environment?.EnvironmentName == "Test")
-                    {
-                        <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0 - TEST" href="@Url.Content("~/")"></q-btn>
-                    }
-                    else
-                    {
-                        <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0" href="@Url.Content("~/")"></q-btn>
-                    }
-                    
-                    <q-space></q-space>
-                    @*TODO - create sitemap and link search tool*@
-                    <q-input rounded dense standout v-model="text" color="white" label="Search" bg-color="grey" class="q-pa-xs">
-                        <q-btn flat round dense icon="search" color="black"></q-btn>
-                    </q-input>                    
-        
-                    @await Component.InvokeAsync("ProfilePic", 
-                        new {
-                            userName = UserHelper.GetCurrentUser()?.LoginId
-                        }
-                    )
-
-                    <q-btn flat round dense icon="logout" class="q-mr-xs" href="@Url.Content("~/logout")">
-                        <q-tooltip>
-                            Logout
-                        </q-tooltip>
-                    </q-btn>
-                </q-toolbar>
-
-                @await Component.InvokeAsync("MainNav",
+            <q-toolbar class="bg-primary text-white">
+                <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
+                    @await Component.InvokeAsync("MiniNav",
                     new {
-                        user = UserHelper.GetCurrentUser()
+                    user = UserHelper.GetCurrentUser()
                     }
+                    )
+                </q-btn>
+                <q-btn flat dense icon="list" class="q-mr-xs lt-md" @@click="mainLeftDrawer = !mainLeftDrawer"></q-btn>
+                <q-btn flat dense label="Viper 2.0" class="lt-md" href="@Url.Content("~/")"></q-btn>
+
+                @if (HttpHelper.Environment?.EnvironmentName == "Development")
+                {
+                    <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0 -- DEVELOPMENT" href="@Url.Content("~/")"></q-btn>
+                }
+                else if (HttpHelper.Environment?.EnvironmentName == "Test")
+                {
+                    <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0 - TEST" href="@Url.Content("~/")"></q-btn>
+                }
+                else
+                {
+                    <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0" href="@Url.Content("~/")"></q-btn>
+                }
+
+                <q-space></q-space>
+                <q-input rounded dense standout v-model="text" color="white" label="Search" bg-color="grey" class="q-pa-xs">
+                    <q-btn flat round dense icon="search" color="black"></q-btn>
+                </q-input>
+
+                @await Component.InvokeAsync("ProfilePic",
+                new {
+                userName = UserHelper.GetCurrentUser()?.LoginId
+                }
                 )
 
-            </div>
-        </div>
-    </div>
-    <div class="container">
-        <main role="main" class="q-layout-padding">
-            @RenderBody()
-        </main>
-    </div>
+                <q-btn flat round dense icon="logout" class="q-mr-xs" href="@Url.Content("~/logout")">
+                    <q-tooltip>
+                        Logout
+                    </q-tooltip>
+                </q-btn>
+            </q-toolbar>
 
-    <footer class="border-top footer text-muted">
-        <div class="container" id="siteFooter">
+            @await Component.InvokeAsync("MainNav",
+            new {
+            user = UserHelper.GetCurrentUser()
+            }
+            )
+            
+        </q-header>
+
+       
+        <q-drawer v-model="mainLeftDrawer" show-if-above elevated side="left" :mini="!mainLeftDrawer || mainLeftMiniState" @@click.capture="drawerClick">
+            <template v-slot:mini>
+                <q-scroll-area class="fit mini-slot">
+                    <div class="q-ma-sm">
+                        <div class="column items-start">
+                            <q-btn icon="chevron_right" color="secondary" round dense unelevated class="q-mini-drawer-show" @@click="mainLeftMiniState = false"></q-btn>
+                        </div>
+                    </div>
+                </q-scroll-area>
+            </template>
+            <template v-slot:default>
+                <div class="q-pa-sm">
+                    <q-btn dense
+                        round
+                        unelevated
+                        color="secondary"
+                        icon="close"
+                        class="float-right lt-md"
+                        @@click="mainLeftDrawer = false"></q-btn>
+
+                    <div v-for="n in 50" :key="n">Drawer {{ n }} / 50</div>
+
+                </div>
+                <div class="q-mini-drawer-hide absolute" style="top: 10px; right: -15px">
+                    <q-btn dense
+                           round
+                           unelevated
+                           color="secondary"
+                           icon="chevron_left"
+                           @@click="mainLeftMiniState = true" ></q-btn>
+                </div>
+            </template>
+        </q-drawer>
+
+        <q-page-container>
+            <div class="q-pa-md">
+            @RenderBody()
+            </div>
+        </q-page-container>
+
+        <q-footer elevated class="bg-white">
             <div class="q-pa-md q-gutter-xs text-caption">
-                <hr />
                 <div id="ucdavislogo" class="float-right">
                     <a href="@HttpHelper.GetOldViperRootURL()"><img src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg" alt="UC Davis Veterinary Medicine logo" border="0" width="134" height="24"></a>
                 </div>
                 <q-breadcrumbs separator=" | " active-color="primary" class="text-primary">
                     <q-breadcrumbs-el icon="help_center" label="SVM-IT ServiceDesk" href="https://svmithelp.vetmed.ucdavis.edu/"></q-breadcrumbs-el>
                     <q-breadcrumbs-el label="SVM Home" icon="navigation" href="http://www.vetmed.ucdavis.edu/"></q-breadcrumbs-el>
-                    <q-breadcrumbs-el label="UC Davis" icon="school" href="http://www.ucdavis.edu/" ></q-breadcrumbs-el>
+                    <q-breadcrumbs-el label="UC Davis" icon="school" href="http://www.ucdavis.edu/"></q-breadcrumbs-el>
                 </q-breadcrumbs>
-                <div class="q-pa-none">
+                <div class="q-pa-none text-black">
                     &copy; 2023 School of Veterinary Medicine
                 </div>
             </div>
-        </div>
-    </footer>
+        </q-footer>
+
+    </q-layout>
+
     <script src="~/lib/jquery/jquery.min.js"></script>
-    <script src="~/lib/vue/vue.global.min.js"></script>
-    <script src="~/lib/quasar/dist/quasar.umd.min.js"></script>
+    <script src="~/lib/vue/vue.global.prod.js"></script>
+    <script src="~/lib/quasar/dist/quasar.umd.prod.js"></script>
     <script asp-add-nonce="true">
         // define global Vue objects
-        const { createApp, ref, computed, watch } = Vue;
-        let vueSetup = {};
+        const { createApp, ref, computed, watch, nextTick, toRaw } = Vue;
+        let vueSetupActions = [];
+        let vueSetupObjects = {};
+        vueSetupObjects.mainLeftDrawer = ref(false);
+        vueSetupObjects.mainLeftMiniState = ref(false);
         let vueObjects = {};
         let vueMethods = {};
         let vueWatchers = {};
@@ -112,7 +149,7 @@
         var vueBeforeUnmountActions = [];
         var vueUnmountedActions = [];
         var vueBeforeUpdateActions = [];
-        var vueUpdatedActions = [];
+        var vueUpdatedActions = [];        
     </script>
 
     @* Pages or controls can update the global VUE objects
@@ -144,7 +181,11 @@
         // initialize VUE and Quasar using global objects
         createApp({
             setup(){
-                return vueSetup
+                while (vueSetupActions.length) {
+                    vueSetupActions.shift().call(this);
+                }
+
+                return vueSetupObjects
             },
             data() {
                 return vueObjects
@@ -198,7 +239,7 @@
         @if (HttpHelper.Environment?.EnvironmentName == "Development")
         {
             <text>
-            Quasar.setCssVar('primary', '#090');
+            Quasar.setCssVar('primary', '#092');
             </text>
         }
         else if (HttpHelper.Environment?.EnvironmentName == "Test")
