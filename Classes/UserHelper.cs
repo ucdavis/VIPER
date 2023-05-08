@@ -31,6 +31,8 @@ namespace Viper
                             join memberRoles in rapsContext.TblRoleMembers
                                 on role.RoleId equals memberRoles.RoleId
                             where memberRoles.MemberId == user.MothraId
+                            && (memberRoles.StartDate == null || memberRoles.StartDate <= DateTime.Today)
+                            && (memberRoles.EndDate == null || memberRoles.EndDate >= DateTime.Today)
                             select role).ToList();
                 });
 
@@ -106,19 +108,23 @@ namespace Viper
         /// </summary>
         /// <param name="rapsContext">Dependency injection of the context</param>
         /// <param name="user">Must pass an AaudUser object</param>
+        /// <param name="deny">if true, return assigned permissions with deny flag set</param>
         /// <returns>Enumerable list of permission items assigned directly to the user</returns>
-        public static IEnumerable<TblPermission> GetAssignedPermissions(RAPSContext rapsContext, AaudUser user)
+        public static IEnumerable<TblPermission> GetAssignedPermissions(RAPSContext rapsContext, AaudUser user, Boolean deny=false)
         {
             var result = new List<TblPermission>();
 
             if (HttpHelper.Cache != null && rapsContext != null)
             {
-                result = HttpHelper.Cache.GetOrCreate("PermissionsAssigned-" + user.LoginId, entry =>
+                result = HttpHelper.Cache.GetOrCreate("PermissionsAssigned-" + user.LoginId + "-" + deny, entry =>
                 {
                     return (from permission in rapsContext.TblPermissions
                             join memberPermissions in rapsContext.TblMemberPermissions
                                 on permission.PermissionId equals memberPermissions.PermissionId
                             where memberPermissions.MemberId == user.MothraId
+                            && memberPermissions.Access == (deny ? 0 : 1)
+                            && (memberPermissions.StartDate == null || memberPermissions.StartDate <= DateTime.Today)
+                            && (memberPermissions.EndDate == null || memberPermissions.EndDate >= DateTime.Today)
                             select permission).ToList();
                 });
 
@@ -146,14 +152,15 @@ namespace Viper
         /// </summary>
         /// <param name="rapsContext">Dependency injection of the context</param>
         /// <param name="user">Must pass an AaudUser object</param>
+        /// <param name="deny">if true, return permissions with deny flag set on tblRolePermissions</param>
         /// <returns>Enumerable list of permission items assigned to the user from roles</returns>
-        public static IEnumerable<TblPermission> GetInheritedPermissions(RAPSContext rapsContext, AaudUser user)
+        public static IEnumerable<TblPermission> GetInheritedPermissions(RAPSContext rapsContext, AaudUser user, Boolean deny = false)
         {
             var result = new List<TblPermission>();
 
             if (HttpHelper.Cache != null && rapsContext != null)
             {
-                result = HttpHelper.Cache.GetOrCreate("PermissionsInherited-" + user.LoginId, entry =>
+                result = HttpHelper.Cache.GetOrCreate("PermissionsInherited-" + user.LoginId + "-" + deny, entry =>
                 {
                     return (from permission in rapsContext.TblPermissions
                             join rolePermissions in rapsContext.TblRolePermissions
@@ -161,6 +168,9 @@ namespace Viper
                             join memberRole in rapsContext.TblRoleMembers
                                 on rolePermissions.RoleId equals memberRole.RoleId
                             where memberRole.MemberId == user.MothraId
+                            && rolePermissions.Access == (deny ? 0 : 1)
+                            && (memberRole.StartDate == null || memberRole.StartDate <= DateTime.Today)
+                            && (memberRole.EndDate == null || memberRole.EndDate >= DateTime.Today)
                             select permission).ToList();
                 });
 
@@ -191,9 +201,14 @@ namespace Viper
         /// <returns>Returns a list of all permission items assigned to the user either from roles or directly</returns>
         public static IEnumerable<TblPermission> GetAllPermissions(RAPSContext rapsContext, AaudUser user)
         {
+            var assignedDeny = GetAssignedPermissions(rapsContext, user, true);
+            var inheritedDeny = GetInheritedPermissions(rapsContext, user, true);
+
             var assigned = GetAssignedPermissions(rapsContext, user);
             var inherited = GetInheritedPermissions(rapsContext, user);
-            return assigned.Union(inherited);
+            return assigned
+                .Union(inherited)
+                .Except(assignedDeny.Union(inheritedDeny));
         }
         #endregion
 
@@ -209,11 +224,11 @@ namespace Viper
         {
             if (rapsContext != null && user != null)
             {
-                var perrmissions = GetAllPermissions(rapsContext, user);
+                var permissions = GetAllPermissions(rapsContext, user);
 
                 TblPermission test = new TblPermission();
 
-                if (perrmissions.Any(p => p.Permission.ToLower() == permissionName.ToLower()))
+                if (permissions.Any(p => p.Permission.ToLower() == permissionName.ToLower()))
                 {
                     return true;
                 }
