@@ -1,0 +1,222 @@
+﻿<q-table id="@ViewData["UniquePrepend"]VueTable" wrap-cells bordered
+         :dense="$q.screen.lt.lg"
+         :grid="$q.screen.xs"
+         title="All Roles"
+         :columns="@ViewData["UniquePrepend"]columns"
+         :rows="@ViewData["UniquePrepend"]rows"
+         row-key="@ViewData["KeyColumnName"]"
+         ref="@ViewData["UniquePrepend"]tableRef"
+         v-model:pagination="@ViewData["UniquePrepend"]pagination"
+         :rows-per-page-options="[25,50,100,0]"
+         selection="single"
+         :visible-columns="@ViewData["UniquePrepend"]visibleColumns"
+         no-data-label="No records were found"
+         no-results-label="[FILTERED RESULTS] No records were found"
+         v-model:selected="@ViewData["UniquePrepend"]selected"
+         separator="cell"
+         :filter="@ViewData["UniquePrepend"]filter"
+         @@row-click="@ViewData["UniquePrepend"]onRowClick"
+         @@focusin="@ViewData["UniquePrepend"]activateNavigation"
+         @@focusout="@ViewData["UniquePrepend"]deactivateNavigation"
+         @@keydown="@ViewData["UniquePrepend"]onKey">
+    <template v-slot:top="props">
+        <q-btn dense
+               color="secondary"
+               icon-right="download"
+               label="Export"
+               no-caps class="gt-sm"
+               @@click="@ViewData["UniquePrepend"]exportTable"></q-btn>
+        <q-space class=""></q-space>
+        <q-select label="Show/Hide"
+                  v-model="@ViewData["UniquePrepend"]visibleColumns"
+                  multiple
+                  outlined
+                  dense
+                  options-dense
+                  :display-value="$q.lang.table.columns"
+                  :fullscreen="fullscreen"
+                  emit-value
+                  map-options
+                  :options="@ViewData["UniquePrepend"]columns"
+                  option-value="name"
+                  options-cover
+                  style="min-width: 100px"></q-select>
+        <q-input class="q-ml-xs q-mr-xs" dense outlined debounce="300" v-model="@ViewData["UniquePrepend"]filter" placeholder="Filer Results">
+            <template v-slot:append>
+                <q-icon name="filter_alt" />
+            </template>
+        </q-input>
+        <q-btn dense
+               flat class="gt-sm"
+               :icon="props.inFullscreen ? 'fullscreen_exit' : 'fullscreen'"
+               @@click="props.toggleFullscreen"></q-btn>
+    </template>
+</q-table>
+
+<script asp-add-nonce="true">
+    vueSetupObjects.@ViewData["UniquePrepend"]columns = @Html.Raw(ViewData["Columns"]);
+    vueSetupObjects.@ViewData["UniquePrepend"]rows = @Html.Raw(ViewData["Rows"]);
+    vueSetupObjects.@ViewData["UniquePrepend"]visibleColumns = ref(@Html.Raw(ViewData["VisibleColumns"]));
+
+    function @ViewData["UniquePrepend"]wrapCsvValue(val, formatFn, row) {
+        let formatted = formatFn !== void 0
+            ? formatFn(val, row)
+            : val
+
+        formatted = formatted === void 0 || formatted === null
+            ? ''
+            : String(formatted)
+
+        formatted = formatted.split('"').join('""')
+            /**
+            * Excel accepts \n and \r in strings, but some other CSV parsers do not
+            * Uncomment the next two lines to escape new lines
+            */
+            .split('\n').join('\\n')
+            .split('\r').join('\\r')
+
+        return `"${formatted}"`
+    }
+
+    vueSetupObjects.@ViewData["UniquePrepend"]tableRef = ref(null);
+    vueSetupObjects.@ViewData["UniquePrepend"]navigationActive = ref(false);
+    vueSetupObjects.@ViewData["UniquePrepend"]pagination = ref({});
+    vueSetupObjects.@ViewData["UniquePrepend"]selected = ref([]);
+    vueSetupObjects.@ViewData["UniquePrepend"]filter = ref('');
+    vueSetupObjects.@ViewData["UniquePrepend"]activateNavigation = function () {
+        vueSetupObjects.@ViewData["UniquePrepend"]navigationActive.value = true
+    }
+    vueSetupObjects.@ViewData["UniquePrepend"]deactivateNavigation = function () {
+        vueSetupObjects.@ViewData["UniquePrepend"]navigationActive.value = false
+    }
+
+    vueMethods.@ViewData["UniquePrepend"]onRowClick = function (evt, row) {
+        const { computedRows } = vueSetupObjects.@ViewData["UniquePrepend"]tableRef.value;
+        vueSetupObjects.@ViewData["UniquePrepend"]selected.value =[computedRows[computedRows.indexOf(row)]]
+    };
+
+    vueSetupObjects.@ViewData["UniquePrepend"]onKey = function (evt) {
+
+        if (vueSetupObjects.@ViewData["UniquePrepend"]navigationActive.value !== true || [33, 34, 35, 36, 38, 40].indexOf(evt.keyCode) === -1 || vueSetupObjects.@ViewData["UniquePrepend"]tableRef.value === null) {
+            return
+        }
+
+        evt.preventDefault()
+
+        const { computedRowsNumber, computedRows } = vueSetupObjects.@ViewData["UniquePrepend"]tableRef.value
+
+        if (computedRows.length === 0) {
+            return
+        }
+
+        const currentIndex = vueSetupObjects.@ViewData["UniquePrepend"]selected.value.length > 0 ? computedRows.indexOf(toRaw(vueSetupObjects.@ViewData["UniquePrepend"]selected.value[0])) : -1
+        const currentPage = vueSetupObjects.@ViewData["UniquePrepend"]pagination.value.page
+        const rowsPerPage = vueSetupObjects.@ViewData["UniquePrepend"]pagination.value.rowsPerPage === 0 ? computedRowsNumber : vueSetupObjects.@ViewData["UniquePrepend"]pagination.value.rowsPerPage
+        const lastIndex = computedRows.length - 1
+        const lastPage = Math.ceil(computedRowsNumber / rowsPerPage)
+
+        let index = currentIndex
+        let page = currentPage
+        let isUp = false;
+
+        switch (evt.keyCode) {
+            case 36: // Home
+                page = 1
+                index = 0
+                isUp = true
+                break
+            case 35: // End
+                page = lastPage
+                index = rowsPerPage - 1
+                break
+            case 33: // PageUp
+                page = currentPage <= 1 ? lastPage : currentPage - 1
+                if (index < 0) {
+                    index = 0
+                }
+                isUp = true
+                break
+            case 34: // PageDown
+                page = currentPage >= lastPage ? 1 : currentPage + 1
+                if (index < 0) {
+                    index = rowsPerPage - 1
+                }
+                break
+            case 38: // ArrowUp
+                if (currentIndex <= 0) {
+                    page = currentPage <= 1 ? lastPage : currentPage - 1
+                    index = rowsPerPage - 1
+                }
+                else {
+                    index = currentIndex - 1
+                }
+                isUp = true
+                break
+            case 40: // ArrowDown
+                if (currentIndex >= lastIndex) {
+                    page = currentPage >= lastPage ? 1 : currentPage + 1
+                    index = 0
+                }
+                else {
+                    index = currentIndex + 1
+                }
+                break
+        }
+
+        if (page !== vueSetupObjects.@ViewData["UniquePrepend"]pagination.value.page) {
+            vueSetupObjects.@ViewData["UniquePrepend"]pagination.value.page = page
+
+            nextTick(() => {
+                const { computedRows } = vueSetupObjects.@ViewData["UniquePrepend"]tableRef.value
+                vueSetupObjects.@ViewData["UniquePrepend"]selected.value =[computedRows[Math.min(index, computedRows.length - 1)]]
+                vueSetupObjects.@ViewData["UniquePrepend"]tableRef.value.$el.focus();
+
+                if (isUp) {
+                    index = index - 1;
+                }
+
+                vueSetupObjects.@ViewData["UniquePrepend"]tableRef.value.scrollTo(index);
+            })
+        }
+        else {
+            vueSetupObjects.@ViewData["UniquePrepend"]selected.value =[computedRows[index]];
+            vueSetupObjects.@ViewData["UniquePrepend"]tableRef.value.$el.focus();
+
+            if (isUp) {
+                index = index - 1;
+            }
+            vueSetupObjects.@ViewData["UniquePrepend"]tableRef.value.scrollTo(index);
+        }
+    }
+
+    vueSetupObjects.@ViewData["UniquePrepend"]exportTable = function () {
+        // naive encoding to csv format
+        const content = [vueSetupObjects.@ViewData["UniquePrepend"]columns.map(col => @ViewData["UniquePrepend"]wrapCsvValue(col.label))].concat(
+            vueSetupObjects.@ViewData["UniquePrepend"]rows.map(row => vueSetupObjects.@ViewData["UniquePrepend"]columns.map(col => @ViewData["UniquePrepend"]wrapCsvValue(
+                typeof col.field === 'function'
+                    ? col.field(row)
+                    : row[col.field === void 0 ? col.name : col.field],
+                col.format,
+                row
+            )).join(','))
+        ).join('\r\n')
+
+        const { useQuasar, exportFile } = Quasar;
+        const $q = useQuasar();
+
+        const status = exportFile(
+            'table-export.csv',
+            content,
+            'text/csv'
+        )
+
+        if (status !== true) {
+            $q.notify({
+                message: 'Browser denied file download...',
+                color: 'negative',
+                icon: 'warning'
+            })
+        }
+    }    
+
+</script>

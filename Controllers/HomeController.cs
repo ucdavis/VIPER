@@ -9,6 +9,7 @@ using System.Xml.Linq;
 using Viper.Models;
 using Web.Authorization;
 using Microsoft.Extensions.Options;
+using Viper.Classes;
 
 namespace Viper.Controllers
 {    
@@ -30,6 +31,7 @@ namespace Viper.Controllers
         /// </summary>
         /// <returns></returns>
         [AllowAnonymous]
+        [SearchName(FriendlyName = "Viper 2 Homepage")]
         public IActionResult Index()
         {
             return View();
@@ -40,6 +42,7 @@ namespace Viper.Controllers
         /// </summary>
         [Route("/[action]")]
         [AllowAnonymous]
+        [SearchExclude]
         public IActionResult Login()
         {
             var authorizationEndpoint = settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(Request, new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(Request.Query["ReturnUrl"]));
@@ -52,6 +55,7 @@ namespace Viper.Controllers
         /// </summary>
         [Route("/[action]")]
         [AllowAnonymous]
+        [SearchExclude]
         public async Task<IActionResult> CasLogin()
         {
             return await AuthenticateCasLogin();
@@ -62,6 +66,7 @@ namespace Viper.Controllers
         /// </summary>
         [Route("/[action]")]
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        [SearchExclude]
         public IActionResult Error()
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
@@ -74,6 +79,7 @@ namespace Viper.Controllers
         [Route("/[action]/{statusCode}")]
         [AllowAnonymous]
         [IgnoreAntiforgeryToken]
+        [SearchExclude]
         public IActionResult Error(int? statusCode = null)
         {
             ViewBag.errorMessage = HttpContext.Items["ErrorMessage"];
@@ -101,6 +107,7 @@ namespace Viper.Controllers
         /// </summary>
         /// <returns></returns>
         [Route("/[action]")]
+        [SearchExclude]
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);

@@ -1,7 +1,9 @@
 ﻿// Adapted from https://dotnetthoughts.net/generate-dynamic-xml-sitemaps-in-aspnet5/
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
 using System.Text;
+using Web.Authorization;
 
 namespace Viper.Classes
 {
@@ -41,12 +43,29 @@ namespace Viper.Classes
 
                         foreach (var method in methods)
                         {
-                            string url = string.Format("{0}/{1}/{2}", _rootUrl, controller.Name.ToLower().Replace("controller", ""), method.Name.ToLower());
-                            string lastMod = DateTime.UtcNow.ToString("yyyy-MM-dd").ToString();
+                            Attribute? anonAttribute = method.GetCustomAttribute(typeof(AllowAnonymousAttribute));
+                            Attribute? anonAttributeClass = method.DeclaringType?.GetCustomAttribute(typeof(AllowAnonymousAttribute));
+                            Attribute? authAttribute = method.GetCustomAttribute(typeof(AuthorizeAttribute));
+                            Attribute? permAttribute = method.GetCustomAttribute(typeof(PermissionAttribute));
+                            Attribute? excludeAttribute = method.GetCustomAttribute(typeof(SearchExcludeAttribute));
+                            Attribute? excludeAttributeClass = method.DeclaringType?.GetCustomAttribute(typeof(SearchExcludeAttribute));
 
-                            if (!URLs.ContainsKey(url))
+                            if (((anonAttribute != null  // method is anonymous
+                                    || anonAttributeClass != null  // or class is anonymous
+                                )
+                                && (authAttribute == null // and method does not have authorize arrtribute 
+                                    || permAttribute == null // or method does not have permission arrtribute
+                                ))
+                                && excludeAttribute == null && excludeAttributeClass == null) // and method and class do not have "search exclude" attribute
                             {
-                                URLs.Add(url, lastMod);
+                                string url = string.Format("{0}/{1}/{2}", _rootUrl, controller.Name.ToLower().Replace("controller", ""), method.Name.ToLower());
+                                string lastMod = DateTime.UtcNow.ToString("yyyy-MM-dd").ToString();
+
+                                if (!URLs.ContainsKey(url))
+                                {
+                                    URLs.Add(url, lastMod);
+                                }
+
                             }
 
                         }
