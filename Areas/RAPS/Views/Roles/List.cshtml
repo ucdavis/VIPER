@@ -1,0 +1,47 @@
+﻿
+<div class="roleList" v-if="rolesLoaded">
+    <table class="table q-table q-table--bordered q-table--horizontal-separator">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Role</th>
+                <th>Member List</th>
+                <th>Explicit Members</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr v-for="role in roles">
+                <td>
+                    <q-btn size="sm" color="primary" square flat icon="edit" :href="'RAPS/RoleEdit/?RoleId=' + role.roleId"></q-btn>
+                    <q-btn size="sm" color="primary" square flat icon="person" :href="'RAPS/RoleMembers/?RoleId=' + role.roleId"></q-btn>
+                    <q-btn size="sm" color="primary" square flat icon="lock" :href="'RAPS/RolePermissions/?RoleId=' + role.roleId"></q-btn>
+                </td>
+                <td>
+                    {{role.role}}
+                    <br />
+                    <span style="font-size:.9em">{{role.description}}</span>
+                </td>
+                <td>{{role.viewName}}</td>
+                <td>{{role.tblRoleMembers.length}}</td>
+            </tr>
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="4">Length {{roles.length}}</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+@section Scripts {
+    <script asp-add-nonce="true">
+    vueObjects.roles = []
+    vueObjects.rolesLoaded = false
+    vueMethods.loadRoles = async function() {
+        var res = await fetch("/RAPS/Roles")
+        this.roles = await res.json()
+        this.rolesLoaded = true
+    }
+    vueMountedActions.push(async function(){this.loadRoles()})
+    </script>
+}

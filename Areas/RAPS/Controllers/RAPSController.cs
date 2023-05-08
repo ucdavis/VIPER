@@ -54,5 +54,27 @@ namespace Viper.Areas.RAPS.Controllers
             ViewData["Count"] = counter;
             HttpContext.Session.SetInt32("RAPSCounter", counter);
         }
+
+        /*Testing Role view/edit functions with client side UI*/
+
+        [Route("/[area]/[action]")]
+        public async Task<IActionResult> Roles()
+        {
+            return View("~/Areas/RAPS/Views/Roles/List.cshtml");
+        }
+
+        [Route("/[area]/[action]/{RoleId?}")]
+        public async Task<IActionResult> RoleEdit(int? RoleId)
+        {
+            ViewData["RoleId"] = RoleId;
+            return View("~/Areas/RAPS/Views/Roles/Edit.cshtml");
+        }
+
+        [Route("/[area]/[action]")]
+        public async Task<IActionResult> RoleMembers(int RoleId)
+        {
+            ViewData["RoleId"] = RoleId;
+            return View("~/Areas/RAPS/Views/Roles/Members.cshtml");
+        }
     }
 }

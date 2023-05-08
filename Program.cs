@@ -5,11 +5,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Newtonsoft.Json;
 using Polly;
 using Polly.Extensions.Http;
 using Polly.Timeout;
 using System.Net;
 using System.Security.Claims;
+using System.Text.Json.Serialization;
 using Viper;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -18,7 +20,10 @@ using Web.Authorization;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllersWithViews().AddSessionStateTempDataProvider();
+builder.Services.AddControllersWithViews().AddSessionStateTempDataProvider().AddNewtonsoftJson(options =>
+    {
+        options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+    });
 
 // Add cache options and session
 builder.Services.AddDistributedMemoryCache();
