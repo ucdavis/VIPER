@@ -35,6 +35,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             return await _context.TblRoles
                 .Include((r => r.TblRoleMembers))
+                .OrderBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
                 .ToListAsync();
         }
 

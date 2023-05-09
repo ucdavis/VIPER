@@ -45,7 +45,7 @@ namespace Viper.Areas.RAPS.Controllers
         /*Testing Role view/edit functions with client side UI*/
 
         [Route("/[area]/[action]")]
-        public async Task<IActionResult> Roles()
+        public async Task<IActionResult> RoleList()
         {
             return View("~/Areas/RAPS/Views/Roles/List.cshtml");
         }

@@ -1,5 +1,5 @@
 ﻿
-<div class="roleList" v-if="rolesLoaded">
+<div class="roleList" v-if="!rolesLoading">
     <table class="table q-table q-table--bordered q-table--horizontal-separator">
         <thead>
             <tr>
@@ -25,22 +25,23 @@
                 <td>{{role.tblRoleMembers.length}}</td>
             </tr>
         </tbody>
-        <tfoot>
-            <tr>
-                <td colspan="4">Length {{roles.length}}</td>
-            </tr>
-        </tfoot>
     </table>
 </div>
+
+@*
+<q-table :loading="rolesLoading" :rows="roles">
+
+</q-table>
+*@
 
 @section Scripts {
     <script asp-add-nonce="true">
     vueObjects.roles = []
-    vueObjects.rolesLoaded = false
+    vueObjects.rolesLoading = true
     vueMethods.loadRoles = async function() {
         var res = await fetch("/RAPS/Roles")
         this.roles = await res.json()
-        this.rolesLoaded = true
+        this.rolesLoading = false
     }
     vueMountedActions.push(async function(){this.loadRoles()})
     </script>
