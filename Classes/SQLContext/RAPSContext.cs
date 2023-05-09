@@ -294,10 +294,18 @@ public partial class RAPSContext : DbContext
             entity.Property(e => e.AppRoleId).HasColumnName("AppRoleID");
             entity.Property(e => e.RoleId).HasColumnName("RoleID");
 
+            entity.HasOne(e => e.Role)
+                .WithMany(e => e.AppRoles)
+                .HasForeignKey(e => e.RoleId);
+            entity.HasOne(e => e.AppRole)
+                .WithMany(e => e.ChildRoles)
+                .HasForeignKey(e => e.AppRoleId);
+            /*
             entity.HasOne(d => d.Role).WithMany(p => p.TblAppRoles)
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_tblDelRoles_tblRoles");
+            */
         });
 
         modelBuilder.Entity<TblLog>(entity =>

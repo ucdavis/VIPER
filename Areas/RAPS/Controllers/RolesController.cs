@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -13,12 +14,20 @@ using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Controllers
 {
-    [Route("raps/[controller]")]
+    [Route("raps/{Instance=VIPER}/[controller]")]
     [ApiController]
     [Authorize(Roles = "IT Leadership & Supervisors,ITS_Operations,ITS_Programmers,VMDO CATS-Programmers,VMDO CATS-Techs,VMDO SVM-IT", Policy = "2faAuthentication")]
     public class RolesController : ControllerBase
     {
         private readonly RAPSContext _context;
+
+        private static Expression<Func<TblRole, bool>> FilterToInstance(string Instance)
+        {
+            return r =>
+                Instance == "VIPER"
+                ? !r.Role.StartsWith("VMACS.") && !r.Role.StartsWith("VIPERForms")
+                : r.Role.StartsWith(Instance);
+        }
 
         public RolesController(RAPSContext context)
         {
@@ -27,7 +36,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         // GET: Roles
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TblRole>>> GetTblRoles()
+        public async Task<ActionResult<IEnumerable<TblRole>>> GetTblRoles(string Instance, int? Application)
         {
             if (_context.TblRoles == null)
             {
@@ -35,6 +44,8 @@ namespace Viper.Areas.RAPS.Controllers
             }
             return await _context.TblRoles
                 .Include((r => r.TblRoleMembers))
+                .Where((r => Application == null || r.Application == Application))
+                .Where(FilterToInstance(Instance))
                 .OrderBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
                 .ToListAsync();
         }

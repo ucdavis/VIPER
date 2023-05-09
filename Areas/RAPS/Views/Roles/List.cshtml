@@ -1,46 +1,100 @@
-﻿
-<div class="roleList" v-if="!rolesLoading">
-    <table class="table q-table q-table--bordered q-table--horizontal-separator">
-        <thead>
-            <tr>
-                <th></th>
-                <th>Role</th>
-                <th>Member List</th>
-                <th>Explicit Members</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr v-for="role in roles">
-                <td>
-                    <q-btn size="sm" color="primary" square flat icon="edit" :href="'RAPS/RoleEdit/?RoleId=' + role.roleId"></q-btn>
-                    <q-btn size="sm" color="primary" square flat icon="person" :href="'RAPS/RoleMembers/?RoleId=' + role.roleId"></q-btn>
-                    <q-btn size="sm" color="primary" square flat icon="lock" :href="'RAPS/RolePermissions/?RoleId=' + role.roleId"></q-btn>
-                </td>
-                <td>
-                    {{role.role}}
-                    <br />
-                    <span style="font-size:.9em">{{role.description}}</span>
-                </td>
-                <td>{{role.viewName}}</td>
-                <td>{{role.tblRoleMembers.length}}</td>
-            </tr>
-        </tbody>
-    </table>
+﻿<div class="q-pa-md">
+    <q-table title="Delegate Roles"
+             dense
+             row-key="roleId"
+             :loading="rolesLoading"
+             :rows="delegateRoles" 
+             :columns="rolesColumns"
+             :pagination="roleListPagination">
+        <template v-slot:body-cell-roleid="props">
+            <q-td :props="props">
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers/?RoleId=' + props.row.roleId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'RolePermissions/?RoleId=' + props.row.roleId"></q-btn>
+            </q-td>
+        </template>
+        <template v-slot:body-cell-role="props">
+            <q-td :props="props">
+                <a :href="'RoleEdit/?RoleId=' + props.row.roleId">{{props.row.role}}</a>
+                <br />
+                <span style="font-size:.9em">{{props.row.description}}</span>
+            </q-td>
+        </template>
+    </q-table>
+
+    <q-table title="Roles"
+            dense
+            row-key="roleId"
+            :loading="rolesLoading" 
+            :rows="roles" 
+            :columns="rolesColumns" 
+            :filter="roleListFilter" 
+            :pagination="roleListPagination">
+        <template v-slot:top-right="props">
+            <q-input class="q-ml-xs q-mr-xs" v-model="roleListFilter" dense outlined debounce="300" placeholder="Filter Results">
+                <template v-slot:append>
+                    <q-icon name="filter_alt" />
+                </template>
+            </q-input>
+        </template>
+        <template v-slot:body-cell-roleid="props">
+            <q-td :props="props">
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers/?RoleId=' + props.row.roleId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'RolePermissions/?RoleId=' + props.row.roleId"></q-btn>
+            </q-td>
+        </template>
+        <template v-slot:body-cell-role="props">
+            <q-td :props="props">
+                <a :href="'RoleEdit/?RoleId=' + props.row.roleId">{{props.row.role}}</a>
+                <br />
+                <span style="font-size:.9em">{{props.row.description}}</span>
+            </q-td>
+        </template>
+    </q-table>
 </div>
-
-@*
-<q-table :loading="rolesLoading" :rows="roles">
-
-</q-table>
-*@
 
 @section Scripts {
     <script asp-add-nonce="true">
     vueObjects.roles = []
+    vueObjects.delegateRoles = []
     vueObjects.rolesLoading = true
+    vueObjects.rolesColumns = []
+    vueObjects.roleListFilter = ""
+    vueObjects.roleListPagination = { rowsPerPage: 10 }
+    vueObjects.rolesColumns = [
+        { name: "roleid", label: "", field: "roleId", align: "left" },
+        { name: "role", label: "Role", field: "role", align: "left" },
+        { name: "viewname", label: "Member List", field: "viewName", align: "left" },
+        { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left" }
+    ]
     vueMethods.loadRoles = async function() {
-        var res = await fetch("/RAPS/Roles")
-        this.roles = await res.json()
+        var roleResult = await fetch("Roles?Application=0")
+        var delegateRolesResult = await fetch("Roles?Application=1")
+
+        var tempRoles = await roleResult.json()
+        var tempRoles = tempRoles.map(function (r) {
+            return {
+                roleId: r.roleId,
+                role: (r.displayName ? r.displayName : r.role),
+                description: r.description,
+                viewName: r.viewName,
+                membersCount: r.tblRoleMembers.length
+            }
+        })
+
+        var tempDRoles = await delegateRolesResult.json()
+        this.delegateRoles = tempDRoles.map(function (r) {
+            return {
+                roleId: r.roleId,
+                role: (r.displayName ? r.displayName : r.role),
+                description: r.description,
+                viewName: r.viewName,
+                membersCount: r.tblRoleMembers.length
+            }
+        })
+      
+
+        this.roles = tempRoles
+        //this.delegateRoles = tempDRoles
         this.rolesLoading = false
     }
     vueMountedActions.push(async function(){this.loadRoles()})

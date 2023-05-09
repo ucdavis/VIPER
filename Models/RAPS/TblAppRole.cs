@@ -10,4 +10,5 @@ public partial class TblAppRole
     public int RoleId { get; set; }
 
     public virtual TblRole Role { get; set; } = null!;
+    public virtual TblRole AppRole { get; set; } = null!;
 }

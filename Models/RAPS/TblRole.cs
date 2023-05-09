@@ -30,7 +30,9 @@ public partial class TblRole
 
     public virtual ICollection<RoleTemplateRole> RoleTemplateRoles { get; set; } = new List<RoleTemplateRole>();
 
-    public virtual ICollection<TblAppRole> TblAppRoles { get; set; } = new List<TblAppRole>();
+    public virtual ICollection<TblAppRole> AppRoles { get; set; } = new List<TblAppRole>();
+
+    public virtual ICollection<TblAppRole> ChildRoles { get; set; } = new List<TblAppRole>();
 
     public virtual ICollection<TblRoleMember> TblRoleMembers { get; set; } = new List<TblRoleMember>();
 

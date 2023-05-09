@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Views.Shared.Components.VueTableDefault;
+using Viper.Models.RAPS;
+using Viper.Areas.RAPS.Services;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -44,9 +46,13 @@ namespace Viper.Areas.RAPS.Controllers
 
         /*Testing Role view/edit functions with client side UI*/
 
-        [Route("/[area]/[action]")]
-        public async Task<IActionResult> RoleList()
+        [Route("/[area]/{Instance=VIPER}/[action]")]
+        public async Task<IActionResult> RoleList(string Instance="VIPER")
         {
+            ViewData["Instance"] = Instance.ToUpper();
+
+            new RAPSSecurityService(_RAPSContext).getAppRolesForUser(UserHelper.GetCurrentUser().MothraId);
+
             return View("~/Areas/RAPS/Views/Roles/List.cshtml");
         }
 
