@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Polly;
+using Viper.Areas.RAPS.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 
@@ -20,6 +21,7 @@ namespace Viper.Areas.RAPS.Controllers
     public class RolesController : ControllerBase
     {
         private readonly RAPSContext _context;
+        private RAPSSecurityService _securityService;
 
         private static Expression<Func<TblRole, bool>> FilterToInstance(string Instance)
         {
@@ -32,6 +34,7 @@ namespace Viper.Areas.RAPS.Controllers
         public RolesController(RAPSContext context)
         {
             _context = context;
+            _securityService = new RAPSSecurityService(_context);
         }
 
         // GET: Roles
@@ -42,12 +45,30 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            return await _context.TblRoles
-                .Include((r => r.TblRoleMembers))
-                .Where((r => Application == null || r.Application == Application))
-                .Where(FilterToInstance(Instance))
-                .OrderBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
-                .ToListAsync();
+
+            if(_securityService.IsAllowedTo("ViewAllRoles", Instance))
+            {
+                return await _context.TblRoles
+                    .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
+                    .Where((r => Application == null || r.Application == Application))
+                    .Where(FilterToInstance(Instance))
+                    .OrderByDescending(r => r.Application)
+                    .ThenBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
+                    .ToListAsync();
+            }
+            else
+            {
+                List<int> controlledRoleIds = _securityService.GetControlledRoleIds(UserHelper.GetCurrentUser().MothraId);
+                List<TblRole> List = await _context.TblRoles
+                    .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
+                    .Where(r => r.Application == 0)
+                    .Where(r => controlledRoleIds.Contains(r.RoleId))
+                    .Where(FilterToInstance(Instance))
+                    .OrderBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
+                    .ToListAsync();
+
+                return List;
+            }
         }
 
         // GET: Roles/5

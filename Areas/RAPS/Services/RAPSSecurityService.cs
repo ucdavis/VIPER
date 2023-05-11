@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using System.Security.Cryptography;
 using Viper.Classes.SQLContext;
+using Viper.Models.AAUD;
 using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Services
@@ -14,7 +15,7 @@ namespace Viper.Areas.RAPS.Services
             _context = context;
         }
 
-        static public bool isValidInstance(string Instance)
+        static public bool IsValidInstance(string Instance)
         {
             switch(Instance)
             {
@@ -29,12 +30,12 @@ namespace Viper.Areas.RAPS.Services
             return false;
         }
 
-        static public bool isVMACSInstance(string Instance)
+        static public bool IsVMACSInstance(string Instance)
         {
             return Instance.StartsWith("VMACS.");
         }
 
-        public bool can(string action, string? Instance)
+        public bool IsAllowedTo(string action, string? Instance)
         {
             if(UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.Admin"))
             {
@@ -43,37 +44,35 @@ namespace Viper.Areas.RAPS.Services
             switch(action)
             {
                 case "ViewAllRoles":
-                    return Instance != null && isVMACSInstance(Instance) && UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.ViewRoles");
+                    return Instance != null && IsVMACSInstance(Instance) && UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.ViewRoles");
                 //case "EditRoleMembership": return UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.EditRoleMembership");
                 default:
                     return UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS." + action);
             }
         }
 
-        public bool can(string action, string? Instance, TblRole Role)
+        public bool IsAllowedTo(string action, string Instance, TblRole Role)
         {
-            if (UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.Admin"))
+            AaudUser User = UserHelper.GetCurrentUser();
+            if (UserHelper.HasPermission(_context, User, "RAPS.Admin"))
             {
                 return true;
             }
 
-            List<TblRole> roles = _context.TblRoles
-                .Where((r => r.Application == 1))
-                //.Include((r => r.TblAppRoles))
-                .ToList();
             switch (action)
             {
-                case "EditRoleMembership": 
-                    return UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.EditRoleMembership");
+                case "EditRoleMembership":
+                    List<int> controlledRoleIds = GetControlledRoleIds(User.MothraId);
+                    return controlledRoleIds.Contains(Role.RoleId)
+                            || UserHelper.HasPermission(_context, User, "RAPS.EditRoleMembership");
                 default:
                     return false;
             }
         }
 
-        public List<TblRole> getAppRolesForUser(string userId)
+        public List<TblRole> GetAppRolesForUser(string userId)
         {
             List<TblRole> roles = _context.TblRoles
-                    //.Include(rm => rm.Role)
                     .Include(r => r.TblRoleMembers)
                     .Include(r => r.ChildRoles)
                         .ThenInclude(cr => cr.Role)
@@ -81,6 +80,20 @@ namespace Viper.Areas.RAPS.Services
                     .Where(r => r.TblRoleMembers.Any(rm => rm.MemberId == userId))
                     .ToList();
             return roles;
+        }
+
+        public List<int> GetControlledRoleIds(string userId)
+        {
+            List<TblRole> controlledRoles = GetAppRolesForUser(userId);
+            List<int> controlledRoleIds = new List<int>();
+            foreach (TblRole controlledRole in controlledRoles)
+            {
+                foreach (TblAppRole childRole in controlledRole.ChildRoles)
+                {
+                    controlledRoleIds.Add(childRole.Role.RoleId);
+                }
+            }
+            return controlledRoleIds;
         }
     }
 

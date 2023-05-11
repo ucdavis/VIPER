@@ -22,4 +22,6 @@ public partial class TblRoleMember
     public string? ModBy { get; set; }
 
     public virtual TblRole Role { get; set; } = null!;
+
+    public virtual VwAaudUser AaudUser { get; set; } = null!;
 }

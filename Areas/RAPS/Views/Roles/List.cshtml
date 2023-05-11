@@ -1,26 +1,4 @@
 ﻿<div class="q-pa-md">
-    <q-table title="Delegate Roles"
-             dense
-             row-key="roleId"
-             :loading="rolesLoading"
-             :rows="delegateRoles" 
-             :columns="rolesColumns"
-             :pagination="roleListPagination">
-        <template v-slot:body-cell-roleid="props">
-            <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers/?RoleId=' + props.row.roleId"></q-btn>
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'RolePermissions/?RoleId=' + props.row.roleId"></q-btn>
-            </q-td>
-        </template>
-        <template v-slot:body-cell-role="props">
-            <q-td :props="props">
-                <a :href="'RoleEdit/?RoleId=' + props.row.roleId">{{props.row.role}}</a>
-                <br />
-                <span style="font-size:.9em">{{props.row.description}}</span>
-            </q-td>
-        </template>
-    </q-table>
-
     <q-table title="Roles"
             dense
             row-key="roleId"
@@ -39,7 +17,6 @@
         <template v-slot:body-cell-roleid="props">
             <q-td :props="props">
                 <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers/?RoleId=' + props.row.roleId"></q-btn>
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'RolePermissions/?RoleId=' + props.row.roleId"></q-btn>
             </q-td>
         </template>
         <template v-slot:body-cell-role="props">
@@ -55,21 +32,18 @@
 @section Scripts {
     <script asp-add-nonce="true">
     vueObjects.roles = []
-    vueObjects.delegateRoles = []
     vueObjects.rolesLoading = true
     vueObjects.rolesColumns = []
     vueObjects.roleListFilter = ""
-    vueObjects.roleListPagination = { rowsPerPage: 10 }
+    vueObjects.roleListPagination = { rowsPerPage: 15 }
     vueObjects.rolesColumns = [
-        { name: "roleid", label: "", field: "roleId", align: "left" },
-        { name: "role", label: "Role", field: "role", align: "left" },
-        { name: "viewname", label: "Member List", field: "viewName", align: "left" },
-        { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left" }
+        { name: "roleid", label: "", field: "roleId", align: "left", style: "width:50px;" },
+        { name: "role", label: "Role", field: "role", align: "left", sortable: true },
+        { name: "viewname", label: "Member List", field: "viewName", align: "left", sortable: true },
+        { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left", sortable: true }
     ]
     vueMethods.loadRoles = async function() {
-        var roleResult = await fetch("Roles?Application=0")
-        var delegateRolesResult = await fetch("Roles?Application=1")
-
+        var roleResult = await fetch("Roles")
         var tempRoles = await roleResult.json()
         var tempRoles = tempRoles.map(function (r) {
             return {
@@ -77,24 +51,12 @@
                 role: (r.displayName ? r.displayName : r.role),
                 description: r.description,
                 viewName: r.viewName,
-                membersCount: r.tblRoleMembers.length
+                membersCount: r.tblRoleMembers.length,
+                application: r.application
             }
         })
-
-        var tempDRoles = await delegateRolesResult.json()
-        this.delegateRoles = tempDRoles.map(function (r) {
-            return {
-                roleId: r.roleId,
-                role: (r.displayName ? r.displayName : r.role),
-                description: r.description,
-                viewName: r.viewName,
-                membersCount: r.tblRoleMembers.length
-            }
-        })
-      
 
         this.roles = tempRoles
-        //this.delegateRoles = tempDRoles
         this.rolesLoading = false
     }
     vueMountedActions.push(async function(){this.loadRoles()})

@@ -42,6 +42,8 @@ public partial class RAPSContext : DbContext
 
     public virtual DbSet<VmacsLog> VmacsLogs { get; set; }
 
+    public virtual DbSet<VwAaudUser> VwAaudUser { get; set; }
+
     public virtual DbSet<VwCahfspersonnel> VwCahfspersonnel { get; set; }
 
     public virtual DbSet<VwCpl> VwCpls { get; set; }
@@ -300,12 +302,6 @@ public partial class RAPSContext : DbContext
             entity.HasOne(e => e.AppRole)
                 .WithMany(e => e.ChildRoles)
                 .HasForeignKey(e => e.AppRoleId);
-            /*
-            entity.HasOne(d => d.Role).WithMany(p => p.TblAppRoles)
-                .HasForeignKey(d => d.RoleId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_tblDelRoles_tblRoles");
-            */
         });
 
         modelBuilder.Entity<TblLog>(entity =>
@@ -434,6 +430,9 @@ public partial class RAPSContext : DbContext
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_tblRoleMembers_tblRoles");
+
+            entity.HasOne(e => e.AaudUser).WithMany(m => m.TblRoleMembers)
+                .HasForeignKey(e => e.MemberId);
         });
 
         modelBuilder.Entity<TblRolePermission>(entity =>
@@ -501,6 +500,31 @@ public partial class RAPSContext : DbContext
                 .HasMaxLength(50)
                 .IsUnicode(false)
                 .HasColumnName("vmacsInstance");
+        });
+
+        modelBuilder.Entity<VwAaudUser>(entity =>
+        { 
+            entity.Property(e => e.AaudUserId).HasColumnName("aaudUserID");
+            entity.Property(e => e.IamId).HasColumnName("iam_id");
+            entity.Property(e => e.MothraId).HasColumnName("mothraId");
+            entity.Property(e => e.LoginId).HasColumnName("loginId");
+            entity.Property(e => e.MailId).HasColumnName("mailId");
+            entity.Property(e => e.SpridenId).HasColumnName("spriden_id");
+            entity.Property(e => e.Pidm).HasColumnName("pidm");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.VmacsId).HasColumnName("vmacs_id");
+            entity.Property(e => e.VmcasId).HasColumnName("vmcas_id");
+            entity.Property(e => e.MivId).HasColumnName("miv_id");
+            entity.Property(e => e.DisplayFirstName).HasColumnName("display_first_name");
+            entity.Property(e => e.DisplayLastName).HasColumnName("display_last_name");
+            entity.Property(e => e.DisplayMiddleName).HasColumnName("display_middle_name");
+            entity.Property(e => e.DisplayFullName).HasColumnName("display_full_name");
+            entity.Property(e => e.CurrentStudent).HasColumnName("current_student");
+            entity.Property(e => e.CurrentEmployee).HasColumnName("current_employee");
+            entity.Property(e => e.Current).HasColumnName("current");
+            entity.Property(e => e.FutureStudent).HasColumnName("future_student");
+            entity.Property(e => e.FutureEmployee).HasColumnName("future_employee");
+            entity.Property(e => e.Future).HasColumnName("future");
         });
 
         modelBuilder.Entity<VwCahfspersonnel>(entity =>
