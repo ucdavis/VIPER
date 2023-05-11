@@ -16,12 +16,12 @@
         </template>
         <template v-slot:body-cell-roleid="props">
             <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers/?RoleId=' + props.row.roleId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?RoleId=' + props.row.roleId"></q-btn>
             </q-td>
         </template>
         <template v-slot:body-cell-role="props">
             <q-td :props="props">
-                <a :href="'RoleEdit/?RoleId=' + props.row.roleId">{{props.row.role}}</a>
+                <a :href="'RoleEdit?RoleId=' + props.row.roleId">{{props.row.role}}</a>
                 <br />
                 <span style="font-size:.9em">{{props.row.description}}</span>
             </q-td>

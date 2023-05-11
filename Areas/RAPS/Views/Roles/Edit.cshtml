@@ -1,16 +1,16 @@
 ﻿
 <div class="q-pa-md" style="max-width:500px">
-<h2><span v-if="roleId">Edit</span><span v-else>Create</span> Role</h2>
-<q-btn href="/RAPS" icon="arrow_back" label="Roles" class="q-mb-md"></q-btn>
-<q-form
-    @@submit="editRole">
-    <q-input outlined  v-model="role.role" label="Role"></q-input>
-    <q-input outlined v-model="role.description" label="Description" type="textarea"></q-input>
-    <q-checkbox v-model="role.application" true-value="1" false-value="0" label="Application Role"></q-checkbox>
-    <q-input outlined v-model="role.viewName" label="View"></q-input>
-    <br />
-    <q-btn label="Submit" type="submit" color="primary" />
-</q-form>
+    <h2><span v-if="roleId">Edit</span><span v-else>Create</span> Role</h2>
+    <q-btn href="/RAPS" icon="arrow_back" label="Roles" class="q-mb-md"></q-btn>
+    <q-form
+        @@submit="editRole">
+        <q-input outlined  v-model="role.role" label="Role"></q-input>
+        <q-input outlined v-model="role.description" label="Description" type="textarea"></q-input>
+        <q-checkbox v-model="role.application" true-value="1" false-value="0" label="Application Role"></q-checkbox>
+        <q-input outlined v-model="role.viewName" label="View"></q-input>
+        <br />
+        <q-btn label="Submit" type="submit" color="primary" />
+    </q-form>
 </div>
 
 @section Scripts {

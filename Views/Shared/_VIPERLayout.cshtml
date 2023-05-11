@@ -7,6 +7,7 @@
     @RenderSection("Metatags", required: false)
 
     <title>@ViewData["Title"] - VIPER(2.0)</title>
+    <script src="~/js/site.js"></script>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link href="~/lib/quasar/dist/quasar.prod.css" rel="stylesheet" type="text/css">
 
@@ -200,6 +201,7 @@
                 }
             },
             created() {
+                this.urlParams = new URLSearchParams(window.location.search)
                 while (vueCreatedActions.length) {
                     vueCreatedActions.shift().call(this);
                 }
