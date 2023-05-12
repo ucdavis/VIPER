@@ -2,28 +2,6 @@
 <div class="q-pa-md">
     <h2>Members of {{role.role}}</h2>
     <q-btn href="/RAPS" icon="arrow_back" label="Roles" class="q-mb-md"></q-btn>
-    @*
-    <div style="max-width:400px;" class="q-mb-md">
-        <div>
-            <span>{{roleMemberForm.editing ? "Edit" : "Create"}} Role Member</span>
-            <q-form @@submit="editRoleMember" v-bind="roleMemberForm">
-                <q-select outlined dense use-input input-debounce="300"
-                    label="User" 
-                    v-model="roleMemberForm.member"  
-                    @@filter="memberSearch" 
-                    :options="memberSearchResults" 
-                    :readonly="roleMemberForm.editing">
-                </q-select>
-                <q-input type="date" outlined dense v-model="roleMemberForm.startDate" label="Start Date"></q-input>
-                <q-input type="date" outlined dense v-model="roleMemberForm.endDate" label="End Date"></q-input>
-                <q-input outlined dense v-model="roleMemberForm.comment" label="Comment"></q-input>
-                <q-btn label="Submit" type="submit" color="primary" class="q-mr-lg q-mt-md"></q-btn>
-                <q-btn label="Clear" type="button" @@click="clearRoleMember" color="primary" class="q-mt-md" v-if="roleMemberForm.editing"></q-btn>
-                <q-btn label="Delete" type="button" @@click="deleteRoleMember" color="red" class="q-ml-lg q-mt-md" v-if="roleMemberForm.editing"></q-btn>
-            </q-form>
-        </div>
-    </div>
-    *@
     
     <q-table title="Members"
              dense
@@ -33,7 +11,7 @@
              :columns="rolesmembersColumns"
              :filter="roleMembersFilter"
              :pagination="roleMembersPagination">
-        <template v-slot:top>
+        <template v-slot:top-left>
             <q-btn dense color="secondary" label="Add Member" @@click="showForm = true" no-caps></q-btn>
             <div class="q-pa-sm q-gutter-sm">
                 <q-dialog v-model="showForm" @@hide="clearRoleMember">
@@ -65,7 +43,7 @@
                             </q-card-section>
 
                             <q-card-actions align="evenly">
-                                <q-btn no-caps :label="editingIndex >= 0 ? 'Update Member' : 'Add Member'" type="submit" color="primary"></q-btn>
+                                <q-btn no-caps :label="editingIndex >= 0 ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary"></q-btn>
                                 <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="deleteRoleMember" color="red" v-if="editingIndex >= 0"></q-btn>
                             </q-card-actions>
                         </q-form>
@@ -89,7 +67,7 @@
         </template>
         <template v-slot:body-cell-actions="props">
             <q-td :props="props">
-                <q-btn no-caps size="md" :props="props" size="md" color="primary" @@click="selectForEdit(props.row)">Edit</q-btn>
+                <q-btn no-caps size="md" :props="props" color="primary" @@click="selectForEdit(props.row)">Edit</q-btn>
             </q-td>
         </template>
     </q-table>

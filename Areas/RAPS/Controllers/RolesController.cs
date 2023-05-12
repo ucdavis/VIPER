@@ -19,7 +19,7 @@ namespace Viper.Areas.RAPS.Controllers
 {
     [Route("raps/{instance=VIPER}/[controller]")]
     [ApiController]
-    [Authorize(Roles = "IT Leadership & Supervisors,ITS_Operations,ITS_Programmers,VMDO CATS-Programmers,VMDO CATS-Techs,VMDO SVM-IT", Policy = "2faAuthentication")]
+    [Authorize(Roles = "VMDO SVM-IT,RAPS Delegate Users", Policy = "2faAuthentication")]
     public class RolesController : ControllerBase
     {
         private readonly RAPSContext _context;

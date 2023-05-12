@@ -119,12 +119,23 @@ namespace Viper.Areas.RAPS.Controllers
         {
             ViewData["RoleId"] = RoleId;
 
-            List<TblRole> Roles = _RAPSContext.TblRoles
+            List<TblRole> Roles = await _RAPSContext.TblRoles
                     .Include(r => r.TblRoleMembers)
                     .ThenInclude(rm => rm.AaudUser)
-                    .Where(r => r.RoleId == RoleId).ToList();
+                    .Where(r => r.RoleId == RoleId).ToListAsync();
             return View("~/Areas/RAPS/Views/Roles/Edit.cshtml");
         }
 
+
+        /// <summary>
+        /// List permissions
+        /// </summary>
+        /// <returns></returns>
+        [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
+        [Route("/[area]/{Instance=VIPER}/[action]")]
+        public async Task<IActionResult> PermissionList()
+        {
+            return View("~/Areas/RAPS/Views/Permissions/List.cshtml");
+        }
     }
 }
