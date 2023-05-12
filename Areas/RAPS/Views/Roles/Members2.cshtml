@@ -2,6 +2,7 @@
 <div class="q-pa-md">
     <h2>Members of {{role.role}}</h2>
     <q-btn href="/RAPS" icon="arrow_back" label="Roles" class="q-mb-md"></q-btn>
+    @*
     <div style="max-width:400px;" class="q-mb-md">
         <div>
             <span>{{roleMemberForm.editing ? "Edit" : "Create"}} Role Member</span>
@@ -22,6 +23,7 @@
             </q-form>
         </div>
     </div>
+    *@
     
     <q-table title="Members"
              dense
@@ -31,6 +33,46 @@
              :columns="rolesmembersColumns"
              :filter="roleMembersFilter"
              :pagination="roleMembersPagination">
+        <template v-slot:top>
+            <q-btn dense color="secondary" label="Add Member" @@click="showForm = true" no-caps></q-btn>
+            <div class="q-pa-sm q-gutter-sm">
+                <q-dialog v-model="showForm" @@hide="clearRoleMember">
+                    <q-card>
+                        <q-form @@submit="editRoleMember" v-bind="roleMemberForm">
+                            <q-card-section>
+                                <div class="text-h6">{{editingIndex >= 0 ? "Edit" : "Create"}} Role Member</div>
+                            </q-card-section>
+
+                            <q-card-section>
+                                <div class="row">
+                                    <q-select outlined dense use-input input-debounce="300"
+                                                label="User"
+                                                v-model="roleMemberForm.member"
+                                                @@filter="memberSearch"
+                                                :options="memberSearchResults"
+                                                :readonly="editingIndex >= 0">
+                                    </q-select>
+                                </div>
+                                <div class="row">
+                                    <q-input type="date" outlined dense v-model="roleMemberForm.startDate" label="Start Date"></q-input>
+                                </div>
+                                <div class="row">
+                                    <q-input type="date" outlined dense v-model="roleMemberForm.endDate" label="End Date"></q-input>
+                                </div>
+                                <div class="row">
+                                    <q-input outlined dense v-model="roleMemberForm.comment" label="Comment"></q-input>
+                                </div>
+                            </q-card-section>
+
+                            <q-card-actions align="evenly">
+                                <q-btn no-caps :label="editingIndex >= 0 ? 'Update Member' : 'Add Member'" type="submit" color="primary"></q-btn>
+                                <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="deleteRoleMember" color="red" v-if="editingIndex >= 0"></q-btn>
+                            </q-card-actions>
+                        </q-form>
+                    </q-card>
+                </q-dialog>
+            </div>
+        </template>
         <template v-slot:top-right="props">
             <q-input class="q-ml-xs q-mr-xs" v-model="roleMembersFilter" dense outlined debounce="300" placeholder="Filter Results">
                 <template v-slot:append>
@@ -47,7 +89,7 @@
         </template>
         <template v-slot:body-cell-actions="props">
             <q-td :props="props">
-                <q-btn :props="props" size="md" color="primary" @@click="selectForEdit(props)">Edit</q-btn>
+                <q-btn no-caps size="md" :props="props" size="md" color="primary" @@click="selectForEdit(props.row)">Edit</q-btn>
             </q-td>
         </template>
     </q-table>
@@ -56,11 +98,12 @@
 @section Scripts {
     <script asp-add-nonce="true">
         //form
+        vueObjects.showForm = false
         vueObjects.roleId = 0
         vueObjects.role = {}
         vueObjects.memberSearchResults = []
-        vueObjects.selectedRoleMember = {}
-        vueObjects.roleMemberForm = {editing: false}
+        vueObjects.roleMemberForm = {}
+        vueObjects.editingIndex = -1;
         //table
         vueObjects.roleMembers = []
         vueObjects.roleMembersLoading = true
@@ -69,9 +112,9 @@
         vueObjects.rolesmembersColumns = [
             { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
             { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
-            { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
             { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
             { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
+            { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
             { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
             { name: "active", label: "Active", field: "active", align: "left", sortable: true },
             { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
@@ -106,7 +149,7 @@
                     roleId: this.urlParams.get("RoleId")
                 }
                 fetch("Roles/" + body.roleId + "/Members/" + body.memberId, {
-                    method: this.roleMemberForm.editing ? "PUT" : "POST",
+                    method: this.editingIndex >= 0 ? "PUT" : "POST",
                     body: JSON.stringify(body),
                     headers: { "Content-Type": "application/json" }
                 })
@@ -126,15 +169,16 @@
         }
         //form select / clear / user search
         vueMethods.clearRoleMember = function () {
-            this.selectedRoleMember = {}
-            this.roleMemberForm = { editing: false }
+            this.roleMemberForm = { }
+            this.editingIndex = -1
+            this.showForm = false
         }
-        vueMethods.selectForEdit = function(props) {
-            this.selectedRoleMember = props.row
-            this.roleMemberForm.startDate = formatDateForDateInput(this.selectedRoleMember.startDate)
-            this.roleMemberForm.endDate = formatDateForDateInput(this.selectedRoleMember.endDate)
-            this.roleMemberForm.member = { label: props.row.aaudUser.displayLastName + ", " + props.row.aaudUser.displayFirstName, value: props.row.memberId }
-            this.roleMemberForm.editing = true
+        vueMethods.selectForEdit = function(item) {
+            this.showForm = true
+            this.editingIndex = this.roleMembers.indexOf(item)
+            this.roleMemberForm.startDate = formatDateForDateInput(item.startDate)
+            this.roleMemberForm.endDate = formatDateForDateInput(item.endDate)
+            this.roleMemberForm.member = { label: item.aaudUser.displayLastName + ", " + item.aaudUser.displayFirstName, value: item.memberId }
         }
         vueMethods.memberSearch = function(val, update, abort) {
             if(val.length < 3) {

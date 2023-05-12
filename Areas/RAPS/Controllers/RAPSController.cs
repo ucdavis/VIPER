@@ -85,7 +85,7 @@ namespace Viper.Areas.RAPS.Controllers
         /// <param name="RoleId"></param>
         /// <returns></returns>
         [Route("/[area]/{Instance=VIPER}/[action]")]
-        public async Task<IActionResult> RoleMembers(string Instance, int RoleId)
+        public async Task<IActionResult> RoleMembers(string Instance, int RoleId, int v=1)
         {
             ViewData["RoleId"] = RoleId;
 
@@ -97,7 +97,8 @@ namespace Viper.Areas.RAPS.Controllers
             }
             if (_securityService.IsAllowedTo("EditRoleMembers", Instance, Role))
             { 
-                return View("~/Areas/RAPS/Views/Roles/Members.cshtml");
+                return v ==1 ? View("~/Areas/RAPS/Views/Roles/Members.cshtml")
+                        : View("~/Areas/RAPS/Views/Roles/Members2.cshtml");
             }
             else
             {
