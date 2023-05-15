@@ -4,11 +4,13 @@ using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using AngleSharp.Dom;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Polly;
+using Viper.Areas.RAPS.Dtos;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 using Web.Authorization;
@@ -74,13 +76,27 @@ namespace Viper.Areas.RAPS.Controllers
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{permissionId}")]
         [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
-        public async Task<IActionResult> PutTblPermission(int permissionId, TblPermission tblPermission)
+        public async Task<IActionResult> PutTblPermission(int permissionId, PermissionCreateUpdate permission)
         {
-            if (permissionId != tblPermission.PermissionId)
+            if (permissionId != permission.PermissionId)
             {
                 return BadRequest();
             }
+            
+            TblPermission existingPermission = GetPermissionByName(permission.Permission);
+            if (existingPermission != null && existingPermission.PermissionId != permissionId)
+            {
+                return ValidationProblem("Permission name must be unique");
+            }
+            else if(existingPermission != null)
+            {
+                _context.Entry(existingPermission).State = EntityState.Detached;
+            }
 
+            TblPermission tblPermission = new TblPermission();
+            tblPermission.PermissionId = permission.PermissionId;
+            tblPermission.Permission = permission.Permission;
+            tblPermission.Description = permission.Description;
             _context.Entry(tblPermission).State = EntityState.Modified;
 
             try
