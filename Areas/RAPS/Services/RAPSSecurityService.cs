@@ -53,7 +53,7 @@ namespace Viper.Areas.RAPS.Services
 
         public bool IsAllowedTo(string action, string Instance, TblRole Role)
         {
-            AaudUser User = UserHelper.GetCurrentUser();
+            AaudUser? User = UserHelper.GetCurrentUser();
             if (UserHelper.HasPermission(_context, User, "RAPS.Admin"))
             {
                 return true;
@@ -62,7 +62,7 @@ namespace Viper.Areas.RAPS.Services
             switch (action)
             {
                 case "EditRoleMembership":
-                    List<int> controlledRoleIds = GetControlledRoleIds(User.MothraId);
+                    List<int> controlledRoleIds = GetControlledRoleIds(User?.MothraId);
                     return controlledRoleIds.Contains(Role.RoleId)
                             || UserHelper.HasPermission(_context, User, "RAPS.EditRoleMembership");
                 default:
@@ -70,7 +70,7 @@ namespace Viper.Areas.RAPS.Services
             }
         }
 
-        public List<TblRole> GetAppRolesForUser(string userId)
+        public List<TblRole> GetAppRolesForUser(string? userId)
         {
             List<TblRole> roles = _context.TblRoles
                     .Include(r => r.TblRoleMembers)
@@ -82,7 +82,7 @@ namespace Viper.Areas.RAPS.Services
             return roles;
         }
 
-        public List<int> GetControlledRoleIds(string userId)
+        public List<int> GetControlledRoleIds(string? userId)
         {
             List<TblRole> controlledRoles = GetAppRolesForUser(userId);
             List<int> controlledRoleIds = new List<int>();

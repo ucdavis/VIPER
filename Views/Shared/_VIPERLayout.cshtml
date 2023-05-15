@@ -42,7 +42,12 @@
                 {
                     <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0" href="@Url.Content("~/")"></q-btn>
                 }
-
+                @if (UserHelper.IsEmulating())
+                {
+                    <q-banner inline-actions class="bg-negative">
+                        EMULATING: @UserHelper.GetCurrentUser()?.DisplayFullName <q-btn href="@Url.Content("~/ClearEmulation")" color="negative">Stop</q-btn>
+                    </q-banner>
+                }
                 <q-space></q-space>
                 <q-input rounded dense standout v-model="text" color="white" label="Search" bg-color="grey" class="q-pa-xs">
                     <q-btn flat round dense icon="search" color="black"></q-btn>

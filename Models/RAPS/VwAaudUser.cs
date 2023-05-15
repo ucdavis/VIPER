@@ -20,10 +20,10 @@ namespace Viper.Models.RAPS
         public int? VmacsId { get; set; } 
         public string? VmcasId { get; set; }
         public int? MivId { get; set; }
-        public string DisplayFirstName { get; set; }
-        public string DisplayLastName { get; set; }
+        public string DisplayFirstName { get; set; } = string.Empty;
+        public string DisplayLastName { get; set; } = string.Empty;
         public string? DisplayMiddleName { get; set; }
-        public string DisplayFullName { get; set; }
+        public string DisplayFullName { get; set; } = string.Empty;
         public bool CurrentStudent { get; set; }
         public bool CurrentEmployee { get; set; }
         public bool FutureStudent { get; set; }

@@ -10,21 +10,28 @@ using Viper.Models;
 using Web.Authorization;
 using Microsoft.Extensions.Options;
 using Viper.Classes;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Caching.Memory;
+using Viper.Models.AAUD;
+using System.Collections;
+using System.Reflection;
 
 namespace Viper.Controllers
 {    
     public class HomeController : Controller
     {
+        private readonly Classes.SQLContext.AAUDContext _aAUDContext;
         private readonly XNamespace _ns = "http://www.yale.edu/tp/cas";
-        private const string StrTicket = "ticket";
+        private const string _strTicket = "ticket";
         private readonly IHttpClientFactory _clientFactory;
-        private readonly CasSettings settings;
-        private readonly List<string> casAttributesToCapture = new List<string>() { "authenticationDate", "credentialType" };
+        private readonly CasSettings _settings;
+        private readonly List<string> _casAttributesToCapture = new List<string>() { "authenticationDate", "credentialType" };
 
-        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions)
+        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, Classes.SQLContext.AAUDContext aAUDContext)
         {
             this._clientFactory = clientFactory;
-            this.settings = settingsOptions.Value;
+            this._settings = settingsOptions.Value;
+            this._aAUDContext = aAUDContext;
         }
         /// <summary>
         /// VIPER 2 home page
@@ -45,7 +52,7 @@ namespace Viper.Controllers
         [SearchExclude]
         public IActionResult Login()
         {
-            var authorizationEndpoint = settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(Request, new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(Request.Query["ReturnUrl"]));
+            var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(Request, new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(Request.Query["ReturnUrl"]));
 
             return new RedirectResult(authorizationEndpoint);
         }
@@ -59,6 +66,79 @@ namespace Viper.Controllers
         public async Task<IActionResult> CasLogin()
         {
             return await AuthenticateCasLogin();
+        }
+
+        //TODO - consider implementing IP restrictions on this method to only allow emulation from in school or on VPN locations
+        /// <summary>
+        /// Emulate a user
+        /// </summary>
+        /// <param name="loginId">The login id of the user we are emulating</param>
+        [Route("/[action]/{loginId}")]
+        [Authorize(Policy = "2faAuthentication")]
+        [Permission(Allow = "SVMSecure.SU")]
+        public IActionResult EmulateUser(string loginId)
+        {
+            AaudUser? emulatedUser = UserHelper.GetByLoginId(_aAUDContext, loginId);
+
+            string? trueLoginId = UserHelper.GetCurrentUser()?.LoginId;
+
+            if (emulatedUser != null && trueLoginId != null)
+            {
+                var protector = HttpHelper.DataProtectionProvider?.CreateProtector("Viper.Emulation", trueLoginId);
+
+                if (protector != null && emulatedUser.LoginId != null)
+                {
+                    string? encryptedEmulatedLoginId = protector?.Protect(emulatedUser.LoginId);
+
+                    // set emulating cached item to expire after 30 minutes of inactivity
+                    HttpHelper.Cache?.Set(ClaimsTransformer.EmulationCacheNamePrefix + trueLoginId, encryptedEmulatedLoginId, (new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromMinutes(30))));
+                    return new RedirectResult("~/");
+                }
+
+            }
+
+            return new RedirectResult("~/Error");
+
+        }
+
+        /// <summary>
+        /// Clears the emulation cache for the user
+        /// </summary>
+        [Route("/[action]")]
+        public IActionResult ClearEmulation()
+        {
+            AaudUser? user = UserHelper.GetTrueCurrentUser();
+            string? trueLoginId = user?.LoginId;
+
+            if (trueLoginId != null && HttpHelper.Cache != null)
+            {
+                HttpHelper.Cache.Remove(ClaimsTransformer.EmulationCacheNamePrefix + trueLoginId);
+            }
+
+            return new RedirectResult("~/");
+        }
+
+        /// <summary>
+        /// Clears the cache
+        /// </summary>
+        [Route("/[action]")]
+        [Authorize(Roles = "VMDO SVM-IT", Policy = "2faAuthentication")]
+        public IActionResult ClearCache()
+        {
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            var entries = HttpHelper.Cache?.GetType().GetField("_entries", flags)?.GetValue(HttpHelper.Cache);
+            var cacheEntries = entries as IDictionary;
+
+            if (cacheEntries != null)
+            {
+                foreach(string key in cacheEntries.Keys)
+                {
+                    HttpHelper.Cache?.Remove(key);
+                }
+
+            }
+
+            return new RedirectResult("~/");
         }
 
         /// <summary>
@@ -111,7 +191,7 @@ namespace Viper.Controllers
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return new RedirectResult(settings.CasBaseUrl + "logout");
+            return new RedirectResult(_settings.CasBaseUrl + "logout");
         }
 
         /// <summary>
@@ -131,7 +211,7 @@ namespace Viper.Controllers
         private async Task<IActionResult> AuthenticateCasLogin()
         {
             // get ticket & service
-            string? ticket = Request.Query[StrTicket];
+            string? ticket = Request.Query[_strTicket];
             string? returnUrl = Request.Query["ReturnUrl"];
 
             string service = WebUtility.UrlEncode(BuildRedirectUri(Request, Request.Path) + "?ReturnUrl=" + WebUtility.UrlEncode(returnUrl));
@@ -140,7 +220,7 @@ namespace Viper.Controllers
 
             try
             {
-                var response = await client.GetAsync(settings.CasBaseUrl + "p3/serviceValidate?ticket=" + ticket + "&service=" + service, HttpContext.RequestAborted);
+                var response = await client.GetAsync(_settings.CasBaseUrl + "p3/serviceValidate?ticket=" + ticket + "&service=" + service, HttpContext.RequestAborted);
                 response.EnsureSuccessStatusCode();
 
                 var responseBody = await response.Content.ReadAsStringAsync();
@@ -162,7 +242,7 @@ namespace Viper.Controllers
                     XElement? attributesNode = successNode?.Element(_ns + "attributes");
                     if (attributesNode != null)
                     {
-                        foreach (string attributeName in casAttributesToCapture)
+                        foreach (string attributeName in _casAttributesToCapture)
                         {
                             foreach (var element in attributesNode.Elements(_ns + attributeName))
                             {

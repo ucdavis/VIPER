@@ -60,7 +60,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             else
             {
-                List<int> controlledRoleIds = _securityService.GetControlledRoleIds(UserHelper.GetCurrentUser().MothraId);
+                List<int> controlledRoleIds = _securityService.GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId);
                 List<TblRole> List = await _context.TblRoles
                     .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
                     .Where(r => r.Application == 0)
