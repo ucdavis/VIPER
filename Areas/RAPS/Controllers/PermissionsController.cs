@@ -113,7 +113,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return Problem("Entity set 'RAPSContext.TblPermissions'  is null.");
             }
 
-            TblPermission existingPermission = GetPermissionByName(tblPermission.Permission);
+            TblPermission? existingPermission = GetPermissionByName(tblPermission.Permission);
             if (existingPermission != null) 
             {
                 return ValidationProblem("Permission name must be unique");

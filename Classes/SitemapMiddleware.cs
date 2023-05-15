@@ -19,71 +19,79 @@ namespace Viper.Classes
 
         public async Task Invoke(HttpContext context)
         {
-            if (context.Request?.Path.Value != null)
+            try
             {
-                if (context.Request.Path.Value.Equals("/sitemap.xml", StringComparison.OrdinalIgnoreCase))
+
+                if (context.Request?.Path.Value != null)
                 {
-                    // override default root url
-                    _rootUrl = HttpHelper.GetRootURL();
-                    var stream = context.Response.Body;
-                    context.Response.StatusCode = 200;
-                    context.Response.ContentType = "application/xml";
-                    string sitemapContent = "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">";
-                    var controllers = Assembly.GetExecutingAssembly().GetTypes()
-                        .Where(type => typeof(Controller).IsAssignableFrom(type)
-                        || type.Name.EndsWith("controller")).ToList();
-
-                    foreach (var controller in controllers)
+                    if (context.Request.Path.Value.Equals("/sitemap.xml", StringComparison.OrdinalIgnoreCase))
                     {
-                        var methods = controller.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-                            .Where(method => typeof(IActionResult).IsAssignableFrom(method.ReturnType) || typeof(Task<IActionResult>).IsAssignableFrom(method.ReturnType))
-                            .Distinct<MethodInfo>();
+                        // override default root url
+                        _rootUrl = HttpHelper.GetRootURL();
+                        var stream = context.Response.Body;
+                        context.Response.StatusCode = 200;
+                        context.Response.ContentType = "application/xml";
+                        string sitemapContent = "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">";
+                        var controllers = Assembly.GetExecutingAssembly().GetTypes()
+                            .Where(type => typeof(Controller).IsAssignableFrom(type)
+                            || type.Name.EndsWith("controller")).ToList();
 
-                        Dictionary<string, string> URLs = new Dictionary<string, string>();
-
-                        foreach (var method in methods)
+                        foreach (var controller in controllers)
                         {
-                            Attribute? anonAttribute = method.GetCustomAttribute(typeof(AllowAnonymousAttribute));
-                            Attribute? anonAttributeClass = method.DeclaringType?.GetCustomAttribute(typeof(AllowAnonymousAttribute));
-                            Attribute? authAttribute = method.GetCustomAttribute(typeof(AuthorizeAttribute));
-                            Attribute? permAttribute = method.GetCustomAttribute(typeof(PermissionAttribute));
-                            Attribute? excludeAttribute = method.GetCustomAttribute(typeof(SearchExcludeAttribute));
-                            Attribute? excludeAttributeClass = method.DeclaringType?.GetCustomAttribute(typeof(SearchExcludeAttribute));
+                            var methods = controller.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                                .Where(method => typeof(IActionResult).IsAssignableFrom(method.ReturnType) || typeof(Task<IActionResult>).IsAssignableFrom(method.ReturnType))
+                                .Distinct<MethodInfo>();
 
-                            if (((anonAttribute != null  // method is anonymous
-                                    || anonAttributeClass != null  // or class is anonymous
-                                )
-                                && (authAttribute == null // and method does not have authorize arrtribute 
-                                    || permAttribute == null // or method does not have permission arrtribute
-                                ))
-                                && excludeAttribute == null && excludeAttributeClass == null) // and method and class do not have "search exclude" attribute
+                            Dictionary<string, string> URLs = new Dictionary<string, string>();
+
+                            foreach (var method in methods)
                             {
-                                string url = string.Format("{0}/{1}/{2}", _rootUrl, controller.Name.ToLower().Replace("controller", ""), method.Name.ToLower());
-                                string lastMod = DateTime.UtcNow.ToString("yyyy-MM-dd").ToString();
+                                Attribute? anonAttribute = method.GetCustomAttribute(typeof(AllowAnonymousAttribute));
+                                Attribute? anonAttributeClass = method.DeclaringType?.GetCustomAttribute(typeof(AllowAnonymousAttribute));
+                                Attribute? authAttribute = method.GetCustomAttribute(typeof(AuthorizeAttribute));
+                                Attribute? permAttribute = method.GetCustomAttribute(typeof(PermissionAttribute));
+                                Attribute? excludeAttribute = method.GetCustomAttribute(typeof(SearchExcludeAttribute));
+                                Attribute? excludeAttributeClass = method.DeclaringType?.GetCustomAttribute(typeof(SearchExcludeAttribute));
 
-                                if (!URLs.ContainsKey(url))
+                                if (((anonAttribute != null  // method is anonymous
+                                        || anonAttributeClass != null  // or class is anonymous
+                                    )
+                                    && (authAttribute == null // and method does not have authorize arrtribute 
+                                        || permAttribute == null // or method does not have permission arrtribute
+                                    ))
+                                    && excludeAttribute == null && excludeAttributeClass == null) // and method and class do not have "search exclude" attribute
                                 {
-                                    URLs.Add(url, lastMod);
+                                    string url = string.Format("{0}/{1}/{2}", _rootUrl, controller.Name.ToLower().Replace("controller", ""), method.Name.ToLower());
+                                    string lastMod = DateTime.UtcNow.ToString("yyyy-MM-dd").ToString();
+
+                                    if (!URLs.ContainsKey(url))
+                                    {
+                                        URLs.Add(url, lastMod);
+                                    }
+
                                 }
 
                             }
-
+                            foreach (var url in URLs)
+                            {
+                                sitemapContent += "<url>";
+                                sitemapContent += "<loc>" + url.Key + "</loc>";
+                                sitemapContent += "<lastmod>" + url.Value + "</lastmod>";
+                                sitemapContent += "</url>";
+                            }
                         }
-                        foreach (var url in URLs) 
-                        { 
-                            sitemapContent += "<url>";
-                            sitemapContent += "<loc>" + url.Key + "</loc>";
-                            sitemapContent += "<lastmod>" + url.Value + "</lastmod>";
-                            sitemapContent += "</url>";
+                        sitemapContent += "</urlset>";
+                        using (var memoryStream = new MemoryStream())
+                        {
+                            var bytes = Encoding.UTF8.GetBytes(sitemapContent);
+                            memoryStream.Write(bytes, 0, bytes.Length);
+                            memoryStream.Seek(0, SeekOrigin.Begin);
+                            await memoryStream.CopyToAsync(stream, bytes.Length);
                         }
                     }
-                    sitemapContent += "</urlset>";
-                    using (var memoryStream = new MemoryStream())
+                    else
                     {
-                        var bytes = Encoding.UTF8.GetBytes(sitemapContent);
-                        memoryStream.Write(bytes, 0, bytes.Length);
-                        memoryStream.Seek(0, SeekOrigin.Begin);
-                        await memoryStream.CopyToAsync(stream, bytes.Length);
+                        await _next(context);
                     }
                 }
                 else
@@ -91,7 +99,7 @@ namespace Viper.Classes
                     await _next(context);
                 }
             }
-            else
+            catch(Exception)
             {
                 await _next(context);
             }

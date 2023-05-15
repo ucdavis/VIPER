@@ -1,14 +1,23 @@
 ﻿@model Viper.Models.AAUD.AaudUser
 @if (Model != null)
 {
-<q-btn round href="@String.Format("https://viper.vetmed.ucdavis.edu/default.cfm?page=userinfo&id={0}", Model.IamId)">
-    <q-avatar size="40px">
-        <img src="@String.Format("https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid={0}&altphoto=1", Model.LoginId)" height="40" id="siteProfileAvatar" />
-        <q-tooltip :target="siteProfileAvatar">
-            @Model.DisplayFirstName @Model.DisplayLastName
-        </q-tooltip>
-    </q-avatar>
-</q-btn>
+    <q-btn round href="@String.Format("https://viper.vetmed.ucdavis.edu/default.cfm?page=userinfo&id={0}", Model.IamId)">
+        <q-avatar size="40px">
+            <img src="@String.Format("https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid={0}&altphoto=1", Model.MailId)" height="40" id="siteProfileAvatar" />
+            <q-tooltip :target="siteProfileAvatar">
+                @Model.DisplayFirstName @Model.DisplayLastName
+            </q-tooltip>
+        </q-avatar>
+    </q-btn>
+    @if (UserHelper.IsEmulating())
+    {   
+        <q-btn round href="@Url.Content("~/ClearEmulation")" color="negative" icon="lock" style="left:-15px;">
+            <q-tooltip>
+                End Emulation
+            </q-tooltip>
+        </q-btn>        
+    }
+    
 }
 else
 {

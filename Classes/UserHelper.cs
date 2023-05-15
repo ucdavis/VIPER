@@ -1,8 +1,10 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+﻿using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 using Viper.Models.RAPS;
+using Web.Authorization;
 
 namespace Viper
 {
@@ -279,6 +281,8 @@ namespace Viper
                         }
 
                     });
+
+                    return user;
                 }
             }
 
@@ -299,5 +303,62 @@ namespace Viper
             return currentUser;
         }
         #endregion
+
+        #region public static AaudUser? GetTrueCurrentUser()
+        /// <summary>
+        /// Gets the current true (underlying user if emulating) logged in user
+        /// </summary>
+        /// <returns>An AaudUser object for the true current user</returns>
+        public static AaudUser? GetTrueCurrentUser()
+        {
+            if (HttpHelper.HttpContext?.User != null)
+            {
+                var claims = HttpHelper.HttpContext?.User.Claims.ToList();
+                AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
+                AaudUser? trueUser = UserHelper.GetByLoginId(aaudContext, claims?.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)?.Value);
+
+                if (trueUser != null) { 
+                    return trueUser; 
+                }
+                else { 
+                    return GetCurrentUser();                
+                }
+
+
+            }
+            else { return GetCurrentUser(); }
+        }
+        #endregion
+
+        #region public static bool IsEmulating()
+        /// <summary>
+        /// Checks if the current user is emulating
+        /// </summary>
+        /// <returns>If emulating, returns true, if not: false</returns>
+        public static bool IsEmulating()
+        {
+            string? trueLoginId = GetTrueCurrentUser()?.LoginId;
+
+            if (trueLoginId != null)
+            {
+                AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
+
+                // check 
+                if (HttpHelper.Cache != null)
+                {
+                    string? encryptedEmulatedLoginId = HttpHelper.Cache.Get<string>(ClaimsTransformer.EmulationCacheNamePrefix + trueLoginId);
+
+                    if (encryptedEmulatedLoginId != null) { 
+                        return true;
+                    }
+
+                }
+
+            }
+
+            return false;
+        }
+        #endregion
+
     }
 }

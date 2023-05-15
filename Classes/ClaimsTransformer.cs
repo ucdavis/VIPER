@@ -1,10 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Caching.Memory;
+using System.Data;
 using System.Security.Claims;
 using Viper;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace Web.Authorization
 {
@@ -44,39 +47,48 @@ namespace Web.Authorization
 
             // check to see if this user is emulating another user
             string? encryptedEmulatedLoginId;
-#pragma warning disable CS8604 // Possible null reference argument.
-            if (HttpHelper.Cache.TryGetValue<string>(ClaimsTransformer.EmulationCacheNamePrefix + loginId, out encryptedEmulatedLoginId))
+
+            using (var scope = scopeFactory.CreateScope())
             {
-                // make sure the emulating user has permission to emulate
-                //FasUser emulatingUser = FasUser.GetByLoginId(loginId);
-                //if (emulatingUser.IsInRole("Emulation"))
-                //{
-                //    var protector = HttpHelper.DataProtectionProvider.CreateProtector("Fas.Emulation", loginId);
+                AAUDContext aaudContext = scope.ServiceProvider.GetRequiredService<AAUDContext>();
+                RAPSContext rapsContext = scope.ServiceProvider.GetRequiredService<RAPSContext>();
 
-                //    // set the login id to the emulated user
-                //    loginId = protector.Unprotect(encryptedEmulatedLoginId);
-
-                //    // replace the actual users login id with the emulated users login id
-                //    identity.RemoveClaim(identity.FindFirst(ClaimTypes.Name));
-                //    identity.AddClaim(new Claim(ClaimTypes.Name, loginId));
-
-                //    // add in the Emulation role (so that they will have the emulation permissions)
-                //    identity.AddClaim(new Claim(ClaimTypes.Role, "Emulation"));
-                //}
-            }
-#pragma warning restore CS8604 // Possible null reference argument.
-
-            try
-            {
-                using (var scope = scopeFactory.CreateScope())
+                if (HttpHelper.Cache != null && loginId != null)
                 {
-                    AAUDContext aaudContext = scope.ServiceProvider.GetRequiredService<AAUDContext>();
+                    // check for emulation and if so, swap the login id with the emulated user before setting role claims
+                    if (HttpHelper.Cache.TryGetValue<string>(ClaimsTransformer.EmulationCacheNamePrefix + loginId, out encryptedEmulatedLoginId))
+                    {
+                        // make sure the emulating user has permission to emulate
+                        AaudUser? emulatingUser = UserHelper.GetByLoginId(aaudContext, loginId);
+                        if (UserHelper.HasPermission(rapsContext, emulatingUser, "SVMSecure.SU"))
+                        {
+                            var protector = HttpHelper.DataProtectionProvider?.CreateProtector("Viper.Emulation", loginId);
+
+                            if (protector != null && encryptedEmulatedLoginId != null) {  
+                                
+                                // set the login id to the emulated user
+                                loginId = protector.Unprotect(encryptedEmulatedLoginId);
+
+                                // replace the actual users login id with the emulated users login id
+                                identity.RemoveClaim(identity.FindFirst(ClaimTypes.Name));
+                                identity.AddClaim(new Claim(ClaimTypes.Name, loginId));
+
+                            }
+                           
+                        }
+
+                    }
+
+                }
+
+                // Assign Role claims
+                try
+                {
                     AaudUser? user = UserHelper.GetByLoginId(aaudContext, loginId);
                     string? memberID = user?.MothraId;
 
                     if (user != null)
                     {
-                        RAPSContext rapsContext = scope.ServiceProvider.GetRequiredService<RAPSContext>();
                         var roles = UserHelper.GetRoles(rapsContext, user);
 
                         foreach (var role in roles)
@@ -85,24 +97,27 @@ namespace Web.Authorization
                         }
                     }
 
+
+
                 }
-
-            }
-            catch (Exception ex)
-            {
-                bool isProd = false;
-
-                if (HttpHelper.Environment != null)
+                catch (Exception ex)
                 {
-                    isProd = HttpHelper.Environment.IsProduction();
+                    bool isProd = false;
+
+                    if (HttpHelper.Environment != null)
+                    {
+                        isProd = HttpHelper.Environment.IsProduction();
+                    }
+
+                    // if were on the production system or the error is something other that RecordNotFoundException then log the error
+                    // basically we don't want to be notified of RecordNotFound exception's except on production since users can be missing until the next db refresh
+                    if (isProd || !(ex is RecordNotFoundException))
+                    {
+                        HttpHelper.Logger.Log(NLog.LogLevel.Error, ex, ex.Message);
+                    }
+
                 }
 
-                // if were on the production system or the error is something other that RecordNotFoundException then log the error
-                // basically we don't want to be notified of RecordNotFound exception's except on production since users can be missing until the next db refresh
-                if (isProd || !(ex is RecordNotFoundException))
-                {
-                    HttpHelper.Logger.Log(NLog.LogLevel.Error, ex, ex.Message);
-                }
             }
 
             ClaimsPrincipal principal = new ClaimsPrincipal(identity);

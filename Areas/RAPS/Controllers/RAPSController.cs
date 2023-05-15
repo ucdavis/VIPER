@@ -1,13 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Viper.Views.Shared.Components.VueTableDefault;
 using Viper.Models.RAPS;
 using Viper.Areas.RAPS.Services;
 using Web.Authorization;
 using Microsoft.IdentityModel.Tokens;
-using Polly;
-using Viper.Models.AAUD;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -64,17 +61,17 @@ namespace Viper.Areas.RAPS.Controllers
             
             if (UserHelper.HasPermission(_RAPSContext, UserHelper.GetCurrentUser(), "RAPS.Admin"))
             {
-                return View("~/Areas/RAPS/Views/Roles/ListAdmin.cshtml");
+                return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/ListAdmin.cshtml"));
             }
             else if(_securityService.IsAllowedTo("ViewAllRoles", Instance) ||
-                    !_securityService.GetControlledRoleIds(UserHelper.GetCurrentUser().MothraId).IsNullOrEmpty())
+                    !_securityService.GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId).IsNullOrEmpty())
             {
-                return View("~/Areas/RAPS/Views/Roles/List.cshtml");
+                return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/List.cshtml"));
             }
             else
             {
                 //TODO: Should probably have a deny access helper function that writes logs and sets view
-                return View("~/Views/Home/403.cshtml");
+                return await Task.Run(() => View("~/Views/Home/403.cshtml"));
             }
         }
 
@@ -89,7 +86,7 @@ namespace Viper.Areas.RAPS.Controllers
         {
             ViewData["RoleId"] = RoleId;
 
-            TblRole Role = await _RAPSContext.TblRoles.FindAsync(RoleId);
+            TblRole? Role = await _RAPSContext.TblRoles.FindAsync(RoleId);
 
             if (Role == null)
             {
@@ -135,7 +132,7 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance=VIPER}/[action]")]
         public async Task<IActionResult> PermissionList()
         {
-            return View("~/Areas/RAPS/Views/Permissions/List.cshtml");
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/List.cshtml"));
         }
     }
 }

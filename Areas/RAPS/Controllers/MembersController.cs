@@ -26,8 +26,8 @@ namespace Viper.Areas.RAPS.Controllers
         {
             return _context.VwAaudUser
                     .Where(u => (u.DisplayFirstName + " " + u.DisplayLastName).Contains(search)
-                        || u.MailId.Contains(search)
-                        || u.LoginId.Contains(search)
+                        || (u.MailId != null && u.MailId.Contains(search))
+                        || (u.LoginId != null && u.LoginId.Contains(search))
                     )
                     .Where(u => u.Current)
                     .OrderBy(u => u.DisplayLastName)
