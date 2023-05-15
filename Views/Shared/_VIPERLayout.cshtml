@@ -90,7 +90,6 @@
                         class="float-right lt-md"
                         @@click="mainLeftDrawer = false"></q-btn>
 
-                    <div v-for="n in 50" :key="n">Drawer {{ n }} / 50</div>
 
                 </div>
                 <div class="q-mini-drawer-hide absolute" style="top: 10px; right: -15px">
@@ -111,8 +110,8 @@
         </q-page-container>
 
         <q-footer elevated class="bg-white">
-            <div class="q-pa-md q-gutter-xs text-caption">
-                <div id="ucdavislogo" class="float-right">
+            <div class="q-pa-y-sm q-pa-x-md q-gutter-xs text-caption">
+                <div id="ucdavislogo" class="float-right q-mt-sm">
                     <a href="@HttpHelper.GetOldViperRootURL()"><img src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg" alt="UC Davis Veterinary Medicine logo" border="0" width="134" height="24"></a>
                 </div>
                 <q-breadcrumbs separator=" | " active-color="primary" class="text-primary">
@@ -120,7 +119,7 @@
                     <q-breadcrumbs-el label="SVM Home" icon="navigation" href="http://www.vetmed.ucdavis.edu/"></q-breadcrumbs-el>
                     <q-breadcrumbs-el label="UC Davis" icon="school" href="http://www.ucdavis.edu/"></q-breadcrumbs-el>
                 </q-breadcrumbs>
-                <div class="q-pa-none text-black">
+                <div class="q-pl-sm text-black">
                     &copy; 2023 School of Veterinary Medicine
                 </div>
             </div>
@@ -195,6 +194,7 @@
             watch: vueWatchers,
             emits: vueEmits,
             props: vueProps,
+            computed: computed,
             beforeCreate() {
                 while (vueBeforeCreateActions.length) {
                     vueBeforeCreateActions.shift().call(this);

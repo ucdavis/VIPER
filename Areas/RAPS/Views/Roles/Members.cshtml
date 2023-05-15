@@ -1,57 +1,55 @@
 ﻿
-<div class="q-pa-md">
-    <h2>Members of {{role.role}}</h2>
-    <q-btn href="/RAPS" icon="arrow_back" label="Roles" class="q-mb-md"></q-btn>
-    <div style="max-width:400px;" class="q-mb-md">
-        <div>
-            <span>{{roleMemberForm.editing ? "Edit" : "Create"}} Role Member</span>
-            <q-form @@submit="editRoleMember" v-bind="roleMemberForm">
-                <q-select outlined dense use-input input-debounce="300"
-                    label="User" 
-                    v-model="roleMemberForm.member"  
-                    @@filter="memberSearch" 
-                    :options="memberSearchResults" 
-                    :readonly="roleMemberForm.editing">
-                </q-select>
-                <q-input type="date" outlined dense v-model="roleMemberForm.startDate" label="Start Date"></q-input>
-                <q-input type="date" outlined dense v-model="roleMemberForm.endDate" label="End Date"></q-input>
-                <q-input outlined dense v-model="roleMemberForm.comment" label="Comment"></q-input>
-                <q-btn label="Submit" type="submit" color="primary" class="q-mr-lg q-mt-md"></q-btn>
-                <q-btn label="Clear" type="button" @@click="clearRoleMember" color="primary" class="q-mt-md" v-if="roleMemberForm.editing"></q-btn>
-                <q-btn label="Delete" type="button" @@click="deleteRoleMember" color="red" class="q-ml-lg q-mt-md" v-if="roleMemberForm.editing"></q-btn>
-            </q-form>
-        </div>
+<h2>Members of {{role.role}}</h2>
+<q-btn href="/RAPS" icon="arrow_back" label="Roles" class="q-mb-md"></q-btn>
+<div style="max-width:400px;" class="q-mb-md">
+    <div>
+        <span>{{roleMemberForm.editing ? "Edit" : "Create"}} Role Member</span>
+        <q-form @@submit="editRoleMember" v-bind="roleMemberForm">
+            <q-select outlined dense use-input input-debounce="300"
+                label="User" 
+                v-model="roleMemberForm.member"  
+                @@filter="memberSearch" 
+                :options="memberSearchResults" 
+                :readonly="roleMemberForm.editing">
+            </q-select>
+            <q-input type="date" outlined dense v-model="roleMemberForm.startDate" label="Start Date"></q-input>
+            <q-input type="date" outlined dense v-model="roleMemberForm.endDate" label="End Date"></q-input>
+            <q-input outlined dense v-model="roleMemberForm.comment" label="Comment"></q-input>
+            <q-btn label="Submit" type="submit" color="primary" class="q-mr-lg q-mt-md"></q-btn>
+            <q-btn label="Clear" type="button" @@click="clearRoleMember" color="primary" class="q-mt-md" v-if="roleMemberForm.editing"></q-btn>
+            <q-btn label="Delete" type="button" @@click="deleteRoleMember" color="red" class="q-ml-lg q-mt-md" v-if="roleMemberForm.editing"></q-btn>
+        </q-form>
     </div>
-    
-    <q-table title="Members"
-             dense
-             row-key="memberId"
-             :loading="roleMembersLoading"
-             :rows="roleMembers"
-             :columns="rolesmembersColumns"
-             :filter="roleMembersFilter"
-             :pagination="roleMembersPagination">
-        <template v-slot:top-right="props">
-            <q-input class="q-ml-xs q-mr-xs" v-model="roleMembersFilter" dense outlined debounce="300" placeholder="Filter Results">
-                <template v-slot:append>
-                    <q-icon name="filter_alt" />
-                </template>
-            </q-input>
-        </template>
-        <template v-slot:body-cell-memberid="props">
-            <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="dataset" :href="'RSOP/?MemberId=' + props.row.memberId"></q-btn>
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'MemberRoles/?RoleId=' + props.row.memberId"></q-btn>
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions/?RoleId=' + props.row.memberId"></q-btn>
-            </q-td>
-        </template>
-        <template v-slot:body-cell-actions="props">
-            <q-td :props="props">
-                <q-btn :props="props" size="md" color="primary" @@click="selectForEdit(props)">Edit</q-btn>
-            </q-td>
-        </template>
-    </q-table>
 </div>
+    
+<q-table title="Members"
+            dense
+            row-key="memberId"
+            :loading="roleMembersLoading"
+            :rows="roleMembers"
+            :columns="rolesmembersColumns"
+            :filter="roleMembersFilter"
+            :pagination="roleMembersPagination">
+    <template v-slot:top-right="props">
+        <q-input class="q-ml-xs q-mr-xs" v-model="roleMembersFilter" dense outlined debounce="300" placeholder="Filter Results">
+            <template v-slot:append>
+                <q-icon name="filter_alt" />
+            </template>
+        </q-input>
+    </template>
+    <template v-slot:body-cell-memberid="props">
+        <q-td :props="props">
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="dataset" :href="'RSOP/?MemberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'MemberRoles/?RoleId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions/?RoleId=' + props.row.memberId"></q-btn>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-actions="props">
+        <q-td :props="props">
+            <q-btn :props="props" size="md" color="primary" @@click="selectForEdit(props)">Edit</q-btn>
+        </q-td>
+    </template>
+</q-table>
 
 @section Scripts {
     <script asp-add-nonce="true">

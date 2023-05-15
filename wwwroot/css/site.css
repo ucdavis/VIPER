@@ -78,3 +78,9 @@ z-index: 1;
     -webkit-font-feature-settings: 'liga';
     -webkit-font-smoothing: antialiased;
 }
+
+.q-page-container h2 {
+    font-size: 2rem;
+    line-height: 2rem;
+    margin: 1rem 0rem;
+}

@@ -1,77 +1,75 @@
 ﻿
-<div class="q-pa-md">
-    <h2>Members of {{role.role}}</h2>
-    <q-btn href="/RAPS" icon="arrow_back" label="Roles" class="q-mb-md"></q-btn>
+<h2>Members of {{role.role}}</h2>
+<q-btn href="/RAPS" icon="arrow_back" label="Roles" class="q-mb-md"></q-btn>
     
-    <q-table title="Members"
-             dense
-             row-key="memberId"
-             :loading="roleMembersLoading"
-             :rows="roleMembers"
-             :columns="rolesmembersColumns"
-             :filter="roleMembersFilter"
-             :pagination="roleMembersPagination">
-        <template v-slot:top-left>
-            <q-btn dense color="secondary" label="Add Member" @@click="showForm = true" no-caps></q-btn>
-            <div class="q-pa-sm q-gutter-sm">
-                <q-dialog v-model="showForm" @@hide="clearRoleMember">
-                    <q-card>
-                        <q-form @@submit="editRoleMember" v-bind="roleMemberForm">
-                            <q-card-section>
-                                <div class="text-h6">{{editingIndex >= 0 ? "Edit" : "Create"}} Role Member</div>
-                            </q-card-section>
+<q-table title="Members"
+            dense
+            row-key="memberId"
+            :loading="roleMembersLoading"
+            :rows="roleMembers"
+            :columns="rolesmembersColumns"
+            :filter="roleMembersFilter"
+            :pagination="roleMembersPagination">
+    <template v-slot:top-left>
+        <q-btn dense color="secondary" label="Add Member" @@click="showForm = true" no-caps></q-btn>
+        <div class="q-pa-sm q-gutter-sm">
+            <q-dialog v-model="showForm" @@hide="clearRoleMember">
+                <q-card>
+                    <q-form @@submit="editRoleMember" v-bind="roleMemberForm">
+                        <q-card-section>
+                            <div class="text-h6">{{editingIndex >= 0 ? "Edit" : "Create"}} Role Member</div>
+                        </q-card-section>
 
-                            <q-card-section>
-                                <div class="row">
-                                    <q-select outlined dense use-input input-debounce="300"
-                                                label="User"
-                                                v-model="roleMemberForm.member"
-                                                @@filter="memberSearch"
-                                                :options="memberSearchResults"
-                                                :readonly="editingIndex >= 0">
-                                    </q-select>
-                                </div>
-                                <div class="row">
-                                    <q-input type="date" outlined dense v-model="roleMemberForm.startDate" label="Start Date"></q-input>
-                                </div>
-                                <div class="row">
-                                    <q-input type="date" outlined dense v-model="roleMemberForm.endDate" label="End Date"></q-input>
-                                </div>
-                                <div class="row">
-                                    <q-input outlined dense v-model="roleMemberForm.comment" label="Comment"></q-input>
-                                </div>
-                            </q-card-section>
+                        <q-card-section>
+                            <div class="row">
+                                <q-select outlined dense use-input input-debounce="300"
+                                            label="User"
+                                            v-model="roleMemberForm.member"
+                                            @@filter="memberSearch"
+                                            :options="memberSearchResults"
+                                            :readonly="editingIndex >= 0">
+                                </q-select>
+                            </div>
+                            <div class="row">
+                                <q-input type="date" outlined dense v-model="roleMemberForm.startDate" label="Start Date"></q-input>
+                            </div>
+                            <div class="row">
+                                <q-input type="date" outlined dense v-model="roleMemberForm.endDate" label="End Date"></q-input>
+                            </div>
+                            <div class="row">
+                                <q-input outlined dense v-model="roleMemberForm.comment" label="Comment"></q-input>
+                            </div>
+                        </q-card-section>
 
-                            <q-card-actions align="evenly">
-                                <q-btn no-caps :label="editingIndex >= 0 ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary"></q-btn>
-                                <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="deleteRoleMember" color="red" v-if="editingIndex >= 0"></q-btn>
-                            </q-card-actions>
-                        </q-form>
-                    </q-card>
-                </q-dialog>
-            </div>
-        </template>
-        <template v-slot:top-right="props">
-            <q-input class="q-ml-xs q-mr-xs" v-model="roleMembersFilter" dense outlined debounce="300" placeholder="Filter Results">
-                <template v-slot:append>
-                    <q-icon name="filter_alt" />
-                </template>
-            </q-input>
-        </template>
-        <template v-slot:body-cell-memberid="props">
-            <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="dataset" :href="'RSOP/?MemberId=' + props.row.memberId"></q-btn>
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'MemberRoles/?RoleId=' + props.row.memberId"></q-btn>
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions/?RoleId=' + props.row.memberId"></q-btn>
-            </q-td>
-        </template>
-        <template v-slot:body-cell-actions="props">
-            <q-td :props="props">
-                <q-btn no-caps size="md" :props="props" color="primary" @@click="selectForEdit(props.row)">Edit</q-btn>
-            </q-td>
-        </template>
-    </q-table>
-</div>
+                        <q-card-actions align="evenly">
+                            <q-btn no-caps :label="editingIndex >= 0 ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary"></q-btn>
+                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="deleteRoleMember" color="red" v-if="editingIndex >= 0"></q-btn>
+                        </q-card-actions>
+                    </q-form>
+                </q-card>
+            </q-dialog>
+        </div>
+    </template>
+    <template v-slot:top-right="props">
+        <q-input class="q-ml-xs q-mr-xs" v-model="roleMembersFilter" dense outlined debounce="300" placeholder="Filter Results">
+            <template v-slot:append>
+                <q-icon name="filter_alt" />
+            </template>
+        </q-input>
+    </template>
+    <template v-slot:body-cell-memberid="props">
+        <q-td :props="props">
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="dataset" :href="'RSOP/?MemberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'MemberRoles/?RoleId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions/?RoleId=' + props.row.memberId"></q-btn>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-actions="props">
+        <q-td :props="props">
+            <q-btn no-caps size="md" :props="props" color="primary" @@click="selectForEdit(props.row)">Edit</q-btn>
+        </q-td>
+    </template>
+</q-table>
 
 @section Scripts {
     <script asp-add-nonce="true">

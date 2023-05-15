@@ -1,61 +1,70 @@
 ﻿
-<div class="q-pa-md">
-    <h2>Permissions</h2>
-    <q-table
-        title="Permissions"
-        dense
-        row-key="permissionId"
-        :loading="loading"
-        :rows="permissions"
-        :columns="columns"
-        :filter="filter"
-        :pagination="pagination"
-    >
-        <template v-slot:top-left>
-            <q-btn dense no-caps color="secondary" label="Add Permission" @@click="showForm = true"></q-btn>
-            <div class="q-pa-sm q-gutter-sm">
-                <q-dialog v-model="showForm" @@hide="clearPermission">
-                    <q-card style="width: 500px; max-width: 80vw;">
-                        <q-form @@submit="editPermission" v-bind="roleMemberForm">
-                            <q-card-section>
-                                <div class="text-h6">{{editingIndex >= 0 ? "Edit" : "Create"}} Permission</div>
-                            </q-card-section>
+<h2>Permissions</h2>
+<q-table
+    title="Permissions"
+    dense
+    row-key="permissionId"
+    :loading="loading"
+    :rows="permissions"
+    :columns="columns"
+    :filter="permFilter"
+    :filter-method="filterPermissions"
+    :pagination="pagination"
+>
+    <template v-slot:top-left>
+        <q-btn dense no-caps color="secondary" padding="xs md" @@click="showForm = true">
+            <q-icon name="add"></q-icon>
+        </q-btn>
+        <div class="q-pa-sm q-gutter-sm">
+            <q-dialog v-model="showForm" @@hide="clearPermission">
+                <q-card style="width: 500px; max-width: 80vw;">
+                    <q-form @@submit="editPermission" v-bind="roleMemberForm">
+                        <q-card-section>
+                            <div class="text-h6">{{editingIndex >= 0 ? "Edit" : "Create"}} Permission</div>
+                        </q-card-section>
 
-                            <q-card-section>
-                                    <q-input outlined dense v-model="permission.permission" label="Permission Name"></q-input>
-                                    <q-input type="textarea" outlined dense v-model="permission.description" label="Description"></q-input>
-                            </q-card-section>
+                        <q-card-section>
+                            <q-input outlined dense v-model="permission.permission" label="Permission Name"></q-input>
+                            <q-input type="textarea" outlined dense v-model="permission.description" label="Description"></q-input>
+                        </q-card-section>
 
-                            <q-card-actions align="evenly">
-                                <q-btn no-caps :label="editingIndex >= 0 ? 'Update Permission' : 'Add Permission'" type="submit" padding="xs sm" color="primary"></q-btn>
-                                <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="deletePermission" color="red" v-if="editingIndex >= 0"></q-btn>
-                            </q-card-actions>
-                        </q-form>
-                    </q-card>
-                </q-dialog>
-            </div>
-        </template>
-        <template v-slot:top-right>
-            <q-input v-model="filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
-                <template v-slot:append>
-                    <q-icon name="filter_alt" />
-                </template>
-            </q-input>
-        </template>
-        <template v-slot:body-cell-action="props">
-            <q-td :props="props">
-                <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'PermissionRoles?PermissionId=' + props.row.permissionId"></q-btn>
-                <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'PermissionMembers?PermissionId=' + props.row.permissionId"></q-btn>
-                <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'AllMembersWithPermission?PermissionId=' + props.row.permissionId"></q-btn>
-            </q-td>
-        </template>
-        <template v-slot:body-cell-edit="props">
-            <q-td :props="props">
-                <q-btn :props="props" dense color="primary" size="md" padding="xs md" @@click="selectPermission(props.row)">Edit</q-btn>
-            </q-td>
-        </template>
-    </q-table>
-</div>
+                        <q-card-actions align="evenly">
+                            <q-btn no-caps :label="editingIndex >= 0 ? 'Update Permission' : 'Add Permission'" type="submit" padding="xs sm" color="primary"></q-btn>
+                            <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="deletePermission" color="red" v-if="editingIndex >= 0"></q-btn>
+                        </q-card-actions>
+                    </q-form>
+                </q-card>
+            </q-dialog>
+        </div>
+        <q-select v-model="selectedApplication"
+            :options="applications" 
+            v-if="applications.length > 0" 
+            @@change="selectApplication()"
+            outlined
+            dense
+            class="q-ml-lg">
+        </q-select>
+    </template>
+    <template v-slot:top-right>
+        <q-input v-model="filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
+            <template v-slot:append>
+                <q-icon name="filter_alt" />
+            </template>
+        </q-input>
+    </template>
+    <template v-slot:body-cell-action="props">
+        <q-td :props="props">
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'PermissionRoles?PermissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'PermissionMembers?PermissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="compare_arrows" :href="'AllMembersWithPermission?PermissionId=' + props.row.permissionId"></q-btn>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-edit="props">
+        <q-td :props="props">
+            <q-btn :props="props" dense color="primary" size="md" padding="xs md" @@click="selectPermission(props.row)">Edit</q-btn>
+        </q-td>
+    </template>
+</q-table>
 
 @section Scripts {
     <script asp-add-nonce="true">
@@ -64,6 +73,8 @@
         vueObjects.editingIndex = -1
         vueObjects.permission = {}
         //list
+        vueObjects.applications = []
+        vueObjects.selectedApplication = "SVMSecure"
         vueObjects.loading = true
         vueObjects.permissions = []
         vueObjects.columns = [
@@ -74,11 +85,36 @@
         ]
         vueObjects.filter = ""
         vueObjects.pagination = { rowsPerPage: 15 }
+        computed.permFilter = function() {
+            return {
+                filter: this.filter,
+                selectedApplication: this.selectedApplication
+            }
+        }
 
+        vueMethods.filterPermissions = function(rows, terms, cols, getCellValue) {
+            console.log(terms)
+            console.log(this.selectedApplication)
+
+            return rows.filter(r => {
+                    var perm = r.permission.toLowerCase()
+                    var app = this.selectedApplication.toLowerCase()
+                    return (app == "" || perm.startsWith(app))
+                        && (perm.indexOf(this.filter.toLowerCase()) >= 0)
+                })
+        }
         vueMethods.loadPermissions = function() {
             fetch("Permissions")
                 .then(r => r.json())
-                .then(d => this.permissions = d.map(p => ({...p, count: p.tblMemberPermissions.length})))
+                .then(d => {
+                    this.permissions = d.map(p => ({...p, count: p.tblMemberPermissions.length}))
+                    this.applications = []
+                    for(p of this.permissions) {
+                        var appname = p.permission.split(".")[0]
+                        if(this.applications.indexOf(appname) < 0)
+                            this.applications.push(appname)
+                    }
+                })
             this.loading = false
             this.clearPermission()
         }
@@ -90,6 +126,7 @@
         vueMethods.editPermission = function() {
             var editing = this.editingIndex > -1
             var url = "Permissions/" + (editing ? this.permission.permissionId : "")
+            this.permission.tblPermissionMembers = []
             fetch(url, {
                 method: editing ? "PUT" : "POST",
                 body: JSON.stringify(this.permission),
