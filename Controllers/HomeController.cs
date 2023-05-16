@@ -170,6 +170,7 @@ namespace Viper.Controllers
                 switch (statusCode)
                 {
                     case 403:
+                        Response.StatusCode = 403;
                         viewName = statusCode.ToString();
                         break;
                     default:

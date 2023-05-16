@@ -60,17 +60,8 @@ try {
         {
             options.Cookie.Name = "VIPER.Authentication.UCD";
             options.LoginPath = new PathString("/login");
-            //options.AccessDeniedPath = new PathString("/AccessDenied");
+            options.AccessDeniedPath = new PathString("/Error/403");
             options.ExpireTimeSpan = TimeSpan.FromHours(12);
-            options.Events = new CookieAuthenticationEvents
-            {
-                // Instead of redirecting on access denied return a 403 response
-                OnRedirectToAccessDenied = context =>
-                {
-                    context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
-                    return Task.CompletedTask;
-                }
-            };
         });
 
     // Add CAS settings from appSettings configuration
@@ -190,7 +181,7 @@ try {
     // Configure the HTTP request pipeline.
     if (!app.Environment.IsDevelopment())
     {
-        app.UseExceptionHandler("~/Error"); // Error page for production
+        app.UseExceptionHandler("/Error"); // Error page for production
         app.UseHttpsRedirection(); // Force HTTPS
 
         // Implement HTTP Strict Transport Security see https://aka.ms/aspnetcore-hsts.
