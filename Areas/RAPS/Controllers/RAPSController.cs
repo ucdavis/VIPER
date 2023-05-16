@@ -132,7 +132,7 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance=VIPER}/[action]")]
         public IActionResult PermissionList()
         {
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/List.cshtml"));
+            return View("~/Areas/RAPS/Views/Roles/List.cshtml");
         }
     }
 }

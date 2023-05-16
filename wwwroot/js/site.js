@@ -12,3 +12,8 @@ formatDateForDateInput = function (d) {
         ? (dt.getFullYear() + "-" + ("" + (dt.getMonth() + 1)).padStart(2, "0") + "-" + ("" + (dt.getDate())).padStart(2, "0"))
         : "";
 }
+
+// automatically add CSRF token header to jquery ajax calls
+$.ajaxSetup({
+    headers: { "X-CSRF-TOKEN": csrfToken }
+});

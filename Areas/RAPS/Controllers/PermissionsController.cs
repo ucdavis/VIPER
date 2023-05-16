@@ -83,7 +83,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return BadRequest();
             }
             
-            TblPermission existingPermission = GetPermissionByName(permission.Permission);
+            TblPermission? existingPermission = GetPermissionByName(permission.Permission);
             if (existingPermission != null && existingPermission.PermissionId != permissionId)
             {
                 return ValidationProblem("Permission name must be unique");
