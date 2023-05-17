@@ -200,9 +200,9 @@ namespace Viper.Areas.RAPS.Controllers
             return TblRoleMembers;
         }
 
-        //POST: Roles/5/Members/12345678
-        [HttpPost("{roleId}/Members/{memberId}")]
-        public async Task<ActionResult<IEnumerable<TblRoleMember>>> PostTblRoleMembers(int roleId, String memberId, RoleMemberCreateUpdate RoleMemberCreateUpdate)
+        //POST: Roles/5/Members
+        [HttpPost("{roleId}/Members")]
+        public async Task<ActionResult<IEnumerable<TblRoleMember>>> PostTblRoleMembers(int roleId, RoleMemberCreateUpdate RoleMemberCreateUpdate)
         {
             if (_context.TblRoles == null)
             {
@@ -215,7 +215,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
 
-            var tblRoleMemberExists = await _context.TblRoleMembers.FindAsync(roleId, memberId);
+            var tblRoleMemberExists = await _context.TblRoleMembers.FindAsync(roleId, RoleMemberCreateUpdate.MemberId);
             if(tblRoleMemberExists != null)
             {
                 //TODO: Duplicate record error response
@@ -224,7 +224,7 @@ namespace Viper.Areas.RAPS.Controllers
 
             TblRoleMember tblRoleMember = new TblRoleMember();
             tblRoleMember.RoleId = roleId;
-            tblRoleMember.MemberId = memberId;
+            tblRoleMember.MemberId = RoleMemberCreateUpdate.MemberId;
             tblRoleMember.StartDate = RoleMemberCreateUpdate.StartDate == null ? null : RoleMemberCreateUpdate.StartDate.Value.ToDateTime(new TimeOnly(0, 0, 0));
             tblRoleMember.EndDate = RoleMemberCreateUpdate.EndDate == null ? null : RoleMemberCreateUpdate.EndDate.Value.ToDateTime(new TimeOnly(0, 0, 0));
             _context.TblRoleMembers.Add(tblRoleMember);
@@ -235,7 +235,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         //PUT: Roles/5/Members/12345678
         [HttpPut("{roleId}/Members/{memberId}")]
-        public async Task<ActionResult<IEnumerable<TblRoleMember>>> PutTblRoleMembers(int roleId, String memberId, RoleMemberCreateUpdate RoleMemberCreateUpdate)
+        public async Task<ActionResult<IEnumerable<TblRoleMember>>> PutTblRoleMembers(int roleId, string memberId, RoleMemberCreateUpdate RoleMemberCreateUpdate)
         {
             if (_context.TblRoles == null)
             {
@@ -264,7 +264,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         //DELETE: Roles/5/Members/12345678
         [HttpDelete("{roleId}/Members/{memberId}")]
-        public async Task<IActionResult> DeleteTblRoleMembers(int roleId, String memberId, string? comment)
+        public async Task<IActionResult> DeleteTblRoleMembers(int roleId, string memberId, string? comment)
         {
             if (_context.TblRoleMembers == null)
             {
