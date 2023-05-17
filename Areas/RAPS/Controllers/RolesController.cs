@@ -12,15 +12,15 @@ using Microsoft.EntityFrameworkCore;
 using Polly;
 using Viper.Areas.RAPS.Dtos;
 using Viper.Areas.RAPS.Services;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Controllers
 {
     [Route("raps/{instance=VIPER}/[controller]")]
-    [ApiController]
     [Authorize(Roles = "VMDO SVM-IT,RAPS Delegate Users", Policy = "2faAuthentication")]
-    public class RolesController : ControllerBase
+    public class RolesController : ApiController
     {
         private readonly RAPSContext _context;
         private RAPSSecurityService _securityService;

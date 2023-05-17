@@ -135,6 +135,7 @@
     <script src="~/lib/jquery/jquery.min.js"></script>
     <script src="~/lib/vue/vue.global.prod.js"></script>
     <script src="~/lib/quasar/dist/quasar.umd.prod.js"></script>
+    <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
         // define global Vue objects
         const { createApp, ref, computed, watch, nextTick, toRaw } = Vue;
@@ -142,7 +143,7 @@
         let vueSetupObjects = {};
         vueSetupObjects.mainLeftDrawer = ref(false);
         vueSetupObjects.mainLeftMiniState = ref(false);
-        let vueObjects = {};
+        let vueObjects = { showViperError: false, viperErrorMessage: "" };
         let vueMethods = {};
         let vueWatchers = {};
         let vueEmits = {};
@@ -180,6 +181,16 @@
     vueMountedActions.push(function(){alert('Vue is mounted!')});
     *@
     @await RenderSectionAsync("Scripts", required: false)
+
+    <q-dialog v-model="showViperError"
+              auto-close="true">
+        <q-banner>
+            <template v-slot:avatar>
+                <q-icon name="error" color="red" />
+            </template>
+            {{viperErrorMessage}}
+        </q-banner>
+    </q-dialog>
 
     <script asp-add-nonce="true">
 

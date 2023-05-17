@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Polly;
 using Viper.Areas.RAPS.Dtos;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 using Web.Authorization;
@@ -18,9 +19,8 @@ using Web.Authorization;
 namespace Viper.Areas.RAPS.Controllers
 {
     [Route("raps/{instance=VIPER}/[controller]")]
-    [ApiController]
     [Authorize(Roles = "VMDO SVM-IT", Policy = "2faAuthentication")]
-    public class PermissionsController : ControllerBase
+    public class PermissionsController : ApiController
     {
         private readonly RAPSContext _context;
 
@@ -83,7 +83,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return BadRequest();
             }
             
-            TblPermission existingPermission = GetPermissionByName(permission.Permission);
+            TblPermission? existingPermission = GetPermissionByName(permission.Permission);
             if (existingPermission != null && existingPermission.PermissionId != permissionId)
             {
                 return ValidationProblem("Permission name must be unique");

@@ -21,10 +21,11 @@
                     <q-form @@submit="editPermission" v-bind="roleMemberForm">
                         <q-card-section>
                             <div class="text-h6">{{editingIndex >= 0 ? "Edit" : "Create"}} Permission</div>
+                            <div class="bg-negative text-white q-pa-sm rounded" v-if="errors?.message?.length > 0">{{errors.message}}</div>
                         </q-card-section>
 
                         <q-card-section>
-                            <q-input outlined dense v-model="permission.permission" label="Permission Name"></q-input>
+                            <q-input outlined dense v-model="permission.permission" :error="errors?.Permission?.error" :error-message="errors?.Permission?.message" label="Permission Name"></q-input>
                             <q-input type="textarea" outlined dense v-model="permission.description" label="Description"></q-input>
                         </q-card-section>
 
@@ -72,6 +73,7 @@
         vueObjects.showForm = false
         vueObjects.editingIndex = -1
         vueObjects.permission = {}
+        vueObjects.errors = {}
         //list
         vueObjects.applications = []
         vueObjects.selectedApplication = "SVMSecure"
@@ -93,9 +95,6 @@
         }
 
         vueMethods.filterPermissions = function(rows, terms, cols, getCellValue) {
-            console.log(terms)
-            console.log(this.selectedApplication)
-
             return rows.filter(r => {
                     var perm = r.permission.toLowerCase()
                     var app = this.selectedApplication.toLowerCase()
@@ -104,17 +103,20 @@
                 })
         }
         vueMethods.loadPermissions = function() {
-            fetch("Permissions")
-                .then(r => r.json())
-                .then(d => {
-                    this.permissions = d.map(p => ({...p, count: p.tblMemberPermissions.length}))
-                    this.applications = []
-                    for(p of this.permissions) {
-                        var appname = p.permission.split(".")[0]
-                        if(this.applications.indexOf(appname) < 0)
-                            this.applications.push(appname)
+            viperFetch(this, "Permissions", {}, [
+                (
+                    data => {
+                        this.permissions = data.map(p => ({ ...p, count: p.tblMemberPermissions.length }))
+                        this.applications = []
+                        for (p of this.permissions) {
+                            var appname = p.permission.split(".")[0]
+                            if (this.applications.indexOf(appname) < 0)
+                                this.applications.push(appname)
+                        }
                     }
-                })
+                )
+            ])
+            
             this.loading = false
             this.clearPermission()
         }
@@ -126,26 +128,26 @@
         vueMethods.editPermission = function() {
             var editing = this.editingIndex > -1
             var url = "Permissions/" + (editing ? this.permission.permissionId : "")
-            this.permission.tblPermissionMembers = []
-            fetch(url, {
+            viperFetch(this, url, {
                 method: editing ? "PUT" : "POST",
                 body: JSON.stringify(this.permission),
                 headers: { "Content-Type": "application/json" }
-            })
-            .then(r => this.loadPermissions())
+                },
+                [(r => this.loadPermissions())],
+                this.errors)
+            
+            //.then(r => this.loadPermissions())
         }
         vueMethods.clearPermission = function() {
             this.permission = {}
             this.editingIndex = -1
             this.showForm = false
+            this.errors = {}
         }
         vueMethods.deletePermission = function() {
-            fetch("Permissions/" + this.permission.permissionId, {
-                method: "DELETE"
-            })
-            .then(r => {
+            viperFetch(this, "Permissions/" + this.permission.permissionId, { method: "DELETE" }, r => {
                 this.loadPermissions()
-            })
+            }, this.errors)
         }
         vueMountedActions.push(function() {
             this.loadPermissions()

@@ -130,9 +130,9 @@ namespace Viper.Areas.RAPS.Controllers
         /// <returns></returns>
         [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
         [Route("/[area]/{Instance=VIPER}/[action]")]
-        public IActionResult PermissionList()
+        public async Task<IActionResult> PermissionList()
         {
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/List.cshtml"));
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/List2.cshtml"));
         }
     }
 }
