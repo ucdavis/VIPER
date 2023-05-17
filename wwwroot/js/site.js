@@ -17,6 +17,10 @@ function formatDateForDateInput(d) {
 $.ajaxSetup({
     headers: { "X-CSRF-TOKEN": csrfToken }
 });
+
+/*
+ * Validation error to include the errors object for .NET 400
+ */
 class ValidationError extends Error {
     constructor(message, fields) {
         super(message)
@@ -27,6 +31,12 @@ class ValidationError extends Error {
  * Perform a fetch given the url and data. If successful, call any additional functions provided
  */
 async function viperFetch(VueApp, url, data = {}, additionalFunctions = [], errorTarget = "") {
+    if (data.headers === undefined) {
+        data.headers = {}
+    }
+    if (data.headers["X-CSRF-TOKEN"] === undefined) {
+        data.headers["X-CSRF-TOKEN"] = csrfToken
+    }
     return await fetch(url, data)
         //handle 4xx and 5xx status codes
         .then(r => handleViperFetchError(r))

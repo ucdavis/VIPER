@@ -43,9 +43,8 @@
         { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left", sortable: true }
     ]
     vueMethods.loadRoles = async function() {
-        var roleResult = await fetch("Roles")
-        var tempRoles = await roleResult.json()
-        var tempRoles = tempRoles.map(function (r) {
+        var tempRoles = await viperFetch(this, "Roles")
+        tempRoles = tempRoles.map(function (r) {
             return {
                 roleId: r.roleId,
                 role: (r.displayName ? r.displayName : r.role),
