@@ -35,6 +35,16 @@ namespace Viper.Areas.RAPS.Services
             return Instance.StartsWith("VMACS.");
         }
 
+        public bool RoleBelongsToInstance(string Instance, TblRole role)
+        {
+            string roleName = role.Role.ToUpper();
+            if(Instance.ToUpper() == "VIPER")
+            {
+                return !roleName.StartsWith("VMACS.") && !roleName.StartsWith("VIPERFORMS");
+            }
+            return roleName.StartsWith(Instance.ToUpper());
+        }
+
         public bool IsAllowedTo(string action, string? Instance)
         {
             if(UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.Admin"))

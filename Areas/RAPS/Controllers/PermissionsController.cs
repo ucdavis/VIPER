@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Polly;
 using Viper.Areas.RAPS.Dtos;
+using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
@@ -23,10 +24,12 @@ namespace Viper.Areas.RAPS.Controllers
     public class PermissionsController : ApiController
     {
         private readonly RAPSContext _context;
+        private RAPSAuditService _auditService;
 
         public PermissionsController(RAPSContext context)
         {
             _context = context;
+            _auditService = new RAPSAuditService(context);
         }
 
         private static Expression<Func<TblPermission, bool>> FilterToInstance(string instance)
@@ -73,9 +76,8 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         // PUT: Permissions/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{permissionId}")]
-        [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
+        [Permission(Allow = "RAPS.Admin,RAPS.CreatePermission")]
         public async Task<IActionResult> PutTblPermission(int permissionId, PermissionCreateUpdate permission)
         {
             if (permissionId != permission.PermissionId)
@@ -93,11 +95,9 @@ namespace Viper.Areas.RAPS.Controllers
                 _context.Entry(existingPermission).State = EntityState.Detached;
             }
 
-            TblPermission tblPermission = new TblPermission();
-            tblPermission.PermissionId = permission.PermissionId;
-            tblPermission.Permission = permission.Permission;
-            tblPermission.Description = permission.Description;
+            TblPermission tblPermission = CreateTblPermissionFromDto(permission);
             _context.Entry(tblPermission).State = EntityState.Modified;
+            _auditService.AuditPermissionChange(tblPermission, RAPSAuditService.AuditActionType.Update);
 
             try
             {
@@ -119,31 +119,35 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         // POST: Permissions
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
-        public async Task<ActionResult<TblPermission>> PostTblPermission(TblPermission tblPermission)
+        [Permission(Allow = "RAPS.Admin,RAPS.CreatePermission")]
+        public async Task<ActionResult<TblPermission>> PostTblPermission(PermissionCreateUpdate permission)
         {
             if (_context.TblPermissions == null)
             {
                 return Problem("Entity set 'RAPSContext.TblPermissions'  is null.");
             }
 
-            TblPermission? existingPermission = GetPermissionByName(tblPermission.Permission);
+            TblPermission? existingPermission = GetPermissionByName(permission.Permission);
             if (existingPermission != null) 
             {
                 return ValidationProblem("Permission name must be unique");
             }
 
+            TblPermission tblPermission = CreateTblPermissionFromDto(permission);
+            using var transaction = _context.Database.BeginTransaction();
             _context.TblPermissions.Add(tblPermission);
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();
+            _auditService.AuditPermissionChange(tblPermission, RAPSAuditService.AuditActionType.Create);
+            _context.SaveChanges();
+            transaction.Commit();
 
             return CreatedAtAction("GetTblPermission", new { id = tblPermission.PermissionId }, tblPermission);
         }
 
         // DELETE: Permissions/5
         [HttpDelete("{permissionId}")]
-        [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
+        [Permission(Allow = "RAPS.Admin,RAPS.DeletePermission")]
         public async Task<IActionResult> DeleteTblPermission(int permissionId)
         {
             if (_context.TblPermissions == null)
@@ -157,9 +161,20 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             _context.TblPermissions.Remove(tblPermission);
+            _auditService.AuditPermissionChange(tblPermission, RAPSAuditService.AuditActionType.Delete);
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        private TblPermission CreateTblPermissionFromDto(PermissionCreateUpdate permission)
+        {
+            var tblPermission = new TblPermission() { Permission = permission.Permission, Description = permission.Description };
+            if (permission.PermissionId != null && permission.PermissionId > 0)
+            {
+                tblPermission.PermissionId = (int)permission.PermissionId;
+            }
+            return tblPermission;
         }
 
         private TblPermission? GetPermissionByName(string name)

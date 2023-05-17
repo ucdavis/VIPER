@@ -306,10 +306,10 @@ public partial class RAPSContext : DbContext
 
         modelBuilder.Entity<TblLog>(entity =>
         {
-            entity
-                .HasNoKey()
-                .ToTable("tblLog");
-
+            entity.HasKey(e => e.AuditRecordId);
+            entity.ToTable("tblLog");
+            
+            entity.Property(e => e.AuditRecordId).HasColumnName("auditRecordId");
             entity.Property(e => e.Audit)
                 .HasMaxLength(50)
                 .IsUnicode(false);

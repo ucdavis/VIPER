@@ -20,6 +20,8 @@ quasarTableEditableRowsDefault = {
     onLoadFunctions: [],
     //function to create the body of a POST or PUT 
     createBody: "",
+    //function to select the object
+    selectObject: "",
     //default pagination options
     pagination: { rowsPerPage: 15 }
 }
@@ -50,6 +52,9 @@ class quasarTableEditable {
     selectRow(item) {
         this.editing = true
         this.object = item
+        if (this.config.selectObject) {
+            this.config.selectObject.call(this, item)
+        }
         this.showForm = true
     }
 
