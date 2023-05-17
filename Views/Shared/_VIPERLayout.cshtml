@@ -1,4 +1,5 @@
-﻿<!DOCTYPE html>
+﻿@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -7,7 +8,6 @@
     @RenderSection("Metatags", required: false)
 
     <title>@ViewData["Title"] - VIPER(2.0)</title>
-    <script src="~/js/site.js"></script>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link href="~/lib/quasar/dist/quasar.prod.css" rel="stylesheet" type="text/css">
 
@@ -15,7 +15,6 @@
 
 </head>
 <body>
-    @Html.AntiForgeryToken()
     <q-layout view="hHh lpR fFf">
         <q-header elevated class="bg-primary text-white" height-hint="98">
 
@@ -44,8 +43,8 @@
                 }
                 @if (UserHelper.IsEmulating())
                 {
-                    <q-banner inline-actions class="bg-negative">
-                        EMULATING: @UserHelper.GetCurrentUser()?.DisplayFullName <q-btn href="@Url.Content("~/ClearEmulation")" color="negative">Stop</q-btn>
+                    <q-banner inline-actions class="bg-warning text-black">
+                        <strong>EMULATING:</strong> @UserHelper.GetCurrentUser()?.DisplayFullName <q-btn href="@Url.Content("~/ClearEmulation")" color="warning" class="text-black">Stop</q-btn>
                     </q-banner>
                 }
                 <q-space></q-space>
@@ -137,6 +136,11 @@
     <script src="~/lib/quasar/dist/quasar.umd.prod.js"></script>
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
+        // set global JS object with the CSRF token. This is automatically added to jquery ajax calls in site.js
+        var csrfToken = "@Xsrf.GetAndStoreTokens(Context).RequestToken";
+    </script>
+    <script src="~/js/site.js"></script>
+    <script asp-add-nonce="true">
         // define global Vue objects
         const { createApp, ref, computed, watch, nextTick, toRaw } = Vue;
         let vueSetupActions = [];
@@ -169,10 +173,6 @@
     $.ajax({
     type: "POST",
     url: 'RAPS?counter=' + this.rapsCount,
-    headers:
-    {
-    "X-CSRF-TOKEN": $('input:hidden[name="__RequestVerificationToken"]').val()
-    }
     });
     };
     vueWatchers.rapsCount = function(newCount, oldCount){

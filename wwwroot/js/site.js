@@ -13,6 +13,10 @@ function formatDateForDateInput(d) {
         : "";
 }
 
+// automatically add CSRF token header to jquery ajax calls
+$.ajaxSetup({
+    headers: { "X-CSRF-TOKEN": csrfToken }
+});
 class ValidationError extends Error {
     constructor(message, fields) {
         super(message)

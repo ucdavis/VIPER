@@ -10,8 +10,8 @@
         </q-avatar>
     </q-btn>
     @if (UserHelper.IsEmulating())
-    {   
-        <q-btn round href="@Url.Content("~/ClearEmulation")" color="negative" icon="lock" style="left:-15px;">
+    {
+        <q-btn round href="@Url.Content("~/ClearEmulation")" color="warning" class="text-black" icon="visibility_off" style="left:-15px;">
             <q-tooltip>
                 End Emulation
             </q-tooltip>
