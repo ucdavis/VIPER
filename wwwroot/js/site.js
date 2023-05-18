@@ -22,9 +22,9 @@ $.ajaxSetup({
  * Validation error to include the errors object for .NET 400
  */
 class ValidationError extends Error {
-    constructor(message, fields) {
+    constructor(message, errorList) {
         super(message)
-        this.fields = fields
+        this.errorList = errorList
     }
 }
 /*
@@ -82,10 +82,17 @@ function showViperFetchError(VueApp, error, errorTarget) {
     try {
         if (errorTarget) {
             errorTarget.message = error.message
-            for (key in error.fields) {
-                errorTarget[key] = {
-                    error: true,
-                    message: error.fields[key].join("")
+            if (typeof error.errorList == Object) {
+                for (key in error.errorList) {
+                    errorTarget[key] = {
+                        error: true,
+                        message: error.errorList[key].join("")
+                    }
+                }
+            }
+            else {
+                for (var i = 0; i < 5 && i < error.errorList.length; i++) {
+                    errorTarget.message += " " + error.errorList[i];
                 }
             }
         }

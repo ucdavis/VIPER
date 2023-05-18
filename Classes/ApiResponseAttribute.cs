@@ -30,15 +30,9 @@ namespace Viper.Classes
                 objectResult.Value = new ApiResponse(statusCode, isSuccess, objectResult.Value);
             }
             else
-            { 
-                ValidationProblemDetails? problem = objectResult.Value as ValidationProblemDetails;
-                if(problem != null)
-                {
-                    objectResult.Value = new ApiResponse(statusCode, isSuccess, null, problem.Title, problem.Errors);
-                }
-                else { 
-                    objectResult.Value = new ApiResponse(statusCode, isSuccess, null, "An error has occurred", objectResult.Value);
-                }
+            {
+                objectResult.Value = CreateErrorResponse(objectResult, statusCode);
+                
             }
         }
 
@@ -53,6 +47,20 @@ namespace Viper.Classes
                     || statusCode == HttpStatusCode.Created
                     || statusCode == HttpStatusCode.Accepted
                     || statusCode == HttpStatusCode.NoContent;
+        }
+
+        private ApiResponse CreateErrorResponse(ObjectResult objectResult, HttpStatusCode statusCode)
+        {
+            ValidationProblemDetails? problem = objectResult.Value as ValidationProblemDetails;
+            if (problem != null)
+            {
+                return new ApiResponse(statusCode, false, null, problem.Title, problem.Errors);
+            }
+            if(objectResult.Value is string)
+            {
+                return new ApiResponse(statusCode, false, null, (string)objectResult.Value, null);
+            }
+            return new ApiResponse(statusCode, false, null, "An error has occurred", objectResult.Value);
         }
     }
 }

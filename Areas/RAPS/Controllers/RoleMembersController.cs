@@ -77,8 +77,7 @@ namespace Viper.Areas.RAPS.Controllers
             var tblRoleMemberExists = await _context.TblRoleMembers.FindAsync(roleId, roleMemberCreateUpdate.MemberId);
             if (tblRoleMemberExists != null)
             {
-                //TODO: Duplicate record error response
-                return BadRequest();
+                return BadRequest("User is already a member of this role");
             }
 
             using var transaction = _context.Database.BeginTransaction();
@@ -157,7 +156,7 @@ namespace Viper.Areas.RAPS.Controllers
             return NoContent();
         }
 
-        private void UpdateTblRoleMemberWithDto(TblRoleMember tblRoleMember, RoleMemberCreateUpdate roleMemberCreateUpdate) 
+        private static void UpdateTblRoleMemberWithDto(TblRoleMember tblRoleMember, RoleMemberCreateUpdate roleMemberCreateUpdate) 
         {
             tblRoleMember.StartDate = roleMemberCreateUpdate.StartDate == null ? null : roleMemberCreateUpdate.StartDate.Value.ToDateTime(new TimeOnly(0, 0, 0));
             tblRoleMember.EndDate = roleMemberCreateUpdate.EndDate == null ? null : roleMemberCreateUpdate.EndDate.Value.ToDateTime(new TimeOnly(0, 0, 0));
