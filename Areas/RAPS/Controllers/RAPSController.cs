@@ -30,11 +30,15 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// RAPS home page
         /// </summary>
-        [Route("/[area]")]
-        public async Task<ActionResult> Index()
+        [Route("/[area]/{instance?}")]
+        public async Task<ActionResult> Index(string? instance)
         {
             ViewData["KeyColumnName"] = "RoleId";
-            string instance = _securityService.GetDefaultInstanceForUser();
+            if (instance == null)
+            {
+                instance = _securityService.GetDefaultInstanceForUser();
+            }
+
             return await Task.Run(() => Redirect(string.Format("/raps/{0}/rolelist", instance)));
 
             //var data = await _RAPSContext.TblRoles.ToListAsync();
@@ -47,7 +51,7 @@ namespace Viper.Areas.RAPS.Controllers
 
             //return _RAPSContext.TblRoles != null ?
             //            View("~/Areas/RAPS/Views/Index.cshtml", data) :
-            //            Problem("Entity set 'RAPSContext.TblRoles'  is null.");
+            //            Problem("Entity set 'RAPSContext.TblRoles'  is null.");}
         }
 
         [Route("/[area]/{instance}/[action]")]
