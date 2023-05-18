@@ -21,7 +21,7 @@
         </template>
         <template v-slot:body-cell-role="props">
             <q-td :props="props">
-                <a :href="'RoleEdit?RoleId=' + props.row.roleId">{{props.row.role}}</a>
+                {{props.row.role}}
                 <br />
                 <span style="font-size:.9em">{{props.row.description}}</span>
             </q-td>

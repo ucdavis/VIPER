@@ -54,7 +54,7 @@
         <template v-slot:body-cell-role="props">
             <q-td :props="props">
                 <q-badge :props="props" v-if="props.row.application == 1" transparent icon="supervisor_account" color="amber-7" class="q-mr-2">Del</q-badge>
-                <a :href="'RoleEdit?RoleId=' + props.row.roleId">{{props.row.computedDisplayName}}</a>
+                {{props.row.computedDisplayName}}
                 <br />
                 <span style="font-size:.9em">{{props.row.description}}</span>
             </q-td>
@@ -102,6 +102,8 @@
             { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left", sortable: true },
             { name: "edit", label: "", field: ""}
         ]
-        vueMountedActions.push(async function () { this.qtable.load() })
+        vueMountedActions.push(async function () {
+            this.qtable.load()
+        })
     </script>
 }

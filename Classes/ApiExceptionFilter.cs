@@ -21,10 +21,10 @@ namespace Viper.Classes
         private List<string> GetErrorList(ExceptionContext context)
         {
             var errors = new List<string>();
-            System.Exception exception = context.Exception;
+            System.Exception? exception = context.Exception;
             while(exception != null ) { 
                 errors.Add( exception.Message );
-                exception = exception.InnerException;
+                exception = exception?.InnerException;
             }
             return errors;
         }

@@ -139,9 +139,9 @@ namespace Viper.Areas.RAPS.Controllers
             using var transaction = _context.Database.BeginTransaction();
             TblRole tblRole = CreateTblRoleFromDTO(role);
             _context.TblRoles.Add(tblRole);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             _auditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Create);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             transaction.Commit();
 
             return CreatedAtAction("GetTblRole", new { id = tblRole.RoleId }, tblRole);

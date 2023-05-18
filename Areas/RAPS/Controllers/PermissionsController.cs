@@ -137,9 +137,9 @@ namespace Viper.Areas.RAPS.Controllers
             TblPermission tblPermission = CreateTblPermissionFromDto(permission);
             using var transaction = _context.Database.BeginTransaction();
             _context.TblPermissions.Add(tblPermission);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             _auditService.AuditPermissionChange(tblPermission, RAPSAuditService.AuditActionType.Create);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             transaction.Commit();
 
             return CreatedAtAction("GetTblPermission", new { id = tblPermission.PermissionId }, tblPermission);

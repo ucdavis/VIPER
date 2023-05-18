@@ -45,8 +45,10 @@ class quasarTableEditable {
                     this.config.onLoadFunctions[i].call(this, this.config.vueApp, this.data)
                 }
             })
-        this.loading = false
-        this.clear()
+            .then(r => {
+                this.loading = false
+                this.clear()
+            })
     }
 
     selectRow(item) {
