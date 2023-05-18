@@ -94,7 +94,27 @@
                         class="float-right lt-md"
                         @@click="mainLeftDrawer = false"></q-btn>
 
-
+                    <q-list dense>
+                        <template v-for="(menuItem, index) in viperNavMenu" :key="index">
+                            <q-item v-if="menuItem.menuItemURL !=''"
+                                clickable v-ripple :href="menuItem.menuItemURL">
+                                <q-item-section avatar v-if="menuItem.icon">
+                                    <q-icon :name="menuItem.icon" />
+                                </q-item-section>
+                                <q-item-section>
+                                    <q-item-label lines="1">{{ menuItem.menuItemText }}</q-item-label>
+                                </q-item-section>
+                            </q-item>
+                            <q-item v-else class="leftNavHeader">
+                                <q-item-section avatar v-if="menuItem.icon">
+                                    <q-icon :name="menuItem.icon" />
+                                </q-item-section>
+                                <q-item-section>
+                                    <q-item-label lines="1">{{ menuItem.menuItemText }}</q-item-label>
+                                </q-item-section>
+                            </q-item>
+                        </template>
+                    </q-list>
                 </div>
                 <div class="q-mini-drawer-hide absolute" style="top: 10px; right: -15px">
                     <q-btn dense
@@ -146,7 +166,7 @@
         let vueSetupObjects = {};
         vueSetupObjects.mainLeftDrawer = ref(false);
         vueSetupObjects.mainLeftMiniState = ref(false);
-        let vueObjects = { showViperError: false, viperErrorMessage: "" };
+        let vueObjects = { showViperError: false, viperErrorMessage: "", viperNavMenu: [] };
         let vueMethods = {};
         let vueWatchers = {};
         let vueEmits = {};
@@ -155,6 +175,7 @@
         var vueCreatedActions = [];
         var vueBeforeMountActions = [];
         var vueMountedActions = [];
+        vueMountedActions.push(loadViperLeftNav);
         var vueBeforeUnmountActions = [];
         var vueUnmountedActions = [];
         var vueBeforeUpdateActions = [];

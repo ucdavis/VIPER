@@ -45,7 +45,7 @@ namespace Viper.Areas.RAPS.Services
             return roleName.StartsWith(Instance.ToUpper());
         }
 
-        public bool IsAllowedTo(string action, string? Instance)
+        public bool IsAllowedTo(string action, string? instance = null)
         {
             if(UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.Admin"))
             {
@@ -54,7 +54,13 @@ namespace Viper.Areas.RAPS.Services
             switch(action)
             {
                 case "ViewAllRoles":
-                    return Instance != null && IsVMACSInstance(Instance) && UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.ViewRoles");
+                    return instance  != null && IsVMACSInstance(instance) && UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.ViewRoles");
+                case "AccessInstnace":
+                    return instance != null 
+                        && (
+                            IsVMACSInstance(instance) && UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.ViewRoles")
+                            || GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId).Count() > 0
+                            );
                 //case "EditRoleMembership": return UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.EditRoleMembership");
                 default:
                     return UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS." + action);
@@ -104,6 +110,15 @@ namespace Viper.Areas.RAPS.Services
                 }
             }
             return controlledRoleIds;
+        }
+
+        public string GetDefaultInstanceForUser()
+        {
+            if(IsAllowedTo("AccessInstance", "VIPER"))
+            {
+                return "VIPER";
+            }
+            return "VMACS.VMTH";
         }
     }
 

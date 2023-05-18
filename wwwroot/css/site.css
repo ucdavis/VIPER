@@ -84,3 +84,7 @@ z-index: 1;
     line-height: 2rem;
     margin: 1rem 0rem;
 }
+
+.leftNavHeader {
+    font-weight: bold;
+}

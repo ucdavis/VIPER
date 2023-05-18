@@ -44,13 +44,17 @@ async function viperFetch(VueApp, url, data = {}, additionalFunctions = [], erro
         .then(r => r.status == "204" ? r : r.json())
         //check for success flag and result being defined. call additional functions
         .then(r => {
-            if (!r.success || typeof (r.result) == "undefined") {
-                showViperFetchError(VueApp, r, errorTarget)
+            var result = r
+            if (r.success !== undefined) {
+                if (!r.success || typeof (r.result) == "undefined") {
+                    showViperFetchError(VueApp, r, errorTarget)
+                }
+                result = r.result
             }
             while (additionalFunctions.length) {
-                additionalFunctions.shift().call(this, r.result)
+                additionalFunctions.shift().call(this, result)
             }
-            return r.result
+            return result
         })
         //catch errors, including those thrown by handleViperFetchError
         .catch(e => showViperFetchError(VueApp, e, errorTarget))
@@ -106,4 +110,16 @@ function showViperFetchError(VueApp, error, errorTarget) {
         VueApp.showViperError = true
         VueApp.viperErrorMessage = error.message
     }
+}
+
+/*
+ * Load left nav from the relative URL "nav"
+ */
+async function loadViperLeftNav() {
+    //build query param list
+    //send in path for some apps?
+    var qs = [];
+    this.urlParams.forEach((val, paramName) => qs.push(paramName + "=" + val))
+    qs = qs.length ? ("?" + qs.join("&")) : ""
+    this.viperNavMenu = await viperFetch(this, "nav" + qs)
 }

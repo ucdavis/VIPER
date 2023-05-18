@@ -53,9 +53,9 @@
     </template>
     <template v-slot:body-cell-action="props">
         <q-td :props="props">
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'PermissionRoles?PermissionId=' + props.row.permissionId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'PermissionMembers?PermissionId=' + props.row.permissionId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="compare_arrows" :href="'AllMembersWithPermission?PermissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="compare_arrows" :href="'AllMembersWithPermission?permissionId=' + props.row.permissionId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-edit="props">
