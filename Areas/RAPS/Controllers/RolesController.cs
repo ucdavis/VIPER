@@ -31,11 +31,11 @@ namespace Viper.Areas.RAPS.Controllers
         public RolesController(RAPSContext context)
         {
             _context = context;
-            _securityService = new RAPSSecurityService(_context);
-            _auditService = new RAPSAuditService(_context);
+			RAPSSecurityService rss = new RAPSSecurityService(_context);
+			SecurityService = new RAPSSecurityServiceWrapper(rss);
+			UserWrapper = new UserWrapper();
+			_auditService = new RAPSAuditService(_context);
         }
-
-		}
 
         // GET: Roles
         [HttpGet]
@@ -127,20 +127,22 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpPost]
         public async Task<ActionResult<TblRole>> PostTblRole(string instance, RoleCreateUpdate role)
         {
-            if (_context.TblRoles == null)
+			if (_context.TblRoles == null)
+			{
+				return Problem("Entity set 'RAPSContext.TblRoles'  is null.");
+			}
+
+            try
             {
-                return Problem("Entity set 'RAPSContext.TblRoles'  is null.");
-            }
+			    using var transaction = _context.Database.BeginTransaction();
+			    TblRole tblRole = CreateTblRoleFromDTO(role);
+			    _context.TblRoles.Add(tblRole);
+			    await _context.SaveChangesAsync();
+			    _auditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Create);
+			    await _context.SaveChangesAsync();
+			    transaction.Commit();
 
-            using var transaction = _context.Database.BeginTransaction();
-            TblRole tblRole = CreateTblRoleFromDTO(role);
-            _context.TblRoles.Add(tblRole);
-            await _context.SaveChangesAsync();
-            _auditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Create);
-            await _context.SaveChangesAsync();
-            transaction.Commit();
-
-				return CreatedAtAction("GetTblRole", new { id = tblRole.RoleId }, tblRole);
+			    return CreatedAtAction("GetTblRole", new { id = tblRole.RoleId }, tblRole);
 			}
 			catch (DbUpdateConcurrencyException ex)
 			{
@@ -150,6 +152,7 @@ namespace Viper.Areas.RAPS.Controllers
 			{
 				return Problem("There was a problem updating the database. " + ex.InnerException?.Message);
 			}
+
 		}
 
         // DELETE: Roles/5
