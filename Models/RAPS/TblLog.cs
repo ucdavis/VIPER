@@ -5,6 +5,8 @@ namespace Viper.Models.RAPS;
 
 public partial class TblLog
 {
+    public int AuditRecordId { get; set; }
+
     public string? MemberId { get; set; }
 
     public int? RoleId { get; set; }

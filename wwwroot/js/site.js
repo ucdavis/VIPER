@@ -17,16 +17,26 @@ function formatDateForDateInput(d) {
 $.ajaxSetup({
     headers: { "X-CSRF-TOKEN": csrfToken }
 });
+
+/*
+ * Validation error to include the errors object for .NET 400
+ */
 class ValidationError extends Error {
-    constructor(message, fields) {
+    constructor(message, errorList) {
         super(message)
-        this.fields = fields
+        this.errorList = errorList
     }
 }
 /*
  * Perform a fetch given the url and data. If successful, call any additional functions provided
  */
 async function viperFetch(VueApp, url, data = {}, additionalFunctions = [], errorTarget = "") {
+    if (data.headers === undefined) {
+        data.headers = {}
+    }
+    if (data.headers["X-CSRF-TOKEN"] === undefined) {
+        data.headers["X-CSRF-TOKEN"] = csrfToken
+    }
     return await fetch(url, data)
         //handle 4xx and 5xx status codes
         .then(r => handleViperFetchError(r))
@@ -34,13 +44,17 @@ async function viperFetch(VueApp, url, data = {}, additionalFunctions = [], erro
         .then(r => r.status == "204" ? r : r.json())
         //check for success flag and result being defined. call additional functions
         .then(r => {
-            if (!r.success || typeof (r.result) == "undefined") {
-                showViperFetchError(VueApp, r, errorTarget)
+            var result = r
+            if (r.success !== undefined) {
+                if (!r.success || typeof (r.result) == "undefined") {
+                    showViperFetchError(VueApp, r, errorTarget)
+                }
+                result = r.result
             }
             while (additionalFunctions.length) {
-                additionalFunctions.shift().call(this, r.result)
+                additionalFunctions.shift().call(this, result)
             }
-            return r.result
+            return result
         })
         //catch errors, including those thrown by handleViperFetchError
         .catch(e => showViperFetchError(VueApp, e, errorTarget))
@@ -72,10 +86,17 @@ function showViperFetchError(VueApp, error, errorTarget) {
     try {
         if (errorTarget) {
             errorTarget.message = error.message
-            for (key in error.fields) {
-                errorTarget[key] = {
-                    error: true,
-                    message: error.fields[key].join("")
+            if (typeof error.errorList == Object) {
+                for (key in error.errorList) {
+                    errorTarget[key] = {
+                        error: true,
+                        message: error.errorList[key].join("")
+                    }
+                }
+            }
+            else {
+                for (var i = 0; i < 5 && i < error.errorList.length; i++) {
+                    errorTarget.message += " " + error.errorList[i];
                 }
             }
         }
@@ -89,4 +110,16 @@ function showViperFetchError(VueApp, error, errorTarget) {
         VueApp.showViperError = true
         VueApp.viperErrorMessage = error.message
     }
+}
+
+/*
+ * Load left nav from the relative URL "nav"
+ */
+async function loadViperLeftNav() {
+    //build query param list
+    //send in path for some apps?
+    var qs = [];
+    this.urlParams.forEach((val, paramName) => qs.push(paramName + "=" + val))
+    qs = qs.length ? ("?" + qs.join("&")) : ""
+    this.viperNavMenu = await viperFetch(this, "nav" + qs)
 }

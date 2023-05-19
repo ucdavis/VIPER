@@ -1,49 +1,47 @@
 ﻿
 <h2>Permissions</h2>
-<q-table
-    title="Permissions"
-    dense
-    row-key="permissionId"
-    :loading="loading"
-    :rows="permissions"
-    :columns="columns"
-    :filter="permFilter"
-    :filter-method="filterPermissions"
-    :pagination="pagination"
->
+<q-table title="Permissions"
+         dense
+         row-key="permissionId"
+         :loading="qtable.loading"
+         :rows="qtable.data"
+         :columns="columns"
+         :filter="permFilter"
+         :filter-method="filterPermissions"
+         :pagination="qtable.config.pagination">
     <template v-slot:top-left>
-        <q-btn dense no-caps color="secondary" padding="xs md" @@click="showForm = true">
+        <q-btn dense no-caps color="green" padding="xs md" @@click="qtable.showForm = true">
             <q-icon name="add"></q-icon>
         </q-btn>
         <div class="q-pa-sm q-gutter-sm">
-            <q-dialog v-model="showForm" @@hide="clearPermission">
+            <q-dialog v-model="qtable.showForm" @@hide="qtable.clear(this)">
                 <q-card style="width: 500px; max-width: 80vw;">
-                    <q-form @@submit="editPermission" v-bind="roleMemberForm">
+                    <q-form @@submit="qtable.submit(this)" v-bind="qtable.object">
                         <q-card-section>
-                            <div class="text-h6">{{editingIndex >= 0 ? "Edit" : "Create"}} Permission</div>
-                            <div class="bg-negative text-white q-pa-sm rounded" v-if="errors?.message?.length > 0">{{errors.message}}</div>
+                            <div class="text-h6">{{qtable.editing ? "Edit" : "Create"}} Permission</div>
+                            <div class="bg-negative text-white q-pa-sm rounded" v-if="qtable.errors?.message?.length > 0">{{qtable.errors.message}}</div>
                         </q-card-section>
 
                         <q-card-section>
-                            <q-input outlined dense v-model="permission.permission" :error="errors?.Permission?.error" :error-message="errors?.Permission?.message" label="Permission Name"></q-input>
-                            <q-input type="textarea" outlined dense v-model="permission.description" label="Description"></q-input>
+                            <q-input outlined dense v-model="qtable.object.permission" :error="qtable.errors?.Permission?.error" :error-message="qtable.errors?.Permission?.message" label="Permission Name"></q-input>
+                            <q-input type="textarea" outlined dense v-model="qtable.object.description" label="Description"></q-input>
                         </q-card-section>
 
                         <q-card-actions align="evenly">
-                            <q-btn no-caps :label="editingIndex >= 0 ? 'Update Permission' : 'Add Permission'" type="submit" padding="xs sm" color="primary"></q-btn>
-                            <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="deletePermission" color="red" v-if="editingIndex >= 0"></q-btn>
+                            <q-btn no-caps :label="qtable.editing ? 'Update Permission' : 'Add Permission'" type="submit" padding="xs sm" color="primary"></q-btn>
+                            <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="qtable.delete(this)" color="red" v-if="qtable.editing"></q-btn>
                         </q-card-actions>
                     </q-form>
                 </q-card>
             </q-dialog>
         </div>
         <q-select v-model="selectedApplication"
-            :options="applications" 
-            v-if="applications.length > 0" 
-            @@change="selectApplication()"
-            outlined
-            dense
-            class="q-ml-lg">
+                  :options="applications"
+                  v-if="applications.length > 0"
+                  @@change="selectApplication()"
+                  outlined
+                  dense
+                  class="q-ml-lg">
         </q-select>
     </template>
     <template v-slot:top-right>
@@ -55,102 +53,64 @@
     </template>
     <template v-slot:body-cell-action="props">
         <q-td :props="props">
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'PermissionRoles?PermissionId=' + props.row.permissionId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'PermissionMembers?PermissionId=' + props.row.permissionId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="compare_arrows" :href="'AllMembersWithPermission?PermissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="compare_arrows" :href="'AllMembersWithPermission?permissionId=' + props.row.permissionId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-edit="props">
         <q-td :props="props">
-            <q-btn :props="props" dense color="primary" size="md" padding="xs md" @@click="selectPermission(props.row)">Edit</q-btn>
+            <q-btn :props="props" dense color="primary" size="md" padding="xs md" @@click="qtable.selectRow(props.row)">Edit</q-btn>
         </q-td>
     </template>
 </q-table>
 
 @section Scripts {
+    <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        //form
-        vueObjects.showForm = false
-        vueObjects.editingIndex = -1
-        vueObjects.permission = {}
-        vueObjects.errors = {}
-        //list
-        vueObjects.applications = []
-        vueObjects.selectedApplication = "SVMSecure"
-        vueObjects.loading = true
-        vueObjects.permissions = []
+        //after loading permissions add a tblMemberPermissions count and get the distinct prefixes for the drop down filter
+        vueMethods.afterPermissionLoad = function (v, data) {
+            this.data = data.map(p => ({ ...p, count: p.tblMemberPermissions.length }))
+            vueObjects.applications = []
+            for (p of this.data) {
+                var appname = p.permission.split(".")[0]
+                if (vueObjects.applications.indexOf(appname) < 0)
+                    vueObjects.applications.push(appname)
+            }
+        }
+        vueObjects.qtable = new quasarTableEditable({
+            keys: "permissionId",
+            urlBase: "Permissions",
+            onLoadFunctions: [vueMethods.afterPermissionLoad]
+        })
+
+        vueObjects.filter = ""
         vueObjects.columns = [
             { name: "action", field: "permissionId", align: "left", style: "width:75px;" },
             { name: "permission", label: "Permission", field: "permission", sortable: true, align: "left" },
             { name: "count", label: "Members", field: "count", sortable: true, align: "left", style: "width:75px;" },
-            { name: "edit", label: "", field: "", style: "width: 100px;"}
+            { name: "edit", label: "", field: "", style: "width: 100px;" }
         ]
-        vueObjects.filter = ""
-        vueObjects.pagination = { rowsPerPage: 15 }
-        computed.permFilter = function() {
+
+        //for the combination drop down filter + search text filter
+        vueObjects.applications = []
+        vueObjects.selectedApplication = "SVMSecure"
+        computed.permFilter = function () {
             return {
                 filter: this.filter,
                 selectedApplication: this.selectedApplication
             }
         }
-
-        vueMethods.filterPermissions = function(rows, terms, cols, getCellValue) {
+        vueMethods.filterPermissions = function (rows, terms, cols, getCellValue) {
             return rows.filter(r => {
-                    var perm = r.permission.toLowerCase()
-                    var app = this.selectedApplication.toLowerCase()
-                    return (app == "" || perm.startsWith(app))
-                        && (perm.indexOf(this.filter.toLowerCase()) >= 0)
-                })
+                var perm = r.permission.toLowerCase()
+                var app = this.selectedApplication.toLowerCase()
+                return (app == "" || perm.startsWith(app))
+                    && (perm.indexOf(this.filter.toLowerCase()) >= 0)
+            })
         }
-        vueMethods.loadPermissions = function() {
-            viperFetch(this, "Permissions", {}, [
-                (
-                    data => {
-                        this.permissions = data.map(p => ({ ...p, count: p.tblMemberPermissions.length }))
-                        this.applications = []
-                        for (p of this.permissions) {
-                            var appname = p.permission.split(".")[0]
-                            if (this.applications.indexOf(appname) < 0)
-                                this.applications.push(appname)
-                        }
-                    }
-                )
-            ])
-            
-            this.loading = false
-            this.clearPermission()
-        }
-        vueMethods.selectPermission = function(item) {
-            this.permission = item
-            this.editingIndex = this.permissions.indexOf(item)
-            this.showForm = true
-        }
-        vueMethods.editPermission = function() {
-            var editing = this.editingIndex > -1
-            var url = "Permissions/" + (editing ? this.permission.permissionId : "")
-            viperFetch(this, url, {
-                method: editing ? "PUT" : "POST",
-                body: JSON.stringify(this.permission),
-                headers: { "Content-Type": "application/json" }
-                },
-                [(r => this.loadPermissions())],
-                this.errors)
-            
-            //.then(r => this.loadPermissions())
-        }
-        vueMethods.clearPermission = function() {
-            this.permission = {}
-            this.editingIndex = -1
-            this.showForm = false
-            this.errors = {}
-        }
-        vueMethods.deletePermission = function() {
-            viperFetch(this, "Permissions/" + this.permission.permissionId, { method: "DELETE" }, r => {
-                this.loadPermissions()
-            }, this.errors)
-        }
-        vueMountedActions.push(function() {
-            this.loadPermissions()
+        vueMountedActions.push(function () {
+            this.qtable.load()
         })
     </script>
 }

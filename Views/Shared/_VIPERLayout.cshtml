@@ -94,7 +94,27 @@
                         class="float-right lt-md"
                         @@click="mainLeftDrawer = false"></q-btn>
 
-
+                    <q-list dense>
+                        <template v-for="(menuItem, index) in viperNavMenu" :key="index">
+                            <q-item v-if="menuItem.menuItemURL !=''"
+                                clickable v-ripple :href="menuItem.menuItemURL">
+                                <q-item-section avatar v-if="menuItem.icon">
+                                    <q-icon :name="menuItem.icon" />
+                                </q-item-section>
+                                <q-item-section>
+                                    <q-item-label lines="1">{{ menuItem.menuItemText }}</q-item-label>
+                                </q-item-section>
+                            </q-item>
+                            <q-item v-else class="leftNavHeader">
+                                <q-item-section avatar v-if="menuItem.icon">
+                                    <q-icon :name="menuItem.icon" />
+                                </q-item-section>
+                                <q-item-section>
+                                    <q-item-label lines="1">{{ menuItem.menuItemText }}</q-item-label>
+                                </q-item-section>
+                            </q-item>
+                        </template>
+                    </q-list>
                 </div>
                 <div class="q-mini-drawer-hide absolute" style="top: 10px; right: -15px">
                     <q-btn dense
@@ -134,7 +154,6 @@
     <script src="~/lib/jquery/jquery.min.js"></script>
     <script src="~/lib/vue/vue.global.prod.js"></script>
     <script src="~/lib/quasar/dist/quasar.umd.prod.js"></script>
-    <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
         // set global JS object with the CSRF token. This is automatically added to jquery ajax calls in site.js
         var csrfToken = "@Xsrf.GetAndStoreTokens(Context).RequestToken";
@@ -147,7 +166,7 @@
         let vueSetupObjects = {};
         vueSetupObjects.mainLeftDrawer = ref(false);
         vueSetupObjects.mainLeftMiniState = ref(false);
-        let vueObjects = { showViperError: false, viperErrorMessage: "" };
+        let vueObjects = { showViperError: false, viperErrorMessage: "", viperNavMenu: [] };
         let vueMethods = {};
         let vueWatchers = {};
         let vueEmits = {};
@@ -156,6 +175,7 @@
         var vueCreatedActions = [];
         var vueBeforeMountActions = [];
         var vueMountedActions = [];
+        vueMountedActions.push(loadViperLeftNav);
         var vueBeforeUnmountActions = [];
         var vueUnmountedActions = [];
         var vueBeforeUpdateActions = [];

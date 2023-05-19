@@ -7,6 +7,7 @@ namespace Viper.Classes
     /// </summary>
     [ApiController]
     [ApiResponse]
+    [ApiExceptionFilter]
     public class ApiController : ControllerBase
     {
 

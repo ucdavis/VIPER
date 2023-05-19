@@ -16,12 +16,12 @@
         </template>
         <template v-slot:body-cell-roleid="props">
             <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?RoleId=' + props.row.roleId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
             </q-td>
         </template>
         <template v-slot:body-cell-role="props">
             <q-td :props="props">
-                <a :href="'RoleEdit?RoleId=' + props.row.roleId">{{props.row.role}}</a>
+                {{props.row.role}}
                 <br />
                 <span style="font-size:.9em">{{props.row.description}}</span>
             </q-td>
@@ -43,9 +43,8 @@
         { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left", sortable: true }
     ]
     vueMethods.loadRoles = async function() {
-        var roleResult = await fetch("Roles")
-        var tempRoles = await roleResult.json()
-        var tempRoles = tempRoles.map(function (r) {
+        var tempRoles = await viperFetch(this, "Roles")
+        tempRoles = tempRoles.map(function (r) {
             return {
                 roleId: r.roleId,
                 role: (r.displayName ? r.displayName : r.role),

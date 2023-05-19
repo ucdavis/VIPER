@@ -11,13 +11,14 @@ using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Controllers
 {
-    [Route("raps/{instance=VIPER}/[controller]")]
+    [Route("raps/{instance}/[controller]")]
     [Authorize(Roles = "VMDO SVM-IT,RAPS Delegate Users", Policy = "2faAuthentication")]
     public class RolesController : ApiController
     {
         private readonly RAPSContext _context;
 		public IRAPSSecurityServiceWrapper SecurityService;
         public IUserWrapper UserWrapper;
+        private RAPSAuditService _auditService;
 
 		private static Expression<Func<TblRole, bool>> FilterToInstance(string instance)
         {
@@ -30,9 +31,9 @@ namespace Viper.Areas.RAPS.Controllers
         public RolesController(RAPSContext context)
         {
             _context = context;
-			RAPSSecurityService rss = new RAPSSecurityService(_context);
-			SecurityService = new RAPSSecurityServiceWrapper(rss);
-			UserWrapper = new UserWrapper();
+            _securityService = new RAPSSecurityService(_context);
+            _auditService = new RAPSAuditService(_context);
+        }
 
 		}
 
@@ -91,14 +92,16 @@ namespace Viper.Areas.RAPS.Controllers
         // PUT: Roles/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{roleId}")]
-        public async Task<IActionResult> PutTblRole(string instance, int roleId, TblRole tblRole)
+        public async Task<IActionResult> PutTblRole(string instance, int roleId, RoleCreateUpdate role)
         {
+            TblRole tblRole = CreateTblRoleFromDTO(role);
             if (roleId != tblRole.RoleId)
             {
                 return BadRequest();
             }
 
 			_context.SetModified(tblRole);
+            _auditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Update);
 
             try
             {
@@ -122,16 +125,20 @@ namespace Viper.Areas.RAPS.Controllers
         // POST: Roles
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<TblRole>> PostTblRole(string instance, TblRole tblRole)
+        public async Task<ActionResult<TblRole>> PostTblRole(string instance, RoleCreateUpdate role)
         {
             if (_context.TblRoles == null)
             {
                 return Problem("Entity set 'RAPSContext.TblRoles'  is null.");
             }
-			try
-			{
-				_context.TblRoles?.Add(tblRole);
-				await _context.SaveChangesAsync();
+
+            using var transaction = _context.Database.BeginTransaction();
+            TblRole tblRole = CreateTblRoleFromDTO(role);
+            _context.TblRoles.Add(tblRole);
+            await _context.SaveChangesAsync();
+            _auditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Create);
+            await _context.SaveChangesAsync();
+            transaction.Commit();
 
 				return CreatedAtAction("GetTblRole", new { id = tblRole.RoleId }, tblRole);
 			}
@@ -160,122 +167,20 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             _context.TblRoles.Remove(tblRole);
+            _auditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Delete);
             await _context.SaveChangesAsync();
 
             return NoContent();
         }
 
-        // GET: Roles/5/Members
-        [HttpGet("{roleId}/Members")]
-        public async Task<ActionResult<IEnumerable<TblRoleMember>>> GetTblRoleMembers(string instance, int roleId)
+        private TblRole CreateTblRoleFromDTO(RoleCreateUpdate role)
         {
-            if (_context.TblRoles == null)
+            var tblRole = new TblRole() { Role = role.Role, Description = role.Description, ViewName = role.ViewName, Application = (byte)role.Application };
+            if (role.RoleId != null && role.RoleId > 0)
             {
-                return NotFound();
+                tblRole.RoleId = (int)role.RoleId;
             }
-            var tblRole = await _context.TblRoles.FindAsync(roleId);
-
-            if (tblRole == null)
-            {
-                return NotFound();
-            }
-            
-            if (!SecurityService.IsAllowedTo("EditRoleMembers", instance, tblRole))
-            {
-                return Forbid();
-            }
-            
-            List<TblRoleMember> TblRoleMembers = await _context.TblRoleMembers
-                    .Include(rm => rm.Role)
-                    .Include(rm => rm.AaudUser)
-                    .Where(rm => rm.RoleId == roleId)
-                    .Where(rm => rm.ViewName == null)
-                    .OrderBy(rm => rm.AaudUser.DisplayLastName + ", " + rm.AaudUser.DisplayFirstName)
-                    .ToListAsync();
-
-            return TblRoleMembers;
-        }
-
-        //POST: Roles/5/Members/12345678
-        [HttpPost("{roleId}/Members/{memberId}")]
-        public async Task<ActionResult<IEnumerable<TblRoleMember>>> PostTblRoleMembers(int roleId, String memberId, RoleMemberCreateUpdate RoleMemberCreateUpdate)
-        {
-            if (_context.TblRoles == null)
-            {
-                return NotFound();
-            }
-            var tblRole = await _context.TblRoles.FindAsync(roleId);
-
-            if (tblRole == null)
-            {
-                return NotFound();
-            }
-
-            var tblRoleMemberExists = await _context.TblRoleMembers.FindAsync(roleId, memberId);
-            if(tblRoleMemberExists != null)
-            {
-                //TODO: Duplicate record error response
-                return BadRequest();
-            }
-
-            TblRoleMember tblRoleMember = new TblRoleMember();
-            tblRoleMember.RoleId = roleId;
-            tblRoleMember.MemberId = memberId;
-            tblRoleMember.StartDate = RoleMemberCreateUpdate.StartDate == null ? null : RoleMemberCreateUpdate.StartDate.Value.ToDateTime(new TimeOnly(0, 0, 0));
-            tblRoleMember.EndDate = RoleMemberCreateUpdate.EndDate == null ? null : RoleMemberCreateUpdate.EndDate.Value.ToDateTime(new TimeOnly(0, 0, 0));
-            _context.TblRoleMembers.Add(tblRoleMember);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetTblRole", new { roleId = tblRoleMember.RoleId, memberId=tblRoleMember.MemberId }, tblRoleMember);
-        }
-
-        //PUT: Roles/5/Members/12345678
-        [HttpPut("{roleId}/Members/{memberId}")]
-        public async Task<ActionResult<IEnumerable<TblRoleMember>>> PutTblRoleMembers(int roleId, String memberId, RoleMemberCreateUpdate RoleMemberCreateUpdate)
-        {
-            if (_context.TblRoles == null)
-            {
-                return NotFound();
-            }
-            var tblRole = await _context.TblRoles.FindAsync(roleId);
-
-            if (tblRole == null)
-            {
-                return NotFound();
-            }
-
-            var tblRoleMember= await _context.TblRoleMembers.FindAsync(roleId, memberId);
-            if (tblRoleMember == null)
-            {
-                return NotFound();
-            }
-
-            tblRoleMember.StartDate = RoleMemberCreateUpdate.StartDate == null ? null : RoleMemberCreateUpdate.StartDate.Value.ToDateTime(new TimeOnly(0, 0, 0));
-            tblRoleMember.EndDate = RoleMemberCreateUpdate.EndDate == null ? null : RoleMemberCreateUpdate.EndDate.Value.ToDateTime(new TimeOnly(0, 0, 0));
-            _context.TblRoleMembers.Update(tblRoleMember);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        //DELETE: Roles/5/Members/12345678
-        [HttpDelete("{roleId}/Members/{memberId}")]
-        public async Task<IActionResult> DeleteTblRoleMembers(int roleId, String memberId, string? comment)
-        {
-            if (_context.TblRoleMembers == null)
-            {
-                return NotFound();
-            }
-            var tblRoleMember = await _context.TblRoleMembers.FindAsync(roleId, memberId);
-            if (tblRoleMember == null)
-            {
-                return NotFound();
-            }
-
-            _context.TblRoleMembers.Remove(tblRoleMember);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            return tblRole;
         }
 
         private bool TblRoleExists(int roleId)

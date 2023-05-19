@@ -38,17 +38,33 @@ namespace Viper.Areas.RAPS.Services
             return Instance.StartsWith("VMACS.");
         }
 
-		public bool IsAllowedTo(string action, string? Instance)
+        public bool RoleBelongsToInstance(string Instance, TblRole role)
         {
-            if(_userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.Admin"))
+            string roleName = role.Role.ToUpper();
+            if(Instance.ToUpper() == "VIPER")
+            {
+                return !roleName.StartsWith("VMACS.") && !roleName.StartsWith("VIPERFORMS");
+            }
+            return roleName.StartsWith(Instance.ToUpper());
+        }
+
+        public bool IsAllowedTo(string action, string? instance = null)
+        {
+            if(UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.Admin"))
             {
                 return true;
             }
             switch(action)
             {
                 case "ViewAllRoles":
-                    return Instance != null && IsVMACSInstance(Instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.ViewRoles");
-                //case "EditRoleMembership": return _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.EditRoleMembership");
+                    return instance  != null && IsVMACSInstance(instance) && UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.ViewRoles");
+                case "AccessInstnace":
+                    return instance != null 
+                        && (
+                            IsVMACSInstance(instance) && UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.ViewRoles")
+                            || GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId).Count() > 0
+                            );
+                //case "EditRoleMembership": return UserHelper.HasPermission(_context, UserHelper.GetCurrentUser(), "RAPS.EditRoleMembership");
                 default:
                     return _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS." + action);
             }
@@ -97,6 +113,15 @@ namespace Viper.Areas.RAPS.Services
                 }
             }
             return controlledRoleIds;
+        }
+
+        public string GetDefaultInstanceForUser()
+        {
+            if(IsAllowedTo("AccessInstance", "VIPER"))
+            {
+                return "VIPER";
+            }
+            return "VMACS.VMTH";
         }
     }
 
