@@ -18,7 +18,7 @@ namespace Viper.Areas.RAPS.Controllers
         private readonly RAPSContext _context;
 		public IRAPSSecurityServiceWrapper SecurityService;
         public IUserWrapper UserWrapper;
-        private RAPSAuditService _auditService;
+		public IRAPSAuditServiceWrapper AuditService;
 
 		private static Expression<Func<TblRole, bool>> FilterToInstance(string instance)
         {
@@ -34,7 +34,8 @@ namespace Viper.Areas.RAPS.Controllers
 			RAPSSecurityService rss = new RAPSSecurityService(_context);
 			SecurityService = new RAPSSecurityServiceWrapper(rss);
 			UserWrapper = new UserWrapper();
-			_auditService = new RAPSAuditService(_context);
+			RAPSAuditService ras = new RAPSAuditService(_context);
+			AuditService = new RAPSAuditServiceWrapper(ras);
         }
 
         // GET: Roles
@@ -100,8 +101,9 @@ namespace Viper.Areas.RAPS.Controllers
                 return BadRequest();
             }
 
+            _context.ChangeTracker.Clear();
 			_context.SetModified(tblRole);
-            _auditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Update);
+			AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Update);
 
             try
             {
@@ -138,7 +140,7 @@ namespace Viper.Areas.RAPS.Controllers
 			    TblRole tblRole = CreateTblRoleFromDTO(role);
 			    _context.TblRoles.Add(tblRole);
 			    await _context.SaveChangesAsync();
-			    _auditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Create);
+				AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Create);
 			    await _context.SaveChangesAsync();
 			    transaction.Commit();
 
@@ -170,7 +172,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             _context.TblRoles.Remove(tblRole);
-            _auditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Delete);
+			AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Delete);
             await _context.SaveChangesAsync();
 
             return NoContent();
