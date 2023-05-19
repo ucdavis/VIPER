@@ -1,15 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
+﻿using System.Data;
 using System.Linq.Expressions;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Polly;
 using Viper.Areas.RAPS.Dtos;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
@@ -23,9 +16,10 @@ namespace Viper.Areas.RAPS.Controllers
     public class RolesController : ApiController
     {
         private readonly RAPSContext _context;
-        private RAPSSecurityService _securityService;
+		public IRAPSSecurityServiceWrapper SecurityService;
+        public IUserWrapper UserWrapper;
 
-        private static Expression<Func<TblRole, bool>> FilterToInstance(string instance)
+		private static Expression<Func<TblRole, bool>> FilterToInstance(string instance)
         {
             return r =>
                 instance.ToUpper() == "VIPER"
@@ -36,8 +30,11 @@ namespace Viper.Areas.RAPS.Controllers
         public RolesController(RAPSContext context)
         {
             _context = context;
-            _securityService = new RAPSSecurityService(_context);
-        }
+			RAPSSecurityService rss = new RAPSSecurityService(_context);
+			SecurityService = new RAPSSecurityServiceWrapper(rss);
+			UserWrapper = new UserWrapper();
+
+		}
 
         // GET: Roles
         [HttpGet]
@@ -48,7 +45,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
 
-            if(_securityService.IsAllowedTo("ViewAllRoles", instance))
+            if(SecurityService.IsAllowedTo("ViewAllRoles", instance))
             {
                 return await _context.TblRoles
                     .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
@@ -60,7 +57,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             else
             {
-                List<int> controlledRoleIds = _securityService.GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId);
+				List<int> controlledRoleIds = SecurityService.GetControlledRoleIds(UserWrapper.GetCurrentUser()?.MothraId);
                 List<TblRole> List = await _context.TblRoles
                     .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
                     .Where(r => r.Application == 0)
@@ -101,7 +98,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(tblRole).State = EntityState.Modified;
+			_context.SetModified(tblRole);
 
             try
             {
@@ -131,11 +128,22 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return Problem("Entity set 'RAPSContext.TblRoles'  is null.");
             }
-            _context.TblRoles.Add(tblRole);
-            await _context.SaveChangesAsync();
+			try
+			{
+				_context.TblRoles?.Add(tblRole);
+				await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetTblRole", new { id = tblRole.RoleId }, tblRole);
-        }
+				return CreatedAtAction("GetTblRole", new { id = tblRole.RoleId }, tblRole);
+			}
+			catch (DbUpdateConcurrencyException ex)
+			{
+				return Problem("The record was not updated because it was locked. " + ex.InnerException?.Message);
+			}
+			catch (Exception ex)
+			{
+				return Problem("There was a problem updating the database. " + ex.InnerException?.Message);
+			}
+		}
 
         // DELETE: Roles/5
         [HttpDelete("{roleId}")]
@@ -172,7 +180,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
             
-            if (!_securityService.IsAllowedTo("EditRoleMembers", instance, tblRole))
+            if (!SecurityService.IsAllowedTo("EditRoleMembers", instance, tblRole))
             {
                 return Forbid();
             }
@@ -274,5 +282,7 @@ namespace Viper.Areas.RAPS.Controllers
         {
             return (_context.TblRoles?.Any(e => e.RoleId == roleId)).GetValueOrDefault();
         }
-    }
+
+		
+	}
 }

@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 using Viper.Models.RAPS;
@@ -11,16 +13,16 @@ namespace Viper
     /// <summary>
     /// Utility class (static) with methods for easily get a user from AAUD and find roles and permissions from RAPS
     /// </summary>
-    public static class UserHelper
+    public class UserHelper
     {
-        #region public static IEnumerable<Viper.Models.RAPS.TblRole> GetRoles(RAPSContext rapsContext, AaudUser user)
-        /// <summary>
-        /// Returns a list of roles for the user
-        /// </summary>
-        /// <param name="rapsContext">Dependency injection of the context</param>
-        /// <param name="user">Must pass an AaudUser object</param>
-        /// <returns>Enumerable list of roles for the user</returns>
-        public static IEnumerable<TblRole> GetRoles(RAPSContext rapsContext, AaudUser user)
+		#region public static IEnumerable<Viper.Models.RAPS.TblRole> GetRoles(RAPSContext rapsContext, AaudUser user)
+		/// <summary>
+		/// Returns a list of roles for the user
+		/// </summary>
+		/// <param name="rapsContext">Dependency injection of the context</param>
+		/// <param name="user">Must pass an AaudUser object</param>
+		/// <returns>Enumerable list of roles for the user</returns>
+		public static IEnumerable<TblRole> GetRoles(RAPSContext rapsContext, AaudUser user)
         {
             var result = new List<TblRole>();
 
@@ -212,17 +214,17 @@ namespace Viper
                 .Union(inherited)
                 .Except(assignedDeny.Union(inheritedDeny));
         }
-        #endregion
+		#endregion
 
-        #region public static bool IsInRole(RAPSContext rapsContext, AaudUser user, string roleName)
-        /// <summary>
-        /// Check if the user is assigned to a role
-        /// </summary>
-        /// <param name="rapsContext">Dependency injection of the context</param>
-        /// <param name="user">Must pass an AaudUser object</param>
-        /// <param name="roleName">The name of the role to check</param>
-        /// <returns>Whether or not the user is in the role specified</returns>
-        public static bool HasPermission(RAPSContext? rapsContext, AaudUser? user, string permissionName)
+		#region public static bool HasPermission(RAPSContext? rapsContext, AaudUser? user, string permissionName)
+		/// <summary>
+		/// Check if the user is assigned to a role
+		/// </summary>
+		/// <param name="rapsContext">Dependency injection of the context</param>
+		/// <param name="user">Must pass an AaudUser object</param>
+		/// <param name="roleName">The name of the role to check</param>
+		/// <returns>Whether or not the user is in the role specified</returns>
+		public static bool HasPermission(RAPSContext? rapsContext, AaudUser? user, string permissionName)
         {
             if (rapsContext != null && user != null)
             {
