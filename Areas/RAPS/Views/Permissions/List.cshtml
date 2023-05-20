@@ -77,6 +77,7 @@
                 if (vueObjects.applications.indexOf(appname) < 0)
                     vueObjects.applications.push(appname)
             }
+            vueObjects.selectedApplication = vueObjects.applications.indexOf("SVMSecure") > -1 ? "SVMSecure" : vueObjects.applications[0]
         }
         vueObjects.qtable = new quasarTableEditable({
             keys: "permissionId",
@@ -94,7 +95,7 @@
 
         //for the combination drop down filter + search text filter
         vueObjects.applications = []
-        vueObjects.selectedApplication = "SVMSecure"
+        vueObjects.selectedApplication = ""
         computed.permFilter = function () {
             return {
                 filter: this.filter,
