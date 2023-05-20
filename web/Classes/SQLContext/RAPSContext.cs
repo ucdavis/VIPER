@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Viper.Models.RAPS;
 
 namespace Viper.Classes.SQLContext;
@@ -378,13 +376,13 @@ public partial class RAPSContext : DbContext
         {
             entity.HasKey(e => e.RoleId);
 
-            entity.ToTable("tblRoles");
+			entity.ToTable("tblRoles");
 
             entity.Property(e => e.RoleId).HasColumnName("RoleID");
             entity.Property(e => e.AccessCode)
                 .HasMaxLength(1)
                 .IsUnicode(false)
-                .UseCollation("SQL_Latin1_General_CP1_CS_AS")
+                //.UseCollation("SQL_Latin1_General_CP1_CS_AS")
                 .HasColumnName("accessCode");
             entity.Property(e => e.AllowAllUsers).HasColumnName("allowAllUsers");
             entity.Property(e => e.Description)
@@ -1484,4 +1482,9 @@ public partial class RAPSContext : DbContext
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+
+	public virtual void SetModified(object entity)
+	{
+		Entry(entity).State = EntityState.Modified;
+	}
 }

@@ -1,15 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
+﻿using System.Data;
 using System.Linq.Expressions;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Polly;
 using Viper.Areas.RAPS.Dtos;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
@@ -23,10 +16,11 @@ namespace Viper.Areas.RAPS.Controllers
     public class RolesController : ApiController
     {
         private readonly RAPSContext _context;
-        private RAPSSecurityService _securityService;
-        private RAPSAuditService _auditService;
+		public IRAPSSecurityServiceWrapper SecurityService;
+        public IUserWrapper UserWrapper;
+		public IRAPSAuditServiceWrapper AuditService;
 
-        private static Expression<Func<TblRole, bool>> FilterToInstance(string instance)
+		private static Expression<Func<TblRole, bool>> FilterToInstance(string instance)
         {
             return r =>
                 instance.ToUpper() == "VIPER"
@@ -37,8 +31,11 @@ namespace Viper.Areas.RAPS.Controllers
         public RolesController(RAPSContext context)
         {
             _context = context;
-            _securityService = new RAPSSecurityService(_context);
-            _auditService = new RAPSAuditService(_context);
+			RAPSSecurityService rss = new RAPSSecurityService(_context);
+			SecurityService = new RAPSSecurityServiceWrapper(rss);
+			UserWrapper = new UserWrapper();
+			RAPSAuditService ras = new RAPSAuditService(_context);
+			AuditService = new RAPSAuditServiceWrapper(ras);
         }
 
         // GET: Roles
@@ -50,7 +47,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
 
-            if(_securityService.IsAllowedTo("ViewAllRoles", instance))
+            if(SecurityService.IsAllowedTo("ViewAllRoles", instance))
             {
                 return await _context.TblRoles
                     .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
@@ -62,7 +59,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             else
             {
-                List<int> controlledRoleIds = _securityService.GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId);
+				List<int> controlledRoleIds = SecurityService.GetControlledRoleIds(UserWrapper.GetCurrentUser()?.MothraId);
                 List<TblRole> List = await _context.TblRoles
                     .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
                     .Where(r => r.Application == 0)
@@ -104,8 +101,9 @@ namespace Viper.Areas.RAPS.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(tblRole).State = EntityState.Modified;
-            _auditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Update);
+            _context.ChangeTracker.Clear();
+			_context.SetModified(tblRole);
+			AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Update);
 
             try
             {
@@ -131,21 +129,33 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpPost]
         public async Task<ActionResult<TblRole>> PostTblRole(string instance, RoleCreateUpdate role)
         {
-            if (_context.TblRoles == null)
+			if (_context.TblRoles == null)
+			{
+				return Problem("Entity set 'RAPSContext.TblRoles'  is null.");
+			}
+
+            try
             {
-                return Problem("Entity set 'RAPSContext.TblRoles'  is null.");
-            }
+			    using var transaction = _context.Database.BeginTransaction();
+			    TblRole tblRole = CreateTblRoleFromDTO(role);
+			    _context.TblRoles.Add(tblRole);
+			    await _context.SaveChangesAsync();
+				AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Create);
+			    await _context.SaveChangesAsync();
+			    transaction.Commit();
 
-            using var transaction = _context.Database.BeginTransaction();
-            TblRole tblRole = CreateTblRoleFromDTO(role);
-            _context.TblRoles.Add(tblRole);
-            await _context.SaveChangesAsync();
-            _auditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Create);
-            await _context.SaveChangesAsync();
-            transaction.Commit();
+			    return CreatedAtAction("GetTblRole", new { id = tblRole.RoleId }, tblRole);
+			}
+			catch (DbUpdateConcurrencyException ex)
+			{
+				return Problem("The record was not updated because it was locked. " + ex.InnerException?.Message);
+			}
+			catch (Exception ex)
+			{
+				return Problem("There was a problem updating the database. " + ex.InnerException?.Message);
+			}
 
-            return CreatedAtAction("GetTblRole", new { id = tblRole.RoleId }, tblRole);
-        }
+		}
 
         // DELETE: Roles/5
         [HttpDelete("{roleId}")]
@@ -162,7 +172,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             _context.TblRoles.Remove(tblRole);
-            _auditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Delete);
+			AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Delete);
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -182,5 +192,7 @@ namespace Viper.Areas.RAPS.Controllers
         {
             return (_context.TblRoles?.Any(e => e.RoleId == roleId)).GetValueOrDefault();
         }
-    }
+
+		
+	}
 }
