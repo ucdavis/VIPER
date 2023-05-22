@@ -1,5 +1,20 @@
-stage('Build') {
- steps {
-  bat "dotnet publish ./web/Viper.csproj -c \"Release\" /p:EnvironmentName=Test"
- }
+pipeline {
+    agent any 1
+    stages { 
+        stage('Build') { 2
+            steps { 
+                bat "dotnet publish ./web/Viper.csproj -c \"Release\" /p:EnvironmentName=Test"
+            }
+        }
+        stage('Test') { 4
+            steps { 
+                // 5
+            }
+        }
+        stage('Deploy') { 6
+            steps {
+                // 7
+            }
+        }
+    }
 }
