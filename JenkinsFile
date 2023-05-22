@@ -4,10 +4,34 @@ pipeline {
         skipStagesAfterUnstable()
     }
     stages { 
-        stage('Build') {
+        stage('Restore packages') {
+		  steps {
+			bat '"C:\\Program Files\\dotnet\\dotnet" restore ${workspace}\\Viper.sln'
+		  }
+		}
+        stage('Clean Previous Build') {
+		  steps {
+			bat '"C:\\Program Files\\dotnet\\dotnet" clean ${workspace}\\Viper.sln'
+		  }
+		}
+		stage('Build') {
             steps { 
                 bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Test'
             }
         }
+		stage('Running unit tests') {
+			steps {
+				bat '"C:\\Program Files\\dotnet\\dotnet" add ${workspace}/test/Viper.test.csproj package JUnitTestLogger --version 1.1.0"
+				bat '"C:\\Program Files\\dotnet\\dotnet" test ${workspace}/test/Viper.test.csproj --logger \"junit;LogFilePath=\"${WORKSPACE}\"/TestResults/1.0.0.\"${env.BUILD_NUMBER}\"/results.xml\" --configuration release --collect \"Code coverage\"'
+				powershell '''
+				$destinationFolder = \"$env:WORKSPACE/TestResults\"
+				if (!(Test-Path -path $destinationFolder)) {New-Item $destinationFolder -Type Directory}
+					$file = Get-ChildItem -Path \"$env:WORKSPACE/test/Viper.test/TestResults/*/*.coverage\"
+					$file | Rename-Item -NewName testcoverage.coverage
+					$renamedFile = Get-ChildItem -Path \"$env:WORKSPACE/test/Viper.test/TestResults/*/*.coverage\"
+				Copy-Item $renamedFile -Destination $destinationFolder
+			'''            
+			}        
+		}
     }
 }
