@@ -28,7 +28,23 @@ pipeline {
 		}
 		stage('Build') {
             steps { 
-                bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Test'
+				stage('Build for test') {
+					when {
+						expression { params.Branch == 'development' }
+					}
+					steps {
+						bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Test'
+					}
+				}
+				stage('Build for prod') {
+					when {
+						expression { params.Branch == 'master' || params.Branch == "main" }
+					}
+					steps {
+						bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Production'
+					}
+				}				
+                
             }
         }
 		stage('Deploy') {
