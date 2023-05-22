@@ -6,12 +6,12 @@ pipeline {
     stages { 
         stage('Restore packages') {
 		  steps {
-			bat '"C:\\Program Files\\dotnet\\dotnet" restore ${workspace}\\Viper.sln'
+			bat '"C:\\Program Files\\dotnet\\dotnet" restore Viper.sln'
 		  }
 		}
         stage('Clean Previous Build') {
 		  steps {
-			bat '"C:\\Program Files\\dotnet\\dotnet" clean ${workspace}\\Viper.sln'
+			bat '"C:\\Program Files\\dotnet\\dotnet" clean Viper.sln'
 		  }
 		}
 		stage('Build') {
