@@ -104,7 +104,7 @@ namespace Viper
                 Uri url = new Uri(thisRequest.GetDisplayUrl());
                 rootURL = url.GetLeftPart(UriPartial.Authority);
 
-                if (thisRequest.Path.ToString().StartsWith("/2/") && rootURL != null)
+                if (url.AbsolutePath.ToString().StartsWith("/2/") && rootURL != null)
                 {
                     rootURL += "/2";
                 }

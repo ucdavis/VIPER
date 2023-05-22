@@ -39,7 +39,7 @@ namespace Viper.Areas.RAPS.Controllers
                 instance = _securityService.GetDefaultInstanceForUser();
             }
 
-            return await Task.Run(() => Redirect(string.Format("/raps/{0}/rolelist", instance)));
+            return await Task.Run(() => Redirect(string.Format("~/raps/{0}/rolelist", instance)));
 
             //var data = await _RAPSContext.TblRoles.ToListAsync();
             //var skipList = new List<string> { "Description" };

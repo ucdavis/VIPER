@@ -275,7 +275,7 @@ namespace Viper.test.RAPS
 					Role = "VIPER.Updated",
 					Application = 0
 				};
-				var x = await rolesController.PostTblRole("VIPER", tblRoleI);
+				await rolesController.PostTblRole("VIPER", tblRoleI);
 
 				// act
 				var result = await rolesController.PutTblRole("VIPER", 1, tblRoleU);

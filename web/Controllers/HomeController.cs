@@ -15,6 +15,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Viper.Models.AAUD;
 using System.Collections;
 using System.Reflection;
+using Microsoft.AspNetCore.Http.Extensions;
 
 namespace Viper.Controllers
 {    
@@ -52,7 +53,10 @@ namespace Viper.Controllers
         [SearchExclude]
         public IActionResult Login()
         {
-            var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(Request, new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(Request.Query["ReturnUrl"]));
+            Uri url = new Uri(Request.GetDisplayUrl());
+            string baseURl = url.GetLeftPart(UriPartial.Authority);
+
+            var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(HttpHelper.GetRootURL().Replace(baseURl, "")));
 
             return new RedirectResult(authorizationEndpoint);
         }
@@ -198,12 +202,11 @@ namespace Viper.Controllers
         /// <summary>
         /// Utility function for creating redirect URLs
         /// </summary>
-        /// <param name="request"></param>
         /// <param name="targetPath"></param>
         /// <returns>Compiled URL</returns>
-        private string BuildRedirectUri(HttpRequest request, string targetPath)
-        {
-            return request.Scheme + "://" + request.Host + request.PathBase + targetPath;
+        private string BuildRedirectUri(string targetPath)
+        {          
+            return HttpHelper.GetRootURL() + targetPath;
         }
 
         /// <summary>
@@ -214,8 +217,7 @@ namespace Viper.Controllers
             // get ticket & service
             string? ticket = Request.Query[_strTicket];
             string? returnUrl = Request.Query["ReturnUrl"];
-
-            string service = WebUtility.UrlEncode(BuildRedirectUri(Request, Request.Path) + "?ReturnUrl=" + WebUtility.UrlEncode(returnUrl));
+            string service = WebUtility.UrlEncode(BuildRedirectUri(Request.Path) + "?ReturnUrl=" + WebUtility.UrlEncode(returnUrl));
 
             var client = _clientFactory.CreateClient("CAS");
 
@@ -234,7 +236,7 @@ namespace Viper.Controllers
 
                 // uncomment this line temporarily if you ever have issues with users getting unexpected 403(Access Denied) errors in the logs
                 // uncommenting this line will log what CAS is sending. When the user in question logs in while trying to access our site
-                //HttpHelper.Logger.Log(NLog.LogLevel.Warn, "CAS response: " + doc.ToString());
+                //HttpHelper.Logger.Log(NLog.LogLevel.Information, "CAS response: " + doc.ToString());
 
                 if (!string.IsNullOrEmpty(validatedUserName))
                 {
@@ -259,7 +261,7 @@ namespace Viper.Controllers
                 }
             }
             catch (TaskCanceledException ex) {// usually caused because the user aborts the page load (HttpContext.RequestAborted)
-				HttpHelper.Logger.Log(NLog.LogLevel.Debug, "TaskCanceledException: " + ex.Message.ToString());
+				HttpHelper.Logger.Log(NLog.LogLevel.Information, "TaskCanceledException: " + ex.Message.ToString());
 			} 
 
             return new ForbidResult();

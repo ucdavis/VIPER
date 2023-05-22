@@ -18,13 +18,13 @@ using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
 
+var builder = WebApplication.CreateBuilder(args);
 
 // Early init of NLog to allow startup and exception logging, before host is built
-var logger = NLog.LogManager.Setup().SetupExtensions(s => s.RegisterLayoutRenderer("currentEnviroment", (logevent) => HttpHelper.Environment?.EnvironmentName)).LoadConfigurationFromAppSettings().GetCurrentClassLogger();
+var logger = NLog.LogManager.Setup().SetupExtensions(s => s.RegisterLayoutRenderer("currentEnviroment", (logevent) => builder.Environment.EnvironmentName)).LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
-try { 
-    var builder = WebApplication.CreateBuilder(args);
-
+try
+{     
     // Add services to the container.
     builder.Services.AddControllersWithViews().AddSessionStateTempDataProvider().AddNewtonsoftJson(options =>
         {
@@ -227,7 +227,7 @@ try {
 catch (Exception exception)
 {
     // NLog: catch setup errors
-    logger.Error(exception, "Stopped program because of exception");
+    logger.Fatal(exception, "Stopped program because of exception");
     throw;
 }
 finally

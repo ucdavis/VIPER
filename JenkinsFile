@@ -1,0 +1,5 @@
+stage('Build') {
+ steps {
+  bat "dotnet publish ./web/Viper.csproj -c \"Release\" /p:EnvironmentName=Test"
+ }
+}
