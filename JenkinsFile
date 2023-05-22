@@ -4,7 +4,7 @@ pipeline {
         skipStagesAfterUnstable()
     }
     stages { 
-        stage('Build') { 2
+        stage('Build') {
             steps { 
                 bat "dotnet publish ./web/Viper.csproj -c \"Release\" /p:EnvironmentName=Test"
             }
