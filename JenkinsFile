@@ -1,3 +1,15 @@
+@Library('AdminAppsSharedLibrary') _
+def copyOperations = [
+	[
+		source: ".\\web\\bin\\Release\\net7.0",
+		testDestination: "%vipertestnet%",
+		prodDestination: "%viperprodnet%",
+		includeFiles: "*.*",
+		excludeFiles: "",
+		excludeDirectories: ""
+	]
+
+]
 pipeline {
     agent any
     options {
@@ -17,6 +29,28 @@ pipeline {
 		stage('Build') {
             steps { 
                 bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Test'
+            }
+        }
+		stage('Deploy') {
+            steps { 
+                stage('Deploy to test') {
+					when {
+						expression { params.Branch == 'development' }
+					}
+					steps {
+						networkShares()
+						filecopy copyOperations, 'test', env.WORKSPACE
+					}
+				}
+				stage('Deploy to prod') {
+					when {
+						expression { params.Branch == 'master' || params.Branch == "main" }
+					}
+					steps {
+						networkShares()
+						filecopy copyOperations, 'prod', env.WORKSPACE
+					}
+				}
             }
         }
     }
