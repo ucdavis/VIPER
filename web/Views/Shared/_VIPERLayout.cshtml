@@ -94,7 +94,7 @@
                         class="float-right lt-md"
                         @@click="mainLeftDrawer = false"></q-btn>
 
-                    <q-list dense>
+                    <q-list dense separator>
                         <template v-for="(menuItem, index) in viperNavMenu" :key="index">
                             <q-item v-if="menuItem.menuItemURL !=''"
                                 clickable v-ripple :href="menuItem.menuItemURL">
@@ -105,7 +105,7 @@
                                     <q-item-label lines="1">{{ menuItem.menuItemText }}</q-item-label>
                                 </q-item-section>
                             </q-item>
-                            <q-item v-else class="leftNavHeader">
+                            <q-item v-else :class="menuItem.isHeader ? 'leftNavHeader' : ''">
                                 <q-item-section avatar v-if="menuItem.icon">
                                     <q-icon :name="menuItem.icon" />
                                 </q-item-section>

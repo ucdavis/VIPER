@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Runtime.Serialization;
+using Viper.Models;
 
 namespace Viper.Classes
 {
@@ -20,6 +21,9 @@ namespace Viper.Classes
 
         [DataMember(EmitDefaultValue = false)]
         public object? Result { get; set; }
+        
+        [DataMember(EmitDefaultValue = false)]
+        public ApiPagination? Pagination { get; set; }
 
         public ApiResponse(HttpStatusCode statusCode, bool success, object? result = null, string? errorMessage = null, Object? errors = null)
         {

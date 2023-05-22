@@ -6,16 +6,6 @@ namespace Viper.Classes
 {
     public class ApiResponseAttribute : ActionFilterAttribute
     {
-        public override void OnActionExecuting(ActionExecutingContext context)
-        {
-            
-        }
-
-        public override void OnActionExecuted(ActionExecutedContext filterContext)
-        {
-            
-        }
-
         public override void OnResultExecuting(ResultExecutingContext filterContext)
         {
             var objectResult = filterContext.Result as ObjectResult;
@@ -34,11 +24,6 @@ namespace Viper.Classes
                 objectResult.Value = CreateErrorResponse(objectResult, statusCode);
                 
             }
-        }
-
-        public override void OnResultExecuted(ResultExecutedContext filterContext)
-        {
-            
         }
 
         private bool IsSuccessCode(HttpStatusCode statusCode)

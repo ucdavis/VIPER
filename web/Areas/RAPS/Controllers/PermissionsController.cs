@@ -37,13 +37,14 @@ namespace Viper.Areas.RAPS.Controllers
             return r =>
                 instance.ToUpper() == "VIPER"
                 ? !r.Permission.ToUpper().StartsWith("VMACS.") && !r.Permission.ToUpper().StartsWith("VIPERFORMS")
-                : r.Permission.StartsWith(instance);
+                : r.Permission.StartsWith("VMACS.");
         }
 
         // GET: Permissions
+        [ApiPagination(DefaultPerPage = 100, MaxPerPage = 100)]
         [HttpGet]
         [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
-        public async Task<ActionResult<IEnumerable<TblPermission>>> GetTblPermissions(string instance)
+        public async Task<ActionResult<IEnumerable<TblPermission>>> GetTblPermissions(string instance, int? page)
         {
             if (_context.TblPermissions == null)
             {
