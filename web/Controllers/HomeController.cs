@@ -261,7 +261,7 @@ namespace Viper.Controllers
                 }
             }
             catch (TaskCanceledException ex) {// usually caused because the user aborts the page load (HttpContext.RequestAborted)
-				HttpHelper.Logger.Log(NLog.LogLevel.Information, "TaskCanceledException: " + ex.Message.ToString());
+				HttpHelper.Logger.Log(NLog.LogLevel.Info, "TaskCanceledException: " + ex.Message.ToString());
 			} 
 
             return new ForbidResult();
