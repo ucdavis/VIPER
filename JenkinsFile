@@ -10,6 +10,17 @@ def copyOperations = [
 	]
 
 ]
+def copyOfflineOperations = [
+	[
+		source: ".",
+		testDestination: "%vipertestnet%",
+		prodDestination: "%viperprodnet%",
+		includeFiles: "app_offline.htm",
+		excludeFiles: "",
+		excludeDirectories: ""
+	]
+
+]
 pipeline {
     agent any
     options {
@@ -44,7 +55,8 @@ pipeline {
 		}
 		stage('Tests') {
 			steps {
-                bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit" --configuration release --nologo'
+                bat 'type NUL > app_offline.htm'
+				bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit" --configuration release --nologo'
             }
 		}
 		stage('Deploy to test') {
@@ -52,6 +64,7 @@ pipeline {
 				expression { params.Branch == 'development' }
 			}
 			steps {
+				filecopy copyOfflineOperations, 'test', env.WORKSPACE
 				filecopy copyOperations, 'test', env.WORKSPACE
 			}
 		}
@@ -60,6 +73,7 @@ pipeline {
 				expression { params.Branch == 'master' || params.Branch == "main" }
 			}
 			steps {
+				filecopy copyOfflineOperations, 'prod', env.WORKSPACE
 				filecopy copyOperations, 'prod', env.WORKSPACE
 			}
 		}
