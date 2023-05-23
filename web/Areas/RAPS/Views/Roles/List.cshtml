@@ -1,0 +1,63 @@
+﻿<div class="q-pa-md">
+    <q-table title="Roles"
+            dense
+            row-key="roleId"
+            :loading="rolesLoading" 
+            :rows="roles" 
+            :columns="rolesColumns" 
+            :filter="roleListFilter" 
+            :pagination="roleListPagination">
+        <template v-slot:top-right="props">
+            <q-input class="q-ml-xs q-mr-xs" v-model="roleListFilter" dense outlined debounce="300" placeholder="Filter Results">
+                <template v-slot:append>
+                    <q-icon name="filter_alt" />
+                </template>
+            </q-input>
+        </template>
+        <template v-slot:body-cell-roleid="props">
+            <q-td :props="props">
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
+            </q-td>
+        </template>
+        <template v-slot:body-cell-role="props">
+            <q-td :props="props">
+                {{props.row.role}}
+                <br />
+                <span style="font-size:.9em">{{props.row.description}}</span>
+            </q-td>
+        </template>
+    </q-table>
+</div>
+
+@section Scripts {
+    <script asp-add-nonce="true">
+    vueObjects.roles = []
+    vueObjects.rolesLoading = true
+    vueObjects.rolesColumns = []
+    vueObjects.roleListFilter = ""
+    vueObjects.roleListPagination = { rowsPerPage: 15 }
+    vueObjects.rolesColumns = [
+        { name: "roleid", label: "", field: "roleId", align: "left", style: "width:50px;" },
+        { name: "role", label: "Role", field: "role", align: "left", sortable: true },
+        { name: "viewname", label: "Member List", field: "viewName", align: "left", sortable: true },
+        { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left", sortable: true }
+    ]
+    vueMethods.loadRoles = async function() {
+        var tempRoles = await viperFetch(this, "Roles")
+        tempRoles = tempRoles.map(function (r) {
+            return {
+                roleId: r.roleId,
+                role: (r.displayName ? r.displayName : r.role),
+                description: r.description,
+                viewName: r.viewName,
+                membersCount: r.tblRoleMembers.length,
+                application: r.application
+            }
+        })
+
+        this.roles = tempRoles
+        this.rolesLoading = false
+    }
+    vueMountedActions.push(async function(){this.loadRoles()})
+    </script>
+}

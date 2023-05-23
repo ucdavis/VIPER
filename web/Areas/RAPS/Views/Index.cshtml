@@ -1,0 +1,17 @@
+﻿@model IEnumerable<Viper.Models.RAPS.TblRole>
+@{
+    ViewData["Title"] = "RAPS [Permission Management]";
+}
+@*This is a placeholder for the table. See "Teleport" tag in the Scripts section*@
+<div id='RapsPage' class="q-pa-none q-ma-none"></div>
+@section Scripts {
+    <Teleport to="#RapsPage">
+        @await Component.InvokeAsync("VueTableDefault",
+            new {
+                data = Model,
+                keyColumnName = "RoleId"
+            }   
+        )
+    </Teleport>
+}
+

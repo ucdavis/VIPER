@@ -1,0 +1,295 @@
+﻿@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    @RenderSection("Metatags", required: false)
+
+    <title>@ViewData["Title"] - VIPER(2.0)</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link href="~/lib/quasar/dist/quasar.prod.css" rel="stylesheet" type="text/css">
+
+    @RenderSection("Styles", required: false)
+
+</head>
+<body>
+    <q-layout view="hHh lpR fFf">
+        <q-header elevated class="bg-primary text-white" height-hint="98">
+
+            <q-toolbar class="bg-primary text-white">
+                <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
+                    @await Component.InvokeAsync("MiniNav",
+                    new {
+                    user = UserHelper.GetCurrentUser()
+                    }
+                    )
+                </q-btn>
+                <q-btn flat dense icon="list" class="q-mr-xs lt-md" @@click="mainLeftDrawer = !mainLeftDrawer"></q-btn>
+                <q-btn flat dense label="Viper 2.0" class="lt-md" href="@Url.Content("~/")"></q-btn>
+
+                @if (HttpHelper.Environment?.EnvironmentName == "Development")
+                {
+                    <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0 -- DEVELOPMENT" href="@Url.Content("~/")"></q-btn>
+                }
+                else if (HttpHelper.Environment?.EnvironmentName == "Test")
+                {
+                    <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0 - TEST" href="@Url.Content("~/")"></q-btn>
+                }
+                else
+                {
+                    <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0" href="@Url.Content("~/")"></q-btn>
+                }
+                @if (UserHelper.IsEmulating())
+                {
+                    <q-banner inline-actions class="bg-warning text-black">
+                        <strong>EMULATING:</strong> @UserHelper.GetCurrentUser()?.DisplayFullName <q-btn href="@Url.Content("~/ClearEmulation")" color="warning" class="text-black">Stop</q-btn>
+                    </q-banner>
+                }
+                <q-space></q-space>
+                <q-input rounded dense standout v-model="text" color="white" label="Search" bg-color="grey" class="q-pa-xs">
+                    <q-btn flat round dense icon="search" color="black"></q-btn>
+                </q-input>
+
+                @await Component.InvokeAsync("ProfilePic",
+                new {
+                userName = UserHelper.GetCurrentUser()?.LoginId
+                }
+                )
+
+                <q-btn flat round dense icon="logout" class="q-mr-xs" href="@Url.Content("~/logout")">
+                    <q-tooltip>
+                        Logout
+                    </q-tooltip>
+                </q-btn>
+            </q-toolbar>
+
+            @await Component.InvokeAsync("MainNav",
+            new {
+            user = UserHelper.GetCurrentUser()
+            }
+            )
+            
+        </q-header>
+
+       
+        <q-drawer v-model="mainLeftDrawer" show-if-above elevated side="left" :mini="!mainLeftDrawer || mainLeftMiniState" @@click.capture="drawerClick">
+            <template v-slot:mini>
+                <q-scroll-area class="fit mini-slot">
+                    <div class="q-ma-sm">
+                        <div class="column items-start">
+                            <q-btn icon="chevron_right" color="secondary" round dense unelevated class="q-mini-drawer-show" @@click="mainLeftMiniState = false"></q-btn>
+                        </div>
+                    </div>
+                </q-scroll-area>
+            </template>
+            <template v-slot:default>
+                <div class="q-pa-sm">
+                    <q-btn dense
+                        round
+                        unelevated
+                        color="secondary"
+                        icon="close"
+                        class="float-right lt-md"
+                        @@click="mainLeftDrawer = false"></q-btn>
+
+                    <q-list dense separator>
+                        <template v-for="(menuItem, index) in viperNavMenu" :key="index">
+                            <q-item v-if="menuItem.menuItemURL !=''"
+                                clickable v-ripple :href="menuItem.menuItemURL">
+                                <q-item-section avatar v-if="menuItem.icon">
+                                    <q-icon :name="menuItem.icon" />
+                                </q-item-section>
+                                <q-item-section>
+                                    <q-item-label lines="1">{{ menuItem.menuItemText }}</q-item-label>
+                                </q-item-section>
+                            </q-item>
+                            <q-item v-else :class="menuItem.isHeader ? 'leftNavHeader' : ''">
+                                <q-item-section avatar v-if="menuItem.icon">
+                                    <q-icon :name="menuItem.icon" />
+                                </q-item-section>
+                                <q-item-section>
+                                    <q-item-label lines="1">{{ menuItem.menuItemText }}</q-item-label>
+                                </q-item-section>
+                            </q-item>
+                        </template>
+                    </q-list>
+                </div>
+                <div class="q-mini-drawer-hide absolute" style="top: 10px; right: -15px">
+                    <q-btn dense
+                           round
+                           unelevated
+                           color="secondary"
+                           icon="chevron_left"
+                           @@click="mainLeftMiniState = true" ></q-btn>
+                </div>
+            </template>
+        </q-drawer>
+
+        <q-page-container>
+            <div class="q-pa-md">
+            @RenderBody()
+            </div>
+        </q-page-container>
+
+        <q-footer elevated class="bg-white">
+            <div class="q-pa-y-sm q-pa-x-md q-gutter-xs text-caption">
+                <div id="ucdavislogo" class="float-right q-mt-sm">
+                    <a href="@HttpHelper.GetOldViperRootURL()"><img src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg" alt="UC Davis Veterinary Medicine logo" border="0" width="134" height="24"></a>
+                </div>
+                <q-breadcrumbs separator=" | " active-color="primary" class="text-primary">
+                    <q-breadcrumbs-el icon="help_center" label="SVM-IT ServiceDesk" href="https://svmithelp.vetmed.ucdavis.edu/"></q-breadcrumbs-el>
+                    <q-breadcrumbs-el label="SVM Home" icon="navigation" href="http://www.vetmed.ucdavis.edu/"></q-breadcrumbs-el>
+                    <q-breadcrumbs-el label="UC Davis" icon="school" href="http://www.ucdavis.edu/"></q-breadcrumbs-el>
+                </q-breadcrumbs>
+                <div class="q-pl-sm text-black">
+                    &copy; 2023 School of Veterinary Medicine
+                </div>
+            </div>
+        </q-footer>
+
+    </q-layout>
+
+    <script src="~/lib/jquery/jquery.min.js"></script>
+    <script src="~/lib/vue/vue.global.prod.js"></script>
+    <script src="~/lib/quasar/dist/quasar.umd.prod.js"></script>
+    <script asp-add-nonce="true">
+        // set global JS object with the CSRF token. This is automatically added to jquery ajax calls in site.js
+        var csrfToken = "@Xsrf.GetAndStoreTokens(Context).RequestToken";
+    </script>
+    <script src="~/js/site.js"></script>
+    <script asp-add-nonce="true">
+        // define global Vue objects
+        const { createApp, ref, computed, watch, nextTick, toRaw } = Vue;
+        let vueSetupActions = [];
+        let vueSetupObjects = {};
+        vueSetupObjects.mainLeftDrawer = ref(false);
+        vueSetupObjects.mainLeftMiniState = ref(false);
+        let vueObjects = { showViperError: false, viperErrorMessage: "", viperNavMenu: [] };
+        let vueMethods = {};
+        let vueWatchers = {};
+        let vueEmits = {};
+        let vueProps = {};
+        var vueBeforeCreateActions = [];
+        var vueCreatedActions = [];
+        var vueBeforeMountActions = [];
+        var vueMountedActions = [];
+        vueMountedActions.push(loadViperLeftNav);
+        var vueBeforeUnmountActions = [];
+        var vueUnmountedActions = [];
+        var vueBeforeUpdateActions = [];
+        var vueUpdatedActions = [];        
+    </script>
+
+    @* Pages or controls can update the global VUE objects
+    // BE SURE TO USE UNIQUE NAMES
+    vueObjects.rapsCount = @Model.Count;
+    vueMethods.rapsIncrementCount = function(){
+    this.rapsCount = this.rapsCount + 1;
+    var headers = {
+    "RequestVerificationToken": $('input:hidden[name="__RequestVerificationToken"]').val()
+    }
+    $.ajax({
+    type: "POST",
+    url: 'RAPS?counter=' + this.rapsCount,
+    });
+    };
+    vueWatchers.rapsCount = function(newCount, oldCount){
+    alert("Value changed from " + oldCount + " to " + newCount);
+    };
+    vueMountedActions.push(function(){alert('Vue is mounted!')});
+    *@
+    @await RenderSectionAsync("Scripts", required: false)
+
+    <q-dialog v-model="showViperError"
+              auto-close="true">
+        <q-banner>
+            <template v-slot:avatar>
+                <q-icon name="error" color="red" />
+            </template>
+            {{viperErrorMessage}}
+        </q-banner>
+    </q-dialog>
+
+    <script asp-add-nonce="true">
+
+        // initialize VUE and Quasar using global objects
+        createApp({
+            setup(){
+                while (vueSetupActions.length) {
+                    vueSetupActions.shift().call(this);
+                }
+
+                return vueSetupObjects
+            },
+            data() {
+                return vueObjects
+            },
+            methods: vueMethods,
+            watch: vueWatchers,
+            emits: vueEmits,
+            props: vueProps,
+            computed: computed,
+            beforeCreate() {
+                while (vueBeforeCreateActions.length) {
+                    vueBeforeCreateActions.shift().call(this);
+                }
+            },
+            created() {
+                this.urlParams = new URLSearchParams(window.location.search)
+                while (vueCreatedActions.length) {
+                    vueCreatedActions.shift().call(this);
+                }
+            },
+            beforeMount() {
+                while (vueBeforeMountActions.length) {
+                    vueBeforeMountActions.shift().call(this);
+                }
+            },
+            mounted() {
+                while (vueMountedActions.length) {
+                    vueMountedActions.shift().call(this);
+                }
+            },
+            beforeUpdate() {
+                while (vueBeforeUpdateActions.length) {
+                    vueBeforeUpdateActions.shift().call(this);
+                }
+            },
+            updated() {
+                while (vueUpdatedActions.length) {
+                    vueUpdatedActions.shift().call(this);
+                }
+            },
+            beforeUnmount() {
+                while (vueBeforeUnmountActions.length) {
+                    vueBeforeUnmountActions.shift().call(this);
+                }
+            },
+            unmounted() {
+                while (vueUnmountedActions.length) {
+                    vueUnmountedActions.shift().call(this);
+                }
+            }
+        }).use(Quasar).mount('body');
+
+        @if (HttpHelper.Environment?.EnvironmentName == "Development")
+        {
+            <text>
+            Quasar.setCssVar('primary', '#092');
+            </text>
+        }
+        else if (HttpHelper.Environment?.EnvironmentName == "Test")
+        {
+            <text>
+            Quasar.setCssVar('primary', '#d66902');
+            </text>
+        }
+        
+    </script>
+
+    @await RenderSectionAsync("FinalScripts", required: false)
+
+</body>
+</html>
