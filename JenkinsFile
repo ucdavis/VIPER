@@ -44,7 +44,7 @@ pipeline {
 		}
 		stage('Tests') {
 			steps {
-                bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit;logfilename=test-results.xml" --configuration release --nologo'
+                bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit" --configuration release --nologo'
             }
 		}
 		stage('Deploy to test') {
@@ -68,9 +68,9 @@ pipeline {
 			always {
 				//Run junit on the test report to build output
 				script {
-					if(fileExists('test-results.xml')) {
-						bat 'copy /b test-results.xml+'
-						junit testResults: '**/test-results.xml', skipPublishingChecks: true
+					if(fileExists('test/TestResults/TestResults.xml')) {
+						bat 'copy /b test/TestResults/TestResults.xml+'
+						junit testResults: '**/test/TestResults/TestResults.xml', skipPublishingChecks: true
 					}
 				}
 
