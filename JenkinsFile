@@ -44,13 +44,38 @@ pipeline {
 		}
 		stage('Tests') {
 			steps {
-                bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --nologo'
+                bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit;logfilename=test-results.xml" --configuration release --nologo'
             }
 		}
-		stage('Deploy') {
+		stage('Deploy to test') {
+			when {
+				expression { params.Branch == 'development' }
+			}
 			steps {
-				adminAppsFileCopy(copyOperations, "")
+				filecopy copyOperations, 'test', env.WORKSPACE
+			}
+		}
+		stage('Deploy to prod') {
+			when {
+				expression { params.Branch == 'master' || params.Branch == "main" }
+			}
+			steps {
+				filecopy copyOperations, 'prod', env.WORKSPACE
 			}
 		}
     }
+	post {
+			always {
+				//Run junit on the test report to build output
+				script {
+					if(fileExists('test-results.xml')) {
+						bat 'copy /b test-results.xml+'
+						junit testResults: '**/test-results.xml', skipPublishingChecks: true
+					}
+				}
+
+				//Archive the artifacts - in this case, all files - so that the restore job can re-deploy them.
+				archiveArtifacts artifacts: 'web/bin/Release/net7.0/**/*', fingerprint: true, onlyIfSuccessful: true
+			}
+		}
 }
