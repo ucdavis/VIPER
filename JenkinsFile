@@ -44,7 +44,7 @@ pipeline {
 		}
 		stage('Tests') {
 			steps {
-                bat 'dotnet test ./test/Viper.test.csproj -e Test --nologo'
+                bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --nologo'
             }
 		}
 		stage('Deploy to test') {
