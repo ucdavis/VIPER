@@ -47,22 +47,9 @@ pipeline {
                 bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --nologo'
             }
 		}
-		stage('Deploy to test') {
-			when {
-				expression { params.Branch == 'development' }
-			}
+		stage('Deploy') {
 			steps {
-				networkShares()
-				filecopy copyOperations, 'test', env.WORKSPACE
-			}
-		}
-		stage('Deploy to prod') {
-			when {
-				expression { params.Branch == 'master' || params.Branch == "main" }
-			}
-			steps {
-				networkShares()
-				filecopy copyOperations, 'prod', env.WORKSPACE
+				adminAppsFileCopy(copyOperations, "")
 			}
 		}
     }
