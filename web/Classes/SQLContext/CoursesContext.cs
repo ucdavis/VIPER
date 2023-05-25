@@ -54,6 +54,11 @@ public partial class CoursesContext : DbContext
 
     public virtual DbSet<VwXtndBaseinfo> VwXtndBaseinfos { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+        => optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:Courses"]);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Baseinfo>(entity =>

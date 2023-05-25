@@ -13,11 +13,6 @@ function formatDateForDateInput(d) {
         : "";
 }
 
-// automatically add CSRF token header to jquery ajax calls
-$.ajaxSetup({
-    headers: { "X-CSRF-TOKEN": csrfToken }
-});
-
 /*
  * Validation error to include the errors object for .NET 400
  */

@@ -16,6 +16,8 @@ using Viper.Models.AAUD;
 using System.Collections;
 using System.Reflection;
 using Microsoft.AspNetCore.Http.Extensions;
+using Amazon.SimpleSystemsManagement;
+using Amazon.SimpleSystemsManagement.Model;
 
 namespace Viper.Controllers
 {    
@@ -197,6 +199,49 @@ namespace Viper.Controllers
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return new RedirectResult(_settings.CasBaseUrl + "logout");
+        }
+
+        /// <summary>
+        /// Testing the connection to AWS Secrets Manager
+        /// </summary>
+        /// <returns></returns>
+        [Route("/[action]")]
+        [SearchExclude]
+        public IActionResult AWSTest()
+        {
+            try
+            {
+                var request = new GetParameterRequest()
+                {
+                    Name = "/" + HttpHelper.Environment?.EnvironmentName + "/ConnectionStrings/TestSecret",
+                    WithDecryption = true
+                };
+
+                using (var client = new AmazonSimpleSystemsManagementClient())
+                {
+                    var response = client.GetParameterAsync(request);
+                    ViewData["TestResult"] = ($"{request.Name} value is: {response.Result.Parameter.Value}");
+                }
+            }
+            catch (Exception ex)
+            {
+                ViewData["TestResult"] = ex.Message;
+            }
+
+            try
+            {
+                if (HttpHelper.Settings != null)
+                {
+                    var TestConnectionString = HttpHelper.Settings["ConnectionStrings:TestSecret"];
+                    ViewData["ConfigResult"] = TestConnectionString?.Trim();
+                }
+            }
+            catch (Exception ex)
+            {
+                ViewData["ConfigResult"] = ex.Message;
+            }
+
+            return View();
         }
 
         /// <summary>
