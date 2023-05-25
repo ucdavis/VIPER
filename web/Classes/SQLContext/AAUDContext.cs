@@ -184,6 +184,11 @@ public partial class AAUDContext : DbContext
 
     public virtual DbSet<VwVmthStudentsForPerfectForm> VwVmthStudentsForPerfectForms { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+        => optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:AAUD"]);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AaudOverride>(entity =>
