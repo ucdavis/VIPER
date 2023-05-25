@@ -37,7 +37,6 @@ try
     // AWS Configurations
     builder.Configuration.AddSystemsManager("/" + builder.Environment.EnvironmentName).AddSystemsManager("/Shared");
 
-
     // Add services to the container.
     builder.Services.AddControllersWithViews().AddSessionStateTempDataProvider().AddNewtonsoftJson(options =>
         {
