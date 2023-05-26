@@ -29,13 +29,26 @@ var logger = NLog.LogManager.Setup().SetupExtensions(s => s.RegisterLayoutRender
 
 try
 {
+
+    builder.Configuration.SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+        .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+        .AddJsonFile("appsettings." + builder.Environment.EnvironmentName + ".json", optional: true, reloadOnChange: true)
+        .AddEnvironmentVariables();
+
     if (File.Exists(awsCredentialsFilePath))
     {
         SetAwsCredentials(logger);
     }
 
-    // AWS Configurations
-    builder.Configuration.AddSystemsManager("/" + builder.Environment.EnvironmentName).AddSystemsManager("/Shared");
+    try
+    {
+        // AWS Configurations
+        builder.Configuration.AddSystemsManager("/" + builder.Environment.EnvironmentName).AddSystemsManager("/Shared");
+    }
+    catch (Exception ex)
+    {
+        logger.Fatal("Failed to get secrets from AWS. Error: " + ex.InnerException);
+    }
 
     // Add services to the container.
     builder.Services.AddControllersWithViews().AddSessionStateTempDataProvider().AddNewtonsoftJson(options =>

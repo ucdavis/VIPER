@@ -255,37 +255,46 @@ namespace Viper
         {
             if (loginId != null)
             {
-                string userLoginId = loginId.ToLower();
-                AaudUser? user = null;
+                try
+                {
+                    string userLoginId = loginId.ToLower();
+                    AaudUser? user = null;
 
-                // if we have already cached this user as an UCD user then create a Viper user from that object
-                if (HttpHelper.Cache != null)
-                {
-                    user = HttpHelper.Cache.Get<AaudUser>("AaudUser-" + userLoginId);
-                }
-
-                if (user != null)
-                {
-                    return user;
-                }
-                else if (HttpHelper.Cache != null && aaudContext != null)
-                {
-                    user = HttpHelper.Cache.GetOrCreate("AaudUser-" + userLoginId, entry =>
+                    // if we have already cached this user as an UCD user then create a Viper user from that object
+                    if (HttpHelper.Cache != null)
                     {
-                        AaudUser? aaudUser = aaudContext.AaudUsers.FirstOrDefault(m => m.LoginId == loginId);
-                        if (aaudUser != null)
-                        {
-                            return aaudUser;
-                        }
-                        else
-                        {
-                            return user;
-                        }
+                        user = HttpHelper.Cache.Get<AaudUser>("AaudUser-" + userLoginId);
+                    }
 
-                    });
+                    if (user != null)
+                    {
+                        return user;
+                    }
+                    else if (HttpHelper.Cache != null && aaudContext != null)
+                    {
+                        user = HttpHelper.Cache.GetOrCreate("AaudUser-" + userLoginId, entry =>
+                        {
+                            AaudUser? aaudUser = aaudContext.AaudUsers.FirstOrDefault(m => m.LoginId == loginId);
+                            if (aaudUser != null)
+                            {
+                                return aaudUser;
+                            }
+                            else
+                            {
+                                return user;
+                            }
 
-                    return user;
+                        });
+
+                        return user;
+                    }
                 }
+                catch(Exception ex)
+                {
+                    HttpHelper.Logger.Error(ex);
+                    return null;
+                }
+               
             }
 
             return null;
@@ -299,10 +308,18 @@ namespace Viper
         /// <returns>An AaudUser object for the current user</returns>
         public static AaudUser? GetCurrentUser()
         {
-            AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
-            AaudUser? currentUser = UserHelper.GetByLoginId(aaudContext, HttpHelper.HttpContext?.User?.Identity?.Name);
+            try
+            {
+                AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
+                AaudUser? currentUser = UserHelper.GetByLoginId(aaudContext, HttpHelper.HttpContext?.User?.Identity?.Name);
 
-            return currentUser;
+                return currentUser;
+            }
+            catch (Exception ex)
+            {
+                HttpHelper.Logger.Error(ex);
+                return null;
+            }
         }
         #endregion
 
@@ -313,22 +330,30 @@ namespace Viper
         /// <returns>An AaudUser object for the true current user</returns>
         public static AaudUser? GetTrueCurrentUser()
         {
-            if (HttpHelper.HttpContext?.User != null)
+            try
             {
-                var claims = HttpHelper.HttpContext?.User.Claims.ToList();
-                AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
-                AaudUser? trueUser = UserHelper.GetByLoginId(aaudContext, claims?.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)?.Value);
+                if (HttpHelper.HttpContext?.User != null)
+                {
+                    var claims = HttpHelper.HttpContext?.User.Claims.ToList();
+                    AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
+                    AaudUser? trueUser = UserHelper.GetByLoginId(aaudContext, claims?.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)?.Value);
 
-                if (trueUser != null) { 
-                    return trueUser; 
+                    if (trueUser != null) { 
+                        return trueUser; 
+                    }
+                    else { 
+                        return GetCurrentUser();                
+                    }
+
+
                 }
-                else { 
-                    return GetCurrentUser();                
-                }
-
-
+                else { return GetCurrentUser(); }
             }
-            else { return GetCurrentUser(); }
+            catch (Exception ex)
+            {
+                HttpHelper.Logger.Error(ex);
+                return null;
+            }
         }
         #endregion
 
