@@ -57,8 +57,14 @@ namespace Viper.Controllers
         {
             Uri url = new Uri(Request.GetDisplayUrl());
             string baseURl = url.GetLeftPart(UriPartial.Authority);
+            string returnURL = HttpHelper.GetRootURL().Replace(baseURl, "");
 
-            var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(HttpHelper.GetRootURL().Replace(baseURl, "")));
+            if (!string.IsNullOrEmpty(Request.Query["ReturnUrl"]))
+            {
+                returnURL = Request.Query["ReturnUrl"].ToString();
+            }
+
+            var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnURL));
 
             return new RedirectResult(authorizationEndpoint);
         }
