@@ -53,7 +53,7 @@
         </template>
         <template v-slot:body-cell-role="props">
             <q-td :props="props">
-                <q-badge :props="props" v-if="props.row.application == 1" transparent icon="supervisor_account" color="amber-7" class="q-mr-2">Del</q-badge>
+                <q-badge :props="props" v-if="props.row.application == 1" transparent icon="supervisor_account" color="amber-7" class="q-mr-2">Delegate</q-badge>
                 {{props.row.computedDisplayName}}
                 <br />
                 <span style="font-size:.9em">{{props.row.description}}</span>
@@ -70,28 +70,28 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        //after loading roles, add a member count and computed display name
-        vueMethods.afterRoleLoad = function (v, data) {
-            this.data = data.map(r => ({ ...r, 
-                count: r.tblRoleMembers.length, 
-                computedDisplayName: (r.displayName ? r.displayName : r.role), 
-                application: r.application == 1 ? "1" : null
-            }))
-        }
-        vueMethods.createRoleBody = function(v, data) {
-            return {
-                roleId: data.roleId,
-                role: data.role,
-                application: data.application == 1 ? 1 : 0,
-                description: data.description,
-                viewName: data.viewName
-            }
-        }
         vueObjects.qtable = new quasarTableEditable({
             keys: "roleId",
             urlBase: "Roles",
-            onLoadFunctions: [vueMethods.afterRoleLoad],
-            createBody: vueMethods.createRoleBody
+            //after loading roles, add a member count and computed display name
+            onLoad: function(data) {
+                this.data = data.map(r => ({
+                    ...r,
+                    membersCount: r.tblRoleMembers.length,
+                    computedDisplayName: (r.displayName ? r.displayName : r.role),
+                    application: r.application == 1 ? "1" : null
+                }))
+            },
+            //create object with limited properties to do insert/update
+            createBody: function(vueApp, data) {
+                return {
+                    roleId : data.roleId,
+                    role : data.role,
+                    application : data.application == 1 ? 1 : 0,
+                    description : data.description,
+                    viewName : data.viewName
+                }
+            }
         })
 
         vueObjects.roleListFilter = ""

@@ -1,6 +1,6 @@
 ﻿using Viper.Models.RAPS;
 
-namespace Viper.Areas.RAPS.Dtos
+namespace Viper.Areas.RAPS.Models
 {
     public class RoleMemberCreateUpdate
     {

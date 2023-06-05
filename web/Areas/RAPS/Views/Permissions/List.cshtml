@@ -82,7 +82,8 @@
         vueObjects.qtable = new quasarTableEditable({
             keys: "permissionId",
             urlBase: "Permissions",
-            onLoadFunctions: [vueMethods.afterPermissionLoad]
+            onLoadFunctions: [vueMethods.afterPermissionLoad],
+            serverSidePagination: true
         })
 
         vueObjects.filter = ""

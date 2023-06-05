@@ -16,6 +16,13 @@ namespace Viper.Classes
         public int DefaultPerPage { get; set; } = 25;
         public int MaxPerPage { get; set; } = 100;
 
+        public override void OnActionExecuting(ActionExecutingContext context)
+        {
+            base.OnActionExecuting(context);
+            ApiPagination pagination = CreatePaginationObject(context);
+            context.ActionArguments["pagination"] = pagination;
+        }
+
         public override void OnResultExecuting(ResultExecutingContext filterContext)
         {
             ObjectResult? objectResult = filterContext.Result as ObjectResult;
@@ -25,11 +32,14 @@ namespace Viper.Classes
             }
 
             ApiResponse? apiResponse = objectResult.Value as ApiResponse;
-            if(apiResponse != null && apiResponse?.Result is IList)
+            if(apiResponse != null && apiResponse?.Result is ApiPaginatedResponse)
             {
-                IList? list = (IList)apiResponse.Result;
-                ApiPagination? pagination = CreatePaginationObject(filterContext, list.Count);
-                if (pagination == null)
+                ApiPaginatedResponse apiPaginatedResponse = (ApiPaginatedResponse)apiResponse.Result;
+                //ApiPagination? pagination = CreatePaginationObject(filterContext, apiPaginatedResponse.TotalRecords);
+                ApiPagination? pagination = apiPaginatedResponse.Pagination;
+                pagination.TotalRecords = apiPaginatedResponse.TotalRecords;
+                int totalPages = (int)Math.Ceiling((double)pagination.TotalRecords / pagination.PerPage);
+                if (pagination.Page <= 0 || pagination.Page > totalPages || pagination.PerPage <= 0 || pagination.PerPage > MaxPerPage)
                 {
                     apiResponse = new ApiResponse(HttpStatusCode.BadRequest, false)
                     {
@@ -39,24 +49,15 @@ namespace Viper.Classes
                 }
                 else
                 {
-                    int start = (pagination.Page - 1) * pagination.PerPage;
-                    List<object> resultList = new();
-                    for (int i = start; i <= (start + pagination.PerPage - 1) && i < list.Count; i++)
-                    {
-                        object? item = list[i];
-                        if (item != null)
-                        {
-                            resultList.Add(item);
-                        }
-                    }
-                    apiResponse.Result = resultList;
+                    
+                    apiResponse.Result = apiPaginatedResponse.Data;
                     apiResponse.Pagination = pagination;
                 }
                 objectResult.Value = apiResponse;
             }
         }
 
-        private ApiPagination? CreatePaginationObject(ResultExecutingContext filterContext, int totalRecords)
+        private ApiPagination CreatePaginationObject(ActionExecutingContext filterContext)
         {
             if (!int.TryParse(filterContext.HttpContext.Request.Query["page"].FirstOrDefault(), null, out int page))
             {
@@ -67,18 +68,12 @@ namespace Viper.Classes
                 perPage = DefaultPerPage;
             }
 
-            int totalPages = (int)Math.Ceiling((double)totalRecords / perPage);
-            if (page <= 0 || page > totalPages || perPage <= 0|| perPage > MaxPerPage)
-            {
-                return null;
-            }
-
             ApiPagination pagination = new ApiPagination()
             {
                 Page = page,
                 PerPage = perPage,
-                Pages = totalPages,
-                TotalRecords = totalRecords
+                Pages = 0,
+                TotalRecords = 0
             };
             return pagination;
         }

@@ -8,12 +8,14 @@ using AngleSharp.Dom;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Polly;
-using Viper.Areas.RAPS.Dtos;
+using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Viper.Models;
 using Viper.Models.RAPS;
 using Web.Authorization;
 
@@ -44,17 +46,22 @@ namespace Viper.Areas.RAPS.Controllers
         [ApiPagination(DefaultPerPage = 100, MaxPerPage = 100)]
         [HttpGet]
         [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
-        public async Task<ActionResult<IEnumerable<TblPermission>>> GetTblPermissions(string instance, int? page)
+        public async Task<ActionResult<ApiPaginatedResponse>> GetTblPermissions(string instance, ApiPagination? pagination, string? filter, string sortOrder = "Permission")
         {
             if (_context.TblPermissions == null)
             {
                 return NotFound();
             }
-            return await _context.TblPermissions
+            var permissionsq = _context.TblPermissions
                 .Include(p => p.TblMemberPermissions)
                 .Where(FilterToInstance(instance))
-                .OrderBy(p => p.Permission)
+                .Where(p => filter == null || p.Permission.Contains(filter));
+            permissionsq = GetPage(Sort(permissionsq, sortOrder), pagination);
+            List<TblPermission> permissions = await permissionsq
                 .ToListAsync();
+            
+            int totalRecords = 10;
+            return new ApiPaginatedResponse(permissions, totalRecords, pagination);
         }
 
         // GET: Permissions/5

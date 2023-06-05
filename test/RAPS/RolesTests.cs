@@ -9,8 +9,8 @@ using Microsoft.AspNetCore.Http;
 using Viper.Models.AAUD;
 using Viper.Classes;
 using Viper.Areas.RAPS.Services;
-using Viper.Areas.RAPS.Dtos;
 using static Viper.Areas.RAPS.Services.RAPSAuditService;
+using Viper.Areas.RAPS.Models;
 
 namespace Viper.test.RAPS
 {

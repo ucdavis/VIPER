@@ -11,19 +11,21 @@ quasarTableEditableRowsDefault = {
     //GET Permissions - load objects
     //POST Permissions - create a new permission
     //PUT Permissions/5 - update permission with ID 5
-    //DELETE Permissions/5 - delete pmerission with ID 5
+    //DELETE Permissions/5 - delete permission with ID 5
     //multiple keys can be specified in an array of objects. For example, keys=["id", {column: "memberId", urlPrefix="member"}]
     //would create the PUT and DELETE url Permissions/5/member/12345678
     urlBase: "",
     keys: "id",
-    //any functions to execute after data has been loaded, for example to add columns
-    onLoadFunctions: [],
+    //function to execute after data has been loaded, for example to add columns
+    onLoad: "",
     //function to create the body of a POST or PUT 
     createBody: "",
     //function to select the object
     selectObject: "",
     //default pagination options
-    pagination: { rowsPerPage: 15 }
+    pagination: { rowsPerPage: 15 },
+    //set to true to use server side pagination
+    serverSidePagination: false
 }
 class quasarTableEditable {
     constructor(config) {
@@ -41,8 +43,8 @@ class quasarTableEditable {
         viperFetch(this, this.config.urlBase, {})
             .then(r => {
                 this.data = r
-                for (var i = 0; i < this.config.onLoadFunctions.length; i++) {
-                    this.config.onLoadFunctions[i].call(this, this.config.vueApp, this.data)
+                if (this.config.onLoad) {
+                    this.config.onLoad.call(this, this.data)
                 }
             })
             .then(r => {
