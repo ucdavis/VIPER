@@ -184,6 +184,14 @@ public partial class AAUDContext : DbContext
 
     public virtual DbSet<VwVmthStudentsForPerfectForm> VwVmthStudentsForPerfectForms { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (HttpHelper.Settings != null)
+        {
+            optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:AAUD"]);
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AaudOverride>(entity =>

@@ -149,7 +149,7 @@
                 abort()
                 return
             }
-
+            
             update(() => {
                 var res = fetch("Members?search=" + val)
                     .then(r => r.json())

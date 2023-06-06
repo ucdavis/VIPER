@@ -180,6 +180,14 @@ public partial class RAPSContext : DbContext
 
     public virtual DbSet<VwVstp> VwVstps { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (HttpHelper.Settings != null)
+        {
+            optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:RAPS"]);
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ExcelGeneratorRequest>(entity =>

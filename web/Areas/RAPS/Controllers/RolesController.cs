@@ -3,7 +3,7 @@ using System.Linq.Expressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Viper.Areas.RAPS.Dtos;
+using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;

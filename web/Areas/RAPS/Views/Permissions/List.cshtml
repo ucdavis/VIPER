@@ -6,9 +6,11 @@
          :loading="qtable.loading"
          :rows="qtable.data"
          :columns="columns"
-         :filter="permFilter"
-         :filter-method="filterPermissions"
-         :pagination="qtable.config.pagination">
+         :filter="qtable.filter"
+         @*:filter-method="filterPermissions"*@
+         :rows-per-page-options="qtable.config.rowsPerPageOptions"
+         v-model:pagination="qtable.config.pagination"
+         @@request="(props) => qtable.request(props, this)">
     <template v-slot:top-left>
         <q-btn dense no-caps color="green" padding="xs md" @@click="qtable.showForm = true">
             <q-icon name="add"></q-icon>
@@ -35,6 +37,7 @@
                 </q-card>
             </q-dialog>
         </div>
+        @*
         <q-select v-model="selectedApplication"
                   :options="applications"
                   v-if="applications.length > 0"
@@ -43,9 +46,10 @@
                   dense
                   class="q-ml-lg">
         </q-select>
+        *@
     </template>
     <template v-slot:top-right>
-        <q-input v-model="filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
+        <q-input v-model="qtable.filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
             <template v-slot:append>
                 <q-icon name="filter_alt" />
             </template>
@@ -69,23 +73,18 @@
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
         //after loading permissions add a tblMemberPermissions count and get the distinct prefixes for the drop down filter
-        vueMethods.afterPermissionLoad = function (v, data) {
+        vueMethods.afterPermissionLoad = function (data) {
             this.data = data.map(p => ({ ...p, count: p.tblMemberPermissions.length }))
-            vueObjects.applications = []
-            for (p of this.data) {
-                var appname = p.permission.split(".")[0]
-                if (vueObjects.applications.indexOf(appname) < 0)
-                    vueObjects.applications.push(appname)
-            }
-            vueObjects.selectedApplication = vueObjects.applications.indexOf("SVMSecure") > -1 ? "SVMSecure" : vueObjects.applications[0]
         }
+        vueObjects.filter = ""
         vueObjects.qtable = new quasarTableEditable({
             keys: "permissionId",
             urlBase: "Permissions",
-            onLoadFunctions: [vueMethods.afterPermissionLoad]
+            onLoad: vueMethods.afterPermissionLoad,
+            serverSidePagination: true,
+            pagination: {rowsPerPage: 15, page: 1}
         })
 
-        vueObjects.filter = ""
         vueObjects.columns = [
             { name: "action", field: "permissionId", align: "left", style: "width:75px;" },
             { name: "permission", label: "Permission", field: "permission", sortable: true, align: "left" },
@@ -111,7 +110,7 @@
             })
         }
         vueMountedActions.push(function () {
-            this.qtable.load()
+            this.qtable.load(this)
         })
     </script>
 }

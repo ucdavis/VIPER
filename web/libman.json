@@ -8,21 +8,6 @@
       "destination": "wwwroot/lib/vue/"
     },
     {
-      "provider": "cdnjs",
-      "library": "jquery-validate@1.19.5",
-      "destination": "wwwroot/lib/jquery-validation/"
-    },
-    {
-      "provider": "cdnjs",
-      "library": "jquery-validation-unobtrusive@4.0.0",
-      "destination": "wwwroot/lib/jquery-validation-unobtrusive/"
-    },
-    {
-      "provider": "cdnjs",
-      "library": "jquery@3.6.4",
-      "destination": "wwwroot/lib/jquery/"
-    },
-    {
       "provider": "jsdelivr",
       "library": "quasar@2.11.10",
       "destination": "wwwroot/lib/quasar/",

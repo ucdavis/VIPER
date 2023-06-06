@@ -1,3 +1,4 @@
+using Amazon.Runtime.CredentialManagement;
 using Joonasw.AspNetCore.SecurityHeaders;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -11,20 +12,44 @@ using NLog.Web;
 using Polly;
 using Polly.Extensions.Http;
 using Polly.Timeout;
+using System;
 using System.Net;
 using System.Security.Claims;
+using System.Xml.Linq;
 using Viper;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
+string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
 
 // Early init of NLog to allow startup and exception logging, before host is built
 var logger = NLog.LogManager.Setup().SetupExtensions(s => s.RegisterLayoutRenderer("currentEnviroment", (logevent) => builder.Environment.EnvironmentName)).LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
 try
-{     
+{
+
+    builder.Configuration.SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+        .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+        .AddJsonFile("appsettings." + builder.Environment.EnvironmentName + ".json", optional: true, reloadOnChange: true)
+        .AddEnvironmentVariables();
+
+    if (File.Exists(awsCredentialsFilePath))
+    {
+        SetAwsCredentials(logger);
+    }
+
+    try
+    {
+        // AWS Configurations
+        builder.Configuration.AddSystemsManager("/" + builder.Environment.EnvironmentName).AddSystemsManager("/Shared");
+    }
+    catch (Exception ex)
+    {
+        logger.Fatal("Failed to get secrets from AWS. Error: " + ex.InnerException);
+    }
+
     // Add services to the container.
     builder.Services.AddControllersWithViews().AddSessionStateTempDataProvider().AddNewtonsoftJson(options =>
         {
@@ -114,14 +139,12 @@ try
         options.HttpsPort = 443;
     });
 
+
     // TODO Check to see if we can automatically build these from the conenctionstrings section of appSettings
     // Define DATABASE Context from Connection Strings and Enviromental Variables
-    builder.Services.AddDbContext<AAUDContext>(options =>
-                    options.UseSqlServer(builder.Configuration.GetConnectionString("AAUD") + Environment.GetEnvironmentVariable("SQLAAUDPassword") + ";")); 
-    builder.Services.AddDbContext<CoursesContext>(options =>
-                    options.UseSqlServer(builder.Configuration.GetConnectionString("Courses") + Environment.GetEnvironmentVariable("SQLCoursesPassword") + ";"));
-    builder.Services.AddDbContext<RAPSContext>(options =>
-                    options.UseSqlServer(builder.Configuration.GetConnectionString("RAPS") + Environment.GetEnvironmentVariable("SQLRAPSPassword") + ";"));
+    builder.Services.AddDbContext<AAUDContext>();
+    builder.Services.AddDbContext<CoursesContext>();
+    builder.Services.AddDbContext<RAPSContext>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
@@ -234,4 +257,50 @@ finally
 {
     // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
     NLog.LogManager.Shutdown();
+}
+
+/// <summary>
+/// Try and parse the AWS credentials XML file and store it in the encrypted JSON
+/// </summary>
+void SetAwsCredentials(Logger logger)
+{
+    XElement xAwsCredentials = XElement.Load(awsCredentialsFilePath, LoadOptions.None);
+
+    if (!String.IsNullOrWhiteSpace(xAwsCredentials?.Element("AccessKeyId")?.Value) && !String.IsNullOrWhiteSpace(xAwsCredentials?.Element("SecretAccessKey")?.Value))
+    {
+        // grab the credentials ouf of the xml file to stor in the encrypted json file inthe profile
+        var options = new CredentialProfileOptions
+        {
+            AccessKey = xAwsCredentials?.Element("AccessKeyId")?.Value.Trim(),
+            SecretKey = xAwsCredentials?.Element("SecretAccessKey")?.Value.Trim()
+        };
+
+        var profile = new CredentialProfile("default", options);
+        // if a region was specified in the xml then use the specified region else default to USWest1
+        if (!string.IsNullOrWhiteSpace(xAwsCredentials?.Element("RegionEndpoint")?.Value) && xAwsCredentials?.Element("RegionEndpoint") != null)
+        {
+#pragma warning disable CS8604 // Possible null reference argument.
+            profile.Region = typeof(Amazon.RegionEndpoint).GetField(xAwsCredentials?.Element("RegionEndpoint")?.Value)?.GetValue(null) as Amazon.RegionEndpoint;
+#pragma warning restore CS8604 // Possible null reference argument.
+        }
+        else
+        {
+            profile.Region = Amazon.RegionEndpoint.USWest1;
+        }
+        var netSDKFile = new NetSDKCredentialsFile();
+        netSDKFile.RegisterProfile(profile);
+
+        try
+        {
+            File.Delete(awsCredentialsFilePath);
+        }
+        catch
+        {
+            logger.Error($"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
+        }
+    }
+    else
+    {
+        throw new FormatException($"Could not parse AWS Credentials File: \"{awsCredentialsFilePath}\". AccessKeyId and/or SecretAccessKey are blank.");
+    }
 }

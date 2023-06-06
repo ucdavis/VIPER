@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Polly;
 using System.Data;
-using Viper.Areas.RAPS.Dtos;
+using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;

@@ -11,19 +11,24 @@ quasarTableEditableRowsDefault = {
     //GET Permissions - load objects
     //POST Permissions - create a new permission
     //PUT Permissions/5 - update permission with ID 5
-    //DELETE Permissions/5 - delete pmerission with ID 5
+    //DELETE Permissions/5 - delete permission with ID 5
     //multiple keys can be specified in an array of objects. For example, keys=["id", {column: "memberId", urlPrefix="member"}]
     //would create the PUT and DELETE url Permissions/5/member/12345678
     urlBase: "",
     keys: "id",
-    //any functions to execute after data has been loaded, for example to add columns
-    onLoadFunctions: [],
+    //function to execute after data has been loaded, for example to add columns
+    onLoad: "",
     //function to create the body of a POST or PUT 
     createBody: "",
     //function to select the object
     selectObject: "",
     //default pagination options
-    pagination: { rowsPerPage: 15 }
+    pagination: { rowsPerPage: 15 },
+    //default rows per page options
+    rowsPerPageOptions: [5, 10, 15, 25, 50, 100, 0],
+    //set to true to use server side pagination
+    serverSidePagination: false,
+    
 }
 class quasarTableEditable {
     constructor(config) {
@@ -35,14 +40,41 @@ class quasarTableEditable {
         this.editing = false
         this.object = {}
         this.errors = {}
+        //filter variable, necessary for server side pagination
+        this.filter = ""
     }
 
-    load() {
-        viperFetch(this, this.config.urlBase, {})
+    //Load data. For server side pagination, send the pagination options as query params.
+    load(vueApp) {
+        console.log(this.config.filter)
+        var queryParams = "";
+        if (this.config.serverSidePagination) {
+            this.loading = true
+            var queryParamObject = {
+                perPage: this.config.pagination.rowsPerPage,
+                page: this.config.pagination.page,
+                sortOrder: (this.config.pagination.sortBy ? this.config.pagination.sortBy : "") + (this.config.pagination.descending ? " desc" : ""),
+                filter: (this.filter ? this.filter : "")
+            }
+            queryParams = "?" + new URLSearchParams(queryParamObject)
+        }
+        viperFetch(vueApp, this.config.urlBase + queryParams, {}, [])
             .then(r => {
-                this.data = r
-                for (var i = 0; i < this.config.onLoadFunctions.length; i++) {
-                    this.config.onLoadFunctions[i].call(this, this.config.vueApp, this.data)
+                if (r) {
+                    if (this.config.serverSidePagination) {
+                        //record data and pagination
+                        this.data = r.result
+                        this.config.pagination.rowsNumber = r.pagination.totalRecords
+                        this.config.pagination.rowsPerPage = r.pagination.perPage
+                        this.config.pagination.page = r.pagination.page
+                    }
+                    else {
+                        this.data = r
+                    }
+                }
+
+                if (this.config.onLoad) {
+                    this.config.onLoad.call(this, this.data)
                 }
             })
             .then(r => {
@@ -136,5 +168,20 @@ class quasarTableEditable {
             url += "/" + this.object[this.config.keys]
         }
         return url
+    }
+
+    //Function called for server side paging when pagination options or filter options are changed
+    request(props, vueApp) {
+        this.config.pagination.page = props.pagination.page
+        this.config.pagination.rowsPerPage = props.pagination.rowsPerPage 
+        if (props.pagination.sortBy) {
+            this.config.pagination.sortOrder = props.pagination.sortBy
+            this.config.pagination.descending = props.pagination.descending
+        }
+        else {
+            this.config.pagination.sortOrder = ""
+        }
+        
+        this.load(vueApp)
     }
 }
