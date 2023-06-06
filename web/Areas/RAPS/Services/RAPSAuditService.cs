@@ -136,5 +136,31 @@ namespace Viper.Areas.RAPS.Services
             }
             _context.Add(tblLog);
         }
+
+        public void AuditRolePermissionChange(TblRolePermission rolePermission, AuditActionType actionType)
+        {
+            TblLog tblLog = new TblLog()
+            {
+                ModTime = DateTime.Now,
+                ModBy = UserHelper.GetCurrentUser()?.LoginId,
+                RoleId = rolePermission.RoleId,
+                PermissionId = rolePermission.PermissionId,
+                Detail = rolePermission.Access.ToString()
+            };
+
+            switch (actionType)
+            {
+                case AuditActionType.Create:
+                    tblLog.Audit = "UpdateRolePermission";
+                    break;
+                case AuditActionType.Update:
+                    tblLog.Audit = "UpdateRolePermission";
+                    break;
+                case AuditActionType.Delete:
+                    tblLog.Audit = "DeletePermissionFromRole";
+                    break;
+            }
+            _context.Add(tblLog);
+        }
     }
 }

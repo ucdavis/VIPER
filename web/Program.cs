@@ -140,7 +140,7 @@ try
     });
 
 
-    // TODO Check to see if we can automatically build these from the conenctionstrings section of appSettings
+    // TODO Check to see if we can automatically build these from the connectionstrings section of appSettings
     // Define DATABASE Context from Connection Strings and Enviromental Variables
     builder.Services.AddDbContext<AAUDContext>();
     builder.Services.AddDbContext<CoursesContext>();
