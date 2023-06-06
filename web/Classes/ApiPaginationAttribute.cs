@@ -35,11 +35,16 @@ namespace Viper.Classes
             if(apiResponse != null && apiResponse?.Result is ApiPaginatedResponse)
             {
                 ApiPaginatedResponse apiPaginatedResponse = (ApiPaginatedResponse)apiResponse.Result;
-                //ApiPagination? pagination = CreatePaginationObject(filterContext, apiPaginatedResponse.TotalRecords);
                 ApiPagination? pagination = apiPaginatedResponse.Pagination;
                 pagination.TotalRecords = apiPaginatedResponse.TotalRecords;
-                int totalPages = (int)Math.Ceiling((double)pagination.TotalRecords / pagination.PerPage);
-                if (pagination.Page <= 0 || pagination.Page > totalPages || pagination.PerPage <= 0 || pagination.PerPage > MaxPerPage)
+                if (pagination.PerPage == 0)
+                {
+                    pagination.PerPage = pagination.TotalRecords;
+                }
+                pagination.Pages = (int)Math.Ceiling((double)pagination.TotalRecords / pagination.PerPage);
+
+                bool pageValid = pagination.Page >= 0 && (pagination.Page <= pagination.Pages || pagination.Pages == 0);
+                if (!pageValid || pagination.PerPage <= 0 || pagination.PerPage > MaxPerPage)
                 {
                     apiResponse = new ApiResponse(HttpStatusCode.BadRequest, false)
                     {

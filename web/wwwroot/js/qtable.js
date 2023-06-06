@@ -24,8 +24,11 @@ quasarTableEditableRowsDefault = {
     selectObject: "",
     //default pagination options
     pagination: { rowsPerPage: 15 },
+    //default rows per page options
+    rowsPerPageOptions: [5, 10, 15, 25, 50, 100, 0],
     //set to true to use server side pagination
-    serverSidePagination: false
+    serverSidePagination: false,
+    
 }
 class quasarTableEditable {
     constructor(config) {
@@ -37,12 +40,39 @@ class quasarTableEditable {
         this.editing = false
         this.object = {}
         this.errors = {}
+        //filter variable, necessary for server side pagination
+        this.filter = ""
     }
 
-    load() {
-        viperFetch(this, this.config.urlBase, {})
+    //Load data. For server side pagination, send the pagination options as query params.
+    load(vueApp) {
+        console.log(this.config.filter)
+        var queryParams = "";
+        if (this.config.serverSidePagination) {
+            this.loading = true
+            var queryParamObject = {
+                perPage: this.config.pagination.rowsPerPage,
+                page: this.config.pagination.page,
+                sortOrder: (this.config.pagination.sortBy ? this.config.pagination.sortBy : "") + (this.config.pagination.descending ? " desc" : ""),
+                filter: (this.filter ? this.filter : "")
+            }
+            queryParams = "?" + new URLSearchParams(queryParamObject)
+        }
+        viperFetch(vueApp, this.config.urlBase + queryParams, {}, [])
             .then(r => {
-                this.data = r
+                if (r) {
+                    if (this.config.serverSidePagination) {
+                        //record data and pagination
+                        this.data = r.result
+                        this.config.pagination.rowsNumber = r.pagination.totalRecords
+                        this.config.pagination.rowsPerPage = r.pagination.perPage
+                        this.config.pagination.page = r.pagination.page
+                    }
+                    else {
+                        this.data = r
+                    }
+                }
+
                 if (this.config.onLoad) {
                     this.config.onLoad.call(this, this.data)
                 }
@@ -138,5 +168,20 @@ class quasarTableEditable {
             url += "/" + this.object[this.config.keys]
         }
         return url
+    }
+
+    //Function called for server side paging when pagination options or filter options are changed
+    request(props, vueApp) {
+        this.config.pagination.page = props.pagination.page
+        this.config.pagination.rowsPerPage = props.pagination.rowsPerPage 
+        if (props.pagination.sortBy) {
+            this.config.pagination.sortOrder = props.pagination.sortBy
+            this.config.pagination.descending = props.pagination.descending
+        }
+        else {
+            this.config.pagination.sortOrder = ""
+        }
+        
+        this.load(vueApp)
     }
 }

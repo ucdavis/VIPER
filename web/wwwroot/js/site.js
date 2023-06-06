@@ -49,7 +49,7 @@ async function viperFetch(VueApp, url, data = {}, additionalFunctions = [], erro
             while (additionalFunctions.length) {
                 additionalFunctions.shift().call(this, result)
             }
-            return result
+            return r.pagination ? { result: result, pagination: r.pagination } : result
         })
         //catch errors, including those thrown by handleViperFetchError
         .catch(e => showViperFetchError(VueApp, e, errorTarget))
@@ -94,8 +94,8 @@ function showViperFetchError(VueApp, error, errorTarget) {
                     errorTarget.message += " " + error.errorList[i];
                 }
             }
+            shownError = true
         }
-        shownError = true
     }
     catch (e) {
         //show the error dialog

@@ -12,7 +12,7 @@ namespace Viper.Classes
         {
             Data = data;
             TotalRecords = totalRecords;
-            Pagination = pagination;
+            Pagination = pagination is null ? new ApiPagination() : pagination;
         }
     }
 }
