@@ -82,7 +82,7 @@
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
         //after loading role members, add the member name and active flag
-        vueMethods.afterRoleLoad = function (v, data) {
+        vueMethods.afterRoleLoad = function (data) {
             this.data = data.map(rm => ({
                 ...rm,
                 memberName: rm?.aaudUser?.displayLastName + ", " + rm?.aaudUser?.displayFirstName,
@@ -92,9 +92,11 @@
         //set member id and role id when creating/updating
         vueMethods.createRoleMemberBody = function(v, object) {
             return {
-                ...object,
+                comment: object.comment,
                 memberId: object.member?.value,
-                roleId: v.urlParams.get("RoleId")
+                roleId: v.urlParams.get("roleId"),
+                startDate: object?.startDate,
+                endDate: object?.endDate
             }
         }
         //on selection, format dates and set up user select box
@@ -113,7 +115,7 @@
         vueObjects.qtable = new quasarTableEditable({
             keys: ["memberId"],
             urlBase: "Roles",
-            onLoadFunctions: [vueMethods.afterRoleLoad],
+            onLoad: vueMethods.afterRoleLoad,
             createBody: vueMethods.createRoleMemberBody,
             selectObject: vueMethods.selectRoleMember,
             pagination: { rowsPerPage: 0 }

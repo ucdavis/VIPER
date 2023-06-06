@@ -76,7 +76,6 @@
         vueMethods.afterPermissionLoad = function (data) {
             this.data = data.map(p => ({ ...p, count: p.tblMemberPermissions.length }))
         }
-        vueObjects.filter = ""
         vueObjects.qtable = new quasarTableEditable({
             keys: "permissionId",
             urlBase: "Permissions",
@@ -91,24 +90,7 @@
             { name: "count", label: "Members", field: "count", sortable: true, align: "left", style: "width:75px;" },
             { name: "edit", label: "", field: "", style: "width: 100px;" }
         ]
-
-        //for the combination drop down filter + search text filter
-        vueObjects.applications = []
-        vueObjects.selectedApplication = ""
-        computed.permFilter = function () {
-            return {
-                filter: this.filter,
-                selectedApplication: this.selectedApplication
-            }
-        }
-        vueMethods.filterPermissions = function (rows, terms, cols, getCellValue) {
-            return rows.filter(r => {
-                var perm = r.permission.toLowerCase()
-                var app = this.selectedApplication.toLowerCase()
-                return (app == "" || perm.startsWith(app))
-                    && (perm.indexOf(this.filter.toLowerCase()) >= 0)
-            })
-        }
+                
         vueMountedActions.push(function () {
             this.qtable.load(this)
         })
