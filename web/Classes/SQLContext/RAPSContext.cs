@@ -449,7 +449,7 @@ public partial class RAPSContext : DbContext
 
             entity.Property(e => e.RoleId).HasColumnName("RoleID");
             entity.Property(e => e.PermissionId).HasColumnName("PermissionID");
-            entity.Property(e => e.Access).HasDefaultValueSql("(1)");
+            //entity.Property(e => e.Access).HasDefaultValueSql("(1)");
             entity.Property(e => e.ModBy)
                 .HasMaxLength(8)
                 .IsUnicode(false);

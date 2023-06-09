@@ -73,7 +73,7 @@ class quasarTableEditable {
                 }
 
                 if (this.config.onLoad) {
-                    this.config.onLoad.call(this, this.data)
+                    this.config.onLoad.call(this, this.data, vueApp)
                 }
             })
             .then(r => {

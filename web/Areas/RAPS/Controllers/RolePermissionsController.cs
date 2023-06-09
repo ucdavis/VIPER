@@ -76,7 +76,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             using var transaction = _context.Database.BeginTransaction();
-            TblRolePermission tblRolePermission = new TblRolePermission() { RoleId = roleId, PermissionId = rolePermission.PermissionId };
+            TblRolePermission tblRolePermission = new TblRolePermission();
             UpdateTblRolePermissionsWithDto(tblRolePermission, rolePermission);
             _context.TblRolePermissions.Add(tblRolePermission);
             _context.SaveChanges();
@@ -84,35 +84,7 @@ namespace Viper.Areas.RAPS.Controllers
             _context.SaveChanges();
             transaction.Commit();
 
-            return CreatedAtAction("GetTblRole", new { roleId = tblRolePermission.RoleId, permissionId = tblRolePermission.PermissionId}, tblRolePermission);
-        }
-
-        // PUT Roles/5/Permissions/123
-        [HttpPut("Roles/{roleId}/Permissions/{permissionId}")]
-        public async Task<ActionResult<TblRolePermission>> PutTblRolePermission(string instance, int roleId, int permissionId, RolePermissionCreateUpdate rolePermission)
-        {
-            if (_context.TblRolePermissions == null)
-            {
-                return NotFound();
-            }
-            TblRole? tblRole = GetRoleInInstance(instance, roleId);
-            if (tblRole == null)
-            {
-                return NotFound();
-            }
-
-            TblRolePermission? tblRolePermission = await _context.TblRolePermissions.FindAsync(roleId, permissionId);
-            if (roleId != rolePermission.RoleId || permissionId != rolePermission.PermissionId || tblRolePermission == null)
-            {
-                return NotFound();
-            }
-
-            UpdateTblRolePermissionsWithDto(tblRolePermission, rolePermission);
-            _context.TblRolePermissions.Update(tblRolePermission);
-            _auditService.AuditRolePermissionChange(tblRolePermission, RAPSAuditService.AuditActionType.Update);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            return CreatedAtAction("GetTblRole", new { roleId = tblRolePermission.RoleId, permissionId = tblRolePermission.PermissionId, Access = tblRolePermission.Access }, tblRolePermission);
         }
 
         // DELETE Roles/5/Permissions/123
@@ -144,6 +116,8 @@ namespace Viper.Areas.RAPS.Controllers
 
         private static void UpdateTblRolePermissionsWithDto(TblRolePermission tblRolePermission, RolePermissionCreateUpdate rolePermissionCreateUpdate)
         {
+            tblRolePermission.RoleId = rolePermissionCreateUpdate.RoleId;
+            tblRolePermission.PermissionId = rolePermissionCreateUpdate.PermissionId;
             tblRolePermission.Access = rolePermissionCreateUpdate.Access;
             tblRolePermission.ModTime = DateTime.Now;
             tblRolePermission.ModBy = UserHelper.GetCurrentUser()?.LoginId;

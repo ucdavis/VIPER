@@ -29,14 +29,18 @@ body {
 .q-table__top,
 .q-table__bottom,
 .q-table__middle table thead tr:first-child th {
-        /* bg color is important for th; just specify one */
-        background-color: #eee;
-        white-space: nowrap;
-    }
+    /* bg color is important for th; just specify one */
+    background-color: #eee;
+    white-space: nowrap;
+}
+
+.q-table__container {
+    margin-bottom: 1.5rem;
+}
 
 .sticky-header-table .q-table__middle table thead tr th {
-position: sticky;
-z-index: 1;
+    position: sticky;
+    z-index: 1;
 }
 
 .sticky-header-table .q-table__middle table thead tr:first-child th {

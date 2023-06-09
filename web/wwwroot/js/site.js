@@ -14,6 +14,20 @@ function formatDateForDateInput(d) {
 }
 
 /*
+    Returns a date formatted with toLocalDateString if possible
+*/
+function formatDate(d) {
+    var dt = new Date(d)
+    return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf())) ? dt.toLocaleDateString() : ""
+}
+
+function formatDateTime(d, options) {
+    var dt = new Date(d)
+    return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf())) ? dt.toLocaleString("en-US", options) : ""
+}
+
+
+/*
  * Validation error to include the errors object for .NET 400
  */
 class ValidationError extends Error {

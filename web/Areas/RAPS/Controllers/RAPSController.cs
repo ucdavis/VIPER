@@ -72,21 +72,21 @@ namespace Viper.Areas.RAPS.Controllers
                 }
             }
             nav.Add(new NavMenuItem() { MenuItemText = "Roles", IsHeader = true });
-            nav.Add(new NavMenuItem() { MenuItemText = "Role List", MenuItemURL = "rolelist" });
+            nav.Add(new NavMenuItem() { MenuItemText = "Role List", MenuItemURL = "Rolelist" });
             if(_securityService.IsAllowedTo("CreateRole", instance))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "Role Templates", MenuItemURL = "roleTemplates" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Role Templates", MenuItemURL = "RoleTemplates" });
             }
             if (selectedRole != null && _securityService.RoleBelongsToInstance(instance, selectedRole))
             {
                 nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected Role {0}", selectedRole.Role), IsHeader = true });
                 if (selectedRole.Application == 0 && _securityService.IsAllowedTo("EditPermissions"))
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = "Edit Permissions", MenuItemURL = "rolePermisisons" });
+                    nav.Add(new NavMenuItem() { MenuItemText = "Edit Permissions", MenuItemURL = "RolePermissions?roleId=" + selectedRole.RoleId });
                 }
                 if(_securityService.IsAllowedTo("EditRoleMembership"))
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = "Role Members", MenuItemURL = "roleMembers" });
+                    nav.Add(new NavMenuItem() { MenuItemText = "Role Members", MenuItemURL = "RoleMembers?roleId=" + selectedRole.RoleId });
                 }
                 
             }
@@ -226,6 +226,17 @@ namespace Viper.Areas.RAPS.Controllers
         public async Task<IActionResult> PermissionList()
         {
             return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/List.cshtml"));
+        }
+
+        /// <summary>
+        /// List permissions for a role
+        /// </summary>
+        /// <returns></returns>
+        [Permission(Allow = "RAPS.Admin,RAPS.ManageAllPermissions")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> RolePermissions()
+        {
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/Permissions.cshtml"));
         }
     }
 }
