@@ -46,7 +46,6 @@ class quasarTableEditable {
 
     //Load data. For server side pagination, send the pagination options as query params.
     load(vueApp) {
-        console.log(this.config.filter)
         var queryParams = "";
         if (this.config.serverSidePagination) {
             this.loading = true

@@ -79,9 +79,7 @@
         vueObjects.qtable = new quasarTableEditable({
             keys: "permissionId",
             urlBase: "Permissions",
-            onLoad: vueMethods.afterPermissionLoad,
-            serverSidePagination: true,
-            pagination: {rowsPerPage: 15, page: 1}
+            onLoad: vueMethods.afterPermissionLoad
         })
 
         vueObjects.columns = [
