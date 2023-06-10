@@ -363,6 +363,9 @@ public partial class RAPSContext : DbContext
                 .HasForeignKey(d => d.PermissionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_tblMemberPermissions_tblPermissions");
+            
+            entity.HasOne(e => e.Member).WithMany(m => m.TblMemberPermissions)
+                .HasForeignKey(e => e.MemberId);
         });
 
         modelBuilder.Entity<TblPermission>(entity =>

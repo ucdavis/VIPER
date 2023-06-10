@@ -162,5 +162,44 @@ namespace Viper.Areas.RAPS.Services
             }
             _context.Add(tblLog);
         }
+
+        public void AuditPermissionMemberChange(TblMemberPermission memberPermission, AuditActionType actionType) 
+        {
+            TblLog tblLog = new TblLog()
+            {
+                ModTime = DateTime.Now,
+                ModBy = UserHelper.GetCurrentUser()?.LoginId,
+                PermissionId = memberPermission.PermissionId,
+                MemberId = memberPermission.MemberId
+            };
+            if (actionType == AuditActionType.Create || actionType == AuditActionType.Update)
+            {
+                string Detail = "Access:" + memberPermission.Access;
+                if (memberPermission.StartDate != null)
+                {
+                    Detail += "\"StartDate\":\"" + memberPermission.StartDate.Value.ToString("yyyyMMdd") + "\"";
+                }
+                if (memberPermission.EndDate != null)
+                {
+                    Detail += (!string.IsNullOrEmpty(Detail) ? "," : "")
+                            + "\"EndDate\":\"" + memberPermission.EndDate.Value.ToString("yyyyMMdd") + "\"";
+                }
+                tblLog.Detail = "{" + Detail + "}";
+            }
+
+            switch (actionType)
+            {
+                case AuditActionType.Create:
+                    tblLog.Audit = "CreateMemberPermission";
+                    break;
+                case AuditActionType.Update:
+                    tblLog.Audit = "UpdateMemberPermission";
+                    break;
+                case AuditActionType.Delete:
+                    tblLog.Audit = "DelPermissionForMember";
+                    break;
+            }
+            _context.Add(tblLog);
+        }
     }
 }

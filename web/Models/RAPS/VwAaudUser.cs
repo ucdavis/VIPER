@@ -32,5 +32,6 @@ namespace Viper.Models.RAPS
         public bool Future { get; set; }
 
         public virtual ICollection<TblRoleMember> TblRoleMembers { get; set; } = new List<TblRoleMember>();
+        public virtual ICollection<TblMemberPermission> TblMemberPermissions { get; set; } = new List<TblMemberPermission>();
     }
 }

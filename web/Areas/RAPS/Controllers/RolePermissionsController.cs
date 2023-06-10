@@ -39,7 +39,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            TblRole? tblRole = GetRoleInInstance(instance, roleId);
+            TblRole? tblRole = _securityService.GetRoleInInstance(instance, roleId);
             if (tblRole == null)
             {
                 return NotFound();
@@ -63,7 +63,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            TblRole? tblRole = GetRoleInInstance(instance, roleId);
+            TblRole? tblRole = _securityService.GetRoleInInstance(instance, roleId);
             if (tblRole == null)
             {
                 return NotFound();
@@ -95,7 +95,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            TblRole? tblRole = GetRoleInInstance(instance, roleId);
+            TblRole? tblRole = _securityService.GetRoleInInstance(instance, roleId);
             if (tblRole == null)
             {
                 return NotFound();
@@ -121,14 +121,6 @@ namespace Viper.Areas.RAPS.Controllers
             tblRolePermission.Access = rolePermissionCreateUpdate.Access;
             tblRolePermission.ModTime = DateTime.Now;
             tblRolePermission.ModBy = UserHelper.GetCurrentUser()?.LoginId;
-        }
-
-        private TblRole? GetRoleInInstance(string instance, int roleId)
-        {
-            var tblRole = _context.TblRoles.Find(roleId);
-            return tblRole != null && _securityService.RoleBelongsToInstance(instance, tblRole)
-                ? tblRole
-                : null;
         }
     }
 }

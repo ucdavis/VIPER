@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using Polly;
 using System.Security.Cryptography;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -33,19 +34,33 @@ namespace Viper.Areas.RAPS.Services
             return false;
         }
 
-        static public bool IsVMACSInstance(string Instance)
+        static public bool IsVMACSInstance(string instance)
         {
-            return Instance.StartsWith("VMACS.");
+            return instance.StartsWith("VMACS.");
         }
 
-        public bool RoleBelongsToInstance(string Instance, TblRole role)
+        public bool RoleBelongsToInstance(string instance, TblRole role)
         {
             string roleName = role.Role.ToUpper();
-            if(Instance.ToUpper() == "VIPER")
+            if(instance.ToUpper() == "VIPER")
             {
                 return !roleName.StartsWith("VMACS.") && !roleName.StartsWith("VIPERFORMS");
             }
-            return roleName.StartsWith(Instance.ToUpper());
+            return roleName.StartsWith(instance.ToUpper());
+        }
+
+        public bool PermissionBelongsToInstance(string instance, TblPermission permission)
+        {
+            string permissionName = permission.Permission.ToUpper();
+            if(instance.ToUpper() == "VIPER")
+            {
+                return !permissionName.StartsWith("VMACS") && !permissionName.StartsWith("VIPERFORMS");
+            }
+            if(instance.ToUpper().StartsWith("VMACS"))
+            {
+                return permissionName.StartsWith("VMACS");
+            }
+            return permissionName.StartsWith(instance.ToUpper());
         }
 
         public bool IsAllowedTo(string action, string? instance = null)
@@ -123,6 +138,21 @@ namespace Viper.Areas.RAPS.Services
             }
             return "VMACS.VMTH";
         }
-    }
 
+        public TblRole? GetRoleInInstance(string instance, int roleId)
+        {
+            var tblRole = _context.TblRoles.Find(roleId);
+            return tblRole != null && RoleBelongsToInstance(instance, tblRole)
+                ? tblRole
+                : null;
+        }
+
+        public TblPermission? GetPermissionInInstance(string instance, int permissionId)
+        {
+            var tblpermission = _context.TblPermissions.Find(permissionId);
+            return tblpermission != null && PermissionBelongsToInstance(instance, tblpermission)
+                ? tblpermission
+                : null;
+        }
+    }
 }
