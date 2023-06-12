@@ -170,8 +170,10 @@ namespace Viper.Areas.RAPS.Controllers
             return CreatedAtAction("GetTblMemberPermission", new { memberId, permissionId }, tblMemberPermission);
         }
 
-        // DELETE: api/MemberPermissions/5
-        [HttpDelete("{id}")]
+        // DELETE: Members/12345678/Permissions/5
+        // DELETE: Permissions/5/Members/12345678
+        [HttpDelete("Members/{memberId}/Permissions/{permissionId}")]
+        [HttpDelete("Permissions/{permissionId}/Members/{memberId}")]
         public async Task<IActionResult> DeleteTblMemberPermission(string instance, string memberId, int permissionId)
         {
             if (_context.TblMemberPermissions == null)
@@ -211,7 +213,6 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 dbMemberPermission.AddDate = DateTime.Now;
             }
-
         }
     }
 }
