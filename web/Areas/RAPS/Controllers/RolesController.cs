@@ -12,7 +12,7 @@ using Viper.Models.RAPS;
 namespace Viper.Areas.RAPS.Controllers
 {
     [Route("raps/{instance}/[controller]")]
-    [Authorize(Roles = "VMDO SVM-IT,RAPS Delegate Users", Policy = "2faAuthentication")]
+    [Authorize(Roles = "VMDO SVM-IT,RAPS Users", Policy = "2faAuthentication")]
     public class RolesController : ApiController
     {
         private readonly RAPSContext _context;

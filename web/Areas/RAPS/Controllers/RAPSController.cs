@@ -9,10 +9,9 @@ using Viper.Classes;
 
 namespace Viper.Areas.RAPS.Controllers
 {
-    //TODO: Create the RAPS Delegate Users role and add anyone with access to delegate roles
     [Area("RAPS")]
     [Route("[area]/[action]")]
-    [Authorize(Roles = "VMDO SVM-IT,RAPS Delegate Users", Policy = "2faAuthentication")]
+    [Authorize(Roles = "VMDO SVM-IT,RAPS Users", Policy = "2faAuthentication")]
     public class RAPSController : AreaController
     {
         private readonly Classes.SQLContext.RAPSContext _RAPSContext;
@@ -198,26 +197,6 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         /// <summary>
-        /// Edit a role.
-        /// </summary>
-        /// <param name="Instance">RAPS Instance</param>
-        /// <param name="RoleId">ID of role to edit</param>
-        /// <returns></returns>
-        [Permission(Allow = "RAPS.Admin")]
-        [Route("/[area]/{Instance}/[action]/{RoleId?}")]
-        public async Task<IActionResult> RoleEdit(int? RoleId)
-        {
-            ViewData["RoleId"] = RoleId;
-
-            List<TblRole> Roles = await _RAPSContext.TblRoles
-                    .Include(r => r.TblRoleMembers)
-                    .ThenInclude(rm => rm.AaudUser)
-                    .Where(r => r.RoleId == RoleId).ToListAsync();
-            return View("~/Areas/RAPS/Views/Roles/Edit.cshtml");
-        }
-
-
-        /// <summary>
         /// List permissions
         /// </summary>
         /// <returns></returns>
@@ -237,6 +216,36 @@ namespace Viper.Areas.RAPS.Controllers
         public async Task<IActionResult> RolePermissions()
         {
             return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/Permissions.cshtml"));
+        }
+
+        /// <summary>
+        /// List members of a permission 
+        /// </summary>
+        /// <returns></returns>
+        [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> PermissionMembers(int? permissionId)
+        {
+            ViewData["permissionId"] = permissionId;
+
+            TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
+
+            if (permission == null)
+            {
+                return NotFound();
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/Members.cshtml"));
+        }
+
+        /// <summary>
+        /// Search for users
+        /// </summary>
+        /// <returns></returns>
+        [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> UserSearch()
+        {
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/List.cshtml"));
         }
     }
 }

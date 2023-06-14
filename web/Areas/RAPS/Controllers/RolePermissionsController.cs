@@ -9,8 +9,6 @@ using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 using Web.Authorization;
 
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-
 namespace Viper.Areas.RAPS.Controllers
 {
     [Route("raps/{instance=VIPER}/")]

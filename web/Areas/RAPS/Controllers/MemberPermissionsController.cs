@@ -130,21 +130,33 @@ namespace Viper.Areas.RAPS.Controllers
             return NoContent();
         }
 
-        // POST: Members/12345678/Permissions/5
-        // POST: Permissions/5/Members/12345678
-        [HttpPost("Members/{memberId}/Permissions/{permissionId}")]
-        [HttpPost("Permissions/{permissionId}/Members/{memberId}")]
-        public async Task<ActionResult<TblMemberPermission>> PostTblMemberPermission(string instance, string memberId, int permissionId, MemberPermissionCreateUpdate memberPermission)
+        // POST: Members/12345678/Permissions
+        // POST: Permissions/5/Members
+        [HttpPost("Members/{memberId}/Permissions")]
+        [HttpPost("Permissions/{permissionId}/Members")]
+        public async Task<ActionResult<TblMemberPermission>> PostTblMemberPermission(string instance, string? memberId, int? permissionId, MemberPermissionCreateUpdate memberPermission)
         {
             if (_context.TblMemberPermissions == null)
             {
-                return Problem("Entity set 'RAPSContext.TblMemberPermissions'  is null.");
+                return Problem("Entity set 'RAPSContext.TblMemberPermissions' is null.");
             }
-            if (_securityService.GetPermissionInInstance(instance, permissionId) == null)
+            if((permissionId != null && permissionId != memberPermission.PermissionId) 
+                || (memberId != null && memberId != memberPermission.MemberId))
             {
                 return NotFound();
             }
-            TblMemberPermission tblMemberPermission = new TblMemberPermission() { MemberId = memberId, PermissionId = permissionId };
+            permissionId = memberPermission.PermissionId;
+            memberId = memberPermission.MemberId;
+            if (_securityService.GetPermissionInInstance(instance, (int)permissionId) == null)
+            {
+                return NotFound();
+            }
+            var tblPermissionMemberExists = await _context.TblMemberPermissions.FindAsync(memberId, permissionId);
+            if (tblPermissionMemberExists != null)
+            {
+                return BadRequest("User is already a member of this permission");
+            }
+            TblMemberPermission tblMemberPermission = new TblMemberPermission() { MemberId = memberId, PermissionId = (int)permissionId };
             try
             {
                 using var transaction = _context.Database.BeginTransaction();
@@ -157,7 +169,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             catch (DbUpdateException)
             {
-                if (TblMemberPermissionExists(memberId, permissionId))
+                if (TblMemberPermissionExists(memberId, (int)permissionId))
                 {
                     return Conflict();
                 }
