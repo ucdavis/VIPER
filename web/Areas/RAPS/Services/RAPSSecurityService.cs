@@ -73,14 +73,18 @@ namespace Viper.Areas.RAPS.Services
             {
                 case "ViewAllRoles":
                     return instance  != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.ViewRoles");
-                case "AccessInstnace":
+                case "AccessInstance":
                     return instance != null 
                         && (
                             IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.ViewRoles")
                             || GetControlledRoleIds(_userWrapper.GetCurrentUser()?.MothraId).Count() > 0
                             );
-				//case "EditRoleMembership": return _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.EditRoleMembership");
-				default:
+                case "RSOP":
+                    return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.RSOP");
+                case "ViewHistory":
+                    return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.EditRoleMembership");
+                //case "EditRoleMembership": return _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.EditRoleMembership");
+                default:
                     return _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS." + action);
             }
         }

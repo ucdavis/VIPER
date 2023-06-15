@@ -1,1 +1,67 @@
-﻿
+﻿<h2>Search for a user</h2>
+<q-form @@submit="return false;">
+    <q-input 
+        class="q-ml-xs q-mr-xs" 
+        dense 
+        clearable
+        clear-icon="close"
+        outlined 
+        debounce="300" 
+        placeholder="Search for users"
+        v-model="userSearch">
+    </q-input>
+</q-form>
+
+<q-table title="Search Results"
+    dense
+    row-key="memberId"
+    :loading="searching"
+    :rows="members"
+    :columns="membersColumns"
+    :pagination="{rowsPerPage:15}"
+    >
+    <template v-slot:body-cell-links="props">
+        <q-td :props="props">
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="dataset" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="history" :href="'MemberHistory?memberId=' + props.row.memberId"></q-btn>
+        </q-td>
+    </template>
+</q-table>
+
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        vueObjects.userSearch = ""
+        vueObjects.searching = false
+        vueObjects.members = []
+        vueObjects.membersColumns = [
+            { name: "links", label: "", field: "", align: "left", style: "width:100px;" },
+            { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
+            { name: "active", label: "Active", field: "active", align: "left", sortable: true },
+            { name: "countRoles", label: "Count Roles", field: "countRoles", align: "left", sortable: true },
+            { name: "countPermissions", label: "Count Permissions", field: "countPermissions", align: "left", sortable: true }
+        ]
+        vueMethods.findUsers = async function() {
+            this.members = []
+            this.searching = true
+            if(this.userSearch.length >= 3) {
+                this.members = (await viperFetch(this, "Members?search=" + this.userSearch))
+                    .map(m => ({
+                        ...m,
+                        memberName: m.displayLastName + ", " + m.displayFirstName,
+                        active: m.current == 1 ? "Y" : "N",
+                    }))
+                this.searching = false
+            }
+        }
+        vueMountedActions.push(function() {
+            //this.findUsers()
+        });
+
+        vueWatchers.userSearch = function() {
+            this.findUsers()
+        }
+    </script>
+}

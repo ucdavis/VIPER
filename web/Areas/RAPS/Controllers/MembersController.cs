@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
+using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
@@ -22,9 +24,11 @@ namespace Viper.Areas.RAPS.Controllers
         }
         // GET: <Members>
         [HttpGet]
-        public IEnumerable<VwAaudUser> Get(string search)
+        public async Task<ActionResult<IEnumerable<MemberSearchResult>>> Get(string search, bool includeRoles=false, bool includePermissions=false)
         {
-            return _context.VwAaudUser
+            var members = await _context.VwAaudUser
+                    .Include(u => u.TblRoleMembers)
+                    .Include(u => u.TblMemberPermissions)
                     .Where(u => (u.DisplayFirstName + " " + u.DisplayLastName).Contains(search)
                         || (u.MailId != null && u.MailId.Contains(search))
                         || (u.LoginId != null && u.LoginId.Contains(search))
@@ -32,7 +36,23 @@ namespace Viper.Areas.RAPS.Controllers
                     .Where(u => u.Current)
                     .OrderBy(u => u.DisplayLastName)
                     .ThenBy(u => u.DisplayFirstName)
-                    .ToList();
+                    .ToListAsync();
+            List<MemberSearchResult> results = new List<MemberSearchResult>();
+            members.ForEach(m =>
+            {
+                results.Add(new MemberSearchResult()
+                {
+                    MemberId = m.MothraId,
+                    DisplayFirstName = m.DisplayFirstName,
+                    DisplayLastName = m.DisplayLastName,
+                    LoginId = m.LoginId,
+                    MailId = m.MailId,
+                    CountPermissions = m.TblMemberPermissions.Count,
+                    CountRoles = m.TblRoleMembers.Count,
+                    Current = m.Current
+                });
+            });
+            return results;
         }
 
         // GET <Members>/5

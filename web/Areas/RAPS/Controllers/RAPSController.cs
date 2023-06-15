@@ -241,10 +241,14 @@ namespace Viper.Areas.RAPS.Controllers
         /// Search for users
         /// </summary>
         /// <returns></returns>
-        [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
+        [Permission(Allow = "RAPS.Admin,RAPS.UserLookup")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> UserSearch()
+        public async Task<IActionResult> UserSearch(string instance)
         {
+            ViewData["canRSOP"] = _securityService.IsAllowedTo("RSOP", instance);
+            ViewData["canEditRoleMembership"] = _securityService.IsAllowedTo("EditRoleMembership", instance);
+            ViewData["canEditMemberPermissions"] = _securityService.IsAllowedTo("EditMemberPermissions", instance);
+            ViewData["canViewHistory"] = _securityService.IsAllowedTo("ViewHistory", instance);
             return await Task.Run(() => View("~/Areas/RAPS/Views/Members/List.cshtml"));
         }
     }
