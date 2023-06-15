@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Polly;
+using System.Linq.Expressions;
 using System.Security.Cryptography;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -47,6 +48,14 @@ namespace Viper.Areas.RAPS.Services
         static public bool IsVMACSInstance(string instance)
         {
             return instance.StartsWith("VMACS.");
+        }
+
+        static public Expression<Func<TblRole, bool>> FilterRolesToInstance(string instance)
+        {
+            return r =>
+                instance.ToUpper() == "VIPER"
+                ? !r.Role.ToUpper().StartsWith("VMACS.") && !r.Role.ToUpper().StartsWith("VIPERFORMS")
+                : r.Role.StartsWith(instance);
         }
 
         /// <summary>

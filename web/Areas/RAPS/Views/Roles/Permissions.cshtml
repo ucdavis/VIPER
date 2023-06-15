@@ -9,8 +9,8 @@
     
     <template v-slot:body-cell-links="props">
         <q-td :props="props">
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'PermissionMembers/?permissionId=' + props.row.permissionId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'PermissionRoles/?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-remove="props">

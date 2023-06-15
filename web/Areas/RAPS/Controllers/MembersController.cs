@@ -55,11 +55,26 @@ namespace Viper.Areas.RAPS.Controllers
             return results;
         }
 
-        // GET <Members>/5
-        [HttpGet("{id}")]
-        public string Get(int id)
+        // GET <Members>/12345678
+        [HttpGet("{memberId}")]
+        public async Task<ActionResult<MemberSearchResult>> Get(string memberId)
         {
-            return "value";
+            var member = await _context.VwAaudUser.FirstOrDefaultAsync(u => u.MothraId == memberId);
+            if(member == null)
+            {
+                return NotFound();
+            }
+            return new MemberSearchResult()
+            {
+                MemberId = member.MothraId,
+                DisplayFirstName = member.DisplayFirstName,
+                DisplayLastName = member.DisplayLastName,
+                LoginId = member.LoginId,
+                MailId = member.MailId,
+                CountPermissions = member.TblMemberPermissions.Count,
+                CountRoles = member.TblRoleMembers.Count,
+                Current = member.Current
+            };
         }
     }
 }

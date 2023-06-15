@@ -20,14 +20,6 @@ namespace Viper.Areas.RAPS.Controllers
         public IUserWrapper UserWrapper;
 		public IRAPSAuditServiceWrapper AuditService;
 
-		private static Expression<Func<TblRole, bool>> FilterToInstance(string instance)
-        {
-            return r =>
-                instance.ToUpper() == "VIPER"
-                ? !r.Role.ToUpper().StartsWith("VMACS.") && !r.Role.ToUpper().StartsWith("VIPERFORMS")
-                : r.Role.StartsWith(instance);
-        }
-
         public RolesController(RAPSContext context)
         {
             _context = context;
@@ -52,7 +44,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return await _context.TblRoles
                     .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
                     .Where((r => Application == null || r.Application == Application))
-                    .Where(FilterToInstance(instance))
+                    .Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance))
                     .OrderByDescending(r => r.Application)
                     .ThenBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
                     .ToListAsync();
@@ -64,7 +56,7 @@ namespace Viper.Areas.RAPS.Controllers
                     .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
                     .Where(r => r.Application == 0)
                     .Where(r => controlledRoleIds.Contains(r.RoleId))
-                    .Where(FilterToInstance(instance))
+                    .Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance))
                     .OrderBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
                     .ToListAsync();
 

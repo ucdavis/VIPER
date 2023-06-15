@@ -26,62 +26,79 @@ namespace Viper.Areas.RAPS.Controllers
             _auditService = new RAPSAuditService(_context);
         }
 
-        // GET: Roles/5/Members
+        //GET: Roles/5/Members
+        //GET: Members/12345678/Roles
         [HttpGet("Roles/{roleId}/Members")]
-        public async Task<ActionResult<IEnumerable<TblRoleMember>>> GetTblRoleMembers(string instance, int roleId)
+        [HttpGet("Members/{memberId}/Roles")]
+        public async Task<ActionResult<IEnumerable<TblRoleMember>>> GetTblRoleMembers(string instance, int? roleId, string? memberId, int application=0)
         {
             if (_context.TblRoles == null)
             {
                 return NotFound();
             }
-            var tblRole = _securityService.GetRoleInInstance(instance, roleId);
-            if (tblRole == null)
+            ActionResult? errorResult = CheckAccess(instance, roleId, memberId);
+            if(errorResult != null)
             {
-                return NotFound();
+                return errorResult;
             }
-            if (!_securityService.IsAllowedTo("EditRoleMembers", instance, tblRole))
+            if(!_securityService.IsAllowedTo("ViewAllRoles", instance))
             {
-                return Forbid();
+                application = 0;
             }
 
-            List<TblRoleMember> TblRoleMembers = await _context.TblRoleMembers
+            var roleMembers = _context.TblRoleMembers
                     .Include(rm => rm.Role)
                     .Include(rm => rm.AaudUser)
-                    .Where(rm => rm.RoleId == roleId)
                     .Where(rm => rm.ViewName == null)
-                    .OrderBy(rm => rm.AaudUser.DisplayLastName + ", " + rm.AaudUser.DisplayFirstName)
-                    .ToListAsync();
-
-            return TblRoleMembers;
+                    .Where(rm => application == (int)rm.Role.Application);
+            if (roleId != null)
+            {
+                roleMembers = roleMembers
+                    .Where(rm => rm.RoleId == roleId)
+                    .OrderBy(rm => rm.AaudUser.DisplayLastName + ", " + rm.AaudUser.DisplayFirstName);
+            }
+            else
+            {
+                roleMembers = roleMembers
+                    .Where(rm => rm.MemberId == memberId)
+                    .OrderBy(rm => rm.Role.DisplayName != null ? rm.Role.DisplayName : rm.Role.Role);
+            }
+            
+            return (await roleMembers.ToListAsync())
+                .FindAll(rm => _securityService.RoleBelongsToInstance(instance, rm.Role));
         }
 
         //POST: Roles/5/Members
+        //POST: Members/12345678/Roles
         [HttpPost("Roles/{roleId}/Members")]
-        public async Task<ActionResult<IEnumerable<TblRoleMember>>> PostTblRoleMembers(string instance, int roleId, RoleMemberCreateUpdate roleMemberCreateUpdate)
+        [HttpPost("members/{memberId}/Roles")]
+        public async Task<ActionResult<IEnumerable<TblRoleMember>>> PostTblRoleMembers(string instance, int? roleId, string? memberId, RoleMemberCreateUpdate roleMemberCreateUpdate)
         {
             if (_context.TblRoles == null)
             {
                 return NotFound();
             }
-            var tblRole = _securityService.GetRoleInInstance(instance, roleId);
-            if (tblRole == null)
+            ActionResult? errorResult = CheckAccess(instance, roleId, memberId);
+            if (errorResult != null)
             {
-                return NotFound();
+                return errorResult;
+            }
+            if((roleId != null && roleMemberCreateUpdate.RoleId != roleId)
+                || (memberId != null && roleMemberCreateUpdate.MemberId != memberId))
+            {
+                return BadRequest();
             }
 
-            if (!_securityService.IsAllowedTo("EditRoleMembers", instance, tblRole))
-            {
-                return Forbid();
-            }
-
-            var tblRoleMemberExists = await _context.TblRoleMembers.FindAsync(roleId, roleMemberCreateUpdate.MemberId);
+            roleId = roleMemberCreateUpdate.RoleId;
+            memberId = roleMemberCreateUpdate.MemberId;
+            var tblRoleMemberExists = await _context.TblRoleMembers.FindAsync(roleId, memberId);
             if (tblRoleMemberExists != null)
             {
                 return BadRequest("User is already a member of this role");
             }
 
             using var transaction = _context.Database.BeginTransaction();
-            TblRoleMember tblRoleMember = new TblRoleMember() { RoleId = roleId, MemberId = roleMemberCreateUpdate.MemberId };
+            TblRoleMember tblRoleMember = new TblRoleMember() { RoleId = (int)roleId, MemberId = memberId };
             UpdateTblRoleMemberWithDto(tblRoleMember, roleMemberCreateUpdate);
             _context.TblRoleMembers.Add(tblRoleMember);
             _context.SaveChanges();
@@ -93,26 +110,27 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         //PUT: Roles/5/Members/12345678
+        //PUT: Members/12345678/Roles
         [HttpPut("Roles/{roleId}/Members/{memberId}")]
+        [HttpPut("Members/{memberId}/Roles/{roleId}")]
         public async Task<ActionResult<IEnumerable<TblRoleMember>>> PutTblRoleMembers(string instance, int roleId, string memberId, RoleMemberCreateUpdate roleMemberCreateUpdate)
         {
             if (_context.TblRoles == null)
             {
                 return NotFound();
             }
-            var tblRole = _securityService.GetRoleInInstance(instance, roleId);
-            if (tblRole == null)
+            ActionResult? errorResult = CheckAccess(instance, roleId, memberId);
+            if (errorResult != null)
             {
-                return NotFound();
+                return errorResult;
             }
-
-            if (!_securityService.IsAllowedTo("EditRoleMembers", instance, tblRole))
+            if (roleMemberCreateUpdate.RoleId != roleId ||roleMemberCreateUpdate.MemberId != memberId)
             {
-                return Forbid();
+                return BadRequest();
             }
 
             var tblRoleMember = await _context.TblRoleMembers.FindAsync(roleId, memberId);
-            if (roleId != roleMemberCreateUpdate.RoleId || memberId != roleMemberCreateUpdate.MemberId || tblRoleMember == null)
+            if (tblRoleMember == null)
             {
                 return NotFound();
             }
@@ -126,29 +144,26 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         //DELETE: Roles/5/Members/12345678
+        //DELETE: Members/5/Roles/12345678
         [HttpDelete("Roles/{roleId}/Members/{memberId}")]
+        [HttpDelete("Members/{memberId}/Roles/{roleId}")]
         public async Task<IActionResult> DeleteTblRoleMembers(string instance, int roleId, string memberId, string? comment)
         {
             if (_context.TblRoleMembers == null)
             {
                 return NotFound();
             }
-            var tblRole = _securityService.GetRoleInInstance(instance, roleId);
-            if (tblRole == null)
+            ActionResult? errorResult = CheckAccess(instance, roleId, memberId);
+            if (errorResult != null)
             {
-                return NotFound();
+                return errorResult;
             }
-
             var tblRoleMember = await _context.TblRoleMembers.FindAsync(roleId, memberId);
             if (tblRoleMember == null)
             {
                 return NotFound();
             }
-            if (!_securityService.IsAllowedTo("EditRoleMembers", instance, tblRole))
-            {
-                return Forbid();
-            }
-
+            
             _context.TblRoleMembers.Remove(tblRoleMember);
             _auditService.AuditRoleMemberChange(tblRoleMember, RAPSAuditService.AuditActionType.Delete, comment);
             await _context.SaveChangesAsync();
@@ -162,6 +177,40 @@ namespace Viper.Areas.RAPS.Controllers
             tblRoleMember.EndDate = roleMemberCreateUpdate.EndDate == null ? null : roleMemberCreateUpdate.EndDate.Value.ToDateTime(new TimeOnly(0, 0, 0));
             tblRoleMember.ModTime = DateTime.Now;
             tblRoleMember.ModBy = UserHelper.GetCurrentUser()?.LoginId;
+        }
+
+        /// <summary>
+        /// Check access to view/edit role members based on the role id or member id
+        /// </summary>
+        /// <param name="instance"></param>
+        /// <param name="roleId"></param>
+        /// <param name="memberId"></param>
+        /// <returns></returns>
+        private ActionResult? CheckAccess(string instance, int? roleId, string? memberId)
+        {
+            if (roleId == null && memberId == null)
+            {
+                return BadRequest();
+            }
+            if (roleId != null)
+            {
+                //for a role, check that the logged in user can edit role membership for this role.
+                var tblRole = _securityService.GetRoleInInstance(instance, (int)roleId);
+                if (tblRole == null)
+                {
+                    return NotFound();
+                }
+                if (!_securityService.IsAllowedTo("EditRoleMembers", instance, tblRole))
+                {
+                    return Forbid();
+                }
+            }
+            //for a member, check that the user can edit role membership in this instance
+            else if (!_securityService.IsAllowedTo("EditRoleMembers", instance))
+            {
+                return Forbid();
+            }
+            return null;
         }
     }
 }

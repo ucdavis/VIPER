@@ -213,8 +213,9 @@ namespace Viper.Areas.RAPS.Controllers
         /// <returns></returns>
         [Permission(Allow = "RAPS.Admin,RAPS.ManageAllPermissions")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> RolePermissions()
+        public async Task<IActionResult> RolePermissions(int roleId)
         {
+            ViewData["roleId"] = roleId;
             return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/Permissions.cshtml"));
         }
 
@@ -270,7 +271,7 @@ namespace Viper.Areas.RAPS.Controllers
                 //TODO: Should probably have a deny access helper function that writes logs and sets view
                 return View("~/Views/Home/403.cshtml");
             }
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/List.cshtml"));
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/Roles.cshtml"));
         }
 
         /// <summary>

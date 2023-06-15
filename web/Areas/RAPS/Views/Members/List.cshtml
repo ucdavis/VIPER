@@ -8,7 +8,8 @@
         outlined 
         debounce="300" 
         placeholder="Search for users"
-        v-model="userSearch">
+        v-model="userSearch"
+        autofocus>
     </q-input>
 </q-form>
 
@@ -18,7 +19,7 @@
     :loading="searching"
     :rows="members"
     :columns="membersColumns"
-    :pagination="{rowsPerPage:15}"
+    :pagination="{rowsPerPage:15}""
     >
     <template v-slot:body-cell-links="props">
         <q-td :props="props">
