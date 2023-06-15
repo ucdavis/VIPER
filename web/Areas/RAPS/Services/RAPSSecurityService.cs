@@ -19,6 +19,11 @@ namespace Viper.Areas.RAPS.Services
             _context = context;
         }
 
+        /// <summary>
+        /// Check that the instance is valid
+        /// </summary>
+        /// <param name="Instance">The instance</param>
+        /// <returns>true if the instance is valid, false otherwise</returns>
         static public bool IsValidInstance(string Instance)
         {
             switch(Instance)
@@ -34,11 +39,22 @@ namespace Viper.Areas.RAPS.Services
             return false;
         }
 
+        /// <summary>
+        /// Check to see if the instance is a VMACS instance
+        /// </summary>
+        /// <param name="instance">The instance</param>
+        /// <returns>True if the instance is a VMACS instance</returns>
         static public bool IsVMACSInstance(string instance)
         {
             return instance.StartsWith("VMACS.");
         }
 
+        /// <summary>
+        /// Check that the role belongs to the given instance by checking the role name
+        /// </summary>
+        /// <param name="instance">The instance</param>
+        /// <param name="role">The role</param>
+        /// <returns>true if the role belongs to the instance, false otherwise</returns>
         public bool RoleBelongsToInstance(string instance, TblRole role)
         {
             string roleName = role.Role.ToUpper();
@@ -49,6 +65,12 @@ namespace Viper.Areas.RAPS.Services
             return roleName.StartsWith(instance.ToUpper());
         }
 
+        /// <summary>
+        /// Check that the permission belongs to the given instance by checking the permission name
+        /// </summary>
+        /// <param name="instance">The instance</param>
+        /// <param name="permission">The permission</param>
+        /// <returns>true if the permission belongs to the instance, false otherwise</returns>
         public bool PermissionBelongsToInstance(string instance, TblPermission permission)
         {
             string permissionName = permission.Permission.ToUpper();
@@ -63,6 +85,14 @@ namespace Viper.Areas.RAPS.Services
             return permissionName.StartsWith(instance.ToUpper());
         }
 
+        /// <summary>
+        /// Check that a user is allowed to perform an action, optionally checking the instance they are in
+        /// Having certain permissions allows the user to do things in the VMACS instances, but not Viper, e.g. the helpdesk 
+        /// cannot assign roles in the VIPER instance
+        /// </summary>
+        /// <param name="action">The action to take</param>
+        /// <param name="instance">The instance the user is in</param>
+        /// <returns>true if they have access, false otherwise</returns>
         public bool IsAllowedTo(string action, string? instance = null)
         {
             if(_userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.Admin"))
@@ -71,6 +101,7 @@ namespace Viper.Areas.RAPS.Services
             }
             switch(action)
             {
+                //special cases where having a permission grants access to certain instances
                 case "ViewAllRoles":
                     return instance  != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.ViewRoles");
                 case "AccessInstance":
@@ -83,12 +114,21 @@ namespace Viper.Areas.RAPS.Services
                     return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.RSOP");
                 case "ViewHistory":
                     return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.EditRoleMembership");
-                //case "EditRoleMembership": return _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.EditRoleMembership");
+                case "EditRoleMembership":
+                    return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.EditRoleMembership");
                 default:
+                    //by default, check the action against the user having the permission RAPS.<action> 
                     return _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS." + action);
             }
         }
 
+        /// <summary>
+        /// Check to see if the user can perform the action on a particular role.
+        /// </summary>
+        /// <param name="action">Action to perform</param>
+        /// <param name="Instance">Instance the user is working with</param>
+        /// <param name="Role">The specific role, used to check if the user has access to this particular role</param>
+        /// <returns>true/false</returns>
         public bool IsAllowedTo(string action, string Instance, TblRole Role)
         {
             AaudUser? User = _userWrapper.GetCurrentUser();
@@ -99,6 +139,7 @@ namespace Viper.Areas.RAPS.Services
 
             switch (action)
             {
+                //TODO: Update for VMACS instances + EditRoleMembership
                 case "EditRoleMembership":
                     List<int> controlledRoleIds = GetControlledRoleIds(User?.MothraId);
                     return controlledRoleIds.Contains(Role.RoleId)
@@ -108,6 +149,11 @@ namespace Viper.Areas.RAPS.Services
             }
         }
 
+        /// <summary>
+        /// Get the list of App Roles (Delegate Roles) assigned to the user
+        /// </summary>
+        /// <param name="userId">User mothra id</param>
+        /// <returns>A list of delegate roles the user is assigned to</returns>
         public List<TblRole> GetAppRolesForUser(string? userId)
         {
             List<TblRole> roles = _context.TblRoles
@@ -120,6 +166,11 @@ namespace Viper.Areas.RAPS.Services
             return roles;
         }
 
+        /// <summary>
+        /// Get the role ids the user controls (can assign other users to) through delegate roles
+        /// </summary>
+        /// <param name="userId">User mothra id</param>
+        /// <returns>List of roleIds the user controls</returns>
         public List<int> GetControlledRoleIds(string? userId)
         {
             List<TblRole> controlledRoles = GetAppRolesForUser(userId);
@@ -134,6 +185,10 @@ namespace Viper.Areas.RAPS.Services
             return controlledRoleIds;
         }
 
+        /// <summary>
+        /// Get the default instance based on the users permissions
+        /// </summary>
+        /// <returns>Viper if they can access Viper, VMACS.VMTH otherwise</returns>
         public string GetDefaultInstanceForUser()
         {
             if(IsAllowedTo("AccessInstance", "VIPER"))
@@ -143,6 +198,12 @@ namespace Viper.Areas.RAPS.Services
             return "VMACS.VMTH";
         }
 
+        /// <summary>
+        /// Get a role, checking to ensure it's in the given instance
+        /// </summary>
+        /// <param name="instance">The instance</param>
+        /// <param name="roleId">The id of the role</param>
+        /// <returns>The role if it's in the given instance, null otherwise</returns>
         public TblRole? GetRoleInInstance(string instance, int roleId)
         {
             var tblRole = _context.TblRoles.Find(roleId);
@@ -151,6 +212,12 @@ namespace Viper.Areas.RAPS.Services
                 : null;
         }
 
+        /// <summary>
+        /// Get a permission, checking to ensure it's in the given instance
+        /// </summary>
+        /// <param name="instance">The instanec</param>
+        /// <param name="permissionId">The id of the permission</param>
+        /// <returns>The permission, if it's in the given instance, null otherwise</returns>
         public TblPermission? GetPermissionInInstance(string instance, int permissionId)
         {
             var tblpermission = _context.TblPermissions.Find(permissionId);

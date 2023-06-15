@@ -237,6 +237,10 @@ namespace Viper.Areas.RAPS.Controllers
             return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/Members.cshtml"));
         }
 
+        /**
+         * User pages 
+         */
+
         /// <summary>
         /// Search for users
         /// </summary>
@@ -250,6 +254,68 @@ namespace Viper.Areas.RAPS.Controllers
             ViewData["canEditMemberPermissions"] = _securityService.IsAllowedTo("EditMemberPermissions", instance);
             ViewData["canViewHistory"] = _securityService.IsAllowedTo("ViewHistory", instance);
             return await Task.Run(() => View("~/Areas/RAPS/Views/Members/List.cshtml"));
+        }
+
+        /// <summary>
+        /// Add/Update role assignments for a user
+        /// </summary>
+        /// <returns></returns>
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> MemberRoles(string instance)
+        {
+            //EditRoleMembership grants access only to the VMACS instance
+            if (!_securityService.IsAllowedTo("EditRoleMembership", instance))
+            {
+                //TODO: Should probably have a deny access helper function that writes logs and sets view
+                return View("~/Views/Home/403.cshtml");
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/List.cshtml"));
+        }
+
+        /// <summary>
+        /// Add/Update permission assignments for a user
+        /// </summary>
+        /// <returns></returns>
+        [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> MemberPermissions(string instance)
+        {
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/Permissions.cshtml"));
+        }
+
+        /// <summary>
+        /// Show all permissions for a user, either from roles or permission assignments
+        /// </summary>
+        /// <returns></returns>
+        [Permission(Allow = "RAPS.Admin,RAPS.RSOP")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> RSOP(string instance)
+        {
+            //RSOP grants access only to the VMACS instance
+            if (!_securityService.IsAllowedTo("RSOP", instance))
+            {
+                //TODO: Should probably have a deny access helper function that writes logs and sets view
+                return View("~/Views/Home/403.cshtml");
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/RSOP.cshtml"));
+        }
+
+        /// <summary>
+        /// View history of changes to a user's role and permission assignments
+        /// </summary>
+        /// <returns></returns>
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> MemberHistory(string instance)
+        {
+            //EditRoleMembership grants access only to the VMACS instance
+            if (!_securityService.IsAllowedTo("ViewHistory", instance))
+            {
+                //TODO: Should probably have a deny access helper function that writes logs and sets view
+                return View("~/Views/Home/403.cshtml");
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/History.cshtml"));
         }
     }
 }
