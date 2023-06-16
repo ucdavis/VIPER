@@ -238,6 +238,25 @@ namespace Viper.Areas.RAPS.Controllers
             return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/Members.cshtml"));
         }
 
+        /// <summary>
+        /// List roles for a permission 
+        /// </summary>
+        /// <returns></returns>
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRolePermissions")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> PermissionRoles(int? permissionId)
+        {
+            ViewData["permissionId"] = permissionId;
+
+            TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
+
+            if (permission == null)
+            {
+                return NotFound();
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/Roles.cshtml"));
+        }
+
         /**
          * User pages 
          */

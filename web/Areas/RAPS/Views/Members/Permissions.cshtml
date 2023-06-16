@@ -32,7 +32,7 @@
                                 </div>
                                 <div class="row">
                                     <q-input type="date" outlined dense v-model="memberPermissionsTable.object.endDate" label="End Date"
-                                             :error="memberPermissionsTable.errors?.endDate?.error" :error-message="memberPermissionsTable.endDAte?.startDate?.message"></q-input>
+                                             :error="memberPermissionsTable.errors?.endDate?.error" :error-message="memberPermissionsTable.endDate?.message"></q-input>
                                 </div>
                             </q-card-section>
 
@@ -214,8 +214,6 @@
             this.loadMember()
             this.memberPermissionsTable.config.urlBase = "Members/" + this.memberId + "/Permissions"
             this.loadTables()
-            this.showMemberPermissions = true
-            this.showAddPermissions = false
         })
     </script>
 }

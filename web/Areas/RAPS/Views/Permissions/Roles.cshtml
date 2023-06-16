@@ -1,0 +1,150 @@
+﻿<h2>Roles for Permission {{permission.permission}}</h2>
+<q-table dense
+         row-key="roleId"
+         :loading="rolePermissionTable.loading"
+         :rows="rolePermissionTable.data"
+         :columns="rolePermissionTableColumns"
+         :pagination="rolePermissionTable.config.pagination">
+
+    <template v-slot:body-cell-links="props">
+        <q-td :props="props">
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'RolePermissions?roleId=' + props.row.roleId"></q-btn>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-remove="props">
+        <q-td :props="props">
+            <q-btn no-caps size="sm" :props="props" color="red" icon="delete" @@click="deleteRolePermission(props.row)"></q-btn>
+        </q-td>
+    </template>
+</q-table>
+
+<h2>Add Roles to Permission</h2>
+<q-table title="Roles"
+         dense
+         row-key="roleId"
+         :loading="roleTable.loading"
+         :rows="roleTable.data"
+         :columns="roleTableColumns"
+         :filter="roleTable.filter"
+         :pagination="roleTable.config.pagination"
+         selection="multiple"
+         v-model:selected="selectedPermissions">
+    <template v-slot:top-right="props">
+        <q-input class="q-ml-xs q-mr-xs" v-model="roleTable.filter" dense outlined debounce="300" placeholder="Filter Results">
+            <template v-slot:append>
+                <q-icon name="filter_alt" />
+            </template>
+        </q-input>
+    </template>
+</q-table>
+<q-btn sm dense no-caps class="q-px-sm" label="Allow Checked" type="button" color="primary" @@click="allowRolePermissions"></q-btn>
+<q-btn sm dense no-caps class="q-ml-md q-px-sm" label="Deny Checked" type="button" color="red" @@click="denyRolePermissions"></q-btn>
+
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        //setup
+        vueMethods.loadPermission = async function () {
+            this.permission = await viperFetch(this, "Permissions/" + this.permissionId)
+        }
+        //allow/deny selected permissions
+        vueMethods.updateRolePermissions = async function (allowAccess = 1) {
+            this.selectedPermissions.forEach((value, index) => {
+                var rolePermission = { roleId: value.roleId, permissionId: this.permissionId, access: allowAccess }
+                viperFetch(this,
+                    "Permissions/" + this.permissionId + "/Roles/",
+                    {
+                        method: "POST",
+                        body: JSON.stringify(rolePermission),
+                        headers: { "Content-Type": "application/json" }
+                    },
+                    [this.loadTables]
+                )
+            })
+        }
+        vueMethods.allowRolePermissions = async function () {
+            this.updateRolePermissions(1)
+        }
+        vueMethods.denyRolePermissions = async function () {
+            this.updateRolePermissions(0)
+        }
+        vueMethods.deleteRolePermission = async function (rolePermission) {
+            viperFetch(this,
+                "Permissions/" + this.permissionId + "/Roles/" + rolePermission.roleId,
+                {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" }
+                },
+                [this.loadTables]
+            )
+        }
+        //Load data
+        vueMethods.loadTables = async function () {
+            await this.rolePermissionTable.load()
+            this.roleTable.load(this)
+            this.selectedPermissions = []
+        }
+        //actions on load
+        vueMountedActions.push(async function () {
+            this.permissionId = this.urlParams.get("permissionId")
+            this.loadPermission()
+            this.rolePermissionTable.config.urlBase = "Permissions/" + this.permissionId + "/Roles"
+            this.loadTables()
+        })
+        //functions for after role permissions and the permission list load
+        vueMethods.afterRolePermissionLoad = function (data) {
+            this.data = data.map(rp => ({
+                ...rp,
+                permissionId: rp.permissionId,
+                accessDescription: rp.access == 1 ? "Allow" : "Deny",
+                permissionName: rp.permission?.permission,
+                roleName: rp.role?.displayName != null ? rp.role.displayName : rp.role.role
+            }))
+        }
+        vueMethods.afterRoleLoad = function (data, vueApp) {
+            var existingRoles= vueApp._.data.rolePermissionTable.data
+                .reduce((result, r) => {
+                    result.push(r.roleId)
+                    return result
+                }, [])
+            this.data = data.filter(r =>
+                existingRoles.indexOf(r.roleId) == -1
+            )
+            this.data = this.data.map(r => ({
+                ...r,
+                roleName: r?.displayName != null ? r.displayName : r.role
+            }))
+        }
+
+        //define columns and create tables
+        vueObjects.rolePermissionTableColumns = [
+            { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
+            { name: "role", label: "Role", field: "roleName", align: "left", sortable: true },
+            { name: "access", label: "Access", field: "accessDescription", align: "left", sortable: true },
+            { name: "lastModified", label: "Last Modified Date", field: "modTime", align: "left", sortable: true, format: v => formatDate(v) },
+            { name: "modifiedBy", label: "Modified By", field: "modBy", align: "left", sortable: true },
+            { name: "remove", label: "Remove", field: "", align: "left", sortable: false }
+        ]
+        vueObjects.roleTableColumns = [
+            { name: "role", label: "Role", field: "roleName", align: "left", sortable: true },
+            { name: "description", label: "Description", field: "description", align: "left", sortable: true }
+        ]
+        vueObjects.rolePermissionTable = new quasarTableEditable({
+            keys: ["roleId"],
+            urlBase: "Roles",
+            onLoad: vueMethods.afterRolePermissionLoad,
+            pagination: { rowsPerPage: 0 }
+        })
+        vueObjects.roleTable = new quasarTableEditable({
+            keys: ["roleId"],
+            urlBase: "Roles?application=0",
+            onLoad: vueMethods.afterRoleLoad,
+            pagination: { rowsPerPage: 15 }
+        })
+        //other variables for the page
+        vueObjects.permissionId = 0
+        vueObjects.permission = {}
+        vueObjects.selectedPermissions = []
+    </script>
+}

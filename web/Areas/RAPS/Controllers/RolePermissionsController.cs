@@ -28,25 +28,52 @@ namespace Viper.Areas.RAPS.Controllers
             _auditService = new RAPSAuditService(_context);
         }
 
-        
+        private ActionResult? checkRoleAndPermissionParams(string instance, int? roleId, int? permissionId)
+        {
+            if(roleId == null && permissionId == null) 
+            { 
+                return BadRequest(); 
+            }
+            if(roleId != null)
+            {
+                TblRole? tblRole = _securityService.GetRoleInInstance(instance, (int)roleId);
+                if (tblRole == null)
+                {
+                    return NotFound();
+                }
+            }
+            else if(permissionId != null)
+            {
+                TblPermission? tblPermission = _securityService.GetPermissionInInstance(instance, (int)permissionId);
+                if(tblPermission == null)
+                {
+                    return NotFound();
+                }
+            }
+
+            return null;
+        }
+
         // GET Roles/5/Permissions
+        // GET Permissions/5/Roles
         [HttpGet("Roles/{roleId}/Permissions")]
-        public async Task<ActionResult<List<TblRolePermission>>> GetTblRolePermissions(string instance, int roleId)
+        [HttpGet("Permissions/{permissionId}/Roles")]
+        public async Task<ActionResult<List<TblRolePermission>>> GetTblRolePermissions(string instance, int? roleId, int? permissionId)
         {
             if (_context.TblRoles == null)
             {
                 return NotFound();
             }
-            TblRole? tblRole = _securityService.GetRoleInInstance(instance, roleId);
-            if (tblRole == null)
+            ActionResult? errorResult = checkRoleAndPermissionParams(instance, roleId, permissionId);
+            if(errorResult != null)
             {
-                return NotFound();
+                return errorResult;
             }
-
             List<TblRolePermission> tblRolePermissions = await _context.TblRolePermissions
                     .Include(rp => rp.Role)
                     .Include(rp => rp.Permission)
-                    .Where(rp => rp.RoleId == roleId)
+                    .Where(rp => (roleId == null || rp.RoleId == roleId))
+                    .Where(rp => (permissionId == null || rp.PermissionId == permissionId))
                     .OrderBy(rp => rp.Permission.Permission)
                     .ToListAsync();
 
@@ -54,20 +81,29 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         // POST Roles/5/Permissions
+        // POST Permissions/5/Roles
         [HttpPost("Roles/{roleId}/Permissions")]
-        public async Task<ActionResult<TblRolePermission>> PostTblRolePermission(string instance, int roleId, RolePermissionCreateUpdate rolePermission)
+        [HttpPost("Permissions/{permissionId}/Roles")]
+        public async Task<ActionResult<TblRolePermission>> PostTblRolePermission(string instance, int? roleId, int? permissionId, RolePermissionCreateUpdate rolePermission)
         {
             if (_context.TblRoles == null)
             {
                 return NotFound();
             }
-            TblRole? tblRole = _securityService.GetRoleInInstance(instance, roleId);
-            if (tblRole == null)
+            ActionResult? errorResult = checkRoleAndPermissionParams(instance, roleId, permissionId);
+            if (errorResult != null)
             {
-                return NotFound();
+                return errorResult;
             }
-
-            TblRolePermission? tblRolePermissionExists = await _context.TblRolePermissions.FindAsync(roleId, rolePermission.PermissionId);
+            if ((roleId != null && rolePermission.RoleId != roleId)
+                || (permissionId != null && rolePermission.PermissionId != permissionId))
+            {
+                return BadRequest();
+            }
+            roleId = rolePermission.RoleId;
+            permissionId = rolePermission.PermissionId;
+            
+            TblRolePermission? tblRolePermissionExists = await _context.TblRolePermissions.FindAsync(roleId, permissionId);
             if (tblRolePermissionExists != null)
             {
                 return BadRequest("Role already contains permission");
@@ -82,21 +118,23 @@ namespace Viper.Areas.RAPS.Controllers
             _context.SaveChanges();
             transaction.Commit();
 
-            return CreatedAtAction("GetTblRole", new { roleId = tblRolePermission.RoleId, permissionId = tblRolePermission.PermissionId, Access = tblRolePermission.Access }, tblRolePermission);
+            return CreatedAtAction("GetTblRole", new { roleId = roleId, permissionId = permissionId, Access = tblRolePermission.Access }, tblRolePermission);
         }
 
         // DELETE Roles/5/Permissions/123
+        // DELETE Permissions/5/Roles/123
         [HttpDelete("Roles/{roleId}/Permissions/{permissionId}")]
+        [HttpDelete("Permissions/{permissionId}/Roles/{roleId}")]
         public async Task<ActionResult<TblPermission>> DeleteTblRolePermission(string instance, int roleId, int permissionId)
         {
             if (_context.TblRolePermissions == null)
             {
                 return NotFound();
             }
-            TblRole? tblRole = _securityService.GetRoleInInstance(instance, roleId);
-            if (tblRole == null)
+            ActionResult? errorResult = checkRoleAndPermissionParams(instance, roleId, permissionId);
+            if (errorResult != null)
             {
-                return NotFound();
+                return errorResult;
             }
 
             TblRolePermission? tblRolePermission = await _context.TblRolePermissions.FindAsync(roleId, permissionId);
