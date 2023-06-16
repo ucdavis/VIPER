@@ -7,7 +7,6 @@
          :rows="qtable.data"
          :columns="columns"
          :filter="qtable.filter"
-         @*:filter-method="filterPermissions"*@
          :rows-per-page-options="qtable.config.rowsPerPageOptions"
          v-model:pagination="qtable.config.pagination"
          @@request="(props) => qtable.request(props, this)">
@@ -37,16 +36,6 @@
                 </q-card>
             </q-dialog>
         </div>
-        @*
-        <q-select v-model="selectedApplication"
-                  :options="applications"
-                  v-if="applications.length > 0"
-                  @@change="selectApplication()"
-                  outlined
-                  dense
-                  class="q-ml-lg">
-        </q-select>
-        *@
     </template>
     <template v-slot:top-right>
         <q-input v-model="qtable.filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">

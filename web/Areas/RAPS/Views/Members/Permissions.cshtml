@@ -1,5 +1,221 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
-@{
+﻿<div v-show="showMemberPermissions">
+    <h2>
+        <q-btn dense color="green" @@click="showMemberPermissions=false;showAddPermissions=true" no-caps class="q-mb-sm">
+            <q-icon name="add" title="Add Permissions"></q-icon>
+        </q-btn>
+        Permissions for {{member.displayFirstName}} {{member.displayLastName}}
+    </h2>
+
+    <q-table title="Permissions for {{member.displayFirstName}}"
+             dense
+             row-key="permissionId"
+             :loading="memberPermissionsTable.loading"
+             :rows="memberPermissionsTable.data"
+             :columns="memberPermissionsColumns"
+             :pagination="memberPermissionsTable.config.pagination"
+             :filter="memberPermissionsTable.filter">
+        <template v-slot:top-left>
+
+            <div class="q-pa-sm q-gutter-sm">
+                <q-dialog v-model="memberPermissionsTable.showForm" @@hide="memberPermissionsTable.clear(this)">
+                    <q-card>
+                        <q-form @@submit="memberPermissionsTable.submit(this)" v-bind="memberPermissionsTable.object">
+                            <q-card-section>
+                                <div class="text-h6">{{memberPermissionsTable.editing >= 0 ? "Edit" : "Create"}} Permission Member</div>
+                                <div class="bg-negative text-white q-pa-sm rounded" v-if="memberPermissionsTable.errors?.message?.length > 0">{{memberPermissionsTable.errors.message}}</div>
+                            </q-card-section>
+
+                            <q-card-section>
+                                <div class="row">
+                                    <q-input type="date" outlined dense v-model="memberPermissionsTable.object.startDate" label="Start Date"
+                                             :error="memberPermissionsTable.errors?.startDate?.error" :error-message="memberPermissionsTable.errors?.startDate?.message"></q-input>
+                                </div>
+                                <div class="row">
+                                    <q-input type="date" outlined dense v-model="memberPermissionsTable.object.endDate" label="End Date"
+                                             :error="memberPermissionsTable.errors?.endDate?.error" :error-message="memberPermissionsTable.endDAte?.startDate?.message"></q-input>
+                                </div>
+                            </q-card-section>
+
+                            <q-card-actions align="evenly">
+                                <q-btn no-caps :label="memberPermissionsTable.editing ? 'Update Permission for User' : 'Add Permission for User'" type="submit" padding="xs sm" color="primary"></q-btn>
+                                <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="memberPermissionsTable.delete(this)" color="red" v-if="memberPermissionsTable.editing"></q-btn>
+                            </q-card-actions>
+                        </q-form>
+                    </q-card>
+                </q-dialog>
+            </div>
+        </template>
+        <template v-slot:top-right>
+            <q-input v-model="memberPermissionsTable.filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
+                <template v-slot:append>
+                    <q-icon name="filter_alt" />
+                </template>
+            </q-input>
+        </template>
+        <template v-slot:body-cell-links="props">
+            <q-td :props="props">
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="dataset" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
+            </q-td>
+        </template>
+        <template v-slot:body-cell-actions="props">
+            <q-td :props="props">
+                <q-btn dense size="md" padding="xs md" :props="props" color="primary" @@click="memberPermissionsTable.selectRow(props.row)">Edit</q-btn>
+            </q-td>
+        </template>
+    </q-table>
+</div>
+
+<div v-show="showAddPermissions">
+    <h2>
+        <q-btn dense color="green" @@click="showMemberPermissions=true;showAddPermissions=false" no-caps class="q-mb-sm">
+            <q-icon name="view_list" title="View Permissions For User"></q-icon>
+        </q-btn>
+        Add Permissions for {{member.displayFirstName}} {{member.displayLastName}}
+    </h2>
+    <q-form>
+        <div class="row">
+            <q-input type="date" outlined dense v-model="memberPermissionParams.startDate" label="Start Date"></q-input>
+            <q-input type="date" outlined dense v-model="memberPermissionParams.endDate" label="End Date" class="q-ml-md"></q-input>
+        </div>
+        <div class="row q-pt-sm q-mb-sm">
+            <q-btn sm dense no-caps class="q-px-sm" label="Add Checked" type="button" color="primary" @@click="addPermissions"></q-btn>
+        </div>
+    </q-form>
+    <q-table dense
+             row-key="permissionId"
+             :loading="permissionsTable.loading"
+             :rows="permissionsTable.data"
+             :columns="permissionsTableColumns"
+             :filter="permissionsTable.filter"
+             :pagination="permissionsTable.config.pagination"
+             selection="multiple"
+             v-model:selected="selectedPermissions">
+        <template v-slot:top-right="props">
+            <q-input class="q-ml-xs q-mr-xs" v-model="permissionsTable.filter" dense outlined debounce="300" placeholder="Filter Results">
+                <template v-slot:append>
+                    <q-icon name="filter_alt" />
+                </template>
+            </q-input>
+        </template>
+    </q-table>
+</div>
+
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        /* Existing member permissions*/
+        //after loading member permissions, set last modified
+        vueMethods.afterPermissionMembersLoad = function (data) {
+            this.data = data.map(rp => ({
+                ...rp,
+                permission: rp.permission.permission,
+                lastModified: formatDate(rp.modTime) + " (" + rp.modBy.trim() + ")"
+            }))
+        }
+        //set member id and permission id when creating/updating
+        vueMethods.createPermissionMemberBody = function (v, object) {
+            return {
+                memberId: v.urlParams.get("memberId"),
+                permissionId: object.permissionId,
+                startDate: object?.startDate,
+                endDate: object?.endDate
+            }
+        }
+        //on selection, format dates and set up user select box
+        vueMethods.selectPermissionsMember = function (object) {
+            this.object = {
+                permissionId: object.permissionId,
+                startDate: formatDateForDateInput(object.startDate),
+                endDate: formatDateForDateInput(object.endDate),
+                memberId: object.memberId
+            }
+        }
+        vueObjects.memberPermissionsTable = new quasarTableEditable({
+            keys: ["permissionId"],
+            urlBase: "Members",
+            onLoad: vueMethods.afterPermissionMembersLoad,
+            createBody: vueMethods.createPermissionsMemberBody,
+            selectObject: vueMethods.selectPermissionsMember,
+            pagination: { rowsPerPage: 0 }
+        })
+        vueObjects.memberPermissionsColumns = [
+            { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
+            { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
+            { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
+            { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
+            { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
+            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
+            { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+        ]
+
+        /* Table of permissions to add for this user */
+        vueMethods.afterPermissionsLoad = function (data, vueApp) {
+            existingPermissions = vueApp._.data.memberPermissionsTable.data
+                .reduce((result, rp) => {
+                    result.push(rp.permissionId)
+                    return result
+                }, [])
+            this.data = data.filter(r =>
+                existingPermissions.indexOf(r.permissionId) == -1
+            )
+        }
+        vueMethods.addPermissions = async function () {
+            this.selectedPermissions.forEach((value, index) => {
+                var permissionMember = { permissionId: value.permissionId, memberId: this.memberId }
+                if (this.memberPermissionParams.startDate.length) {
+                    permissionMember.startDate = this.memberPermissionParams.startDate
+                }
+                if (this.memberPermissionParams.endDate.length) {
+                    permissionMember.endDate = this.memberPermissionParams.endDate
+                }
+                viperFetch(this,
+                    "Members/" + this.memberId + "/Permissions/",
+                    {
+                        method: "POST",
+                        body: JSON.stringify(permissionMember),
+                        headers: { "Content-Type": "application/json" }
+                    },
+                    [this.loadTables]
+                )
+            })
+        }
+        vueObjects.permissionsTable = new quasarTableEditable({
+            keys: ["permissionId"],
+            urlBase: "Permissions",
+            onLoad: vueMethods.afterPermissionsLoad,
+            pagination: { rowsPerPage: 15 }
+        })
+        vueObjects.permissionsTableColumns = [
+            { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
+            { name: "description", label: "Description", field: "description", align: "left", sortable: true }
+        ]
+        vueObjects.selectedPermissions = []
+        vueObjects.memberPermissionParams = { startDate: "", endDate: "", comment: "" }
+
+        //Load data
+        vueMethods.loadTables = async function () {
+            await this.memberPermissionsTable.load()
+            this.permissionsTable.load(this)
+            this.selectedPermissions = []
+        }
+
+        //for the whole page
+        vueObjects.memberId = 0
+        vueObjects.member = {}
+        vueObjects.showMemberPermissions = true
+        vueObjects.showAddPermissions = false
+        vueMethods.loadMember = async function () {
+            this.member = await viperFetch(this, "members/" + this.memberId)
+        }
+
+        vueMountedActions.push(async function () {
+            this.memberId = this.urlParams.get("memberId")
+            this.loadMember()
+            this.memberPermissionsTable.config.urlBase = "Members/" + this.memberId + "/Permissions"
+            this.loadTables()
+            this.showMemberPermissions = true
+            this.showAddPermissions = false
+        })
+    </script>
 }
