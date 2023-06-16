@@ -71,7 +71,7 @@ class quasarTableEditable {
                         this.data = r
                     }
                 }
-
+                
                 if (this.config.onLoad) {
                     this.config.onLoad.call(this, this.data, vueApp)
                 }

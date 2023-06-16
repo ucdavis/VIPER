@@ -160,7 +160,7 @@ namespace Viper
         /// <returns>Enumerable list of permission items assigned to the user from roles</returns>
         public static IEnumerable<TblPermission> GetInheritedPermissions(RAPSContext rapsContext, AaudUser user, Boolean deny = false)
         {
-            var result = new List<TblPermission>();
+            List<TblPermission>? result = null;
 
             if (HttpHelper.Cache != null && rapsContext != null)
             {
@@ -177,22 +177,9 @@ namespace Viper
                             && (memberRole.EndDate == null || memberRole.EndDate >= DateTime.Today)
                             select permission).ToList();
                 });
-
-                if (result != null)
-                {
-                    return result;
-                }
-                else
-                {
-                    return new List<TblPermission>();
-                }
-
-            }
-            else
-            {
-                return result;
             }
 
+            return result ?? new List<TblPermission>();
         }
         #endregion
 

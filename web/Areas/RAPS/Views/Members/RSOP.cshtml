@@ -1,5 +1,43 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
-@{
+﻿<h2>Combined Permissions for {{member.displayFirstName}} {{member.displayLastName}}</h2>
+
+<q-table 
+    dense
+    row-key="permissionId"
+    :loading="qtable.loading"
+    :columns="rsopColumns"
+    :rows="qtable.data"
+    :pagination={rowsPerPage:0}
+>
+    <template v-slot:body-cell-access="props">
+        <q-td :props="props">
+            <q-icon size="sm" :name="props.row.access ? 'check' : 'close'" :color="props.row.access ? 'green' : 'red'"></q-icon>
+        </q-td>
+    </template>
+
+</q-table>
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        vueObjects.member = {}
+        vueObjects.memberId = ""
+        vueObjects.qtable = new quasarTableEditable({
+            keys: ["permissionId"],
+            urlBase: "Members",
+            pagination: { rowsPerPage: 0 }
+        })
+        vueObjects.rsopColumns = [
+            { name: "access", label: "Access", field: "access", align: "center", style: "width:75px;" },
+            { name: "permission", label: "Permission", field: "permissionName", align: "left" },
+            { name: "source", label: "Source(s)", field: "source", align: "left" }
+        ]
+        vueMethods.loadMember = async function () {
+            this.member = await viperFetch(this, "Members/" + this.memberId)
+        }
+        vueMountedActions.push(async function() {
+            this.memberId = this.urlParams.get("memberId")
+            this.qtable.config.urlBase = "Members/" + this.memberId + "/RSOP"
+            this.loadMember()
+            this.qtable.load(this)
+        })
+    </script>
 }

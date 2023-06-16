@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Linq.Expressions;
+using System.Reflection.Metadata.Ecma335;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes.SQLContext;
@@ -75,6 +77,100 @@ namespace Viper.Areas.RAPS.Controllers
                 CountRoles = member.TblRoleMembers.Count,
                 Current = member.Current
             };
+        }
+
+        /// <summary>
+        /// Get all permissions assigned to a user (either allowed or denied) based on either role membership or direct
+        /// permission assignment.
+        /// </summary>
+        /// <param name="memberId"></param>
+        /// <returns>A list of permission results, including a source param to determine how the permission was assigned</returns>
+        // GET <Members>/12345678/RSOP
+        [HttpGet("{memberId}/RSOP")]
+        public async Task<ActionResult<List<PermissionResult>>> RSOP(string instance, string memberId)
+        {
+            var permsViaRoles = await (
+                from permission in _context.TblPermissions
+                join rolePermissions in _context.TblRolePermissions
+                    on permission.PermissionId equals rolePermissions.PermissionId
+                join memberRole in _context.TblRoleMembers
+                    on rolePermissions.RoleId equals memberRole.RoleId
+                join role in _context.TblRoles
+                    on memberRole.RoleId equals role.RoleId
+                where memberRole.MemberId == memberId
+                && (memberRole.StartDate == null || memberRole.StartDate <= DateTime.Today)
+                && (memberRole.EndDate == null || memberRole.EndDate >= DateTime.Today)
+                select new
+                {
+                    permission.PermissionId,
+                    permission.Permission,
+                    rolePermissions.Access,
+                    role.Role
+                }).ToListAsync();
+
+            var permsAssigned = await (from permission in _context.TblPermissions
+                join memberPermissions in _context.TblMemberPermissions
+                    on permission.PermissionId equals memberPermissions.PermissionId
+                where memberPermissions.MemberId == memberId
+                && (memberPermissions.StartDate == null || memberPermissions.StartDate <= DateTime.Today)
+                && (memberPermissions.EndDate == null || memberPermissions.EndDate >= DateTime.Today)
+                select new {
+                    permission.PermissionId,
+                    permission.Permission,
+                    memberPermissions.Access
+                }).ToListAsync();
+
+            Dictionary<int, PermissionResult> permissions = new Dictionary<int, PermissionResult>();
+            //add permissions that assigned via roles (could be deny or allow)
+            foreach(var p in permsViaRoles)
+            {
+                if (permissions.ContainsKey(p.PermissionId)) {
+                    var existingPerm = permissions[p.PermissionId];
+                    //record deny if this role is denying access
+                    if (existingPerm.Access && p.Access == 0)
+                    {
+                        existingPerm.Access = false;
+                        existingPerm.Source = p.Role;
+                    }
+                    //if access matches, add roles
+                    else
+                    {
+                        existingPerm.Source += "," + p.Role;
+                    }
+                }
+                else
+                {
+                    permissions[p.PermissionId] = new PermissionResult() { PermissionId = p.PermissionId, PermissionName = p.Permission, Source = p.Role, Access = p.Access == 1 };
+                }
+            };
+
+            //add permissions assigned manually (could be deny or allow)
+            foreach (var p in permsAssigned)
+            {
+                if (permissions.ContainsKey(p.PermissionId))
+                {
+                    var existingPerm = permissions[p.PermissionId];
+                    //record deny if permission assignment is denying access
+                    if (existingPerm.Access && p.Access == 0)
+                    {
+                        existingPerm.Access = false;
+                        existingPerm.Source = "Member Permission";
+                    }
+                    //if access matches, add roles
+                    else
+                    {
+                        existingPerm.Source += ",Member Permission";
+                    }
+                }
+                else
+                {
+                    permissions[p.PermissionId] = new PermissionResult() { PermissionId = p.PermissionId, PermissionName = p.Permission, Source = "Member Permission", Access = p.Access == 1};
+                }
+            };
+
+            return permissions.Values.OrderBy(p => p.PermissionName)
+                .Where(p => _securityService.PermissionBelongsToInstance(instance, p.PermissionName))
+                .ToList();
         }
     }
 }

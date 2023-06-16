@@ -94,6 +94,20 @@ namespace Viper.Areas.RAPS.Services
             return permissionName.StartsWith(instance.ToUpper());
         }
 
+        public bool PermissionBelongsToInstance(string instance, string permission)
+        {
+            string permissionName = permission.ToUpper();
+            if (instance.ToUpper() == "VIPER")
+            {
+                return !permissionName.StartsWith("VMACS") && !permissionName.StartsWith("VIPERFORMS");
+            }
+            if (instance.ToUpper().StartsWith("VMACS"))
+            {
+                return permissionName.StartsWith("VMACS");
+            }
+            return permissionName.StartsWith(instance.ToUpper());
+        }
+
         /// <summary>
         /// Check that a user is allowed to perform an action, optionally checking the instance they are in
         /// Having certain permissions allows the user to do things in the VMACS instances, but not Viper, e.g. the helpdesk 
