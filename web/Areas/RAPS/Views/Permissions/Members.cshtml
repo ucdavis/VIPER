@@ -5,49 +5,49 @@
 <q-table title="Members"
          dense
          row-key="memberId"
-         :loading="qtable.loading"
-         :rows="qtable.data"
-         :columns="permissionMembersColumns"
-         :filter="permissionMembersFilter"
-         :pagination="qtable.config.pagination">
+         :loading="membersTable.loading"
+         :rows="membersTable.rows"
+         :columns="membersTable.columns"
+         :filter="membersTable.filter"
+         :pagination="membersTable.pagination">
     <template v-slot:top-left>
-        <q-btn dense color="green" @@click="qtable.showForm = true" no-caps>
+        <q-btn dense color="green" @@click="membersTable.showForm = true" no-caps>
             <q-icon name="add"></q-icon>
         </q-btn>
         <div class="q-pa-sm q-gutter-sm">
-            <q-dialog v-model="qtable.showForm" @@hide="qtable.clear(this)">
+            <q-dialog v-model="membersTable.showForm" @@hide="membersTable.clear(this)">
                 <q-card>
-                    <q-form @@submit="qtable.submit(this)" v-bind="qtable.object">
+                    <q-form @@submit="membersTable.submit(this)" v-bind="membersTable.object">
                         <q-card-section>
-                            <div class="text-h6">{{qtable.editing >= 0 ? "Edit" : "Create"}} Permission Member</div>
-                            <div class="bg-negative text-white q-pa-sm rounded" v-if="qtable.errors?.message?.length > 0">{{qtable.errors.message}}</div>
+                            <div class="text-h6">{{membersTable.editing >= 0 ? "Edit" : "Create"}} Permission Member</div>
+                            <div class="bg-negative text-white q-pa-sm rounded" v-if="membersTable.errors?.message?.length > 0">{{membersTable.errors.message}}</div>
                         </q-card-section>
 
                         <q-card-section>
                             <div class="row">
                                 <q-select outlined dense use-input input-debounce="300"
                                           label="User"
-                                          v-model="qtable.object.member"
+                                          v-model="membersTable.object.member"
                                           @@filter="memberSearch"
                                           :options="memberSearchResults"
-                                          :readonly="qtable.editing"
-                                          :error="qtable.errors?.MemberId?.error"
+                                          :readonly="membersTable.editing"
+                                          :error="membersTable.errors?.MemberId?.error"
                                           error-message="User is required">
                                 </q-select>
                             </div>
                             <div class="row">
-                                <q-input type="date" outlined dense v-model="qtable.object.startDate" label="Start Date"
-                                         :error="qtable.errors?.startDate?.error" :error-message="qtable.errors?.startDate?.message"></q-input>
+                                <q-input type="date" outlined dense v-model="membersTable.object.startDate" label="Start Date"
+                                         :error="membersTable.errors?.startDate?.error" :error-message="membersTable.errors?.startDate?.message"></q-input>
                             </div>
                             <div class="row">
-                                <q-input type="date" outlined dense v-model="qtable.object.endDate" label="End Date"
-                                         :error="qtable.errors?.endDate?.error" :error-message="qtable.endDAte?.startDate?.message"></q-input>
+                                <q-input type="date" outlined dense v-model="membersTable.object.endDate" label="End Date"
+                                         :error="membersTable.errors?.endDate?.error" :error-message="membersTable.endDAte?.startDate?.message"></q-input>
                             </div>
                         </q-card-section>
 
                         <q-card-actions align="evenly">
-                            <q-btn no-caps :label="qtable.editing ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary"></q-btn>
-                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="qtable.delete(this)" color="red" v-if="qtable.editing"></q-btn>
+                            <q-btn no-caps :label="membersTable.editing ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary"></q-btn>
+                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="membersTable.delete(this)" color="red" v-if="membersTable.editing"></q-btn>
                         </q-card-actions>
                     </q-form>
                 </q-card>
@@ -70,7 +70,7 @@
     </template>
     <template v-slot:body-cell-actions="props">
         <q-td :props="props">
-            <q-btn no-caps size="md" :props="props" color="primary" @@click="qtable.selectRow(props.row)">Edit</q-btn>
+            <q-btn no-caps size="md" :props="props" color="primary" @@click="membersTable.selectRow(props.row)">Edit</q-btn>
         </q-td>
     </template>
 </q-table>
@@ -78,45 +78,52 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        //after loading role members, add the member name and active flag
-        vueMethods.afterPermissionLoad = function (data) {
-            this.data = data.map(pm => ({
-                ...pm,
-                memberName: pm.member?.displayLastName + ", " + pm?.member?.displayFirstName,
-                active: pm?.aaudUser?.current == 1 ? "Y" : "N",
-                lastModified: formatDate(pm.modTime) + " (" + pm.modBy.trim() + ")"
-            }))
-        }
-        //set member id and role id when creating/updating
-        vueMethods.createPermissionMemberBody = function (v, object) {
-            return {
-                memberId: object.member?.value,
-                permissionId: v.urlParams.get("permissionId"),
-                access: object.access == 1 ? 1 : 0,
-                startDate: object?.startDate,
-                endDate: object?.endDate
-            }
-        }
-        //on selection, format dates and set up user select box
-        vueMethods.selectPermissionMember = function (object) {
-            this.object = {
-                permissionId: object.permissionId,
-                startDate: formatDateForDateInput(object.startDate),
-                endDate: formatDateForDateInput(object.endDate),
-                access: object.access == 1 ? 1 : 0,
-                member: {
-                    label: object?.member?.displayLastName + ", " + object?.member?.displayFirstName,
-                    value: object.memberId
-                },
-                memberId: object.memberId
-            }
-        }
-        vueObjects.qtable = new quasarTable({
+        vueObjects.membersTable = new quasarTable({
             keys: ["memberId"],
             urlBase: "Permissions",
-            onLoad: vueMethods.afterPermissionLoad,
-            createBody: vueMethods.createPermissionMemberBody,
-            selectObject: vueMethods.selectPermissionMember,
+            columns: [
+                { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
+                { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
+                { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
+                { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
+                { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
+                { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
+                { name: "active", label: "Active", field: "active", align: "left", sortable: true },
+                { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+            ],
+            //after loading role members, add the member name and active flag
+            onLoad: function (data) {
+                this.rows = data.map(pm => ({
+                    ...pm,
+                    memberName: pm.member?.displayLastName + ", " + pm?.member?.displayFirstName,
+                    active: pm?.aaudUser?.current == 1 ? "Y" : "N",
+                    lastModified: formatDate(pm.modTime) + " (" + pm.modBy.trim() + ")"
+                }))
+            },
+            //set member id and role id when creating/updating
+            createBody: function (v, object) {
+                return {
+                    memberId: object.member?.value,
+                    permissionId: v.urlParams.get("permissionId"),
+                    access: object.access == 1 ? 1 : 0,
+                    startDate: object?.startDate,
+                    endDate: object?.endDate
+                }
+            },
+            //on selection, format dates and set up user select box
+            selectObject: function (object) {
+                this.object = {
+                    permissionId: object.permissionId,
+                    startDate: formatDateForDateInput(object.startDate),
+                    endDate: formatDateForDateInput(object.endDate),
+                    access: object.access == 1 ? 1 : 0,
+                    member: {
+                        label: object?.member?.displayLastName + ", " + object?.member?.displayFirstName,
+                        value: object.memberId
+                    },
+                    memberId: object.memberId
+                }
+            },
             pagination: { rowsPerPage: 0 }
         })
 
@@ -124,23 +131,7 @@
         vueObjects.permissionId = 0
         vueObjects.permission = {}
         vueObjects.memberSearchResults = []
-        //table
-        vueObjects.permissionMembersFilter = "";
-        vueObjects.permissionMembersColumns = [
-            { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
-            { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
-            { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
-            { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
-            { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
-            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
-            { name: "active", label: "Active", field: "active", align: "left", sortable: true },
-            { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
-        ]
 
-        formatDate = function (d) {
-            var dt = new Date(d)
-            return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf())) ? dt.toLocaleDateString() : "";
-        }
         //setup
         vueMethods.loadPermission = async function () {
             this.permission = await viperFetch(this, "Permissions/" + this.permissionId)
@@ -156,7 +147,7 @@
                     .then(r => r.json())
                     .then(data =>
                         this.memberSearchResults = data
-                            .map(m => ({ label: m.displayLastName + ", " + m.displayFirstName, value: m.mothraId }))
+                            .map(m => ({ label: m.displayLastName + ", " + m.displayFirstName, value: m.memberId }))
                     )
             })
         }
@@ -164,8 +155,8 @@
         vueMountedActions.push(async function () {
             this.permissionId = this.urlParams.get("permissionId")
             this.loadPermission()
-            this.qtable.config.urlBase = "Permissions/" + this.permissionId + "/Members"
-            this.qtable.load()
+            this.membersTable.urlBase = "Permissions/" + this.permissionId + "/Members"
+            this.membersTable.load()
         })
     </script>
 }
