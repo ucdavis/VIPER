@@ -132,7 +132,7 @@ namespace Viper.Areas.RAPS.Controllers
                         existingPerm.Access = false;
                         existingPerm.Source = p.Role;
                     }
-                    //if access matches, add roles
+                    //if access matches, add role to source
                     else
                     {
                         existingPerm.Source += "," + p.Role;
@@ -156,7 +156,7 @@ namespace Viper.Areas.RAPS.Controllers
                         existingPerm.Access = false;
                         existingPerm.Source = "Member Permission";
                     }
-                    //if access matches, add roles
+                    //if access matches, add member permission to source
                     else
                     {
                         existingPerm.Source += ",Member Permission";

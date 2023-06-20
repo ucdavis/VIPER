@@ -16,7 +16,7 @@ quasarTableEditableRowsDefault = {
     //would create the PUT and DELETE url Permissions/5/member/12345678
     urlBase: "",
     keys: "id",
-    //function to execute after data has been loaded, for example to add columns
+    //function to execute after data has been loaded, for example to add or alter columns
     onLoad: "",
     //function to create the body of a POST or PUT 
     createBody: "",
@@ -28,7 +28,9 @@ quasarTableEditableRowsDefault = {
     rowsPerPageOptions: [5, 10, 15, 25, 50, 100, 0],
     //set to true to use server side pagination
     serverSidePagination: false,
-    
+    //columns definition, required if exporting is enabled
+    columns: [],
+    excludeFromExport: []
 }
 class quasarTableEditable {
     constructor(config) {
@@ -182,5 +184,60 @@ class quasarTableEditable {
         }
         
         this.load(vueApp)
+    }
+
+    exportTable() {
+        // naive encoding to csv format
+        const columnsMinusExcludes = this.config.columns
+            .filter(c => this.config.excludeFromExport.findIndex(e => e == c.name) == -1)
+        const content = [columnsMinusExcludes.map(col => this.wrapCsvValue(col.label))]
+                .concat(
+                    this.data.map(row => columnsMinusExcludes
+                        .map(col => this.wrapCsvValue(
+                            typeof col.field === 'function'
+                                ? col.field(row)
+                                : row[col.field === void 0 ? col.name : col.field],
+                            col.format,
+                            row))
+                        .join(',')
+                    )
+                ).join('\r\n')
+
+        const { useQuasar, exportFile } = Quasar;
+        const $q = useQuasar();
+
+        const status = exportFile(
+            'table-export.csv',
+            content,
+            'text/csv'
+        )
+
+        if (status !== true) {
+            $q.notify({
+                message: 'Browser denied file download...',
+                color: 'negative',
+                icon: 'warning'
+            })
+        }
+    }
+
+    wrapCsvValue(val, formatFn, row) {
+        let formatted = formatFn !== void 0
+            ? formatFn(val, row)
+            : val
+
+        formatted = formatted === void 0 || formatted === null
+            ? ''
+            : String(formatted)
+
+        formatted = formatted.split('"').join('""')
+            /**
+            * Excel accepts \n and \r in strings, but some other CSV parsers do not
+            * Uncomment the next two lines to escape new lines
+            */
+            .split('\n').join('\\n')
+            .split('\r').join('\\r')
+
+        return `"${formatted}"`
     }
 }
