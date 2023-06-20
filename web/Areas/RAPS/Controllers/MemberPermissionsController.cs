@@ -47,6 +47,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return await _context.TblMemberPermissions
                     .Include(mp => mp.Permission)
                     .Where(mp => mp.MemberId == memberId)
+                    .OrderBy(mp => mp.Permission.Permission)
                     .ToListAsync();
             }
             else if(permissionId != null)
@@ -57,6 +58,8 @@ namespace Viper.Areas.RAPS.Controllers
                     : await _context.TblMemberPermissions
                         .Include(mp => mp.Member)
                         .Where(mp => mp.PermissionId == permissionId)
+                        .OrderBy(mp => mp.Member.DisplayLastName)
+                        .ThenBy(mp => mp.Member.DisplayFirstName)
                         .ToListAsync();
             }
             else

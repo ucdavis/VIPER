@@ -16,11 +16,12 @@
 <q-table title="Search Results"
     dense
     row-key="memberId"
-    :loading="searching"
-    :rows="members"
-    :columns="membersColumns"
-    :pagination="{rowsPerPage:15}"
-    >
+    :loading="members.loading"
+    :rows="members.rows"
+    :columns="members.columns"
+    :pagination="members.pagination"
+    no-data-label="Search for a user by first or last name"
+    no-results-label="No results found">
     <template v-slot:body-cell-links="props">
         <q-td :props="props">
             <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="dataset" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
@@ -35,30 +36,33 @@
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
         vueObjects.userSearch = ""
-        vueObjects.searching = false
-        vueObjects.members = []
-        vueObjects.membersColumns = [
-            { name: "links", label: "", field: "", align: "left", style: "width:100px;" },
-            { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
-            { name: "active", label: "Active", field: "active", align: "left", sortable: true },
-            { name: "countRoles", label: "Count Roles", field: "countRoles", align: "left", sortable: true },
-            { name: "countPermissions", label: "Count Permissions", field: "countPermissions", align: "left", sortable: true }
-        ]
+        vueObjects.members = new quasarTable({
+            keys: ["memberId"],
+            urlBase: "Roles",
+            columns: [
+                { name: "links", label: "", field: "", align: "left", style: "width:100px;" },
+                { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
+                { name: "active", label: "Active", field: "active", align: "left", sortable: true },
+                { name: "countRoles", label: "Count Roles", field: "countRoles", align: "left", sortable: true },
+                { name: "countPermissions", label: "Count Permissions", field: "countPermissions", align: "left", sortable: true }
+            ],
+            pagination: { rowsPerPage: 0 }
+        })
+
         vueMethods.findUsers = async function() {
-            this.members = []
-            this.searching = true
+            this.members.loading = true
             if(this.userSearch.length >= 3) {
-                this.members = (await viperFetch(this, "Members?search=" + this.userSearch))
+                this.members.rows = (await viperFetch(this, "Members?search=" + this.userSearch))
                     .map(m => ({
                         ...m,
                         memberName: m.displayLastName + ", " + m.displayFirstName,
                         active: m.current == 1 ? "Y" : "N",
                     }))
-                this.searching = false
+                this.members.loading = false
             }
         }
         vueMountedActions.push(function() {
-            //this.findUsers()
+            this.members.loading = false
         });
 
         vueWatchers.userSearch = function() {

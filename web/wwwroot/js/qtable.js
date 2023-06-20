@@ -51,12 +51,12 @@ class quasarTable {
         //filter variable, necessary for server side pagination
         this.filter = ""
         //when loading, store a reference to the vueApp
-        this.vueApp = 0
+        this.vueApp = null
     }
 
     //Load data. For server side pagination, send the pagination options as query params.
     load(vueApp) {
-        if (vueApp != null) {
+        if (vueApp != null && this.vueApp == null) {
             this.vueApp = vueApp
         }
         
@@ -76,18 +76,18 @@ class quasarTable {
                 if (r) {
                     if (this.serverSidePagination) {
                         //record data and pagination
-                        this.data = r.result
+                        this.rows = r.result
                         this.pagination.rowsNumber = r.pagination.totalRecords
                         this.pagination.rowsPerPage = r.pagination.perPage
                         this.pagination.page = r.pagination.page
                     }
                     else {
-                        this.data = r
+                        this.rows = r
                     }
                 }
                 
                 if (this.onLoad) {
-                    this.onLoad.call(this, this.data, vueApp)
+                    this.onLoad.call(this, this.rows, vueApp)
                 }
             })
             .then(r => {
@@ -211,7 +211,7 @@ class quasarTable {
             .filter(c => this.excludeFromExport.findIndex(e => e == c.name) == -1)
         const content = [columnsMinusExcludes.map(col => this.wrapCsvValue(col.label))]
                 .concat(
-                    this.data.map(row => columnsMinusExcludes
+                    this.rows.map(row => columnsMinusExcludes
                         .map(col => this.wrapCsvValue(
                             typeof col.field === 'function'
                                 ? col.field(row)
