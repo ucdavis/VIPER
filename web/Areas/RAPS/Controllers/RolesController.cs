@@ -49,19 +49,14 @@ namespace Viper.Areas.RAPS.Controllers
                     .ThenBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
                     .ToListAsync();
             }
-            else
-            {
-				List<int> controlledRoleIds = SecurityService.GetControlledRoleIds(UserWrapper.GetCurrentUser()?.MothraId);
-                List<TblRole> List = await _context.TblRoles
-                    .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
-                    .Where(r => r.Application == 0)
-                    .Where(r => controlledRoleIds.Contains(r.RoleId))
-                    .Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance))
-                    .OrderBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
-                    .ToListAsync();
-
-                return List;
-            }
+            List<int> controlledRoleIds = SecurityService.GetControlledRoleIds(UserWrapper.GetCurrentUser()?.MothraId);
+            return await _context.TblRoles
+                .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
+                .Where(r => r.Application == 0)
+                .Where(r => controlledRoleIds.Contains(r.RoleId))
+                .Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance))
+                .OrderBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
+                .ToListAsync();
         }
 
         // GET: Roles/5
@@ -74,7 +69,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             var tblRole = await _context.TblRoles.FindAsync(roleId);
 
-            if (tblRole == null)
+            if (tblRole == null || !SecurityService.RoleBelongsToInstance(instance, tblRole))
             {
                 return NotFound();
             }
@@ -83,7 +78,6 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         // PUT: Roles/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{roleId}")]
         public async Task<IActionResult> PutTblRole(string instance, int roleId, RoleCreateUpdate role)
         {
@@ -117,7 +111,6 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         // POST: Roles
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<TblRole>> PostTblRole(string instance, RoleCreateUpdate role)
         {

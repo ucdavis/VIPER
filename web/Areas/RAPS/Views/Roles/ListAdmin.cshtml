@@ -2,34 +2,34 @@
     <q-table title="Roles"
              dense
              row-key="roleId"
-             :loading="qtable.loading"
-             :rows="qtable.data"
-             :columns="rolesColumns"
-             :filter="roleListFilter"
-             :pagination="qtable.config.pagination">
+             :loading="rolesTable.loading"
+             :rows="rolesTable.rows"
+             :columns="rolesTable.columns"
+             :filter="rolesTable.filter"
+             :pagination="rolesTable.pagination">
         <template v-slot:top-left>
-            <q-btn dense no-caps color="green" padding="xs md" @@click="qtable.showForm = true">
+            <q-btn dense no-caps color="green" padding="xs md" @@click="rolesTable.showForm = true">
                 <q-icon name="add"></q-icon>
             </q-btn>
             <div class="q-pa-sm q-gutter-sm">
-                <q-dialog v-model="qtable.showForm" @@hide="qtable.clear(this)">
+                <q-dialog v-model="rolesTable.showForm" @@hide="rolesTable.clear(this)">
                     <q-card style="width: 500px; max-width: 80vw;">
-                        <q-form @@submit="qtable.submit(this)" v-model="qtable.object">
+                        <q-form @@submit="rolesTable.submit(this)" v-model="rolesTable.object">
                             <q-card-section>
-                                <div class="text-h6">{{qtable.editing ? "Edit" : "Create"}} Role</div>
-                                <div class="bg-negative text-white q-pa-sm rounded" v-if="qtable.errors?.message?.length > 0">{{qtable.errors.message}}</div>
+                                <div class="text-h6">{{rolesTable.editing ? "Edit" : "Create"}} Role</div>
+                                <div class="bg-negative text-white q-pa-sm rounded" v-if="rolesTable.errors?.message?.length > 0">{{rolesTable.errors.message}}</div>
                             </q-card-section>
                             <q-card-section>
-                                <q-input outlined v-model="qtable.object.role" label="Role"
-                                         :error="qtable.errors?.Role?.error" 
-                                         :error-message="qtable.errors?.Role?.message"></q-input>
-                                <q-input outlined v-model="qtable.object.description" label="Description" type="textarea"></q-input>
-                                <q-checkbox v-model="qtable.object.application" true-value="1" :false-value="null" label="Application Role"></q-checkbox>
-                                <q-input outlined v-model="qtable.object.viewName" label="View"></q-input>
+                                <q-input outlined v-model="rolesTable.object.role" label="Role"
+                                         :error="rolesTable.errors?.Role?.error" 
+                                         :error-message="rolesTable.errors?.Role?.message"></q-input>
+                                <q-input outlined v-model="rolesTable.object.description" label="Description" type="textarea"></q-input>
+                                <q-checkbox v-model="rolesTable.object.application" true-value="1" :false-value="null" label="Application Role"></q-checkbox>
+                                <q-input outlined v-model="rolesTable.object.viewName" label="View"></q-input>
                             </q-card-section>
                             <q-card-actions align="evenly">
-                                <q-btn no-caps :label="qtable.editing ? 'Update Role' : 'Add Role'" type="submit" padding="xs sm" color="primary"></q-btn>
-                                <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="qtable.delete(this)" color="red" v-if="qtable.editing"></q-btn>
+                                <q-btn no-caps :label="rolesTable.editing ? 'Update Role' : 'Add Role'" type="submit" padding="xs sm" color="primary"></q-btn>
+                                <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="rolesTable.delete(this)" color="red" v-if="rolesTable.editing"></q-btn>
                             </q-card-actions>
                         </q-form>
                     </q-card>
@@ -38,7 +38,7 @@
         </template>
         
         <template v-slot:top-right="props">
-            <q-input class="q-ml-xs q-mr-xs" v-model="roleListFilter" dense outlined debounce="300" placeholder="Filter Results">
+            <q-input class="q-ml-xs q-mr-xs" v-model="rolesTable.filter" dense outlined debounce="300" placeholder="Filter Results">
                 <template v-slot:append>
                     <q-icon name="filter_alt" />
                 </template>
@@ -54,14 +54,14 @@
         <template v-slot:body-cell-role="props">
             <q-td :props="props">
                 <q-badge :props="props" v-if="props.row.application == 1" transparent icon="supervisor_account" color="amber-7" class="q-mr-2">Delegate</q-badge>
-                {{props.row.computedDisplayName}}
-                <br />
+                {{props.row.friendlyName}}
+                <br />     
                 <span style="font-size:.9em">{{props.row.description}}</span>
             </q-td>
         </template>
         <template v-slot:body-cell-edit="props">
             <q-td :props="props">
-                <q-btn :props="props" dense color="primary" size="md" padding="xs md" @@click="qtable.selectRow(props.row)">Edit</q-btn>
+                <q-btn :props="props" dense color="primary" size="md" padding="xs md" @@click="rolesTable.selectRow(props.row)">Edit</q-btn>
             </q-td>
         </template>
     </q-table>
@@ -70,15 +70,21 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        vueObjects.qtable = new quasarTable({
+        vueObjects.rolesTable = new quasarTable({
             keys: "roleId",
             urlBase: "Roles",
+            columns: [
+                { name: "roleid", label: "", field: "roleId", align: "left", style: "width:50px;" },
+                { name: "role", label: "Role", field: "role", align: "left", sortable: true },
+                { name: "viewname", label: "Member List", field: "viewName", align: "left", sortable: true },
+                { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left", sortable: true },
+                { name: "edit", label: "", field: "" }
+            ],
             //after loading roles, add a member count and computed display name
             onLoad: function(data) {
-                this.data = data.map(r => ({
+                this.rows = data.map(r => ({
                     ...r,
                     membersCount: r.tblRoleMembers.length,
-                    computedDisplayName: (r.displayName ? r.displayName : r.role),
                     application: r.application == 1 ? "1" : null
                 }))
             },
@@ -94,16 +100,8 @@
             }
         })
 
-        vueObjects.roleListFilter = ""
-        vueObjects.rolesColumns = [
-            { name: "roleid", label: "", field: "roleId", align: "left", style: "width:50px;" },
-            { name: "role", label: "Role", field: "role", align: "left", sortable: true },
-            { name: "viewname", label: "Member List", field: "viewName", align: "left", sortable: true },
-            { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left", sortable: true },
-            { name: "edit", label: "", field: ""}
-        ]
         vueMountedActions.push(async function () {
-            this.qtable.load()
+            this.rolesTable.load()
         })
     </script>
 }

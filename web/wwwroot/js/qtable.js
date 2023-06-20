@@ -35,9 +35,9 @@ quasarTableDefaultConfig = {
 class quasarTable {
     constructor(config) {
         //override default config properties with input
-        this.config = { ...quasarTableDefaultConfig, ...config }
-        //the data being shown
-        this.data = []
+        Object.assign(this, { ...quasarTableDefaultConfig, ...config })
+        //the data for the rows being shown
+        this.rows = []
         //if true, the data is being (re)loaded
         this.loading = true
         //the object being edited
@@ -50,38 +50,44 @@ class quasarTable {
         this.errors = {}
         //filter variable, necessary for server side pagination
         this.filter = ""
+        //when loading, store a reference to the vueApp
+        this.vueApp = 0
     }
 
     //Load data. For server side pagination, send the pagination options as query params.
     load(vueApp) {
+        if (vueApp != null) {
+            this.vueApp = vueApp
+        }
+        
         var queryParams = "";
-        if (this.config.serverSidePagination) {
+        if (this.serverSidePagination) {
             this.loading = true
             var queryParamObject = {
-                perPage: this.config.pagination.rowsPerPage,
-                page: this.config.pagination.page,
-                sortOrder: (this.config.pagination.sortBy ? this.config.pagination.sortBy : "") + (this.config.pagination.descending ? " desc" : ""),
+                perPage: this.pagination.rowsPerPage,
+                page: this.pagination.page,
+                sortOrder: (this.pagination.sortBy ? this.pagination.sortBy : "") + (this.pagination.descending ? " desc" : ""),
                 filter: (this.filter ? this.filter : "")
             }
             queryParams = "?" + new URLSearchParams(queryParamObject)
         }
-        viperFetch(vueApp, this.config.urlBase + queryParams, {}, [])
+        viperFetch(vueApp, this.urlBase + queryParams, {}, [])
             .then(r => {
                 if (r) {
-                    if (this.config.serverSidePagination) {
+                    if (this.serverSidePagination) {
                         //record data and pagination
                         this.data = r.result
-                        this.config.pagination.rowsNumber = r.pagination.totalRecords
-                        this.config.pagination.rowsPerPage = r.pagination.perPage
-                        this.config.pagination.page = r.pagination.page
+                        this.pagination.rowsNumber = r.pagination.totalRecords
+                        this.pagination.rowsPerPage = r.pagination.perPage
+                        this.pagination.page = r.pagination.page
                     }
                     else {
                         this.data = r
                     }
                 }
                 
-                if (this.config.onLoad) {
-                    this.config.onLoad.call(this, this.data, vueApp)
+                if (this.onLoad) {
+                    this.onLoad.call(this, this.data, vueApp)
                 }
             })
             .then(r => {
@@ -94,8 +100,8 @@ class quasarTable {
     selectRow(item) {
         this.editing = true
         this.object = item
-        if (this.config.selectObject) {
-            this.config.selectObject.call(this, item)
+        if (this.selectObject) {
+            this.selectObject.call(this, item)
         }
         this.showForm = true
     }
@@ -110,8 +116,8 @@ class quasarTable {
 
     //Submit (create or update) the selected item
     submit(vueApp) {
-        var bodyObject = this.config.createBody
-            ? this.config.createBody(vueApp, this.object)
+        var bodyObject = this.createBody
+            ? this.createBody(vueApp, this.object)
             : this.object
         if (!this.editing)
             this.create(vueApp, bodyObject)
@@ -121,7 +127,7 @@ class quasarTable {
 
     create(vueApp, bodyObject) {
         viperFetch(vueApp,
-            this.config.urlBase,
+            this.urlBase,
             {
                 method: "POST",
                 body: JSON.stringify(bodyObject),
@@ -163,9 +169,9 @@ class quasarTable {
     //Get the URL to create or update the item
     //See comment under quasarTableDefaultConfig.urlBase
     getUpdateURL() {
-        var url = this.config.urlBase
-        if (Array.isArray(this.config.keys)) {
-            for (var k of this.config.keys) {
+        var url = this.urlBase
+        if (Array.isArray(this.keys)) {
+            for (var k of this.keys) {
                 if (typeof k === 'object' && k !== null && !Array.isArray(k)) {
                     if (k?.urlPrefix) {
                         url += "/" + k.urlPrefix
@@ -178,21 +184,21 @@ class quasarTable {
             }
         }
         else {
-            url += "/" + this.object[this.config.keys]
+            url += "/" + this.object[this.keys]
         }
         return url
     }
 
     //Function called for server side paging when pagination options or filter options are changed
     request(props, vueApp) {
-        this.config.pagination.page = props.pagination.page
-        this.config.pagination.rowsPerPage = props.pagination.rowsPerPage 
+        this.pagination.page = props.pagination.page
+        this.pagination.rowsPerPage = props.pagination.rowsPerPage 
         if (props.pagination.sortBy) {
-            this.config.pagination.sortOrder = props.pagination.sortBy
-            this.config.pagination.descending = props.pagination.descending
+            this.pagination.sortOrder = props.pagination.sortBy
+            this.pagination.descending = props.pagination.descending
         }
         else {
-            this.config.pagination.sortOrder = ""
+            this.pagination.sortOrder = ""
         }
         
         this.load(vueApp)
@@ -201,8 +207,8 @@ class quasarTable {
     //Export function
     exportTable() {
         // naive encoding to csv format
-        const columnsMinusExcludes = this.config.columns
-            .filter(c => this.config.excludeFromExport.findIndex(e => e == c.name) == -1)
+        const columnsMinusExcludes = this.columns
+            .filter(c => this.excludeFromExport.findIndex(e => e == c.name) == -1)
         const content = [columnsMinusExcludes.map(col => this.wrapCsvValue(col.label))]
                 .concat(
                     this.data.map(row => columnsMinusExcludes

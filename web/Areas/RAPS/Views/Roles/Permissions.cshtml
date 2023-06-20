@@ -3,9 +3,9 @@
     dense
     row-key="permissionId"
     :loading="rolePermissionTable.loading"
-    :rows="rolePermissionTable.data"
-    :columns="rolePermissionTableColumns"
-    :pagination="rolePermissionTable.config.pagination">
+    :rows="rolePermissionTable.rows"
+    :columns="rolePermissionTable.columns"
+    :pagination="rolePermissionTable.pagination">
     
     <template v-slot:body-cell-links="props">
         <q-td :props="props">
@@ -25,10 +25,10 @@
          dense
          row-key="permissionId"
          :loading="permissionTable.loading"
-         :rows="permissionTable.data"
-         :columns="permissionTableColumns"
+         :rows="permissionTable.rows"
+         :columns="permissionTable.columns"
          :filter="permissionTable.filter"
-         :pagination="permissionTable.config.pagination"
+         :pagination="permissionTable.pagination"
          selection="multiple"
          v-model:selected="selectedPermissions">
     <template v-slot:top-right="props">
@@ -82,7 +82,7 @@
         }
         //Load data
         vueMethods.loadTables = async function () {
-            this.rolePermissionTable.load()
+            await this.rolePermissionTable.load(this)
             this.permissionTable.load(this)
             this.selectedPermissions = []
         }
@@ -90,52 +90,48 @@
         vueMountedActions.push(async function () {
             this.roleId = this.urlParams.get("roleId")
             this.loadRole()
-            this.rolePermissionTable.config.urlBase = "Roles/" + this.roleId + "/Permissions"
+            this.rolePermissionTable.urlBase = "Roles/" + this.roleId + "/Permissions"
             this.loadTables()
         })
-        //functions for after role permissions and the permission list load
-        vueMethods.afterRolePermissionLoad = function (data) {
-            this.data = data.map(rp => ({
-                ...rp,
-                permissionId: rp.permissionId,
-                accessDescription: rp.access == 1 ? "Allow" : "Deny",
-                permissionName: rp.permission?.permission
-            }))
-        }
-        vueMethods.afterPermissionLoad = function (data, vueApp) {
-            var existingPermissions = vueApp._.data.rolePermissionTable.data
-                .reduce((result, rp) => { 
-                    result.push(rp.permissionId)
-                    return result
-                }, [])
-            this.data = data.filter(p => 
-                existingPermissions.indexOf(p.permissionId) == -1
-            )
-        }
-
-        //define columns and create tables
-        vueObjects.rolePermissionTableColumns = [
-            { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
-            { name: "permission", label: "Permission", field: "permissionName", align: "left", sortable: true },
-            { name: "access", label: "Access", field: "accessDescription", align: "left", sortable: true },
-            { name: "lastModified", label: "Last Modified Date", field: "modTime", align: "left", sortable: true, format: v => formatDate(v) },
-            { name: "modifiedBy", label: "Modified By", field: "modBy", align: "left", sortable: true },
-            { name: "remove", label: "Remove", field: "", align: "left", sortable: false }
-        ]
-        vueObjects.permissionTableColumns = [
-            { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
-            { name: "description", label: "Description", field: "description", align: "left", sortable: true }
-        ]
+        
         vueObjects.rolePermissionTable = new quasarTable({
             keys: ["permissionId"],
             urlBase: "Roles",
-            onLoad: vueMethods.afterRolePermissionLoad,
+            columns: [
+                { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
+                { name: "permission", label: "Permission", field: "permissionName", align: "left", sortable: true },
+                { name: "access", label: "Access", field: "accessDescription", align: "left", sortable: true },
+                { name: "lastModified", label: "Last Modified Date", field: "modTime", align: "left", sortable: true, format: v => formatDate(v) },
+                { name: "modifiedBy", label: "Modified By", field: "modBy", align: "left", sortable: true },
+                { name: "remove", label: "Remove", field: "", align: "left", sortable: false }
+            ],
+            onLoad: function (data) {
+                this.rows = data.map(rp => ({
+                    ...rp,
+                    permissionId: rp.permissionId,
+                    accessDescription: rp.access == 1 ? "Allow" : "Deny",
+                    permissionName: rp.permission?.permission
+                }))
+            },
             pagination: { rowsPerPage: 0 }
         })
         vueObjects.permissionTable = new quasarTable({
             keys: ["permissionId"],
             urlBase: "Permissions",
-            onLoad: vueMethods.afterPermissionLoad,
+            columns: [
+                { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
+                { name: "description", label: "Description", field: "description", align: "left", sortable: true }
+            ],
+            onLoad: function (data, vueApp) {
+                var existingPermissions = vueApp._.data.rolePermissionTable.data
+                    .reduce((result, rp) => {
+                        result.push(rp.permissionId)
+                        return result
+                    }, [])
+                this.rows = data.filter(p =>
+                    existingPermissions.indexOf(p.permissionId) == -1
+                )
+            },
             pagination: { rowsPerPage: 15 }
         })
         //other variables for the page

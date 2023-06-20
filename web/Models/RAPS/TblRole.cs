@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Viper.Models.RAPS;
 
@@ -25,6 +26,23 @@ public partial class TblRole
     public string? DisplayName { get; set; }
 
     public bool AllowAllUsers { get; set; }
+
+    [NotMapped]
+    public string friendlyName { get
+        {
+            if(DisplayName != null) return DisplayName;
+            if (Role.Length > 15 && Role.Substring(0, 15) == "RAPS.Groups.CN=")
+            {
+                string groupName = Role.Substring(15, Role.Length - 15);
+                if (groupName.IndexOf(",") > 0)
+                {
+                    groupName = groupName.Substring(0, groupName.IndexOf(","));
+                }
+                return "RAPS Role for Group " + groupName;
+            }
+            return Role;
+        } 
+    }
 
     public virtual ICollection<OuGroupRole> OuGroupRoles { get; set; } = new List<OuGroupRole>();
 

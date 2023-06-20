@@ -54,6 +54,7 @@ namespace Viper.Areas.RAPS.Controllers
             return await _context.TblPermissions
                 .Include(p => p.TblMemberPermissions)
                 .Where(FilterToInstance(instance))
+                .OrderBy(p => p.Permission)
                 .ToListAsync();
         }
 
