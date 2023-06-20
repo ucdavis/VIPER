@@ -38,7 +38,16 @@ namespace Viper.Areas.RAPS.Controllers
                 instance = _securityService.GetDefaultInstanceForUser();
             }
 
-            return await Task.Run(() => Redirect(string.Format("~/raps/{0}/rolelist", instance)));
+            switch(instance)
+            {
+                case "VIPER": return await Task.Run(() => Redirect(string.Format("~/raps/VIPER/rolelist", instance)));
+                case "VMACS.VMTH": return await Task.Run(() => Redirect(string.Format("~/raps/VMACS.VMTH/rolelist", instance)));
+                case "VMACS.VMLF": return await Task.Run(() => Redirect(string.Format("~/raps/VMACS.VMLF/rolelist", instance)));
+                case "VMACS.UCVMCSD": return await Task.Run(() => Redirect(string.Format("~/raps/VMACS.UCVMCSD/rolelist", instance)));
+                case "ViperForms": return await Task.Run(() => Redirect(string.Format("~/raps/ViperForms/rolelist", instance)));
+            }
+            return await Task.Run(() => View("~/Views/Home/403.cshtml"));
+
 
             //var data = await _RAPSContext.TblRoles.ToListAsync();
             //var skipList = new List<string> { "Description" };
