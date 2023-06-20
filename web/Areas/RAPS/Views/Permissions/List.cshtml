@@ -65,7 +65,7 @@
         vueMethods.afterPermissionLoad = function (data) {
             this.data = data.map(p => ({ ...p, count: p.tblMemberPermissions.length }))
         }
-        vueObjects.qtable = new quasarTableEditable({
+        vueObjects.qtable = new quasarTable({
             keys: "permissionId",
             urlBase: "Permissions",
             onLoad: vueMethods.afterPermissionLoad

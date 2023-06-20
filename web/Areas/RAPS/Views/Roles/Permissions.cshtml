@@ -126,13 +126,13 @@
             { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
             { name: "description", label: "Description", field: "description", align: "left", sortable: true }
         ]
-        vueObjects.rolePermissionTable = new quasarTableEditable({
+        vueObjects.rolePermissionTable = new quasarTable({
             keys: ["permissionId"],
             urlBase: "Roles",
             onLoad: vueMethods.afterRolePermissionLoad,
             pagination: { rowsPerPage: 0 }
         })
-        vueObjects.permissionTable = new quasarTableEditable({
+        vueObjects.permissionTable = new quasarTable({
             keys: ["permissionId"],
             urlBase: "Permissions",
             onLoad: vueMethods.afterPermissionLoad,

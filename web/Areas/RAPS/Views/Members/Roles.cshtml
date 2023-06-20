@@ -54,6 +54,12 @@
                     <q-icon name="filter_alt" />
                 </template>
             </q-input>
+            <q-btn dense
+                   color="secondary"
+                   icon-right="download"
+                   label="Export"
+                   no-caps class="gt-sm"
+                   @@click="memberRolesTable.exportTable(this)"></q-btn>
         </template>
         <template v-slot:body-cell-links="props">
             <q-td :props="props">
@@ -136,14 +142,6 @@
                 memberId: object.memberId
             }
         }
-        vueObjects.memberRolesTable = new quasarTableEditable({
-            keys: ["roleId"],
-            urlBase: "Members",
-            onLoad: vueMethods.afterRoleMembersLoad,
-            createBody: vueMethods.createRoleMemberBody,
-            selectObject: vueMethods.selectRoleMember,
-            pagination: { rowsPerPage: 0 }
-        })
         vueObjects.memberRolesColumns = [
             { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
             { name: "role", label: "Role", field: "roleName", align: "left", sortable: true, format: v => v.substr(0, 75) },
@@ -153,6 +151,16 @@
             { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
             { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
         ]
+        vueObjects.memberRolesTable = new quasarTable({
+            keys: ["roleId"],
+            urlBase: "Members",
+            onLoad: vueMethods.afterRoleMembersLoad,
+            createBody: vueMethods.createRoleMemberBody,
+            selectObject: vueMethods.selectRoleMember,
+            pagination: { rowsPerPage: 0 },
+            columns: vueObjects.memberRolesColumns,
+            excludeFromExport: ["links", "actions"]
+        })
 
         /* Table of roles to add for this user */
         vueMethods.afterRolesLoad = function (data, vueApp) {
@@ -190,7 +198,7 @@
                 )
             })
         }
-        vueObjects.rolesTable = new quasarTableEditable({
+        vueObjects.rolesTable = new quasarTable({
             keys: ["roleId"],
             urlBase: "Roles?Application=0",
             onLoad: vueMethods.afterRolesLoad,

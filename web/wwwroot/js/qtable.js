@@ -4,9 +4,9 @@
 
 
 /*
- * quasarTableEditable - a quasar table with an edit dialog and add/update/delete functions
+ * quasarTable - a quasar table with an edit dialog and add/update/delete functions, with optional server side paging/filtering and export to csv
  */
-quasarTableEditableRowsDefault = {
+quasarTableDefaultConfig = {
     //base of the url and keys of the objects, e.g. a urlBase of "Permissions" and a key of "id"" means the following ajax calls will be made
     //GET Permissions - load objects
     //POST Permissions - create a new permission
@@ -32,15 +32,21 @@ quasarTableEditableRowsDefault = {
     columns: [],
     excludeFromExport: []
 }
-class quasarTableEditable {
+class quasarTable {
     constructor(config) {
-        this.config = { ...quasarTableEditableRowsDefault, ...config }
+        //override default config properties with input
+        this.config = { ...quasarTableDefaultConfig, ...config }
+        //the data being shown
         this.data = []
+        //if true, the data is being (re)loaded
         this.loading = true
-        this.editing = false
-        this.showForm = false
-        this.editing = false
+        //the object being edited
         this.object = {}
+        //true if a form to edit the selected object is being shown
+        this.showForm = false
+        //if showing the form, this is true if updating an existing object, and false if creating a new object
+        this.editing = false
+        //errors to be displayed on a form
         this.errors = {}
         //filter variable, necessary for server side pagination
         this.filter = ""
@@ -84,6 +90,7 @@ class quasarTableEditable {
             })
     }
 
+    //Select an item for editing
     selectRow(item) {
         this.editing = true
         this.object = item
@@ -93,6 +100,7 @@ class quasarTableEditable {
         this.showForm = true
     }
 
+    //Clear the selected item
     clear() {
         this.editing = false
         this.object = {}
@@ -100,6 +108,7 @@ class quasarTableEditable {
         this.errors = {}
     }
 
+    //Submit (create or update) the selected item
     submit(vueApp) {
         var bodyObject = this.config.createBody
             ? this.config.createBody(vueApp, this.object)
@@ -140,6 +149,7 @@ class quasarTableEditable {
         )
     }
 
+    //Delete the selected item
     delete(vueApp) {
         viperFetch(vueApp,
             this.getUpdateURL(),
@@ -150,6 +160,8 @@ class quasarTableEditable {
             this.errors)
     }
 
+    //Get the URL to create or update the item
+    //See comment under quasarTableDefaultConfig.urlBase
     getUpdateURL() {
         var url = this.config.urlBase
         if (Array.isArray(this.config.keys)) {
@@ -186,6 +198,7 @@ class quasarTableEditable {
         this.load(vueApp)
     }
 
+    //Export function
     exportTable() {
         // naive encoding to csv format
         const columnsMinusExcludes = this.config.columns
@@ -200,8 +213,8 @@ class quasarTableEditable {
                             col.format,
                             row))
                         .join(',')
-                    )
-                ).join('\r\n')
+                    ))
+                .join('\r\n')
 
         const { useQuasar, exportFile } = Quasar;
         const $q = useQuasar();
@@ -221,6 +234,7 @@ class quasarTableEditable {
         }
     }
 
+    //Escape double quotes (" -> "") and new lines in the content
     wrapCsvValue(val, formatFn, row) {
         let formatted = formatFn !== void 0
             ? formatFn(val, row)

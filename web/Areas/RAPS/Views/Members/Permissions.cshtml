@@ -131,7 +131,7 @@
                 memberId: object.memberId
             }
         }
-        vueObjects.memberPermissionsTable = new quasarTableEditable({
+        vueObjects.memberPermissionsTable = new quasarTable({
             keys: ["permissionId"],
             urlBase: "Members",
             onLoad: vueMethods.afterPermissionMembersLoad,
@@ -180,7 +180,7 @@
                 )
             })
         }
-        vueObjects.permissionsTable = new quasarTableEditable({
+        vueObjects.permissionsTable = new quasarTable({
             keys: ["permissionId"],
             urlBase: "Permissions",
             onLoad: vueMethods.afterPermissionsLoad,
