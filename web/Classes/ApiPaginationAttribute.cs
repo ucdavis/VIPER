@@ -44,7 +44,8 @@ namespace Viper.Classes
                 pagination.Pages = (int)Math.Ceiling((double)pagination.TotalRecords / pagination.PerPage);
 
                 bool pageValid = pagination.Page >= 0 && (pagination.Page <= pagination.Pages || pagination.Pages == 0);
-                if (!pageValid || pagination.PerPage <= 0 || pagination.PerPage > MaxPerPage)
+                int maxPerPage = (MaxPerPage <= 0) ? pagination.TotalRecords : MaxPerPage;
+                if (!pageValid || pagination.PerPage <= 0 || pagination.PerPage > maxPerPage)
                 {
                     apiResponse = new ApiResponse(HttpStatusCode.BadRequest, false)
                     {

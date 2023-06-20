@@ -163,7 +163,7 @@
                 { name: "description", label: "Description", field: "description", align: "left", sortable: true }
             ],
             onLoad: function (data) {
-                existingRoles = this.vueApp._.data.memberRolesTable.data
+                existingRoles = this.vueApp._.data.memberRolesTable.rows
                     .reduce((result, rm) => {
                         result.push(rm.roleId)
                         return result

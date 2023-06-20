@@ -157,7 +157,7 @@
                 { name: "description", label: "Description", field: "description", align: "left", sortable: true }
             ],
             onLoad: function (data) {
-                existingPermissions = this.vueApp._.data.memberPermissionsTable.data
+                existingPermissions = this.vueApp._.data.memberPermissionsTable.rows
                     .reduce((result, rp) => {
                         result.push(rp.permissionId)
                         return result
