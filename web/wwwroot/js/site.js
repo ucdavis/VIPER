@@ -31,9 +31,9 @@ function formatDateTime(d, options) {
  * Validation error to include the errors object for .NET 400
  */
 class ValidationError extends Error {
-    constructor(message, errorList) {
+    constructor(message, errors) {
         super(message)
-        this.errorList = errorList
+        this.errors = errors
     }
 }
 /*
@@ -95,17 +95,17 @@ function showViperFetchError(VueApp, error, errorTarget) {
     try {
         if (errorTarget) {
             errorTarget.message = error.message
-            if (typeof error.errorList == Object) {
-                for (key in error.errorList) {
+            if (typeof error.errors == "object") {
+                for (key in error.errors) {
                     errorTarget[key] = {
                         error: true,
-                        message: error.errorList[key].join("")
+                        message: error.errors[key].join("")
                     }
                 }
             }
             else {
-                for (var i = 0; i < 5 && i < error.errorList.length; i++) {
-                    errorTarget.message += " " + error.errorList[i];
+                for (var i = 0; i < 5 && i < error.errors.length; i++) {
+                    errorTarget.message += " " + error.errors[i];
                 }
             }
             shownError = true

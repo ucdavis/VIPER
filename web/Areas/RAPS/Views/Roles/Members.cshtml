@@ -1,6 +1,4 @@
-﻿
-<h2>Members of {{role.role}}</h2>
-<q-btn href="rolelist" icon="arrow_back" label="Roles" class="q-mb-md"></q-btn>
+﻿<h2>Members of {{role.role}}</h2>
 
 <q-table title="Members"
          dense
@@ -37,14 +35,15 @@
                             </div>
                             <div class="row">
                                 <q-input type="date" outlined dense v-model="membersTable.object.startDate" label="Start Date"
-                                         :error="membersTable.errors?.startDate?.error" :error-message="membersTable.errors?.startDate?.message"></q-input>
+                                         :error="membersTable.errors?.StartDate?.error" :error-message="membersTable.errors?.StartDate?.message"></q-input>
                             </div>
                             <div class="row">
                                 <q-input type="date" outlined dense v-model="membersTable.object.endDate" label="End Date"
-                                         :error="membersTable.errors?.endDate?.error" :error-message="membersTable.endDAte?.startDate?.message"></q-input>
+                                         :error="membersTable.errors?.EndDate?.error" :error-message="membersTable.errors?.EndDate?.message"></q-input>
                             </div>
                             <div class="row">
-                                <q-input outlined dense v-model="membersTable.object.comment" label="Comment"></q-input>
+                                <q-input outlined dense v-model="membersTable.object.comment" label="Comment"
+                                         :error="membersTable.errors?.Comment?.error" :error-message="membersTable.errors?.Comment?.message"></q-input>
                             </div>
                         </q-card-section>
 
@@ -106,8 +105,6 @@
             },
             //set member id and role id when creating/updating
             createBody: function (v, object) {
-                console.log(object)
-                console.log(this)
                 return {
                     comment: object.comment,
                     memberId: object.member?.value,
