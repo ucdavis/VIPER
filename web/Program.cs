@@ -1,3 +1,5 @@
+using Amazon;
+using Amazon.Extensions.NETCore.Setup;
 using Amazon.Runtime.CredentialManagement;
 using Joonasw.AspNetCore.SecurityHeaders;
 using Microsoft.AspNetCore.Authentication;
@@ -43,7 +45,12 @@ try
     try
     {
         // AWS Configurations
-        builder.Configuration.AddSystemsManager("/" + builder.Environment.EnvironmentName).AddSystemsManager("/Shared");
+        builder.Configuration.AddSystemsManager("/" + builder.Environment.EnvironmentName, new AWSOptions
+        {
+            Region = RegionEndpoint.USWest1
+        }).AddSystemsManager("/Shared", new AWSOptions { 
+            Region = RegionEndpoint.USWest1
+        });
     }
     catch (Exception ex)
     {
