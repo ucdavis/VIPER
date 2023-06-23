@@ -180,6 +180,8 @@ public partial class RAPSContext : DbContext
 
     public virtual DbSet<VwVstp> VwVstps { get; set; }
 
+    public virtual DbSet<GetVMACSUserPermissionsResult> GetVMACSUserPermissionsResult { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (HttpHelper.Settings != null)
@@ -1488,6 +1490,9 @@ public partial class RAPSContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("MemberID");
         });
+
+        modelBuilder.Entity<GetVMACSUserPermissionsResult>(entity =>
+            entity.HasKey(e => e.MemberId));
 
         OnModelCreatingPartial(modelBuilder);
     }

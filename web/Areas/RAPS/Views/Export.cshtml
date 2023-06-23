@@ -1,0 +1,25 @@
+﻿@{
+    @if (ViewData["Messages"] != null)
+    {
+        <q-list bordered class="rounded-borders">
+            @foreach (var message in ViewData["Messages"] as List<string> ?? new List<string>())
+            {
+                @if(@message.Length > 250)
+                {
+                    <q-expansion-item label="@message.Substring(0, 150)...">
+                        <q-card flat>
+                            <q-card-section>@message</q-card-section>
+                        </q-card>
+                    </q-expansion-item>
+                }
+                else
+                {
+                    <q-card flat>
+                        <q-card-section>@message</q-card-section>
+                    </q-card>
+                }
+                
+            }
+        </q-list>
+    }
+}
