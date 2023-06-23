@@ -13,7 +13,7 @@ namespace Viper
 	/// </summary>
 	public static class HttpHelper
     {
-        private static Logger logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
         private static IHttpContextAccessor? httpContextAccessor;
         private static IAuthorizationService? authorizationService;
         private static IDataProtectionProvider? dataProtectionProvider;
@@ -101,7 +101,7 @@ namespace Viper
 
             if (thisRequest != null)
             {
-                Uri url = new Uri(thisRequest.GetDisplayUrl());
+                Uri url = new(thisRequest.GetDisplayUrl());
                 rootURL = url.GetLeftPart(UriPartial.Authority);
 
                 if (url.AbsolutePath.ToString().StartsWith("/2/") && rootURL != null)
@@ -111,7 +111,7 @@ namespace Viper
 
             }
             
-            return (rootURL != null) ? rootURL : String.Empty;
+            return rootURL ?? String.Empty;
         }
         /// <summary>
         /// Gets the root URL for ColdFusion Viper based off the enviroment

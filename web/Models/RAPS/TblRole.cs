@@ -28,7 +28,7 @@ public partial class TblRole
     public bool AllowAllUsers { get; set; }
 
     [NotMapped]
-    public string friendlyName { get
+    public string FriendlyName { get
         {
             if(DisplayName != null) return DisplayName;
             if (Role.Length > 15 && Role.Substring(0, 15) == "RAPS.Groups.CN=")

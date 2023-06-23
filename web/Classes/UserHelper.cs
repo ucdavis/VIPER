@@ -217,7 +217,7 @@ namespace Viper
             {
                 var permissions = GetAllPermissions(rapsContext, user);
 
-                TblPermission test = new TblPermission();
+                TblPermission test = new();
 
                 if (permissions.Any(p => p.Permission.ToLower() == permissionName.ToLower()))
                 {
@@ -355,7 +355,7 @@ namespace Viper
 
             if (trueLoginId != null)
             {
-                AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
+                //AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
 
                 // check 
                 if (HttpHelper.Cache != null)

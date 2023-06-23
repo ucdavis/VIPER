@@ -11,19 +11,23 @@ namespace Viper.Areas.RAPS.Controllers
 {
     [Area("RAPS")]
     [Route("[area]/[action]")]
-    [Authorize(Roles = "VMDO SVM-IT,RAPS Users", Policy = "2faAuthentication")]
+    [Authorize(Roles = "VMDO SVM-IT,RAPS Users")]//, Policy = "2faAuthentication"
     public class RAPSController : AreaController
     {
         private readonly Classes.SQLContext.RAPSContext _RAPSContext;
-        private RAPSSecurityService _securityService;
+        private readonly IConfiguration _configuration;
+        private readonly RAPSSecurityService _securityService;
+        private readonly IWebHostEnvironment _environment;
 
         public int Count { get; set; }
         public string? UserName { get; set; }
 
-        public RAPSController(Classes.SQLContext.RAPSContext context)
+        public RAPSController(Classes.SQLContext.RAPSContext context, IWebHostEnvironment environment, IConfiguration configuration)
         {
             _RAPSContext = context;
             _securityService = new RAPSSecurityService(context);
+            _environment = environment;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -33,20 +37,17 @@ namespace Viper.Areas.RAPS.Controllers
         public async Task<ActionResult> Index(string? instance)
         {
             ViewData["KeyColumnName"] = "RoleId";
-            if (instance == null)
-            {
-                instance = _securityService.GetDefaultInstanceForUser();
-            }
+            instance ??= _securityService.GetDefaultInstanceForUser();
 
-            switch(instance)
+            return instance switch
             {
-                case "VIPER": return await Task.Run(() => Redirect(string.Format("~/raps/VIPER/rolelist", instance)));
-                case "VMACS.VMTH": return await Task.Run(() => Redirect(string.Format("~/raps/VMACS.VMTH/rolelist", instance)));
-                case "VMACS.VMLF": return await Task.Run(() => Redirect(string.Format("~/raps/VMACS.VMLF/rolelist", instance)));
-                case "VMACS.UCVMCSD": return await Task.Run(() => Redirect(string.Format("~/raps/VMACS.UCVMCSD/rolelist", instance)));
-                case "ViperForms": return await Task.Run(() => Redirect(string.Format("~/raps/ViperForms/rolelist", instance)));
-            }
-            return await Task.Run(() => View("~/Views/Home/403.cshtml"));
+                "VIPER" => await Task.Run(() => Redirect(string.Format("~/raps/VIPER/rolelist"))),
+                "VMACS.VMTH" => await Task.Run(() => Redirect(string.Format("~/raps/VMACS.VMTH/rolelist"))),
+                "VMACS.VMLF" => await Task.Run(() => Redirect(string.Format("~/raps/VMACS.VMLF/rolelist"))),
+                "VMACS.UCVMCSD" => await Task.Run(() => Redirect(string.Format("~/raps/VMACS.UCVMCSD/rolelist"))),
+                "ViperForms" => await Task.Run(() => Redirect(string.Format("~/raps/ViperForms/rolelist"))),
+                _ => await Task.Run(() => View("~/Views/Home/403.cshtml")),
+            };
 
 
             //var data = await _RAPSContext.TblRoles.ToListAsync();
@@ -68,10 +69,12 @@ namespace Viper.Areas.RAPS.Controllers
             TblRole? selectedRole = (roleId != null) ? await _RAPSContext.TblRoles.FindAsync(roleId) : null;
             TblPermission? selectedPermission = (permissionId != null) ? await _RAPSContext.TblPermissions.FindAsync(permissionId) : null;
             VwAaudUser? selecteduser = (memberId != null) ? _RAPSContext.VwAaudUser.Single(r => r.MothraId == memberId) : null;
-           
-            var nav = new List<NavMenuItem>();
+
+            var nav = new List<NavMenuItem>
+            {
+                new NavMenuItem() { MenuItemText = "Instances", IsHeader = true }
+            };
             //Links to instances
-            nav.Add(new NavMenuItem() { MenuItemText = "Instances", IsHeader = true });
             foreach (string inst in (new[] { "Viper", "ViperForms", "VMACS.VMTH", "VMACS.VMLF", "VMACS.UCVMCSD" }))
             {
                 if(_securityService.IsAllowedTo("AccessInstance", inst))
@@ -308,7 +311,7 @@ namespace Viper.Areas.RAPS.Controllers
         /// <returns></returns>
         [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> MemberPermissions(string instance)
+        public async Task<IActionResult> MemberPermissions()
         {
             return await Task.Run(() => View("~/Areas/RAPS/Views/Members/Permissions.cshtml"));
         }
@@ -345,6 +348,23 @@ namespace Viper.Areas.RAPS.Controllers
                 return View("~/Views/Home/403.cshtml");
             }
             return await Task.Run(() => View("~/Areas/RAPS/Views/Members/History.cshtml"));
+        }
+
+        [Permission(Allow = "RAPS.Admin")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> ExportToVMACS()
+        {
+            string creds = "vmthRestClient:" + _configuration.GetSection("Credentials").GetValue<string>("vmthRestClient");
+            if (creds == null)
+            {
+                ViewData["Messages"] = new List<string>() { "Credentials not found. Cannot connect to VMACS." };
+            }
+            else
+            {
+                ViewData["Messages"] = await new VMACSExport(_environment.EnvironmentName == "Production", _RAPSContext, creds)
+                    .ExportToVMACS(instance: "vmth", server: "qa", debugOnly: false, loginId: "bedwards");
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Export.cshtml"));
         }
     }
 }
