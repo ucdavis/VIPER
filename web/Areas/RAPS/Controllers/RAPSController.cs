@@ -148,6 +148,11 @@ namespace Viper.Areas.RAPS.Controllers
                 nav.Add(new NavMenuItem() { MenuItemText = "Admin", IsHeader = true });
                 nav.Add(new NavMenuItem() { MenuItemText = "View Audit Trail", MenuItemURL = "auditTrail" });
             }
+            if(_securityService.IsAllowedTo("Admin"))
+            {
+                nav.Add(new NavMenuItem() { MenuItemText = "Export to VMACS", MenuItemURL = "ExportToVMACS" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Update Role Views", MenuItemURL = "RoleViewUpdate" });
+            }
             return nav;
         }
 
@@ -365,6 +370,15 @@ namespace Viper.Areas.RAPS.Controllers
                     .ExportToVMACS(instance: "vmth", server: "qa", debugOnly: false, loginId: "bedwards");
             }
             return await Task.Run(() => View("~/Areas/RAPS/Views/Export.cshtml"));
+        }
+
+        [Permission(Allow = "RAPS.Admin")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> RoleViewUpdate()
+        {
+            ViewData["Messages"] = await new RoleViews(_RAPSContext)
+                    .UpdateRoles(debugOnly: true);
+            return await Task.Run(() => View("~/Areas/RAPS/Views/RoleViewUpdate.cshtml"));
         }
     }
 }

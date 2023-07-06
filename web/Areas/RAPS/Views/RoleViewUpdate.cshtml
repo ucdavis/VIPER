@@ -1,0 +1,14 @@
+﻿<h2>Updating role membership based on view</h2>
+@{
+    @if (ViewData["Messages"] != null)
+    {
+        <q-list bordered class="rounded-borders">
+            @foreach (var message in ViewData["Messages"] as List<string> ?? new List<string>())
+            {
+                <q-item dense>
+                    @message
+                </q-item>
+            }
+        </q-list>
+    }
+}
