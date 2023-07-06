@@ -6,6 +6,7 @@ using Viper.Areas.RAPS.Services;
 using Web.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Viper.Classes;
+using System.Runtime.Versioning;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -39,13 +40,13 @@ namespace Viper.Areas.RAPS.Controllers
             ViewData["KeyColumnName"] = "RoleId";
             instance ??= _securityService.GetDefaultInstanceForUser();
 
-            return instance switch
+            return instance.ToUpper() switch
             {
                 "VIPER" => await Task.Run(() => Redirect(string.Format("~/raps/VIPER/rolelist"))),
                 "VMACS.VMTH" => await Task.Run(() => Redirect(string.Format("~/raps/VMACS.VMTH/rolelist"))),
                 "VMACS.VMLF" => await Task.Run(() => Redirect(string.Format("~/raps/VMACS.VMLF/rolelist"))),
                 "VMACS.UCVMCSD" => await Task.Run(() => Redirect(string.Format("~/raps/VMACS.UCVMCSD/rolelist"))),
-                "ViperForms" => await Task.Run(() => Redirect(string.Format("~/raps/ViperForms/rolelist"))),
+                "VIPERFORMS" => await Task.Run(() => Redirect(string.Format("~/raps/ViperForms/rolelist"))),
                 _ => await Task.Run(() => View("~/Views/Home/403.cshtml")),
             };
 
