@@ -7,7 +7,7 @@ public partial class VwEmployee
 {
     public string MothraId { get; set; } = null!;
 
-    public string MemberId { get; set; } = null!;
+    public string? MemberId { get; set; } = null!;
 
     public string? EmployeeId { get; set; }
 

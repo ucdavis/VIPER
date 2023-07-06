@@ -131,7 +131,7 @@ namespace Viper.Areas.RAPS.Services
                     return instance != null 
                         && (
                             IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.ViewRoles")
-                            || GetControlledRoleIds(_userWrapper.GetCurrentUser()?.MothraId).Count() > 0
+                            || GetControlledRoleIds(_userWrapper.GetCurrentUser()?.MothraId).Count > 0
                             );
                 case "RSOP":
                     return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.RSOP");

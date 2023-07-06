@@ -355,7 +355,7 @@ namespace Viper.Areas.RAPS.Controllers
         public async Task<IActionResult> ExportToVMACS()
         {
             string creds = "vmthRestClient:" + _configuration.GetSection("Credentials").GetValue<string>("vmthRestClient");
-            if (creds == null)
+            if (creds.Length == 15)
             {
                 ViewData["Messages"] = new List<string>() { "Credentials not found. Cannot connect to VMACS." };
             }

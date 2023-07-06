@@ -16,8 +16,8 @@ namespace Viper.Areas.RAPS.Controllers
     public class RoleMembersController : ApiController
     {
         private readonly RAPSContext _context;
-        private RAPSSecurityService _securityService;
-        private RAPSAuditService _auditService;
+        private readonly RAPSSecurityService _securityService;
+        private readonly RAPSAuditService _auditService;
 
         public RoleMembersController(RAPSContext context)
         {
@@ -61,7 +61,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 roleMembers = roleMembers
                     .Where(rm => rm.MemberId == memberId)
-                    .OrderBy(rm => rm.Role.DisplayName != null ? rm.Role.DisplayName : rm.Role.Role);
+                    .OrderBy(rm => rm.Role.DisplayName ?? rm.Role.Role);
             }
             
             return (await roleMembers.ToListAsync())
@@ -98,7 +98,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             using var transaction = _context.Database.BeginTransaction();
-            TblRoleMember tblRoleMember = new TblRoleMember() { RoleId = (int)roleId, MemberId = memberId };
+            TblRoleMember tblRoleMember = new() { RoleId = (int)roleId, MemberId = memberId };
             UpdateTblRoleMemberWithDto(tblRoleMember, roleMemberCreateUpdate);
             _context.TblRoleMembers.Add(tblRoleMember);
             _context.SaveChanges();
@@ -173,8 +173,8 @@ namespace Viper.Areas.RAPS.Controllers
 
         private static void UpdateTblRoleMemberWithDto(TblRoleMember tblRoleMember, RoleMemberCreateUpdate roleMemberCreateUpdate) 
         {
-            tblRoleMember.StartDate = roleMemberCreateUpdate.StartDate == null ? null : roleMemberCreateUpdate.StartDate.Value.ToDateTime(new TimeOnly(0, 0, 0));
-            tblRoleMember.EndDate = roleMemberCreateUpdate.EndDate == null ? null : roleMemberCreateUpdate.EndDate.Value.ToDateTime(new TimeOnly(0, 0, 0));
+            tblRoleMember.StartDate = roleMemberCreateUpdate.StartDate?.ToDateTime(new TimeOnly(0, 0, 0));
+            tblRoleMember.EndDate = roleMemberCreateUpdate.EndDate?.ToDateTime(new TimeOnly(0, 0, 0));
             tblRoleMember.ModTime = DateTime.Now;
             tblRoleMember.ModBy = UserHelper.GetCurrentUser()?.LoginId;
         }

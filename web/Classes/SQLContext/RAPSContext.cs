@@ -180,7 +180,9 @@ public partial class RAPSContext : DbContext
 
     public virtual DbSet<VwVstp> VwVstps { get; set; }
 
-    public virtual DbSet<GetVMACSUserPermissionsResult> GetVMACSUserPermissionsResult { get; set; }
+    public virtual DbSet<GetVmacsUserPermissionsResult> GetVMACSUserPermissionsResult { get; set; }
+
+    public virtual DbSet<GetAllRapsViews> GetAllRapsViews { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -1491,8 +1493,11 @@ public partial class RAPSContext : DbContext
                 .HasColumnName("MemberID");
         });
 
-        modelBuilder.Entity<GetVMACSUserPermissionsResult>(entity =>
+        modelBuilder.Entity<GetVmacsUserPermissionsResult>(entity =>
             entity.HasKey(e => e.MemberId));
+
+        modelBuilder.Entity<GetAllRapsViews>(entity =>
+            entity.HasKey(e => e.Name));
 
         OnModelCreatingPartial(modelBuilder);
     }
