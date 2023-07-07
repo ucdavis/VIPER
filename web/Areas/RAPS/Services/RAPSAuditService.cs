@@ -201,5 +201,32 @@ namespace Viper.Areas.RAPS.Services
             }
             _context.Add(tblLog);
         }
+
+        public void AuditGroupChange(OuGroup group, AuditActionType actionType)
+        {
+            TblLog tblLog = new()
+            {
+                OuGroupId = group.OugroupId,
+                ModTime = DateTime.Now,
+                ModBy = UserHelper.GetCurrentUser()?.LoginId,
+                Detail = (actionType == AuditActionType.Create || actionType == AuditActionType.Update) 
+                    ? group.Name 
+                    : string.Format("Deleting {0}", group.Name)
+            };
+
+            switch (actionType)
+            {
+                case AuditActionType.Create:
+                    tblLog.Audit = "CreateOuGroup";
+                    break;
+                case AuditActionType.Update:
+                    tblLog.Audit = "UpdateOuGroup";
+                    break;
+                case AuditActionType.Delete:
+                    tblLog.Audit = "DeleteOuGroup";
+                    break;
+            }
+            _context.Add(tblLog);
+        }
     }
 }

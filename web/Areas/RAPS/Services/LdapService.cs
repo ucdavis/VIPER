@@ -14,7 +14,6 @@ namespace Viper.Areas.RAPS.Services
 
         //Start OUs for ou.ad3 (old-style groups and service accounts) and ad3 (users and api managed groups)
         private const string _ouStart = "OU=SVM,OU=Departments,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
-        private const string _ad3Start = "DC=ad3,DC=ucdavis,DC=edu";
         private const string _ad3Users = "OU=ucdUsers,DC=ad3,DC=ucdavis,DC=edu";
 
         //ldap attributes/properties to return for each object type
@@ -55,20 +54,7 @@ namespace Viper.Areas.RAPS.Services
             "uidNumber",
             "memberOf"
         };
-        private readonly string[] _ouProperties =
-        {
-            "sAMAccountName",
-            "objectGuid",
-            "cn",
-            "canonicalName",
-            "dn",
-            "distinguishedName",
-            "displayName",
-            "ou",
-            "description",
-            "objectclass"
-        };
-
+        
         public LdapService(string credentials) { 
             _credentials = credentials;
         }
@@ -93,6 +79,7 @@ namespace Viper.Areas.RAPS.Services
             {
                 groups.Add(new LdapGroup(result));
             }
+            groups.Sort((g1, g2) => g1.DistinguishedName.CompareTo(g2.DistinguishedName));
             return groups;
         }
 

@@ -149,6 +149,11 @@ namespace Viper.Areas.RAPS.Controllers
                 nav.Add(new NavMenuItem() { MenuItemText = "Admin", IsHeader = true });
                 nav.Add(new NavMenuItem() { MenuItemText = "View Audit Trail", MenuItemURL = "auditTrail" });
             }
+            if(_securityService.IsAllowedTo("OUGroupsView"))
+            {
+                nav.Add(new NavMenuItem() { MenuItemText = "Ad Group Management", IsHeader = true });
+                nav.Add(new NavMenuItem() { MenuItemText = "Group List", MenuItemURL = "GroupList" });
+            }
             if(_securityService.IsAllowedTo("Admin"))
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "Export to VMACS", MenuItemURL = "ExportToVMACS" });
@@ -380,6 +385,37 @@ namespace Viper.Areas.RAPS.Controllers
             ViewData["Messages"] = await new RoleViews(_RAPSContext)
                     .UpdateRoles(debugOnly: true);
             return await Task.Run(() => View("~/Areas/RAPS/Views/RoleViewUpdate.cshtml"));
+        }
+        
+        [SupportedOSPlatform("windows")]
+        [Permission(Allow = "RAPS.Admin")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> LdapGroup()
+        {
+            string? creds = _configuration.GetSection("Credentials").GetValue<string>("UCDavisLDAP");
+            if (creds == null)
+            {
+                ViewData["Error"] = "Credentials not found. Cannot connect to LDAP.";
+            }
+            else
+            {
+                var members = new LdapService(creds).GetGroupMembership(
+                    "CN=SVM-BE-TEST,OU=Test Groups,OU=Security-Groups,OU=SVM-OU-Groups,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu"
+                    );
+                new LdapService(creds).RemoveUserFromGroup(
+                    "CN=punkrock,OU=ucdUsers,DC=ad3,DC=ucdavis,DC=edu",
+                    "CN=SVM-BE-TEST,OU=Test Groups,OU=Security-Groups,OU=SVM-OU-Groups,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu"
+                    );
+            }
+            
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/GroupTest.cshtml"));
+        }
+
+        [Permission(Allow = "RAPS.Admin")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> GroupList()
+        {
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/List.cshtml"));
         }
     }
 }

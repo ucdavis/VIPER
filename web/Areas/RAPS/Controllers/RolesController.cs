@@ -46,7 +46,7 @@ namespace Viper.Areas.RAPS.Controllers
                     .Where((r => Application == null || r.Application == Application))
                     .Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance))
                     .OrderByDescending(r => r.Application)
-                    .ThenBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
+                    .ThenBy(r => r.DisplayName ?? r.Role)
                     .ToListAsync();
             }
             List<int> controlledRoleIds = SecurityService.GetControlledRoleIds(UserWrapper.GetCurrentUser()?.MothraId);
@@ -55,7 +55,7 @@ namespace Viper.Areas.RAPS.Controllers
                 .Where(r => r.Application == 0)
                 .Where(r => controlledRoleIds.Contains(r.RoleId))
                 .Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance))
-                .OrderBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
+                .OrderBy(r => r.DisplayName ?? r.Role)
                 .ToListAsync();
         }
 

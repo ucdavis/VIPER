@@ -238,21 +238,21 @@ public partial class RAPSContext : DbContext
 
         modelBuilder.Entity<OuGroupRole>(entity =>
         {
-            entity.HasKey(e => new { e.Ougroupid, e.Roleid });
+            entity.HasKey(e => new { e.OugroupId, e.RoleId });
 
             entity.ToTable("ouGroupRoles");
 
-            entity.Property(e => e.Ougroupid).HasColumnName("ougroupid");
-            entity.Property(e => e.Roleid).HasColumnName("roleid");
+            entity.Property(e => e.OugroupId).HasColumnName("ougroupid");
+            entity.Property(e => e.RoleId).HasColumnName("roleid");
             entity.Property(e => e.IsGroupRole).HasColumnName("isGroupRole");
 
             entity.HasOne(d => d.Ougroup).WithMany(p => p.OuGroupRoles)
-                .HasForeignKey(d => d.Ougroupid)
+                .HasForeignKey(d => d.OugroupId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_ouGroupRoles_ouGroups");
 
             entity.HasOne(d => d.Role).WithMany(p => p.OuGroupRoles)
-                .HasForeignKey(d => d.Roleid)
+                .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_ouGroupRoles_tblRoles");
         });
