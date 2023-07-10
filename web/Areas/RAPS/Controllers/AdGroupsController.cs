@@ -154,5 +154,48 @@ namespace Viper.Areas.RAPS.Controllers
             await _ouGroupService.DeleteOuGroup(ouGroup);
             return NoContent();
         }
+
+        [HttpGet("{groupId}/Members")]
+        public async Task<ActionResult<List<GroupMember>>> GetAllMembers(int groupId)
+        {
+            OuGroup? group = await _context.OuGroups.FindAsync(groupId);
+            if(group == null)
+            {
+                return NotFound();
+            }
+            List<GroupMember> members = await _ouGroupService.GetAllMembers(groupId);
+            Dictionary<string, bool> membersInRoles = new();
+            foreach(GroupMember m in  members)
+            {
+                membersInRoles[m.LoginId] = true;
+            }
+
+            string? creds = _configuration.GetSection("Credentials").GetValue<string>("UCDavisLDAP");
+            if (creds != null)
+            {
+                Dictionary<string, bool> membersInGroupLookup = new();
+                List<LdapUser> usersInGroup = new LdapService(creds).GetGroupMembership(group.Name);
+                foreach(LdapUser user in usersInGroup)
+                {
+                    membersInGroupLookup[user.SamAccountName] = true;
+                    //Add this "member" if they are in the ou group but not in any role that would qualify them for them membership
+                    if (!membersInRoles.ContainsKey(user.SamAccountName))
+                    {
+                        members.Add(new GroupMember()
+                        {
+                            DisplayFirstName = user.GivenName,
+                            DisplayLastName = user.Sn,
+                            LoginId = user.SamAccountName
+                        });
+                    }
+                }
+                foreach(GroupMember member in members)
+                {
+                    member.IsInGroup = membersInGroupLookup.ContainsKey(member.LoginId);
+                }
+            }
+            
+            return members;
+        }
     }
 }

@@ -402,7 +402,7 @@ namespace Viper.Areas.RAPS.Controllers
                 var members = new LdapService(creds).GetGroupMembership(
                     "CN=SVM-BE-TEST,OU=Test Groups,OU=Security-Groups,OU=SVM-OU-Groups,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu"
                     );
-                new LdapService(creds).RemoveUserFromGroup(
+                new LdapService(creds).AddUserToGroup(
                     "CN=punkrock,OU=ucdUsers,DC=ad3,DC=ucdavis,DC=edu",
                     "CN=SVM-BE-TEST,OU=Test Groups,OU=Security-Groups,OU=SVM-OU-Groups,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu"
                     );
@@ -411,18 +411,25 @@ namespace Viper.Areas.RAPS.Controllers
             return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/GroupTest.cshtml"));
         }
 
-        [Permission(Allow = "RAPS.Admin")]
+        [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> GroupList()
         {
             return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/List.cshtml"));
         }
 
-        [Permission(Allow = "RAPS.Admin")]
+        [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> GroupRoles()
         {
             return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/Roles.cshtml"));
+        }
+
+        [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> GroupMembers()
+        {
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/Members.cshtml"));
         }
     }
 }

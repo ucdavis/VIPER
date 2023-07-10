@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Viper.Areas.RAPS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 
@@ -155,6 +156,60 @@ namespace Viper.Areas.RAPS.Services
             _context.OuGroups.Remove(ouGroup);
             _auditService.AuditGroupChange(ouGroup, RAPSAuditService.AuditActionType.Delete);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<GroupMember>> GetAllMembers(int groupId, bool filterToActive = false)
+        {
+            List<GroupMember> members = new();
+
+            List<int> roleIds = await _context.OuGroupRoles
+                .Where(gr => gr.OugroupId == groupId)
+                .Select(gr => gr.RoleId)
+                .ToListAsync();
+
+            //Get members from the DB
+            List<TblRoleMember> roleMembers = await _context.TblRoleMembers
+                .Include(rm => rm.Role)
+                .Include(rm => rm.AaudUser)
+                .Where(rm => roleIds.Contains(rm.RoleId))
+                .Where(rm => !filterToActive || (rm.StartDate == null || rm.StartDate <= DateTime.Now))
+                .Where(rm => !filterToActive || (rm.EndDate == null || rm.EndDate > DateTime.Now))
+                .OrderBy(rm => rm.AaudUser.DisplayLastName)
+                .ThenBy(rm => rm.AaudUser.DisplayFirstName)
+                .ThenBy(rm => rm.MemberId)
+                .ToListAsync();
+
+            //Create a list of members that should be in the group, plus a list of the roles that qualify them
+            foreach(var roleMember in roleMembers)
+            {
+                if (members.Count == 0 || members.Last().MemberId != roleMember.MemberId)
+                {
+                    GroupMember member = new()
+                    {
+                        MemberId = roleMember.MemberId,
+                        LoginId = roleMember.AaudUser.LoginId,
+                        MailId = roleMember.AaudUser.MailId,
+                        DisplayFirstName = roleMember.AaudUser.DisplayFirstName,
+                        DisplayLastName = roleMember.AaudUser.DisplayLastName,
+                        Current = roleMember.AaudUser.Current,
+                        Roles = new List<GroupMemberRole>()
+                    };
+                    members.Add(member);
+                }
+
+                members.Last().Roles.Add(new GroupMemberRole()
+                {
+                    RoleId = roleMember.RoleId,
+                    Role = roleMember.Role.FriendlyName,
+                    AddDate = roleMember.AddDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.AddDate) : null,
+                    StartDate = roleMember.StartDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.StartDate) : null,
+                    EndDate = roleMember.EndDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.EndDate) : null,
+                    ModBy = roleMember.ModBy,
+                    ModDate = roleMember.ModTime != null ? DateOnly.FromDateTime((System.DateTime)roleMember.ModTime) : null,
+                    ViewName = roleMember.Role.ViewName
+                });
+            }
+            return members;
         }
 
         private async Task<TblRole> GetGroupRole(int groupId)
