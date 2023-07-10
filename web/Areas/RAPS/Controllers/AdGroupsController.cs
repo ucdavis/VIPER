@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using System.Runtime.Loader;
 using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using Viper.Areas.RAPS.Models;
@@ -24,12 +25,14 @@ namespace Viper.Areas.RAPS.Controllers
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
         private readonly IConfiguration _configuration;
+        private readonly OuGroupService _ouGroupService;
 
         public AdGroupsController(RAPSContext context, IConfiguration configuration)
         {
             _context = context;
             _securityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
+            _ouGroupService = new OuGroupService(_context);
             _configuration = configuration;
         }
 
@@ -99,30 +102,25 @@ namespace Viper.Areas.RAPS.Controllers
 
         // PUT: groups/5
         [HttpPut("{groupId}")]
-        public async Task<IActionResult> UpdateGroup(int groupId, Models.Group group)
+        public async Task<IActionResult> UpdateGroup(int groupId, GroupAddEdit group)
         {
             if(groupId != group.GroupId)
             {
                 BadRequest();
             }
-
+           
             OuGroup? ouGroup = await _context.OuGroups.FindAsync(groupId);
             if(ouGroup == null)
             {
                 return NotFound();
             }
 
-            ouGroup.Name = group.Name;
-            ouGroup.Description = group.Description;
-            _context.Entry(ouGroup).State = EntityState.Modified;
-            _auditService.AuditGroupChange(ouGroup, RAPSAuditService.AuditActionType.Update);
-            await _context.SaveChangesAsync();
-
+            await _ouGroupService.UpdateOuGroup(ouGroup, group.Name, group.Description);
             return NoContent();
         }
 
         [HttpPost]
-        public async Task<ActionResult<OuGroup>> CreateGroup(Models.Group group)
+        public async Task<ActionResult<OuGroup>> CreateGroup(GroupAddEdit group)
         {
             if (_context.OuGroups == null)
             {
@@ -136,18 +134,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return ValidationProblem("Group is already managed by RAPS");
             }
 
-            OuGroup newOuGroup = new()
-            {
-                Name = group.Name,
-                Description = group.Description
-            };
-            using var transaction = _context.Database.BeginTransaction();
-            _context.OuGroups.Add(newOuGroup);
-            await _context.SaveChangesAsync();
-            _auditService.AuditGroupChange(newOuGroup, RAPSAuditService.AuditActionType.Create);
-            await _context.SaveChangesAsync();
-            transaction.Commit();
-
+            OuGroup newOuGroup = await _ouGroupService.CreateOuGroup(group.Name, group.Description);
             return CreatedAtAction("CreateGroup", new { id = newOuGroup.OugroupId}, newOuGroup);
         }
 
@@ -158,16 +145,13 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            OuGroup ouGroup = await _context.OuGroups.FindAsync(groupId);
+            OuGroup? ouGroup = await _context.OuGroups.FindAsync(groupId);
             if (ouGroup == null)
             {
                 return NotFound();
             }
 
-            _context.OuGroups.Remove(ouGroup);
-            _auditService.AuditGroupChange(ouGroup, RAPSAuditService.AuditActionType.Delete);
-            await _context.SaveChangesAsync();
-
+            await _ouGroupService.DeleteOuGroup(ouGroup);
             return NoContent();
         }
     }

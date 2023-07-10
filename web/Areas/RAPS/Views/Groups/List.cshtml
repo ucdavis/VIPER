@@ -16,19 +16,28 @@
                 <q-card style="width: 500px; max-width: 80vw;">
                     <q-form @@submit="groupTable.submit(this)" v-bind="groupTable.object">
                         <q-card-section>
+                            <q-btn href="CreateADGroup" no-caps label="Create AD Group" dense flat square color="primary" padding="xs sm"></q-btn>
+                        </q-card-section>
+                        <q-card-section>
                             <div class="text-h6">{{groupTable.editing ? "Edit" : "Add OU"}} Group</div>
                             <div class="bg-negative text-white q-pa-sm rounded" v-if="groupTable.errors?.message?.length > 0">{{groupTable.errors.message}}</div>
                         </q-card-section>
-
                         <q-card-section>
-                            <q-btn href="CreateADGroup" label="Create AD Group" dense flat square color="primary" padding="xs sm"></q-btn>
-                            <q-select outlined dense
+                            <q-select outlined dense use-input input-debounce="0"
                                       label="Group"
                                       v-model="groupTable.object.group"
                                       :options="ldapGroups"
                                       :readonly="groupTable.editing"
                                       :error="groupTable.errors?.GroupId?.error"
+                                      @@filter="filterGroups"
                                       error-message="Group is required">
+                                <template v-slot:no-option>
+                                    <q-item>
+                                        <q-item-section class="text-grey">
+                                            No results
+                                        </q-item-section>
+                                    </q-item>
+                                </template>
                             </q-select>
                             <q-input type="textarea" outlined dense v-model="groupTable.object.description" label="Description"></q-input>
                         </q-card-section>
@@ -52,7 +61,7 @@
     <template v-slot:body-cell-actions="props">
         <q-td :props="props">
             <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="dataset" :href="'AllMembers?groupId=' + props.row.groupId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'Members?groupId=' + props.row.groupId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'RoleMembers?roleId=' + props.row.groupRoleId"></q-btn>
             <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'Roles?groupId=' + props.row.groupId"></q-btn>
         </q-td>
     </template>
@@ -66,7 +75,19 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        vueObjects.createGroupOption = "Existing"
+        vueMethods.filterGroups = function(val, update) {
+            if(val === '') {
+                update(() => { this.ldapGroups = this.allGroups })
+            }
+            else {
+                update(() => {
+                    const tofind = val.toLowerCase()
+                    this.ldapGroups = this.allGroups.filter(v => v.value.toLowerCase().indexOf(tofind) > -1)
+                })
+            }
+        }
+
+        vueObjects.allGroups = []
         vueObjects.ldapGroups = []
         vueObjects.groupTable = new quasarTable({
             keys: ["groupId"],
@@ -100,8 +121,9 @@
             //set group name when creating/updating
             createBody: function (v, object) {
                 return {
-                    ...object,
+                    groupId: object.groupId,
                     name: object.group?.value,
+                    description: object.description
                 }
             },
             pagination: {rowsPerPage: 0}
@@ -111,6 +133,7 @@
             this.ldapGroups = await viperFetch(this, "Groups/OU")
             this.ldapGroups = this.ldapGroups
                 .map(g => ({ label: g.cn, value: g.distinguishedName }))
+            this.allGroups = this.ldapGroups
         })
     </script>
 }

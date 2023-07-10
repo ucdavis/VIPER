@@ -3,14 +3,8 @@ using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Models
 {
-    public class Group
+    public class Group : GroupAddEdit
     {
-        public int GroupId { get; set; }
-
-        public string Name { get; set; } = null!;
-
-        public string? Description { get; set; }
-
         public ICollection<GroupRole> GroupRoles { get; set; } = new List<GroupRole>();
 
         public int? GroupRoleId { get; set; } = 0;

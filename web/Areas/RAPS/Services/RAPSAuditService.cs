@@ -228,5 +228,27 @@ namespace Viper.Areas.RAPS.Services
             }
             _context.Add(tblLog);
         }
+
+        public void AuditOuGroupRoleChange(OuGroupRole groupRole, AuditActionType actionType)
+        {
+            TblLog tblLog = new()
+            {
+                OuGroupId = groupRole.OugroupId,
+                RoleId = groupRole.RoleId,
+                ModTime = DateTime.Now,
+                ModBy = UserHelper.GetCurrentUser()?.LoginId
+            };
+
+            switch (actionType)
+            {
+                case AuditActionType.Create:
+                    tblLog.Audit = "AddRoleForOuGroup";
+                    break;
+                case AuditActionType.Delete:
+                    tblLog.Audit = "DelRoleForOuGroup";
+                    break;
+            }
+            _context.Add(tblLog);
+        }
     }
 }
