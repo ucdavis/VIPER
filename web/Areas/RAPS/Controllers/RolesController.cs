@@ -32,22 +32,34 @@ namespace Viper.Areas.RAPS.Controllers
 
         // GET: Roles
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TblRole>>> GetTblRoles(string instance, int? Application)
+        public async Task<ActionResult<IEnumerable<TblRole>>> GetTblRoles(string instance, int? Application, bool? allInstances = false)
         {
             if (_context.TblRoles == null)
             {
                 return NotFound();
             }
 
+            allInstances ??= false;
             if(SecurityService.IsAllowedTo("ViewAllRoles", instance))
             {
-                return await _context.TblRoles
+                var q = _context.TblRoles
                     .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
-                    .Where((r => Application == null || r.Application == Application))
-                    .Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance))
-                    .OrderByDescending(r => r.Application)
+                    .Where((r => Application == null || r.Application == Application));
+                if(!(bool)allInstances)
+                {
+                    q = q.Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance));
+                }
+                List<TblRole> roles = await q
+                    .OrderBy(r => r.Role.ToUpper().StartsWith("VIPERFORMS") ? 1 : 
+                        r.Role.ToUpper().StartsWith("VMACS.VMTH") ? 2 :
+                        r.Role.ToUpper().StartsWith("VMACS.VMLF") ? 3 :
+                        r.Role.ToUpper().StartsWith("VMACS.UCVMCSD") ? 4 :
+                        r.Role.ToUpper().StartsWith("VMACS.MGVP") ? 5 :
+                        0)
+                    .ThenByDescending(r => r.Application)
                     .ThenBy(r => r.DisplayName ?? r.Role)
                     .ToListAsync();
+                return roles;
             }
             List<int> controlledRoleIds = SecurityService.GetControlledRoleIds(UserWrapper.GetCurrentUser()?.MothraId);
             return await _context.TblRoles

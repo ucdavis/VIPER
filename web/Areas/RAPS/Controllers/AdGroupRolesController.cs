@@ -55,7 +55,7 @@ namespace Viper.Areas.RAPS.Controllers
             return await _context.OuGroupRoles
                 .Include(gr => gr.Role)
                 .Where(gr => gr.OugroupId == groupId)
-                .OrderBy(gr => gr.Role.FriendlyName)
+                .OrderBy(gr => gr.Role.DisplayName ?? gr.Role.Role)
                 .ToListAsync();
         }
 
@@ -91,12 +91,20 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpDelete("Groups/{groupId}/Roles/{roleId}")]
         public async Task<IActionResult> DeleteTblRoleMembers(int groupId, int roleId)
         {
-            if (_context.OuGroupRoles == null || !GroupExists(groupId) || !GroupRoleExists(groupId, roleId))
+            OuGroupRole? groupRole = _context.OuGroupRoles.Find(groupId, roleId);
+            if (_context.OuGroupRoles == null || !GroupExists(groupId) || groupRole == null)
             {
                 return NotFound();
             }
 
-            OuGroupRole groupRole = new() { OugroupId = groupId, RoleId = roleId };
+            //check that this isn't the group membership role
+            OuGroupRole? groupMemberRole = _context.OuGroupRoles
+                .FirstOrDefault(gr => gr.OugroupId == groupId && gr.IsGroupRole);
+            if(groupMemberRole != null && groupMemberRole.RoleId == roleId)
+            {
+                return BadRequest("You cannot remove the group membership role.");
+            }
+
             _context.OuGroupRoles.Remove(groupRole);
             _auditService.AuditOuGroupRoleChange(groupRole, RAPSAuditService.AuditActionType.Delete);
             await _context.SaveChangesAsync();

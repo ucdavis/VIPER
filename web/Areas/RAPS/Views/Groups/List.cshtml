@@ -60,9 +60,9 @@
     </template>
     <template v-slot:body-cell-actions="props">
         <q-td :props="props">
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="dataset" :href="'AllMembers?groupId=' + props.row.groupId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="dataset" :href="'GroupMembers?groupId=' + props.row.groupId"></q-btn>
             <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'RoleMembers?roleId=' + props.row.groupRoleId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'Roles?groupId=' + props.row.groupId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'GroupRoles?groupId=' + props.row.groupId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-edit="props">

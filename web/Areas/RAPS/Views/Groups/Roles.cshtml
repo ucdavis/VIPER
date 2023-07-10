@@ -1,5 +1,137 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
-@{
+﻿<h2>Roles for group {{group.name}}</h2>
+<q-table
+    dense
+    row-key="roleId"
+    :rows="groupRoles.rows"
+    :loading="groupRoles.loading"
+    :columns="groupRoles.columns"
+    :pagination="groupRoles.pagination">
+    <template v-slot:body-cell-links="props">
+        <q-td>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-role="props">
+        <q-td>
+            {{props.row.role.friendlyName}}
+        </q-td>
+    </template>
+    <template v-slot:body-cell-remove="props">
+        <q-td>
+            <q-btn no-caps size="sm" :props="props" color="red" icon="delete" @@click="deleteGroupRole(props.row)" v-if="!props.row.isGroupRole"></q-btn>
+        </q-td>
+    </template>
+</q-table>
+
+<h2>Add Roles</h2>
+<q-table
+    dense
+    row-key="roleId"
+    :rows="allRoles.rows"
+    :loading="allRoles.loading"
+    :columns="allRoles.columns"
+    :pagination="allRoles.pagination"
+    :filter="allRoles.filter" >
+    <template v-slot:top-right="props">
+        <q-input class="q-ml-xs q-mr-xs" v-model="allRoles.filter" dense outlined debounce="300" placeholder="Filter Results">
+            <template v-slot:append>
+                <q-icon name="filter_alt" />
+            </template>
+        </q-input>
+    </template>
+    <template v-slot:body-cell-links="props">
+        <q-td>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-add="props">
+        <q-td>
+            <q-btn no-caps :props="props" color="green" padding="xs md" label="Add" @@click="addGroupRole(props.row)"></q-btn>
+        </q-td>
+    </template>
+</q-table>
+
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        function getInstance(roleName) {
+            if(roleName.substr(0, 5) == "VMACS") {
+                var sp = roleName.split(".");
+                return sp[0] + "." + sp[1];
+            }
+            return roleName.substr(0, 10).toLowerCase() == "viperforms" ? "VIPERForms" : "VIPER";
+        }
+        vueMethods.loadGroup = async function() {
+            this.group = await viperFetch(this, "Groups/" + this.groupId)
+        }
+        vueMethods.addGroupRole = async function (groupRole) {
+            viperFetch(this,
+                "Groups/" + this.groupId + "/Roles/?roleId=" + groupRole.roleId,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" }
+                },
+                [this.loadTables]
+            )
+        }
+        vueMethods.deleteGroupRole = async function (groupRole) {
+            viperFetch(this,
+                "Groups/" + this.groupId + "/Roles/" + groupRole.roleId,
+                {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" }
+                },
+                [this.loadTables]
+            )
+        }
+        vueMethods.loadTables = async function () {
+            await this.groupRoles.load(this)
+            this.allRoles.loading = true
+            this.allRoles.load(this)
+        }
+
+
+        vueObjects.group = {}
+        vueObjects.groupRoles = new quasarTable({
+            keys: ["roleId"],
+            urlBase: "",
+            columns: [
+                { name: "links", label: "Members", field: "", align: "left", style: "max-width:75px;" },
+                { name: "role", label: "Role", field: "", align: "left", sortable: true },
+                { name: "remove", label: "Remove", field: "", align: "left", sortable: false, style: "max-width:75px;" }
+            ],
+            pagination: { rowsPerPage: 0 }
+        })
+
+        vueObjects.allRoles = new quasarTable({
+            keys: ["roleId"],
+            urlBase: "Roles?allInstances=true&Application=0",
+            columns: [
+                { name: "links", label: "Members", field: "", align: "left", style: "max-width:75px;" },
+                { name: "instance", label: "Instance", field: "instance", align: "left", sortable: true},
+                { name: "role", label: "Role", field: "friendlyName", align: "left", sortable: true },
+                { name: "description", label: "Description", field: "description", align: "left", sortable: true, style: "max-width:400px;" },
+                { name: "add", label: "Add", field: "", align: "left" }
+            ],
+            pagination: { rowsPerPage: 0 },
+            onLoad: function(data, vueApp) {
+                var existingRoles = vueApp._.data.groupRoles.rows
+                    .reduce((result, r) => {
+                        result.push(r.roleId)
+                        return result
+                    }, [])
+                this.rows = data.filter(r =>
+                    existingRoles.indexOf(r.roleId) == -1
+                )
+            },
+            selectable: true
+        })
+
+        vueMountedActions.push(async function () {
+            this.groupId = this.urlParams.get("groupId")
+            this.loadGroup()
+            this.groupRoles.urlBase = "Groups/" + this.groupId + "/Roles"
+            this.loadTables()
+        })
+    </script>
 }

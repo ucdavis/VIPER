@@ -417,5 +417,12 @@ namespace Viper.Areas.RAPS.Controllers
         {
             return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/List.cshtml"));
         }
+
+        [Permission(Allow = "RAPS.Admin")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> GroupRoles()
+        {
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/Roles.cshtml"));
+        }
     }
 }

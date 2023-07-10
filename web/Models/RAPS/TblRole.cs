@@ -44,6 +44,17 @@ public partial class TblRole
         } 
     }
 
+    [NotMapped]
+    public string Instance { get
+        {
+            if(Role.ToLower().StartsWith("vmacs."))
+            {
+                return Role.Split(".")[0] + "." + Role.Split(".")[1];
+            }
+            return Role.ToLower().StartsWith("viperforms") ? "VIPERForms" : "VIPER";
+        }       
+    }
+
     public virtual ICollection<OuGroupRole> OuGroupRoles { get; set; } = new List<OuGroupRole>();
 
     public virtual ICollection<RoleTemplateRole> RoleTemplateRoles { get; set; } = new List<RoleTemplateRole>();
