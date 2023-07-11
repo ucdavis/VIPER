@@ -22,25 +22,21 @@ namespace Viper.Areas.RAPS.Controllers
     public class AdGroupsController : ApiController
     {
         private readonly RAPSContext _context;
-        private readonly RAPSSecurityService _securityService;
-        private readonly RAPSAuditService _auditService;
         private readonly OuGroupService _ouGroupService;
 
         public AdGroupsController(RAPSContext context)
         {
             _context = context;
-            _securityService = new RAPSSecurityService(_context);
-            _auditService = new RAPSAuditService(_context);
             _ouGroupService = new OuGroupService(_context);
         }
 
-        private List<LdapGroup> GetOuGroups()
+        private static List<LdapGroup> GetOuGroups()
         {
             return new LdapService().GetGroups();
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Models.Group>>> GetOuGroups(string instance, string? search = null)
+        public async Task<ActionResult<IEnumerable<Models.Group>>> GetOuGroups(string? search = null)
         {
             if (_context.OuGroups == null)
             {
@@ -72,7 +68,7 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         [HttpGet("{groupId}")]
-        public async Task<ActionResult<Models.Group>> GetOuGroup(string instance, int groupId)
+        public async Task<ActionResult<Models.Group>> GetOuGroup(int groupId)
         {
             if (_context.OuGroups == null)
             {
@@ -174,7 +170,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
             _ = _ouGroupService.Sync(groupId, group.Name);
-            return Ok();
+            return Accepted();
         }
     }
 }
