@@ -97,7 +97,7 @@ namespace Viper.Areas.RAPS.Services
 
                 if (!debugOnly)
                 {
-                    using StringContent exportContent = new(JsonSerializer.Serialize(exportData), Encoding.UTF8, "application/json");                    
+                    using StringContent exportContent = new(JsonSerializer.Serialize(exportData), Encoding.UTF8, "application/json");
                     using HttpRequestMessage request = new()
                     {
                         RequestUri = new Uri(Url),
