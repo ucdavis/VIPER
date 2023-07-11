@@ -39,7 +39,7 @@ namespace Viper.Classes
             ValidationProblemDetails? problem = objectResult.Value as ValidationProblemDetails;
             if (problem != null)
             {
-                return new ApiResponse(statusCode, false, null, problem.Title, problem.Errors);
+                return new ApiResponse(statusCode, false, null, problem.Detail ?? problem.Title, problem.Errors);
             }
             if(objectResult.Value is string)
             {

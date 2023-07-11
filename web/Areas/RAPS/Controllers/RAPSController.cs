@@ -430,5 +430,20 @@ namespace Viper.Areas.RAPS.Controllers
         {
             return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/Members.cshtml"));
         }
+
+        [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
+        [Route("/[area]/{Instance}/[action]")]
+        [SupportedOSPlatform("windows")]
+        public async Task<IActionResult> GroupSync(int groupId)
+        {
+            OuGroup? group = _RAPSContext.OuGroups.Find(groupId);
+            if (group != null)
+            {
+                _ = new OuGroupService(_RAPSContext).Sync(groupId, group.Name);
+            }
+
+            ViewData["Group"] = group;
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/Sync.cshtml"));
+        }
     }
 }

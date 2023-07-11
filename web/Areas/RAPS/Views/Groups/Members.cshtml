@@ -1,5 +1,5 @@
 ﻿<h2>Members for group {{group.name}}</h2>
-<q-btn no-caps color="primary" padding="xs md" class="q-mr-md q-mb-sm" label="Sync Members" :href="'SyncMembers?groupId=' + group.groupId"></q-btn>
+<q-btn no-caps color="primary" padding="xs md" class="q-mr-md q-mb-sm" label="Sync Members" :href="'GroupSync?groupId=' + group.groupId"></q-btn>
 <q-btn no-caps color="primary" padding="xs md" class="q-mr-md q-mb-sm" label="Edit Members" :href="'RoleMembers?roleId=' + group.groupRoleId"></q-btn>
 <q-table dense
          row-key="roleId"
@@ -7,6 +7,16 @@
          :loading="groupMembers.loading"
          :columns="groupMembers.columns"
          :pagination="groupMembers.pagination">
+    <template v-slot:body-cell-active="props">
+        <q-td>
+            <q-icon size="sm" :name="props.row.current ? 'check' : 'close'" :color="props.row.current ? 'green' : 'red'"></q-icon>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-ingroup="props">
+        <q-td>
+            <q-icon size="sm" :name="props.row.isInGroup ? 'check' : 'close'" :color="props.row.isInGroup ? 'green' : 'red'"></q-icon>
+        </q-td>
+    </template>
     <template v-slot:body-cell-member="props">
         <q-td>
             <a :href="'MemberRoles?memberId=' + props.row.memberId">{{props.row.displayName}}</a>

@@ -1,4 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using NuGet.Protocol.Plugins;
+using System.Linq.Dynamic.Core;
+using System.Runtime.Versioning;
 using Viper.Areas.RAPS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
@@ -164,58 +167,146 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="groupId"></param>
         /// <param name="filterToActive">If true, only active SVM affiliates will be returned</param>
         /// <returns></returns>
-        public async Task<List<GroupMember>> GetAllMembers(int groupId, bool filterToActive = false)
+        [SupportedOSPlatform("windows")]
+        public async Task<List<GroupMember>> GetAllMembers(int groupId, string groupName, bool filterToActive = false)
         {
-            List<GroupMember> members = new();
-
-            List<int> roleIds = await _context.OuGroupRoles
-                .Where(gr => gr.OugroupId == groupId)
-                .Select(gr => gr.RoleId)
-                .ToListAsync();
+            List<GroupMember> members = new();         
 
             //Get members from the DB
-            List<TblRoleMember> roleMembers = await _context.TblRoleMembers
-                .Include(rm => rm.Role)
-                .Include(rm => rm.AaudUser)
-                .Where(rm => roleIds.Contains(rm.RoleId))
-                .Where(rm => !filterToActive || (rm.StartDate == null || rm.StartDate <= DateTime.Now))
-                .Where(rm => !filterToActive || (rm.EndDate == null || rm.EndDate > DateTime.Now))
-                .OrderBy(rm => rm.AaudUser.DisplayLastName)
-                .ThenBy(rm => rm.AaudUser.DisplayFirstName)
-                .ThenBy(rm => rm.MemberId)
-                .ToListAsync();
+            List<TblRoleMember> roleMembers = await GetAllRoleMembers(groupId, filterToActive);
 
             //Create a list of members that should be in the group, plus a list of the roles that qualify them
             foreach(var roleMember in roleMembers)
             {
                 if (members.Count == 0 || members.Last().MemberId != roleMember.MemberId)
                 {
-                    GroupMember member = new()
-                    {
-                        MemberId = roleMember.MemberId,
-                        LoginId = roleMember.AaudUser.LoginId,
-                        MailId = roleMember.AaudUser.MailId,
-                        DisplayFirstName = roleMember.AaudUser.DisplayFirstName,
-                        DisplayLastName = roleMember.AaudUser.DisplayLastName,
-                        Current = roleMember.AaudUser.Current,
-                        Roles = new List<GroupMemberRole>()
-                    };
+                    GroupMember member = CreateGroupMember(roleMember);
                     members.Add(member);
                 }
+                members.Last().Roles.Add(CreateGroupMemberRole(roleMember));
+            }
 
-                members.Last().Roles.Add(new GroupMemberRole()
+            //Create a lookup of loginids of members that should be in the group
+            Dictionary<string, bool> membersInRoles = new();
+            foreach (GroupMember m in members)
+            {
+                membersInRoles[m.LoginId] = true;
+            }
+
+            //Get users in the group in AD
+            LdapService ldapService = new();
+            Dictionary<string, bool> membersInGroupLookup = new();
+            List<LdapUser> usersInGroup = ldapService.GetGroupMembership(groupName);
+            foreach (LdapUser user in usersInGroup)
+            {
+                membersInGroupLookup[user.SamAccountName] = true;
+                //Add this "member" if they are in the ou group but not in any role that would qualify them for them membership
+                if (!membersInRoles.ContainsKey(user.SamAccountName))
                 {
-                    RoleId = roleMember.RoleId,
-                    Role = roleMember.Role.FriendlyName,
-                    AddDate = roleMember.AddDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.AddDate) : null,
-                    StartDate = roleMember.StartDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.StartDate) : null,
-                    EndDate = roleMember.EndDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.EndDate) : null,
-                    ModBy = roleMember.ModBy,
-                    ModDate = roleMember.ModTime != null ? DateOnly.FromDateTime((System.DateTime)roleMember.ModTime) : null,
-                    ViewName = roleMember.Role.ViewName
-                });
+                    members.Add(new GroupMember()
+                    {
+                        DisplayFirstName = user.GivenName,
+                        DisplayLastName = user.Sn,
+                        LoginId = user.SamAccountName
+                    });
+                }
+            }
+
+            //Add a flag indicating whether they are in the group in AD
+            foreach (GroupMember member in members)
+            {
+                member.IsInGroup = membersInGroupLookup.ContainsKey(member.LoginId);
             }
             return members;
+        }
+
+        [SupportedOSPlatform("windows")]
+        public async Task Sync(int groupId, string groupName)
+        {
+            List<GroupMember> members = await GetAllMembers(groupId, groupName, true);
+            var toRemove = members.Where(m => m.Roles.Count == 0);
+            var toAdd = members.Where(m => !(m.IsInGroup ?? true)); //IsInGroup must be non-null and false
+            LdapService ldapService = new();
+
+            foreach (GroupMember m in toRemove)
+            {
+                LdapUser? ldapMember = ldapService.GetUser(m.LoginId);
+                if (ldapMember != null)
+                {
+                    ldapService.RemoveUserFromGroup(ldapMember.DistinguishedName, groupName);
+                }
+            }
+
+            foreach (GroupMember m in toAdd)
+            {
+                LdapUser? ldapMember = ldapService.GetUser(m.LoginId);
+                if (ldapMember != null)
+                {
+                    ldapService.AddUserToGroup(ldapMember.DistinguishedName, groupName);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get all members of any role linked to the given group
+        /// </summary>
+        /// <param name="groupId"></param>
+        /// <returns></returns>
+        private async Task<List<TblRoleMember>> GetAllRoleMembers(int groupId, bool filterToActive)
+        {
+            List<int> roleIds = await _context.OuGroupRoles
+                .Where(gr => gr.OugroupId == groupId)
+                .Select(gr => gr.RoleId)
+                .ToListAsync();
+            return await _context.TblRoleMembers
+               .Include(rm => rm.Role)
+               .Include(rm => rm.AaudUser)
+               .Where(rm => roleIds.Contains(rm.RoleId))
+               .Where(rm => !filterToActive || (rm.StartDate == null || rm.StartDate <= DateTime.Now))
+               .Where(rm => !filterToActive || (rm.EndDate == null || rm.EndDate > DateTime.Now))
+               .OrderBy(rm => rm.AaudUser.DisplayLastName)
+               .ThenBy(rm => rm.AaudUser.DisplayFirstName)
+               .ThenBy(rm => rm.MemberId)
+               .ToListAsync();
+        }
+
+        /// <summary>
+        /// Create a GroupMember from a TblRoleMember
+        /// </summary>
+        /// <param name="roleMember"></param>
+        /// <returns></returns>
+        private static GroupMember CreateGroupMember(TblRoleMember roleMember)
+        {
+            return new()
+            {
+                MemberId = roleMember.MemberId,
+                LoginId = roleMember.AaudUser.LoginId,
+                MailId = roleMember.AaudUser.MailId,
+                DisplayFirstName = roleMember.AaudUser.DisplayFirstName,
+                DisplayLastName = roleMember.AaudUser.DisplayLastName,
+                Current = roleMember.AaudUser.Current,
+                Roles = new List<GroupMemberRole>()
+            };
+        }
+
+        /// <summary>
+        /// Create a GroupMemberRole from a TblRoleMember
+        /// </summary>
+        /// <param name="roleMember"></param>
+        /// <returns></returns>
+        private static GroupMemberRole CreateGroupMemberRole(TblRoleMember roleMember)
+        {
+            return new()
+            {
+                RoleId = roleMember.RoleId,
+                Role = roleMember.Role.FriendlyName,
+                AddDate = roleMember.AddDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.AddDate) : null,
+                StartDate = roleMember.StartDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.StartDate) : null,
+                EndDate = roleMember.EndDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.EndDate) : null,
+                ModBy = roleMember.ModBy,
+                ModDate = roleMember.ModTime != null ? DateOnly.FromDateTime((System.DateTime)roleMember.ModTime) : null,
+                ViewName = roleMember.Role.ViewName
+            };
         }
 
         private async Task<TblRole> GetGroupRole(int groupId)

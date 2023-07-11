@@ -160,35 +160,21 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            List<GroupMember> members = await _ouGroupService.GetAllMembers(groupId);
-            Dictionary<string, bool> membersInRoles = new();
-            foreach(GroupMember m in  members)
-            {
-                membersInRoles[m.LoginId] = true;
-            }
-
-            Dictionary<string, bool> membersInGroupLookup = new();
-            List<LdapUser> usersInGroup = new LdapService().GetGroupMembership(group.Name);
-            foreach(LdapUser user in usersInGroup)
-            {
-                membersInGroupLookup[user.SamAccountName] = true;
-                //Add this "member" if they are in the ou group but not in any role that would qualify them for them membership
-                if (!membersInRoles.ContainsKey(user.SamAccountName))
-                {
-                    members.Add(new GroupMember()
-                    {
-                        DisplayFirstName = user.GivenName,
-                        DisplayLastName = user.Sn,
-                        LoginId = user.SamAccountName
-                    });
-                }
-            }
-            foreach(GroupMember member in members)
-            {
-                member.IsInGroup = membersInGroupLookup.ContainsKey(member.LoginId);
-            }
+            List<GroupMember> members = await _ouGroupService.GetAllMembers(groupId, group.Name);
             
             return members;
+        }
+
+        [HttpPost("{groupId}/Sync")]
+        public ActionResult SyncGroup(int groupId)
+        {
+            OuGroup? group = _context.OuGroups.Find(groupId);
+            if (group == null)
+            {
+                return NotFound();
+            }
+            _ = _ouGroupService.Sync(groupId, group.Name);
+            return Ok();
         }
     }
 }
