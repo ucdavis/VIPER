@@ -16,19 +16,17 @@ namespace Viper.Areas.RAPS.Controllers
     public class RAPSController : AreaController
     {
         private readonly Classes.SQLContext.RAPSContext _RAPSContext;
-        private readonly IConfiguration _configuration;
         private readonly RAPSSecurityService _securityService;
         private readonly IWebHostEnvironment _environment;
 
         public int Count { get; set; }
         public string? UserName { get; set; }
 
-        public RAPSController(Classes.SQLContext.RAPSContext context, IWebHostEnvironment environment, IConfiguration configuration)
+        public RAPSController(Classes.SQLContext.RAPSContext context, IWebHostEnvironment environment)
         {
             _RAPSContext = context;
             _securityService = new RAPSSecurityService(context);
             _environment = environment;
-            _configuration = configuration;
         }
 
         /// <summary>
@@ -365,7 +363,7 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> ExportToVMACS()
         {
-            string creds = "vmthRestClient:" + _configuration.GetSection("Credentials").GetValue<string>("vmthRestClient");
+            string? creds = "vmthRestClient:" + HttpHelper.GetSetting<string>("Credentials", "vmthRestClient");
             if (creds.Length == 15)
             {
                 ViewData["Messages"] = new List<string>() { "Credentials not found. Cannot connect to VMACS." };
@@ -392,17 +390,17 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> LdapGroup()
         {
-            string? creds = _configuration.GetSection("Credentials").GetValue<string>("UCDavisLDAP");
+            string? creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP");
             if (creds == null)
             {
                 ViewData["Error"] = "Credentials not found. Cannot connect to LDAP.";
             }
             else
             {
-                var members = new LdapService(creds).GetGroupMembership(
+                var members = new LdapService().GetGroupMembership(
                     "CN=SVM-BE-TEST,OU=Test Groups,OU=Security-Groups,OU=SVM-OU-Groups,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu"
                     );
-                new LdapService(creds).AddUserToGroup(
+                new LdapService().AddUserToGroup(
                     "CN=punkrock,OU=ucdUsers,DC=ad3,DC=ucdavis,DC=edu",
                     "CN=SVM-BE-TEST,OU=Test Groups,OU=Security-Groups,OU=SVM-OU-Groups,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu"
                     );
@@ -415,6 +413,7 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> GroupList()
         {
+            
             return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/List.cshtml"));
         }
 

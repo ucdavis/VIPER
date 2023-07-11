@@ -170,5 +170,19 @@ namespace Viper
                 StatusCode = statusCode
             };
         }
+
+        /// <summary>
+        /// Helper function to return a setting, including a null check for Settings
+        /// </summary>
+        /// <typeparam name="T">Type of setting to be returned, e.g. string</typeparam>
+        /// <param name="section">Section for Settings.GetSection()</param>
+        /// <param name="setting">Setting for section.GetValue<T>()</param>
+        /// <returns></returns>
+        public static T? GetSetting<T>(string section, string setting)
+        {
+            return Settings == null
+                ? default(T)
+                : Settings.GetSection(section).GetValue<T>(setting);
+        }
     }
 }

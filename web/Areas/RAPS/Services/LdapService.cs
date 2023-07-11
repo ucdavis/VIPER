@@ -8,8 +8,6 @@ namespace Viper.Areas.RAPS.Services
     [SupportedOSPlatform("windows")]
     public class LdapService
     {
-        //credentials
-        private readonly string _credentials;
         private const string _username = "ou\\svc-accounts";
 
         //Start OUs for ou.ad3 (old-style groups and service accounts) and ad3 (users and api managed groups)
@@ -55,9 +53,7 @@ namespace Viper.Areas.RAPS.Services
             "memberOf"
         };
         
-        public LdapService(string credentials) { 
-            _credentials = credentials;
-        }
+        public LdapService() { }
         
         /// <summary>
         /// Get groups, optionally filtering with a wildcard match to name
@@ -187,10 +183,11 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="groupDn">The distinguised name of the group</param>
         public void AddUserToGroup(string userDn, string groupDn)
         {
+            string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
             try
             {
-                using PrincipalContext ad3Pc = new(ContextType.Domain, "ad3.ucdavis.edu", _username, _credentials);
-                using PrincipalContext ouPc = new(ContextType.Domain, "ou.ad3.ucdavis.edu", _username, _credentials);
+                using PrincipalContext ad3Pc = new(ContextType.Domain, "ad3.ucdavis.edu", _username, creds);
+                using PrincipalContext ouPc = new(ContextType.Domain, "ou.ad3.ucdavis.edu", _username, creds);
                 GroupPrincipal? group = GroupPrincipal.FindByIdentity(ouPc, IdentityType.DistinguishedName, groupDn);
                 UserPrincipal? user = UserPrincipal.FindByIdentity(ad3Pc, IdentityType.DistinguishedName, userDn);
                 if(group != null && user != null)
@@ -212,10 +209,11 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="groupDn">The distinguised name of the group</param>
         public void RemoveUserFromGroup(string userDn, string groupDn)
         {
+            string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
             try
             {
-                using PrincipalContext ad3Pc = new(ContextType.Domain, "ad3.ucdavis.edu", _username, _credentials);
-                using PrincipalContext ouPc = new(ContextType.Domain, "ou.ad3.ucdavis.edu", _username, _credentials);
+                using PrincipalContext ad3Pc = new(ContextType.Domain, "ad3.ucdavis.edu", _username, creds);
+                using PrincipalContext ouPc = new(ContextType.Domain, "ou.ad3.ucdavis.edu", _username, creds);
                 GroupPrincipal group = GroupPrincipal.FindByIdentity(ouPc, IdentityType.DistinguishedName, groupDn);
                 UserPrincipal? user = UserPrincipal.FindByIdentity(ad3Pc, IdentityType.DistinguishedName, userDn);
                 if (group != null && user != null)
@@ -244,7 +242,8 @@ namespace Viper.Areas.RAPS.Services
         private DirectoryEntry GetRoot(bool fromOu = false)
         {
             string start = fromOu ? _ouStart : _ad3Users;
-            return new DirectoryEntry(string.Format("LDAP://{0}", start), _username, _credentials, AuthenticationTypes.Secure);
+            string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
+            return new DirectoryEntry(string.Format("LDAP://{0}", start), _username, creds, AuthenticationTypes.Secure);
         }
 
     }

@@ -158,6 +158,12 @@ namespace Viper.Areas.RAPS.Services
             await _context.SaveChangesAsync();
         }
 
+        /// <summary>
+        /// Get everyone that should be in a group, along with the role assignment(s) that cause them to be added to the group
+        /// </summary>
+        /// <param name="groupId"></param>
+        /// <param name="filterToActive">If true, only active SVM affiliates will be returned</param>
+        /// <returns></returns>
         public async Task<List<GroupMember>> GetAllMembers(int groupId, bool filterToActive = false)
         {
             List<GroupMember> members = new();

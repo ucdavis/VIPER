@@ -24,22 +24,19 @@ namespace Viper.Areas.RAPS.Controllers
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
-        private readonly IConfiguration _configuration;
         private readonly OuGroupService _ouGroupService;
 
-        public AdGroupsController(RAPSContext context, IConfiguration configuration)
+        public AdGroupsController(RAPSContext context)
         {
             _context = context;
             _securityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
             _ouGroupService = new OuGroupService(_context);
-            _configuration = configuration;
         }
 
         private List<LdapGroup> GetOuGroups()
         {
-            string? creds = _configuration.GetSection("Credentials").GetValue<string>("UCDavisLDAP");
-            return creds != null ? new LdapService(creds).GetGroups() : new List<LdapGroup>();
+            return new LdapService().GetGroups();
         }
 
         [HttpGet]
@@ -170,29 +167,25 @@ namespace Viper.Areas.RAPS.Controllers
                 membersInRoles[m.LoginId] = true;
             }
 
-            string? creds = _configuration.GetSection("Credentials").GetValue<string>("UCDavisLDAP");
-            if (creds != null)
+            Dictionary<string, bool> membersInGroupLookup = new();
+            List<LdapUser> usersInGroup = new LdapService().GetGroupMembership(group.Name);
+            foreach(LdapUser user in usersInGroup)
             {
-                Dictionary<string, bool> membersInGroupLookup = new();
-                List<LdapUser> usersInGroup = new LdapService(creds).GetGroupMembership(group.Name);
-                foreach(LdapUser user in usersInGroup)
+                membersInGroupLookup[user.SamAccountName] = true;
+                //Add this "member" if they are in the ou group but not in any role that would qualify them for them membership
+                if (!membersInRoles.ContainsKey(user.SamAccountName))
                 {
-                    membersInGroupLookup[user.SamAccountName] = true;
-                    //Add this "member" if they are in the ou group but not in any role that would qualify them for them membership
-                    if (!membersInRoles.ContainsKey(user.SamAccountName))
+                    members.Add(new GroupMember()
                     {
-                        members.Add(new GroupMember()
-                        {
-                            DisplayFirstName = user.GivenName,
-                            DisplayLastName = user.Sn,
-                            LoginId = user.SamAccountName
-                        });
-                    }
+                        DisplayFirstName = user.GivenName,
+                        DisplayLastName = user.Sn,
+                        LoginId = user.SamAccountName
+                    });
                 }
-                foreach(GroupMember member in members)
-                {
-                    member.IsInGroup = membersInGroupLookup.ContainsKey(member.LoginId);
-                }
+            }
+            foreach(GroupMember member in members)
+            {
+                member.IsInGroup = membersInGroupLookup.ContainsKey(member.LoginId);
             }
             
             return members;
