@@ -6,6 +6,7 @@ using System.Runtime.Loader;
 using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using Viper.Areas.RAPS.Models;
+using Viper.Areas.RAPS.Models.Uinform;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -14,7 +15,7 @@ using Web.Authorization;
 
 namespace Viper.Areas.RAPS.Controllers
 {
-    [Route("raps/{instance=VIPER}/groups")]
+    [Route("raps/{instance=VIPER}/Groups")]
     [ApiController]
     [Authorize(Roles = "VMDO SVM-IT", Policy = "2faAuthentication")]
     [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
@@ -30,11 +31,6 @@ namespace Viper.Areas.RAPS.Controllers
             _ouGroupService = new OuGroupService(_context);
         }
 
-        private static List<LdapGroup> GetOuGroups()
-        {
-            return new LdapService().GetGroups();
-        }
-
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Models.Group>>> GetOuGroups(string? search = null)
         {
@@ -42,29 +38,8 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            var result = await _context.OuGroups
-                .Where(g => search == null || g.Name.Contains(search))
-                .Include(g => g.OuGroupRoles)
-                .ThenInclude(gr => gr.Role)
-                .ThenInclude(r => r.TblRoleMembers)
-                .ToListAsync();
-            List<LdapGroup> ldapGroups = GetOuGroups();
-
-            List<Models.Group> groups = new();
-            foreach(OuGroup group in result)
-            {
-                OuGroupRole? role = group.OuGroupRoles.FirstOrDefault(g => g.IsGroupRole);
-                LdapGroup? matchingGroup = ldapGroups.FirstOrDefault(lg => string.Format("CN={0}", lg.Cn).ToLower() == group.Name.ToLower());
-                bool BoxSync = ldapGroups.FirstOrDefault(lg => lg.DistinguishedName.ToLower() == group.Name.ToLower())
-                    ?.ExtensionAttribute3?.ToLower() == "ucdboxsync";
-                Models.Group g = new(group)
-                {
-                    BoxSyncEnabled = BoxSync
-                };
-                groups.Add(g);
-            }
-            groups.Sort((g1, g2) => g1.Name.CompareTo(g2.Name));
-            return groups;
+            
+            return await _ouGroupService.GetAllGroups(search);
         }
 
         [HttpGet("{groupId}")]
@@ -89,8 +64,16 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpGet("OU")]
         public ActionResult<LdapGroup> GetLdapGroups()
         {
-            List<LdapGroup> ouGroups = GetOuGroups();
+            List<LdapGroup> ouGroups = new LdapService().GetGroups();
             return Ok(ouGroups);
+        }
+
+        [HttpGet("AD")]
+        public async Task<ActionResult<LdapGroup>> GetAdGroups()
+        {
+            List<ManagedGroup> adGroups = await new UinformService().GetManagedGroups();
+            adGroups.Sort((g1, g2) => (g1.DisplayName ?? g1.SamAccountName).CompareTo(g2.DisplayName ?? g2.SamAccountName));
+            return Ok(adGroups);
         }
 
         // PUT: groups/5
@@ -108,7 +91,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
 
-            await _ouGroupService.UpdateOuGroup(ouGroup, group.Name, group.Description);
+            await _ouGroupService.UpdateRapsGroup(ouGroup, group.Name, group.Description);
             return NoContent();
         }
 
@@ -124,11 +107,26 @@ namespace Viper.Areas.RAPS.Controllers
                 .FirstOrDefaultAsync();
             if(ouGroup != null)
             {
-                return ValidationProblem("Group is already managed by RAPS");
+                return ValidationProblem("A group with this name is already managed by RAPS");
             }
 
-            OuGroup newOuGroup = await _ouGroupService.CreateOuGroup(group.Name, group.Description);
-            return CreatedAtAction("CreateGroup", new { id = newOuGroup.OugroupId}, newOuGroup);
+            try
+            {
+                OuGroup newOuGroup = await _ouGroupService.CreateRapsGroup(group.Name, group.Description);
+                return CreatedAtAction("CreateGroup", new { id = newOuGroup.OugroupId }, newOuGroup);
+            }
+            catch(Exception ex)
+            {
+                //Exception message could be indication user is trying to create a group that exists or is invalid.
+                return ValidationProblem(ex.Message);
+            }
+        }
+
+        [HttpPost("Managed")]
+        public ActionResult CreateAdGroup(GroupAddEdit group)
+        {
+            _ouGroupService.CreateAdGroup(group.Name, group.Description, group.DisplayName);
+            return Accepted();
         }
 
         [HttpDelete("{groupId}")]

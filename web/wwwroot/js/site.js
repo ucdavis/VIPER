@@ -49,8 +49,8 @@ async function viperFetch(VueApp, url, data = {}, additionalFunctions = [], erro
     return await fetch(url, data)
         //handle 4xx and 5xx status codes
         .then(r => handleViperFetchError(r))
-        //return json (unless we got 204 No Content)
-        .then(r => r.status == "204" ? r : r.json())
+        //return json (unless we got 204 No Content or 202 Accepted)
+        .then(r => (r.status == "204" || r.status == "202") ? r : r.json())
         //check for success flag and result being defined. call additional functions
         .then(r => {
             var result = r

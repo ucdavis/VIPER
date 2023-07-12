@@ -413,7 +413,6 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> GroupList()
         {
-            
             return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/List.cshtml"));
         }
 
@@ -444,6 +443,24 @@ namespace Viper.Areas.RAPS.Controllers
 
             ViewData["Group"] = group;
             return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/Sync.cshtml"));
+        }
+
+        [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> CreateADGroup()
+        {
+            UinformService uInformService = new();
+            var groups = await uInformService.GetManagedGroups();
+            var group1 = await uInformService.GetManagedGroup(groups[0].DistinguishedName);
+            var user = await uInformService.GetUser(guid: "eb163206-bedf-4294-a073-2b2110c7b248");
+            var user2 = await uInformService.GetUser(samAccountName: "bedwards");
+            if (group1.ObjectGuid != null && user.ObjectGuid != null && user2.ObjectGuid != null)
+            {
+                var members = await uInformService.GetGroupMembers(group1.ObjectGuid);
+                _ = uInformService.AddGroupMember(group1.ObjectGuid, user2.ObjectGuid);
+                _ = uInformService.RemoveGroupMember(group1.ObjectGuid, user.ObjectGuid);
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/CreateADGroup.cshtml"));
         }
     }
 }

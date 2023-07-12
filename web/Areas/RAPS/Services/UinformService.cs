@@ -92,15 +92,19 @@ namespace Viper.Areas.RAPS.Services
         }
 
         /// <summary>
-        /// Get a managed group
+        /// Create a managed group. Does not return anything because the group creation is scheduled and is done by uInform asynchronously
         /// </summary>
         /// <param name="groupName">The name of the group. Must start with SVM- and be unique within AD3.</param>
         /// <param name="displayName"></param>
         /// <param name="description"></param>
         /// <param name="maxMembers">max members, or 0 for no max</param>
         /// <returns></returns>
-        public async Task<ManagedGroup> CreateManagedGroup(string groupName, string displayName, string description, int maxMembers = 0)
+        public void CreateManagedGroup(string groupName, string displayName, string description, int maxMembers = 0)
         {
+            if(!groupName.StartsWith("SVM-"))
+            {
+                groupName = "SVM-" + groupName;
+            }
             ManagedGroupAddEdit newGroup = new()
             {
                 GroupName = groupName,
@@ -108,19 +112,18 @@ namespace Viper.Areas.RAPS.Services
                 Description = description,
                 MaxMembers = maxMembers
             };
-            var response = await SendRequest<ManagedGroup>("ManagedGroups", HttpMethod.Post, newGroup.ToJson());
-            return response?.ResponseObject ?? new ManagedGroup();
+            _ = SendRequest<ManagedGroup>("ManagedGroups", HttpMethod.Post, newGroup.ToJson());
         }
-        
+
         /// <summary>
-        /// Update the managed group with the given guid
+        /// Update the managed group with the given guid. Does not return anything because the group creation is scheduled and is done by uInform asynchronously
         /// </summary>
         /// <param name="guid"></param>
         /// <param name="displayName"></param>
         /// <param name="description"></param>
         /// <param name="maxMembers">Max members, or 0 for no max</param>
         /// <returns></returns>
-        public async Task<ManagedGroup> UpdateManagedGroup(string guid, string displayName, string description, int maxMembers = 0)
+        public void UpdateManagedGroup(string guid, string displayName, string description, int maxMembers = 0)
         {
             ManagedGroupAddEdit newGroup = new()
             {
@@ -128,8 +131,7 @@ namespace Viper.Areas.RAPS.Services
                 Description = description,
                 MaxMembers = maxMembers
             };
-            var response = await SendRequest<ManagedGroup>("ManagedGroups/" + guid, HttpMethod.Put, newGroup.ToJson());
-            return response?.ResponseObject ?? new ManagedGroup();
+            _ = SendRequest<ManagedGroup>("ManagedGroups/" + guid, HttpMethod.Put, newGroup.ToJson());
         }
 
         /// <summary>
@@ -151,7 +153,7 @@ namespace Viper.Areas.RAPS.Services
         /// <returns></returns>
         public async Task AddGroupMember(string groupGuid, string userGuid)
         {
-            var response = await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, new AddRemoveMember()
+            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, new AddRemoveMember()
             {
                 UserGuid = userGuid,
                 Action = "add"
@@ -166,7 +168,7 @@ namespace Viper.Areas.RAPS.Services
         /// <returns></returns>
         public async Task RemoveGroupMember(string groupGuid, string userGuid)
         {
-            var response = await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, new AddRemoveMember()
+            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, new AddRemoveMember()
             {
                 UserGuid = userGuid,
                 Action = "remove"

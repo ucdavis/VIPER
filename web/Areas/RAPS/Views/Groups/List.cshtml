@@ -1,4 +1,36 @@
-﻿
+﻿<div class="q-pa-sm q-gutter-sm">
+    <q-dialog v-model="groupTable.showForm" @@hide="groupTable.clear(this)">
+        <q-card style="width: 500px; max-width: 80vw;">
+            <q-form @@submit="groupTable.submit(this)" v-bind="groupTable.object">
+                <q-card-section>
+                    <q-btn href="CreateADGroup" no-caps label="Create AD Group" dense flat square color="primary" padding="xs sm"></q-btn>
+                </q-card-section>
+                <q-card-section>
+                    <div class="text-h6">{{groupTable.editing ? "Edit" : "Add OU"}} Group</div>
+                    <div class="bg-negative text-white q-pa-sm rounded" v-if="groupTable.errors?.message?.length > 0">{{groupTable.errors.message}}</div>
+                </q-card-section>
+                <q-card-section>
+                    <q-select outlined dense options-dense use-input input-debounce="0"
+                              label="Group"
+                              v-model="groupTable.object.group"
+                              :options="allGroups"
+                              :readonly="groupTable.editing"
+                              :error="groupTable.errors?.GroupId?.error"
+                              @@filter="filterGroups"
+                              error-message="Group is required">
+                    </q-select>
+                    <q-input type="textarea" outlined dense v-model="groupTable.object.description" label="Description"></q-input>
+                </q-card-section>
+
+                <q-card-actions align="evenly">
+                    <q-btn no-caps :label="groupTable.editing ? 'Update Group' : 'Add Group'" type="submit" padding="xs sm" color="primary"></q-btn>
+                    <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="groupTable.delete(this)" color="red" v-if="groupTable.editing"></q-btn>
+                </q-card-actions>
+            </q-form>
+        </q-card>
+    </q-dialog>
+</div>
+
 <q-table title="Groups"
          dense
          row-key="groupId"
@@ -11,45 +43,6 @@
         <q-btn dense no-caps color="green" padding="xs md" @@click="groupTable.showForm = true">
             <q-icon name="add"></q-icon>
         </q-btn>
-        <div class="q-pa-sm q-gutter-sm">
-            <q-dialog v-model="groupTable.showForm" @@hide="groupTable.clear(this)">
-                <q-card style="width: 500px; max-width: 80vw;">
-                    <q-form @@submit="groupTable.submit(this)" v-bind="groupTable.object">
-                        <q-card-section>
-                            <q-btn href="CreateADGroup" no-caps label="Create AD Group" dense flat square color="primary" padding="xs sm"></q-btn>
-                        </q-card-section>
-                        <q-card-section>
-                            <div class="text-h6">{{groupTable.editing ? "Edit" : "Add OU"}} Group</div>
-                            <div class="bg-negative text-white q-pa-sm rounded" v-if="groupTable.errors?.message?.length > 0">{{groupTable.errors.message}}</div>
-                        </q-card-section>
-                        <q-card-section>
-                            <q-select outlined dense use-input input-debounce="0"
-                                      label="Group"
-                                      v-model="groupTable.object.group"
-                                      :options="ldapGroups"
-                                      :readonly="groupTable.editing"
-                                      :error="groupTable.errors?.GroupId?.error"
-                                      @@filter="filterGroups"
-                                      error-message="Group is required">
-                                <template v-slot:no-option>
-                                    <q-item>
-                                        <q-item-section class="text-grey">
-                                            No results
-                                        </q-item-section>
-                                    </q-item>
-                                </template>
-                            </q-select>
-                            <q-input type="textarea" outlined dense v-model="groupTable.object.description" label="Description"></q-input>
-                        </q-card-section>
-
-                        <q-card-actions align="evenly">
-                            <q-btn no-caps :label="groupTable.editing ? 'Update Group' : 'Add Group'" type="submit" padding="xs sm" color="primary"></q-btn>
-                            <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="groupTable.delete(this)" color="red" v-if="groupTable.editing"></q-btn>
-                        </q-card-actions>
-                    </q-form>
-                </q-card>
-            </q-dialog>
-        </div>
     </template>
     <template v-slot:top-right>
         <q-input v-model="groupTable.filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
@@ -77,18 +70,20 @@
     <script asp-add-nonce="true">
         vueMethods.filterGroups = function(val, update) {
             if(val === '') {
-                update(() => { this.ldapGroups = this.allGroups })
+                update(() => { this.allGroups = [].concat(this.adGroups).concat(this.ouGroups) })
             }
             else {
                 update(() => {
                     const tofind = val.toLowerCase()
-                    this.ldapGroups = this.allGroups.filter(v => v.value.toLowerCase().indexOf(tofind) > -1)
+                    this.allGroups = this.allGroups = [].concat(this.adGroups).concat(this.ouGroups)
+                        .filter(v => v.value.toLowerCase().indexOf(tofind) > -1)
                 })
             }
         }
 
         vueObjects.allGroups = []
-        vueObjects.ldapGroups = []
+        vueObjects.ouGroups = []
+        vueObjects.adGroups = []
         vueObjects.groupTable = new quasarTable({
             keys: ["groupId"],
             urlBase: "groups",
@@ -130,10 +125,18 @@
         })
         vueMountedActions.push(async function () {
             this.groupTable.load(this)
-            this.ldapGroups = await viperFetch(this, "Groups/OU")
-            this.ldapGroups = this.ldapGroups
-                .map(g => ({ label: g.cn, value: g.distinguishedName }))
-            this.allGroups = this.ldapGroups
+            this.ouGroups = await viperFetch(this, "Groups/OU")
+            this.ouGroups = this.ouGroups
+                .map(g => ({ label: "OU: " + g.cn, value: g.distinguishedName }))
+
+            this.adGroups = await viperFetch(this, "Groups/AD")
+            this.adGroups = this.adGroups
+                .map(g => ({ label: "AD: " + g.displayName ?? g.samAccountName, value: g.distinguishedName }))
+
+            this.allGroups = [
+                {label: "AD3", children: this.adGroups}, 
+                {label: "OU", children: this.ouGroups}
+            ]
         })
     </script>
 }

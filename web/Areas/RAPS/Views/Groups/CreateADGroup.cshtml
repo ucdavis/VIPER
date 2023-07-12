@@ -1,0 +1,37 @@
+﻿<div class="q-pa-sm q-gutter-sm row">
+    <div class="col-lg-4">
+        <q-form @@submit="submitGroup(this)" v-bind="newGroup">
+            <div class="text-h6">Add uInform Managed Group Group</div>
+            <div class="bg-negative text-white q-pa-sm rounded" v-if="submitErrors?.message?.length > 0">{{submitErrors.message}}</div>
+            <span>Group name should start with SVM-</span>
+            <q-input outlined dense v-model="newGroup.name" :error="submitErrors?.Name?.error" :error-message="submitErrors?.Name?.message" label="Group Name"></q-input>
+            <q-input outlined dense v-model="newGroup.displayName" :error="submitErrors?.DisplayName?.error" :error-message="submitErrors?.DisplayName?.message" label="Display Name"></q-input>
+            <q-input type="textarea" outlined dense v-model="newGroup.description" label="Description"></q-input>
+            <q-btn no-caps label="Add Group" type="submit" padding="xs sm" color="primary"></q-btn>
+        </q-form>
+    </div>
+</div>
+
+@section Scripts {
+    <script asp-add-nonce="true">
+        vueObjects.newGroup = {}
+        vueObjects.submitErrors = {}
+        vueMethods.submitGroup = function (vueApp) {
+            this.submitErrors = {}
+            viperFetch(vueApp,
+                "Groups/Managed",
+                {
+                    method: "POST",
+                    body: JSON.stringify(this.newGroup),
+                    headers: { "Content-Type": "application/json" }
+                },
+                [
+                    function() {
+                        location.href = "GroupList"
+                    }
+                ],
+                this.submitErrors
+            )
+        }
+    </script>
+}

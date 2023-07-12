@@ -3,6 +3,7 @@ using NuGet.Protocol.Plugins;
 using System.Linq.Dynamic.Core;
 using System.Runtime.Versioning;
 using Viper.Areas.RAPS.Models;
+using Viper.Areas.RAPS.Models.Uinform;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 
@@ -22,6 +23,55 @@ namespace Viper.Areas.RAPS.Services
             _context = context;
             _auditService = new RAPSAuditService(_context);
         }
+        
+        /// <summary>
+        /// Get all Raps groups, along with info from ou or ad3
+        /// </summary>
+        /// <param name="search"></param>
+        /// <returns></returns>
+        [SupportedOSPlatform("windows")]
+        public async Task<List<Models.Group>> GetAllGroups(string? search)
+        {
+            var result = await _context.OuGroups
+                .Where(g => search == null || g.Name.Contains(search))
+                .Include(g => g.OuGroupRoles)
+                .ThenInclude(gr => gr.Role)
+                .ThenInclude(r => r.TblRoleMembers)
+                .ToListAsync();
+            List<LdapGroup> ldapGroups = new LdapService().GetGroups();
+            List<ManagedGroup> managedGroups = await new UinformService().GetManagedGroups();
+
+            List<Group> groups = new();
+            foreach (OuGroup group in result)
+            {
+                OuGroupRole? role = group.OuGroupRoles.FirstOrDefault(g => g.IsGroupRole);
+                //for OU groups, look up the box sync attribute
+                bool BoxSync = ldapGroups.FirstOrDefault(lg => lg.DistinguishedName.ToLower() == group.Name.ToLower())
+                    ?.ExtensionAttribute3?.ToLower() == "ucdboxsync";
+                //for AD3 groups, look up display name
+                string? displayName = managedGroups.FirstOrDefault(mg => mg.DistinguishedName.ToLower() == group.Name.ToLower())?.DisplayName;
+                Group g = new(group)
+                {
+                    BoxSyncEnabled = BoxSync,
+                    DisplayName = displayName
+                };
+                groups.Add(g);
+            }
+
+            groups.Sort((g1, g2) => g1.Name.CompareTo(g2.Name));
+            return groups;
+        }
+
+        /// <summary>
+        /// Create an AD group via uInform API
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <param name="description"></param>
+        /// <param name="displayName"></param>
+        public void CreateAdGroup(string groupName, string? description, string? displayName = null)
+        {
+            new UinformService().CreateManagedGroup(groupName, displayName ?? groupName, description ?? "");
+        }
 
         /// <summary>
         /// Create an OU group to start managing a group in OU. Also creates a role to manage explicit membership and links it to the
@@ -31,7 +81,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="description"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public async Task<OuGroup> CreateOuGroup(string groupName, string? description)
+        public async Task<OuGroup> CreateRapsGroup(string groupName, string? description)
         {
             OuGroup newOuGroup = new()
             {
@@ -93,7 +143,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="ouGroup"></param>
         /// <param name="name"></param>
         /// <param name="description"></param>
-        public async Task UpdateOuGroup(OuGroup ouGroup, string name, string? description)
+        public async Task UpdateRapsGroup(OuGroup ouGroup, string name, string? description)
         {
             ouGroup.Name = name;
             ouGroup.Description = description;
@@ -241,6 +291,16 @@ namespace Viper.Areas.RAPS.Services
                     ldapService.AddUserToGroup(ldapMember.DistinguishedName, groupName);
                 }
             }
+        }
+        
+        /// <summary>
+        /// Return true if the group is in ou.ad3.ucdavis.edu, based on the name of the group
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <returns></returns>
+        private static bool IsOuGroup(string groupName)
+        {
+            return groupName.ToLower().Contains("dc=ou");
         }
 
         /// <summary>
