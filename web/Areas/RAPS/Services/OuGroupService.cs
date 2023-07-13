@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using NuGet.Protocol.Plugins;
 using System.Linq.Dynamic.Core;
 using System.Runtime.Versioning;
@@ -9,10 +10,13 @@ using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Services
 {
+    [SupportedOSPlatform("windows")]
     public class OuGroupService
     {
         private readonly RAPSContext _context;
         private readonly RAPSAuditService _auditService;
+        private readonly LdapService _ldapService;
+        private readonly UinformService _uInformService;
 
         private const string _exceptionRolePrefix = "RAPS.Groups.";
         private const string _exceptionRoleDesc = "Automatically created role for group membership by exception.";
@@ -22,6 +26,8 @@ namespace Viper.Areas.RAPS.Services
         {
             _context = context;
             _auditService = new RAPSAuditService(_context);
+            _uInformService = new();
+            _ldapService = new();
         }
         
         /// <summary>
@@ -29,8 +35,7 @@ namespace Viper.Areas.RAPS.Services
         /// </summary>
         /// <param name="search"></param>
         /// <returns></returns>
-        [SupportedOSPlatform("windows")]
-        public async Task<List<Models.Group>> GetAllGroups(string? search)
+        public async Task<List<Group>> GetAllGroups(string? search)
         {
             var result = await _context.OuGroups
                 .Where(g => search == null || g.Name.Contains(search))
@@ -38,8 +43,8 @@ namespace Viper.Areas.RAPS.Services
                 .ThenInclude(gr => gr.Role)
                 .ThenInclude(r => r.TblRoleMembers)
                 .ToListAsync();
-            List<LdapGroup> ldapGroups = new LdapService().GetGroups();
-            List<ManagedGroup> managedGroups = await new UinformService().GetManagedGroups();
+            List<LdapGroup> ldapGroups = _ldapService.GetGroups();
+            List<ManagedGroup> managedGroups = await _uInformService.GetManagedGroups();
 
             List<Group> groups = new();
             foreach (OuGroup group in result)
@@ -60,17 +65,6 @@ namespace Viper.Areas.RAPS.Services
 
             groups.Sort((g1, g2) => g1.Name.CompareTo(g2.Name));
             return groups;
-        }
-
-        /// <summary>
-        /// Create an AD group via uInform API
-        /// </summary>
-        /// <param name="groupName"></param>
-        /// <param name="description"></param>
-        /// <param name="displayName"></param>
-        public void CreateAdGroup(string groupName, string? description, string? displayName = null)
-        {
-            new UinformService().CreateManagedGroup(groupName, displayName ?? groupName, description ?? "");
         }
 
         /// <summary>
@@ -213,7 +207,6 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="groupId"></param>
         /// <param name="filterToActive">If true, only active SVM affiliates will be returned</param>
         /// <returns></returns>
-        [SupportedOSPlatform("windows")]
         public async Task<List<GroupMember>> GetAllMembers(int groupId, string groupName, bool filterToActive = false)
         {
             List<GroupMember> members = new();         
@@ -232,6 +225,23 @@ namespace Viper.Areas.RAPS.Services
                 members.Last().Roles.Add(CreateGroupMemberRole(roleMember));
             }
 
+            //Compare to users in the group in AD. Set a flag if they are in the members list and in the group. If they are in the group in AD,
+            //but not in the members list, add an entry so we know to remove them.
+            await CompareToGroup(groupName, members);
+            
+            return members;
+        }
+
+        /// <summary>
+        /// Take a list of members that belong to one or more roles that qualifies them for membership in a security group. Add a 
+        /// flag indicating whether they are in the group already. Add any current members of the group that are not in the given list of members
+        /// so that they can be removed
+        /// </summary>
+        /// <param name="groupName">The group distinguished name</param>
+        /// <param name="members">The list of members that should be a part of the group</param>
+        /// <returns></returns>
+        private async Task CompareToGroup(string groupName, List<GroupMember> members)
+        {
             //Create a lookup of loginids of members that should be in the group
             Dictionary<string, bool> membersInRoles = new();
             foreach (GroupMember m in members)
@@ -239,22 +249,47 @@ namespace Viper.Areas.RAPS.Services
                 membersInRoles[m.LoginId] = true;
             }
 
-            //Get users in the group in AD
-            LdapService ldapService = new();
+            //Create a lookup of loginids of people already in the group
             Dictionary<string, bool> membersInGroupLookup = new();
-            List<LdapUser> usersInGroup = ldapService.GetGroupMembership(groupName);
-            foreach (LdapUser user in usersInGroup)
+
+            //For OU groups, use LdapService to get members
+            if (IsOuGroup(groupName))
             {
-                membersInGroupLookup[user.SamAccountName] = true;
-                //Add this "member" if they are in the ou group but not in any role that would qualify them for them membership
-                if (!membersInRoles.ContainsKey(user.SamAccountName))
+                List<LdapUser> usersInGroup = _ldapService.GetGroupMembership(groupName);
+                foreach (LdapUser user in usersInGroup)
                 {
-                    members.Add(new GroupMember()
+                    //Record this user is in the group
+                    membersInGroupLookup[user.SamAccountName] = true;
+                    //Add this "member" if they are in the group in AD but not in any role that would qualify them for them membership
+                    if (!membersInRoles.ContainsKey(user.SamAccountName))
                     {
-                        DisplayFirstName = user.GivenName,
-                        DisplayLastName = user.Sn,
-                        LoginId = user.SamAccountName
-                    });
+                        members.Add(new GroupMember()
+                        {
+                            DisplayFirstName = user.GivenName,
+                            DisplayLastName = user.Sn,
+                            LoginId = user.SamAccountName
+                        });
+                    }
+                }
+            }
+            //For AD managed groups, use the uInform API to get members
+            else
+            {
+                ManagedGroup managedGroup = await _uInformService.GetManagedGroup(groupName);
+                List<AdUser> usersInGroup = await _uInformService.GetGroupMembers(managedGroup.ObjectGuid);
+                foreach(AdUser user in usersInGroup)
+                {
+                    //Record this user is in the group
+                    membersInGroupLookup[user.SamAccountName] = true;
+                    //Add this "member" if they are in the group in AD but not in any role that would qualify them for them membership
+                    if (!membersInRoles.ContainsKey(user.SamAccountName))
+                    {
+                        members.Add(new GroupMember()
+                        {
+                            DisplayName = user.DisplayName,
+                            LoginId = user.SamAccountName
+                        });
+                    }
                 }
             }
 
@@ -263,32 +298,101 @@ namespace Viper.Areas.RAPS.Services
             {
                 member.IsInGroup = membersInGroupLookup.ContainsKey(member.LoginId);
             }
-            return members;
         }
 
-        [SupportedOSPlatform("windows")]
         public async Task Sync(int groupId, string groupName)
         {
             List<GroupMember> members = await GetAllMembers(groupId, groupName, true);
             var toRemove = members.Where(m => m.Roles.Count == 0);
             var toAdd = members.Where(m => !(m.IsInGroup ?? true)); //IsInGroup must be non-null and false
-            LdapService ldapService = new();
+            bool isOu = IsOuGroup(groupName);
 
-            foreach (GroupMember m in toRemove)
+            if(IsOuGroup(groupName))
             {
-                LdapUser? ldapMember = ldapService.GetUser(m.LoginId);
-                if (ldapMember != null)
+                foreach (GroupMember m in toRemove)
                 {
-                    ldapService.RemoveUserFromGroup(ldapMember.DistinguishedName, groupName);
+                    UpdateOuGroupMember(groupName, m.LoginId, false);
+                }
+
+                foreach (GroupMember m in toAdd)
+                {
+                    UpdateOuGroupMember(groupName, m.LoginId, true);
                 }
             }
-
-            foreach (GroupMember m in toAdd)
+            else
             {
-                LdapUser? ldapMember = ldapService.GetUser(m.LoginId);
-                if (ldapMember != null)
+                ManagedGroup? managedGroup = await _uInformService.GetManagedGroup(groupName);
+                if(managedGroup != null)
                 {
-                    ldapService.AddUserToGroup(ldapMember.DistinguishedName, groupName);
+                    foreach (GroupMember m in toRemove)
+                    {
+                        _ = UpdateAdGroupMember(managedGroup.ObjectGuid, m.LoginId, false);
+                    }
+
+                    foreach (GroupMember m in toAdd)
+                    {
+                        _ = UpdateAdGroupMember(managedGroup.ObjectGuid, m.LoginId, true);
+                    }
+                }
+            }
+            
+        }
+
+        private void UpdateOuGroupMember(string groupName, string loginId, bool add)
+        {
+            string? dn = null;
+            if(HttpHelper.Cache != null)
+            {
+                dn = HttpHelper.Cache.Get<string>("ou.ad3-distinguishedname-" + loginId);
+            }
+            if(dn == null)
+            {
+                dn = _ldapService.GetUser(loginId)?.DistinguishedName;
+                if(HttpHelper.Cache != null)
+                {
+                    HttpHelper.Cache.Set("ou.ad3-distinguishedname-" + loginId, dn, new TimeSpan(0, 20, 0));
+                }
+            }
+            
+            if (dn != null)
+            {
+                if (add)
+                {
+                    _ldapService.AddUserToGroup(dn, groupName);
+                }
+                else
+                {
+                    _ldapService.RemoveUserFromGroup(dn, groupName);
+                }
+                
+            }
+        }
+
+        private async Task UpdateAdGroupMember(string groupGuid, string loginId, bool add)
+        {
+            string? userGuid = null;
+            if (HttpHelper.Cache != null)
+            {
+                userGuid = HttpHelper.Cache.Get<string>("ad3-userGuid-" + loginId);
+            }
+            if (userGuid == null)
+            {
+                userGuid = (await _uInformService.GetUser(samAccountName: loginId)).ObjectGuid;
+                if (HttpHelper.Cache != null)
+                {
+                    HttpHelper.Cache.Set("ad3-userGuid-" + loginId, userGuid, new TimeSpan(0, 20, 0));
+                }
+            }
+            
+            if (userGuid != null)
+            {
+                if (add)
+                {
+                    await _uInformService.AddGroupMember(groupGuid, userGuid);
+                }
+                else
+                {
+                    await _uInformService.RemoveGroupMember(groupGuid, userGuid);
                 }
             }
         }
@@ -320,6 +424,7 @@ namespace Viper.Areas.RAPS.Services
                .Where(rm => roleIds.Contains(rm.RoleId))
                .Where(rm => !filterToActive || (rm.StartDate == null || rm.StartDate <= DateTime.Now))
                .Where(rm => !filterToActive || (rm.EndDate == null || rm.EndDate > DateTime.Now))
+               .Where(rm => !filterToActive || rm.AaudUser.Current || rm.AaudUser.Future)
                .OrderBy(rm => rm.AaudUser.DisplayLastName)
                .ThenBy(rm => rm.AaudUser.DisplayFirstName)
                .ThenBy(rm => rm.MemberId)
@@ -340,6 +445,7 @@ namespace Viper.Areas.RAPS.Services
                 MailId = roleMember.AaudUser.MailId,
                 DisplayFirstName = roleMember.AaudUser.DisplayFirstName,
                 DisplayLastName = roleMember.AaudUser.DisplayLastName,
+                DisplayName = roleMember.AaudUser.DisplayLastName + ", " + roleMember.AaudUser.DisplayFirstName,
                 Current = roleMember.AaudUser.Current,
                 Roles = new List<GroupMemberRole>()
             };

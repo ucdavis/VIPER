@@ -99,7 +99,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="description"></param>
         /// <param name="maxMembers">max members, or 0 for no max</param>
         /// <returns></returns>
-        public void CreateManagedGroup(string groupName, string displayName, string description, int maxMembers = 0)
+        public async Task CreateManagedGroup(string groupName, string displayName, string description, int maxMembers = 0)
         {
             if(!groupName.StartsWith("SVM-"))
             {
@@ -112,7 +112,7 @@ namespace Viper.Areas.RAPS.Services
                 Description = description,
                 MaxMembers = maxMembers
             };
-            _ = SendRequest<ManagedGroup>("ManagedGroups", HttpMethod.Post, newGroup.ToJson());
+            _ = await SendRequest<ManagedGroup>("ManagedGroups", HttpMethod.Post, newGroup.ToJson());
         }
 
         /// <summary>

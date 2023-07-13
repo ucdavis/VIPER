@@ -123,10 +123,10 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         [HttpPost("Managed")]
-        public ActionResult CreateAdGroup(GroupAddEdit group)
+        public async Task<ActionResult> CreateAdGroup(GroupAddEdit group)
         {
-            _ouGroupService.CreateAdGroup(group.Name, group.Description, group.DisplayName);
-            return Accepted();
+            await new UinformService().CreateManagedGroup(group.Name, group.DisplayName ?? group.Name, group.Description ?? "");
+            return Ok();
         }
 
         [HttpDelete("{groupId}")]
@@ -160,14 +160,14 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         [HttpPost("{groupId}/Sync")]
-        public ActionResult SyncGroup(int groupId)
+        public async Task<ActionResult> SyncGroup(int groupId)
         {
             OuGroup? group = _context.OuGroups.Find(groupId);
             if (group == null)
             {
                 return NotFound();
             }
-            _ = _ouGroupService.Sync(groupId, group.Name);
+            await _ouGroupService.Sync(groupId, group.Name);
             return Accepted();
         }
     }

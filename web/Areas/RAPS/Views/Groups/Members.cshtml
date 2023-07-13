@@ -1,5 +1,12 @@
 ﻿<h2>Members for group {{group.name}}</h2>
-<q-btn no-caps color="primary" padding="xs md" class="q-mr-md q-mb-sm" label="Sync Members" :href="'GroupSync?groupId=' + group.groupId"></q-btn>
+<q-dialog v-model="syncing">
+    <q-card style="width: 500px; max-width: 80vw;">
+        <q-card-section>
+            Syncing group membership. It may take a while for the server to process the changes. You can close this dialog and check back in a few minutes.
+        </q-card-section>
+    </q-card>
+</q-dialog>
+<q-btn no-caps color="primary" padding="xs md" class="q-mr-md q-mb-sm" label="Sync Members" @@click="syncGroup()"></q-btn>
 <q-btn no-caps color="primary" padding="xs md" class="q-mr-md q-mb-sm" label="Edit Members" :href="'RoleMembers?roleId=' + group.groupRoleId"></q-btn>
 <q-table dense
          row-key="roleId"
@@ -77,9 +84,20 @@
         vueMethods.fdate = function(d) {
             return formatDate(d)
         }
+        vueMethods.syncGroup = function() {
+            viperFetch(this, 
+                "Groups/" + this.group.groupId + "/Sync", 
+                { method: "POST" },
+                [this.setSync]
+            )
+        }
+        vueMethods.setSync = function() { 
+            this.syncing = true
+        }
         
         vueObjects.group = {}
         vueObjects.groupId = 0
+        vueObjects.syncing = false
         vueObjects.groupMembers = new quasarTable({
             keys: ["memberId"],
             urlBase: "Groups/" + this.groupId + "/Members",

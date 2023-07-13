@@ -15,7 +15,7 @@
                               v-model="groupTable.object.group"
                               :options="allGroups"
                               :readonly="groupTable.editing"
-                              :error="groupTable.errors?.GroupId?.error"
+                              :error="groupTable.errors?.Name?.error"
                               @@filter="filterGroups"
                               error-message="Group is required">
                     </q-select>
