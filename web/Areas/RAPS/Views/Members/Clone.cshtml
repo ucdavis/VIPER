@@ -1,0 +1,69 @@
+﻿<h2>Copy roles and permissions from one user to another</h2>
+<q-form @@submit="return false;">
+    @*
+    <q-input dense outlined debounce="300" clearable clear-icon="close" class="q-ml-xs q-mr-xs" placerholder="Source user" v-model="sourceUserSearch">
+    </q-input>
+    <q-input dense outlined debounce="300" clearable clear-icon="close" class="q-ml-xs q-mr-xs" placerholder="Destination user" v-model="destUserSearch">
+    </q-input>
+    <q-select outlined dense options-dense use-input input-debounce="300"
+              label="Source user" v-model="sourceUser" @@filter="sourceUserSearch" :options="sourceUserResults">
+    </q-select>
+    *@
+    <q-select outlined dense options-dense use-input input-debounce="300"
+              label="Target user" v-model="targetUser" @@filter="targetUserSearch" :options="targetUserResults">
+    </q-select>
+</q-form>
+
+@section Scripts {
+    <script asp-add-nonce="true">
+        vueObjects.activeOnly = false
+        vueObjects.sourceUser = "b"
+        //vueObjects.sourceUserSearch = ""
+        vueObjects.sourceUserResults = []
+        vueObjects.targetUser = null
+        //vueObjects.targetUserSearch = ""
+        vueObjects.targetUserResults = []
+
+        vueMethods.sourceUserSearch = function (val, update, abort) {
+            this.findUsers(val, update, abort, false)
+        }
+        vueMethods.targetUserSearch = function (val, update, abort) {
+            this.findUsers(val, update, abort, true)
+        }
+
+        vueMethods.findUsers = function (val, update, abort, target) {
+            if (val.length < 3) {
+                abort()
+                return
+            }
+            update(() => {
+                var res = viperFetch(this, "Members?active=recent&search=" + val)
+                    .then(data => {
+                        data = data.map(m => ({
+                            label: (!m.current ? "[Inactive]" : "") + m.displayLastName + ", " + m.displayFirstName,
+                            value: m.memberId
+                        }))
+                        if(target)
+                            this.targetUserResults = data
+                        else
+                            this.sourceUserResults = data
+                    })
+                    
+            })
+        }
+
+        vueMountedActions.push(function () {
+            //this.members.loading = false
+        });
+
+
+        vueWatchers.targetUserSearch = function () {
+            this.findUsers()
+        }
+        /*
+        vueWatchers.destUserSearch = function() {
+            this.findUsers()
+        }
+        */
+    </script>
+}

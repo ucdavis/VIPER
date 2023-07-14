@@ -7,6 +7,7 @@ using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
+using Web.Authorization;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -26,7 +27,7 @@ namespace Viper.Areas.RAPS.Controllers
         }
         // GET: <Members>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<MemberSearchResult>>> Get(string search, bool includeRoles=false, bool includePermissions=false)
+        public async Task<ActionResult<IEnumerable<MemberSearchResult>>> Get(string search, string active = "active")
         {
             var members = await _context.VwAaudUser
                     .Include(u => u.TblRoleMembers)
@@ -35,7 +36,7 @@ namespace Viper.Areas.RAPS.Controllers
                         || (u.MailId != null && u.MailId.Contains(search))
                         || (u.LoginId != null && u.LoginId.Contains(search))
                     )
-                    .Where(u => u.Current)
+                    .Where(u => active == "all" || (active == "recent" && u.MostRecentTerm != null && u.MostRecentTerm >= DateTime.Now.Year * 100) || u.Current)
                     .OrderBy(u => u.DisplayLastName)
                     .ThenBy(u => u.DisplayFirstName)
                     .ToListAsync();
@@ -85,10 +86,15 @@ namespace Viper.Areas.RAPS.Controllers
         /// </summary>
         /// <param name="memberId"></param>
         /// <returns>A list of permission results, including a source param to determine how the permission was assigned</returns>
-        // GET <Members>/12345678/RSOP
+        [Permission(Allow = "RAPS.Admin,RAPS.RSOP")]
         [HttpGet("{memberId}/RSOP")]
         public async Task<ActionResult<List<PermissionResult>>> RSOP(string instance, string memberId)
         {
+            if(!_securityService.IsAllowedTo("RSOP", instance))
+            {
+                return Forbid();
+            }
+
             var permsViaRoles = await (
                 from permission in _context.TblPermissions
                 join rolePermissions in _context.TblRolePermissions
@@ -171,6 +177,28 @@ namespace Viper.Areas.RAPS.Controllers
             return permissions.Values.OrderBy(p => p.PermissionName)
                 .Where(p => _securityService.PermissionBelongsToInstance(instance, p.PermissionName))
                 .ToList();
+        }
+
+        [Permission(Allow = "RAPS.Admin,RAPS.Clone")]
+        [HttpPost("{sourceMemberId}/CloneTo/{targetMemberId}")]
+        public async Task<ActionResult<MemberCloneObjects>> GetDifference(string instance, string sourceMemberId, string targetMemberId)
+        {
+            if (!_securityService.IsAllowedTo("Clone", instance))
+            {
+                return Forbid();
+            }
+            return await new CloneService(_context).GetUserComparison(instance, sourceMemberId, targetMemberId);
+        }
+
+        [Permission(Allow = "RAPS.Admin,RAPS.Clone")]
+        [HttpPost("{sourceMemberId}/CloneTo/{targetMemberId}")]
+        public async Task<ActionResult> Clone(string instance, string sourceMemberId, string targetMemberId)
+        {
+            if (!_securityService.IsAllowedTo("Clone", instance))
+            {
+                return Forbid();
+            }
+            return Ok();
         }
     }
 }

@@ -123,7 +123,7 @@ namespace Viper.Areas.RAPS.Controllers
                 nav.Add(new NavMenuItem() { MenuItemText = "User Lookup", MenuItemURL = "userSearch" });
                 if(_securityService.IsAllowedTo("Clone", instance))
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = "Clone User Permissions", MenuItemURL = "userClone" });
+                    nav.Add(new NavMenuItem() { MenuItemText = "Clone User Permissions", MenuItemURL = "UserClone" });
                 }
                 if(selecteduser != null)
                 {
@@ -357,6 +357,17 @@ namespace Viper.Areas.RAPS.Controllers
                 return View("~/Views/Home/403.cshtml");
             }
             return await Task.Run(() => View("~/Areas/RAPS/Views/Members/History.cshtml"));
+        }
+
+        [Permission(Allow = "RAPS.Admin,RAPS.Clone")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> UserClone(string instance)
+        {
+            if (!_securityService.IsAllowedTo("Clone", instance))
+            {
+                return View("~/Views/Home/403.cshtml");
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/Clone.cshtml"));
         }
 
         [Permission(Allow = "RAPS.Admin")]

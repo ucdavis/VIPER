@@ -30,6 +30,7 @@ namespace Viper.Models.RAPS
         public bool FutureEmployee { get; set; }
         public bool Current { get; set; }
         public bool Future { get; set; }
+        public int? MostRecentTerm { get; set; }
 
         public virtual ICollection<TblRoleMember> TblRoleMembers { get; set; } = new List<TblRoleMember>();
         public virtual ICollection<TblMemberPermission> TblMemberPermissions { get; set; } = new List<TblMemberPermission>();

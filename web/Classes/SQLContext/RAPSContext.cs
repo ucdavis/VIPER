@@ -538,6 +538,7 @@ public partial class RAPSContext : DbContext
             entity.Property(e => e.FutureStudent).HasColumnName("future_student");
             entity.Property(e => e.FutureEmployee).HasColumnName("future_employee");
             entity.Property(e => e.Future).HasColumnName("future");
+            entity.Property(e => e.MostRecentTerm).HasColumnName("mostRecentTerm");
         });
 
         modelBuilder.Entity<VwCahfspersonnel>(entity =>

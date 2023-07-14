@@ -58,6 +58,15 @@ namespace Viper.Areas.RAPS.Services
                 : r.Role.StartsWith(instance);
         }
 
+        static public Expression<Func<TblPermission, bool>> FilterPermissionsToInstance(string instance)
+        {
+            return p =>
+                instance.ToUpper().StartsWith("VMACS.") ? p.Permission.StartsWith("VMACS")
+                    : instance.ToUpper().StartsWith("VIPERFORMS") ? p.Permission.StartsWith("VIPERForms")
+                    : (!p.Permission.StartsWith("VMACS") && !p.Permission.StartsWith("VIPERForms"));
+
+        }
+
         /// <summary>
         /// Check that the role belongs to the given instance by checking the role name
         /// </summary>
@@ -135,6 +144,8 @@ namespace Viper.Areas.RAPS.Services
                             );
                 case "RSOP":
                     return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.RSOP");
+                case "Clone":
+                    return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.Clone");
                 case "ViewHistory":
                     return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.EditRoleMembership");
                 case "EditRoleMembership":

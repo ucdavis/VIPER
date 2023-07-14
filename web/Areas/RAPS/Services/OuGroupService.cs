@@ -7,6 +7,7 @@ using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Models.Uinform;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
+using static Viper.Areas.RAPS.Services.RAPSAuditService;
 
 namespace Viper.Areas.RAPS.Services
 {
@@ -312,11 +313,13 @@ namespace Viper.Areas.RAPS.Services
                 foreach (GroupMember m in toRemove)
                 {
                     UpdateOuGroupMember(groupName, m.LoginId, false);
+                    _auditService.AuditGroupMemberChange(m, groupId, groupName, AuditActionType.Delete);
                 }
 
                 foreach (GroupMember m in toAdd)
                 {
                     UpdateOuGroupMember(groupName, m.LoginId, true);
+                    _auditService.AuditGroupMemberChange(m, groupId, groupName, AuditActionType.Create);
                 }
             }
             else
@@ -327,11 +330,13 @@ namespace Viper.Areas.RAPS.Services
                     foreach (GroupMember m in toRemove)
                     {
                         _ = UpdateAdGroupMember(managedGroup.ObjectGuid, m.LoginId, false);
+                        _auditService.AuditGroupMemberChange(m, groupId, groupName, AuditActionType.Delete);
                     }
 
                     foreach (GroupMember m in toAdd)
                     {
                         _ = UpdateAdGroupMember(managedGroup.ObjectGuid, m.LoginId, true);
+                        _auditService.AuditGroupMemberChange(m, groupId, groupName, AuditActionType.Create);
                     }
                 }
             }

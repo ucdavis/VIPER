@@ -1,4 +1,6 @@
-﻿using Viper.Classes.SQLContext;
+﻿using System.Text.RegularExpressions;
+using Viper.Areas.RAPS.Models;
+using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Services
@@ -248,6 +250,23 @@ namespace Viper.Areas.RAPS.Services
                     tblLog.Audit = "DelRoleForOuGroup";
                     break;
             }
+            _context.Add(tblLog);
+        }
+
+        public void AuditGroupMemberChange(GroupMember member, int groupId, string groupName, AuditActionType actionType)
+        {
+            string detail = actionType == AuditActionType.Create 
+                ? "Adding " + member.LoginId + " " + member.DisplayName + " to "
+                : "Removing " + member.LoginId + " " + member.DisplayName + " from ";
+            TblLog tblLog = new()
+            {
+                OuGroupId = groupId,
+                MemberId = member.MemberId,
+                Audit = actionType == AuditActionType.Create ? "AddMemberToOuGroup" : "DelMemberFromOuGroup",
+                Detail = detail + " group " + groupName + ".",
+                ModTime = DateTime.Now,
+                ModBy = UserHelper.GetCurrentUser()?.LoginId
+            };
             _context.Add(tblLog);
         }
     }
