@@ -54,6 +54,13 @@ namespace Viper.Areas.RAPS.Services
 
         }
 
+        /// <summary>
+        /// Get a comparison of the roles and permissions between two users
+        /// </summary>
+        /// <param name="instance"></param>
+        /// <param name="sourceMemberId"></param>
+        /// <param name="targetMemberId"></param>
+        /// <returns></returns>
         public async Task<MemberCloneObjects> GetUserComparison(string instance, string sourceMemberId, string targetMemberId)
         {
             MemberCloneObjects cloneObjects = new();
@@ -68,8 +75,13 @@ namespace Viper.Areas.RAPS.Services
             {
                 TblRoleMember? source = sourceMemberRoles.FirstOrDefault(rm => rm.Role.RoleId == role.RoleId);
                 TblRoleMember? target = targetMemberRoles.FirstOrDefault(rm => rm.Role.RoleId == role.RoleId);
-                cloneObjects.CompareRoleMembers(source, target);                
+                RoleClone? r = CompareRoleMembers(source, target);                
+                if(r != null)
+                {
+                    cloneObjects.Roles.Add(r);
+                }
             }
+            cloneObjects.Roles.Sort((r1, r2) => r1.Role.ToUpper().CompareTo(r2.Role.ToUpper()));
 
             if(_securityService.IsAllowedTo("ClonePermissions", instance))
             {
@@ -82,11 +94,96 @@ namespace Viper.Areas.RAPS.Services
                 {
                     TblMemberPermission? source = sourceMemberPermissions.FirstOrDefault(rp => rp.PermissionId == permission.PermissionId);
                     TblMemberPermission? target = targetMemberPermissions.FirstOrDefault(rp => rp.PermissionId == permission.PermissionId);
-                    cloneObjects.CompareMemberPermissions(source, target);
+                    PermissionClone? p = CompareMemberPermissions(source, target);
+                    if(p != null)
+                    {
+                        cloneObjects.Permissions.Add(p);
+                    }
                 }
+                cloneObjects.Permissions.Sort((p1, p2) => p1.Permission.ToUpper().CompareTo(p2.Permission.ToUpper()));
             }
 
             return cloneObjects;
+        }
+
+        /// <summary>
+        /// Compare a role member object from a source user to a target user, set create/update/delete, and add to the roles list
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="target"></param>
+        /// <returns></returns>
+        public RoleClone? CompareRoleMembers(TblRoleMember? source, TblRoleMember? target)
+        {
+            RoleClone? roleClone = null;
+            RoleClone.CloneAction? action = null;
+            if (source != null && target != null 
+                && (source.StartDate != target.StartDate || source.EndDate != target.EndDate))
+            {
+                //in both source and target, but dates are different
+                action = RoleClone.CloneAction.Update;
+            }
+            else if (source == null && target != null)
+            {
+                action = RoleClone.CloneAction.Delete;
+            }
+            else if (source != null && target == null)
+            {
+                action = RoleClone.CloneAction.Create;
+                
+            }
+            if (action != null)
+            {
+                roleClone = new RoleClone()
+                {
+                    Action = (RoleClone.CloneAction)action,
+                    Source = source != null ? RoleMemberCreateUpdate.CreateRoleMember(source) : null,
+                    Target = target != null ? RoleMemberCreateUpdate.CreateRoleMember(target) : null,
+                    Role = source?.Role.FriendlyName ?? target?.Role.FriendlyName
+                };
+            }
+            return roleClone;
+        }
+
+        /// <summary>
+        /// Compare a member permission object from a source user to a target user, set create/update/delete, and add to the permission list
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="target"></param>
+        /// <returns></returns>
+        public PermissionClone? CompareMemberPermissions(TblMemberPermission? source, TblMemberPermission? target)
+        {
+            PermissionClone? permissionClone = null;
+            PermissionClone.CloneAction? action = null;
+            if (source != null && target != null)
+            {
+                //in both source and target, but dates are different
+                bool datesDiffer = source.StartDate != target.StartDate || source.EndDate != target.EndDate;
+                bool accessDiffers = source.Access != target.Access;
+                action = datesDiffer && accessDiffers ? PermissionClone.CloneAction.UpdateAndAccessFlag
+                    : datesDiffer ? PermissionClone.CloneAction.Update
+                    : accessDiffers ? PermissionClone.CloneAction.AccessFlag
+                    : null;
+            }
+            else if (source == null && target != null)
+            {
+                action = PermissionClone.CloneAction.Delete;
+            }
+            else if (source != null && target == null)
+            {
+                action = PermissionClone.CloneAction.Create;
+            }
+
+            if(action != null)
+            {
+                permissionClone = new PermissionClone()
+                {
+                    Action = (PermissionClone.CloneAction)action,
+                    Source = source != null ? MemberPermissionCreateUpdate.CreateMemberPermission(source) : null,
+                    Target = target != null ? MemberPermissionCreateUpdate.CreateMemberPermission(target) : null,
+                    Permission = source?.Permission.Permission ?? target?.Permission.Permission
+                };
+            }
+            return permissionClone;
         }
     }
 }

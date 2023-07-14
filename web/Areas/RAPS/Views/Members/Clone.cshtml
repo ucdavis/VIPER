@@ -1,29 +1,89 @@
-﻿<h2>Copy roles and permissions from one user to another</h2>
+﻿<h2>Select source and target users</h2>
 <q-form @@submit="return false;">
-    @*
-    <q-input dense outlined debounce="300" clearable clear-icon="close" class="q-ml-xs q-mr-xs" placerholder="Source user" v-model="sourceUserSearch">
-    </q-input>
-    <q-input dense outlined debounce="300" clearable clear-icon="close" class="q-ml-xs q-mr-xs" placerholder="Destination user" v-model="destUserSearch">
-    </q-input>
-    <q-select outlined dense options-dense use-input input-debounce="300"
-              label="Source user" v-model="sourceUser" @@filter="sourceUserSearch" :options="sourceUserResults">
-    </q-select>
-    *@
-    <q-select outlined dense options-dense use-input input-debounce="300"
-              label="Target user" v-model="targetUser" @@filter="targetUserSearch" :options="targetUserResults">
-    </q-select>
+    <div class="row q-mb-sm">
+        <q-select outlined dense options-dense use-input input-debounce="300" class="col col-md-4 col-lg-3"
+                  label="Source user" v-model="sourceUser" @@filter="sourceUserSearch" :options="sourceUserResults">
+        </q-select>
+        <q-select outlined dense options-dense use-input input-debounce="300" class="col col-md-4 col-lg-3 q-ml-md"
+                  label="Target user" v-model="targetUser" @@filter="targetUserSearch" :options="targetUserResults">
+        </q-select>
+    </div>
+
+    <q-btn-group outline rounded>
+        <q-btn no-caps :outline="showWhich != 'Roles'" color="primary" class="q-mb-sm" @@click="showWhich='Roles'">
+            <q-icon name="security" title="Show Roles To Copy" class="q-mr-sm"></q-icon>
+            Roles to Copy
+            {{selectedRoles.length ? `(${selectedRoles.length})` : ""}}
+        </q-btn>
+        <q-btn no-caps :outline="showWhich != 'Permissions'" color="primary" class="q-mb-sm" @@click="showWhich='Permissions'">
+            <q-icon name="lock" title="Show Permissions To Copy" class="q-mr-sm"></q-icon>
+            Permissions to Copy
+            {{selectedPermissions.length ? `(${selectedPermissions.length})` : ""}}
+        </q-btn>
+    </q-btn-group>
 </q-form>
+
+<q-table 
+        dense 
+        v-if="dataLoaded && showWhich == 'Roles'"
+        row-key="roleId"
+        selection="multiple"
+        v-model:selected="selectedRoles"
+        :rows="cloneObject.roles"
+        :columns='[
+            { name: "action", field: "", align: "left", sortable: true },
+            { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
+            { name: "role", label: "Role", field: "role", align: "left", sortable: true },
+            { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v => formatDate(v) },
+            { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
+        ]'
+        :pagination="{rowsPerPage:0}">
+    <template v-slot:body-cell-action="props">
+        <q-td :props="props">
+            <q-icon size="xs" :name="!props.row?.source?.roleId ? 'close' : (props.row?.target?.roleId ? 'edit' : 'add')"
+                    :color="!props.row?.source?.roleId ? 'red' : (props.row?.target?.roleId ? 'grey' : 'green')"></q-icon>
+        </q-td>
+    </template>
+</q-table>
+
+<q-table dense
+        v-if="dataLoaded && showWhich == 'Permissions'"
+        row-key="permissionId"
+        selection="multiple"
+        v-model:selected="selectedPermissions"
+        :rows="cloneObject.permissions"
+        :columns='[
+            { name: "action" , field: "" , align: "left" , sortable: true },
+            { name: "actionText" , label: "Action" , field: "actionText" , align: "left" , sortable: true },
+            { name: "permission" , label: "Permission" , field: "permission" , align: "left" , sortable: true },
+            { name: "startdate" , label: "Start Date" , field: "startDate" , align: "left" , format: v=> formatDate(v) },
+            { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
+        ]'
+        :pagination="{rowsPerPage:0}">
+    <template v-slot:body-cell-action="props">
+        <q-td :props="props">
+            <q-icon size="xs" :name="!props.row?.source?.permissionId ? 'close' : (props.row?.target?.permissionId ? 'edit' : 'add')"
+                    :color="!props.row?.source?.permissionId ? 'red' : (props.row?.target?.permissionId ? 'grey' : 'green')"></q-icon>
+        </q-td>
+    </template>
+</q-table>
 
 @section Scripts {
     <script asp-add-nonce="true">
         vueObjects.activeOnly = false
-        vueObjects.sourceUser = "b"
-        //vueObjects.sourceUserSearch = ""
+        vueObjects.sourceUser = getItemFromStorage("sourceUser") ?? { label: "", value: "" }
         vueObjects.sourceUserResults = []
-        vueObjects.targetUser = null
-        //vueObjects.targetUserSearch = ""
+        vueObjects.targetUser = getItemFromStorage("targetUser") ?? { label: "", value: "" }
         vueObjects.targetUserResults = []
+        vueObjects.cloneObject = {}
+        vueObjects.dataLoaded = false
+        vueObjects.showWhich = "Roles"
+        vueObjects.selectedPermissions = []
+        vueObjects.selectedRoles = []
+        console.log(vueObjects.sourceUser)
+        console.log(vueObjects.targetUser)
 
+        vueMethods.formatDate = formatDate;
         vueMethods.sourceUserSearch = function (val, update, abort) {
             this.findUsers(val, update, abort, false)
         }
@@ -31,6 +91,7 @@
             this.findUsers(val, update, abort, true)
         }
 
+        //search for a user and update either result array
         vueMethods.findUsers = function (val, update, abort, target) {
             if (val.length < 3) {
                 abort()
@@ -52,18 +113,28 @@
             })
         }
 
+        //if both sourec and target user are selected, load the roles/permissions to clone
+        vueMethods.checkUsersSelected = function() {
+            if (this?.sourceUser?.value.length && this?.targetUser?.value.length) {
+                var res = viperFetch(this, `Members/${this.sourceUser.value}/cloneTo/${this.targetUser.value}`)
+                    .then(data => {
+                        this.cloneObject = data
+                        this.dataLoaded = true
+                    })
+            }
+        }
+
         vueMountedActions.push(function () {
-            //this.members.loading = false
+            this.checkUsersSelected()
         });
 
-
-        vueWatchers.targetUserSearch = function () {
-            this.findUsers()
+        vueWatchers.sourceUser = function () {
+            putItemInStorage("sourceUser", this.sourceUser)
+            this.checkUsersSelected()
         }
-        /*
-        vueWatchers.destUserSearch = function() {
-            this.findUsers()
+        vueWatchers.targetUser = function () {
+            putItemInStorage("targetUser", this.targetUser)
+            this.checkUsersSelected()
         }
-        */
     </script>
 }

@@ -132,3 +132,12 @@ async function loadViperLeftNav() {
     qs = qs.length ? ("?" + qs.join("&")) : ""
     this.viperNavMenu = await viperFetch(this, "nav" + qs)
 }
+
+function getItemFromStorage(key) {
+    var val = window.sessionStorage.getItem(key)
+    return val != null ? JSON.parse(val) : null
+}
+
+function putItemInStorage(key, val) {
+    window.sessionStorage.setItem(key, JSON.stringify(val))
+}

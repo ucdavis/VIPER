@@ -1,12 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Linq.Expressions;
-using System.Reflection.Metadata.Ecma335;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes.SQLContext;
-using Viper.Models.RAPS;
 using Web.Authorization;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
@@ -180,7 +176,7 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         [Permission(Allow = "RAPS.Admin,RAPS.Clone")]
-        [HttpPost("{sourceMemberId}/CloneTo/{targetMemberId}")]
+        [HttpGet("{sourceMemberId}/CloneTo/{targetMemberId}")]
         public async Task<ActionResult<MemberCloneObjects>> GetDifference(string instance, string sourceMemberId, string targetMemberId)
         {
             if (!_securityService.IsAllowedTo("Clone", instance))
