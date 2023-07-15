@@ -21,6 +21,10 @@
             {{selectedPermissions.length ? `(${selectedPermissions.length})` : ""}}
         </q-btn>
     </q-btn-group>
+
+    <q-btn no-caps color="primary" class="q-ml-lg" @@click="submitClone(this)">
+        Submit Changes
+    </q-btn>
 </q-form>
 
 <q-table 
@@ -37,7 +41,8 @@
             { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v => formatDate(v) },
             { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
         ]'
-        :pagination="{rowsPerPage:0}">
+        :pagination="{rowsPerPage:0}"
+        no-data-label="Roles are the same">
     <template v-slot:body-cell-action="props">
         <q-td :props="props">
             <q-icon size="xs" :name="!props.row?.source?.roleId ? 'close' : (props.row?.target?.roleId ? 'edit' : 'add')"
@@ -59,7 +64,8 @@
             { name: "startdate" , label: "Start Date" , field: "startDate" , align: "left" , format: v=> formatDate(v) },
             { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
         ]'
-        :pagination="{rowsPerPage:0}">
+        :pagination="{rowsPerPage:0}"
+        no-data-label="Permissions are the same">
     <template v-slot:body-cell-action="props">
         <q-td :props="props">
             <q-icon size="xs" :name="!props.row?.source?.permissionId ? 'close' : (props.row?.target?.permissionId ? 'edit' : 'add')"
@@ -80,9 +86,7 @@
         vueObjects.showWhich = "Roles"
         vueObjects.selectedPermissions = []
         vueObjects.selectedRoles = []
-        console.log(vueObjects.sourceUser)
-        console.log(vueObjects.targetUser)
-
+        
         vueMethods.formatDate = formatDate;
         vueMethods.sourceUserSearch = function (val, update, abort) {
             this.findUsers(val, update, abort, false)
@@ -122,6 +126,24 @@
                         this.dataLoaded = true
                     })
             }
+        }
+
+        vueMethods.submitClone = async function() {
+            var b = {
+                roleIds: this.selectedRoles.map(r => r.roleId), 
+                permissionIds: this.selectedPermissions.map(p => p.permissionId)
+            }
+            await viperFetch(this,
+                `Members/${this.sourceUser.value}/CloneTo/${this.targetUser.value}`,
+                {
+                    method: "POST",
+                    body: JSON.stringify(b),
+                    headers: { "Content-Type": "application/json" }
+                },
+                [this.checkUsersSelected]
+            )
+            this.selectedRoles = []
+            this.selectedPermissions = []
         }
 
         vueMountedActions.push(function () {

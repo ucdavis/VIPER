@@ -82,7 +82,10 @@ async function handleViperFetchError(response) {
             throw Error("An error occurred")
         }
 
-        throw new ValidationError(result.errorMessage ? result.errorMessage : response.statusText, result?.errors)
+        var message = result.errorMessage != null ? result.errorMessage
+            : result.detail != null ? result.detail
+            : result.statusText
+        throw new ValidationError(message, result?.errors)
     }
     return response
 }

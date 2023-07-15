@@ -188,13 +188,18 @@ namespace Viper.Areas.RAPS.Controllers
 
         [Permission(Allow = "RAPS.Admin,RAPS.Clone")]
         [HttpPost("{sourceMemberId}/CloneTo/{targetMemberId}")]
-        public async Task<ActionResult> Clone(string instance, string sourceMemberId, string targetMemberId)
+        public async Task<ActionResult> Clone(string instance, string sourceMemberId, string targetMemberId, CloneConfirm objectsToClone)
         {
             if (!_securityService.IsAllowedTo("Clone", instance))
             {
                 return Forbid();
             }
-            return Ok();
+            if(objectsToClone.RoleIds.Count == 0 && objectsToClone.PermissionIds.Count == 0)
+            {
+                return ValidationProblem("At least one role or permission must be selected.");
+            }
+            await new CloneService(_context).Clone(instance, sourceMemberId, targetMemberId, objectsToClone);
+            return NoContent();
         }
     }
 }
