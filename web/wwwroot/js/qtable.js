@@ -1,13 +1,8 @@
 ﻿/*
- * Shared code for quasar tables
- */
-
-
-/*
- * quasarTable - a quasar table with an edit dialog and add/update/delete functions, with optional server side paging/filtering and export to csv
+ * quasarTable - code to support a quasar table with an edit dialog and add/update/delete functions, with optional server side paging/filtering and export to csv
  */
 quasarTableDefaultConfig = {
-    //base of the url and keys of the objects, e.g. a urlBase of "Permissions" and a key of "id"" means the following ajax calls will be made
+    //base of the url and keys of the objects, e.g. a urlBase of "Permissions" and a key of "id" means the following ajax calls will be made
     //GET Permissions - load objects
     //POST Permissions - create a new permission
     //PUT Permissions/5 - update permission with ID 5
@@ -16,6 +11,8 @@ quasarTableDefaultConfig = {
     //would create the PUT and DELETE url Permissions/5/member/12345678
     urlBase: "",
     keys: "id",
+    //query params to append to GET requests, e.g. search=x&startDate=2023-01-01
+    query: {},
     //function to execute after data has been loaded, for example to add or alter columns
     onLoad: "",
     //function to create the body of a POST or PUT 

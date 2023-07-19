@@ -145,7 +145,7 @@ namespace Viper.Areas.RAPS.Controllers
             if(_securityService.IsAllowedTo("ViewAuditTrail"))
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "Admin", IsHeader = true });
-                nav.Add(new NavMenuItem() { MenuItemText = "View Audit Trail", MenuItemURL = "auditTrail" });
+                nav.Add(new NavMenuItem() { MenuItemText = "View Audit Trail", MenuItemURL = "AuditTrail" });
             }
             if(_securityService.IsAllowedTo("OUGroupsView"))
             {
@@ -396,30 +396,6 @@ namespace Viper.Areas.RAPS.Controllers
             return await Task.Run(() => View("~/Areas/RAPS/Views/RoleViewUpdate.cshtml"));
         }
         
-        [SupportedOSPlatform("windows")]
-        [Permission(Allow = "RAPS.Admin")]
-        [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> LdapGroup()
-        {
-            string? creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP");
-            if (creds == null)
-            {
-                ViewData["Error"] = "Credentials not found. Cannot connect to LDAP.";
-            }
-            else
-            {
-                var members = new LdapService().GetGroupMembership(
-                    "CN=SVM-BE-TEST,OU=Test Groups,OU=Security-Groups,OU=SVM-OU-Groups,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu"
-                    );
-                new LdapService().AddUserToGroup(
-                    "CN=punkrock,OU=ucdUsers,DC=ad3,DC=ucdavis,DC=edu",
-                    "CN=SVM-BE-TEST,OU=Test Groups,OU=Security-Groups,OU=SVM-OU-Groups,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu"
-                    );
-            }
-            
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/GroupTest.cshtml"));
-        }
-
         [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> GroupList()
@@ -460,18 +436,14 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> CreateADGroup()
         {
-            UinformService uInformService = new();
-            var groups = await uInformService.GetManagedGroups();
-            var group1 = await uInformService.GetManagedGroup(groups[0].DistinguishedName);
-            var user = await uInformService.GetUser(guid: "eb163206-bedf-4294-a073-2b2110c7b248");
-            var user2 = await uInformService.GetUser(samAccountName: "bedwards");
-            if (group1.ObjectGuid != null && user.ObjectGuid != null && user2.ObjectGuid != null)
-            {
-                var members = await uInformService.GetGroupMembers(group1.ObjectGuid);
-                _ = uInformService.AddGroupMember(group1.ObjectGuid, user2.ObjectGuid);
-                _ = uInformService.RemoveGroupMember(group1.ObjectGuid, user.ObjectGuid);
-            }
             return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/CreateADGroup.cshtml"));
+        }
+
+        [Permission(Allow = "RAPS.ViewAuditTrail")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> AuditTrail()
+        {
+            return await Task.Run(() => View("~/Areas/RAPS/Views/AuditLog.cshtml"));
         }
     }
 }

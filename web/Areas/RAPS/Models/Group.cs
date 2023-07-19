@@ -12,7 +12,7 @@ namespace Viper.Areas.RAPS.Models
         public bool BoxSyncEnabled { get; set; } = false;
 
         //for AD3 managed groups
-        public string? DisplayName { get; set; } = null!;
+        public new string? DisplayName { get; set; } = null!;
 
         public string FriendlyName
         {

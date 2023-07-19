@@ -58,10 +58,10 @@
         v-model:selected="selectedPermissions"
         :rows="cloneObject.permissions"
         :columns='[
-            { name: "action" , field: "" , align: "left" , sortable: true },
-            { name: "actionText" , label: "Action" , field: "actionText" , align: "left" , sortable: true },
-            { name: "permission" , label: "Permission" , field: "permission" , align: "left" , sortable: true },
-            { name: "startdate" , label: "Start Date" , field: "startDate" , align: "left" , format: v=> formatDate(v) },
+            { name: "action", field: "", align: "left" , sortable: true },
+            { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
+            { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
+            { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v=> formatDate(v) },
             { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
         ]'
         :pagination="{rowsPerPage:0}"
