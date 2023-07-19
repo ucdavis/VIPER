@@ -41,23 +41,26 @@
     <template v-slot:body-cell-detail="props">
         <q-td :props="props">
             <div v-if="props.row.memberName ?? '' != ''">
-                <q-btn dense flat square color="primary" size="sm" padding="xs" icon="filter_alt" @@click="addAuditCriteria('modifiedUser', props.row.memberId)"></q-btn>
+                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt" @@click="addAuditCriteria('modifiedUser', props.row.memberId)"></q-btn>
                 User:
                 {{props.row.memberName}}
                 <br/>
             </div>
             <div v-if="props.row.roleId ?? '' != ''">
-                <q-btn dense flat square color="primary" size="sm" padding="xs" icon="filter_alt" 
+                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt" 
                     @@click="addAuditCriteria('role', {'roleId': props.row.roleId, 'friendlyName': props.row.role ?? 'Deleted role'})"></q-btn>
                 Role:
                 {{props.row.role ?? 'Deleted role'}}
+                <br />
             </div>
             <div v-if="props.row.permissionId ?? '' != ''">
-                <q-btn dense flat square color="primary" size="sm" padding="xs" icon="filter_alt"
+                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt"
                        @@click="addAuditCriteria('permissionId', props.row.permissionId)"></q-btn>
                 Permission:
                 {{props.row.permission ?? 'Deleted permission'}}
+                <br />
             </div>
+            <span class="q-ml-lg" v-if="props.row.detail ?? '' != ''">{{props.row.detail}}</span>
         </q-td>
     </template>
 </q-table>

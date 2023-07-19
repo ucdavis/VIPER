@@ -31,12 +31,12 @@ public partial class TblRole
     public string FriendlyName { get
         {
             if(DisplayName != null) return DisplayName;
-            if (Role.Length > 15 && Role.Substring(0, 15) == "RAPS.Groups.CN=")
+            if (Role.Length > 15 && Role[..15] == "RAPS.Groups.CN=")
             {
-                string groupName = Role.Substring(15, Role.Length - 15);
+                string groupName = Role[15..];
                 if (groupName.IndexOf(",") > 0)
                 {
-                    groupName = groupName.Substring(0, groupName.IndexOf(","));
+                    groupName = groupName[..groupName.IndexOf(",")];
                 }
                 return "RAPS Role for Group " + groupName;
             }

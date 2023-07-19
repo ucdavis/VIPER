@@ -26,7 +26,7 @@ namespace Viper.Areas.RAPS.Controllers
     public class PermissionsController : ApiController
     {
         private readonly RAPSContext _context;
-        private RAPSAuditService _auditService;
+        private readonly RAPSAuditService _auditService;
 
         public PermissionsController(RAPSContext context)
         {
@@ -169,7 +169,7 @@ namespace Viper.Areas.RAPS.Controllers
             return NoContent();
         }
 
-        private TblPermission CreateTblPermissionFromDto(PermissionCreateUpdate permission)
+        private static TblPermission CreateTblPermissionFromDto(PermissionCreateUpdate permission)
         {
             var tblPermission = new TblPermission() { Permission = permission.Permission, Description = permission.Description };
             if (permission.PermissionId != null && permission.PermissionId > 0)

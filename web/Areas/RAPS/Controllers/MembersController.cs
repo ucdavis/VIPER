@@ -14,7 +14,7 @@ namespace Viper.Areas.RAPS.Controllers
     public class MembersController : ControllerBase
     {
         private readonly RAPSContext _context;
-        private RAPSSecurityService _securityService;
+        private readonly RAPSSecurityService _securityService;
 
         public MembersController(RAPSContext context)
         {
@@ -36,7 +36,7 @@ namespace Viper.Areas.RAPS.Controllers
                     .OrderBy(u => u.DisplayLastName)
                     .ThenBy(u => u.DisplayFirstName)
                     .ToListAsync();
-            List<MemberSearchResult> results = new List<MemberSearchResult>();
+            List<MemberSearchResult> results = new();
             members.ForEach(m =>
             {
                 results.Add(new MemberSearchResult()
@@ -122,7 +122,7 @@ namespace Viper.Areas.RAPS.Controllers
                     memberPermissions.Access
                 }).ToListAsync();
 
-            Dictionary<int, PermissionResult> permissions = new Dictionary<int, PermissionResult>();
+            Dictionary<int, PermissionResult> permissions = new();
             //add permissions that assigned via roles (could be deny or allow)
             foreach(var p in permsViaRoles)
             {

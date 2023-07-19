@@ -353,10 +353,7 @@ namespace Viper.Areas.RAPS.Services
             if(dn == null)
             {
                 dn = _ldapService.GetUser(loginId)?.DistinguishedName;
-                if(HttpHelper.Cache != null)
-                {
-                    HttpHelper.Cache.Set("ou.ad3-distinguishedname-" + loginId, dn, new TimeSpan(0, 20, 0));
-                }
+                HttpHelper.Cache?.Set("ou.ad3-distinguishedname-" + loginId, dn, new TimeSpan(0, 20, 0));
             }
             
             if (dn != null)
@@ -383,10 +380,7 @@ namespace Viper.Areas.RAPS.Services
             if (userGuid == null)
             {
                 userGuid = (await _uInformService.GetUser(samAccountName: loginId)).ObjectGuid;
-                if (HttpHelper.Cache != null)
-                {
-                    HttpHelper.Cache.Set("ad3-userGuid-" + loginId, userGuid, new TimeSpan(0, 20, 0));
-                }
+                HttpHelper.Cache?.Set("ad3-userGuid-" + loginId, userGuid, new TimeSpan(0, 20, 0));
             }
             
             if (userGuid != null)

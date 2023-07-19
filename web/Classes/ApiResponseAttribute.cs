@@ -8,8 +8,7 @@ namespace Viper.Classes
     {
         public override void OnResultExecuting(ResultExecutingContext filterContext)
         {
-            var objectResult = filterContext.Result as ObjectResult;
-            if (objectResult == null)
+            if (filterContext.Result is not ObjectResult objectResult)
             {
                 return;
             }
@@ -26,7 +25,7 @@ namespace Viper.Classes
             }
         }
 
-        private bool IsSuccessCode(HttpStatusCode statusCode)
+        private static bool IsSuccessCode(HttpStatusCode statusCode)
         {
             return statusCode == HttpStatusCode.OK
                     || statusCode == HttpStatusCode.Created
@@ -34,16 +33,15 @@ namespace Viper.Classes
                     || statusCode == HttpStatusCode.NoContent;
         }
 
-        private ApiResponse CreateErrorResponse(ObjectResult objectResult, HttpStatusCode statusCode)
+        private static ApiResponse CreateErrorResponse(ObjectResult objectResult, HttpStatusCode statusCode)
         {
-            ValidationProblemDetails? problem = objectResult.Value as ValidationProblemDetails;
-            if (problem != null)
+            if (objectResult.Value is ValidationProblemDetails problem)
             {
                 return new ApiResponse(statusCode, false, null, problem.Detail ?? problem.Title, problem.Errors);
             }
-            if(objectResult.Value is string)
+            if (objectResult.Value is string v)
             {
-                return new ApiResponse(statusCode, false, null, (string)objectResult.Value, null);
+                return new ApiResponse(statusCode, false, null, v, null);
             }
             return new ApiResponse(statusCode, false, null, "An error has occurred", objectResult.Value);
         }

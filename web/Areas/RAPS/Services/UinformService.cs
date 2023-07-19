@@ -13,7 +13,7 @@ namespace Viper.Areas.RAPS.Services
     public class UinformService
     {
         private static readonly HttpClient _httpClient = new();
-        private readonly NLog.Logger _logger;
+        //private readonly NLog.Logger _logger;
         private readonly string _apiBase;
         private static readonly List<HttpMethod> _allowedHttpMethods = new()
         {
@@ -25,7 +25,7 @@ namespace Viper.Areas.RAPS.Services
         private static readonly string _ourGroupIdentifier = "SVMManagedGroup";
 
         public UinformService() {
-            _logger = HttpHelper.Logger;
+            //_logger = HttpHelper.Logger;
             _apiBase = (HttpHelper.Environment?.IsProduction() ?? false)
                 ? "https://ws.uinform.ucdavis.edu/"
                 : "https://ws.uinform-test.ucdavis.edu/";

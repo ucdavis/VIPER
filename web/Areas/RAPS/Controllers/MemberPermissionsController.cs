@@ -22,8 +22,8 @@ namespace Viper.Areas.RAPS.Controllers
     public class MemberPermissionsController : ApiController
     {
         private readonly RAPSContext _context;
-        private RAPSSecurityService _securityService;
-        private RAPSAuditService _auditService;
+        private readonly RAPSSecurityService _securityService;
+        private readonly RAPSAuditService _auditService;
 
         public MemberPermissionsController(RAPSContext context)
         {
@@ -105,9 +105,14 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             TblMemberPermission? tblMemberPermission = await _context.TblMemberPermissions.FindAsync(memberId, permissionId);
-            if (tblMemberPermission == null)
+            TblPermission? tblPermission = await _context.TblPermissions.FindAsync(permissionId);
+            if (tblMemberPermission == null || tblPermission == null)
             {
                 return NotFound();
+            }
+            if (_securityService.PermissionBelongsToInstance(instance, tblPermission.Permission))
+            {
+                return BadRequest();
             }
             UpdateTblMemberPermission(tblMemberPermission, memberPermission);
             //_context.Entry(tblMemberPermission).State = EntityState.Modified;
@@ -159,7 +164,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return BadRequest("User is already a member of this permission");
             }
-            TblMemberPermission tblMemberPermission = new TblMemberPermission() { MemberId = memberId, PermissionId = (int)permissionId };
+            TblMemberPermission tblMemberPermission = new() { MemberId = memberId, PermissionId = (int)permissionId };
             try
             {
                 using var transaction = _context.Database.BeginTransaction();
@@ -217,7 +222,7 @@ namespace Viper.Areas.RAPS.Controllers
             return (_context.TblMemberPermissions?.Any(e => e.PermissionId == permissionId && e.MemberId == memberId)).GetValueOrDefault();
         }
 
-        private void UpdateTblMemberPermission(TblMemberPermission dbMemberPermission, MemberPermissionCreateUpdate inputMemberPermission)
+        private static void UpdateTblMemberPermission(TblMemberPermission dbMemberPermission, MemberPermissionCreateUpdate inputMemberPermission)
         {
             dbMemberPermission.StartDate = inputMemberPermission.StartDate;
             dbMemberPermission.EndDate = inputMemberPermission.EndDate;

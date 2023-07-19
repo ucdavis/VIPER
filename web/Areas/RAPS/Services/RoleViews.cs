@@ -60,7 +60,7 @@ namespace Viper.Areas.RAPS.Services
             messages.Add(string.Format("Role {0} - View {1}", role.Role, role.ViewName));
 
             List<string?> members = await GetViewMembers(role.ViewName);
-            List<TblRoleMember> roleMembers = await GetRoleMembers(role.RoleId, role.ViewName);
+            List<TblRoleMember> roleMembers = await GetRoleMembers(role.RoleId);
 
             List<string> toAdd = new();
             List<TblRoleMember> toDelete = new();
@@ -141,7 +141,7 @@ namespace Viper.Areas.RAPS.Services
             _RAPSContext.SaveChanges();
         }
 
-        private async Task<List<TblRoleMember>> GetRoleMembers(int roleId, string viewName)
+        private async Task<List<TblRoleMember>> GetRoleMembers(int roleId)
         {
             return await _RAPSContext.TblRoleMembers
                 .Where(rm => rm.RoleId == roleId)

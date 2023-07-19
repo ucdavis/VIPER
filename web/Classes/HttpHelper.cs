@@ -181,7 +181,7 @@ namespace Viper
         public static T? GetSetting<T>(string section, string setting)
         {
             return Settings == null
-                ? default(T)
+                ? default
                 : Settings.GetSection(section).GetValue<T>(setting);
         }
     }

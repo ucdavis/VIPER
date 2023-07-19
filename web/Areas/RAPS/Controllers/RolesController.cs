@@ -23,10 +23,10 @@ namespace Viper.Areas.RAPS.Controllers
         public RolesController(RAPSContext context)
         {
             _context = context;
-			RAPSSecurityService rss = new RAPSSecurityService(_context);
+            RAPSSecurityService rss = new(_context);
 			SecurityService = new RAPSSecurityServiceWrapper(rss);
 			UserWrapper = new UserWrapper();
-			RAPSAuditService ras = new RAPSAuditService(_context);
+            RAPSAuditService ras = new(_context);
 			AuditService = new RAPSAuditServiceWrapper(ras);
         }
 
@@ -94,7 +94,7 @@ namespace Viper.Areas.RAPS.Controllers
         public async Task<IActionResult> PutTblRole(string instance, int roleId, RoleCreateUpdate role)
         {
             TblRole tblRole = CreateTblRoleFromDTO(role);
-            if (roleId != tblRole.RoleId)
+            if (roleId != tblRole.RoleId || !SecurityService.RoleBelongsToInstance(instance, tblRole))
             {
                 return BadRequest();
             }
@@ -135,6 +135,10 @@ namespace Viper.Areas.RAPS.Controllers
             {
 			    using var transaction = _context.Database.BeginTransaction();
 			    TblRole tblRole = CreateTblRoleFromDTO(role);
+                if (!SecurityService.RoleBelongsToInstance(instance, tblRole))
+                {
+                    return ValidationProblem("Role name is invalid for this instance");
+                }
 			    _context.TblRoles.Add(tblRole);
 			    await _context.SaveChangesAsync();
 				AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Create);
@@ -163,7 +167,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
             var tblRole = await _context.TblRoles.FindAsync(roleId);
-            if (tblRole == null)
+            if (tblRole == null || !SecurityService.RoleBelongsToInstance(instance, tblRole))
             {
                 return NotFound();
             }
@@ -175,7 +179,7 @@ namespace Viper.Areas.RAPS.Controllers
             return NoContent();
         }
 
-        private TblRole CreateTblRoleFromDTO(RoleCreateUpdate role)
+        private static TblRole CreateTblRoleFromDTO(RoleCreateUpdate role)
         {
             var tblRole = new TblRole() { Role = role.Role, Description = role.Description, ViewName = role.ViewName, Application = (byte)role.Application };
             if (role.RoleId != null && role.RoleId > 0)

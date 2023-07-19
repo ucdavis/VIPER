@@ -27,7 +27,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="actionType">Create Update or Delete</param>
         public void AuditRoleChange(TblRole role, AuditActionType actionType)
         {
-            TblLog tblLog = new TblLog() { RoleId = role.RoleId, ModTime = DateTime.Now, ModBy = UserHelper.GetCurrentUser()?.LoginId };
+            TblLog tblLog = new() { RoleId = role.RoleId, ModTime = DateTime.Now, ModBy = UserHelper.GetCurrentUser()?.LoginId };
             switch(actionType)
             {
                 case AuditActionType.Create:
@@ -66,7 +66,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="actionType">Create Update or Delete</param>
         public void AuditPermissionChange(TblPermission permission, AuditActionType actionType)
         {
-            TblLog tblLog = new TblLog() 
+            TblLog tblLog = new()
             { 
                 PermissionId = permission.PermissionId, 
                 Detail = permission.Permission,
@@ -92,7 +92,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="actionType">Create Update or Delete</param>
         public void AuditRoleMemberChange(TblRoleMember roleMember, AuditActionType actionType, string? comment)
         {
-            TblLog tblLog = new TblLog()
+            TblLog tblLog = new()
             {
                 ModTime = DateTime.Now,
                 ModBy = UserHelper.GetCurrentUser()?.LoginId,
@@ -141,7 +141,7 @@ namespace Viper.Areas.RAPS.Services
 
         public void AuditRolePermissionChange(TblRolePermission rolePermission, AuditActionType actionType)
         {
-            TblLog tblLog = new TblLog()
+            TblLog tblLog = new()
             {
                 ModTime = DateTime.Now,
                 ModBy = UserHelper.GetCurrentUser()?.LoginId,
@@ -167,7 +167,7 @@ namespace Viper.Areas.RAPS.Services
 
         public void AuditPermissionMemberChange(TblMemberPermission memberPermission, AuditActionType actionType) 
         {
-            TblLog tblLog = new TblLog()
+            TblLog tblLog = new()
             {
                 ModTime = DateTime.Now,
                 ModBy = UserHelper.GetCurrentUser()?.LoginId,

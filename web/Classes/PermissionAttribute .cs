@@ -30,10 +30,8 @@ namespace Web.Authorization
             {
                 if (user.Identity.IsAuthenticated)
                 {
-                    RAPSContext? rapsContext = context.HttpContext.RequestServices.GetService(typeof(RAPSContext)) as RAPSContext;
-                    AAUDContext? aaudContext = context.HttpContext.RequestServices.GetService(typeof(AAUDContext)) as AAUDContext;
-
-                    if (rapsContext != null && aaudContext != null)
+                    if (context.HttpContext.RequestServices.GetService(typeof(RAPSContext)) is RAPSContext rapsContext 
+                        && context.HttpContext.RequestServices.GetService(typeof(AAUDContext)) is AAUDContext aaudContext)
                     {
                         AaudUser? aaudUser = UserHelper.GetByLoginId(aaudContext, user.Identity.Name);
 
@@ -42,16 +40,16 @@ namespace Web.Authorization
 
                             if (Deny != null)
                             {
-							    var denyPolicies = Deny.Split(",").ToList();
-							    foreach (var policy in denyPolicies)
-							    {
-								    bool found = UserHelper.HasPermission(rapsContext, aaudUser, policy);
-								    if (found)
-								    {
-										context.Result = new ForbidResult();
-									}
+                                var denyPolicies = Deny.Split(",").ToList();
+                                foreach (var policy in denyPolicies)
+                                {
+                                    bool found = UserHelper.HasPermission(rapsContext, aaudUser, policy);
+                                    if (found)
+                                    {
+                                        context.Result = new ForbidResult();
+                                    }
 
-							    }
+                                }
 
                             }
 
@@ -70,11 +68,11 @@ namespace Web.Authorization
 
                             }
 
-							context.Result = new ForbidResult();
+                            context.Result = new ForbidResult();
 
                         }
 
-                     }
+                    }
 
                 }
 

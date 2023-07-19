@@ -18,8 +18,8 @@ namespace Viper.Areas.RAPS.Controllers
     public class RolePermissionsController : ApiController
     {
         private readonly RAPSContext _context;
-        private RAPSSecurityService _securityService;
-        private RAPSAuditService _auditService;
+        private readonly RAPSSecurityService _securityService;
+        private readonly RAPSAuditService _auditService;
 
         public RolePermissionsController(RAPSContext context)
         {
@@ -28,7 +28,7 @@ namespace Viper.Areas.RAPS.Controllers
             _auditService = new RAPSAuditService(_context);
         }
 
-        private ActionResult? checkRoleAndPermissionParams(string instance, int? roleId, int? permissionId)
+        private ActionResult? CheckRoleAndPermissionParams(string instance, int? roleId, int? permissionId)
         {
             if(roleId == null && permissionId == null) 
             { 
@@ -64,7 +64,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            ActionResult? errorResult = checkRoleAndPermissionParams(instance, roleId, permissionId);
+            ActionResult? errorResult = CheckRoleAndPermissionParams(instance, roleId, permissionId);
             if(errorResult != null)
             {
                 return errorResult;
@@ -90,7 +90,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            ActionResult? errorResult = checkRoleAndPermissionParams(instance, roleId, permissionId);
+            ActionResult? errorResult = CheckRoleAndPermissionParams(instance, roleId, permissionId);
             if (errorResult != null)
             {
                 return errorResult;
@@ -110,7 +110,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             using var transaction = _context.Database.BeginTransaction();
-            TblRolePermission tblRolePermission = new TblRolePermission();
+            TblRolePermission tblRolePermission = new();
             UpdateTblRolePermissionsWithDto(tblRolePermission, rolePermission);
             _context.TblRolePermissions.Add(tblRolePermission);
             _context.SaveChanges();
@@ -118,7 +118,7 @@ namespace Viper.Areas.RAPS.Controllers
             _context.SaveChanges();
             transaction.Commit();
 
-            return CreatedAtAction("GetTblRole", new { roleId = roleId, permissionId = permissionId, Access = tblRolePermission.Access }, tblRolePermission);
+            return CreatedAtAction("GetTblRole", new { roleId, permissionId, tblRolePermission.Access }, tblRolePermission);
         }
 
         // DELETE Roles/5/Permissions/123
@@ -131,7 +131,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            ActionResult? errorResult = checkRoleAndPermissionParams(instance, roleId, permissionId);
+            ActionResult? errorResult = CheckRoleAndPermissionParams(instance, roleId, permissionId);
             if (errorResult != null)
             {
                 return errorResult;

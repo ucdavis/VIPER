@@ -12,7 +12,7 @@ namespace Viper.Areas.RAPS.Services
 {
     public class RAPSSecurityService
     {
-		private readonly UserWrapper _userWrapper = new UserWrapper();
+        private readonly UserWrapper _userWrapper = new();
 		private readonly RAPSContext _context;
 
         public RAPSSecurityService(RAPSContext context)
@@ -131,7 +131,7 @@ namespace Viper.Areas.RAPS.Services
             {
                 return true;
             }
-            switch(action)
+            switch (action)
             {
                 //special cases where having a permission grants access to certain instances
                 case "ViewAllRoles":
@@ -163,7 +163,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="Instance">Instance the user is working with</param>
         /// <param name="Role">The specific role, used to check if the user has access to this particular role</param>
         /// <returns>true/false</returns>
-        public bool IsAllowedTo(string action, string Instance, TblRole Role)
+        public bool IsAllowedTo(string action, string instance, TblRole Role)
         {
             AaudUser? User = _userWrapper.GetCurrentUser();
             if (_userWrapper.HasPermission(_context, User, "RAPS.Admin"))
@@ -208,7 +208,7 @@ namespace Viper.Areas.RAPS.Services
         public List<int> GetControlledRoleIds(string? userId)
         {
             List<TblRole> controlledRoles = GetAppRolesForUser(userId);
-            List<int> controlledRoleIds = new List<int>();
+            List<int> controlledRoleIds = new();
             foreach (TblRole controlledRole in controlledRoles)
             {
                 foreach (TblAppRole childRole in controlledRole.ChildRoles)

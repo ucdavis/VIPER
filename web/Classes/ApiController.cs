@@ -22,7 +22,7 @@ namespace Viper.Classes
             if (sortOrder.EndsWith("desc"))
             {
                 sortDescending = true;
-                sortOrder = sortOrder.Substring(0, sortOrder.Length - 4).Trim();
+                sortOrder = sortOrder[..^4].Trim();
             }
             PropertyInfo? propertyInfo = typeof(T).GetProperty(sortOrder);
             //TODO: This throws an error if the property is not found. It's also case sensitive.
