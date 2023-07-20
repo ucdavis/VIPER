@@ -1,11 +1,15 @@
-﻿<div v-show="showMemberPermissions">
+﻿<q-btn-group outline rounded class="q-mt-sm">
+    <q-btn no-caps color="primary" class="q-mb-sm" label="View existing permissions" icon="view_list"
+           :outline="showWhich != 'Existing'" @@click="showWhich='Existing'"></q-btn>
+    <q-btn no-caps color="primary" class="q-mb-sm" label="Add Permissions" icon="add"
+           :outline="showWhich != 'Add'" @@click="showWhich='Add'"></q-btn>
+</q-btn-group>
+
+<div v-show="showWhich == 'Existing'">
     <h2>
-        <q-btn dense color="green" @@click="showMemberPermissions=false;showAddPermissions=true" no-caps class="q-mb-sm">
-            <q-icon name="add" title="Add Permissions"></q-icon>
-        </q-btn>
         Permissions for {{member.displayFirstName}} {{member.displayLastName}}
     </h2>
-
+    
     <q-table title="Permissions for {{member.displayFirstName}}"
              dense
              row-key="permissionId"
@@ -54,8 +58,8 @@
         </template>
         <template v-slot:body-cell-links="props">
             <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="dataset" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
             </q-td>
         </template>
         <template v-slot:body-cell-actions="props">
@@ -66,20 +70,18 @@
     </q-table>
 </div>
 
-<div v-show="showAddPermissions">
+<div v-show="showWhich == 'Add'">
     <h2>
-        <q-btn dense color="green" @@click="showMemberPermissions=true;showAddPermissions=false" no-caps class="q-mb-sm">
-            <q-icon name="view_list" title="View Permissions For User"></q-icon>
-        </q-btn>
         Add Permissions for {{member.displayFirstName}} {{member.displayLastName}}
     </h2>
     <q-form>
         <div class="row">
             <q-input type="date" outlined dense v-model="memberPermissionParams.startDate" label="Start Date"></q-input>
             <q-input type="date" outlined dense v-model="memberPermissionParams.endDate" label="End Date" class="q-ml-md"></q-input>
+            <q-btn sm dense no-caps class="q-px-sm q-ml-md" label="Add Checked" type="button" color="primary" @@click="addPermissions"></q-btn>
         </div>
         <div class="row q-pt-sm q-mb-sm">
-            <q-btn sm dense no-caps class="q-px-sm" label="Add Checked" type="button" color="primary" @@click="addPermissions"></q-btn>
+            
         </div>
     </q-form>
     <q-table dense
@@ -104,116 +106,115 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        vueObjects.memberPermissionsTable = new quasarTable({
-            keys: ["permissionId"],
-            urlBase: "Members",
-            columns: [
-                { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
-                { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
-                { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
-                { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
-                { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
-                { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
-                { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
-            ],
-            //after loading member permissions, set last modified
-            onLoad: function (data, vueApp) {
-                this.rows = data.map(rp => ({
-                    ...rp,
-                    permission: rp.permission.permission,
-                    lastModified: formatDate(rp.modTime) + " (" + rp.modBy.trim() + ")"
-                }))
-                //reload the permissons table
-                if (this.editing) {
-                    this.vueApp._.data.permissionsTable.load()
-                }
-            },
-            //set member id and permission id when creating/updating
-            createBody: function (v, object) {
+        createVueApp({
+            data() {
                 return {
-                    memberId: v.urlParams.get("memberId"),
-                    permissionId: object.permissionId,
-                    startDate: object?.startDate,
-                    endDate: object?.endDate
+                    memberId: 0,
+                    member: {},
+                    showWhich: 'Existing',
+                    selectedPermissions: [],
+                    memberPermissionParams: { startDate: "", endDate: "", comment: "" },
+                    memberPermissionsTable: new quasarTable({
+                        keys: ["permissionId"],
+                        urlBase: "Members",
+                        columns: [
+                            { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
+                            { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
+                            { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
+                            { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+                        ],
+                        //after loading member permissions, set last modified
+                        onLoad: function (data, vueApp) {
+                            this.rows = data.map(rp => ({
+                                ...rp,
+                                permission: rp.permission.permission,
+                                lastModified: formatDate(rp.modTime) + " (" + rp.modBy.trim() + ")"
+                            }))
+                            //reload the permissons table
+                            if (this.editing) {
+                                this.vueApp._.data.permissionsTable.load()
+                            }
+                        },
+                        //set member id and permission id when creating/updating
+                        createBody: function (v, object) {
+                            return {
+                                memberId: v.urlParams.get("memberId"),
+                                permissionId: object.permissionId,
+                                startDate: object?.startDate,
+                                endDate: object?.endDate
+                            }
+                        },
+                        //on selection, format dates and set up user select box
+                        selectObject: function (object) {
+                            this.object = {
+                                permissionId: object.permissionId,
+                                startDate: formatDateForDateInput(object.startDate),
+                                endDate: formatDateForDateInput(object.endDate),
+                                memberId: object.memberId
+                            }
+                        },
+                        pagination: { rowsPerPage: 0 }
+                    }),
+                    permissionsTable: new quasarTable({
+                        keys: ["permissionId"],
+                        urlBase: "Permissions",
+                        columns: [
+                            { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
+                            { name: "description", label: "Description", field: "description", align: "left", sortable: true }
+                        ],
+                        onLoad: function (data) {
+                            existingPermissions = this.vueApp._.data.memberPermissionsTable.rows
+                                .reduce((result, rp) => {
+                                    result.push(rp.permissionId)
+                                    return result
+                                }, [])
+                            this.rows = data.filter(r =>
+                                existingPermissions.indexOf(r.permissionId) == -1
+                            )
+                        },
+                        pagination: { rowsPerPage: 15 }
+                    })
                 }
             },
-            //on selection, format dates and set up user select box
-            selectObject: function (object) {
-                this.object = {
-                    permissionId: object.permissionId,
-                    startDate: formatDateForDateInput(object.startDate),
-                    endDate: formatDateForDateInput(object.endDate),
-                    memberId: object.memberId
+            methods: {
+                addPermissions: async function () {
+                    this.selectedPermissions.forEach((value, index) => {
+                        var permissionMember = { permissionId: value.permissionId, memberId: this.memberId }
+                        if (this.memberPermissionParams.startDate.length) {
+                            permissionMember.startDate = this.memberPermissionParams.startDate
+                        }
+                        if (this.memberPermissionParams.endDate.length) {
+                            permissionMember.endDate = this.memberPermissionParams.endDate
+                        }
+                        viperFetch(this,
+                            "Members/" + this.memberId + "/Permissions/",
+                            {
+                                method: "POST",
+                                body: JSON.stringify(permissionMember),
+                                headers: { "Content-Type": "application/json" }
+                            },
+                            [this.loadTables]
+                        )
+                    })
+                },
+                loadTables: async function () {
+                    await this.memberPermissionsTable.load(this)
+                    this.permissionsTable.load(this)
+                    this.selectedPermissions = []
+                },
+                loadMember: async function () {
+                    this.member = await viperFetch(this, "members/" + this.memberId)
                 }
             },
-            pagination: { rowsPerPage: 0 }
-        })
-
-        vueObjects.permissionsTable = new quasarTable({
-            keys: ["permissionId"],
-            urlBase: "Permissions",
-            columns: [
-                { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
-                { name: "description", label: "Description", field: "description", align: "left", sortable: true }
-            ],
-            onLoad: function (data) {
-                existingPermissions = this.vueApp._.data.memberPermissionsTable.rows
-                    .reduce((result, rp) => {
-                        result.push(rp.permissionId)
-                        return result
-                    }, [])
-                this.rows = data.filter(r =>
-                    existingPermissions.indexOf(r.permissionId) == -1
-                )
-            },
-            pagination: { rowsPerPage: 15 }
-        })
-        
-        vueObjects.selectedPermissions = []
-        vueObjects.memberPermissionParams = { startDate: "", endDate: "", comment: "" }
-
-        vueMethods.addPermissions = async function () {
-            this.selectedPermissions.forEach((value, index) => {
-                var permissionMember = { permissionId: value.permissionId, memberId: this.memberId }
-                if (this.memberPermissionParams.startDate.length) {
-                    permissionMember.startDate = this.memberPermissionParams.startDate
-                }
-                if (this.memberPermissionParams.endDate.length) {
-                    permissionMember.endDate = this.memberPermissionParams.endDate
-                }
-                viperFetch(this,
-                    "Members/" + this.memberId + "/Permissions/",
-                    {
-                        method: "POST",
-                        body: JSON.stringify(permissionMember),
-                        headers: { "Content-Type": "application/json" }
-                    },
-                    [this.loadTables]
-                )
-            })
-        }
-        
-        //Load data
-        vueMethods.loadTables = async function () {
-            await this.memberPermissionsTable.load(this)
-            this.permissionsTable.load(this)
-            this.selectedPermissions = []
-        }
-
-        //for the whole page
-        vueObjects.memberId = 0
-        vueObjects.member = {}
-        vueObjects.showMemberPermissions = true
-        vueObjects.showAddPermissions = false
-        vueMethods.loadMember = async function () {
-            this.member = await viperFetch(this, "members/" + this.memberId)
-        }
-
-        vueMountedActions.push(async function () {
-            this.memberId = this.urlParams.get("memberId")
-            this.loadMember()
-            this.memberPermissionsTable.urlBase = "Members/" + this.memberId + "/Permissions"
-            this.loadTables()
+            mounted() {
+                this.memberId = this.urlParams.get("memberId")
+                this.loadMember()
+                this.memberPermissionsTable.urlBase = "Members/" + this.memberId + "/Permissions"
+                this.loadTables()
+            }
         })
     </script>
 }

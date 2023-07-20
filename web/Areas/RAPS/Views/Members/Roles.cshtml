@@ -1,8 +1,12 @@
-﻿<div v-show="showMemberRoles">
+﻿<q-btn-group outline rounded class="q-mt-sm">
+    <q-btn no-caps color="primary" class="q-mb-sm" label="View existing roles" icon="view_list"
+           :outline="showWhich != 'Existing'" @@click="showWhich='Existing'"></q-btn>
+    <q-btn no-caps color="primary" class="q-mb-sm" label="Add Roles" icon="add"
+           :outline="showWhich != 'Add'" @@click="showWhich='Add'"></q-btn>
+</q-btn-group>
+
+<div v-show="showWhich == 'Existing'">
     <h2>
-        <q-btn dense color="green" @@click="showMemberRoles=false;showAddRoles=true" no-caps class="q-mb-sm">
-            <q-icon name="add" title="Add Roles"></q-icon>
-        </q-btn>
         Roles for {{member.displayFirstName}} {{member.displayLastName}}
     </h2>
     
@@ -57,7 +61,7 @@
         </template>
         <template v-slot:body-cell-links="props">
             <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="dataset" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
                 <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'RolePermissions?roleId=' + props.row.roleId"></q-btn>
             </q-td>
         </template>
@@ -69,21 +73,16 @@
     </q-table>
 </div>
 
-<div v-show="showAddRoles">
+<div v-show="showWhich == 'Add'">
     <h2>
-        <q-btn dense color="green" @@click="showMemberRoles=true;showAddRoles=false" no-caps class="q-mb-sm">
-            <q-icon name="view_list" title="View Roles For User"></q-icon>
-        </q-btn>
         Add Roles for {{member.displayFirstName}} {{member.displayLastName}}
     </h2>
     <q-form>
-        <div class="row">
+        <div class="row q-mb-md">
             <q-input type="date" outlined dense v-model="memberRoleParams.startDate" label="Start Date"></q-input>
             <q-input type="date" outlined dense v-model="memberRoleParams.endDate" label="End Date" class="q-ml-md"></q-input>
             <q-input outlined dense v-model="memberRoleParams.comment" label="Comment" class="q-ml-md" size="30"></q-input>
-        </div>
-        <div class="row q-pt-sm q-mb-sm">
-            <q-btn sm dense no-caps class="q-px-sm" label="Add Checked" type="button" color="primary" @@click="addRoles"></q-btn>
+            <q-btn sm dense no-caps class="q-px-sm q-ml-md" label="Add Checked" type="button" color="primary" @@click="addRoles"></q-btn>
         </div>
     </q-form>
     <q-table dense
@@ -108,124 +107,125 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        vueObjects.memberRolesTable = new quasarTable({
-            keys: ["roleId"],
-            urlBase: "Members",
-            columns: [
-                { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
-                { name: "role", label: "Role", field: "roleName", align: "left", sortable: true, format: v => v.substr(0, 75) },
-                { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
-                { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
-                { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
-                { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
-                { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
-            ],
-            //after loading role members, set role name and last modified
-            onLoad: function (data) {
-                this.rows = data.map(rm => ({
-                    ...rm,
-                    roleName: rm.role.displayName ? rm.role.displayName : rm.role.role,
-                    lastModified: formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")"
-                }))
-                if(this.editing) {
-                    this.vueApp._.data.rolesTable.load()
+        createVueApp({
+            data() {
+                return {
+                    selectedRoles: [],
+                    memberRoleParams: { startDate: "", endDate: "", comment: "" },
+                    memberId: 0,
+                    member: {},
+                    showWhich: 'Existing',
+                    memberRolesTable: new quasarTable({
+                        keys: ["roleId"],
+                        urlBase: "Members",
+                        columns: [
+                            { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
+                            { name: "role", label: "Role", field: "roleName", align: "left", sortable: true, format: v => v.substr(0, 75) },
+                            { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
+                            { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+                        ],
+                        //after loading role members, set role name and last modified
+                        onLoad: function (data) {
+                            this.rows = data.map(rm => ({
+                                ...rm,
+                                roleName: rm.role.displayName ? rm.role.displayName : rm.role.role,
+                                lastModified: formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")"
+                            }))
+                            if (this.editing) {
+                                this.vueApp._.data.rolesTable.load()
+                            }
+                        },
+                        //set member id and role id when creating/updating
+                        createBody:
+                            function (v, object) {
+                                return {
+                                    comment: object.comment,
+                                    memberId: v.urlParams.get("memberId"),
+                                    roleId: object.roleId,
+                                    startDate: object?.startDate,
+                                    endDate: object?.endDate
+                                }
+                            },
+                        //on selection, format dates and set up user select box
+                        selectObject:
+                            function (object) {
+                                this.object = {
+                                    roleId: object.roleId,
+                                    startDate: formatDateForDateInput(object.startDate),
+                                    endDate: formatDateForDateInput(object.endDate),
+                                    memberId: object.memberId
+                                }
+                            },
+                        pagination: { rowsPerPage: 0 }
+                    }),
+                    rolesTable: new quasarTable({
+                        keys: ["roleId"],
+                        urlBase: "Roles?Application=0",
+                        columns: [
+                            { name: "role", label: "Role", field: "role", align: "left", sortable: true },
+                            { name: "description", label: "Description", field: "description", align: "left", sortable: true }
+                        ],
+                        onLoad: function (data) {
+                            existingRoles = this.vueApp._.data.memberRolesTable.rows
+                                .reduce((result, rm) => {
+                                    result.push(rm.roleId)
+                                    return result
+                                }, [])
+                            this.rows = data.filter(r =>
+                                existingRoles.indexOf(r.roleId) == -1
+                            )
+                            this.rows = this.rows.map(r => ({
+                                roleId: r.roleId,
+                                role: r?.displayName?.length ? r.displayName : r.role,
+                                description: r.description
+                            }))
+                        },
+                        pagination: { rowsPerPage: 15 }
+                    })
                 }
             },
-            //set member id and role id when creating/updating
-            createBody: 
-                function (v, object) {
-                    return {
-                        comment: object.comment,
-                        memberId: v.urlParams.get("memberId"),
-                        roleId: object.roleId,
-                        startDate: object?.startDate,
-                        endDate: object?.endDate
-                    }
+            methods: {
+                addRoles: async function () {
+                    this.selectedRoles.forEach((value, index) => {
+                        var roleMember = { roleId: value.roleId, memberId: this.memberId, comment: this.memberRoleParams.comment }
+                        if (this.memberRoleParams.startDate.length) {
+                            roleMember.startDate = this.memberRoleParams.startDate
+                        }
+                        if (this.memberRoleParams.endDate.length) {
+                            roleMember.endDate = this.memberRoleParams.endDate
+                        }
+                        viperFetch(this,
+                            "Members/" + this.memberId + "/Roles/",
+                            {
+                                method: "POST",
+                                body: JSON.stringify(roleMember),
+                                headers: { "Content-Type": "application/json" }
+                            },
+                            [this.loadTables]
+                        )
+                    })
                 },
-            //on selection, format dates and set up user select box
-            selectObject: 
-                function (object) {
-                    this.object = {
-                        roleId: object.roleId,
-                        startDate: formatDateForDateInput(object.startDate),
-                        endDate: formatDateForDateInput(object.endDate),
-                        memberId: object.memberId
-                    }
-                },
-            pagination: { rowsPerPage: 0 }
-        })
+                loadTables: async function () {
+                    await this.memberRolesTable.load(this)
+                    this.rolesTable.load(this)
+                    this.selectedRoles = []
+                }, 
+                loadMember: async function () {
+                    this.member = await viperFetch(this, "members/" + this.memberId)
+                }
 
-        vueObjects.rolesTable = new quasarTable({
-            keys: ["roleId"],
-            urlBase: "Roles?Application=0",
-            columns: [
-                { name: "role", label: "Role", field: "role", align: "left", sortable: true },
-                { name: "description", label: "Description", field: "description", align: "left", sortable: true }
-            ],
-            onLoad: function (data) {
-                existingRoles = this.vueApp._.data.memberRolesTable.rows
-                    .reduce((result, rm) => {
-                        result.push(rm.roleId)
-                        return result
-                    }, [])
-                this.rows = data.filter(r =>
-                    existingRoles.indexOf(r.roleId) == -1
-                )
-                this.rows = this.rows.map(r => ({
-                    roleId: r.roleId,
-                    role: r?.displayName?.length ? r.displayName : r.role,
-                    description: r.description
-                }))
             },
-            pagination: { rowsPerPage: 15 }
-        })
-        vueObjects.selectedRoles = []
-        vueObjects.memberRoleParams = { startDate: "", endDate: "", comment: "" }
-        
-        vueMethods.addRoles = async function () {
-            this.selectedRoles.forEach((value, index) => {
-                var roleMember = { roleId: value.roleId, memberId: this.memberId, comment: this.memberRoleParams.comment }
-                if (this.memberRoleParams.startDate.length) {
-                    roleMember.startDate = this.memberRoleParams.startDate
-                }
-                if (this.memberRoleParams.endDate.length) {
-                    roleMember.endDate = this.memberRoleParams.endDate
-                }
-                viperFetch(this,
-                    "Members/" + this.memberId + "/Roles/",
-                    {
-                        method: "POST",
-                        body: JSON.stringify(roleMember),
-                        headers: { "Content-Type": "application/json" }
-                    },
-                    [this.loadTables]
-                )
-            })
-        }
-
-        //Load data
-        vueMethods.loadTables = async function () {
-            await this.memberRolesTable.load(this)
-            this.rolesTable.load(this)
-            this.selectedRoles= []
-        }       
-
-        //for the whole page
-        vueObjects.memberId = 0
-        vueObjects.member = {}
-        vueObjects.showMemberRoles = true
-        vueObjects.showAddRoles = false
-        vueMethods.loadMember = async function () {
-            this.member = await viperFetch(this, "members/" + this.memberId)
-        }
-
-        vueMountedActions.push(async function () {
-            this.memberId = this.urlParams.get("memberId")
-            this.loadMember()
-            this.memberRolesTable.urlBase = "Members/" + this.memberId + "/Roles"
-            this.loadTables()
-            this.showMemberRoles = true
-            this.showAddRoles = false
+            async mounted() {
+                this.memberId = this.urlParams.get("memberId")
+                this.loadMember()
+                this.memberRolesTable.urlBase = "Members/" + this.memberId + "/Roles"
+                this.loadTables()
+                this.showMemberRoles = true
+                this.showAddRoles = false
+            }
         })
     </script>
 }

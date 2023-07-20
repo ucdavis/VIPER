@@ -126,7 +126,7 @@ namespace Viper.Areas.RAPS.Controllers
         public async Task<ActionResult> CreateAdGroup(GroupAddEdit group)
         {
             await new UinformService().CreateManagedGroup(group.Name, group.DisplayName ?? group.Name, group.Description ?? "");
-            return Ok();
+            return NoContent();
         }
 
         [HttpDelete("{groupId}")]

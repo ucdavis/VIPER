@@ -9,22 +9,24 @@
         </q-select>
     </div>
 
-    <q-btn-group outline rounded>
-        <q-btn no-caps :outline="showWhich != 'Roles'" color="primary" class="q-mb-sm" @@click="showWhich='Roles'">
-            <q-icon name="security" title="Show Roles To Copy" class="q-mr-sm"></q-icon>
-            Roles to Copy
-            {{selectedRoles.length ? `(${selectedRoles.length})` : ""}}
-        </q-btn>
-        <q-btn no-caps :outline="showWhich != 'Permissions'" color="primary" class="q-mb-sm" @@click="showWhich='Permissions'">
-            <q-icon name="lock" title="Show Permissions To Copy" class="q-mr-sm"></q-icon>
-            Permissions to Copy
-            {{selectedPermissions.length ? `(${selectedPermissions.length})` : ""}}
-        </q-btn>
-    </q-btn-group>
+    <div class="vertical-middle q-mb-md">
+        <q-btn-group outline rounded v-if="dataLoaded" class="q-mt-sm">
+            <q-btn no-caps :outline="showWhich != 'Roles'" color="primary" class="q-mb-sm" @@click="showWhich='Roles'">
+                <q-icon name="security" title="Show Roles To Copy" class="q-mr-sm"></q-icon>
+                Roles to Copy
+                {{selectedRoles.length ? `(${selectedRoles.length})` : ""}}
+            </q-btn>
+            <q-btn no-caps :outline="showWhich != 'Permissions'" color="primary" class="q-mb-sm" @@click="showWhich='Permissions'">
+                <q-icon name="lock" title="Show Permissions To Copy" class="q-mr-sm"></q-icon>
+                Permissions to Copy
+                {{selectedPermissions.length ? `(${selectedPermissions.length})` : ""}}
+            </q-btn>
+        </q-btn-group>
 
-    <q-btn no-caps color="primary" class="q-ml-lg" @@click="submitClone(this)">
-        Submit Changes
-    </q-btn>
+        <q-btn no-caps color="primary" class="q-ml-lg" @@click="submitClone(this)" v-if="dataLoaded">
+            Submit Changes
+        </q-btn>
+    </div>
 </q-form>
 
 <q-table 
@@ -76,87 +78,102 @@
 
 @section Scripts {
     <script asp-add-nonce="true">
-        vueObjects.activeOnly = false
-        vueObjects.sourceUser = getItemFromStorage("sourceUser") ?? { label: "", value: "" }
-        vueObjects.sourceUserResults = []
-        vueObjects.targetUser = getItemFromStorage("targetUser") ?? { label: "", value: "" }
-        vueObjects.targetUserResults = []
-        vueObjects.cloneObject = {}
-        vueObjects.dataLoaded = false
-        vueObjects.showWhich = "Roles"
-        vueObjects.selectedPermissions = []
-        vueObjects.selectedRoles = []
-        
-        vueMethods.formatDate = formatDate;
-        vueMethods.sourceUserSearch = function (val, update, abort) {
-            this.findUsers(val, update, abort, false)
-        }
-        vueMethods.targetUserSearch = function (val, update, abort) {
-            this.findUsers(val, update, abort, true)
-        }
-
-        //search for a user and update either result array
-        vueMethods.findUsers = function (val, update, abort, target) {
-            if (val.length < 3) {
-                abort()
-                return
-            }
-            update(() => {
-                var res = viperFetch(this, "Members?active=recent&search=" + val)
-                    .then(data => {
-                        data = data.map(m => ({
-                            label: (!m.current ? "[Inactive]" : "") + m.displayLastName + ", " + m.displayFirstName,
-                            value: m.memberId
-                        }))
-                        if(target)
-                            this.targetUserResults = data
-                        else
-                            this.sourceUserResults = data
-                    })
-                    
-            })
-        }
-
-        //if both sourec and target user are selected, load the roles/permissions to clone
-        vueMethods.checkUsersSelected = function() {
-            if (this?.sourceUser?.value.length && this?.targetUser?.value.length) {
-                var res = viperFetch(this, `Members/${this.sourceUser.value}/cloneTo/${this.targetUser.value}`)
-                    .then(data => {
-                        this.cloneObject = data
-                        this.dataLoaded = true
-                    })
-            }
-        }
-
-        vueMethods.submitClone = async function() {
-            var b = {
-                roleIds: this.selectedRoles.map(r => r.roleId), 
-                permissionIds: this.selectedPermissions.map(p => p.permissionId)
-            }
-            await viperFetch(this,
-                `Members/${this.sourceUser.value}/CloneTo/${this.targetUser.value}`,
-                {
-                    method: "POST",
-                    body: JSON.stringify(b),
-                    headers: { "Content-Type": "application/json" }
+        //form to select source and target user 
+        createVueApp({
+            data() {
+                return {
+                    activeOnly: false,
+                    sourceUser: getItemFromStorage("sourceUser") ?? { label: "", value: "" },
+                    sourceUserResults: [],
+                    targetUser: getItemFromStorage("targetUser") ?? { label: "", value: "" },
+                    targetUserResults: []
+                }
+            },
+            methods: {
+                formatDate: formatDate,
+                sourceUserSearch: function (val, update, abort) {
+                    this.findUsers(val, update, abort, false)
                 },
-                [this.checkUsersSelected]
-            )
-            this.selectedRoles = []
-            this.selectedPermissions = []
-        }
+                targetUserSearch: function (val, update, abort) {
+                    this.findUsers(val, update, abort, true)
+                },
+                //search for a user and update either result array
+                findUsers: function (val, update, abort, target) {
+                    if (val.length < 3) {
+                        abort()
+                        return
+                    }
+                    update(() => {
+                        var res = viperFetch(this, "Members?active=recent&search=" + val)
+                            .then(data => {
+                                data = data.map(m => ({
+                                    label: (!m.current ? "[Inactive]" : "") + m.displayLastName + ", " + m.displayFirstName,
+                                    value: m.memberId
+                                }))
+                                if (target)
+                                    this.targetUserResults = data
+                                else
+                                    this.sourceUserResults = data
+                            })
 
-        vueMountedActions.push(function () {
-            this.checkUsersSelected()
-        });
+                    })
+                }
+            },
+            watch: {
+                sourceUser: function () {
+                    putItemInStorage("sourceUser", this.sourceUser)
+                    this.checkUsersSelected()
+                },
+                targetUser: function () {
+                    putItemInStorage("targetUser", this.targetUser)
+                    this.checkUsersSelected()
+                }
+            }
+        })
 
-        vueWatchers.sourceUser = function () {
-            putItemInStorage("sourceUser", this.sourceUser)
-            this.checkUsersSelected()
-        }
-        vueWatchers.targetUser = function () {
-            putItemInStorage("targetUser", this.targetUser)
-            this.checkUsersSelected()
-        }
+        //tables of roles and permissions to clone
+        createVueApp({
+            data() {
+                return {
+                    cloneObject: {},
+                    showWhich: "Roles",
+                    selectedPermissions: [],
+                    selectedRoles: [],
+                    dataLoaded: false
+                }
+            },
+            methods: {
+                //if both source and target user are selected, load the roles/permissions to clone
+                checkUsersSelected: function () {
+                    if (this?.sourceUser?.value.length && this?.targetUser?.value.length) {
+                        var res = viperFetch(this, `Members/${this.sourceUser.value}/cloneTo/${this.targetUser.value}`)
+                            .then(data => {
+                                this.cloneObject = data
+                                this.dataLoaded = true
+                            })
+                    }
+                },
+                submitClone: async function () {
+                    var b = {
+                        roleIds: this.selectedRoles.map(r => r.roleId),
+                        permissionIds: this.selectedPermissions.map(p => p.permissionId)
+                    }
+                    await viperFetch(this,
+                        `Members/${this.sourceUser.value}/CloneTo/${this.targetUser.value}`,
+                        {
+                            method: "POST",
+                            body: JSON.stringify(b),
+                            headers: { "Content-Type": "application/json" }
+                        },
+                        [this.checkUsersSelected]
+                    )
+                    this.selectedRoles = []
+                    this.selectedPermissions = []
+                }
+            },
+            mounted() {
+                this.checkUsersSelected()
+            }
+        })
     </script>
 }

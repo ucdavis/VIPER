@@ -63,7 +63,7 @@
     </template>
     <template v-slot:body-cell-memberid="props">
         <q-td :props="props">
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="dataset" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="policy" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
             <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
             <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
         </q-td>
@@ -78,85 +78,88 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        vueObjects.membersTable = new quasarTable({
-            keys: ["memberId"],
-            urlBase: "Permissions",
-            columns: [
-                { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
-                { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
-                { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
-                { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
-                { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
-                { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
-                { name: "active", label: "Active", field: "active", align: "left", sortable: true },
-                { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
-            ],
-            //after loading role members, add the member name and active flag
-            onLoad: function (data) {
-                this.rows = data.map(pm => ({
-                    ...pm,
-                    memberName: pm.member?.displayLastName + ", " + pm?.member?.displayFirstName,
-                    active: pm?.aaudUser?.current == 1 ? "Y" : "N",
-                    lastModified: formatDate(pm.modTime) + " (" + pm.modBy.trim() + ")"
-                }))
-            },
-            //set member id and role id when creating/updating
-            createBody: function (v, object) {
+        createVueApp({
+            data() {
                 return {
-                    memberId: object.member?.value,
-                    permissionId: v.urlParams.get("permissionId"),
-                    access: object.access == 1 ? 1 : 0,
-                    startDate: object?.startDate,
-                    endDate: object?.endDate
+                    permissionId: 0,
+                    permission: {},
+                    memberSearchResults: [],
+                    membersTable: new quasarTable({
+                        keys: ["memberId"],
+                        urlBase: "Permissions",
+                        columns: [
+                            { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
+                            { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
+                            { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
+                            { name: "active", label: "Active", field: "active", align: "left", sortable: true },
+                            { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+                        ],
+                        //after loading role members, add the member name and active flag
+                        onLoad: function (data) {
+                            this.rows = data.map(pm => ({
+                                ...pm,
+                                memberName: pm.member?.displayLastName + ", " + pm?.member?.displayFirstName,
+                                active: pm?.member?.current == 1 ? "Y" : "N",
+                                lastModified: formatDate(pm.modTime) + " (" + pm.modBy.trim() + ")"
+                            }))
+                        },
+                        //set member id and role id when creating/updating
+                        createBody: function (v, object) {
+                            return {
+                                memberId: object.member?.value,
+                                permissionId: v.urlParams.get("permissionId"),
+                                access: object.access == 1 ? 1 : 0,
+                                startDate: object?.startDate,
+                                endDate: object?.endDate
+                            }
+                        },
+                        //on selection, format dates and set up user select box
+                        selectObject: function (object) {
+                            this.object = {
+                                permissionId: object.permissionId,
+                                startDate: formatDateForDateInput(object.startDate),
+                                endDate: formatDateForDateInput(object.endDate),
+                                access: object.access == 1 ? 1 : 0,
+                                member: {
+                                    label: object?.member?.displayLastName + ", " + object?.member?.displayFirstName,
+                                    value: object.memberId
+                                },
+                                memberId: object.memberId
+                            }
+                        },
+                        pagination: { rowsPerPage: 0 }
+                    })
                 }
             },
-            //on selection, format dates and set up user select box
-            selectObject: function (object) {
-                this.object = {
-                    permissionId: object.permissionId,
-                    startDate: formatDateForDateInput(object.startDate),
-                    endDate: formatDateForDateInput(object.endDate),
-                    access: object.access == 1 ? 1 : 0,
-                    member: {
-                        label: object?.member?.displayLastName + ", " + object?.member?.displayFirstName,
-                        value: object.memberId
-                    },
-                    memberId: object.memberId
+            methods: {
+                loadPermission: async function () {
+                    this.permission = await viperFetch(this, "Permissions/" + this.permissionId)
+                },
+                memberSearch: function (val, update, abort) {
+                    if (val.length < 3) {
+                        abort()
+                        return
+                    }
+
+                    update(() => {
+                        var res = fetch("Members?search=" + val)
+                            .then(r => r.json())
+                            .then(data =>
+                                this.memberSearchResults = data
+                                    .map(m => ({ label: m.displayLastName + ", " + m.displayFirstName, value: m.memberId }))
+                            )
+                    })
                 }
             },
-            pagination: { rowsPerPage: 0 }
-        })
-
-        //form
-        vueObjects.permissionId = 0
-        vueObjects.permission = {}
-        vueObjects.memberSearchResults = []
-
-        //setup
-        vueMethods.loadPermission = async function () {
-            this.permission = await viperFetch(this, "Permissions/" + this.permissionId)
-        }
-        vueMethods.memberSearch = function (val, update, abort) {
-            if (val.length < 3) {
-                abort()
-                return
+            async mounted() {
+                this.permissionId = this.urlParams.get("permissionId")
+                this.loadPermission()
+                this.membersTable.urlBase = "Permissions/" + this.permissionId + "/Members"
+                this.membersTable.load()
             }
-
-            update(() => {
-                var res = fetch("Members?search=" + val)
-                    .then(r => r.json())
-                    .then(data =>
-                        this.memberSearchResults = data
-                            .map(m => ({ label: m.displayLastName + ", " + m.displayFirstName, value: m.memberId }))
-                    )
-            })
-        }
-
-        vueMountedActions.push(async function () {
-            this.permissionId = this.urlParams.get("permissionId")
-            this.loadPermission()
-            this.membersTable.urlBase = "Permissions/" + this.permissionId + "/Members"
-            this.membersTable.load()
         })
     </script>
 }

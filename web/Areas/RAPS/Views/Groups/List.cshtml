@@ -31,8 +31,7 @@
     </q-dialog>
 </div>
 
-<q-table title="Groups"
-         dense
+<q-table dense
          row-key="groupId"
          :loading="groupTable.loading"
          :rows="groupTable.rows"
@@ -40,9 +39,7 @@
          :filter="groupTable.filter"
          :pagination="groupTable.pagination">
     <template v-slot:top-left>
-        <q-btn dense no-caps color="green" padding="xs md" @@click="groupTable.showForm = true">
-            <q-icon name="add"></q-icon>
-        </q-btn>
+        <q-btn dense no-caps color="primary" class="q-px-md" @@click="groupTable.showForm = true" label="Add Group" icon="add"></q-btn>
     </template>
     <template v-slot:top-right>
         <q-input v-model="groupTable.filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
@@ -53,7 +50,7 @@
     </template>
     <template v-slot:body-cell-actions="props">
         <q-td :props="props">
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="dataset" :href="'GroupMembers?groupId=' + props.row.groupId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="groups" :href="'GroupMembers?groupId=' + props.row.groupId"></q-btn>
             <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'RoleMembers?roleId=' + props.row.groupRoleId"></q-btn>
             <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'GroupRoles?groupId=' + props.row.groupId"></q-btn>
         </q-td>
@@ -68,75 +65,82 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        vueMethods.filterGroups = function(val, update) {
-            if(val === '') {
-                update(() => { this.allGroups = [].concat(this.adGroups).concat(this.ouGroups) })
-            }
-            else {
-                update(() => {
-                    const tofind = val.toLowerCase()
-                    this.allGroups = this.allGroups = [].concat(this.adGroups).concat(this.ouGroups)
-                        .filter(v => v.value.toLowerCase().indexOf(tofind) > -1)
-                })
-            }
-        }
-
-        vueObjects.allGroups = []
-        vueObjects.ouGroups = []
-        vueObjects.adGroups = []
-        vueObjects.groupTable = new quasarTable({
-            keys: ["groupId"],
-            urlBase: "groups",
-            columns: [
-                { name: "actions", field: "", align: "left", style: "width:75px;" },
-                { name: "domain", label: "Domain", field: "domain", sortable: true, align: "left" },
-                { name: "name", label: "Group", field: "friendlyName", sortable: true, align: "left" },
-                { name: "count", label: "Members", field: "groupRoleMemberCount", sortable: true, align: "left", style: "width:75px;" },
-                { name: "box", label: "Box Enabled?", field: "boxSyncEnabled", sortable: true, align: "left", style: "width:75px;" },
-                { name: "sync", label: "Sync", field: "", sortable: true, style: "width:75px;" },
-                { name: "edit", label: "", field: "", style: "width: 100px;" }
-            ],
-            onLoad: function(data) {
-                this.rows = data.map(
-                    g => ({ 
-                        ...g,
-                        domain: g.isOuGroup ? "OU" : "AD3"
+        createVueApp({
+            data() {
+                return {
+                    allGroups: [],
+                    ouGroups: [],
+                    adGroups: [],
+                    groupTable: new quasarTable({
+                        keys: ["groupId"],
+                        urlBase: "groups",
+                        columns: [
+                            { name: "actions", field: "", align: "left", style: "width:75px;" },
+                            { name: "domain", label: "Domain", field: "domain", sortable: true, align: "left" },
+                            { name: "name", label: "Group", field: "friendlyName", sortable: true, align: "left" },
+                            { name: "count", label: "Members", field: "groupRoleMemberCount", sortable: true, align: "left", style: "width:75px;" },
+                            { name: "box", label: "Box Enabled?", field: "boxSyncEnabled", sortable: true, align: "left", style: "width:75px;" },
+                            { name: "sync", label: "Sync", field: "", sortable: true, style: "width:75px;" },
+                            { name: "edit", label: "", field: "", style: "width: 100px;" }
+                        ],
+                        onLoad: function (data) {
+                            this.rows = data.map(
+                                g => ({
+                                    ...g,
+                                    domain: g.isOuGroup ? "OU" : "AD3"
+                                })
+                            )
+                        },
+                        selectObject: function (object) {
+                            this.object = {
+                                ...this.object,
+                                group: {
+                                    label: this.object.name.split(",")[0],
+                                    value: this.object.name
+                                }
+                            }
+                        },
+                        //set group name when creating/updating
+                        createBody: function (v, object) {
+                            return {
+                                groupId: object.groupId,
+                                name: object.group?.value,
+                                description: object.description
+                            }
+                        },
+                        pagination: { rowsPerPage: 0 }
                     })
-                )
+                }
             },
-            selectObject: function(object) {
-                this.object = {
-                    ...this.object,
-                    group: {
-                        label: this.object.name.split(",")[0],
-                        value: this.object.name
+            methods: {
+                filterGroups: function (val, update) {
+                    if (val === '') {
+                        update(() => { this.allGroups = [].concat(this.adGroups).concat(this.ouGroups) })
+                    }
+                    else {
+                        update(() => {
+                            const tofind = val.toLowerCase()
+                            this.allGroups = this.allGroups = [].concat(this.adGroups).concat(this.ouGroups)
+                                .filter(v => v.value.toLowerCase().indexOf(tofind) > -1)
+                        })
                     }
                 }
             },
-            //set group name when creating/updating
-            createBody: function (v, object) {
-                return {
-                    groupId: object.groupId,
-                    name: object.group?.value,
-                    description: object.description
-                }
-            },
-            pagination: {rowsPerPage: 0}
-        })
-        vueMountedActions.push(async function () {
-            this.groupTable.load(this)
-            this.ouGroups = await viperFetch(this, "Groups/OU")
-            this.ouGroups = this.ouGroups
-                .map(g => ({ label: "OU: " + g.cn, value: g.distinguishedName }))
+            async mounted() {
+                this.groupTable.load(this)
+                this.ouGroups = await viperFetch(this, "Groups/OU")
+                this.ouGroups = this.ouGroups
+                    .map(g => ({ label: "OU: " + g.cn, value: g.distinguishedName }))
 
-            this.adGroups = await viperFetch(this, "Groups/AD")
-            this.adGroups = this.adGroups
-                .map(g => ({ label: "AD: " + g.displayName ?? g.samAccountName, value: g.distinguishedName }))
+                this.adGroups = await viperFetch(this, "Groups/AD")
+                this.adGroups = this.adGroups
+                    .map(g => ({ label: "AD: " + g.displayName ?? g.samAccountName, value: g.distinguishedName }))
 
-            this.allGroups = [
-                {label: "AD3", children: this.adGroups}, 
-                {label: "OU", children: this.ouGroups}
-            ]
+                this.allGroups = [
+                    { label: "AD3", children: this.adGroups },
+                    { label: "OU", children: this.ouGroups }
+                ]
+            }
         })
     </script>
 }

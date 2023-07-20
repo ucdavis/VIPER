@@ -61,77 +61,82 @@
             }
             return roleName.substr(0, 10).toLowerCase() == "viperforms" ? "VIPERForms" : "VIPER";
         }
-        vueMethods.loadGroup = async function() {
-            this.group = await viperFetch(this, "Groups/" + this.groupId)
-        }
-        vueMethods.addGroupRole = async function (groupRole) {
-            viperFetch(this,
-                "Groups/" + this.groupId + "/Roles/?roleId=" + groupRole.roleId,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" }
-                },
-                [this.loadTables]
-            )
-        }
-        vueMethods.deleteGroupRole = async function (groupRole) {
-            viperFetch(this,
-                "Groups/" + this.groupId + "/Roles/" + groupRole.roleId,
-                {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" }
-                },
-                [this.loadTables]
-            )
-        }
-        vueMethods.loadTables = async function () {
-            await this.groupRoles.load(this)
-            this.allRoles.loading = true
-            this.allRoles.load(this)
-        }
 
-
-        vueObjects.group = {}
-        vueObjects.groupRoles = new quasarTable({
-            keys: ["roleId"],
-            urlBase: "",
-            columns: [
-                { name: "links", label: "Members", field: "", align: "left", style: "max-width:75px;" },
-                { name: "role", label: "Role", field: "", align: "left", sortable: true },
-                { name: "remove", label: "Remove", field: "", align: "left", sortable: false, style: "max-width:75px;" }
-            ],
-            pagination: { rowsPerPage: 0 }
-        })
-
-        vueObjects.allRoles = new quasarTable({
-            keys: ["roleId"],
-            urlBase: "Roles?allInstances=true&Application=0",
-            columns: [
-                { name: "links", label: "Members", field: "", align: "left", style: "max-width:75px;" },
-                { name: "instance", label: "Instance", field: "instance", align: "left", sortable: true},
-                { name: "role", label: "Role", field: "friendlyName", align: "left", sortable: true },
-                { name: "description", label: "Description", field: "description", align: "left", sortable: true, style: "max-width:400px;" },
-                { name: "add", label: "Add", field: "", align: "left" }
-            ],
-            pagination: { rowsPerPage: 0 },
-            onLoad: function(data, vueApp) {
-                var existingRoles = vueApp._.data.groupRoles.rows
-                    .reduce((result, r) => {
-                        result.push(r.roleId)
-                        return result
-                    }, [])
-                this.rows = data.filter(r =>
-                    existingRoles.indexOf(r.roleId) == -1
-                )
+        createVueApp({
+            data() {
+                return {
+                    group: {},
+                    groupRoles: new quasarTable({
+                        keys: ["roleId"],
+                        urlBase: "",
+                        columns: [
+                            { name: "links", label: "Members", field: "", align: "left", style: "max-width:75px;" },
+                            { name: "role", label: "Role", field: "", align: "left", sortable: true },
+                            { name: "remove", label: "Remove", field: "", align: "left", sortable: false, style: "max-width:75px;" }
+                        ],
+                        pagination: { rowsPerPage: 0 }
+                    }),
+                    allRoles: new quasarTable({
+                        keys: ["roleId"],
+                        urlBase: "Roles?allInstances=true&Application=0",
+                        columns: [
+                            { name: "links", label: "Members", field: "", align: "left", style: "max-width:75px;" },
+                            { name: "instance", label: "Instance", field: "instance", align: "left", sortable: true },
+                            { name: "role", label: "Role", field: "friendlyName", align: "left", sortable: true },
+                            { name: "description", label: "Description", field: "description", align: "left", sortable: true, style: "max-width:400px;" },
+                            { name: "add", label: "Add", field: "", align: "left" }
+                        ],
+                        pagination: { rowsPerPage: 0 },
+                        onLoad: function (data, vueApp) {
+                            var existingRoles = vueApp._.data.groupRoles.rows
+                                .reduce((result, r) => {
+                                    result.push(r.roleId)
+                                    return result
+                                }, [])
+                            this.rows = data.filter(r =>
+                                existingRoles.indexOf(r.roleId) == -1
+                            )
+                        },
+                        selectable: true
+                    })
+                }
             },
-            selectable: true
-        })
-
-        vueMountedActions.push(async function () {
-            this.groupId = this.urlParams.get("groupId")
-            this.loadGroup()
-            this.groupRoles.urlBase = "Groups/" + this.groupId + "/Roles"
-            this.loadTables()
+            methods: {
+                loadGroup: async function () {
+                    this.group = await viperFetch(this, "Groups/" + this.groupId)
+                },
+                addGroupRole: async function (groupRole) {
+                    viperFetch(this,
+                        "Groups/" + this.groupId + "/Roles/?roleId=" + groupRole.roleId,
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" }
+                        },
+                        [this.loadTables]
+                    )
+                },
+                deleteGroupRole: async function (groupRole) {
+                    viperFetch(this,
+                        "Groups/" + this.groupId + "/Roles/" + groupRole.roleId,
+                        {
+                            method: "DELETE",
+                            headers: { "Content-Type": "application/json" }
+                        },
+                        [this.loadTables]
+                    )
+                },
+                loadTables: async function () {
+                    await this.groupRoles.load(this)
+                    this.allRoles.loading = true
+                    this.allRoles.load(this)
+                }
+            },
+            async mounted() {
+                this.groupId = this.urlParams.get("groupId")
+                this.loadGroup()
+                this.groupRoles.urlBase = "Groups/" + this.groupId + "/Roles"
+                this.loadTables()
+            }
         })
     </script>
 }

@@ -26,26 +26,34 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        vueObjects.member = {}
-        vueObjects.memberId = ""
-        vueObjects.permissions = new quasarTable({
-            keys: ["permissionId"],
-            urlBase: "Members",
-            columns: [
-                { name: "access", label: "Access", field: "access", align: "center", style: "width:75px;" },
-                { name: "permission", label: "Permission", field: "permissionName", align: "left" },
-                { name: "source", label: "Source(s)", field: "source", align: "left" }
-            ],
-            pagination: { rowsPerPage: 0 }
-        })
-        vueMethods.loadMember = async function () {
-            this.member = await viperFetch(this, "Members/" + this.memberId)
-        }
-        vueMountedActions.push(async function() {
-            this.memberId = this.urlParams.get("memberId")
-            this.permissions.urlBase = "Members/" + this.memberId + "/RSOP"
-            this.loadMember()
-            this.permissions.load(this)
+        createVueApp({
+            data() {
+                return {
+                    member: {},
+                    memberId: "",
+                    permissions: new quasarTable({
+                        keys: ["permissionId"],
+                        urlBase: "Members",
+                        columns: [
+                            { name: "access", label: "Access", field: "access", align: "center", style: "width:75px;" },
+                            { name: "permission", label: "Permission", field: "permissionName", align: "left" },
+                            { name: "source", label: "Source(s)", field: "source", align: "left" }
+                        ],
+                        pagination: { rowsPerPage: 0 }
+                    })
+                }
+            },
+            methods: {
+                loadMember: async function () {
+                    this.member = await viperFetch(this, "Members/" + this.memberId)
+                }
+            },
+            async mounted() {
+                this.memberId = this.urlParams.get("memberId")
+                this.permissions.urlBase = "Members/" + this.memberId + "/RSOP"
+                this.loadMember()
+                this.permissions.load(this)
+            }
         })
     </script>
 }

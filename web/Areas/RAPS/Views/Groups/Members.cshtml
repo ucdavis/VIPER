@@ -78,47 +78,54 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        vueMethods.loadGroup = async function () {
-            this.group = await viperFetch(this, "Groups/" + this.groupId)
-        }
-        vueMethods.fdate = function(d) {
-            return formatDate(d)
-        }
-        vueMethods.syncGroup = function() {
-            viperFetch(this, 
-                "Groups/" + this.group.groupId + "/Sync", 
-                { method: "POST" },
-                [this.setSync]
-            )
-        }
-        vueMethods.setSync = function() { 
-            this.syncing = true
-        }
-        
-        vueObjects.group = {}
-        vueObjects.groupId = 0
-        vueObjects.syncing = false
-        vueObjects.groupMembers = new quasarTable({
-            keys: ["memberId"],
-            urlBase: "Groups/" + this.groupId + "/Members",
-            columns: [
-                { name: "active", label: "Active", field: "current", align: "left", style: "max-width:50px;", format: v => v ? "Yes" : "No" },
-                { name: "ingroup", label: "In Group", field: "isInGroup", align: "left", style: "max-width:50px;", format: v => v ? "Yes" : "No" },
-                { name: "loginId", label: "LoginID", field: "loginId", align: "left", style: "max-width:100px;" },
-                { name: "member", label: "Member", field: "displayName", align: "left", sortable: true },
-                { name: "role", label: "Role(s)", field: "", align: "left", sortable: false },
-                { name: "add", label: "Add Date", field: "", align: "left", sortable: false, format: v => formatDate(v) },
-                { name: "start", label: "Start Date", field: "", align: "left", sortable: false },
-                { name: "end", label: "End Date", field: "", align: "left", sortable: false },
-                { name: "mod", label: "Modified", field: "", align: "left", sortable: false }
-            ],
-            pagination: { rowsPerPage: 0 }
-        })       
-        vueMountedActions.push(async function () {
-            this.groupId = this.urlParams.get("groupId")
-            this.loadGroup()
-            this.groupMembers.urlBase = "Groups/" + this.groupId + "/Members"
-            this.groupMembers.load()
+        createVueApp({
+            data() {
+                return {
+                    group: {},
+                    groupId: 0,
+                    syncing: false,
+                    groupMembers: new quasarTable({
+                        keys: ["memberId"],
+                        urlBase: "Groups/" + this.groupId + "/Members",
+                        columns: [
+                            { name: "active", label: "Active", field: "current", align: "left", style: "max-width:50px;", format: v => v ? "Yes" : "No" },
+                            { name: "ingroup", label: "In Group", field: "isInGroup", align: "left", style: "max-width:50px;", format: v => v ? "Yes" : "No" },
+                            { name: "loginId", label: "LoginID", field: "loginId", align: "left", style: "max-width:100px;" },
+                            { name: "member", label: "Member", field: "displayName", align: "left", sortable: true },
+                            { name: "role", label: "Role(s)", field: "", align: "left", sortable: false },
+                            { name: "add", label: "Add Date", field: "", align: "left", sortable: false, format: v => formatDate(v) },
+                            { name: "start", label: "Start Date", field: "", align: "left", sortable: false },
+                            { name: "end", label: "End Date", field: "", align: "left", sortable: false },
+                            { name: "mod", label: "Modified", field: "", align: "left", sortable: false }
+                        ],
+                        pagination: { rowsPerPage: 0 }
+                    })
+                }
+            },
+            methods: {
+                loadGroup: async function () {
+                    this.group = await viperFetch(this, "Groups/" + this.groupId)
+                },
+                fdate: function (d) {
+                    return formatDate(d)
+                },
+                syncGroup: function () {
+                    viperFetch(this,
+                        "Groups/" + this.group.groupId + "/Sync",
+                        { method: "POST" },
+                        [this.setSync]
+                    )
+                },
+                setSync: function () {
+                    this.syncing = true
+                }
+            },
+            async mounted() {
+                this.groupId = this.urlParams.get("groupId")
+                this.loadGroup()
+                this.groupMembers.urlBase = "Groups/" + this.groupId + "/Members"
+                this.groupMembers.load()
+            }
         })
     </script>
 }

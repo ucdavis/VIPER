@@ -75,6 +75,7 @@ namespace Viper.Areas.RAPS.Controllers
                     .Where(rp => (roleId == null || rp.RoleId == roleId))
                     .Where(rp => (permissionId == null || rp.PermissionId == permissionId))
                     .OrderBy(rp => rp.Permission.Permission)
+                    .ThenBy(rp => rp.Role.DisplayName ?? rp.Role.Role)
                     .ToListAsync();
 
             return tblRolePermissions;

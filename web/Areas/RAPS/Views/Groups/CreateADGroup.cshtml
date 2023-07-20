@@ -14,24 +14,32 @@
 
 @section Scripts {
     <script asp-add-nonce="true">
-        vueObjects.newGroup = {}
-        vueObjects.submitErrors = {}
-        vueMethods.submitGroup = function (vueApp) {
-            this.submitErrors = {}
-            viperFetch(vueApp,
-                "Groups/Managed",
-                {
-                    method: "POST",
-                    body: JSON.stringify(this.newGroup),
-                    headers: { "Content-Type": "application/json" }
-                },
-                [
-                    function() {
-                        location.href = "GroupList"
-                    }
-                ],
-                this.submitErrors
-            )
-        }
+        createVueApp({
+            data() {
+                return {
+                    newGroup: {},
+                    submitErrors: {}
+                }
+            },
+            methods: {
+                submitGroup: function (vueApp) {
+                    this.submitErrors = {}
+                    viperFetch(vueApp,
+                        "Groups/Managed",
+                        {
+                            method: "POST",
+                            body: JSON.stringify(this.newGroup),
+                            headers: { "Content-Type": "application/json" }
+                        },
+                        [
+                            function () {
+                                location.href = "GroupList"
+                            }
+                        ],
+                        this.submitErrors
+                    )
+                }
+            }
+        })
     </script>
 }
