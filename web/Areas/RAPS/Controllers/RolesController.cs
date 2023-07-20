@@ -30,6 +30,13 @@ namespace Viper.Areas.RAPS.Controllers
 			AuditService = new RAPSAuditServiceWrapper(ras);
         }
 
+        //Get all view names
+        [HttpGet("Views")]
+        public async Task<ActionResult<List<string>>> GetViews()
+        {
+            return await new RoleViews(_context).GetViewNames();
+        }
+
         // GET: Roles
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TblRole>>> GetTblRoles(string instance, int? Application, bool? allInstances = false)

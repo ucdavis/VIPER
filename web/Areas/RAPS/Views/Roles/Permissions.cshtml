@@ -45,98 +45,116 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        //setup
-        vueMethods.loadRole = async function () {
-            this.role = await viperFetch(this, "Roles/" + this.roleId)
-        }
-        //allow/deny selected permissions
-        vueMethods.updateRolePermissions = async function (allowAccess = 1) {
-            this.selectedPermissions.forEach((value, index) => {
-                var rolePermission = { roleId: this.roleId, permissionId: value.permissionId, access: allowAccess }
-                viperFetch(this,
-                    "Roles/" + this.roleId + "/Permissions/",
-                    {
-                        method: "POST",
-                        body: JSON.stringify(rolePermission),
-                        headers: { "Content-Type": "application/json" }
-                    },
-                    [this.loadTables]
-                )
-            })
-        }
-        vueMethods.allowRolePermissions = async function () {
-            this.updateRolePermissions(1)
-        }
-        vueMethods.denyRolePermissions = async function () {
-            this.updateRolePermissions(0)
-        }
-        vueMethods.deleteRolePermission = async function (rolePermission) {
-            viperFetch(this,
-                "Roles/" + this.roleId + "/Permissions/" + rolePermission.permissionId,
-                {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" }
+        //table of existing permissions for this role
+        createVueApp({
+            data() {
+                return {
+                    roleId: 0,
+                    role: {},
+                    rolePermissionTable: new quasarTable({
+                        keys: ["permissionId"],
+                        urlBase: "Roles",
+                        columns: [
+                            { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
+                            { name: "permission", label: "Permission", field: "permissionName", align: "left", sortable: true },
+                            { name: "access", label: "Access", field: "accessDescription", align: "left", sortable: true },
+                            { name: "lastModified", label: "Last Modified Date", field: "modTime", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "modifiedBy", label: "Modified By", field: "modBy", align: "left", sortable: true },
+                            { name: "remove", label: "Remove", field: "", align: "left", sortable: false }
+                        ],
+                        onLoad: function (data) {
+                            this.rows = data.map(rp => ({
+                                ...rp,
+                                permissionId: rp.permissionId,
+                                accessDescription: rp.access == 1 ? "Allow" : "Deny",
+                                permissionName: rp.permission?.permission
+                            }))
+                        },
+                        pagination: { rowsPerPage: 0 }
+                    })
+                }
+            },
+            methods: {
+                loadRole: async function () {
+                    this.role = await viperFetch(this, "Roles/" + this.roleId)
                 },
-                [this.loadTables]
-            )
-        }
-        //Load data
-        vueMethods.loadTables = async function () {
-            await this.rolePermissionTable.load(this)
-            this.permissionTable.load(this)
-            this.selectedPermissions = []
-        }
-        //actions on load
-        vueMountedActions.push(async function () {
-            this.roleId = this.urlParams.get("roleId")
-            this.loadRole()
-            this.rolePermissionTable.urlBase = "Roles/" + this.roleId + "/Permissions"
-            this.loadTables()
-        })
-        
-        vueObjects.rolePermissionTable = new quasarTable({
-            keys: ["permissionId"],
-            urlBase: "Roles",
-            columns: [
-                { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
-                { name: "permission", label: "Permission", field: "permissionName", align: "left", sortable: true },
-                { name: "access", label: "Access", field: "accessDescription", align: "left", sortable: true },
-                { name: "lastModified", label: "Last Modified Date", field: "modTime", align: "left", sortable: true, format: v => formatDate(v) },
-                { name: "modifiedBy", label: "Modified By", field: "modBy", align: "left", sortable: true },
-                { name: "remove", label: "Remove", field: "", align: "left", sortable: false }
-            ],
-            onLoad: function (data) {
-                this.rows = data.map(rp => ({
-                    ...rp,
-                    permissionId: rp.permissionId,
-                    accessDescription: rp.access == 1 ? "Allow" : "Deny",
-                    permissionName: rp.permission?.permission
-                }))
+                loadRolePermissions: async function() {
+                    await this.rolePermissionTable.load(this)
+                }
             },
-            pagination: { rowsPerPage: 0 }
+            async mounted() {
+                this.roleId = this.urlParams.get("roleId")
+                this.loadRole()
+                this.rolePermissionTable.urlBase = "Roles/" + this.roleId + "/Permissions"
+                this.loadRolePermissions()
+            }
         })
-        vueObjects.permissionTable = new quasarTable({
-            keys: ["permissionId"],
-            urlBase: "Permissions",
-            columns: [
-                { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
-                { name: "description", label: "Description", field: "description", align: "left", sortable: true }
-            ],
-            onLoad: function (data, vueApp) {
-                var existingPermissions = vueApp._.data.rolePermissionTable.rows
-                    .reduce((result, rp) => {
-                        result.push(rp.permissionId)
-                        return result
-                    }, [])
-                this.rows = data.filter(p =>
-                    existingPermissions.indexOf(p.permissionId) == -1
-                )
+
+        createVueApp({
+            data() {
+                return {
+                    selectedPermissions: [],
+                    permissionTable: new quasarTable({
+                        keys: ["permissionId"],
+                        urlBase: "Permissions",
+                        columns: [
+                            { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
+                            { name: "description", label: "Description", field: "description", align: "left", sortable: true }
+                        ],
+                        onLoad: function (data, vueApp) {
+                            var existingPermissions = vueApp._.data.rolePermissionTable.rows
+                                .reduce((result, rp) => {
+                                    result.push(rp.permissionId)
+                                    return result
+                                }, [])
+                            this.rows = data.filter(p =>
+                                existingPermissions.indexOf(p.permissionId) == -1
+                            )
+                        },
+                        pagination: { rowsPerPage: 15 }
+                    })
+                }
             },
-            pagination: { rowsPerPage: 15 }
-        })
-        //other variables for the page
-        vueObjects.roleId = 0
-        vueObjects.role = {}
-        vueObjects.selectedPermissions = []        
+            methods: {
+                updateRolePermissions: async function (allowAccess = 1) {
+                    this.selectedPermissions.forEach((value, index) => {
+                        var rolePermission = { roleId: this.roleId, permissionId: value.permissionId, access: allowAccess }
+                        viperFetch(this,
+                            "Roles/" + this.roleId + "/Permissions/",
+                            {
+                                method: "POST",
+                                body: JSON.stringify(rolePermission),
+                                headers: { "Content-Type": "application/json" }
+                            },
+                            [this.loadRolePermissions,this.loadPermissions]
+                        )
+                    })
+                },
+                allowRolePermissions: async function () {
+                    this.updateRolePermissions(1)
+                },
+                denyRolePermissions: async function () {
+                    this.updateRolePermissions(0)
+                },
+                deleteRolePermission: async function (rolePermission) {
+                    viperFetch(this,
+                        "Roles/" + this.roleId + "/Permissions/" + rolePermission.permissionId,
+                        {
+                            method: "DELETE",
+                            headers: { "Content-Type": "application/json" }
+                        },
+                        [this.loadRolePermissions,this.loadPermissions]
+                    )
+                },
+                loadPermissions: async function () {
+                    this.permissionTable.load(this)
+                    this.selectedPermissions = []
+                }
+            },
+            async mounted() {
+                this.loadPermissions()
+            }
+        })        
+           
     </script>
 }

@@ -25,7 +25,7 @@
                                          :error-message="rolesTable.errors?.Role?.message"></q-input>
                                 <q-input outlined v-model="rolesTable.object.description" label="Description" type="textarea"></q-input>
                                 <q-checkbox v-model="rolesTable.object.application" true-value="1" :false-value="null" label="Application Role"></q-checkbox>
-                                <q-input outlined v-model="rolesTable.object.viewName" label="View"></q-input>
+                                <q-select dense options-dense outlined clearable v-model="rolesTable.object.viewName" :options="views" label="View"></q-select>
                             </q-card-section>
                             <q-card-actions align="evenly">
                                 <q-btn no-caps :label="rolesTable.editing ? 'Update Role' : 'Add Role'" type="submit" padding="xs sm" color="primary"></q-btn>
@@ -70,38 +70,45 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        vueObjects.rolesTable = new quasarTable({
-            keys: "roleId",
-            urlBase: "Roles",
-            columns: [
-                { name: "roleid", label: "", field: "roleId", align: "left", style: "width:50px;" },
-                { name: "role", label: "Role", field: "role", align: "left", sortable: true },
-                { name: "viewname", label: "Member List", field: "viewName", align: "left", sortable: true },
-                { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left", sortable: true },
-                { name: "edit", label: "", field: "" }
-            ],
-            //after loading roles, add a member count and computed display name
-            onLoad: function(data) {
-                this.rows = data.map(r => ({
-                    ...r,
-                    membersCount: r.tblRoleMembers.length,
-                    application: r.application == 1 ? "1" : null
-                }))
-            },
-            //create object with limited properties to do insert/update
-            createBody: function(vueApp, data) {
-                return {
-                    roleId : data.roleId,
-                    role : data.role,
-                    application : data.application == 1 ? 1 : 0,
-                    description : data.description,
-                    viewName : data.viewName
+        createVueApp({
+            data() {
+                return  {
+                    views: [],
+                    rolesTable: new quasarTable({
+                        keys: "roleId",
+                        urlBase: "Roles",
+                        columns: [
+                            { name: "roleid", label: "", field: "roleId", align: "left", style: "width:50px;" },
+                            { name: "role", label: "Role", field: "role", align: "left", sortable: true },
+                            { name: "viewname", label: "Member List", field: "viewName", align: "left", sortable: true },
+                            { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left", sortable: true },
+                            { name: "edit", label: "", field: "" }
+                        ],
+                        //after loading roles, add a member count
+                        onLoad: function (data) {
+                            this.rows = data.map(r => ({
+                                ...r,
+                                membersCount: r.tblRoleMembers.length,
+                                application: r.application == 1 ? "1" : null
+                            }))
+                        },
+                        //create object with limited properties to do insert/update
+                        createBody: function (vueApp, data) {
+                            return {
+                                roleId: data.roleId,
+                                role: data.role,
+                                application: data.application == 1 ? 1 : 0,
+                                description: data.description,
+                                viewName: data.viewName
+                            }
+                        }
+                    })
                 }
+            },
+            async mounted() {
+                this.rolesTable.load()
+                this.views = await viperFetch(this, "Roles/Views")
             }
-        })
-
-        vueMountedActions.push(async function () {
-            this.rolesTable.load()
         })
     </script>
 }

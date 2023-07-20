@@ -80,85 +80,87 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        //members table
-        vueObjects.membersTable = new quasarTable({
-            keys: ["memberId"],
-            urlBase: "Roles",
-            columns: [
-                { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
-                { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
-                { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
-                { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
-                { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
-                { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
-                { name: "active", label: "Active", field: "active", align: "left", sortable: true },
-                { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
-            ],
-            //after loading role members, add the member name and active flag
-            onLoad: function (data) {
-                this.data = data.map(rm => ({
-                    ...rm,
-                    memberName: rm?.aaudUser?.displayLastName + ", " + rm?.aaudUser?.displayFirstName,
-                    active: rm?.aaudUser?.current == 1 ? "Y" : "N",
-                    lastModified: formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")"
-                }))
-            },
-            //set member id and role id when creating/updating
-            createBody: function (v, object) {
+        createVueApp({
+            data() {
                 return {
-                    comment: object.comment,
-                    memberId: object.member?.value,
-                    roleId: v.urlParams.get("roleId"),
-                    startDate: object?.startDate,
-                    endDate: object?.endDate
-                }
-            },
-            //on selection, format dates and set up user select box
-            selectObject: function (object) {
-                this.object = {
-                    roleId: object.roleId,
-                    startDate: formatDateForDateInput(object.startDate),
-                    endDate: formatDateForDateInput(object.endDate),
-                    member: {
-                        label: object?.aaudUser?.displayLastName + ", " + object?.aaudUser?.displayFirstName,
-                        value: object.memberId
+                    roleId: 0,
+                    role: {},
+                    memberSearchResults: [],
+                    membersTable: new quasarTable({
+                    keys: ["memberId"],
+                    urlBase: "Roles",
+                    columns: [
+                        { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
+                        { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
+                        { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
+                        { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
+                        { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
+                        { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
+                        { name: "active", label: "Active", field: "active", align: "left", sortable: true },
+                        { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+                    ],
+                    //after loading role members, add the member name and active flag
+                    onLoad: function (data) {
+                        this.data = data.map(rm => ({
+                            ...rm,
+                            memberName: rm?.aaudUser?.displayLastName + ", " + rm?.aaudUser?.displayFirstName,
+                            active: rm?.aaudUser?.current == 1 ? "Y" : "N",
+                            lastModified: formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")"
+                        }))
                     },
-                    memberId: object.memberId
+                    //set member id and role id when creating/updating
+                    createBody: function (v, object) {
+                        return {
+                            comment: object.comment,
+                            memberId: object.member?.value,
+                            roleId: v.urlParams.get("roleId"),
+                            startDate: object?.startDate,
+                            endDate: object?.endDate
+                        }
+                    },
+                    //on selection, format dates and set up user select box
+                    selectObject: function (object) {
+                        this.object = {
+                            roleId: object.roleId,
+                            startDate: formatDateForDateInput(object.startDate),
+                            endDate: formatDateForDateInput(object.endDate),
+                            member: {
+                                label: object?.aaudUser?.displayLastName + ", " + object?.aaudUser?.displayFirstName,
+                                value: object.memberId
+                            },
+                            memberId: object.memberId
+                        }
+                    },
+                    pagination: { rowsPerPage: 0 }
+                })
                 }
             },
-            pagination: { rowsPerPage: 0 }
-        })
+            methods: {
+                loadRole: async function () {
+                    this.role = await viperFetch(this, "Roles/" + this.roleId)
+                },
+                memberSearch: function (val, update, abort) {
+                    if (val.length < 3) {
+                        abort()
+                        return
+                    }
 
-        //form
-        vueObjects.roleId = 0
-        vueObjects.role = {}
-        vueObjects.memberSearchResults = []
-      
-        //setup
-        vueMethods.loadRole = async function () {
-            this.role = await viperFetch(this, "Roles/" + this.roleId)
-        }
-        vueMethods.memberSearch = function (val, update, abort) {
-            if (val.length < 3) {
-                abort()
-                return
+                    update(() => {
+                        var res = fetch("Members?search=" + val)
+                            .then(r => r.json())
+                            .then(data =>
+                                this.memberSearchResults = data
+                                    .map(m => ({ label: m.displayLastName + ", " + m.displayFirstName, value: m.memberId }))
+                            )
+                    })
+                }
+            },
+            async mounted() {
+                this.roleId = this.urlParams.get("roleId")
+                this.loadRole()
+                this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
+                this.membersTable.load()
             }
-            
-            update(() => {
-                var res = fetch("Members?search=" + val)
-                    .then(r => r.json())
-                    .then(data =>
-                        this.memberSearchResults = data
-                            .map(m => ({ label: m.displayLastName + ", " + m.displayFirstName, value: m.memberId }))
-                    )
-            })
-        }
-
-        vueMountedActions.push(async function () {
-            this.roleId = this.urlParams.get("roleId")
-            this.loadRole()
-            this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
-            this.membersTable.load()
         })
     </script>
 }

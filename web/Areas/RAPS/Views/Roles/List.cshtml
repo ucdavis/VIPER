@@ -32,22 +32,30 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        vueObjects.rolesTable = new quasarTable({
-            columns: [
-                { name: "roleid", label: "", field: "roleId", align: "left", style: "width:50px;" },
-                { name: "role", label: "Role", field: "friendlyName", align: "left", sortable: true },
-                { name: "viewname", label: "Member List", field: "viewName", align: "left", sortable: true },
-                { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left", sortable: true }
-            ],
-            urlBase: "Roles",
-            onLoad: function (data) {
-                this.rows = data.map(r => ({
-                    ...r,
-                    membersCount: r.tblRoleMembers.length,
-                    viewName: r.viewName
-                }))
+        createVueApp({
+            data() {
+                return {
+                    rolesTable: new quasarTable({
+                        columns: [
+                            { name: "roleid", label: "", field: "roleId", align: "left", style: "width:50px;" },
+                            { name: "role", label: "Role", field: "friendlyName", align: "left", sortable: true },
+                            { name: "viewname", label: "Member List", field: "viewName", align: "left", sortable: true },
+                            { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left", sortable: true }
+                        ],
+                        urlBase: "Roles",
+                        onLoad: function (data) {
+                            this.rows = data.map(r => ({
+                                ...r,
+                                membersCount: r.tblRoleMembers.length,
+                                viewName: r.viewName
+                            }))
+                        }
+                    })
+                }
+            },
+            async mounted () {
+                this.rolesTable.load()
             }
         })
-        vueMountedActions.push(async function () { this.rolesTable.load(this) })
     </script>
 }

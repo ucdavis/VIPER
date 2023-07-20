@@ -20,10 +20,11 @@ namespace Viper.Areas.RAPS.Services
             _auditService = new RAPSAuditService(RAPSContext);
         }
 
-        public async Task<List<GetAllRapsViews>> GetViewNames()
+        public async Task<List<string>> GetViewNames()
         {
-            return await _RAPSContext.GetAllRapsViews.FromSql($"dbo.usp_getAllRapsViews")
+            List<GetAllRapsViews> allViews = await _RAPSContext.GetAllRapsViews.FromSql($"dbo.usp_getAllRapsViews")
                 .ToListAsync();
+            return allViews.AsEnumerable().Select(v => v.Name).ToList();
         }
 
         /// <summary>

@@ -2,18 +2,18 @@
 <q-form v-bind="auditForm" @@submit="getAudit(this)">
     <div class="row q-mb-sm q-gutter-sm">
         <q-input outlined dense label="Start Date" class="col col-md-3 col-lg-2"
-                name="startDate" type="date" v-model="auditForm.startDate"></q-input>
+                 type="date" v-model="auditForm.startDate"></q-input>
         <q-select outlined dense options-dense clearable class="col col-md-4 col-lg-3"
-                  name="auditType" label="AuditType" v-model="auditForm.auditType" :options="auditTypes"></q-select>
+                  Label="AuditType" v-model="auditForm.auditType" :options="auditTypes"></q-select>
         <q-select outlined dense options-dense clearable class="col col-md-4 col-lg-3"
-                  name="role" label="Role" v-model="auditForm.role" :options="roles" option-value="roleId" option-label="friendlyName"></q-select>
+                  label="Role" v-model="auditForm.role" :options="roles" option-value="roleId" option-label="friendlyName"></q-select>
     </div>
     <div class="row q-mb-sm q-gutter-sm">
-        <q-input name="endDate" type="date" outlined dense label="End Date" v-model="auditForm.endDate" class="col col-md-3 col-lg-2"></q-input>
+        <q-input type="date" outlined dense label="End Date" v-model="auditForm.endDate" class="col col-md-3 col-lg-2"></q-input>
         <q-select outlined dense options-dense clearable label="Modified By" class="col col-md-4 col-lg-3"
-                  name="modBy" v-model="auditForm.modBy" :options="modByUsers" option-value="loginId" option-label="name"></q-select>
+                  v-model="auditForm.modBy" :options="modByUsers" option-value="loginId" option-label="name"></q-select>
         <q-input outlined dense clearable label="Search" class="col col-md-4 col-lg-3"
-                name="search" type="text" v-model="auditForm.search"></q-input>
+                type="text" v-model="auditForm.search"></q-input>
     </div>
     <div class="row q-mb-sm q-gutter-sm">
         <q-input dense clearable borderless type="text" label="Permission" class="col col-md-3 col-lg-2" 
@@ -31,6 +31,7 @@
 <q-banner v-if="auditTable.rows.length == 1000" rounded dense class="bg-warning q-my-md">
     Only the most recent 1000 records that match the criteria above will be displayed. To return all records, use additional criteria to limit the results.
 </q-banner>
+
 <q-table dense
          row-key="auditRecordId"
          :loading="auditTable.loading"
