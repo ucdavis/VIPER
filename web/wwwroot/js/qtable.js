@@ -58,8 +58,8 @@ class quasarTable {
         }
         
         var queryParams = "";
+        this.loading = true
         if (this.serverSidePagination) {
-            this.loading = true
             var queryParamObject = {
                 perPage: this.pagination.rowsPerPage,
                 page: this.pagination.page,

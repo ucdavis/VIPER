@@ -78,6 +78,37 @@ namespace Viper.Areas.RAPS.Controllers
                 .ToListAsync();
         }
 
+
+
+        // GET: Roles/ControlledBy/5
+        [HttpGet("ControlledBy/{roleId}")]
+        public async Task<ActionResult<IEnumerable<TblRole>>> GetControlledRoles(string instance, int roleId)
+        {
+            if (_context.TblRoles == null)
+            {
+                return NotFound();
+            }
+            var tblRole = await _context.TblRoles
+                .Include(r => r.ChildRoles)
+                .ThenInclude(cr => cr.Role)
+                .Where(r => r.RoleId == roleId)
+                .FirstOrDefaultAsync();
+            
+            if (tblRole == null)
+            {
+                return NotFound();
+            }
+
+            List<TblRole> childRoles = new();
+            foreach(TblAppRole r in tblRole.ChildRoles)
+            {
+                childRoles.Add(r.Role);
+            }
+            childRoles.Sort((c1, c2) => c1.FriendlyName.CompareTo(c2.FriendlyName));
+
+            return childRoles;
+        }
+
         // GET: Roles/5
         [HttpGet("{roleId}")]
         public async Task<ActionResult<TblRole>> GetTblRole(string instance, int roleId)
@@ -126,6 +157,40 @@ namespace Viper.Areas.RAPS.Controllers
                 }
             }
 
+            return NoContent();
+        }
+
+        // Put: Roles/ControlledBy/5
+        [HttpPut("ControlledBy/{roleId}")]
+        public async Task<ActionResult<IEnumerable<TblRole>>> UpdateControlledRoles(string instance, int roleId, List<int> roleIds)
+        {
+            List<TblAppRole> childRoles = await _context.TblAppRoles
+                .Where(ar => ar.AppRoleId == roleId)
+                .ToListAsync();
+            //remove deleted roles
+            foreach(TblAppRole childRole in childRoles)
+            {
+                if(!roleIds.Contains(childRole.RoleId))
+                {
+                    _context.Remove(childRole);
+                }
+                else
+                {
+                    //don't add this one
+                    roleIds.Remove(childRole.RoleId);
+                }
+            }
+
+            //add new roles
+            foreach(int id in roleIds)
+            {
+                _context.Add(new TblAppRole()
+                {
+                    RoleId = id,
+                    AppRoleId = roleId
+                });
+            }
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 

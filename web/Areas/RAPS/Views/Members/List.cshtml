@@ -30,6 +30,11 @@
             <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="history" :href="'MemberHistory?memberId=' + props.row.memberId"></q-btn>
         </q-td>
     </template>
+    <template v-slot:body-cell-member="props">
+        <q-td :props="props">
+            {{props.row.displayLastName}}, {{props.row.displayFirstName}}
+        </q-td>
+    </template>
 </q-table>
 @section Scripts {
     <script src="~/js/qtable.js"></script>
@@ -40,11 +45,11 @@
                     userSearch: "",
                     members: new quasarTable({
                         keys: ["memberId"],
-                        urlBase: "Roles",
+                        urlBase: "Members",
                         columns: [
                             { name: "links", label: "", field: "", align: "left", style: "width:100px;" },
-                            { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
-                            { name: "active", label: "Active", field: "active", align: "left", sortable: true },
+                            { name: "member", label: "Member", field: "", align: "left", sortable: true },
+                            { name: "active", label: "Active", field: "current", align: "left", sortable: true, format: v => (v == 1 ? "Y" : "N") },
                             { name: "countRoles", label: "Count Roles", field: "countRoles", align: "left", sortable: true },
                             { name: "countPermissions", label: "Count Permissions", field: "countPermissions", align: "left", sortable: true }
                         ],
@@ -54,15 +59,9 @@
             },
             methods: {
                 findUsers: async function () {
-                    this.members.loading = true
+                    this.members.urlBase = "Members?search=" + this.userSearch
                     if (this.userSearch.length >= 3) {
-                        this.members.rows = (await viperFetch(this, "Members?search=" + this.userSearch))
-                            .map(m => ({
-                                ...m,
-                                memberName: m.displayLastName + ", " + m.displayFirstName,
-                                active: m.current == 1 ? "Y" : "N",
-                            }))
-                        this.members.loading = false
+                        this.members.load(this)
                     }
                 }
             },

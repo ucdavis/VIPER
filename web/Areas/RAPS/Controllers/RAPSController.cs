@@ -170,8 +170,6 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{instance}/[action]")]
         public async Task<IActionResult> RoleList(string instance)
         {
-            ViewData["instance"] = instance.ToUpper();
-            
             if (UserHelper.HasPermission(_RAPSContext, UserHelper.GetCurrentUser(), "RAPS.Admin"))
             {
                 return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/ListAdmin.cshtml"));
@@ -186,6 +184,18 @@ namespace Viper.Areas.RAPS.Controllers
                 //TODO: Should probably have a deny access helper function that writes logs and sets view
                 return await Task.Run(() => View("~/Views/Home/403.cshtml"));
             }
+        }
+
+        /// <summary>
+        /// Show and manage the RAPS roles that delegate access to manage the membership of other roles
+        /// </summary>
+        /// <param name="instance"></param>
+        /// <returns></returns>
+        [Permission(Allow = "RAPS.Admin")]
+        [Route("/[area]/{instance}/DelegateRoles")]
+        public async Task<IActionResult> DelegateRoles(string instance)
+        {
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/DelegateRoles.cshtml"));
         }
 
         /// <summary>

@@ -53,7 +53,7 @@
     </template>
     <template v-slot:body-cell-edit="props">
         <q-td :props="props">
-            <q-btn :props="props" dense color="primary" size="md" padding="xs md" @@click="permissionTable.selectRow(props.row)">Edit</q-btn>
+            <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs md" @@click="permissionTable.selectRow(props.row)"></q-btn>
         </q-td>
     </template>
 </q-table>
