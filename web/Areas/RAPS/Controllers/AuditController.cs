@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.RAPS.Models;
+using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
@@ -19,10 +20,12 @@ namespace Viper.Areas.RAPS.Controllers
     public class AuditController : ApiController
     {
         private readonly RAPSContext _context;
+        private readonly RAPSAuditService _auditService;
 
         public AuditController(RAPSContext context)
         {
             _context = context;
+            _auditService = new(context);
         }
 
         // GET: api/Audit
@@ -34,61 +37,11 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            if (search != null)
-            {
-                search = search.ToLower();
-            }
-            return await (
-                from log in _context.TblLogs
-                join modByUser in _context.VwAaudUser
-                    on log.ModBy equals modByUser.LoginId
-                join tblPermission in _context.TblPermissions
-                    on log.PermissionId equals tblPermission.PermissionId
-                    into perms from permission in perms.DefaultIfEmpty()
-                join tblRole in _context.TblRoles
-                    on log.RoleId equals tblRole.RoleId
-                    into roles from role in roles.DefaultIfEmpty()
-                join vwAaudUser in _context.VwAaudUser
-                    on log.MemberId equals vwAaudUser.MothraId
-                    into members from member in members.DefaultIfEmpty()
-                where (search == null 
-                    || ((log.Detail ?? "").Contains(search))
-                    || (log.Audit.Contains(search))
-                    || ((log.Comment ?? "").Contains(search))
-                    || (log.ModBy.Contains(search))
-                    || ((modByUser.DisplayFullName ?? "").Contains(search))
-                    || ((log.MemberId ?? "").Contains(search))
-                    || ((member.DisplayFullName ?? "").Contains(search))
-                    || ((role.Role ?? "").Contains(search))
-                    || ((permission.Permission ?? "").Contains(search))                    
-                    )
-                    && (startDate == null || log.ModTime >= ((DateOnly)startDate).ToDateTime(new TimeOnly(0, 0, 0)))
-                    && (endDate == null || log.ModTime <= ((DateOnly)endDate).ToDateTime(new TimeOnly(0, 0, 0)))
-                    && (auditType == null || log.Audit == auditType)
-                    && (modBy == null || log.ModBy == modBy)
-                    && (modifiedUser == null || log.MemberId == modifiedUser)
-                    && (roleId == null || log.RoleId == roleId)
-                    && (permissionId == null || log.PermissionId == permissionId)
-                select new AuditLog
-                {
-                    AuditRecordId = log.AuditRecordId,
-                    MemberId = log.MemberId,
-                    RoleId = log.RoleId,
-                    PermissionId = log.PermissionId,
-                    ModTime = log.ModTime,
-                    ModBy = log.ModBy,
-                    Audit = log.Audit,
-                    Comment = log.Comment,
-                    Detail = log.Detail,
-                    MemberName = member.DisplayLastName != null ? member.DisplayLastName + ", " + member.DisplayFirstName : null,
-                    ModByUserName = modByUser.DisplayLastName + ", " + modByUser.DisplayFirstName,
-                    Permission = permission.Permission,
-                    Role = (!string.IsNullOrEmpty(role.DisplayName) ? role.DisplayName : role.Role)
-                } into record
-                orderby record.ModTime descending
-                select record)
-                .Take(1000)
-                .ToListAsync();
+            return await _auditService.GetAuditEntries(
+                startDate: startDate, endDate: endDate, auditType: auditType,
+                modBy: modBy, modifiedUser: modifiedUser, roleId: roleId, 
+                search: search, permissionId: permissionId
+            );
         }
 
         [HttpGet("ModifiedByUsers")]

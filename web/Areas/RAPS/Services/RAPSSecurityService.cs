@@ -148,6 +148,8 @@ namespace Viper.Areas.RAPS.Services
                     return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.Clone");
                 case "ViewHistory":
                     return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.EditRoleMembership");
+                case "RevertPermissions":
+                    return false; //admin only
                 case "EditRoleMembership":
                     return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.EditRoleMembership");
                 default:

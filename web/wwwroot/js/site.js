@@ -7,7 +7,11 @@
     If the date is not valid, returns empty string
 */
 function formatDateForDateInput(d) {
-    var dt = new Date(d)
+    if (d == null || d == "") {
+        return ""
+    }
+    d = d.split("T")[0]
+    var dt = new Date(d + "T00:00:00")
     return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf()))
         ? (dt.getFullYear() + "-" + ("" + (dt.getMonth() + 1)).padStart(2, "0") + "-" + ("" + (dt.getDate())).padStart(2, "0"))
         : "";
@@ -17,11 +21,18 @@ function formatDateForDateInput(d) {
     Returns a date formatted with toLocalDateString if possible
 */
 function formatDate(d) {
-    var dt = new Date(d)
+    if (d == null || d == "") {
+        return ""
+    }
+    d = d.split("T")[0]
+    var dt = new Date(d + "T00:00:00")
     return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf())) ? dt.toLocaleDateString() : ""
 }
 
 function formatDateTime(d, options) {
+    if (d == null || d == "") {
+        return ""
+    }
     var dt = new Date(d)
     return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf())) ? dt.toLocaleString("en-US", options) : ""
 }

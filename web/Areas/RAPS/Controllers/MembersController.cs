@@ -15,11 +15,13 @@ namespace Viper.Areas.RAPS.Controllers
     {
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
+        private readonly RAPSAuditService _auditService;
 
         public MembersController(RAPSContext context)
         {
             _context = context;
             _securityService = new RAPSSecurityService(_context);
+            _auditService = new RAPSAuditService(_context);
         }
         // GET: <Members>
         [HttpGet]
@@ -200,6 +202,46 @@ namespace Viper.Areas.RAPS.Controllers
             }
             await new CloneService(_context).Clone(instance, sourceMemberId, targetMemberId, objectsToClone);
             return NoContent();
+        }
+
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
+        [HttpGet("{memberId}/History")]
+        public async Task<ActionResult<List<AuditLog>>> GetHistory(string instance, string memberId, DateOnly startDate)
+        {
+            if(!_securityService.IsAllowedTo("ViewHistory", instance))
+            {
+                return Forbid();
+            }
+            List<AuditLog> audit = await _auditService.GetMemberRolesAndPermissionHistory(instance: instance, memberId: memberId, startDate: startDate);
+            return audit;
+        }
+
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
+        [HttpGet("{memberId}/History/Dates")]
+        public async Task<ActionResult<List<DateOnly>>> GetHistoryDates(string instance, string memberId)
+        {
+            if (!_securityService.IsAllowedTo("ViewHistory", instance))
+            {
+                return Forbid();
+            }
+            List<AuditLog> audit = await _auditService.GetAuditEntries(instance: instance, modifiedUser: memberId);
+            return audit
+                .Select(a => DateOnly.FromDateTime(a.ModTime))
+                .Distinct()
+                .ToList();
+        }
+
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
+        [HttpPost("{memberId}/History")]
+        public async Task<ActionResult<List<AuditLog>>> RevertFrom(string instance, string memberId, DateOnly? startDate = null, DateOnly? endDate = null)
+        {
+            if (!_securityService.IsAllowedTo("ViewHistory", instance)
+                && !_securityService.IsAllowedTo("EditRoleMembership", instance))
+            {
+                return Forbid();
+            }
+            List<AuditLog> audit = await _auditService.GetAuditEntries(instance: instance, modifiedUser: memberId, startDate: startDate, endDate: endDate);
+            return audit;
         }
     }
 }

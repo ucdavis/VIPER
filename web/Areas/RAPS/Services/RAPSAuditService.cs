@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 using Viper.Areas.RAPS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
@@ -15,9 +16,156 @@ namespace Viper.Areas.RAPS.Services
         }
 
         private readonly RAPSContext _context;
+        private readonly RAPSSecurityService _securityService;
         public RAPSAuditService(RAPSContext context)
         {
             _context = context;
+            _securityService = new(_context);
+        }
+
+        /// <summary>
+        /// Search the audit table and return AuditLog entries. AuditLog entries are TblLog with additional fields (because TblLog does
+        /// not have foreign keys for permission, role, member, group ids
+        /// </summary>
+        /// <param name="startDate"></param>
+        /// <param name="endDate"></param>
+        /// <param name="auditType"></param>
+        /// <param name="modBy"></param>
+        /// <param name="modifiedUser"></param>
+        /// <param name="roleId"></param>
+        /// <param name="permissionId"></param>
+        /// <param name="search">Searches modified user names, modifier names, role and permission names, detail, comment and audit action</param>
+        /// <returns></returns>
+        public async Task<List<AuditLog>> GetAuditEntries(DateOnly? startDate = null, DateOnly? endDate = null, string? auditType = null,
+            string? modBy = null, string? modifiedUser = null, int? roleId = null,
+            int? permissionId = null, string? search = null, string? instance = null)
+        {
+            if (search != null)
+            {
+                search = search.ToLower();
+            }
+            return await (
+                from log in _context.TblLogs
+                join modByUser in _context.VwAaudUser
+                    on log.ModBy equals modByUser.LoginId
+                join tblPermission in _context.TblPermissions
+                    on log.PermissionId equals tblPermission.PermissionId
+                    into perms
+                from permission in perms.DefaultIfEmpty()
+                join tblRole in _context.TblRoles
+                    on log.RoleId equals tblRole.RoleId
+                    into roles
+                from role in roles.DefaultIfEmpty()
+                join vwAaudUser in _context.VwAaudUser
+                    on log.MemberId equals vwAaudUser.MothraId
+                    into members
+                from member in members.DefaultIfEmpty()
+                where (search == null
+                    || ((log.Detail ?? "").Contains(search))
+                    || (log.Audit.Contains(search))
+                    || ((log.Comment ?? "").Contains(search))
+                    || (log.ModBy.Contains(search))
+                    || ((modByUser.DisplayFullName ?? "").Contains(search))
+                    || ((log.MemberId ?? "").Contains(search))
+                    || ((member.DisplayFullName ?? "").Contains(search))
+                    || ((role.Role ?? "").Contains(search))
+                    || ((permission.Permission ?? "").Contains(search))
+                    )
+                    && (instance == null
+                        || (
+                            role.Role == null
+                            || ((instance.StartsWith("VMACS.") || instance == "VIPERForms") && role.Role.StartsWith(instance))
+                            || (!role.Role.StartsWith("VMACS.") && !role.Role.StartsWith("VIPERForms"))
+                        )
+                    )
+                    && (instance == null
+                        || (
+                            permission.Permission == null
+                            || (instance.StartsWith("VMACS.") && permission.Permission.StartsWith("VMACS"))
+                            || (instance == "VIPERForms" && permission.Permission.StartsWith("VIPERForms"))
+                            || (!permission.Permission.StartsWith("VMACS") && !permission.Permission.StartsWith("VIPERForms"))
+                        )
+                    )
+                    && (startDate == null || log.ModTime >= ((DateOnly)startDate).ToDateTime(new TimeOnly(0, 0, 0)))
+                    && (endDate == null || log.ModTime <= ((DateOnly)endDate).ToDateTime(new TimeOnly(0, 0, 0)))
+                    && (auditType == null || log.Audit == auditType)
+                    && (modBy == null || log.ModBy == modBy)
+                    && (modifiedUser == null || log.MemberId == modifiedUser)
+                    && (roleId == null || log.RoleId == roleId)
+                    && (permissionId == null || log.PermissionId == permissionId)
+                select new AuditLog
+                {
+                    AuditRecordId = log.AuditRecordId,
+                    MemberId = log.MemberId,
+                    RoleId = log.RoleId,
+                    PermissionId = log.PermissionId,
+                    ModTime = log.ModTime,
+                    ModBy = log.ModBy,
+                    Audit = log.Audit,
+                    Comment = log.Comment,
+                    Detail = log.Detail,
+                    MemberName = member.DisplayLastName != null ? member.DisplayLastName + ", " + member.DisplayFirstName : null,
+                    ModByUserName = modByUser.DisplayLastName + ", " + modByUser.DisplayFirstName,
+                    Permission = permission.Permission,
+                    Role = (!string.IsNullOrEmpty(role.DisplayName) ? role.DisplayName : role.Role)
+                } into record
+                orderby record.ModTime descending
+                select record)
+                .Take(1000)
+                .ToListAsync();
+        }
+
+        public async Task<List<AuditLog>> GetMemberRolesAndPermissionHistory(string instance, string memberId, DateOnly startDate)
+        {
+            List<AuditLog> auditEntries = await GetAuditEntries(instance: instance, modifiedUser: memberId, startDate: startDate);
+            bool canModifyPermissions = _securityService.IsAllowedTo("RevertPermissions", instance);
+            List<string> auditTypes = new() { "AddRoleForMember", "DelRoleForMember", "UpdateRoleForMember" };
+            if(canModifyPermissions)
+            {
+                auditTypes.AddRange(new List<string>() { "CreateMemberPermission", "UpdateMemberPermission", "DelPermissionForMember" });
+            }
+            auditEntries = auditEntries.Where(a => auditTypes.Contains(a.Audit)).ToList();
+
+            //keep track of roles and permissions that were created/updated/removed from this user
+            Dictionary<string, List<string>> actionsPerformedOnObject = new();
+            foreach(AuditLog auditLog in auditEntries)
+            {
+                if(auditLog?.RoleId != null || auditLog?.PermissionId != null)
+                {
+                    string key = auditLog?.RoleId != null 
+                        ? "role-" + auditLog.RoleId 
+                        : "permission-" + auditLog!.PermissionId;
+                    if (actionsPerformedOnObject.ContainsKey(key))
+                    {
+                        List<string> moreRecentActions = actionsPerformedOnObject[key];
+                        bool undone = false;
+                        switch(auditLog.Audit)
+                        {
+                            case "DelRoleForMember": 
+                                undone = moreRecentActions.Contains("AddRoleForMember") || moreRecentActions.Contains("UpdateRoleForMember"); break;
+                            case "AddRoleForMember":
+                                undone = moreRecentActions.Contains("DelRoleForMember"); break;
+                            case "UpdateRoleForMember":
+                                undone = moreRecentActions.Contains("UpdateRoleForMember") || moreRecentActions.Contains("DelRoleForMember"); break;
+                            case "DelPermissionForMember":
+                                undone = moreRecentActions.Contains("CreateMemberPermission") || moreRecentActions.Contains("UpdateMemberPermission"); break;
+                            case "CreateMemberPermission":
+                                undone = moreRecentActions.Contains("DelPermissionForMember"); break;
+                            case "UpdateMemberPermission":
+                                undone = moreRecentActions.Contains("UpdateMemberPermission") || moreRecentActions.Contains("DelPermissionForMember"); break;
+                            default: break;
+                        }
+                        auditLog.Undone = undone;
+                    }
+                    else
+                    {
+                        //nothing done on this role or permission before
+                        actionsPerformedOnObject.Add(key, new List<string>() { auditLog.Audit });
+                    }
+                }
+            }
+
+            return auditEntries;
         }
 
         /// <summary>
@@ -179,7 +327,8 @@ namespace Viper.Areas.RAPS.Services
                 string Detail = "Access:" + memberPermission.Access;
                 if (memberPermission.StartDate != null)
                 {
-                    Detail += "\"StartDate\":\"" + memberPermission.StartDate.Value.ToString("yyyyMMdd") + "\"";
+                    Detail += (!string.IsNullOrEmpty(Detail) ? "," : "")
+                        + "\"StartDate\":\"" + memberPermission.StartDate.Value.ToString("yyyyMMdd") + "\"";
                 }
                 if (memberPermission.EndDate != null)
                 {

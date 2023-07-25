@@ -131,7 +131,7 @@
                         onLoad: function (data) {
                             this.rows = data.map(rm => ({
                                 ...rm,
-                                roleName: rm.role.displayName ? rm.role.displayName : rm.role.role,
+                                roleName: rm.role.friendlyName,
                                 lastModified: formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")"
                             }))
                             if (this.editing) {
@@ -179,7 +179,7 @@
                             )
                             this.rows = this.rows.map(r => ({
                                 roleId: r.roleId,
-                                role: r?.displayName?.length ? r.displayName : r.role,
+                                role: r.friendlyName,
                                 description: r.description
                             }))
                         },
