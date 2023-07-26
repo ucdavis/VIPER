@@ -85,7 +85,7 @@ namespace Viper.Areas.RAPS.Controllers
             nav.Add(new NavMenuItem() { MenuItemText = "Role List", MenuItemURL = "Rolelist" });
             if(_securityService.IsAllowedTo("CreateRole", instance))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "Role Templates", MenuItemURL = "RoleTemplates" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Role Templates", MenuItemURL = "RoleTemplateList" });
             }
             if (selectedRole != null && _securityService.RoleBelongsToInstance(instance, selectedRole))
             {
@@ -184,6 +184,54 @@ namespace Viper.Areas.RAPS.Controllers
                 //TODO: Should probably have a deny access helper function that writes logs and sets view
                 return await Task.Run(() => View("~/Views/Home/403.cshtml"));
             }
+        }
+
+        /// <summary>
+        /// Show the list of the role templates
+        /// </summary>
+        /// <param name="instance"></param>
+        /// <returns></returns>
+        [Route("/[area]/{instance}/[action]")]
+        [Permission(Allow = "RAPS.Admin,RAPS.ViewRoles")]
+        public async Task<IActionResult> RoleTemplateList(string instance)
+        {
+            if(!_securityService.IsAllowedTo("ViewAllRoles", instance))
+            {
+                return await Task.Run(() => View("~/Views/Home/403.cshtml"));
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/Templates.cshtml"));
+        }
+
+        /// <summary>
+        /// Apply a role template to one or more users
+        /// </summary>
+        /// <param name="instance"></param>
+        /// <returns></returns>
+        [Route("/[area]/{instance}/[action]")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
+        public async Task<IActionResult> RoleTemplateApply(string instance)
+        {
+            if (!_securityService.IsAllowedTo("EditRoleMembership", instance))
+            {
+                return await Task.Run(() => View("~/Views/Home/403.cshtml"));
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/ApplyTemplate.cshtml"));
+        }
+
+        /// <summary>
+        /// Link a role template to one or more roles
+        /// </summary>
+        /// <param name="instance"></param>
+        /// <returns></returns>
+        [Route("/[area]/{instance}/[action]")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoles")]
+        public async Task<IActionResult> RoleTemplateRoles(string instance)
+        {
+            if (!_securityService.IsAllowedTo("EditRoleTemplates", instance))
+            {
+                return await Task.Run(() => View("~/Views/Home/403.cshtml"));
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/TemplateRoles.cshtml"));
         }
 
         /// <summary>

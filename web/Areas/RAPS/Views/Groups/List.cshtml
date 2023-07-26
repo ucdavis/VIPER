@@ -39,7 +39,7 @@
          :filter="groupTable.filter"
          :pagination="groupTable.pagination">
     <template v-slot:top-left>
-        <q-btn dense no-caps color="primary" class="q-px-md" @@click="groupTable.showForm = true" label="Add Group" icon="add"></q-btn>
+        <q-btn dense no-caps color="green" class="q-px-md" @@click="groupTable.showForm = true" label="Add Group"></q-btn>
     </template>
     <template v-slot:top-right>
         <q-input v-model="groupTable.filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
@@ -57,7 +57,7 @@
     </template>
     <template v-slot:body-cell-edit="props">
         <q-td :props="props">
-            <q-btn :props="props" dense color="primary" size="md" padding="xs md" @@click="groupTable.selectRow(props.row)">Edit</q-btn>
+            <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs md" @@click="groupTable.selectRow(props.row)"></q-btn>
         </q-td>
     </template>
 </q-table>

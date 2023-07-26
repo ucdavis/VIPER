@@ -283,11 +283,11 @@ public partial class RAPSContext : DbContext
             entity.Property(e => e.ModTime)
                 .HasColumnType("datetime")
                 .HasColumnName("modTime");
-            entity.Property(e => e.RoleTemplateRoleId1).HasColumnName("roleTemplate_RoleID");
+            entity.Property(e => e.RoleTemplateRoleRoleId).HasColumnName("roleTemplate_RoleID");
             entity.Property(e => e.RoleTemplateTemplateId).HasColumnName("roleTemplate_templateID");
 
-            entity.HasOne(d => d.RoleTemplateRoleId1Navigation).WithMany(p => p.RoleTemplateRoles)
-                .HasForeignKey(d => d.RoleTemplateRoleId1)
+            entity.HasOne(d => d.Role).WithMany(p => p.RoleTemplateRoles)
+                .HasForeignKey(d => d.RoleTemplateRoleRoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_roleTemplateRole_tblRoles");
 

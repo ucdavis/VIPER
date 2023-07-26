@@ -1,10 +1,10 @@
 ﻿<h2>Select source and target users</h2>
 <q-form @@submit="return false;">
     <div class="row q-mb-sm">
-        <q-select outlined dense options-dense use-input input-debounce="300" class="col col-md-4 col-lg-3"
+        <q-select outlined dense options-dense clearable use-input input-debounce="300" class="col col-md-4 col-lg-3"
                   label="Source user" v-model="sourceUser" @@filter="sourceUserSearch" :options="sourceUserResults">
         </q-select>
-        <q-select outlined dense options-dense use-input input-debounce="300" class="col col-md-4 col-lg-3 q-ml-md"
+        <q-select outlined dense options-dense clearable use-input input-debounce="300" class="col col-md-4 col-lg-3 q-ml-md"
                   label="Target user" v-model="targetUser" @@filter="targetUserSearch" :options="targetUserResults">
         </q-select>
     </div>
@@ -36,13 +36,7 @@
         selection="multiple"
         v-model:selected="selectedRoles"
         :rows="cloneObject.roles"
-        :columns='[
-            { name: "action", field: "", align: "left", sortable: true },
-            { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
-            { name: "role", label: "Role", field: "role", align: "left", sortable: true },
-            { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v => formatDate(v) },
-            { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
-        ]'
+        :columns="rolesColumns"
         :pagination="{rowsPerPage:0}"
         no-data-label="Roles are the same">
     <template v-slot:body-cell-action="props">
@@ -59,13 +53,7 @@
         selection="multiple"
         v-model:selected="selectedPermissions"
         :rows="cloneObject.permissions"
-        :columns='[
-            { name: "action", field: "", align: "left" , sortable: true },
-            { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
-            { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
-            { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v=> formatDate(v) },
-            { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
-        ]'
+        :columns="permissionColumns"
         :pagination="{rowsPerPage:0}"
         no-data-label="Permissions are the same">
     <template v-slot:body-cell-action="props">
@@ -86,7 +74,21 @@
                     sourceUser: getItemFromStorage("sourceUser") ?? { label: "", value: "" },
                     sourceUserResults: [],
                     targetUser: getItemFromStorage("targetUser") ?? { label: "", value: "" },
-                    targetUserResults: []
+                    targetUserResults: [],
+                    rolesColumns: [
+                        { name: "action", field: "", align: "left", sortable: true },
+                        { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
+                        { name: "role", label: "Role", field: "role", align: "left", sortable: true },
+                        { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v => formatDate(v) },
+                        { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
+                    ],
+                    permissionColumns: [
+                        { name: "action", field: "", align: "left", sortable: true },
+                        { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
+                        { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
+                        { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v => formatDate(v) },
+                        { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
+                    ]
                 }
             },
             methods: {

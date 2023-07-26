@@ -6,12 +6,10 @@
     :loading="permissions.loading"
     :columns="permissions.columns"
     :rows="permissions.rows"
-    :pagination={rowsPerPage:0}
->
+    :pagination={rowsPerPage:0}>
     <template v-slot:top-right>
-        <q-btn dense
-               color="secondary"
-               icon-right="download"
+        <q-btn color="secondary"
+               icon="download"
                label="Export"
                no-caps class="gt-sm"
                @@click="permissions.exportTable(this)"></q-btn>

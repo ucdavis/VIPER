@@ -33,9 +33,7 @@
          v-model:pagination="permissionTable.pagination"
          @@request="(props) => permissionTable.request(props, this)">
     <template v-slot:top-left>
-        <q-btn dense no-caps color="green" padding="xs md" @@click="permissionTable.showForm = true">
-            <q-icon name="add"></q-icon>
-        </q-btn>
+        <q-btn no-caps color="green" label="Create Permission" padding="xs md" @@click="permissionTable.showForm = true"></q-btn>
     </template>
     <template v-slot:top-right>
         <q-input v-model="permissionTable.filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
@@ -48,7 +46,7 @@
         <q-td :props="props">
             <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
             <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="compare_arrows" :href="'AllMembersWithPermission?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="groups" :href="'AllMembersWithPermission?permissionId=' + props.row.permissionId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-edit="props">

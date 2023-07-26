@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Polly;
+using System.Data;
 using System.Linq.Expressions;
 using System.Security.Cryptography;
 using Viper.Classes;
@@ -58,6 +59,14 @@ namespace Viper.Areas.RAPS.Services
                 : r.Role.StartsWith(instance);
         }
 
+        static public Expression<Func<RoleTemplate, bool>> FilterRoleTemplatesToInstance(string instance)
+        {
+            return r =>
+                instance.ToUpper() == "VIPER"
+                ? !r.TemplateName.ToUpper().StartsWith("VMACS.") && !r.TemplateName.ToUpper().StartsWith("VIPERFORMS")
+                : r.TemplateName.StartsWith(instance);
+        }
+
         static public Expression<Func<TblPermission, bool>> FilterPermissionsToInstance(string instance)
         {
             return p =>
@@ -81,6 +90,22 @@ namespace Viper.Areas.RAPS.Services
                 return !roleName.StartsWith("VMACS.") && !roleName.StartsWith("VIPERFORMS");
             }
             return roleName.StartsWith(instance.ToUpper());
+        }
+
+        /// <summary>
+        /// Check that the role template belongs to the given instance by checking the tgemplate name
+        /// </summary>
+        /// <param name="instance"></param>
+        /// <param name="roleTemplate"></param>
+        /// <returns></returns>
+        public bool RoleTemplateBelongsToInstance(string instance, RoleTemplate roleTemplate)
+        {
+            string name = roleTemplate.TemplateName.ToUpper();
+            if (instance.ToUpper() == "VIPER")
+            {
+                return !name.StartsWith("VMACS.") && !name.StartsWith("VIPERFORMS");
+            }
+            return name.StartsWith(instance.ToUpper());
         }
 
         /// <summary>
@@ -127,6 +152,8 @@ namespace Viper.Areas.RAPS.Services
         /// <returns>true if they have access, false otherwise</returns>
         public bool IsAllowedTo(string action, string? instance = null)
         {
+            //Check RAPS.Admin first. Many permission checks will require RAPS.Admin, or multiple factors, for example RAPS.ViewRoles only gives
+            //access to view roles for VMACS instances
             if(_userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.Admin"))
             {
                 return true;
@@ -152,6 +179,8 @@ namespace Viper.Areas.RAPS.Services
                     return false; //admin only
                 case "EditRoleMembership":
                     return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.EditRoleMembership");
+                case "EditRoleTemplates":
+                    return instance != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.EditRoles");
                 default:
                     //by default, check the action against the user having the permission RAPS.<action> 
                     return _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS." + action);

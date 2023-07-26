@@ -9,9 +9,7 @@
          :filter="membersTable.filter"
          :pagination="membersTable.pagination">
     <template v-slot:top-left>
-        <q-btn dense color="green" @@click="membersTable.showForm = true" no-caps>
-            <q-icon name="add"></q-icon>
-        </q-btn>
+        <q-btn color="green" label="Add Member" @@click="membersTable.showForm = true" no-caps></q-btn>
         <div class="q-pa-sm q-gutter-sm">
             <q-dialog v-model="membersTable.showForm" @@hide="membersTable.clear(this)">
                 <q-card>
@@ -72,7 +70,7 @@
     </template>
     <template v-slot:body-cell-actions="props">
         <q-td :props="props">
-            <q-btn size="md" :props="props" padding="xs md" color="primary" @@click="membersTable.selectRow(props.row)">Edit</q-btn>
+            <q-btn size="sm" outline icon="edit" :props="props" padding="xs md" color="primary" @@click="membersTable.selectRow(props.row)"></q-btn>
         </q-td>
     </template>
 </q-table>

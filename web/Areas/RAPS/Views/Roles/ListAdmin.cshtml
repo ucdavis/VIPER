@@ -31,9 +31,7 @@
              :filter="rolesTable.filter"
              :pagination="rolesTable.pagination">
         <template v-slot:top-left>
-            <q-btn dense no-caps color="green" padding="xs md" @@click="rolesTable.showForm = true">
-                <q-icon name="add"></q-icon>
-            </q-btn>
+            <q-btn no-caps color="green" label="Add Role" @@click="rolesTable.showForm = true"></q-btn>
         </template>
         <template v-slot:top-right="props">
             <q-input class="q-ml-xs q-mr-xs" v-model="rolesTable.filter" dense outlined debounce="300" placeholder="Filter Results">
@@ -64,7 +62,7 @@
         </template>
         <template v-slot:body-cell-edit="props">
             <q-td :props="props">
-                <q-btn :props="props" dense color="primary" size="md" padding="xs md" @@click="rolesTable.selectRow(props.row)">Edit</q-btn>
+                <q-btn :props="props" outline dense color="primary" size="sm" icon="edit" padding="xs sm" @@click="rolesTable.selectRow(props.row)"></q-btn>
             </q-td>
         </template>
     </q-table>
