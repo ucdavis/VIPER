@@ -64,8 +64,8 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         // GET: RoleTemplates/5/Roles
-        [HttpGet("{roleTemplateId}")]
-        public async Task<ActionResult<List<RoleTemplateRole>>> GetRoleTemplateRoles(string instance, int roleTemplateId)
+        [HttpGet("{roleTemplateId}/Roles")]
+        public async Task<ActionResult<List<TblRole>>> GetRoleTemplateRoles(string instance, int roleTemplateId)
         {
             if (_context.RoleTemplates == null)
             {
@@ -82,8 +82,8 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
 
-            List<RoleTemplateRole> roles = roleTemplate.RoleTemplateRoles.ToList();
-            roles.Sort((r1, r2) => r1.Role.FriendlyName.CompareTo(r2.Role.FriendlyName));
+            List<TblRole> roles = roleTemplate.RoleTemplateRoles.Select(rtr => rtr.Role).ToList();
+            roles.Sort((r1, r2) => r1.FriendlyName.CompareTo(r2.FriendlyName));
             return roles;
         }
 
@@ -124,8 +124,43 @@ namespace Viper.Areas.RAPS.Controllers
             return NoContent();
         }
 
+        // PUT: RoleTemplates/5/Roles
+        [HttpPut("{roleTemplateId}/Roles")]
+        public async Task<IActionResult> PutRoleTemplateRoles(string instance, int roleTemplateId, List<int> roleIds)
+        {
+            List<RoleTemplateRole> templateRoles = await _context.RoleTemplateRoles
+                .Where(rtr => rtr.RoleTemplateTemplateId == roleTemplateId)
+                .ToListAsync();
+            //remove deleted roles
+            foreach (RoleTemplateRole templateRole in templateRoles)
+            {
+                if (!roleIds.Contains(templateRole.RoleTemplateRoleRoleId))
+                {
+                    _context.Remove(templateRole);
+                }
+                else
+                {
+                    //don't add this one
+                    roleIds.Remove(templateRole.RoleTemplateRoleRoleId);
+                }
+            }
+
+            //add new roles
+            foreach (int id in roleIds)
+            {
+                _context.Add(new RoleTemplateRole()
+                {
+                    RoleTemplateRoleRoleId = id,
+                    RoleTemplateTemplateId = roleTemplateId,
+                    ModBy = UserHelper.GetCurrentUser()?.LoginId ?? "",
+                    ModTime = DateTime.Now
+                });
+            }
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
         // POST: RoleTemplates
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<RoleTemplate>> PostRoleTemplate(string instance, RoleTemplateCreateUpdate roleTemplate)
         {
