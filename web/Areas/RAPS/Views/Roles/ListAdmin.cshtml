@@ -1,4 +1,5 @@
-﻿<q-dialog v-model="rolesTable.showForm" @@hide="rolesTable.clear(this)">
+﻿<h2>Roles</h2>
+<q-dialog v-model="rolesTable.showForm" @@hide="rolesTable.clear(this)">
     <q-card style="width: 500px; max-width: 80vw;">
         <q-form @@submit="rolesTable.submit(this)" v-model="rolesTable.object">
             <q-card-section>
@@ -10,7 +11,7 @@
                          :error="rolesTable.errors?.Role?.error"
                          :error-message="rolesTable.errors?.Role?.message"></q-input>
                 <q-input outlined v-model="rolesTable.object.description" label="Description" type="textarea"></q-input>
-                <q-checkbox v-model="rolesTable.object.application" true-value="1" :false-value="null" label="Application Role"></q-checkbox>
+                <q-checkbox v-model="rolesTable.object.application" :true-value="1" :false-value="0" label="Application Role"></q-checkbox>
                 <q-select dense options-dense outlined clearable v-model="rolesTable.object.viewName" :options="views" label="View"></q-select>
             </q-card-section>
             <q-card-actions align="evenly">
@@ -22,8 +23,7 @@
 </q-dialog>
 
 <div class="q-pa-md">
-    <q-table title="Roles"
-             dense
+    <q-table dense
              row-key="roleId"
              :loading="rolesTable.loading"
              :rows="rolesTable.rows"

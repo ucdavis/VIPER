@@ -11,7 +11,7 @@ namespace Viper.Models.RAPS
         public int AaudUserId { get; set; }
         public string? IamId { get; set; }
         [Key]
-        public string MothraId { get; set; } = "123";
+        public string MothraId { get; set; } = "";
         public string? LoginId { get; set; }
         public string? MailId { get; set; }
         public string? SpridenId { get; set; }

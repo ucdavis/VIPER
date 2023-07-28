@@ -90,23 +90,16 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             roleId = roleMemberCreateUpdate.RoleId;
-            memberId = roleMemberCreateUpdate.MemberId;
-            var tblRoleMemberExists = await _context.TblRoleMembers.FindAsync(roleId, memberId);
-            if (tblRoleMemberExists != null)
+            memberId = roleMemberCreateUpdate.MemberId;            
+            string? result = await new RoleMemberService(_context)
+                .AddMemberToRole((int)roleId, memberId, roleMemberCreateUpdate.StartDate, roleMemberCreateUpdate.EndDate, roleMemberCreateUpdate.Comment);
+            if(result != null)
             {
-                return BadRequest("User is already a member of this role");
+                return BadRequest(result);
             }
 
-            using var transaction = _context.Database.BeginTransaction();
-            TblRoleMember tblRoleMember = new() { RoleId = (int)roleId, MemberId = memberId };
-            UpdateTblRoleMemberWithDto(tblRoleMember, roleMemberCreateUpdate);
-            _context.TblRoleMembers.Add(tblRoleMember);
-            _context.SaveChanges();
-            _auditService.AuditRoleMemberChange(tblRoleMember, RAPSAuditService.AuditActionType.Create, roleMemberCreateUpdate.Comment);
-            _context.SaveChanges();
-            transaction.Commit();
-
-            return CreatedAtAction("GetTblRole", new { roleId = tblRoleMember.RoleId, memberId = tblRoleMember.MemberId }, tblRoleMember);
+            TblRoleMember? tblRoleMember = await _context.TblRoleMembers.FindAsync(roleId, memberId);
+            return CreatedAtAction("GetTblRole", new { roleId, memberId }, tblRoleMember);
         }
 
         //PUT: Roles/5/Members/12345678
