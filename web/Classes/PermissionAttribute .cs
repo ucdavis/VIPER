@@ -22,7 +22,7 @@ namespace Web.Authorization
         public string? Allow { get; set; }
 		public string? Deny { get; set; }
 
-		public void OnAuthorization(AuthorizationFilterContext context)
+        public void OnAuthorization(AuthorizationFilterContext context)
         {
             var user = context.HttpContext.User;
 
@@ -30,11 +30,11 @@ namespace Web.Authorization
             {
                 if (user.Identity.IsAuthenticated)
                 {
-                    RAPSContext? rapsContext = context.HttpContext.RequestServices.GetService(typeof(RAPSContext)) as RAPSContext;
-                    AAUDContext? aaudContext = context.HttpContext.RequestServices.GetService(typeof(AAUDContext)) as AAUDContext;
-
-                    if (rapsContext != null && aaudContext != null)
+                    if (context.HttpContext.RequestServices.GetService(typeof(RAPSContext)) is RAPSContext rapsContext 
+                        && context.HttpContext.RequestServices.GetService(typeof(AAUDContext)) is AAUDContext aaudContext)
                     {
+
+                        IUserHelper UserHelper = new UserHelper();
                         AaudUser? aaudUser = UserHelper.GetByLoginId(aaudContext, user.Identity.Name);
 
                         if (aaudUser != null)
@@ -42,16 +42,16 @@ namespace Web.Authorization
 
                             if (Deny != null)
                             {
-							    var denyPolicies = Deny.Split(",").ToList();
-							    foreach (var policy in denyPolicies)
-							    {
-								    bool found = UserHelper.HasPermission(rapsContext, aaudUser, policy);
-								    if (found)
-								    {
-										context.Result = new ForbidResult();
-									}
+                                var denyPolicies = Deny.Split(",").ToList();
+                                foreach (var policy in denyPolicies)
+                                {
+                                    bool found = UserHelper.HasPermission(rapsContext, aaudUser, policy);
+                                    if (found)
+                                    {
+                                        context.Result = new ForbidResult();
+                                    }
 
-							    }
+                                }
 
                             }
 
@@ -70,11 +70,11 @@ namespace Web.Authorization
 
                             }
 
-							context.Result = new ForbidResult();
+                            context.Result = new ForbidResult();
 
                         }
 
-                     }
+                    }
 
                 }
 

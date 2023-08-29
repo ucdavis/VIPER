@@ -1,5 +1,5 @@
 /*!
- * Quasar Framework v2.11.10
+ * Quasar Framework v2.12.5
  * (c) 2015-present Razvan Stoenescu
  * Released under the MIT License.
  */
@@ -738,7 +738,7 @@ var Screen = defineReactivePlugin({
 
       this.setDebounce(updateDebounce);
 
-      if (Object.keys(updateSizes).length > 0) {
+      if (Object.keys(updateSizes).length !== 0) {
         this.setSizes(updateSizes);
         updateSizes = void 0; // free up memory
       }
@@ -1042,7 +1042,7 @@ var defaultLang = {
 
 function getLocale () {
 
-  const val = Array.isArray(navigator.languages) === true && navigator.languages.length > 0
+  const val = Array.isArray(navigator.languages) === true && navigator.languages.length !== 0
     ? navigator.languages[ 0 ]
     : navigator.language;
 
@@ -1651,7 +1651,7 @@ function prepareApp (app, uiOpts, pluginOpts) {
 }
 
 var installQuasar = function (parentApp, opts = {}) {
-    const $q = { version: '2.11.10' };
+    const $q = { version: '2.12.5' };
 
     if (globalConfigIsFrozen === false) {
       if (opts.config !== void 0) {
@@ -3950,7 +3950,7 @@ var QBtnGroup = createComponent({
         .filter(t => props[ t ] === true)
         .map(t => `q-btn-group--${ t }`).join(' ');
 
-      return `q-btn-group row no-wrap${ cls.length > 0 ? ' ' + cls : '' }`
+      return `q-btn-group row no-wrap${ cls.length !== 0 ? ' ' + cls : '' }`
         + (props.spread === true ? ' q-btn-group--spread' : ' inline')
     });
 
@@ -4397,7 +4397,7 @@ function addFocusWaitFlag (flag) {
 function removeFocusWaitFlag (flag) {
   clearFlag(flag);
 
-  if (waitFlags.length === 0 && queue.length > 0) {
+  if (waitFlags.length === 0 && queue.length !== 0) {
     // only call last focus handler (can't focus multiple things at once)
     queue[ queue.length - 1 ]();
     queue = [];
@@ -5048,6 +5048,12 @@ function globalHandler (evt) {
   while (portalIndex >= 0) {
     const proxy = portalProxyList[ portalIndex ].$;
 
+    // skip QTooltip portals
+    if (proxy.type.name === 'QTooltip') {
+      portalIndex--;
+      continue
+    }
+
     if (proxy.type.name !== 'QDialog') {
       break
     }
@@ -5196,26 +5202,55 @@ function getAbsoluteAnchorProps (el, absoluteOffset, offset) {
   }
 }
 
-function getTargetProps (el) {
+function getTargetProps (width, height) {
   return {
     top: 0,
-    center: el.offsetHeight / 2,
-    bottom: el.offsetHeight,
+    center: height / 2,
+    bottom: height,
     left: 0,
-    middle: el.offsetWidth / 2,
-    right: el.offsetWidth
+    middle: width / 2,
+    right: width
   }
 }
 
-function getTopLeftProps (anchorProps, targetProps, cfg) {
+function getTopLeftProps (anchorProps, targetProps, anchorOrigin, selfOrigin) {
   return {
-    top: anchorProps[ cfg.anchorOrigin.vertical ] - targetProps[ cfg.selfOrigin.vertical ],
-    left: anchorProps[ cfg.anchorOrigin.horizontal ] - targetProps[ cfg.selfOrigin.horizontal ]
+    top: anchorProps[ anchorOrigin.vertical ] - targetProps[ selfOrigin.vertical ],
+    left: anchorProps[ anchorOrigin.horizontal ] - targetProps[ selfOrigin.horizontal ]
   }
 }
 
-// cfg: { el, anchorEl, anchorOrigin, selfOrigin, offset, absoluteOffset, cover, fit, maxHeight, maxWidth }
-function setPosition (cfg) {
+function setPosition (cfg, retryNumber = 0) {
+  if (
+    cfg.targetEl === null
+    || cfg.anchorEl === null
+    || retryNumber > 5 // we should try only a few times
+  ) {
+    return
+  }
+
+  // some browsers report zero height or width because
+  // we are trying too early to get these dimensions
+  if (cfg.targetEl.offsetHeight === 0 || cfg.targetEl.offsetWidth === 0) {
+    setTimeout(() => {
+      setPosition(cfg, retryNumber + 1);
+    }, 10);
+    return
+  }
+
+  const {
+    targetEl,
+    offset,
+    anchorEl,
+    anchorOrigin,
+    selfOrigin,
+    absoluteOffset,
+    fit,
+    cover,
+    maxHeight,
+    maxWidth
+  } = cfg;
+
   if (client.is.ios === true && window.visualViewport !== void 0) {
     // uses the q-position-engine CSS class
 
@@ -5236,45 +5271,58 @@ function setPosition (cfg) {
   // if max-height/-width changes, so we
   // need to restore it after we calculate
   // the new positioning
-  const { scrollLeft, scrollTop } = cfg.el;
+  const { scrollLeft, scrollTop } = targetEl;
 
-  const anchorProps = cfg.absoluteOffset === void 0
-    ? getAnchorProps(cfg.anchorEl, cfg.cover === true ? [ 0, 0 ] : cfg.offset)
-    : getAbsoluteAnchorProps(cfg.anchorEl, cfg.absoluteOffset, cfg.offset);
+  const anchorProps = absoluteOffset === void 0
+    ? getAnchorProps(anchorEl, cover === true ? [ 0, 0 ] : offset)
+    : getAbsoluteAnchorProps(anchorEl, absoluteOffset, offset);
 
-  let elStyle = {
-    maxHeight: cfg.maxHeight,
-    maxWidth: cfg.maxWidth,
+  // we "reset" the critical CSS properties
+  // so we can take an accurate measurement
+  Object.assign(targetEl.style, {
+    top: 0,
+    left: 0,
+    minWidth: null,
+    minHeight: null,
+    maxWidth: maxWidth || '100vw',
+    maxHeight: maxHeight || '100vh',
     visibility: 'visible'
-  };
+  });
 
-  if (cfg.fit === true || cfg.cover === true) {
+  const { offsetWidth: origElWidth, offsetHeight: origElHeight } = targetEl;
+  const { elWidth, elHeight } = fit === true || cover === true
+    ? { elWidth: Math.max(anchorProps.width, origElWidth), elHeight: cover === true ? Math.max(anchorProps.height, origElHeight) : origElHeight }
+    : { elWidth: origElWidth, elHeight: origElHeight };
+
+  let elStyle = { maxWidth, maxHeight };
+
+  if (fit === true || cover === true) {
     elStyle.minWidth = anchorProps.width + 'px';
-    if (cfg.cover === true) {
+    if (cover === true) {
       elStyle.minHeight = anchorProps.height + 'px';
     }
   }
 
-  Object.assign(cfg.el.style, elStyle);
+  Object.assign(targetEl.style, elStyle);
 
-  const targetProps = getTargetProps(cfg.el);
-  let props = getTopLeftProps(anchorProps, targetProps, cfg);
+  const targetProps = getTargetProps(elWidth, elHeight);
+  let props = getTopLeftProps(anchorProps, targetProps, anchorOrigin, selfOrigin);
 
-  if (cfg.absoluteOffset === void 0 || cfg.offset === void 0) {
-    applyBoundaries(props, anchorProps, targetProps, cfg.anchorOrigin, cfg.selfOrigin);
+  if (absoluteOffset === void 0 || offset === void 0) {
+    applyBoundaries(props, anchorProps, targetProps, anchorOrigin, selfOrigin);
   }
   else { // we have touch position or context menu with offset
     const { top, left } = props; // cache initial values
 
     // apply initial boundaries
-    applyBoundaries(props, anchorProps, targetProps, cfg.anchorOrigin, cfg.selfOrigin);
+    applyBoundaries(props, anchorProps, targetProps, anchorOrigin, selfOrigin);
 
     let hasChanged = false;
 
     // did it flip vertically?
     if (props.top !== top) {
       hasChanged = true;
-      const offsetY = 2 * cfg.offset[ 1 ];
+      const offsetY = 2 * offset[ 1 ];
       anchorProps.center = anchorProps.top -= offsetY;
       anchorProps.bottom -= offsetY + 2;
     }
@@ -5282,17 +5330,17 @@ function setPosition (cfg) {
     // did it flip horizontally?
     if (props.left !== left) {
       hasChanged = true;
-      const offsetX = 2 * cfg.offset[ 0 ];
+      const offsetX = 2 * offset[ 0 ];
       anchorProps.middle = anchorProps.left -= offsetX;
       anchorProps.right -= offsetX + 2;
     }
 
     if (hasChanged === true) {
       // re-calculate props with the new anchor
-      props = getTopLeftProps(anchorProps, targetProps, cfg);
+      props = getTopLeftProps(anchorProps, targetProps, anchorOrigin, selfOrigin);
 
       // and re-apply boundaries
-      applyBoundaries(props, anchorProps, targetProps, cfg.anchorOrigin, cfg.selfOrigin);
+      applyBoundaries(props, anchorProps, targetProps, anchorOrigin, selfOrigin);
     }
   }
 
@@ -5316,14 +5364,14 @@ function setPosition (cfg) {
     }
   }
 
-  Object.assign(cfg.el.style, elStyle);
+  Object.assign(targetEl.style, elStyle);
 
   // restore scroll position
-  if (cfg.el.scrollTop !== scrollTop) {
-    cfg.el.scrollTop = scrollTop;
+  if (targetEl.scrollTop !== scrollTop) {
+    targetEl.scrollTop = scrollTop;
   }
-  if (cfg.el.scrollLeft !== scrollLeft) {
-    cfg.el.scrollLeft = scrollLeft;
+  if (targetEl.scrollLeft !== scrollLeft) {
+    targetEl.scrollLeft = scrollLeft;
   }
 }
 
@@ -5692,14 +5740,8 @@ var QMenu = createComponent({
     }
 
     function updatePosition () {
-      const el = innerRef.value;
-
-      if (el === null || anchorEl.value === null) {
-        return
-      }
-
       setPosition({
-        el,
+        targetEl: innerRef.value,
         offset: props.offset,
         anchorEl: anchorEl.value,
         anchorOrigin: anchorOrigin.value,
@@ -6359,12 +6401,19 @@ function getModifierDirections (mod) {
   return dir
 }
 
+// This is especially important (not the main reason, but important)
+// for TouchSwipe directive running on Firefox
+// because text selection on such elements cannot be determined
+// without additional work (on top of getSelection() API)
+// https://bugzilla.mozilla.org/show_bug.cgi?id=85686
+const avoidNodeNamesList = [ 'INPUT', 'TEXTAREA' ];
+
 function shouldStart (evt, ctx) {
   return ctx.event === void 0
     && evt.target !== void 0
     && evt.target.draggable !== true
     && typeof ctx.handler === 'function'
-    && evt.target.nodeName.toUpperCase() !== 'INPUT'
+    && avoidNodeNamesList.includes(evt.target.nodeName.toUpperCase()) === false
     && (evt.qClonedBy === void 0 || evt.qClonedBy.indexOf(ctx.uid) === -1)
 }
 
@@ -6466,6 +6515,13 @@ var TouchSwipe = createDirective({
                 ctx.end(evt);
                 return
               }
+            }
+            // is user trying to select text?
+            // if so, then something should be reported here
+            // (previous selection, if any, was discarded when swipe started)
+            else if (window.getSelection().toString() !== '') {
+              ctx.end(evt);
+              return
             }
             else if (absX < ctx.sensitivity[ 2 ] && absY < ctx.sensitivity[ 2 ]) {
               return
@@ -6827,7 +6883,7 @@ function usePanel () {
       index += direction;
     }
 
-    if (props.infinite === true && panels.length > 0 && startIndex !== -1 && startIndex !== panels.length) {
+    if (props.infinite === true && panels.length !== 0 && startIndex !== -1 && startIndex !== panels.length) {
       goToPanelByOffset(direction, direction === -1 ? panels.length : -1);
     }
   }
@@ -11101,7 +11157,7 @@ var QColor = createComponent({
     }));
 
     const computedPalette = computed(() => (
-      props.palette !== void 0 && props.palette.length > 0
+      props.palette !== void 0 && props.palette.length !== 0
         ? props.palette
         : palette
     ));
@@ -13349,7 +13405,7 @@ var QDate = createComponent({
     );
 
     const headerTitle = computed(() => {
-      if (props.title !== void 0 && props.title !== null && props.title.length > 0) {
+      if (props.title !== void 0 && props.title !== null && props.title.length !== 0) {
         return props.title
       }
 
@@ -13401,7 +13457,7 @@ var QDate = createComponent({
     });
 
     const headerSubtitle = computed(() => {
-      if (props.subtitle !== void 0 && props.subtitle !== null && props.subtitle.length > 0) {
+      if (props.subtitle !== void 0 && props.subtitle !== null && props.subtitle.length !== 0) {
         return props.subtitle
       }
 
@@ -15275,6 +15331,7 @@ var QDrawer = createComponent({
       type: Number,
       default: 57
     },
+    noMiniAnimation: Boolean,
 
     breakpoint: {
       type: Number,
@@ -15651,6 +15708,7 @@ var QDrawer = createComponent({
     watch(() => $q.lang.rtl, () => { applyPosition(); });
 
     watch(() => props.mini, () => {
+      if (props.noMiniAnimation) return
       if (props.modelValue === true) {
         animateMini();
         $layout.animate();
@@ -16027,7 +16085,7 @@ class Caret {
 
   get hasSelection () {
     return this.selection !== null
-      ? this.selection.toString().length > 0
+      ? this.selection.toString().length !== 0
       : false
   }
 
@@ -16487,14 +16545,8 @@ var QTooltip = createComponent({
     }
 
     function updatePosition () {
-      const el = innerRef.value;
-
-      if (anchorEl.value === null || !el) {
-        return
-      }
-
       setPosition({
-        el,
+        targetEl: innerRef.value,
         offset: props.offset,
         anchorEl: anchorEl.value,
         anchorOrigin: anchorOrigin.value,
@@ -17252,7 +17304,7 @@ var QEditor = createComponent({
     const editable = computed(() => !props.readonly && !props.disable);
 
     let defaultFont, offsetBottom;
-    let lastEmit = props.modelValue; // eslint-disable-line
+    let lastEmit = props.modelValue;
 
     {
       document.execCommand('defaultParagraphSeparator', false, props.paragraphTag);
@@ -17411,10 +17463,10 @@ var QEditor = createComponent({
     });
 
     watch(editLinkUrl, v => {
-      emit(`link-${ v ? 'Show' : 'Hide' }`);
+      emit(`link${ v ? 'Show' : 'Hide' }`);
     });
 
-    const hasToolbar = computed(() => props.toolbar && props.toolbar.length > 0);
+    const hasToolbar = computed(() => props.toolbar && props.toolbar.length !== 0);
 
     const keys = computed(() => {
       const
@@ -18690,7 +18742,7 @@ function useValidate (focused, innerLoading) {
   const hasRules = computed(() =>
     props.rules !== void 0
     && props.rules !== null
-    && props.rules.length > 0
+    && props.rules.length !== 0
   );
 
   const hasActiveRules = computed(() =>
@@ -18703,7 +18755,7 @@ function useValidate (focused, innerLoading) {
   );
 
   const errorMessage = computed(() => (
-    typeof props.errorMessage === 'string' && props.errorMessage.length > 0
+    typeof props.errorMessage === 'string' && props.errorMessage.length !== 0
       ? props.errorMessage
       : innerErrorMessage.value
   ));
@@ -18872,7 +18924,7 @@ function getTargetUid (val) {
 function fieldValueIsFilled (val) {
   return val !== void 0
     && val !== null
-    && ('' + val).length > 0
+    && ('' + val).length !== 0
 }
 
 const useFieldProps = {
@@ -19068,7 +19120,7 @@ function useField (state) {
       hasError.value === true
         ? ' text-negative'
         : (
-            typeof props.standout === 'string' && props.standout.length > 0 && state.focused.value === true
+            typeof props.standout === 'string' && props.standout.length !== 0 && state.focused.value === true
               ? ` ${ props.standout }`
               : (props.color !== void 0 ? ` text-${ props.color }` : '')
           )
@@ -19562,7 +19614,7 @@ function useFile ({
     const rejectedFiles = [];
 
     const done = () => {
-      if (rejectedFiles.length > 0) {
+      if (rejectedFiles.length !== 0) {
         emit('rejected', rejectedFiles);
       }
     };
@@ -19592,7 +19644,7 @@ function useFile ({
     // Cordova/iOS allows selecting multiple files even when the
     // multiple attribute is not specified. We also normalize drag'n'dropped
     // files here:
-    if (props.multiple !== true && files.length > 0) {
+    if (props.multiple !== true && files.length !== 0) {
       files = [ files[ 0 ] ];
     }
 
@@ -19647,7 +19699,7 @@ function useFile ({
 
     done();
 
-    if (files.length > 0) {
+    if (files.length !== 0) {
       return files
     }
   }
@@ -19673,7 +19725,7 @@ function useFile ({
     stopAndPreventDrag(e);
     const files = e.dataTransfer.files;
 
-    if (files.length > 0) {
+    if (files.length !== 0) {
       addFilesToQueue(null, files);
     }
 
@@ -19858,7 +19910,7 @@ var QFile = createComponent({
     }
 
     function removeFile (file) {
-      const index = innerValue.value.findIndex(file);
+      const index = innerValue.value.indexOf(file);
       if (index > -1) {
         removeAtIndex(index);
       }
@@ -19956,7 +20008,7 @@ var QFile = createComponent({
         ? props.displayValue
         : selectedString.value;
 
-      return textContent.length > 0
+      return textContent.length !== 0
         ? [
             h('div', {
               class: props.inputClass,
@@ -21372,7 +21424,7 @@ function useMask (props, emit, emitValue, inputRef) {
 
   function updateMaskInternals () {
     hasMask.value = props.mask !== void 0
-      && props.mask.length > 0
+      && props.mask.length !== 0
       && getIsTypeText();
 
     if (hasMask.value === false) {
@@ -21386,7 +21438,7 @@ function useMask (props, emit, emitValue, inputRef) {
       localComputedMask = NAMED_MASKS[ props.mask ] === void 0
         ? props.mask
         : NAMED_MASKS[ props.mask ],
-      fillChar = typeof props.fillMask === 'string' && props.fillMask.length > 0
+      fillChar = typeof props.fillMask === 'string' && props.fillMask.length !== 0
         ? props.fillMask.slice(0, 1)
         : '_',
       fillCharEscaped = fillChar.replace(escRegex, '\\$&'),
@@ -21467,7 +21519,7 @@ function useMask (props, emit, emitValue, inputRef) {
         str = str.slice(m.shift().length);
         extractMatch.push(...m);
       }
-      if (extractMatch.length > 0) {
+      if (extractMatch.length !== 0) {
         return extractMatch.join('')
       }
 
@@ -21692,7 +21744,10 @@ function useMask (props, emit, emitValue, inputRef) {
   function onMaskedKeydown (e) {
     emit('keydown', e);
 
-    if (shouldIgnoreKey(e) === true) {
+    if (
+      shouldIgnoreKey(e) === true
+      || e.altKey === true // let browser handle these
+    ) {
       return
     }
 
@@ -21815,7 +21870,7 @@ function useMask (props, emit, emitValue, inputRef) {
       return val
     }
 
-    return props.reverseFillMask === true && val.length > 0
+    return props.reverseFillMask === true && val.length !== 0
       ? maskReplaced.slice(0, -val.length) + val
       : val + maskReplaced.slice(val.length)
   }
@@ -22244,7 +22299,7 @@ var QInput = createComponent({
       hasShadow: computed(() =>
         props.type !== 'file'
         && typeof props.shadowText === 'string'
-        && props.shadowText.length > 0
+        && props.shadowText.length !== 0
       ),
 
       inputRef,
@@ -22464,9 +22519,13 @@ var QIntersection = createComponent({
     }
 
     function getContent () {
-      return showing.value === true
-        ? [ h('div', { key: 'content', style: transitionStyle.value }, hSlot(slots.default)) ]
-        : void 0
+      if (showing.value === true) {
+        return [ h('div', { key: 'content', style: transitionStyle.value }, hSlot(slots.default)) ]
+      }
+
+      if (slots.hidden !== void 0) {
+        return [ h('div', { key: 'hidden', style: transitionStyle.value }, slots.hidden()) ]
+      }
     }
 
     return () => {
@@ -25703,7 +25762,7 @@ var QRating = createComponent({
 
     const iconLabel = computed(() => {
       if (typeof props.iconAriaLabel === 'string') {
-        const label = props.iconAriaLabel.length > 0 ? `${ props.iconAriaLabel } ` : '';
+        const label = props.iconAriaLabel.length !== 0 ? `${ props.iconAriaLabel } ` : '';
         return i => `${ label }${ i }`
       }
 
@@ -27753,7 +27812,7 @@ var QSelect = createComponent({
 
       resetInputValue();
 
-      if (typeof value === 'string' && value.length > 0) {
+      if (typeof value === 'string' && value.length !== 0) {
         const needle = value.toLocaleLowerCase();
         const findFn = extractFn => {
           const option = props.options.find(opt => extractFn.value(opt).toLocaleLowerCase() === needle);
@@ -27800,7 +27859,7 @@ var QSelect = createComponent({
         return
       }
 
-      const newValueModeValid = inputValue.value.length > 0
+      const newValueModeValid = inputValue.value.length !== 0
         && (props.newValueMode !== void 0 || props.onNewValue !== void 0);
 
       const tabShouldSelect = e.shiftKey !== true
@@ -27819,7 +27878,11 @@ var QSelect = createComponent({
         return
       }
 
-      if (e.target === void 0 || e.target.id !== state.targetUid.value) { return }
+      if (
+        e.target === void 0
+        || e.target.id !== state.targetUid.value
+        || state.editable.value !== true
+      ) { return }
 
       // down
       if (
@@ -27895,7 +27958,7 @@ var QSelect = createComponent({
         && e.altKey === false // not kbd shortcut
         && e.ctrlKey === false // not kbd shortcut
         && e.metaKey === false // not kbd shortcut, especially on macOS with Command key
-        && (e.keyCode !== 32 || searchBuffer.length > 0) // space in middle of search
+        && (e.keyCode !== 32 || searchBuffer.length !== 0) // space in middle of search
       ) {
         menu.value !== true && showPopup(e);
 
@@ -27963,11 +28026,11 @@ var QSelect = createComponent({
             mode = props.newValueMode;
           }
 
+          updateInputValue('', props.multiple !== true, true);
+
           if (val === void 0 || val === null) {
             return
           }
-
-          updateInputValue('', props.multiple !== true, true);
 
           const fn = mode === 'toggle' ? toggleOption : add;
           fn(val, mode === 'add-unique');
@@ -28182,7 +28245,7 @@ var QSelect = createComponent({
       if (
         val !== ''
         && props.multiple !== true
-        && innerValue.value.length > 0
+        && innerValue.value.length !== 0
         && userInputValue !== true
         && val === getOptionLabel.value(innerValue.value[ 0 ])
       ) {
@@ -28301,7 +28364,7 @@ var QSelect = createComponent({
           loading: innerLoadingIndicator.value,
           itemAligned: false,
           filled: true,
-          stackLabel: inputValue.value.length > 0,
+          stackLabel: inputValue.value.length !== 0,
           ...state.splitAttrs.listeners.value,
           onFocus: onDialogFieldFocus,
           onBlur: onDialogFieldBlur
@@ -28429,7 +28492,7 @@ var QSelect = createComponent({
 
     function resetInputValue () {
       props.useInput === true && updateInputValue(
-        props.multiple !== true && props.fillInput === true && innerValue.value.length > 0
+        props.multiple !== true && props.fillInput === true && innerValue.value.length !== 0
           ? getOptionLabel.value(innerValue.value[ 0 ]) || ''
           : '',
         true,
@@ -28441,7 +28504,7 @@ var QSelect = createComponent({
       let optionIndex = -1;
 
       if (show === true) {
-        if (innerValue.value.length > 0) {
+        if (innerValue.value.length !== 0) {
           const val = getOptionValue.value(innerValue.value[ 0 ]);
           optionIndex = props.options.findIndex(v => isDeepEqual(getOptionValue.value(v), val));
         }
@@ -28543,7 +28606,7 @@ var QSelect = createComponent({
       floatingLabel: computed(() =>
         (props.hideSelected !== true && hasValue.value === true)
         || typeof inputValue.value === 'number'
-        || inputValue.value.length > 0
+        || inputValue.value.length !== 0
         || fieldValueIsFilled(props.displayValue)
       ),
 
@@ -28612,7 +28675,7 @@ var QSelect = createComponent({
             })
           );
 
-          if (isTarget === true && typeof props.autocomplete === 'string' && props.autocomplete.length > 0) {
+          if (isTarget === true && typeof props.autocomplete === 'string' && props.autocomplete.length !== 0) {
             child.push(
               h('input', {
                 class: 'q-select__autocomplete-input',
@@ -28624,7 +28687,7 @@ var QSelect = createComponent({
           }
         }
 
-        if (nameProp.value !== void 0 && props.disable !== true && innerOptionsValue.value.length > 0) {
+        if (nameProp.value !== void 0 && props.disable !== true && innerOptionsValue.value.length !== 0) {
           const opts = innerOptionsValue.value.map(value => h('option', { value, selected: true }));
 
           child.push(
@@ -29431,7 +29494,7 @@ const svg$g = [
   h('rect', {
     x: '0',
     y: '0',
-    width: ' 100',
+    width: '100',
     height: '100',
     fill: 'none'
   }),
@@ -29512,7 +29575,7 @@ const svg$f = [
   h('rect', {
     x: '0',
     y: '0',
-    width: ' 100',
+    width: '100',
     height: '100',
     fill: 'none'
   }),
@@ -29522,7 +29585,7 @@ const svg$f = [
     h('rect', {
       x: '-20',
       y: '-20',
-      width: ' 40',
+      width: '40',
       height: '40',
       fill: 'currentColor',
       opacity: '0.9'
@@ -29547,7 +29610,7 @@ const svg$f = [
     h('rect', {
       x: '-20',
       y: '-20',
-      width: ' 40',
+      width: '40',
       height: '40',
       fill: 'currentColor',
       opacity: '0.8'
@@ -29572,7 +29635,7 @@ const svg$f = [
     h('rect', {
       x: '-20',
       y: '-20',
-      width: ' 40',
+      width: '40',
       height: '40',
       fill: 'currentColor',
       opacity: '0.7'
@@ -29597,7 +29660,7 @@ const svg$f = [
     h('rect', {
       x: '-20',
       y: '-20',
-      width: ' 40',
+      width: '40',
       height: '40',
       fill: 'currentColor',
       opacity: '0.6'
@@ -29745,7 +29808,7 @@ const svg$d = [
     h('rect', {
       x: '-10',
       y: '-30',
-      width: ' 20',
+      width: '20',
       height: '60',
       fill: 'currentColor',
       opacity: '0.6'
@@ -29771,7 +29834,7 @@ const svg$d = [
     h('rect', {
       x: '-10',
       y: '-30',
-      width: ' 20',
+      width: '20',
       height: '60',
       fill: 'currentColor',
       opacity: '0.8'
@@ -29797,7 +29860,7 @@ const svg$d = [
     h('rect', {
       x: '-10',
       y: '-30',
-      width: ' 20',
+      width: '20',
       height: '60',
       fill: 'currentColor',
       opacity: '0.9'
@@ -30109,7 +30172,7 @@ const svg$9 = [
       h('rect', {
         x: '15',
         y: '20',
-        width: ' 70',
+        width: '70',
         height: '25'
       }, [
         h('animate', {
@@ -30138,7 +30201,7 @@ const svg$9 = [
       h('rect', {
         x: '15',
         y: '55',
-        width: ' 70',
+        width: '70',
         height: '25'
       }, [
         h('animate', {
@@ -31616,7 +31679,7 @@ var QTh = createComponent({
           + (props.autoWidth === true ? ' q-table--col-auto-width' : ''),
         style: col.headerStyle,
         onClick: evt => {
-          col.sortable === true && props.props.sort(col); // eslint-disable-line
+          col.sortable === true && props.props.sort(col);
           onClick(evt);
         }
       };
@@ -31985,7 +32048,7 @@ function useTablePaginationState (vm, getCellValue) {
       sortBy: null,
       descending: false,
       page: 1,
-      rowsPerPage: props.rowsPerPageOptions.length > 0
+      rowsPerPage: props.rowsPerPageOptions.length !== 0
         ? props.rowsPerPageOptions[ 0 ]
         : 5
     }, props.pagination)
@@ -32196,7 +32259,7 @@ function useTableRowSelection (props, emit, computedRows, getRowKey) {
   });
 
   const allRowsSelected = computed(() =>
-    computedRows.value.length > 0 && computedRows.value.every(
+    computedRows.value.length !== 0 && computedRows.value.every(
       row => selectedKeys.value[ getRowKey.value(row) ] === true
     )
   );
@@ -33137,7 +33200,7 @@ var QTable = createComponent({
         }, getPaginationDiv(child))
       }
 
-      if (child.length > 0) {
+      if (child.length !== 0) {
         return h('div', { class: bottomClass }, child)
       }
     }
@@ -33958,9 +34021,9 @@ var QTime = createComponent({
           const am = computedFormat24h.value !== true
             ? isAM.value === true
             : (
-                validHours.value.am.values.length > 0 && validHours.value.pm.values.length > 0
+                validHours.value.am.values.length !== 0 && validHours.value.pm.values.length !== 0
                   ? distance >= clockRect.dist
-                  : validHours.value.am.values.length > 0
+                  : validHours.value.am.values.length !== 0
               );
 
           val = getNormalizedClockValue(
@@ -34713,7 +34776,7 @@ var QTree = createComponent({
         const tickStrategy = node.tickStrategy || (parent ? parent.tickStrategy : props.tickStrategy);
         const
           key = node[ props.nodeKey ],
-          isParent = node[ props.childrenKey ] && node[ props.childrenKey ].length > 0,
+          isParent = node[ props.childrenKey ] && Array.isArray(node[ props.childrenKey ]) && node[ props.childrenKey ].length !== 0,
           selectable = node.disabled !== true && hasSelection.value === true && node.selectable !== false,
           expandable = node.disabled !== true && node.expandable !== false,
           hasTicking = tickStrategy !== 'none',
@@ -34871,16 +34934,15 @@ var QTree = createComponent({
     }
 
     function expandAll () {
-      const
-        expanded = innerExpanded.value,
-        travel = node => {
-          if (node[ props.childrenKey ] && node[ props.childrenKey ].length > 0) {
-            if (node.expandable !== false && node.disabled !== true) {
-              expanded.push(node[ props.nodeKey ]);
-              node[ props.childrenKey ].forEach(travel);
-            }
+      const expanded = [];
+      const travel = node => {
+        if (node[ props.childrenKey ] && node[ props.childrenKey ].length !== 0) {
+          if (node.expandable !== false && node.disabled !== true) {
+            expanded.push(node[ props.nodeKey ]);
+            node[ props.childrenKey ].forEach(travel);
           }
-        };
+        }
+      };
 
       props.nodes.forEach(travel);
 
@@ -34955,7 +35017,7 @@ var QTree = createComponent({
                 }
               });
             }
-            if (collapse.length > 0) {
+            if (collapse.length !== 0) {
               target = target.filter(k => collapse.includes(k) === false);
             }
           }
@@ -35068,7 +35130,7 @@ var QTree = createComponent({
         ? getChildren(node[ props.childrenKey ])
         : [];
 
-      const isParent = children.length > 0 || (m.lazy && m.lazy !== 'loaded');
+      const isParent = children.length !== 0 || (m.lazy && m.lazy !== 'loaded');
 
       let body = node.body
         ? slots[ `body-${ node.body }` ] || slots[ 'default-body' ]
@@ -35321,7 +35383,7 @@ const coreEmits = [
   'start', 'finish', 'added', 'removed'
 ];
 
-function getRenderer (getPlugin) {
+function getRenderer (getPlugin, expose) {
   const vm = getCurrentInstance();
   const { props, slots, emit, proxy } = vm;
   const { $q } = proxy;
@@ -35382,7 +35444,13 @@ function getRenderer (getPlugin) {
     maxTotalSizeNumber
   } = useFile({ editable, dnd, getFileInput, addFilesToQueue });
 
-  Object.assign(state, getPlugin({ props, slots, emit, helpers: state }));
+  Object.assign(state, getPlugin({
+    props,
+    slots,
+    emit,
+    helpers: state,
+    exposeApi: obj => { Object.assign(state, obj); }
+  }));
 
   if (state.isBusy === void 0) {
     state.isBusy = ref(false);
@@ -35412,7 +35480,7 @@ function getRenderer (getPlugin) {
     editable.value === true
     && state.isBusy.value !== true
     && state.isUploading.value !== true
-    && state.queuedFiles.value.length > 0
+    && state.queuedFiles.value.length !== 0
   );
 
   provide(uploaderKey, renderInput);
@@ -35492,7 +35560,7 @@ function getRenderer (getPlugin) {
       return false
     });
 
-    if (removed.files.length > 0) {
+    if (removed.files.length !== 0) {
       state.files.value = localFiles;
       cb(removed);
       emit('removed', removed.files);
@@ -35620,8 +35688,8 @@ function getRenderer (getPlugin) {
         h('div', {
           class: 'flex flex-center no-wrap q-gutter-xs'
         }, [
-          getBtn(state.queuedFiles.value.length > 0, 'removeQueue', removeQueuedFiles),
-          getBtn(state.uploadedFiles.value.length > 0, 'removeUploaded', removeUploadedFiles),
+          getBtn(state.queuedFiles.value.length !== 0, 'removeQueue', removeQueuedFiles),
+          getBtn(state.uploadedFiles.value.length !== 0, 'removeUploaded', removeUploadedFiles),
 
           state.isUploading.value === true
             ? h(QSpinner, { class: 'q-uploader__spinner' })
@@ -35703,7 +35771,7 @@ function getRenderer (getPlugin) {
 
   onBeforeUnmount(() => {
     state.isUploading.value === true && state.abort();
-    state.files.value.length > 0 && revokeImgURLs();
+    state.files.value.length !== 0 && revokeImgURLs();
   });
 
   const publicApi = {};
@@ -35736,7 +35804,23 @@ function getRenderer (getPlugin) {
   });
 
   // expose public api (methods & computed props)
-  Object.assign(proxy, publicApi);
+  expose({
+    ...state,
+
+    upload,
+    reset,
+    removeUploadedFiles,
+    removeQueuedFiles,
+    removeFile,
+
+    pickFiles,
+    addFiles,
+
+    canAddFiles,
+    canUpload,
+    uploadSizeLabel,
+    uploadProgressLabel
+  });
 
   return () => {
     const children = [
@@ -35787,8 +35871,8 @@ var createUploaderComponent = ({ name, props, emits, injectPlugin }) => createCo
     ? { ...coreEmitsObject, ...emits }
     : [ ...coreEmits, ...emits ],
 
-  setup () {
-    return getRenderer(injectPlugin)
+  setup (_, { expose }) {
+    return getRenderer(injectPlugin, expose)
   }
 });
 
@@ -35838,14 +35922,14 @@ function injectPlugin ({ props, emit, helpers }) {
   }));
 
   const isUploading = computed(() => workingThreads.value > 0);
-  const isBusy = computed(() => promises.value.length > 0);
+  const isBusy = computed(() => promises.value.length !== 0);
 
   let abortPromises;
 
   function abort () {
     xhrs.value.forEach(x => { x.abort(); });
 
-    if (promises.value.length > 0) {
+    if (promises.value.length !== 0) {
       abortPromises = true;
     }
   }
@@ -36328,9 +36412,9 @@ function normalizeOptions (options) {
     waitFor: options.waitFor === void 0 ? 0 : options.waitFor,
 
     duration: isNaN(options.duration) === true ? 300 : parseInt(options.duration, 10),
-    easing: typeof options.easing === 'string' && options.easing.length > 0 ? options.easing : 'ease-in-out',
+    easing: typeof options.easing === 'string' && options.easing.length !== 0 ? options.easing : 'ease-in-out',
     delay: isNaN(options.delay) === true ? 0 : parseInt(options.delay, 10),
-    fill: typeof options.fill === 'string' && options.fill.length > 0 ? options.fill : 'none',
+    fill: typeof options.fill === 'string' && options.fill.length !== 0 ? options.fill : 'none',
 
     resize: options.resize === true,
 
@@ -37246,7 +37330,7 @@ function updateModifiers (mod, ctx) {
 }
 
 function insertArgs (arg, ctx) {
-  const opts = typeof arg === 'string' && arg.length > 0
+  const opts = typeof arg === 'string' && arg.length !== 0
     ? arg.split(':') : [];
 
   ctx.name = opts[ 0 ];
@@ -37659,7 +37743,7 @@ var TouchHold = createDirective({
         // duration in ms, touch in pixels, mouse in pixels
         const data = [ 600, 5, 7 ];
 
-        if (typeof binding.arg === 'string' && binding.arg.length > 0) {
+        if (typeof binding.arg === 'string' && binding.arg.length !== 0) {
           binding.arg.split(':').forEach((val, index) => {
             const v = parseInt(val, 10);
             v && (data[ index ] = v);
@@ -37754,7 +37838,7 @@ var TouchRepeat = createDirective({
           return
         }
 
-        const durations = typeof arg === 'string' && arg.length > 0
+        const durations = typeof arg === 'string' && arg.length !== 0
           ? arg.split(':').map(val => parseInt(val, 10))
           : [ 0, 600, 300 ];
 
@@ -39399,7 +39483,7 @@ function apply ({ add, remove }) {
     document.title = add.title;
   }
 
-  if (Object.keys(remove).length > 0) {
+  if (Object.keys(remove).length !== 0) {
     [ 'meta', 'link', 'script' ].forEach(type => {
       remove[ type ].forEach(name => {
         document.head.querySelector(`${ type }[data-qmeta="${ name }"]`).remove();
@@ -40357,9 +40441,9 @@ class EventBus {
   }
 
   once (name, callback, ctx) {
-    const listener = () => {
+    const listener = (...args) => {
       this.off(name, listener);
-      callback.apply(ctx, arguments);
+      callback.apply(ctx, args);
     };
 
     listener.__callback = callback;
@@ -40381,21 +40465,25 @@ class EventBus {
 
   off (name, callback) {
     const list = this.__stack[ name ];
-    const liveEvents = [];
 
-    if (list !== void 0 && callback) {
-      list.forEach(entry => {
-        if (entry.fn !== callback && entry.fn.__callback !== callback) {
-          liveEvents.push(entry);
-        }
-      });
+    if (list === void 0) {
+      return this // chainable
+    }
 
-      if (liveEvents.length !== 0) {
-        this.__stack[ name ] = liveEvents;
-      }
-      else {
-        delete this.__stack[ name ];
-      }
+    if (callback === void 0) {
+      delete this.__stack[ name ];
+      return this // chainable
+    }
+
+    const liveEvents = list.filter(
+      entry => entry.fn !== callback && entry.fn.__callback !== callback
+    );
+
+    if (liveEvents.length !== 0) {
+      this.__stack[ name ] = liveEvents;
+    }
+    else {
+      delete this.__stack[ name ];
     }
 
     return this // chainable
@@ -40651,7 +40739,7 @@ function runSequentialPromises (
  */
 
 const Quasar = {
-  version: '2.11.10',
+  version: '2.12.5',
   install: installQuasar,
   lang: Plugin$8,
   iconSet: Plugin$7

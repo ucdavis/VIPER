@@ -8,12 +8,14 @@ using AngleSharp.Dom;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Polly;
-using Viper.Areas.RAPS.Dtos;
+using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Viper.Models;
 using Viper.Models.RAPS;
 using Web.Authorization;
 
@@ -24,7 +26,7 @@ namespace Viper.Areas.RAPS.Controllers
     public class PermissionsController : ApiController
     {
         private readonly RAPSContext _context;
-        private RAPSAuditService _auditService;
+        private readonly RAPSAuditService _auditService;
 
         public PermissionsController(RAPSContext context)
         {
@@ -41,10 +43,9 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         // GET: Permissions
-        [ApiPagination(DefaultPerPage = 100, MaxPerPage = 100)]
         [HttpGet]
         [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
-        public async Task<ActionResult<IEnumerable<TblPermission>>> GetTblPermissions(string instance, int? page)
+        public async Task<ActionResult<IEnumerable<TblPermission>>> GetTblPermissions(string instance)
         {
             if (_context.TblPermissions == null)
             {
@@ -168,7 +169,7 @@ namespace Viper.Areas.RAPS.Controllers
             return NoContent();
         }
 
-        private TblPermission CreateTblPermissionFromDto(PermissionCreateUpdate permission)
+        private static TblPermission CreateTblPermissionFromDto(PermissionCreateUpdate permission)
         {
             var tblPermission = new TblPermission() { Permission = permission.Permission, Description = permission.Description };
             if (permission.PermissionId != null && permission.PermissionId > 0)

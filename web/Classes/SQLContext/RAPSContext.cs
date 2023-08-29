@@ -180,6 +180,10 @@ public partial class RAPSContext : DbContext
 
     public virtual DbSet<VwVstp> VwVstps { get; set; }
 
+    public virtual DbSet<GetVmacsUserPermissionsResult> GetVMACSUserPermissionsResult { get; set; }
+
+    public virtual DbSet<GetAllRapsViews> GetAllRapsViews { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (HttpHelper.Settings != null)
@@ -234,21 +238,21 @@ public partial class RAPSContext : DbContext
 
         modelBuilder.Entity<OuGroupRole>(entity =>
         {
-            entity.HasKey(e => new { e.Ougroupid, e.Roleid });
+            entity.HasKey(e => new { e.OugroupId, e.RoleId });
 
             entity.ToTable("ouGroupRoles");
 
-            entity.Property(e => e.Ougroupid).HasColumnName("ougroupid");
-            entity.Property(e => e.Roleid).HasColumnName("roleid");
+            entity.Property(e => e.OugroupId).HasColumnName("ougroupid");
+            entity.Property(e => e.RoleId).HasColumnName("roleid");
             entity.Property(e => e.IsGroupRole).HasColumnName("isGroupRole");
 
             entity.HasOne(d => d.Ougroup).WithMany(p => p.OuGroupRoles)
-                .HasForeignKey(d => d.Ougroupid)
+                .HasForeignKey(d => d.OugroupId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_ouGroupRoles_ouGroups");
 
             entity.HasOne(d => d.Role).WithMany(p => p.OuGroupRoles)
-                .HasForeignKey(d => d.Roleid)
+                .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_ouGroupRoles_tblRoles");
         });
@@ -279,11 +283,11 @@ public partial class RAPSContext : DbContext
             entity.Property(e => e.ModTime)
                 .HasColumnType("datetime")
                 .HasColumnName("modTime");
-            entity.Property(e => e.RoleTemplateRoleId1).HasColumnName("roleTemplate_RoleID");
+            entity.Property(e => e.RoleTemplateRoleRoleId).HasColumnName("roleTemplate_RoleID");
             entity.Property(e => e.RoleTemplateTemplateId).HasColumnName("roleTemplate_templateID");
 
-            entity.HasOne(d => d.RoleTemplateRoleId1Navigation).WithMany(p => p.RoleTemplateRoles)
-                .HasForeignKey(d => d.RoleTemplateRoleId1)
+            entity.HasOne(d => d.Role).WithMany(p => p.RoleTemplateRoles)
+                .HasForeignKey(d => d.RoleTemplateRoleRoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_roleTemplateRole_tblRoles");
 
@@ -363,6 +367,9 @@ public partial class RAPSContext : DbContext
                 .HasForeignKey(d => d.PermissionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_tblMemberPermissions_tblPermissions");
+            
+            entity.HasOne(e => e.Member).WithMany(m => m.TblMemberPermissions)
+                .HasForeignKey(e => e.MemberId);
         });
 
         modelBuilder.Entity<TblPermission>(entity =>
@@ -449,7 +456,7 @@ public partial class RAPSContext : DbContext
 
             entity.Property(e => e.RoleId).HasColumnName("RoleID");
             entity.Property(e => e.PermissionId).HasColumnName("PermissionID");
-            entity.Property(e => e.Access).HasDefaultValueSql("(1)");
+            //entity.Property(e => e.Access).HasDefaultValueSql("(1)");
             entity.Property(e => e.ModBy)
                 .HasMaxLength(8)
                 .IsUnicode(false);
@@ -531,6 +538,7 @@ public partial class RAPSContext : DbContext
             entity.Property(e => e.FutureStudent).HasColumnName("future_student");
             entity.Property(e => e.FutureEmployee).HasColumnName("future_employee");
             entity.Property(e => e.Future).HasColumnName("future");
+            entity.Property(e => e.MostRecentTerm).HasColumnName("mostRecentTerm");
         });
 
         modelBuilder.Entity<VwCahfspersonnel>(entity =>
@@ -1485,6 +1493,12 @@ public partial class RAPSContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("MemberID");
         });
+
+        modelBuilder.Entity<GetVmacsUserPermissionsResult>(entity =>
+            entity.HasKey(e => e.MemberId));
+
+        modelBuilder.Entity<GetAllRapsViews>(entity =>
+            entity.HasKey(e => e.Name));
 
         OnModelCreatingPartial(modelBuilder);
     }

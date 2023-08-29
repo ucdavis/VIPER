@@ -1,0 +1,231 @@
+﻿<q-btn-group outline rounded class="q-mt-sm">
+    <q-btn no-caps color="primary" class="q-mb-sm" label="View existing roles" icon="view_list"
+           :outline="showWhich != 'Existing'" @@click="showWhich='Existing'"></q-btn>
+    <q-btn no-caps color="primary" class="q-mb-sm" label="Add Roles" icon="add"
+           :outline="showWhich != 'Add'" @@click="showWhich='Add'"></q-btn>
+</q-btn-group>
+
+<div v-show="showWhich == 'Existing'">
+    <h2>
+        Roles for {{member.displayFirstName}} {{member.displayLastName}}
+    </h2>
+    
+    <q-table title="Roles for {{member.displayFirstName}}"
+             dense
+             row-key="roleId"
+             :loading="memberRolesTable.loading"
+             :rows="memberRolesTable.rows"
+             :columns="memberRolesTable.columns"
+             :pagination="memberRolesTable.pagination"
+             :filter="memberRolesTable.filter">
+        <template v-slot:top-left>
+            
+            <div class="q-pa-sm q-gutter-sm">
+                <q-dialog v-model="memberRolesTable.showForm" @@hide="memberRolesTable.clear(this)">
+                    <q-card>
+                        <q-form @@submit="memberRolesTable.submit(this)" v-bind="memberRolesTable.object">
+                            <q-card-section>
+                                <div class="text-h6">{{memberRolesTable.editing >= 0 ? "Edit" : "Create"}} Role Member</div>
+                                <div class="bg-negative text-white q-pa-sm rounded" v-if="memberRolesTable.errors?.message?.length > 0">{{memberRolesTable.errors.message}}</div>
+                            </q-card-section>
+
+                            <q-card-section>
+                                <div class="row">
+                                    <q-input type="date" outlined dense v-model="memberRolesTable.object.startDate" label="Start Date"
+                                             :error="memberRolesTable.errors?.startDate?.error" :error-message="memberRolesTable.errors?.startDate?.message"></q-input>
+                                </div>
+                                <div class="row">
+                                    <q-input type="date" outlined dense v-model="memberRolesTable.object.endDate" label="End Date"
+                                             :error="memberRolesTable.errors?.endDate?.error" :error-message="memberRolesTable.endDAte?.startDate?.message"></q-input>
+                                </div>
+                                <div class="row">
+                                    <q-input outlined dense v-model="memberRolesTable.object.comment" label="Comment"></q-input>
+                                </div>
+                            </q-card-section>
+
+                            <q-card-actions align="evenly">
+                                <q-btn no-caps :label="memberRolesTable.editing ? 'Update Role for User' : 'Add Role for User'" type="submit" padding="xs sm" color="primary"></q-btn>
+                                <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="memberRolesTable.delete(this)" color="red" v-if="memberRolesTable.editing"></q-btn>
+                            </q-card-actions>
+                        </q-form>
+                    </q-card>
+                </q-dialog>
+            </div>
+        </template>
+        <template v-slot:top-right>
+            <q-input v-model="memberRolesTable.filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
+                <template v-slot:append>
+                    <q-icon name="filter_alt" />
+                </template>
+            </q-input>
+        </template>
+        <template v-slot:body-cell-links="props">
+            <q-td :props="props">
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'RolePermissions?roleId=' + props.row.roleId"></q-btn>
+            </q-td>
+        </template>
+        <template v-slot:body-cell-actions="props">
+            <q-td :props="props">
+                <q-btn dense outline size="sm" icon="edit" padding="xs md" :props="props" color="primary" @@click="memberRolesTable.selectRow(props.row)"></q-btn>
+            </q-td>
+        </template>
+    </q-table>
+</div>
+
+<div v-show="showWhich == 'Add'">
+    <h2>
+        Add Roles for {{member.displayFirstName}} {{member.displayLastName}}
+    </h2>
+    <q-form>
+        <div class="row q-mb-md">
+            <q-input type="date" outlined dense v-model="memberRoleParams.startDate" label="Start Date"></q-input>
+            <q-input type="date" outlined dense v-model="memberRoleParams.endDate" label="End Date" class="q-ml-md"></q-input>
+            <q-input outlined dense v-model="memberRoleParams.comment" label="Comment" class="q-ml-md" size="30"></q-input>
+            <q-btn sm dense no-caps class="q-px-sm q-ml-md" label="Add Checked" type="button" color="primary" @@click="addRoles"></q-btn>
+        </div>
+    </q-form>
+    <q-table dense
+             row-key="roleId"
+             :loading="rolesTable.loading"
+             :rows="rolesTable.rows"
+             :columns="rolesTable.columns"
+             :filter="rolesTable.filter"
+             :pagination="rolesTable.pagination"
+             selection="multiple"
+             v-model:selected="selectedRoles">
+        <template v-slot:top-right="props">
+            <q-input class="q-ml-xs q-mr-xs" v-model="rolesTable.filter" dense outlined debounce="300" placeholder="Filter Results">
+                <template v-slot:append>
+                    <q-icon name="filter_alt" />
+                </template>
+            </q-input>
+        </template>
+    </q-table>
+</div>
+
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    selectedRoles: [],
+                    memberRoleParams: { startDate: "", endDate: "", comment: "" },
+                    memberId: 0,
+                    member: {},
+                    showWhich: 'Existing',
+                    memberRolesTable: new quasarTable({
+                        keys: ["roleId"],
+                        urlBase: "Members",
+                        columns: [
+                            { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
+                            { name: "role", label: "Role", field: "roleName", align: "left", sortable: true, format: v => v.substr(0, 75) },
+                            { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
+                            { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+                        ],
+                        //after loading role members, set role name and last modified
+                        onLoad: function (data) {
+                            this.rows = data.map(rm => ({
+                                ...rm,
+                                roleName: rm.role.friendlyName,
+                                lastModified: formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")"
+                            }))
+                            if (this.editing) {
+                                this.vueApp._.data.rolesTable.load()
+                            }
+                        },
+                        //set member id and role id when creating/updating
+                        createBody:
+                            function (v, object) {
+                                return {
+                                    comment: object.comment,
+                                    memberId: v.urlParams.get("memberId"),
+                                    roleId: object.roleId,
+                                    startDate: object?.startDate,
+                                    endDate: object?.endDate
+                                }
+                            },
+                        //on selection, format dates and set up user select box
+                        selectObject:
+                            function (object) {
+                                this.object = {
+                                    roleId: object.roleId,
+                                    startDate: formatDateForDateInput(object.startDate),
+                                    endDate: formatDateForDateInput(object.endDate),
+                                    memberId: object.memberId
+                                }
+                            },
+                        pagination: { rowsPerPage: 0 }
+                    }),
+                    rolesTable: new quasarTable({
+                        keys: ["roleId"],
+                        urlBase: "Roles?Application=0",
+                        columns: [
+                            { name: "role", label: "Role", field: "role", align: "left", sortable: true },
+                            { name: "description", label: "Description", field: "description", align: "left", sortable: true }
+                        ],
+                        onLoad: function (data) {
+                            existingRoles = this.vueApp._.data.memberRolesTable.rows
+                                .reduce((result, rm) => {
+                                    result.push(rm.roleId)
+                                    return result
+                                }, [])
+                            this.rows = data.filter(r =>
+                                existingRoles.indexOf(r.roleId) == -1
+                            )
+                            this.rows = this.rows.map(r => ({
+                                roleId: r.roleId,
+                                role: r.friendlyName,
+                                description: r.description
+                            }))
+                        },
+                        pagination: { rowsPerPage: 15 }
+                    })
+                }
+            },
+            methods: {
+                addRoles: async function () {
+                    this.selectedRoles.forEach((value, index) => {
+                        var roleMember = { roleId: value.roleId, memberId: this.memberId, comment: this.memberRoleParams.comment }
+                        if (this.memberRoleParams.startDate.length) {
+                            roleMember.startDate = this.memberRoleParams.startDate
+                        }
+                        if (this.memberRoleParams.endDate.length) {
+                            roleMember.endDate = this.memberRoleParams.endDate
+                        }
+                        viperFetch(this,
+                            "Members/" + this.memberId + "/Roles/",
+                            {
+                                method: "POST",
+                                body: JSON.stringify(roleMember),
+                                headers: { "Content-Type": "application/json" }
+                            },
+                            [this.loadTables]
+                        )
+                    })
+                },
+                loadTables: async function () {
+                    await this.memberRolesTable.load(this)
+                    this.rolesTable.load(this)
+                    this.selectedRoles = []
+                }, 
+                loadMember: async function () {
+                    this.member = await viperFetch(this, "members/" + this.memberId)
+                }
+
+            },
+            async mounted() {
+                this.memberId = this.urlParams.get("memberId")
+                this.loadMember()
+                this.memberRolesTable.urlBase = "Members/" + this.memberId + "/Roles"
+                this.loadTables()
+                this.showMemberRoles = true
+                this.showAddRoles = false
+            }
+        })
+    </script>
+}

@@ -2,6 +2,7 @@
 @model Viper.Models.AAUD.AaudUser
 @{
     RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
+    IUserHelper UserHelper = new UserHelper();
 }
 <q-menu persistent>
     <q-list style="min-width: 200px">

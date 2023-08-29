@@ -1,0 +1,8 @@
+﻿@model List<Viper.Models.VIPER.ContentBlock>
+@if (Model != null)
+{
+    foreach (Viper.Models.VIPER.ContentBlock block in Model)
+    {
+        @Html.Raw(block.ContentBlock1)
+    }
+}

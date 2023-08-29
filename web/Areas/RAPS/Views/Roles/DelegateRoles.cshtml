@@ -1,0 +1,63 @@
+﻿<h2>Roles controlled by {{role.friendlyName}}</h2>
+
+<q-table dense
+        row-key="roleId"
+        selection="multiple"
+        v-model:selected="selectedRoles"
+        :rows="roles"
+        :columns="columns"
+        :pagination="{rowsPerPage:0}"
+        :loading="loadingRoles">
+    <template v-slot:top-left>
+        <q-btn dense no-caps color="primary" padding="xs md" @@click="submitChanges()" label="Submit changes"></q-btn>
+    </template>
+</q-table>
+
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    role: {},
+                    roles: [],
+                    selectedRoles: [],
+                    loadingRoles: false,
+                    columns: [
+                        { name: "role", label: "Role", field: "friendlyName", align: "left" },
+                        { name: "description", label: "Description", field: "description", align: "left" }
+                    ]
+                }
+            },
+            methods: {
+                loadRoles: async function() {
+                    var childRoles = await viperFetch(this, "Roles/ControlledBy/" + + this.urlParams.get("roleId"))
+                    var allRoles = (await viperFetch(this, "Roles?Application=0"))
+                        .filter(r => childRoles.find(cr => cr.roleId == r.roleId) === undefined)
+                    this.selectedRoles = childRoles;//.reduce((result, cr) => { result.push(cr.roleId); return result }, [])
+                    this.roles = childRoles.concat(allRoles)
+                },
+                submitChanges: async function() {
+                    var roleIds = this.selectedRoles.reduce( (result, role) => {
+                        result.push(role.roleId)
+                        return result
+                    }, [])
+                    viperFetch(this,
+                        "Roles/ControlledBy/" + this.urlParams.get("roleId"),
+                        {
+                            method: "PUT",
+                            body: JSON.stringify(roleIds),
+                            headers: { "Content-Type": "application/json" }
+                        },
+                        [this.loadRoles]
+                    )
+                }
+            },
+            async mounted() {
+                this.loadRoles()
+                this.role = await viperFetch(this, "Roles/" + this.urlParams.get("roleId"))
+                
+            }
+        })
+    </script>
+}

@@ -9,8 +9,8 @@ using Microsoft.AspNetCore.Http;
 using Viper.Models.AAUD;
 using Viper.Classes;
 using Viper.Areas.RAPS.Services;
-using Viper.Areas.RAPS.Dtos;
 using static Viper.Areas.RAPS.Services.RAPSAuditService;
+using Viper.Areas.RAPS.Models;
 
 namespace Viper.test.RAPS
 {
@@ -147,11 +147,11 @@ namespace Viper.test.RAPS
 
 			rapsContext.Setup(c => c.TblRoles).Returns(mockSet.Object);
 
-			var mockUser = new Mock<IUserWrapper>();
-			mockUser.As<IUserWrapper>()
+			var mockUser = new Mock<UserHelper>();
+			mockUser.As<IUserHelper>()
 				.Setup(m => m.GetCurrentUser())
 				.Returns(new AaudUser());
-			mockUser.As<IUserWrapper>()
+			mockUser.As<IUserHelper>()
 				.Setup(m => m.HasPermission(rapsContext.Object, It.IsAny<AaudUser>(), It.IsAny<string>()))
 				.Returns(true);
 
@@ -164,7 +164,7 @@ namespace Viper.test.RAPS
 				.Returns(new List<int> { 1, 2 });
 
 			var rolesController = new RolesController(rapsContext.Object);
-			rolesController.UserWrapper = mockUser.Object;
+			rolesController.UserHelper = mockUser.Object;
 			rolesController.SecurityService = mockSecurity.Object;
 
 			// act

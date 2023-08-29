@@ -3,7 +3,7 @@ using System.Linq.Expressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Viper.Areas.RAPS.Dtos;
+using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -12,64 +12,103 @@ using Viper.Models.RAPS;
 namespace Viper.Areas.RAPS.Controllers
 {
     [Route("raps/{instance}/[controller]")]
-    [Authorize(Roles = "VMDO SVM-IT,RAPS Delegate Users", Policy = "2faAuthentication")]
+    [Authorize(Roles = "VMDO SVM-IT,RAPS Users", Policy = "2faAuthentication")]
     public class RolesController : ApiController
     {
         private readonly RAPSContext _context;
 		public IRAPSSecurityServiceWrapper SecurityService;
-        public IUserWrapper UserWrapper;
+        public IUserHelper UserHelper;
 		public IRAPSAuditServiceWrapper AuditService;
-
-		private static Expression<Func<TblRole, bool>> FilterToInstance(string instance)
-        {
-            return r =>
-                instance.ToUpper() == "VIPER"
-                ? !r.Role.ToUpper().StartsWith("VMACS.") && !r.Role.ToUpper().StartsWith("VIPERFORMS")
-                : r.Role.StartsWith(instance);
-        }
 
         public RolesController(RAPSContext context)
         {
             _context = context;
-			RAPSSecurityService rss = new RAPSSecurityService(_context);
+            RAPSSecurityService rss = new(_context);
 			SecurityService = new RAPSSecurityServiceWrapper(rss);
-			UserWrapper = new UserWrapper();
-			RAPSAuditService ras = new RAPSAuditService(_context);
+            UserHelper = new UserHelper();
+            RAPSAuditService ras = new(_context);
 			AuditService = new RAPSAuditServiceWrapper(ras);
+        }
+
+        //Get all view names
+        [HttpGet("Views")]
+        public async Task<ActionResult<List<string>>> GetViews()
+        {
+            return await new RoleViews(_context).GetViewNames();
         }
 
         // GET: Roles
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TblRole>>> GetTblRoles(string instance, int? Application)
+        public async Task<ActionResult<IEnumerable<TblRole>>> GetTblRoles(string instance, int? Application, bool? allInstances = false)
         {
             if (_context.TblRoles == null)
             {
                 return NotFound();
             }
 
+            allInstances ??= false;
             if(SecurityService.IsAllowedTo("ViewAllRoles", instance))
             {
-                return await _context.TblRoles
+                var q = _context.TblRoles
                     .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
-                    .Where((r => Application == null || r.Application == Application))
-                    .Where(FilterToInstance(instance))
-                    .OrderByDescending(r => r.Application)
-                    .ThenBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
+                    .Where((r => Application == null || r.Application == Application));
+                if(!(bool)allInstances)
+                {
+                    q = q.Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance));
+                }
+                List<TblRole> roles = await q
+                    .OrderBy(r => r.Role.ToUpper().StartsWith("VIPERFORMS") ? 1 : 
+                        r.Role.ToUpper().StartsWith("VMACS.VMTH") ? 2 :
+                        r.Role.ToUpper().StartsWith("VMACS.VMLF") ? 3 :
+                        r.Role.ToUpper().StartsWith("VMACS.UCVMCSD") ? 4 :
+                        r.Role.ToUpper().StartsWith("VMACS.MGVP") ? 5 :
+                        0)
+                    .ThenByDescending(r => r.Application)
+                    .ThenBy(r => r.DisplayName ?? r.Role)
                     .ToListAsync();
+                return roles;
             }
-            else
-            {
-				List<int> controlledRoleIds = SecurityService.GetControlledRoleIds(UserWrapper.GetCurrentUser()?.MothraId);
-                List<TblRole> List = await _context.TblRoles
-                    .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
-                    .Where(r => r.Application == 0)
-                    .Where(r => controlledRoleIds.Contains(r.RoleId))
-                    .Where(FilterToInstance(instance))
-                    .OrderBy(r => r.DisplayName == null ? r.Role : r.DisplayName)
-                    .ToListAsync();
+            List<int> controlledRoleIds = SecurityService.GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId);
+            return await _context.TblRoles
+                .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
+                .Where(r => r.Application == 0)
+                .Where(r => controlledRoleIds.Contains(r.RoleId))
+                .Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance))
+                .OrderBy(r => r.DisplayName ?? r.Role)
+                .ToListAsync();
+        }
 
-                return List;
+
+
+        // GET: Roles/ControlledBy/5
+        [HttpGet("ControlledBy/{roleId}")]
+#pragma warning disable IDE0060 // Remove unused parameter
+        public async Task<ActionResult<IEnumerable<TblRole>>> GetControlledRoles(string instance, int roleId)
+#pragma warning restore IDE0060 // Remove unused parameter
+        {
+            if (_context.TblRoles == null)
+            {
+                return NotFound();
             }
+            var tblRole = await _context.TblRoles
+                .Include(r => r.ChildRoles)
+                .ThenInclude(cr => cr.Role)
+                .Where(r => r.RoleId == roleId)
+                .FirstOrDefaultAsync();
+            
+            if (tblRole == null)
+            {
+                return NotFound();
+            }
+
+            List<TblRole> childRoles = new();
+            foreach(TblAppRole r in tblRole.ChildRoles)
+            {
+                childRoles.Add(r.Role);
+            }
+            childRoles.Sort((c1, c2) => c1.FriendlyName.CompareTo(c2.FriendlyName));
+
+            return childRoles;
         }
 
         // GET: Roles/5
@@ -82,7 +121,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             var tblRole = await _context.TblRoles.FindAsync(roleId);
 
-            if (tblRole == null)
+            if (tblRole == null || !SecurityService.RoleBelongsToInstance(instance, tblRole))
             {
                 return NotFound();
             }
@@ -91,12 +130,11 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         // PUT: Roles/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{roleId}")]
         public async Task<IActionResult> PutTblRole(string instance, int roleId, RoleCreateUpdate role)
         {
             TblRole tblRole = CreateTblRoleFromDTO(role);
-            if (roleId != tblRole.RoleId)
+            if (roleId != tblRole.RoleId || !SecurityService.RoleBelongsToInstance(instance, tblRole))
             {
                 return BadRequest();
             }
@@ -124,8 +162,43 @@ namespace Viper.Areas.RAPS.Controllers
             return NoContent();
         }
 
+        // Put: Roles/ControlledBy/5
+        [HttpPut("ControlledBy/{roleId}")]
+#pragma warning disable IDE0060 // Remove unused parameter
+        public async Task<ActionResult<IEnumerable<TblRole>>> UpdateControlledRoles(string instance, int roleId, List<int> roleIds)
+#pragma warning restore IDE0060 // Remove unused parameter
+        {
+            List<TblAppRole> childRoles = await _context.TblAppRoles
+                .Where(ar => ar.AppRoleId == roleId)
+                .ToListAsync();
+            //remove deleted roles
+            foreach(TblAppRole childRole in childRoles)
+            {
+                if(!roleIds.Contains(childRole.RoleId))
+                {
+                    _context.Remove(childRole);
+                }
+                else
+                {
+                    //don't add this one
+                    roleIds.Remove(childRole.RoleId);
+                }
+            }
+
+            //add new roles
+            foreach(int id in roleIds)
+            {
+                _context.Add(new TblAppRole()
+                {
+                    RoleId = id,
+                    AppRoleId = roleId
+                });
+            }
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
         // POST: Roles
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<TblRole>> PostTblRole(string instance, RoleCreateUpdate role)
         {
@@ -138,6 +211,10 @@ namespace Viper.Areas.RAPS.Controllers
             {
 			    using var transaction = _context.Database.BeginTransaction();
 			    TblRole tblRole = CreateTblRoleFromDTO(role);
+                if (!SecurityService.RoleBelongsToInstance(instance, tblRole))
+                {
+                    return ValidationProblem("Role name is invalid for this instance");
+                }
 			    _context.TblRoles.Add(tblRole);
 			    await _context.SaveChangesAsync();
 				AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Create);
@@ -166,7 +243,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
             var tblRole = await _context.TblRoles.FindAsync(roleId);
-            if (tblRole == null)
+            if (tblRole == null || !SecurityService.RoleBelongsToInstance(instance, tblRole))
             {
                 return NotFound();
             }
@@ -178,7 +255,7 @@ namespace Viper.Areas.RAPS.Controllers
             return NoContent();
         }
 
-        private TblRole CreateTblRoleFromDTO(RoleCreateUpdate role)
+        private static TblRole CreateTblRoleFromDTO(RoleCreateUpdate role)
         {
             var tblRole = new TblRole() { Role = role.Role, Description = role.Description, ViewName = role.ViewName, Application = (byte)role.Application };
             if (role.RoleId != null && role.RoleId > 0)

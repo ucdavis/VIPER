@@ -18,9 +18,11 @@
     },
     "active-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "The color of the active breadcrumb, which can be any color from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style",
@@ -44,9 +46,11 @@
     },
     "separator-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "The color used to color the separator, which can be any color from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"

@@ -16,6 +16,7 @@ namespace Viper.Views.Shared.Components.ProfilePic
 
         public async Task<IViewComponentResult> InvokeAsync(string? userName)
         {
+            IUserHelper UserHelper = new UserHelper();
             AaudUser? user = UserHelper.GetByLoginId(_AAUDContext, userName);
 
             return await Task.Run(() => View("Default", user));

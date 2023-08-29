@@ -1,0 +1,57 @@
+﻿<h2>Combined Permissions for {{member.displayFirstName}} {{member.displayLastName}}</h2>
+
+<q-table 
+    dense
+    row-key="permissionId"
+    :loading="permissions.loading"
+    :columns="permissions.columns"
+    :rows="permissions.rows"
+    :pagination={rowsPerPage:0}>
+    <template v-slot:top-right>
+        <q-btn color="secondary"
+               icon="download"
+               label="Export"
+               no-caps class="gt-sm"
+               @@click="permissions.exportTable(this)"></q-btn>
+    </template>
+    <template v-slot:body-cell-access="props">
+        <q-td :props="props">
+            <q-icon size="sm" :name="props.row.access ? 'check' : 'close'" :color="props.row.access ? 'green' : 'red'"></q-icon>
+        </q-td>
+    </template>
+
+</q-table>
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    member: {},
+                    memberId: "",
+                    permissions: new quasarTable({
+                        keys: ["permissionId"],
+                        urlBase: "Members",
+                        columns: [
+                            { name: "access", label: "Access", field: "access", align: "center", style: "width:75px;" },
+                            { name: "permission", label: "Permission", field: "permissionName", align: "left" },
+                            { name: "source", label: "Source(s)", field: "source", align: "left" }
+                        ],
+                        pagination: { rowsPerPage: 0 }
+                    })
+                }
+            },
+            methods: {
+                loadMember: async function () {
+                    this.member = await viperFetch(this, "Members/" + this.memberId)
+                }
+            },
+            async mounted() {
+                this.memberId = this.urlParams.get("memberId")
+                this.permissions.urlBase = "Members/" + this.memberId + "/RSOP"
+                this.loadMember()
+                this.permissions.load(this)
+            }
+        })
+    </script>
+}

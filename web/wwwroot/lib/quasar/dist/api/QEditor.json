@@ -246,18 +246,22 @@
     },
     "toolbar-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Font color (from the Quasar Palette) of buttons and text in the toolbar",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "toolbar"
     },
     "toolbar-text-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Text color (from the Quasar Palette) of toolbar commands",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "toolbar"
@@ -338,6 +342,11 @@
         "Type your story here ..."
       ],
       "category": "content"
+    }
+  },
+  "slots": {
+    "[command]": {
+      "desc": "Content for the given command in the toolbar"
     }
   },
   "events": {

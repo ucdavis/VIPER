@@ -1,0 +1,163 @@
+﻿<h2>User Permissions for {{permission.permission}}</h2>
+<p>
+    {{permission.description}}
+</p>
+<q-table title="Members"
+         dense
+         row-key="memberId"
+         :loading="membersTable.loading"
+         :rows="membersTable.rows"
+         :columns="membersTable.columns"
+         :filter="membersTable.filter"
+         :pagination="membersTable.pagination">
+    <template v-slot:top-left>
+        <q-btn color="green" label="Add Member" @@click="membersTable.showForm = true" no-caps></q-btn>
+        <div class="q-pa-sm q-gutter-sm">
+            <q-dialog v-model="membersTable.showForm" @@hide="membersTable.clear(this)">
+                <q-card>
+                    <q-form @@submit="membersTable.submit(this)" v-bind="membersTable.object">
+                        <q-card-section>
+                            <div class="text-h6">{{membersTable.editing >= 0 ? "Edit" : "Create"}} Permission Member</div>
+                            <div class="bg-negative text-white q-pa-sm rounded" v-if="membersTable.errors?.message?.length > 0">{{membersTable.errors.message}}</div>
+                        </q-card-section>
+
+                        <q-card-section>
+                            <div class="row">
+                                <q-select outlined dense options-dense use-input input-debounce="300"
+                                          label="User"
+                                          v-model="membersTable.object.member"
+                                          @@filter="memberSearch"
+                                          :options="memberSearchResults"
+                                          :readonly="membersTable.editing"
+                                          :error="membersTable.errors?.MemberId?.error"
+                                          error-message="User is required">
+                                </q-select>
+                            </div>
+                            <div class="row">
+                                <q-input type="date" outlined dense v-model="membersTable.object.startDate" label="Start Date"
+                                         :error="membersTable.errors?.startDate?.error" :error-message="membersTable.errors?.startDate?.message"></q-input>
+                            </div>
+                            <div class="row">
+                                <q-input type="date" outlined dense v-model="membersTable.object.endDate" label="End Date"
+                                         :error="membersTable.errors?.endDate?.error" :error-message="membersTable.endDAte?.startDate?.message"></q-input>
+                            </div>
+                        </q-card-section>
+
+                        <q-card-actions align="evenly">
+                            <q-btn no-caps :label="membersTable.editing ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary"></q-btn>
+                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="membersTable.delete(this)" color="red" v-if="membersTable.editing"></q-btn>
+                        </q-card-actions>
+                    </q-form>
+                </q-card>
+            </q-dialog>
+        </div>
+    </template>
+    <template v-slot:top-right="props">
+        <q-input class="q-ml-xs q-mr-xs" v-model="permissionMembersFilter" dense outlined debounce="300" placeholder="Filter Results">
+            <template v-slot:append>
+                <q-icon name="filter_alt" />
+            </template>
+        </q-input>
+    </template>
+    <template v-slot:body-cell-memberid="props">
+        <q-td :props="props">
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="policy" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-actions="props">
+        <q-td :props="props">
+            <q-btn no-caps outline size="sm" icon="edit" :props="props" color="primary" @@click="membersTable.selectRow(props.row)"></q-btn>
+        </q-td>
+    </template>
+</q-table>
+
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    permissionId: 0,
+                    permission: {},
+                    memberSearchResults: [],
+                    membersTable: new quasarTable({
+                        keys: ["memberId"],
+                        urlBase: "Permissions",
+                        columns: [
+                            { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
+                            { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
+                            { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
+                            { name: "active", label: "Active", field: "active", align: "left", sortable: true },
+                            { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+                        ],
+                        //after loading role members, add the member name and active flag
+                        onLoad: function (data) {
+                            this.rows = data.map(pm => ({
+                                ...pm,
+                                memberName: pm.member?.displayLastName + ", " + pm?.member?.displayFirstName,
+                                active: pm?.member?.current == 1 ? "Y" : "N",
+                                lastModified: formatDate(pm.modTime) + " (" + pm.modBy.trim() + ")"
+                            }))
+                        },
+                        //set member id and role id when creating/updating
+                        createBody: function (v, object) {
+                            return {
+                                memberId: object.member?.value,
+                                permissionId: v.urlParams.get("permissionId"),
+                                access: object.access == 1 ? 1 : 0,
+                                startDate: object?.startDate,
+                                endDate: object?.endDate
+                            }
+                        },
+                        //on selection, format dates and set up user select box
+                        selectObject: function (object) {
+                            this.object = {
+                                permissionId: object.permissionId,
+                                startDate: formatDateForDateInput(object.startDate),
+                                endDate: formatDateForDateInput(object.endDate),
+                                access: object.access == 1 ? 1 : 0,
+                                member: {
+                                    label: object?.member?.displayLastName + ", " + object?.member?.displayFirstName,
+                                    value: object.memberId
+                                },
+                                memberId: object.memberId
+                            }
+                        },
+                        pagination: { rowsPerPage: 0 }
+                    })
+                }
+            },
+            methods: {
+                loadPermission: async function () {
+                    this.permission = await viperFetch(this, "Permissions/" + this.permissionId)
+                },
+                memberSearch: function (val, update, abort) {
+                    if (val.length < 3) {
+                        abort()
+                        return
+                    }
+
+                    update(() => {
+                        var res = fetch("Members?search=" + val)
+                            .then(r => r.json())
+                            .then(data =>
+                                this.memberSearchResults = data
+                                    .map(m => ({ label: m.displayLastName + ", " + m.displayFirstName, value: m.memberId }))
+                            )
+                    })
+                }
+            },
+            async mounted() {
+                this.permissionId = this.urlParams.get("permissionId")
+                this.loadPermission()
+                this.membersTable.urlBase = "Permissions/" + this.permissionId + "/Members"
+                this.membersTable.load()
+            }
+        })
+    </script>
+}
