@@ -30,7 +30,9 @@
         "String"
       ],
       "desc": "If set to Boolean true, the left and right margins will be set to 16px. If set to 'item' then it will match a QItem's design. If set to 'item-thumbnail' then it will match the design of a QItem with a thumbnail on the left side",
-      "examples": [
+      "values": [
+        "(Boolean) true",
+        "(Boolean) false",
         "item",
         "item-thumbnail"
       ],
@@ -52,9 +54,11 @@
     },
     "color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for component from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"

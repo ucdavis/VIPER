@@ -11,7 +11,7 @@ namespace Viper.Models.RAPS
         public int AaudUserId { get; set; }
         public string? IamId { get; set; }
         [Key]
-        public string MothraId { get; set; } = "123";
+        public string MothraId { get; set; } = "";
         public string? LoginId { get; set; }
         public string? MailId { get; set; }
         public string? SpridenId { get; set; }
@@ -30,7 +30,9 @@ namespace Viper.Models.RAPS
         public bool FutureEmployee { get; set; }
         public bool Current { get; set; }
         public bool Future { get; set; }
+        public int? MostRecentTerm { get; set; }
 
         public virtual ICollection<TblRoleMember> TblRoleMembers { get; set; } = new List<TblRoleMember>();
+        public virtual ICollection<TblMemberPermission> TblMemberPermissions { get; set; } = new List<TblMemberPermission>();
     }
 }

@@ -1,0 +1,145 @@
+﻿<h2>Apply role template {{roleTemplate.templateName}}</h2>
+
+<q-form>
+    Search for a single user, or paste in multiple login ids.
+    <div class="row q-mb-sm">
+        <q-select outlined dense options-dense clearable use-input input-debounce="300" class="col col-md-4 col-lg-3"
+                  label="User" v-model="userSearch" @@filter="findUsers" :options="userSearchResults"></q-select>
+        <q-input type="text" class="col col-md-6 col-lg-5 q-ml-sm" outlined debounce="500" dense label="Enter comma separated loginids" v-model="loginids"></q-input>
+    </div>
+</q-form>
+
+<table cellpadding="2" v-if="membersFound">
+    <thead>
+        <tr>
+            <th class="text-left"><span class="text-h6">Review Changes</span></th>
+            <th colspan="2" class="text-right">
+                <q-btn label="Apply template to user(s)" color="primary" no-caps @@click="applyTemplate(true)" class="q-px-sm q-py-xs"></q-btn>
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+        <template v-for="member in members">
+            <tr>
+                <td class="text-weight-bold" colspan="3">{{member.displayName}}</td>
+            </tr>
+            <tr v-for="role in member.roles">
+                <td>
+                    <q-icon :name="role.userHasRole ? 'info' : 'add'" :color="role.userHasRole ? 'blue-3' : 'green'" size="sm"></q-icon>
+                    {{role.userHasRole ? 'User has role' : 'Role will be added'}}
+                </td>
+                <td>{{role.roleName}}</td>
+                <td>{{role.description}}</td>
+            </tr>
+        </template>
+    </tbody>
+</table>
+<div v-if="!membersFound">
+    <span v-if="members != null">No matching users found</span>
+    <span v-else></span>
+</div>
+@section Scripts{
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    members: null, //results of previewing the apply action
+                    membersFound: false, //show table if a matching user was found
+                    roleTemplateId: 0,
+                    roleTemplate: {},
+                    loginids: "",
+                    userSearch: "",
+                    userSearchResults: []
+                }
+            },
+            methods: {
+                send: async function(url, data) {
+                    return await fetch(url, data)
+                        .then(r => r.ok && r.status != "204" ? r.json() : r)
+                        .then(r => r.success !== undefined ? r.result : null)
+                },
+                getApplyUrl: function(memberId, loginId) {
+                    return memberId != null
+                        ? `RoleTemplates/${this.roleTemplateId}/Apply/${memberId}`
+                        : `RoleTemplates/${this.roleTemplateId}/Apply/loginid:${loginId}`
+                },
+                userSearchUpdate: async function() {
+                    this.previewApplyTemplate()
+                },
+                loginidsUpdate: async function() {
+                    if (this.userSearch?.value == null || this.userSearch.value.length == 0) {
+                        this.previewApplyTemplate()
+                    }
+                },
+                applyTemplate: async function () {
+                    var options = {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" }
+                    }
+                    //use the single user search box
+                    if (this.userSearch?.value != null && this.userSearch.value.length > 0) {
+                        var result = await this.send(this.getApplyUrl(this.userSearch.value), options)
+                    }
+                    //use the loginids text box
+                    else if (this.loginids != null && this.loginids.length > 0) {
+                        for(loginId of this.loginids.split(",")) {
+                            var result = await this.send(this.getApplyUrl(null, loginId), options)
+                        }
+                    }
+                    this.previewApplyTemplate()
+                },
+                previewApplyTemplate: async function() {
+                    this.members = null
+                    //use the single user search box
+                    if (this.userSearch?.value != null && this.userSearch.value.length > 0) {
+                        this.loginids = ""
+                        this.members = []
+                        var result = await this.send(this.getApplyUrl(this.userSearch.value))
+                        if (result != null) {
+                            this.members.push(result)
+                        }
+                    }
+                    //use the loginids text box
+                    else if (this.loginids != null && this.loginids.length > 0) {
+                        this.members = []
+                        for (loginId of this.loginids.split(",")) {
+                            var result = await this.send(this.getApplyUrl(null, loginId))
+                            if (result != null) {
+                                this.members.push(result)
+                            }
+                        }
+                        this.members = this.members.filter(m => m != undefined && m.memberId.length)
+                    }
+                    this.membersFound = this.members && this.members.length && this.members[0].memberId.length
+                },
+                findUsers: function (val, update, abort, target) {
+                    if (val.length < 3) {
+                        abort()
+                        return
+                    }
+                    update(() => {
+                        var res = viperFetch(this, "Members?active=recent&search=" + val)
+                            .then(data => {
+                                this.userSearchResults = data.map(m => ({
+                                    label: (!m.current ? "[Inactive]" : "") + m.displayLastName + ", " + m.displayFirstName,
+                                    value: m.memberId
+                                }))
+                            })
+                    })
+                }
+            },
+            async mounted() {
+                this.roleTemplateId = this.urlParams.get("roleTemplateId")
+                this.roleTemplate = await viperFetch(this, "RoleTemplates/" + this.roleTemplateId)
+            },
+            watch: {
+                userSearch: function () {
+                    this.userSearchUpdate() 
+                },
+                loginids: function () {
+                    this.loginidsUpdate() 
+                }
+            }
+        })
+    </script>
+}

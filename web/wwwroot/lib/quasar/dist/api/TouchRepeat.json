@@ -4,8 +4,11 @@
     "docsUrl": "https://v2.quasar.dev/vue-directives/touch-repeat"
   },
   "value": {
-    "type": "Function",
-    "desc": "Handler for touch-repeat (use a non-function to disable)",
+    "type": [
+      "Function",
+      "undefined"
+    ],
+    "desc": "Handler for touch-repeat (use undefined to disable)",
     "params": {
       "details": {
         "type": "Object",
@@ -63,7 +66,7 @@
     "returns": null,
     "examples": [
       "v-touch-repeat=\"fnToCall\"",
-      "v-touch-repeat=\"void 0\""
+      "v-touch-repeat=\"undefined\""
     ]
   },
   "arg": {

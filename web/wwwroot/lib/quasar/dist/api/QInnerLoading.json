@@ -56,9 +56,11 @@
     },
     "color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for component from the Quasar Color Palette for the inner Spinner (unless using the default slot)",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"

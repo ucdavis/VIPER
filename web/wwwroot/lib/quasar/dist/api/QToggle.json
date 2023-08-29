@@ -131,9 +131,11 @@
     },
     "color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for component from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"
@@ -183,9 +185,11 @@
     },
     "icon-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Override default icon color (for truthy state only); Color name for component from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"

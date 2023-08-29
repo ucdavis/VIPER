@@ -1,3 +1,5 @@
+using Amazon;
+using Amazon.Extensions.NETCore.Setup;
 using Amazon.Runtime.CredentialManagement;
 using Joonasw.AspNetCore.SecurityHeaders;
 using Microsoft.AspNetCore.Authentication;
@@ -43,7 +45,12 @@ try
     try
     {
         // AWS Configurations
-        builder.Configuration.AddSystemsManager("/" + builder.Environment.EnvironmentName).AddSystemsManager("/Shared");
+        builder.Configuration.AddSystemsManager("/" + builder.Environment.EnvironmentName, new AWSOptions
+        {
+            Region = RegionEndpoint.USWest1
+        }).AddSystemsManager("/Shared", new AWSOptions { 
+            Region = RegionEndpoint.USWest1
+        });
     }
     catch (Exception ex)
     {
@@ -139,7 +146,9 @@ try
         options.HttpsPort = 443;
     });
 
-    // Define DATABASE Contexts
+
+    // TODO Check to see if we can automatically build these from the connectionstrings section of appSettings
+    // Define DATABASE Context from Connection Strings and Enviromental Variables
     builder.Services.AddDbContext<AAUDContext>();
     builder.Services.AddDbContext<CoursesContext>();
     builder.Services.AddDbContext<RAPSContext>();

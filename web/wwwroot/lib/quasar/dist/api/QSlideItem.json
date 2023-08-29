@@ -6,36 +6,44 @@
   "props": {
     "left-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for left-side background from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"
     },
     "right-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for right-side background from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"
     },
     "top-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for top-side background from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"
     },
     "bottom-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for bottom-side background from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"

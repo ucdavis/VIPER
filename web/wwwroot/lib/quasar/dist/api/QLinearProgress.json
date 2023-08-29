@@ -29,18 +29,22 @@
     },
     "color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for component from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"
     },
     "track-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for component's track from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"

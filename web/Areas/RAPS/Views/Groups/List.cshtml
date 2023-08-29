@@ -1,0 +1,146 @@
+﻿<div class="q-pa-sm q-gutter-sm">
+    <q-dialog v-model="groupTable.showForm" @@hide="groupTable.clear(this)">
+        <q-card style="width: 500px; max-width: 80vw;">
+            <q-form @@submit="groupTable.submit(this)" v-bind="groupTable.object">
+                <q-card-section>
+                    <q-btn href="CreateADGroup" no-caps label="Create AD Group" dense flat square color="primary" padding="xs sm"></q-btn>
+                </q-card-section>
+                <q-card-section>
+                    <div class="text-h6">{{groupTable.editing ? "Edit" : "Add OU"}} Group</div>
+                    <div class="bg-negative text-white q-pa-sm rounded" v-if="groupTable.errors?.message?.length > 0">{{groupTable.errors.message}}</div>
+                </q-card-section>
+                <q-card-section>
+                    <q-select outlined dense options-dense use-input input-debounce="0"
+                              label="Group"
+                              v-model="groupTable.object.group"
+                              :options="allGroups"
+                              :readonly="groupTable.editing"
+                              :error="groupTable.errors?.Name?.error"
+                              @@filter="filterGroups"
+                              error-message="Group is required">
+                    </q-select>
+                    <q-input type="textarea" outlined dense v-model="groupTable.object.description" label="Description"></q-input>
+                </q-card-section>
+
+                <q-card-actions align="evenly">
+                    <q-btn no-caps :label="groupTable.editing ? 'Update Group' : 'Add Group'" type="submit" padding="xs sm" color="primary"></q-btn>
+                    <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="groupTable.delete(this)" color="red" v-if="groupTable.editing"></q-btn>
+                </q-card-actions>
+            </q-form>
+        </q-card>
+    </q-dialog>
+</div>
+
+<q-table dense
+         row-key="groupId"
+         :loading="groupTable.loading"
+         :rows="groupTable.rows"
+         :columns="groupTable.columns"
+         :filter="groupTable.filter"
+         :pagination="groupTable.pagination">
+    <template v-slot:top-left>
+        <q-btn dense no-caps color="green" class="q-px-md" @@click="groupTable.showForm = true" label="Add Group"></q-btn>
+    </template>
+    <template v-slot:top-right>
+        <q-input v-model="groupTable.filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
+            <template v-slot:append>
+                <q-icon name="filter_alt" />
+            </template>
+        </q-input>
+    </template>
+    <template v-slot:body-cell-actions="props">
+        <q-td :props="props">
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="groups" :href="'GroupMembers?groupId=' + props.row.groupId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'RoleMembers?roleId=' + props.row.groupRoleId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'GroupRoles?groupId=' + props.row.groupId"></q-btn>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-edit="props">
+        <q-td :props="props">
+            <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs md" @@click="groupTable.selectRow(props.row)"></q-btn>
+        </q-td>
+    </template>
+</q-table>
+
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    allGroups: [],
+                    ouGroups: [],
+                    adGroups: [],
+                    groupTable: new quasarTable({
+                        keys: ["groupId"],
+                        urlBase: "groups",
+                        columns: [
+                            { name: "actions", field: "", align: "left", style: "width:75px;" },
+                            { name: "domain", label: "Domain", field: "domain", sortable: true, align: "left" },
+                            { name: "name", label: "Group", field: "friendlyName", sortable: true, align: "left" },
+                            { name: "count", label: "Members", field: "groupRoleMemberCount", sortable: true, align: "left", style: "width:75px;" },
+                            { name: "box", label: "Box Enabled?", field: "boxSyncEnabled", sortable: true, align: "left", style: "width:75px;" },
+                            { name: "sync", label: "Sync", field: "", sortable: true, style: "width:75px;" },
+                            { name: "edit", label: "", field: "", style: "width: 100px;" }
+                        ],
+                        onLoad: function (data) {
+                            this.rows = data.map(
+                                g => ({
+                                    ...g,
+                                    domain: g.isOuGroup ? "OU" : "AD3"
+                                })
+                            )
+                        },
+                        selectObject: function (object) {
+                            this.object = {
+                                ...this.object,
+                                group: {
+                                    label: this.object.name.split(",")[0],
+                                    value: this.object.name
+                                }
+                            }
+                        },
+                        //set group name when creating/updating
+                        createBody: function (v, object) {
+                            return {
+                                groupId: object.groupId,
+                                name: object.group?.value,
+                                description: object.description
+                            }
+                        },
+                        pagination: { rowsPerPage: 0 }
+                    })
+                }
+            },
+            methods: {
+                filterGroups: function (val, update) {
+                    if (val === '') {
+                        update(() => { this.allGroups = [].concat(this.adGroups).concat(this.ouGroups) })
+                    }
+                    else {
+                        update(() => {
+                            const tofind = val.toLowerCase()
+                            this.allGroups = this.allGroups = [].concat(this.adGroups).concat(this.ouGroups)
+                                .filter(v => v.value.toLowerCase().indexOf(tofind) > -1)
+                        })
+                    }
+                }
+            },
+            async mounted() {
+                this.groupTable.load(this)
+                this.ouGroups = await viperFetch(this, "Groups/OU")
+                this.ouGroups = this.ouGroups
+                    .map(g => ({ label: "OU: " + g.cn, value: g.distinguishedName }))
+
+                this.adGroups = await viperFetch(this, "Groups/AD")
+                this.adGroups = this.adGroups
+                    .map(g => ({ label: "AD: " + g.displayName ?? g.samAccountName, value: g.distinguishedName }))
+
+                this.allGroups = [
+                    { label: "AD3", children: this.adGroups },
+                    { label: "OU", children: this.ouGroups }
+                ]
+            }
+        })
+    </script>
+}

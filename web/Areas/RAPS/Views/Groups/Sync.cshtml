@@ -1,0 +1,18 @@
+﻿@using Viper.Models.RAPS;
+@*
+    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+*@
+@{
+    var group = ViewData["Group"] as OuGroup;
+    if(group != null)
+    {
+        <h2>Member for @group.Name</h2>
+        <p>
+            The process to add or remove users may take a view minutes. Return to the previous page and refresh to see changes.
+        </p>
+    }
+    else
+    {
+        <h2>No group found. Please select a group from the list and retry.</h2>
+    }
+}

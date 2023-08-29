@@ -170,9 +170,11 @@
     },
     "color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name from the Quasar Color Palette for the non-active buttons",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style",
@@ -181,9 +183,11 @@
     },
     "text-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Text color name from the Quasar Color Palette for the ACTIVE buttons",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"
@@ -202,9 +206,11 @@
     },
     "active-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name from the Quasar Color Palette for the ACTIVE button",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style",
@@ -213,9 +219,11 @@
     },
     "active-text-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Text color name from the Quasar Color Palette for the ACTIVE button",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"

@@ -4,12 +4,12 @@
   "libraries": [
     {
       "provider": "cdnjs",
-      "library": "vue@3.2.47",
+      "library": "vue@3.3.4",
       "destination": "wwwroot/lib/vue/"
     },
     {
       "provider": "jsdelivr",
-      "library": "quasar@2.11.10",
+      "library": "quasar@2.12.5",
       "destination": "wwwroot/lib/quasar/",
       "files": [
         "dist/api/AddressbarColor.json",

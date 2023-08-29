@@ -147,9 +147,11 @@
     },
     "color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for component from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style",
@@ -830,7 +832,10 @@
       "desc": "Pagination object; You can also use the 'v-model:pagination' for synching; When not synching it simply initializes the pagination on first render",
       "definition": {
         "sortBy": {
-          "type": "String",
+          "type": [
+            "String",
+            "null"
+          ],
           "desc": "Column name (from column definition)",
           "examples": [
             "calories"
@@ -997,9 +1002,11 @@
         },
         "color": {
           "type": "String",
+          "tsType": "NamedColor",
           "desc": "Color name for component from the Quasar Color Palette",
           "examples": [
             "primary",
+            "teal",
             "teal-10"
           ],
           "category": "style"
@@ -1073,9 +1080,11 @@
         },
         "color": {
           "type": "String",
+          "tsType": "NamedColor",
           "desc": "Color name for component from the Quasar Color Palette",
           "examples": [
             "primary",
+            "teal",
             "teal-10"
           ],
           "category": "style"
@@ -1161,9 +1170,11 @@
         },
         "color": {
           "type": "String",
+          "tsType": "NamedColor",
           "desc": "Color name for component from the Quasar Color Palette",
           "examples": [
             "primary",
+            "teal",
             "teal-10"
           ],
           "category": "style"
@@ -1245,9 +1256,11 @@
         },
         "color": {
           "type": "String",
+          "tsType": "NamedColor",
           "desc": "Color name for component from the Quasar Color Palette",
           "examples": [
             "primary",
+            "teal",
             "teal-10"
           ],
           "category": "style"
@@ -1305,9 +1318,11 @@
         },
         "color": {
           "type": "String",
+          "tsType": "NamedColor",
           "desc": "Color name for component from the Quasar Color Palette",
           "examples": [
             "primary",
+            "teal",
             "teal-10"
           ],
           "category": "style"
@@ -1377,9 +1392,11 @@
         },
         "color": {
           "type": "String",
+          "tsType": "NamedColor",
           "desc": "Color name for component from the Quasar Color Palette",
           "examples": [
             "primary",
+            "teal",
             "teal-10"
           ],
           "category": "style"
@@ -1441,9 +1458,11 @@
         },
         "color": {
           "type": "String",
+          "tsType": "NamedColor",
           "desc": "Color name for component from the Quasar Color Palette",
           "examples": [
             "primary",
+            "teal",
             "teal-10"
           ],
           "category": "style"
@@ -1517,9 +1536,11 @@
         },
         "color": {
           "type": "String",
+          "tsType": "NamedColor",
           "desc": "Color name for component from the Quasar Color Palette",
           "examples": [
             "primary",
+            "teal",
             "teal-10"
           ],
           "category": "style"
@@ -1577,9 +1598,11 @@
         },
         "color": {
           "type": "String",
+          "tsType": "NamedColor",
           "desc": "Color name for component from the Quasar Color Palette",
           "examples": [
             "primary",
+            "teal",
             "teal-10"
           ],
           "category": "style"
@@ -1622,7 +1645,10 @@
           "desc": "Pagination object",
           "definition": {
             "sortBy": {
-              "type": "String",
+              "type": [
+                "String",
+                "null"
+              ],
               "required": true,
               "desc": "Column name (from column definition)",
               "examples": [
@@ -1702,7 +1728,10 @@
           "desc": "Pagination object",
           "definition": {
             "sortBy": {
-              "type": "String",
+              "type": [
+                "String",
+                "null"
+              ],
               "required": true,
               "desc": "Column name (from column definition)",
               "examples": [
@@ -1782,7 +1811,10 @@
           "desc": "Pagination object",
           "definition": {
             "sortBy": {
-              "type": "String",
+              "type": [
+                "String",
+                "null"
+              ],
               "required": true,
               "desc": "Column name (from column definition)",
               "examples": [
@@ -1862,7 +1894,10 @@
           "desc": "Pagination object",
           "definition": {
             "sortBy": {
-              "type": "String",
+              "type": [
+                "String",
+                "null"
+              ],
               "required": true,
               "desc": "Column name (from column definition)",
               "examples": [
@@ -1942,7 +1977,10 @@
           "desc": "Pagination object",
           "definition": {
             "sortBy": {
-              "type": "String",
+              "type": [
+                "String",
+                "null"
+              ],
               "required": true,
               "desc": "Column name (from column definition)",
               "examples": [
@@ -2022,7 +2060,10 @@
           "desc": "Pagination object",
           "definition": {
             "sortBy": {
-              "type": "String",
+              "type": [
+                "String",
+                "null"
+              ],
               "required": true,
               "desc": "Column name (from column definition)",
               "examples": [
@@ -2286,7 +2327,10 @@
           "desc": "The updated pagination object",
           "definition": {
             "sortBy": {
-              "type": "String",
+              "type": [
+                "String",
+                "null"
+              ],
               "required": true,
               "desc": "Column name (from column definition)",
               "examples": [
@@ -2486,7 +2530,10 @@
           "desc": "Pagination object",
           "definition": {
             "sortBy": {
-              "type": "String",
+              "type": [
+                "String",
+                "null"
+              ],
               "desc": "Column name (from column definition)",
               "examples": [
                 "calories"

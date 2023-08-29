@@ -1,0 +1,131 @@
+﻿<h2>Members for group {{group.name}}</h2>
+<q-dialog v-model="syncing">
+    <q-card style="width: 500px; max-width: 80vw;">
+        <q-card-section>
+            Syncing group membership. It may take a while for the server to process the changes. You can close this dialog and check back in a few minutes.
+        </q-card-section>
+    </q-card>
+</q-dialog>
+<q-btn no-caps color="primary" padding="xs md" class="q-mr-md q-mb-sm" label="Sync Members" @@click="syncGroup()"></q-btn>
+<q-btn no-caps color="primary" padding="xs md" class="q-mr-md q-mb-sm" label="Edit Members" :href="'RoleMembers?roleId=' + group.groupRoleId"></q-btn>
+<q-table dense
+         row-key="roleId"
+         :rows="groupMembers.rows"
+         :loading="groupMembers.loading"
+         :columns="groupMembers.columns"
+         :pagination="groupMembers.pagination">
+    <template v-slot:body-cell-active="props">
+        <q-td>
+            <q-icon size="sm" :name="props.row.current ? 'check' : 'close'" :color="props.row.current ? 'green' : 'red'"></q-icon>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-ingroup="props">
+        <q-td>
+            <q-icon size="sm" :name="props.row.isInGroup ? 'check' : 'close'" :color="props.row.isInGroup ? 'green' : 'red'"></q-icon>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-member="props">
+        <q-td>
+            <a :href="'MemberRoles?memberId=' + props.row.memberId">{{props.row.displayName}}</a>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-role="props">
+        <q-td>
+            <span v-if="props.row.roles.length == 0">
+                ***Will be removed***
+            </span>
+            <span v-for="role in props.row.roles">
+                <a :href="'RoleMembers?roleId=' + role.roleId">{{role.role}}</a>
+                <br />
+            </span>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-add="props">
+        <q-td>
+            <span v-for="role in props.row.roles">
+                {{fdate(role.addDate)}}
+                <br />
+            </span>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-start="props">
+        <q-td>
+            <span v-for="role in props.row.roles">
+                {{fdate(role.startDate)}}
+                <br />
+            </span>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-end="props">
+        <q-td>
+            <span v-for="role in props.row.roles">
+                {{fdate(role.endDate)}}
+                <br />
+            </span>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-mod="props">
+        <q-td>
+            <span v-for="role in props.row.roles">
+                {{fdate(role.modDate)}} ({{role.modBy}})
+                <br />
+            </span>
+        </q-td>
+    </template>
+</q-table>
+
+
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    group: {},
+                    groupId: 0,
+                    syncing: false,
+                    groupMembers: new quasarTable({
+                        keys: ["memberId"],
+                        urlBase: "Groups/" + this.groupId + "/Members",
+                        columns: [
+                            { name: "active", label: "Active", field: "current", align: "left", style: "max-width:50px;", format: v => v ? "Yes" : "No" },
+                            { name: "ingroup", label: "In Group", field: "isInGroup", align: "left", style: "max-width:50px;", format: v => v ? "Yes" : "No" },
+                            { name: "loginId", label: "LoginID", field: "loginId", align: "left", style: "max-width:100px;" },
+                            { name: "member", label: "Member", field: "displayName", align: "left", sortable: true },
+                            { name: "role", label: "Role(s)", field: "", align: "left", sortable: false },
+                            { name: "add", label: "Add Date", field: "", align: "left", sortable: false, format: v => formatDate(v) },
+                            { name: "start", label: "Start Date", field: "", align: "left", sortable: false },
+                            { name: "end", label: "End Date", field: "", align: "left", sortable: false },
+                            { name: "mod", label: "Modified", field: "", align: "left", sortable: false }
+                        ],
+                        pagination: { rowsPerPage: 0 }
+                    })
+                }
+            },
+            methods: {
+                loadGroup: async function () {
+                    this.group = await viperFetch(this, "Groups/" + this.groupId)
+                },
+                fdate: function (d) {
+                    return formatDate(d)
+                },
+                syncGroup: function () {
+                    viperFetch(this,
+                        "Groups/" + this.group.groupId + "/Sync",
+                        { method: "POST" },
+                        [this.setSync]
+                    )
+                },
+                setSync: function () {
+                    this.syncing = true
+                }
+            },
+            async mounted() {
+                this.groupId = this.urlParams.get("groupId")
+                this.loadGroup()
+                this.groupMembers.urlBase = "Groups/" + this.groupId + "/Members"
+                this.groupMembers.load()
+            }
+        })
+    </script>
+}

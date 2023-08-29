@@ -50,15 +50,21 @@
       "category": "style",
       "required": false
     },
-    "dark": {
-      "type": "Boolean",
-      "desc": "Notify the component that the background is a dark color",
-      "category": "style"
-    },
     "mini-to-overlay": {
       "type": "Boolean",
       "desc": "Mini mode will expand as an overlay",
       "category": "behavior"
+    },
+    "no-mini-animation": {
+      "type": "Boolean",
+      "desc": "Disables animation of the drawer when toggling mini mode",
+      "category": "behavior",
+      "addedIn": "v2.12.0"
+    },
+    "dark": {
+      "type": "Boolean",
+      "desc": "Notify the component that the background is a dark color",
+      "category": "style"
     },
     "breakpoint": {
       "type": "Number",

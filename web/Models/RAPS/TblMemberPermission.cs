@@ -22,4 +22,6 @@ public partial class TblMemberPermission
     public DateTime? AddDate { get; set; }
 
     public virtual TblPermission Permission { get; set; } = null!;
+
+    public virtual VwAaudUser Member { get; set; } = null!;
 }

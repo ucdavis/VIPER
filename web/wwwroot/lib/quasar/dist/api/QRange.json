@@ -65,18 +65,22 @@
     },
     "color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for component from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"
     },
     "track-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for the track (can be 'transparent' too) from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style",
@@ -94,9 +98,11 @@
     },
     "inner-track-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for the inner track (can be 'transparent' too) from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style",
@@ -114,9 +120,11 @@
     },
     "selection-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for the selection bar (can be 'transparent' too) from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style",
@@ -139,18 +147,22 @@
     },
     "label-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for component from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"
     },
     "label-text-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for component from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"
@@ -317,9 +329,11 @@
     },
     "thumb-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for component from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style",
@@ -409,36 +423,44 @@
     },
     "left-label-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for left label background from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "labels"
     },
     "left-label-text-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for left label text from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "labels"
     },
     "right-label-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for right label background from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "labels"
     },
     "right-label-text-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for right label text from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "labels"
@@ -467,9 +489,11 @@
     },
     "left-thumb-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name (from the Quasar Color Palette) for left thumb",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "labels",
@@ -477,9 +501,11 @@
     },
     "right-thumb-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name (from the Quasar Color Palette) for right thumb",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "labels",

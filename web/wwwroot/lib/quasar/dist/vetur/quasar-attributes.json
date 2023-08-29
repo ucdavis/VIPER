@@ -1379,13 +1379,17 @@
     "type": "number",
     "description": "Width of drawer (in pixels) when in mini mode"
   },
-  "q-drawer/dark": {
-    "type": "boolean",
-    "description": "Notify the component that the background is a dark color"
-  },
   "q-drawer/mini-to-overlay": {
     "type": "boolean",
     "description": "Mini mode will expand as an overlay"
+  },
+  "q-drawer/no-mini-animation": {
+    "type": "boolean",
+    "description": "Disables animation of the drawer when toggling mini mode"
+  },
+  "q-drawer/dark": {
+    "type": "boolean",
+    "description": "Notify the component that the background is a dark color"
   },
   "q-drawer/breakpoint": {
     "type": "number",

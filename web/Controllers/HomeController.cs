@@ -18,6 +18,8 @@ using System.Reflection;
 using Microsoft.AspNetCore.Http.Extensions;
 using Amazon.SimpleSystemsManagement;
 using Amazon.SimpleSystemsManagement.Model;
+using Viper.Classes.SQLContext;
+using Viper.Models.RAPS;
 
 namespace Viper.Controllers
 {    
@@ -28,7 +30,7 @@ namespace Viper.Controllers
         private const string _strTicket = "ticket";
         private readonly IHttpClientFactory _clientFactory;
         private readonly CasSettings _settings;
-        private readonly List<string> _casAttributesToCapture = new List<string>() { "authenticationDate", "credentialType" };
+        private readonly List<string> _casAttributesToCapture = new() { "authenticationDate", "credentialType" };
         public IUserHelper UserHelper;
 
         public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, Classes.SQLContext.AAUDContext aAUDContext)
@@ -49,6 +51,16 @@ namespace Viper.Controllers
             return View();
         }
 
+        [Route("nav")]
+#pragma warning disable IDE0060 // Remove unused parameter
+        public ActionResult<IEnumerable<NavMenuItem>> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER")
+#pragma warning restore IDE0060 // Remove unused parameter
+        {
+            //TODO Populate homepage navigation
+            var nav = new List<NavMenuItem>();
+            return nav;
+        }
+
         /// <summary>
         /// Login function -- redirects to CAS, no VIEW
         /// </summary>
@@ -57,7 +69,7 @@ namespace Viper.Controllers
         [SearchExclude]
         public IActionResult Login()
         {
-            Uri url = new Uri(Request.GetDisplayUrl());
+            Uri url = new(Request.GetDisplayUrl());
             string baseURl = url.GetLeftPart(UriPartial.Authority);
             string returnURL = HttpHelper.GetRootURL().Replace(baseURl, "");
 
@@ -141,11 +153,10 @@ namespace Viper.Controllers
         {
             var flags = BindingFlags.Instance | BindingFlags.NonPublic;
             var entries = HttpHelper.Cache?.GetType().GetField("_entries", flags)?.GetValue(HttpHelper.Cache);
-            var cacheEntries = entries as IDictionary;
 
-            if (cacheEntries != null)
+            if (entries is IDictionary cacheEntries)
             {
-                foreach(string key in cacheEntries.Keys)
+                foreach (string key in cacheEntries.Keys)
                 {
                     HttpHelper.Cache?.Remove(key);
                 }
@@ -180,7 +191,7 @@ namespace Viper.Controllers
 
             if (statusCode.HasValue)
             {
-                var viewName = statusCode.ToString();
+                string? viewName;
                 switch (statusCode)
                 {
                     case 403:
@@ -225,11 +236,9 @@ namespace Viper.Controllers
                     WithDecryption = true
                 };
 
-                using (var client = new AmazonSimpleSystemsManagementClient())
-                {
-                    var response = client.GetParameterAsync(request);
-                    ViewData["TestResult"] = ($"{request.Name} value is: {response.Result.Parameter.Value}");
-                }
+                using var client = new AmazonSimpleSystemsManagementClient();
+                var response = client.GetParameterAsync(request);
+                ViewData["TestResult"] = ($"{request.Name} value is: {response.Result.Parameter.Value}");
             }
             catch (Exception ex)
             {
@@ -257,7 +266,7 @@ namespace Viper.Controllers
         /// </summary>
         /// <param name="targetPath"></param>
         /// <returns>Compiled URL</returns>
-        private string BuildRedirectUri(string targetPath)
+        private static string BuildRedirectUri(string targetPath)
         {          
             return HttpHelper.GetRootURL() + targetPath;
         }

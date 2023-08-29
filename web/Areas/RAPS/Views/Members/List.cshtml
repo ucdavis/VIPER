@@ -1,0 +1,78 @@
+﻿<h2>Search for a user</h2>
+<q-form @@submit="return false;">
+    <q-input 
+        class="q-ml-xs q-mr-xs" 
+        dense 
+        clearable
+        clear-icon="close"
+        outlined 
+        debounce="300" 
+        placeholder="Search for users"
+        v-model="userSearch"
+        autofocus>
+    </q-input>
+</q-form>
+
+<q-table title="Search Results"
+    dense
+    row-key="memberId"
+    :loading="members.loading"
+    :rows="members.rows"
+    :columns="members.columns"
+    :pagination="members.pagination"
+    no-data-label="Search for a user by first or last name"
+    no-results-label="No results found">
+    <template v-slot:body-cell-links="props">
+        <q-td :props="props">
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="policy" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="history" :href="'MemberHistory?memberId=' + props.row.memberId"></q-btn>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-member="props">
+        <q-td :props="props">
+            {{props.row.displayLastName}}, {{props.row.displayFirstName}}
+        </q-td>
+    </template>
+</q-table>
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    userSearch: "",
+                    members: new quasarTable({
+                        keys: ["memberId"],
+                        urlBase: "Members",
+                        columns: [
+                            { name: "links", label: "", field: "", align: "left", style: "width:100px;" },
+                            { name: "member", label: "Member", field: "", align: "left", sortable: true },
+                            { name: "active", label: "Active", field: "current", align: "left", sortable: true, format: v => (v == 1 ? "Y" : "N") },
+                            { name: "countRoles", label: "Count Roles", field: "countRoles", align: "left", sortable: true },
+                            { name: "countPermissions", label: "Count Permissions", field: "countPermissions", align: "left", sortable: true }
+                        ],
+                        pagination: { rowsPerPage: 0 }
+                    })
+                }
+            },
+            methods: {
+                findUsers: async function () {
+                    this.members.urlBase = "Members?search=" + this.userSearch
+                    if (this.userSearch.length >= 3) {
+                        this.members.load(this)
+                    }
+                }
+            },
+            mounted() {
+                this.members.loading = false
+            },
+            watch: {
+                userSearch: function () {
+                    this.findUsers()
+                }
+            }
+        })
+    </script>
+}
