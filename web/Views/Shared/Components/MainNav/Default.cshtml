@@ -2,6 +2,7 @@
 @model Viper.Models.AAUD.AaudUser
 @{
     RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
+    IUserHelper UserHelper = new UserHelper();
 }
 <q-tabs align="left" class="inset-shadow gt-sm">
     <q-route-tab label="1.0" href="@ViewData["OldViperURL"]">

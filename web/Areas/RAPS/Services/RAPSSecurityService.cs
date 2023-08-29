@@ -10,7 +10,7 @@ namespace Viper.Areas.RAPS.Services
 {
     public class RAPSSecurityService
     {
-		private readonly UserWrapper _userWrapper = new UserWrapper();
+		private readonly IUserHelper _userWHelper = new UserHelper();
 		private readonly RAPSContext _context;
 
         public RAPSSecurityService(RAPSContext context)
@@ -50,30 +50,30 @@ namespace Viper.Areas.RAPS.Services
 
         public bool IsAllowedTo(string action, string? instance = null)
         {
-            if(_userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.Admin"))
+            if(_userWHelper.HasPermission(_context, _userWHelper.GetCurrentUser(), "RAPS.Admin"))
             {
                 return true;
             }
             switch(action)
             {
                 case "ViewAllRoles":
-                    return instance  != null && IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.ViewRoles");
+                    return instance  != null && IsVMACSInstance(instance) && _userWHelper.HasPermission(_context, _userWHelper.GetCurrentUser(), "RAPS.ViewRoles");
                 case "AccessInstnace":
                     return instance != null 
                         && (
-                            IsVMACSInstance(instance) && _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.ViewRoles")
-                            || GetControlledRoleIds(_userWrapper.GetCurrentUser()?.MothraId).Count() > 0
+                            IsVMACSInstance(instance) && _userWHelper.HasPermission(_context, _userWHelper.GetCurrentUser(), "RAPS.ViewRoles")
+                            || GetControlledRoleIds(_userWHelper.GetCurrentUser()?.MothraId).Count() > 0
                             );
 				//case "EditRoleMembership": return _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS.EditRoleMembership");
 				default:
-                    return _userWrapper.HasPermission(_context, _userWrapper.GetCurrentUser(), "RAPS." + action);
+                    return _userWHelper.HasPermission(_context, _userWHelper.GetCurrentUser(), "RAPS." + action);
             }
         }
 
         public bool IsAllowedTo(string action, string Instance, TblRole Role)
         {
-            AaudUser? User = _userWrapper.GetCurrentUser();
-            if (_userWrapper.HasPermission(_context, User, "RAPS.Admin"))
+            AaudUser? User = _userWHelper.GetCurrentUser();
+            if (_userWHelper.HasPermission(_context, User, "RAPS.Admin"))
             {
                 return true;
             }
@@ -83,7 +83,7 @@ namespace Viper.Areas.RAPS.Services
                 case "EditRoleMembership":
                     List<int> controlledRoleIds = GetControlledRoleIds(User?.MothraId);
                     return controlledRoleIds.Contains(Role.RoleId)
-                            || _userWrapper.HasPermission(_context, User, "RAPS.EditRoleMembership");
+                            || _userWHelper.HasPermission(_context, User, "RAPS.EditRoleMembership");
                 default:
                     return false;
             }

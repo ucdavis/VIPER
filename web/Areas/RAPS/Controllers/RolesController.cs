@@ -17,7 +17,7 @@ namespace Viper.Areas.RAPS.Controllers
     {
         private readonly RAPSContext _context;
 		public IRAPSSecurityServiceWrapper SecurityService;
-        public IUserWrapper UserWrapper;
+        public IUserHelper UserHelper;
 		public IRAPSAuditServiceWrapper AuditService;
 
 		private static Expression<Func<TblRole, bool>> FilterToInstance(string instance)
@@ -33,7 +33,7 @@ namespace Viper.Areas.RAPS.Controllers
             _context = context;
 			RAPSSecurityService rss = new RAPSSecurityService(_context);
 			SecurityService = new RAPSSecurityServiceWrapper(rss);
-			UserWrapper = new UserWrapper();
+            UserHelper = new UserHelper();
 			RAPSAuditService ras = new RAPSAuditService(_context);
 			AuditService = new RAPSAuditServiceWrapper(ras);
         }
@@ -59,7 +59,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             else
             {
-				List<int> controlledRoleIds = SecurityService.GetControlledRoleIds(UserWrapper.GetCurrentUser()?.MothraId);
+				List<int> controlledRoleIds = SecurityService.GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId);
                 List<TblRole> List = await _context.TblRoles
                     .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
                     .Where(r => r.Application == 0)

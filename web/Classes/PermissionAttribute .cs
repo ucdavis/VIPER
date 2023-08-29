@@ -22,7 +22,7 @@ namespace Web.Authorization
         public string? Allow { get; set; }
 		public string? Deny { get; set; }
 
-		public void OnAuthorization(AuthorizationFilterContext context)
+        public void OnAuthorization(AuthorizationFilterContext context)
         {
             var user = context.HttpContext.User;
 
@@ -35,6 +35,8 @@ namespace Web.Authorization
 
                     if (rapsContext != null && aaudContext != null)
                     {
+
+                        IUserHelper UserHelper = new UserHelper();
                         AaudUser? aaudUser = UserHelper.GetByLoginId(aaudContext, user.Identity.Name);
 
                         if (aaudUser != null)

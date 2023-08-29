@@ -1,4 +1,7 @@
 ﻿@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+@{
+    IUserHelper UserHelper = new UserHelper();
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>

@@ -16,7 +16,8 @@ namespace Viper.Areas.RAPS.Controllers
     public class RAPSController : AreaController
     {
         private readonly Classes.SQLContext.RAPSContext _RAPSContext;
-        private RAPSSecurityService _securityService;
+        private readonly RAPSSecurityService _securityService;
+        public IUserHelper UserHelper;
 
         public int Count { get; set; }
         public string? UserName { get; set; }
@@ -25,6 +26,7 @@ namespace Viper.Areas.RAPS.Controllers
         {
             _RAPSContext = context;
             _securityService = new RAPSSecurityService(context);
+            UserHelper = new UserHelper();
         }
 
         /// <summary>
@@ -34,10 +36,7 @@ namespace Viper.Areas.RAPS.Controllers
         public async Task<ActionResult> Index(string? instance)
         {
             ViewData["KeyColumnName"] = "RoleId";
-            if (instance == null)
-            {
-                instance = _securityService.GetDefaultInstanceForUser();
-            }
+            instance ??= _securityService.GetDefaultInstanceForUser();
 
             return await Task.Run(() => Redirect(string.Format("~/raps/{0}/rolelist", instance)));
 
@@ -60,10 +59,13 @@ namespace Viper.Areas.RAPS.Controllers
             TblRole? selectedRole = (roleId != null) ? await _RAPSContext.TblRoles.FindAsync(roleId) : null;
             TblPermission? selectedPermission = (permissionId != null) ? await _RAPSContext.TblPermissions.FindAsync(permissionId) : null;
             VwAaudUser? selecteduser = (memberId != null) ? _RAPSContext.VwAaudUser.Single(r => r.MothraId == memberId) : null;
-           
-            var nav = new List<NavMenuItem>();
-            //Links to instances
-            nav.Add(new NavMenuItem() { MenuItemText = "Instances", IsHeader = true });
+
+            var nav = new List<NavMenuItem>
+            {
+                //Links to instances
+                new NavMenuItem() { MenuItemText = "Instances", IsHeader = true }
+            };
+
             foreach (string inst in (new[] { "Viper", "ViperForms", "VMACS.VMTH", "VMACS.VMLF", "VMACS.UCVMCSD" }))
             {
                 if(_securityService.IsAllowedTo("AccessInstance", inst))

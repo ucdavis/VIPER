@@ -21,6 +21,7 @@ namespace Web.Authorization
 
         private readonly IServiceScopeFactory scopeFactory;
         private IMemoryCache cache;
+        public IUserHelper UserHelper;
 
         /// <summary>
         /// Construct a new ClaimsTransformer with the memory cache injected
@@ -30,6 +31,7 @@ namespace Web.Authorization
         {
             cache = memoryCache;
             this.scopeFactory = scopeFactory;
+            UserHelper = new UserHelper();
         }
 
         /// <summary>

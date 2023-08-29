@@ -1,6 +1,8 @@
 ﻿@model Viper.Models.AAUD.AaudUser
 @if (Model != null)
 {
+    IUserHelper UserHelper = new UserHelper();
+
     <q-btn round href="@String.Format("https://viper.vetmed.ucdavis.edu/default.cfm?page=userinfo&id={0}", Model.IamId)">
         <q-avatar size="40px">
             <img src="@String.Format("https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid={0}&altphoto=1", Model.MailId)" height="40" id="siteProfileAvatar" />

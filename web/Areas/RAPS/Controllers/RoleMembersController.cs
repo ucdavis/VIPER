@@ -161,6 +161,7 @@ namespace Viper.Areas.RAPS.Controllers
             tblRoleMember.StartDate = roleMemberCreateUpdate.StartDate == null ? null : roleMemberCreateUpdate.StartDate.Value.ToDateTime(new TimeOnly(0, 0, 0));
             tblRoleMember.EndDate = roleMemberCreateUpdate.EndDate == null ? null : roleMemberCreateUpdate.EndDate.Value.ToDateTime(new TimeOnly(0, 0, 0));
             tblRoleMember.ModTime = DateTime.Now;
+            IUserHelper UserHelper = new UserHelper();
             tblRoleMember.ModBy = UserHelper.GetCurrentUser()?.LoginId;
         }
 

@@ -121,7 +121,7 @@ try
         .AddPolicyHandler(retryPolicy)
         .AddPolicyHandler(timeoutPolicy);
 
-    // Settings for HTTP Secure Transpore Service
+    // Settings for HTTP Secure Transport Service
     // See https://aka.ms/aspnetcore-hsts
     builder.Services.AddHsts(options =>
     {
@@ -139,12 +139,11 @@ try
         options.HttpsPort = 443;
     });
 
-
-    // TODO Check to see if we can automatically build these from the conenctionstrings section of appSettings
-    // Define DATABASE Context from Connection Strings and Enviromental Variables
+    // Define DATABASE Contexts
     builder.Services.AddDbContext<AAUDContext>();
     builder.Services.AddDbContext<CoursesContext>();
     builder.Services.AddDbContext<RAPSContext>();
+    builder.Services.AddDbContext<VIPERContext>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();

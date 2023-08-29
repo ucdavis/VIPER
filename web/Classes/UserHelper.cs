@@ -4,6 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Viper.Models;
 using Viper.Models.AAUD;
 using Viper.Models.RAPS;
 using Web.Authorization;
@@ -13,16 +14,34 @@ namespace Viper
     /// <summary>
     /// Utility class (static) with methods for easily get a user from AAUD and find roles and permissions from RAPS
     /// </summary>
-    public class UserHelper
+    public class UserHelper : IUserHelper
     {
-		#region public static IEnumerable<Viper.Models.RAPS.TblRole> GetRoles(RAPSContext rapsContext, AaudUser user)
-		/// <summary>
-		/// Returns a list of roles for the user
-		/// </summary>
-		/// <param name="rapsContext">Dependency injection of the context</param>
-		/// <param name="user">Must pass an AaudUser object</param>
-		/// <returns>Enumerable list of roles for the user</returns>
-		public static IEnumerable<TblRole> GetRoles(RAPSContext rapsContext, AaudUser user)
+        #region public ClientData GetClientData()
+        /// <summary>
+        /// Returns client data for the current context
+        /// </summary>
+        /// <returns>ClientData object</returns>
+        public ClientData GetClientData()
+        {
+            return new ClientData
+            {
+                IP = HttpHelper.HttpContext?.Connection?.RemoteIpAddress?.ToString(),
+                UserAgent = HttpHelper.HttpContext?.Request.Headers["User-Agent"].ToString(),
+                Referrer = HttpHelper.HttpContext?.Request.Headers["Referer"].ToString()
+            };
+
+        }
+        #endregion
+
+
+        #region public IEnumerable<Viper.Models.RAPS.TblRole> GetRoles(RAPSContext rapsContext, AaudUser user)
+        /// <summary>
+        /// Returns a list of roles for the user
+        /// </summary>
+        /// <param name="rapsContext">Dependency injection of the context</param>
+        /// <param name="user">Must pass an AaudUser object</param>
+        /// <returns>Enumerable list of roles for the user</returns>
+        public IEnumerable<TblRole> GetRoles(RAPSContext rapsContext, AaudUser user)
         {
             var result = new List<TblRole>();
 
@@ -58,7 +77,7 @@ namespace Viper
         }
         #endregion
 
-        #region public static bool IsInRole(RAPSContext rapsContext, AaudUser user, string roleName)
+        #region public bool IsInRole(RAPSContext rapsContext, AaudUser user, string roleName)
         /// <summary>
         /// Check if the user is assigned to a role
         /// </summary>
@@ -66,7 +85,7 @@ namespace Viper
         /// <param name="user">Must pass an AaudUser object</param>
         /// <param name="roleName">The name of the role to check</param>
         /// <returns>Whether or not the user is in the role specified</returns>
-        public static bool IsInRole(RAPSContext rapsContext, AaudUser user, string roleName)
+        public bool IsInRole(RAPSContext rapsContext, AaudUser user, string roleName)
         {
             if (user.LoginId == HttpHelper.HttpContext?.User?.Identity?.Name)
             {
@@ -106,7 +125,7 @@ namespace Viper
         }
         #endregion
 
-        #region public static IEnumerable<TblPermission> GetAssignedPermissions(RAPSContext rapsContext, AaudUser user)
+        #region public IEnumerable<TblPermission> GetAssignedPermissions(RAPSContext rapsContext, AaudUser user)
         /// <summary>
         /// Returns a list of permission items assigned directly to the user
         /// </summary>
@@ -114,7 +133,7 @@ namespace Viper
         /// <param name="user">Must pass an AaudUser object</param>
         /// <param name="deny">if true, return assigned permissions with deny flag set</param>
         /// <returns>Enumerable list of permission items assigned directly to the user</returns>
-        public static IEnumerable<TblPermission> GetAssignedPermissions(RAPSContext rapsContext, AaudUser user, Boolean deny=false)
+        public IEnumerable<TblPermission> GetAssignedPermissions(RAPSContext rapsContext, AaudUser user, Boolean deny=false)
         {
             var result = new List<TblPermission>();
 
@@ -150,7 +169,7 @@ namespace Viper
         }
         #endregion
 
-        #region public static IEnumerable<TblPermission> GetInheritedPermissions(RAPSContext rapsContext, AaudUser user)
+        #region public IEnumerable<TblPermission> GetInheritedPermissions(RAPSContext rapsContext, AaudUser user)
         /// <summary>
         /// Returns a list of permission items assigned to the user from roles
         /// </summary>
@@ -158,7 +177,7 @@ namespace Viper
         /// <param name="user">Must pass an AaudUser object</param>
         /// <param name="deny">if true, return permissions with deny flag set on tblRolePermissions</param>
         /// <returns>Enumerable list of permission items assigned to the user from roles</returns>
-        public static IEnumerable<TblPermission> GetInheritedPermissions(RAPSContext rapsContext, AaudUser user, Boolean deny = false)
+        public IEnumerable<TblPermission> GetInheritedPermissions(RAPSContext rapsContext, AaudUser user, Boolean deny = false)
         {
             var result = new List<TblPermission>();
 
@@ -196,14 +215,14 @@ namespace Viper
         }
         #endregion
 
-        #region public static IEnumerable<TblPermission> GetAllPermissions(RAPSContext rapsContext, AaudUser user)
+        #region public IEnumerable<TblPermission> GetAllPermissions(RAPSContext rapsContext, AaudUser user)
         /// <summary>
         /// Returns a list of all permission items assigned to the user either from roles or directly
         /// </summary>
         /// <param name="rapsContext">Dependency injection of the context</param>
         /// <param name="user">Must pass an AaudUser object</param>
         /// <returns>Returns a list of all permission items assigned to the user either from roles or directly</returns>
-        public static IEnumerable<TblPermission> GetAllPermissions(RAPSContext rapsContext, AaudUser user)
+        public IEnumerable<TblPermission> GetAllPermissions(RAPSContext rapsContext, AaudUser user)
         {
             var assignedDeny = GetAssignedPermissions(rapsContext, user, true);
             var inheritedDeny = GetInheritedPermissions(rapsContext, user, true);
@@ -216,7 +235,7 @@ namespace Viper
         }
 		#endregion
 
-		#region public static bool HasPermission(RAPSContext? rapsContext, AaudUser? user, string permissionName)
+		#region public bool HasPermission(RAPSContext? rapsContext, AaudUser? user, string permissionName)
 		/// <summary>
 		/// Check if the user is assigned to a role
 		/// </summary>
@@ -224,13 +243,13 @@ namespace Viper
 		/// <param name="user">Must pass an AaudUser object</param>
 		/// <param name="roleName">The name of the role to check</param>
 		/// <returns>Whether or not the user is in the role specified</returns>
-		public static bool HasPermission(RAPSContext? rapsContext, AaudUser? user, string permissionName)
+		public bool HasPermission(RAPSContext? rapsContext, AaudUser? user, string permissionName)
         {
             if (rapsContext != null && user != null)
             {
                 var permissions = GetAllPermissions(rapsContext, user);
 
-                TblPermission test = new TblPermission();
+                TblPermission test = new();
 
                 if (permissions.Any(p => p.Permission.ToLower() == permissionName.ToLower()))
                 {
@@ -244,14 +263,14 @@ namespace Viper
         }
         #endregion
 
-        #region public static AaudUser? GetByLoginId(AAUDContext aaudContext, string? loginId)
+        #region public AaudUser? GetByLoginId(AAUDContext aaudContext, string? loginId)
         /// <summary>
         /// Load a AaudUser object by a loginid (campus user name)
         /// </summary>
         /// <param name="aaudContext">Dependency injection of the context</param>
         /// <param name="loginId">The login id of the user we are loading</param>
         /// <returns>An AaudUser object for the given loginid</returns>
-        public static AaudUser? GetByLoginId(AAUDContext? aaudContext, string? loginId)
+        public AaudUser? GetByLoginId(AAUDContext? aaudContext, string? loginId)
         {
             if (loginId != null)
             {
@@ -301,17 +320,17 @@ namespace Viper
         }
         #endregion
 
-        #region public static AaudUser? GetCurrentUser()
+        #region public AaudUser? GetCurrentUser()
         /// <summary>
         /// Gets the current logged in user
         /// </summary>
         /// <returns>An AaudUser object for the current user</returns>
-        public static AaudUser? GetCurrentUser()
+        public AaudUser? GetCurrentUser()
         {
             try
             {
                 AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
-                AaudUser? currentUser = UserHelper.GetByLoginId(aaudContext, HttpHelper.HttpContext?.User?.Identity?.Name);
+                AaudUser? currentUser = GetByLoginId(aaudContext, HttpHelper.HttpContext?.User?.Identity?.Name);
 
                 return currentUser;
             }
@@ -323,12 +342,12 @@ namespace Viper
         }
         #endregion
 
-        #region public static AaudUser? GetTrueCurrentUser()
+        #region public AaudUser? GetTrueCurrentUser()
         /// <summary>
         /// Gets the current true (underlying user if emulating) logged in user
         /// </summary>
         /// <returns>An AaudUser object for the true current user</returns>
-        public static AaudUser? GetTrueCurrentUser()
+        public AaudUser? GetTrueCurrentUser()
         {
             try
             {
@@ -336,7 +355,7 @@ namespace Viper
                 {
                     var claims = HttpHelper.HttpContext?.User.Claims.ToList();
                     AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
-                    AaudUser? trueUser = UserHelper.GetByLoginId(aaudContext, claims?.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)?.Value);
+                    AaudUser? trueUser = GetByLoginId(aaudContext, claims?.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)?.Value);
 
                     if (trueUser != null) { 
                         return trueUser; 
@@ -357,18 +376,17 @@ namespace Viper
         }
         #endregion
 
-        #region public static bool IsEmulating()
+        #region public bool IsEmulating()
         /// <summary>
         /// Checks if the current user is emulating
         /// </summary>
         /// <returns>If emulating, returns true, if not: false</returns>
-        public static bool IsEmulating()
+        public bool IsEmulating()
         {
             string? trueLoginId = GetTrueCurrentUser()?.LoginId;
 
             if (trueLoginId != null)
             {
-                AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
 
                 // check 
                 if (HttpHelper.Cache != null)
@@ -387,5 +405,28 @@ namespace Viper
         }
         #endregion
 
+    }
+
+    public interface IUserHelper
+    {
+        ClientData GetClientData();
+
+        IEnumerable<TblRole> GetRoles(RAPSContext rapsContext, AaudUser user);
+
+        bool IsInRole(RAPSContext rapsContext, AaudUser user, string roleName);
+
+        IEnumerable<TblPermission> GetAssignedPermissions(RAPSContext rapsContext, AaudUser user, Boolean deny = false);
+
+        IEnumerable<TblPermission> GetAllPermissions(RAPSContext rapsContext, AaudUser user);
+
+        bool HasPermission(RAPSContext? rapsContext, AaudUser? user, string permissionName);
+
+        AaudUser? GetByLoginId(AAUDContext? aaudContext, string? loginId);
+
+        AaudUser? GetCurrentUser();
+
+        AaudUser? GetTrueCurrentUser();
+
+        bool IsEmulating();
     }
 }

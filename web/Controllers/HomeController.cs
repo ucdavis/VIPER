@@ -29,12 +29,14 @@ namespace Viper.Controllers
         private readonly IHttpClientFactory _clientFactory;
         private readonly CasSettings _settings;
         private readonly List<string> _casAttributesToCapture = new List<string>() { "authenticationDate", "credentialType" };
+        public IUserHelper UserHelper;
 
         public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, Classes.SQLContext.AAUDContext aAUDContext)
         {
             this._clientFactory = clientFactory;
             this._settings = settingsOptions.Value;
             this._aAUDContext = aAUDContext;
+            this.UserHelper = new UserHelper();
         }
         /// <summary>
         /// VIPER 2 home page

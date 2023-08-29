@@ -13,9 +13,12 @@ namespace Viper.Areas.RAPS.Services
         }
 
         private readonly RAPSContext _context;
+        public IUserHelper UserHelper;
+
         public RAPSAuditService(RAPSContext context)
         {
             _context = context;
+            UserHelper = new UserHelper();
         }
 
         /// <summary>
