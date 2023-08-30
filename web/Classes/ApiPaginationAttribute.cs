@@ -25,14 +25,12 @@ namespace Viper.Classes
 
         public override void OnResultExecuting(ResultExecutingContext filterContext)
         {
-            ObjectResult? objectResult = filterContext.Result as ObjectResult;
-            if (objectResult == null)
+            if (filterContext.Result is not ObjectResult objectResult)
             {
                 return;
             }
 
-            ApiResponse? apiResponse = objectResult.Value as ApiResponse;
-            if(apiResponse != null && apiResponse?.Result is ApiPaginatedResponse)
+            if (objectResult.Value is ApiResponse apiResponse && apiResponse?.Result is ApiPaginatedResponse)
             {
                 ApiPaginatedResponse apiPaginatedResponse = (ApiPaginatedResponse)apiResponse.Result;
                 ApiPagination? pagination = apiPaginatedResponse.Pagination;
@@ -44,7 +42,8 @@ namespace Viper.Classes
                 pagination.Pages = (int)Math.Ceiling((double)pagination.TotalRecords / pagination.PerPage);
 
                 bool pageValid = pagination.Page >= 0 && (pagination.Page <= pagination.Pages || pagination.Pages == 0);
-                if (!pageValid || pagination.PerPage <= 0 || pagination.PerPage > MaxPerPage)
+                int maxPerPage = (MaxPerPage <= 0) ? pagination.TotalRecords : MaxPerPage;
+                if (!pageValid || pagination.PerPage <= 0 || pagination.PerPage > maxPerPage)
                 {
                     apiResponse = new ApiResponse(HttpStatusCode.BadRequest, false)
                     {
@@ -54,7 +53,7 @@ namespace Viper.Classes
                 }
                 else
                 {
-                    
+
                     apiResponse.Result = apiPaginatedResponse.Data;
                     apiResponse.Pagination = pagination;
                 }
@@ -73,7 +72,7 @@ namespace Viper.Classes
                 perPage = DefaultPerPage;
             }
 
-            ApiPagination pagination = new ApiPagination()
+            ApiPagination pagination = new()
             {
                 Page = page,
                 PerPage = perPage,

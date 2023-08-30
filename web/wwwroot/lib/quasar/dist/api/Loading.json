@@ -6,6 +6,7 @@
   "injection": "$q.loading",
   "quasarConfOptions": {
     "propName": "loading",
+    "type": "Object",
     "definition": {
       "delay": {
         "type": "Number",
@@ -50,33 +51,40 @@
       },
       "spinnerColor": {
         "type": "String",
+        "tsType": "NamedColor",
         "desc": "Color name for spinner from the Quasar Color Palette",
         "examples": [
           "primary",
+          "teal",
           "teal-10"
         ],
         "category": "style"
       },
       "messageColor": {
         "type": "String",
+        "tsType": "NamedColor",
         "desc": "Color name for text from the Quasar Color Palette",
         "examples": [
           "primary",
+          "teal",
           "teal-10"
         ],
         "category": "style"
       },
       "backgroundColor": {
         "type": "String",
+        "tsType": "NamedColor",
         "desc": "Color name for background from the Quasar Color Palette",
         "examples": [
           "primary",
+          "teal",
           "teal-10"
         ],
         "category": "style"
       },
       "spinner": {
-        "type": "String",
+        "type": "Component",
+        "configFileType": "String",
         "desc": "One of the QSpinners",
         "examples": [
           "QSpinnerAudio"
@@ -146,27 +154,33 @@
             },
             "spinnerColor": {
               "type": "String",
+              "tsType": "NamedColor",
               "desc": "Color name for spinner from the Quasar Color Palette",
               "examples": [
                 "primary",
+                "teal",
                 "teal-10"
               ],
               "category": "style"
             },
             "messageColor": {
               "type": "String",
+              "tsType": "NamedColor",
               "desc": "Color name for text from the Quasar Color Palette",
               "examples": [
                 "primary",
+                "teal",
                 "teal-10"
               ],
               "category": "style"
             },
             "backgroundColor": {
               "type": "String",
+              "tsType": "NamedColor",
               "desc": "Color name for background from the Quasar Color Palette",
               "examples": [
                 "primary",
+                "teal",
                 "teal-10"
               ],
               "category": "style"
@@ -253,27 +267,33 @@
             },
             "spinnerColor": {
               "type": "String",
+              "tsType": "NamedColor",
               "desc": "Color name for spinner from the Quasar Color Palette",
               "examples": [
                 "primary",
+                "teal",
                 "teal-10"
               ],
               "category": "style"
             },
             "messageColor": {
               "type": "String",
+              "tsType": "NamedColor",
               "desc": "Color name for text from the Quasar Color Palette",
               "examples": [
                 "primary",
+                "teal",
                 "teal-10"
               ],
               "category": "style"
             },
             "backgroundColor": {
               "type": "String",
+              "tsType": "NamedColor",
               "desc": "Color name for background from the Quasar Color Palette",
               "examples": [
                 "primary",
+                "teal",
                 "teal-10"
               ],
               "category": "style"

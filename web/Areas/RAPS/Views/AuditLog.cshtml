@@ -1,0 +1,146 @@
+﻿<h2>Audit Trail</h2>
+<q-form v-bind="auditForm" @@submit="getAudit(this)">
+    <div class="row q-mb-sm q-gutter-sm">
+        <q-input outlined dense label="Start Date" class="col col-md-3 col-lg-2"
+                 type="date" v-model="auditForm.startDate"></q-input>
+        <q-select outlined dense options-dense clearable class="col col-md-4 col-lg-3"
+                  Label="AuditType" v-model="auditForm.auditType" :options="auditTypes"></q-select>
+        <q-select outlined dense options-dense clearable class="col col-md-4 col-lg-3"
+                  label="Role" v-model="auditForm.role" :options="roles" option-value="roleId" option-label="friendlyName"></q-select>
+    </div>
+    <div class="row q-mb-sm q-gutter-sm">
+        <q-input type="date" outlined dense label="End Date" v-model="auditForm.endDate" class="col col-md-3 col-lg-2"></q-input>
+        <q-select outlined dense options-dense clearable label="Modified By" class="col col-md-4 col-lg-3"
+                  v-model="auditForm.modBy" :options="modByUsers" option-value="loginId" option-label="name"></q-select>
+        <q-input outlined dense clearable label="Search" class="col col-md-4 col-lg-3"
+                type="text" v-model="auditForm.search"></q-input>
+    </div>
+    <div class="row q-mb-sm q-gutter-sm">
+        <q-input dense clearable borderless type="text" label="Permission" class="col col-md-3 col-lg-2" 
+            v-model="auditForm.permissionId" v-if="auditForm.permissionId != null" @@clear="getAudit(this)"></q-input>
+        <q-input dense clearable borderless type="text" label="Modified User" class="col col-md-3 col-lg-2"
+                 v-model="auditForm.modifiedUser" v-if="auditForm.modifiedUser != null" @@clear="getAudit(this)"></q-input>
+    </div>
+    <div class="row q-mb-sm">
+        <div class="col col-md-11 col-lg-8 text-center">
+            <q-btn color="primary" label="Search" type="submit" icon="search" align="left"></q-btn>
+        </div>
+    </div>
+</q-form>
+
+<q-banner v-if="auditTable.rows.length == 1000" rounded dense class="bg-warning q-my-md">
+    Only the most recent 1000 records that match the criteria above will be displayed. To return all records, use additional criteria to limit the results.
+</q-banner>
+
+<q-table dense
+         row-key="auditRecordId"
+         :loading="auditTable.loading"
+         :rows="auditTable.rows"
+         :columns="auditTable.columns"
+         :filter="auditTable.filter"
+         :pagination="auditTable.pagination">
+    <template v-slot:body-cell-detail="props">
+        <q-td :props="props">
+            <div v-if="props.row.memberName ?? '' != ''">
+                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt" @@click="addAuditCriteria('modifiedUser', props.row.memberId)"></q-btn>
+                User:
+                {{props.row.memberName}}
+                <br/>
+            </div>
+            <div v-if="props.row.roleId ?? '' != ''">
+                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt" 
+                    @@click="addAuditCriteria('role', {'roleId': props.row.roleId, 'friendlyName': props.row.role ?? 'Deleted role'})"></q-btn>
+                Role:
+                {{props.row.role ?? 'Deleted role'}}
+                <br />
+            </div>
+            <div v-if="props.row.permissionId ?? '' != ''">
+                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt"
+                       @@click="addAuditCriteria('permissionId', props.row.permissionId)"></q-btn>
+                Permission:
+                {{props.row.permission ?? 'Deleted permission'}}
+                <br />
+            </div>
+            <span class="q-ml-lg" v-if="props.row.detail ?? '' != ''">{{props.row.detail}}</span>
+        </q-td>
+    </template>
+</q-table>
+
+@section Scripts{
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    auditTypes: [],
+                    modByUsers: [],
+                    roles: [],
+                    auditForm: {
+                        startDate: null,
+                        endDate: null,
+                        auditType: null,
+                        modBy: null,
+                        modifiedUser: null,
+                        role: null,
+                        search: null,
+                        permissionId: null
+                    },
+                    auditTable: new quasarTable({
+                        keys: "auditRecordId",
+                        urlBase: "Audit",
+                        columns: [
+                            { name: "detail", field: "", label: "Object / Detail", align: "left" },
+                            { name: "auditType", label: "AuditType", field: "audit", sortable: true, align: "left" },
+                            { name: "comment", label: "Comment", field: "Comment", sortable: true, align: "left" },
+                            { name: "modBy", label: "Mod By", field: "modByUserName", sortable: true, align: "left" },
+                            { name: "modTime", label: "Mod Time", field: "modTime", sortable: true, align: "left", format: v => formatDateTime(v) }
+                        ]
+                    })
+                }
+            },
+            methods: {
+                getAudit: function() {
+                    var params = []
+                    for (const [key, value] of Object.entries(this.auditForm)) {
+                        if(key == "role" && value != null && (value.roleId ?? "") != "") {
+                            params.push("roleId=" + value.roleId)
+                        }
+                        else if(key == "modBy" && value != null && (value.loginId ?? "") != "") {
+                            params.push("modBy=" + value.loginId)
+                        }
+                        else if(value != null && value !="") {
+                            params.push(key + "=" + value)
+                        }
+                    }
+                    this.auditTable.urlBase = 'Audit?' + params.join("&")
+                    this.auditTable.load(this)
+                },
+                addAuditCriteria: function(paramName, paramValue) {
+                    this.auditForm[paramName] = paramValue
+                    this.getAudit()
+                }
+            },
+            async mounted() {
+                //load roles, audit types and modifiedby users lists
+                this.roles = await viperFetch(this, "Roles?allInstances=true&application=0")
+                this.auditTypes = await viperFetch(this, "Audit/AuditTypes")
+                this.modByUsers = await viperFetch(this, "Audit/ModifiedByUsers")
+                this.auditTable.loading = false
+
+                var auditCriteria = getItemFromStorage("auditFormCriteria")
+                if(auditCriteria) {
+                    this.auditForm = auditCriteria
+                    this.getAudit()
+                }
+            },
+            watch: {
+                auditForm: {
+                    handler(v) {
+                        putItemInStorage("auditFormCriteria", v)
+                    },
+                    deep: true
+                }
+            }
+        })
+    </script>
+}

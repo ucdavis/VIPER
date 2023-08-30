@@ -5,9 +5,9 @@ namespace Viper.Models.RAPS;
 
 public partial class OuGroupRole
 {
-    public int Ougroupid { get; set; }
+    public int OugroupId { get; set; }
 
-    public int Roleid { get; set; }
+    public int RoleId { get; set; }
 
     public bool IsGroupRole { get; set; }
 

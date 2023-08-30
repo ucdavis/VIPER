@@ -19,18 +19,22 @@
     },
     "bg-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name (from the Quasar Color Palette) for chat bubble background",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"
     },
     "text-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name (from the Quasar Color Palette) for chat bubble text",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"

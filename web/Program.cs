@@ -1,3 +1,5 @@
+using Amazon;
+using Amazon.Extensions.NETCore.Setup;
 using Amazon.Runtime.CredentialManagement;
 using Joonasw.AspNetCore.SecurityHeaders;
 using Microsoft.AspNetCore.Authentication;
@@ -43,7 +45,12 @@ try
     try
     {
         // AWS Configurations
-        builder.Configuration.AddSystemsManager("/" + builder.Environment.EnvironmentName).AddSystemsManager("/Shared");
+        builder.Configuration.AddSystemsManager("/" + builder.Environment.EnvironmentName, new AWSOptions
+        {
+            Region = RegionEndpoint.USWest1
+        }).AddSystemsManager("/Shared", new AWSOptions { 
+            Region = RegionEndpoint.USWest1
+        });
     }
     catch (Exception ex)
     {
@@ -121,7 +128,7 @@ try
         .AddPolicyHandler(retryPolicy)
         .AddPolicyHandler(timeoutPolicy);
 
-    // Settings for HTTP Secure Transpore Service
+    // Settings for HTTP Secure Transport Service
     // See https://aka.ms/aspnetcore-hsts
     builder.Services.AddHsts(options =>
     {
@@ -140,11 +147,12 @@ try
     });
 
 
-    // TODO Check to see if we can automatically build these from the conenctionstrings section of appSettings
+    // TODO Check to see if we can automatically build these from the connectionstrings section of appSettings
     // Define DATABASE Context from Connection Strings and Enviromental Variables
     builder.Services.AddDbContext<AAUDContext>();
     builder.Services.AddDbContext<CoursesContext>();
     builder.Services.AddDbContext<RAPSContext>();
+    builder.Services.AddDbContext<VIPERContext>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();

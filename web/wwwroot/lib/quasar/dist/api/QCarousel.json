@@ -139,18 +139,22 @@
     },
     "control-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for QCarousel button controls (arrows, navigation) from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"
     },
     "control-text-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for text color of QCarousel button controls (arrows, navigation) from the Quasar Color Palette",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"

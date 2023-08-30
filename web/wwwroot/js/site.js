@@ -7,19 +7,44 @@
     If the date is not valid, returns empty string
 */
 function formatDateForDateInput(d) {
-    var dt = new Date(d)
+    if (d == null || d == "") {
+        return ""
+    }
+    d = d.split("T")[0]
+    var dt = new Date(d + "T00:00:00")
     return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf()))
         ? (dt.getFullYear() + "-" + ("" + (dt.getMonth() + 1)).padStart(2, "0") + "-" + ("" + (dt.getDate())).padStart(2, "0"))
         : "";
 }
 
 /*
+    Returns a date formatted with toLocalDateString if possible
+*/
+function formatDate(d) {
+    if (d == null || d == "") {
+        return ""
+    }
+    d = d.split("T")[0]
+    var dt = new Date(d + "T00:00:00")
+    return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf())) ? dt.toLocaleDateString() : ""
+}
+
+function formatDateTime(d, options) {
+    if (d == null || d == "") {
+        return ""
+    }
+    var dt = new Date(d)
+    return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf())) ? dt.toLocaleString("en-US", options) : ""
+}
+
+
+/*
  * Validation error to include the errors object for .NET 400
  */
 class ValidationError extends Error {
-    constructor(message, errorList) {
+    constructor(message, errors) {
         super(message)
-        this.errorList = errorList
+        this.errors = errors
     }
 }
 /*
@@ -35,8 +60,8 @@ async function viperFetch(VueApp, url, data = {}, additionalFunctions = [], erro
     return await fetch(url, data)
         //handle 4xx and 5xx status codes
         .then(r => handleViperFetchError(r))
-        //return json (unless we got 204 No Content)
-        .then(r => r.status == "204" ? r : r.json())
+        //return json (unless we got 204 No Content or 202 Accepted)
+        .then(r => (r.status == "204" || r.status == "202") ? r : r.json())
         //check for success flag and result being defined. call additional functions
         .then(r => {
             var result = r
@@ -68,7 +93,10 @@ async function handleViperFetchError(response) {
             throw Error("An error occurred")
         }
 
-        throw new ValidationError(result.errorMessage ? result.errorMessage : response.statusText, result?.errors)
+        var message = result.errorMessage != null ? result.errorMessage
+            : result.detail != null ? result.detail
+            : result.statusText
+        throw new ValidationError(message, result?.errors)
     }
     return response
 }
@@ -81,17 +109,17 @@ function showViperFetchError(VueApp, error, errorTarget) {
     try {
         if (errorTarget) {
             errorTarget.message = error.message
-            if (typeof error.errorList == Object) {
-                for (key in error.errorList) {
+            if (typeof error.errors == "object") {
+                for (key in error.errors) {
                     errorTarget[key] = {
                         error: true,
-                        message: error.errorList[key].join("")
+                        message: error.errors[key].join("")
                     }
                 }
             }
             else {
-                for (var i = 0; i < 5 && i < error.errorList.length; i++) {
-                    errorTarget.message += " " + error.errorList[i];
+                for (var i = 0; i < 5 && i < error.errors.length; i++) {
+                    errorTarget.message += " " + error.errors[i];
                 }
             }
             shownError = true
@@ -117,4 +145,13 @@ async function loadViperLeftNav() {
     this.urlParams.forEach((val, paramName) => qs.push(paramName + "=" + val))
     qs = qs.length ? ("?" + qs.join("&")) : ""
     this.viperNavMenu = await viperFetch(this, "nav" + qs)
+}
+
+function getItemFromStorage(key) {
+    var val = window.sessionStorage.getItem(key)
+    return val != null ? JSON.parse(val) : null
+}
+
+function putItemInStorage(key, val) {
+    window.sessionStorage.setItem(key, JSON.stringify(val))
 }

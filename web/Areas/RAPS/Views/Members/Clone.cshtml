@@ -1,0 +1,181 @@
+﻿<h2>Select source and target users</h2>
+<q-form @@submit="return false;">
+    <div class="row q-mb-sm">
+        <q-select outlined dense options-dense clearable use-input input-debounce="300" class="col col-md-4 col-lg-3"
+                  label="Source user" v-model="sourceUser" @@filter="sourceUserSearch" :options="sourceUserResults">
+        </q-select>
+        <q-select outlined dense options-dense clearable use-input input-debounce="300" class="col col-md-4 col-lg-3 q-ml-md"
+                  label="Target user" v-model="targetUser" @@filter="targetUserSearch" :options="targetUserResults">
+        </q-select>
+    </div>
+
+    <div class="vertical-middle q-mb-md">
+        <q-btn-group outline rounded v-if="dataLoaded" class="q-mt-sm">
+            <q-btn no-caps :outline="showWhich != 'Roles'" color="primary" class="q-mb-sm" @@click="showWhich='Roles'">
+                <q-icon name="security" title="Show Roles To Copy" class="q-mr-sm"></q-icon>
+                Roles to Copy
+                {{selectedRoles.length ? `(${selectedRoles.length})` : ""}}
+            </q-btn>
+            <q-btn no-caps :outline="showWhich != 'Permissions'" color="primary" class="q-mb-sm" @@click="showWhich='Permissions'">
+                <q-icon name="lock" title="Show Permissions To Copy" class="q-mr-sm"></q-icon>
+                Permissions to Copy
+                {{selectedPermissions.length ? `(${selectedPermissions.length})` : ""}}
+            </q-btn>
+        </q-btn-group>
+
+        <q-btn no-caps color="primary" class="q-ml-lg" @@click="submitClone(this)" v-if="dataLoaded">
+            Submit Changes
+        </q-btn>
+    </div>
+</q-form>
+
+<q-table 
+        dense 
+        v-if="dataLoaded && showWhich == 'Roles'"
+        row-key="roleId"
+        selection="multiple"
+        v-model:selected="selectedRoles"
+        :rows="cloneObject.roles"
+        :columns="rolesColumns"
+        :pagination="{rowsPerPage:0}"
+        no-data-label="Roles are the same">
+    <template v-slot:body-cell-action="props">
+        <q-td :props="props">
+            <q-icon size="xs" :name="!props.row?.source?.roleId ? 'close' : (props.row?.target?.roleId ? 'edit' : 'add')"
+                    :color="!props.row?.source?.roleId ? 'red' : (props.row?.target?.roleId ? 'grey' : 'green')"></q-icon>
+        </q-td>
+    </template>
+</q-table>
+
+<q-table dense
+        v-if="dataLoaded && showWhich == 'Permissions'"
+        row-key="permissionId"
+        selection="multiple"
+        v-model:selected="selectedPermissions"
+        :rows="cloneObject.permissions"
+        :columns="permissionColumns"
+        :pagination="{rowsPerPage:0}"
+        no-data-label="Permissions are the same">
+    <template v-slot:body-cell-action="props">
+        <q-td :props="props">
+            <q-icon size="xs" :name="!props.row?.source?.permissionId ? 'close' : (props.row?.target?.permissionId ? 'edit' : 'add')"
+                    :color="!props.row?.source?.permissionId ? 'red' : (props.row?.target?.permissionId ? 'grey' : 'green')"></q-icon>
+        </q-td>
+    </template>
+</q-table>
+
+@section Scripts {
+    <script asp-add-nonce="true">
+        //form to select source and target user 
+        createVueApp({
+            data() {
+                return {
+                    activeOnly: false,
+                    sourceUser: getItemFromStorage("sourceUser") ?? { label: "", value: "" },
+                    sourceUserResults: [],
+                    targetUser: getItemFromStorage("targetUser") ?? { label: "", value: "" },
+                    targetUserResults: [],
+                    rolesColumns: [
+                        { name: "action", field: "", align: "left", sortable: true },
+                        { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
+                        { name: "role", label: "Role", field: "role", align: "left", sortable: true },
+                        { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v => formatDate(v) },
+                        { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
+                    ],
+                    permissionColumns: [
+                        { name: "action", field: "", align: "left", sortable: true },
+                        { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
+                        { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
+                        { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v => formatDate(v) },
+                        { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
+                    ]
+                }
+            },
+            methods: {
+                formatDate: formatDate,
+                sourceUserSearch: function (val, update, abort) {
+                    this.findUsers(val, update, abort, false)
+                },
+                targetUserSearch: function (val, update, abort) {
+                    this.findUsers(val, update, abort, true)
+                },
+                //search for a user and update either result array
+                findUsers: function (val, update, abort, target) {
+                    if (val.length < 3) {
+                        abort()
+                        return
+                    }
+                    update(() => {
+                        var res = viperFetch(this, "Members?active=recent&search=" + val)
+                            .then(data => {
+                                data = data.map(m => ({
+                                    label: (!m.current ? "[Inactive]" : "") + m.displayLastName + ", " + m.displayFirstName,
+                                    value: m.memberId
+                                }))
+                                if (target)
+                                    this.targetUserResults = data
+                                else
+                                    this.sourceUserResults = data
+                            })
+
+                    })
+                }
+            },
+            watch: {
+                sourceUser: function () {
+                    putItemInStorage("sourceUser", this.sourceUser)
+                    this.checkUsersSelected()
+                },
+                targetUser: function () {
+                    putItemInStorage("targetUser", this.targetUser)
+                    this.checkUsersSelected()
+                }
+            }
+        })
+
+        //tables of roles and permissions to clone
+        createVueApp({
+            data() {
+                return {
+                    cloneObject: {},
+                    showWhich: "Roles",
+                    selectedPermissions: [],
+                    selectedRoles: [],
+                    dataLoaded: false
+                }
+            },
+            methods: {
+                //if both source and target user are selected, load the roles/permissions to clone
+                checkUsersSelected: function () {
+                    if (this?.sourceUser?.value.length && this?.targetUser?.value.length) {
+                        var res = viperFetch(this, `Members/${this.sourceUser.value}/cloneTo/${this.targetUser.value}`)
+                            .then(data => {
+                                this.cloneObject = data
+                                this.dataLoaded = true
+                            })
+                    }
+                },
+                submitClone: async function () {
+                    var b = {
+                        roleIds: this.selectedRoles.map(r => r.roleId),
+                        permissionIds: this.selectedPermissions.map(p => p.permissionId)
+                    }
+                    await viperFetch(this,
+                        `Members/${this.sourceUser.value}/CloneTo/${this.targetUser.value}`,
+                        {
+                            method: "POST",
+                            body: JSON.stringify(b),
+                            headers: { "Content-Type": "application/json" }
+                        },
+                        [this.checkUsersSelected]
+                    )
+                    this.selectedRoles = []
+                    this.selectedPermissions = []
+                }
+            },
+            mounted() {
+                this.checkUsersSelected()
+            }
+        })
+    </script>
+}

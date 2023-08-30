@@ -59,27 +59,33 @@
     },
     "active-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "The color to be attributed to the text of the active tab",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"
     },
     "active-bg-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "The color to be attributed to the background of the active tab",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"
     },
     "indicator-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "The color to be attributed to the indicator (the underline) of the active tab",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"

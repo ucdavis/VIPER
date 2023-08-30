@@ -2,7 +2,7 @@
   "$schema": "",
   "framework": "vue",
   "name": "quasar",
-  "version": "2.11.10",
+  "version": "2.12.5",
   "contributions": {
     "html": {
       "types-syntax": "typescript",
@@ -40,7 +40,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/ajax-bar"
             },
             {
@@ -120,7 +120,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/avatar"
             },
             {
@@ -129,7 +129,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/avatar"
             },
             {
@@ -185,7 +185,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/badge"
             },
             {
@@ -194,7 +194,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/badge"
             },
             {
@@ -405,7 +405,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "The color of the active breadcrumb, which can be any color from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "The color of the active breadcrumb, which can be any color from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/breadcrumbs",
               "default": "\"primary\""
             },
@@ -425,7 +425,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "The color used to color the separator, which can be any color from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "The color used to color the separator, which can be any color from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/breadcrumbs"
             },
             {
@@ -791,7 +791,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/button"
             },
             {
@@ -800,7 +800,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/button"
             },
             {
@@ -1203,7 +1203,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/button-dropdown"
             },
             {
@@ -1212,7 +1212,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/button-dropdown"
             },
             {
@@ -1710,7 +1710,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/button-toggle"
             },
             {
@@ -1719,7 +1719,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/button-toggle"
             },
             {
@@ -1728,7 +1728,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/button-toggle",
               "default": "\"primary\""
             },
@@ -1738,7 +1738,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/button-toggle"
             },
             {
@@ -2277,7 +2277,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for QCarousel button controls (arrows, navigation) from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for QCarousel button controls (arrows, navigation) from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/carousel"
             },
             {
@@ -2286,7 +2286,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for text color of QCarousel button controls (arrows, navigation) from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for text color of QCarousel button controls (arrows, navigation) from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/carousel"
             },
             {
@@ -2587,7 +2587,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name (from the Quasar Color Palette) for chat bubble background\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name (from the Quasar Color Palette) for chat bubble background\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/chat"
             },
             {
@@ -2596,7 +2596,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name (from the Quasar Color Palette) for chat bubble text\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name (from the Quasar Color Palette) for chat bubble text\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/chat"
             },
             {
@@ -2859,7 +2859,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/checkbox"
             },
             {
@@ -3030,7 +3030,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/chip"
             },
             {
@@ -3039,7 +3039,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/chip"
             },
             {
@@ -3243,7 +3243,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the arc progress from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the arc progress from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/circular-progress"
             },
             {
@@ -3252,7 +3252,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the center part of the component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the center part of the component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/circular-progress"
             },
             {
@@ -3261,7 +3261,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the track of the component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the track of the component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/circular-progress"
             },
             {
@@ -3617,7 +3617,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/date"
             },
             {
@@ -3626,7 +3626,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/date"
             },
             {
@@ -4291,22 +4291,32 @@
               "default": "60"
             },
             {
-              "name": "dark",
-              "value": {
-                "kind": "expression",
-                "type": "boolean"
-              },
-              "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/layout/drawer",
-              "type": "boolean"
-            },
-            {
               "name": "mini-to-overlay",
               "value": {
                 "kind": "expression",
                 "type": "boolean"
               },
               "description": "Mini mode will expand as an overlay",
+              "doc-url": "https://v2.quasar.dev/layout/drawer",
+              "type": "boolean"
+            },
+            {
+              "name": "no-mini-animation",
+              "value": {
+                "kind": "expression",
+                "type": "boolean"
+              },
+              "description": "Disables animation of the drawer when toggling mini mode",
+              "doc-url": "https://v2.quasar.dev/layout/drawer",
+              "type": "boolean"
+            },
+            {
+              "name": "dark",
+              "value": {
+                "kind": "expression",
+                "type": "boolean"
+              },
+              "description": "Notify the component that the background is a dark color",
               "doc-url": "https://v2.quasar.dev/layout/drawer",
               "type": "boolean"
             },
@@ -4707,7 +4717,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Font color (from the Quasar Palette) of buttons and text in the toolbar\n\nExamples:\nprimary\nteal-10",
+              "description": "Font color (from the Quasar Palette) of buttons and text in the toolbar\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/editor"
             },
             {
@@ -4716,7 +4726,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Text color (from the Quasar Palette) of toolbar commands\n\nExamples:\nprimary\nteal-10",
+              "description": "Text color (from the Quasar Palette) of toolbar commands\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/editor"
             },
             {
@@ -4896,7 +4906,13 @@
               "doc-url": "https://v2.quasar.dev/vue-components/editor"
             }
           ],
-          "slots": [],
+          "slots": [
+            {
+              "name": "[command]",
+              "description": "Content for the given command in the toolbar",
+              "doc-url": "https://v2.quasar.dev/vue-components/editor"
+            }
+          ],
           "description": "QEditor - Quasar component",
           "doc-url": "https://v2.quasar.dev/vue-components/editor"
         },
@@ -5383,7 +5399,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/floating-action-button"
             },
             {
@@ -5392,7 +5408,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/floating-action-button"
             },
             {
@@ -5728,7 +5744,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/floating-action-button"
             },
             {
@@ -5737,7 +5753,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/floating-action-button"
             },
             {
@@ -6043,7 +6059,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the label from the Quasar Color Palette; Overrides the 'color' prop; The difference from 'color' prop is that the label will always have this color, even when field is not focused\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the label from the Quasar Color Palette; Overrides the 'color' prop; The difference from 'color' prop is that the label will always have this color, even when field is not focused\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/field"
             },
             {
@@ -6052,7 +6068,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/field"
             },
             {
@@ -6061,7 +6077,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/field"
             },
             {
@@ -6607,7 +6623,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the label from the Quasar Color Palette; Overrides the 'color' prop; The difference from 'color' prop is that the label will always have this color, even when field is not focused\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the label from the Quasar Color Palette; Overrides the 'color' prop; The difference from 'color' prop is that the label will always have this color, even when field is not focused\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/file"
             },
             {
@@ -6616,7 +6632,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/file"
             },
             {
@@ -6625,7 +6641,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/file"
             },
             {
@@ -7323,7 +7339,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/icon"
             },
             {
@@ -7547,7 +7563,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for default Spinner (unless using a 'loading' slot)\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for default Spinner (unless using a 'loading' slot)\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/img"
             },
             {
@@ -7803,7 +7819,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette for the inner Spinner (unless using the default slot)\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette for the inner Spinner (unless using the default slot)\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/inner-loading"
             },
             {
@@ -8037,7 +8053,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the label from the Quasar Color Palette; Overrides the 'color' prop; The difference from 'color' prop is that the label will always have this color, even when field is not focused\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the label from the Quasar Color Palette; Overrides the 'color' prop; The difference from 'color' prop is that the label will always have this color, even when field is not focused\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/input"
             },
             {
@@ -8046,7 +8062,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/input"
             },
             {
@@ -8055,7 +8071,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/input"
             },
             {
@@ -8543,6 +8559,11 @@
             {
               "name": "default",
               "description": "Default slot in the devland unslotted content of the component",
+              "doc-url": "https://v2.quasar.dev/vue-components/intersection"
+            },
+            {
+              "name": "hidden",
+              "description": "Slot for content to render when component is not on screen; Example: a text that the user can search for with the browser's search function",
               "doc-url": "https://v2.quasar.dev/vue-components/intersection"
             }
           ],
@@ -9061,7 +9082,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/knob"
             },
             {
@@ -9070,7 +9091,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the center part of the component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the center part of the component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/knob"
             },
             {
@@ -9079,7 +9100,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the track of the component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the track of the component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/knob"
             },
             {
@@ -9321,7 +9342,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/linear-progress"
             },
             {
@@ -9330,7 +9351,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component's track from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component's track from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/linear-progress"
             },
             {
@@ -9942,7 +9963,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/option-group"
             },
             {
@@ -10432,7 +10453,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name from the Quasar Color Palette for the non-active buttons\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name from the Quasar Color Palette for the non-active buttons\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/pagination",
               "default": "\"primary\""
             },
@@ -10442,7 +10463,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Text color name from the Quasar Color Palette for the ACTIVE buttons\n\nExamples:\nprimary\nteal-10",
+              "description": "Text color name from the Quasar Color Palette for the ACTIVE buttons\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/pagination"
             },
             {
@@ -10460,7 +10481,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name from the Quasar Color Palette for the ACTIVE button\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name from the Quasar Color Palette for the ACTIVE button\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/pagination",
               "default": "\"primary\""
             },
@@ -10470,7 +10491,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Text color name from the Quasar Color Palette for the ACTIVE button\n\nExamples:\nprimary\nteal-10",
+              "description": "Text color name from the Quasar Color Palette for the ACTIVE button\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/pagination"
             },
             {
@@ -10720,7 +10741,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/popup-edit",
               "default": "\"primary\""
             },
@@ -11081,7 +11102,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the icon from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the icon from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/pull-to-refresh"
             },
             {
@@ -11090,7 +11111,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for background of the icon container from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for background of the icon container from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/pull-to-refresh"
             },
             {
@@ -11245,7 +11266,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/radio"
             },
             {
@@ -11428,7 +11449,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/range"
             },
             {
@@ -11437,7 +11458,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the track (can be 'transparent' too) from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the track (can be 'transparent' too) from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/range"
             },
             {
@@ -11455,7 +11476,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the inner track (can be 'transparent' too) from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the inner track (can be 'transparent' too) from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/range"
             },
             {
@@ -11473,7 +11494,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the selection bar (can be 'transparent' too) from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the selection bar (can be 'transparent' too) from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/range"
             },
             {
@@ -11501,7 +11522,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/range"
             },
             {
@@ -11510,7 +11531,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/range"
             },
             {
@@ -11596,7 +11617,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/range"
             },
             {
@@ -11694,7 +11715,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for left label background from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for left label background from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/range"
             },
             {
@@ -11703,7 +11724,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for left label text from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for left label text from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/range"
             },
             {
@@ -11712,7 +11733,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for right label background from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for right label background from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/range"
             },
             {
@@ -11721,7 +11742,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for right label text from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for right label text from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/range"
             },
             {
@@ -11748,7 +11769,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name (from the Quasar Color Palette) for left thumb\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name (from the Quasar Color Palette) for left thumb\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/range"
             },
             {
@@ -11757,7 +11778,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name (from the Quasar Color Palette) for right thumb\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name (from the Quasar Color Palette) for right thumb\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/range"
             }
           ],
@@ -11904,7 +11925,7 @@
                 "kind": "expression",
                 "type": "string|any[]"
               },
-              "description": "Color name for component from the Quasar Color Palette; v1.5.0+: If an array is provided each rating value will use the corresponding color in the array (0 based)\n\nExamples:\nprimary\nteal-10\nprimary\nteal-10\n[\"accent\", \"grey-7\"] ",
+              "description": "Color name for component from the Quasar Color Palette; v1.5.0+: If an array is provided each rating value will use the corresponding color in the array (0 based)\n\nExamples:\nprimary\nteal\nteal-10\nprimary\nteal-10\n[\"accent\", \"grey-7\"] ",
               "doc-url": "https://v2.quasar.dev/vue-components/rating"
             },
             {
@@ -11913,7 +11934,7 @@
                 "kind": "expression",
                 "type": "string|any[]"
               },
-              "description": "Color name from the Quasar Palette for selected icons\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name from the Quasar Palette for selected icons\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/rating"
             },
             {
@@ -11922,7 +11943,7 @@
                 "kind": "expression",
                 "type": "string|any[]"
               },
-              "description": "Color name from the Quasar Palette for half selected icons\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name from the Quasar Palette for half selected icons\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/rating"
             },
             {
@@ -12478,7 +12499,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the label from the Quasar Color Palette; Overrides the 'color' prop; The difference from 'color' prop is that the label will always have this color, even when field is not focused\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the label from the Quasar Color Palette; Overrides the 'color' prop; The difference from 'color' prop is that the label will always have this color, even when field is not focused\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/select"
             },
             {
@@ -12487,7 +12508,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/select"
             },
             {
@@ -12496,7 +12517,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/select"
             },
             {
@@ -13326,7 +13347,7 @@
                 "kind": "expression",
                 "type": "boolean|string"
               },
-              "description": "If set to Boolean true, the left and right margins will be set to 16px. If set to 'item' then it will match a QItem's design. If set to 'item-thumbnail' then it will match the design of a QItem with a thumbnail on the left side\n\nExamples:\nitem\nitem-thumbnail",
+              "description": "If set to Boolean true, the left and right margins will be set to 16px. If set to 'item' then it will match a QItem's design. If set to 'item-thumbnail' then it will match the design of a QItem with a thumbnail on the left side",
               "doc-url": "https://v2.quasar.dev/vue-components/separator"
             },
             {
@@ -13354,7 +13375,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/separator"
             }
           ],
@@ -13490,7 +13511,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for left-side background from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for left-side background from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/slide-item"
             },
             {
@@ -13499,7 +13520,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for right-side background from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for right-side background from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/slide-item"
             },
             {
@@ -13508,7 +13529,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for top-side background from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for top-side background from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/slide-item"
             },
             {
@@ -13517,7 +13538,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for bottom-side background from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for bottom-side background from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/slide-item"
             },
             {
@@ -13790,7 +13811,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/slider"
             },
             {
@@ -13799,7 +13820,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the track (can be 'transparent' too) from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the track (can be 'transparent' too) from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/slider"
             },
             {
@@ -13817,7 +13838,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the inner track (can be 'transparent' too) from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the inner track (can be 'transparent' too) from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/slider"
             },
             {
@@ -13835,7 +13856,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for the selection bar (can be 'transparent' too) from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for the selection bar (can be 'transparent' too) from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/slider"
             },
             {
@@ -13863,7 +13884,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/slider"
             },
             {
@@ -13872,7 +13893,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/slider"
             },
             {
@@ -13958,7 +13979,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/slider"
             },
             {
@@ -14129,7 +14150,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             },
             {
@@ -14169,7 +14190,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14199,7 +14220,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14229,7 +14250,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14259,7 +14280,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14289,7 +14310,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14319,7 +14340,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14349,7 +14370,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14379,7 +14400,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14409,7 +14430,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14439,7 +14460,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14469,7 +14490,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14499,7 +14520,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14529,7 +14550,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14559,7 +14580,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14589,7 +14610,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14619,7 +14640,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14649,7 +14670,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14679,7 +14700,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14709,7 +14730,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14739,7 +14760,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14769,7 +14790,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -14799,7 +14820,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/spinners"
             }
           ],
@@ -15013,7 +15034,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/stepper"
             },
             {
@@ -15059,7 +15080,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/stepper"
             },
             {
@@ -15077,7 +15098,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/stepper"
             },
             {
@@ -15095,7 +15116,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/stepper"
             },
             {
@@ -15338,7 +15359,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/stepper"
             },
             {
@@ -15356,7 +15377,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/stepper"
             },
             {
@@ -15374,7 +15395,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/stepper"
             },
             {
@@ -15392,7 +15413,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/stepper"
             },
             {
@@ -15870,7 +15891,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/table",
               "default": "\"grey-8\""
             },
@@ -17092,7 +17113,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "The color to be attributed to the text of the active tab\n\nExamples:\nprimary\nteal-10",
+              "description": "The color to be attributed to the text of the active tab\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/tabs"
             },
             {
@@ -17101,7 +17122,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "The color to be attributed to the background of the active tab\n\nExamples:\nprimary\nteal-10",
+              "description": "The color to be attributed to the background of the active tab\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/tabs"
             },
             {
@@ -17110,7 +17131,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "The color to be attributed to the indicator (the underline) of the active tab\n\nExamples:\nprimary\nteal-10",
+              "description": "The color to be attributed to the indicator (the underline) of the active tab\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/tabs"
             },
             {
@@ -17306,7 +17327,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/time"
             },
             {
@@ -17315,7 +17336,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/time"
             },
             {
@@ -17510,7 +17531,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/timeline"
             },
             {
@@ -17615,7 +17636,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/timeline"
             },
             {
@@ -17810,7 +17831,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/toggle"
             },
             {
@@ -17877,7 +17898,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Override default icon color (for truthy state only); Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Override default icon color (for truthy state only); Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/toggle"
             }
           ],
@@ -18251,7 +18272,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/tree"
             },
             {
@@ -18260,7 +18281,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for controls (like checkboxes) from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for controls (like checkboxes) from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/tree"
             },
             {
@@ -18269,7 +18290,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/tree"
             },
             {
@@ -18278,7 +18299,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for selected nodes (from the Quasar Color Palette)\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for selected nodes (from the Quasar Color Palette)\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/tree"
             },
             {
@@ -18693,7 +18714,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Color name for component from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/uploader"
             },
             {
@@ -18702,7 +18723,7 @@
                 "kind": "expression",
                 "type": "string"
               },
-              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal-10",
+              "description": "Overrides text color (if needed); Color name from the Quasar Color Palette\n\nExamples:\nprimary\nteal\nteal-10",
               "doc-url": "https://v2.quasar.dev/vue-components/uploader"
             },
             {
@@ -19342,7 +19363,7 @@
           "doc-url": "https://v2.quasar.dev/vue-directives/scroll",
           "value": {
             "kind": "expression",
-            "type": "Function"
+            "type": "Function|undefined"
           }
         },
         {
@@ -19356,7 +19377,7 @@
           "doc-url": "https://v2.quasar.dev/vue-directives/scroll-fire",
           "value": {
             "kind": "expression",
-            "type": "Function"
+            "type": "Function|undefined"
           }
         },
         {
@@ -19387,7 +19408,7 @@
           ],
           "value": {
             "kind": "expression",
-            "type": "Function"
+            "type": "Function|undefined"
           }
         },
         {
@@ -19468,7 +19489,7 @@
           ],
           "value": {
             "kind": "expression",
-            "type": "Function"
+            "type": "Function|undefined"
           }
         },
         {
@@ -19554,7 +19575,7 @@
           ],
           "value": {
             "kind": "expression",
-            "type": "Function"
+            "type": "Function|undefined"
           }
         },
         {
@@ -19615,7 +19636,7 @@
           ],
           "value": {
             "kind": "expression",
-            "type": "Function"
+            "type": "Function|undefined"
           }
         }
       ]

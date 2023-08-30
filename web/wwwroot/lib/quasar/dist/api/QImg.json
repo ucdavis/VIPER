@@ -208,9 +208,11 @@
     },
     "spinner-color": {
       "type": "String",
+      "tsType": "NamedColor",
       "desc": "Color name for default Spinner (unless using a 'loading' slot)",
       "examples": [
         "primary",
+        "teal",
         "teal-10"
       ],
       "category": "style"

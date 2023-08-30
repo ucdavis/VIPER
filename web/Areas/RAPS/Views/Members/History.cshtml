@@ -1,0 +1,66 @@
+﻿<h2>
+    History for {{member.displayFirstName}} {{member.displayLastName}}
+</h2>
+<q-form>
+    <q-select dense options-dense clearable class="col col-md-4 col-lg-3"
+            :options="historyDates" v-model="startDate" label="Select to view changes since this date"></q-select>
+</q-form>
+
+<q-table dense
+        :rows="auditLog"
+        :columns="auditLogColumns"
+        :pagination="{rowsPerPage:0}">
+    <template v-slot:body-cell-area="props">
+        <q-td :props="props">
+            {{props.row?.role != null ? 'Role' : 'Permission'}}
+        </q-td>
+    </template>
+    <template v-slot:body-cell-object="props">
+        <q-td :props="props">
+            {{props.row?.role != null ? props.row.role : props.row.permission}}
+        </q-td>
+    </template>
+</q-table>
+
+@section Scripts {
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    memberId: 0,
+                    member: {},
+                    historyDates: [],
+                    startDate: null,
+                    auditLog: [],
+                    auditLogColumns: [
+                        { name: "date", label: "Date", field: "modTime", sortable: true, align: "left", format: v => formatDate(v), classes: row => row.undone ? "bg-grey-3 text-strike" : "" },
+                        { name: "area", label: "Area", field: "", sortable: true, align: "left", classes: row => row.undone ? "bg-grey-3 text-strike" : "" },
+                        { name: "object", label: "Role / Permission", field: "", sortable: true, align: "left", classes: row => row.undone ? "bg-grey-3 text-strike" : "" },
+                        { name: "action", label: "Action", field: "audit", sortable: true, align: "left", classes: row => row.undone ? "bg-grey-3 text-strike" : "" },
+                        { name: "by", label: "By", field: "modByUserName", sortable: true, align: "left", classes: row => row.undone ? "bg-grey-3 text-strike" : "" },
+                        { name: "detail", label: "Detail", field: "detail", sortable: true, align: "left", classes: row => row.undone ? "bg-grey-3 text-strike" : "" },
+                        { name: "comment", label: "Comment", field: "comment", sortable: true, align: "left", classes: row => row.undone ? "bg-grey-3 text-strike" : "" }
+                    ]   
+                }
+            },
+            methods: {
+                getAuditLog: async function() {
+                    this.auditLog = await viperFetch(this, "members/" + this.memberId + "/history?startDate=" + this.startDate.value)
+                }
+            },
+            async mounted() {
+                this.memberId = this.urlParams.get("memberId")
+                this.member = await viperFetch(this, "members/" + this.memberId)
+                this.historyDates = (await viperFetch(this, "members/" + this.memberId + "/history/dates"))
+                    .map(d => {
+                        return {label: formatDate(d), value: d}
+                    })
+            },
+            watch: {
+                startDate: function() {
+                    this.getAuditLog()
+                }
+            }
+        })
+    </script>
+}

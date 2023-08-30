@@ -1,4 +1,7 @@
 ﻿@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+@{
+    IUserHelper UserHelper = new UserHelper();
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -158,6 +161,7 @@
         var csrfToken = "@Xsrf.GetAndStoreTokens(Context).RequestToken";
     </script>
     <script src="~/js/site.js"></script>
+    <script src="~/js/vueSetup.js"></script>
     <script asp-add-nonce="true">
         // define global Vue objects
         const { createApp, ref, computed, watch, nextTick, toRaw } = Vue;
@@ -212,6 +216,9 @@
     </q-dialog>
 
     <script asp-add-nonce="true">
+        for(idx in vueApps) {
+            vueApps[idx].create()
+        }
 
         // initialize VUE and Quasar using global objects
         createApp({

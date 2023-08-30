@@ -6,6 +6,7 @@
   "injection": "$q.notify",
   "quasarConfOptions": {
     "propName": "notify",
+    "type": "Object",
     "definition": {
       "type": {
         "type": "String",
@@ -17,18 +18,22 @@
       },
       "color": {
         "type": "String",
+        "tsType": "NamedColor",
         "desc": "Color name for component from the Quasar Color Palette",
         "examples": [
           "primary",
+          "teal",
           "teal-10"
         ],
         "category": "style"
       },
       "textColor": {
         "type": "String",
-        "desc": "Color name for component from the Quasar Color Palette",
+        "tsType": "NamedColor",
+        "desc": "Overrides text color (if needed); Color name from the Quasar Color Palette",
         "examples": [
           "primary",
+          "teal",
           "teal-10"
         ],
         "category": "style"
@@ -64,9 +69,11 @@
       },
       "iconColor": {
         "type": "String",
+        "tsType": "NamedColor",
         "desc": "Color name for component from the Quasar Color Palette",
         "examples": [
           "primary",
+          "teal",
           "teal-10"
         ],
         "category": "style",
@@ -101,9 +108,11 @@
       },
       "spinnerColor": {
         "type": "String",
+        "tsType": "NamedColor",
         "desc": "Color name for component from the Quasar Color Palette",
         "examples": [
           "primary",
+          "teal",
           "teal-10"
         ],
         "category": "style",
@@ -151,18 +160,22 @@
       },
       "badgeColor": {
         "type": "String",
+        "tsType": "NamedColor",
         "desc": "Color name for the badge from the Quasar Color Palette",
         "examples": [
           "primary",
+          "teal",
           "teal-10"
         ],
         "category": "style"
       },
       "badgeTextColor": {
         "type": "String",
+        "tsType": "NamedColor",
         "desc": "Color name for the badge text from the Quasar Color Palette",
         "examples": [
           "primary",
+          "teal",
           "teal-10"
         ],
         "category": "style"
@@ -242,6 +255,48 @@
         "default": 5000,
         "required": false
       },
+      "actions": {
+        "type": "Array",
+        "tsType": "QNotifyAction",
+        "desc": "Notification actions (buttons); Unless 'noDismiss' is true, clicking/tapping on the button will close the notification; Also check 'closeBtn' convenience prop",
+        "definition": {
+          "handler": {
+            "type": "Function",
+            "configFileType": null,
+            "desc": "Function to be executed when the button is clicked/tapped",
+            "params": null,
+            "returns": null,
+            "examples": [
+              "() => { console.log('button clicked') }"
+            ]
+          },
+          "noDismiss": {
+            "type": "Boolean",
+            "desc": "Do not dismiss the notification when the button is clicked/tapped"
+          },
+          "...": {
+            "type": "Any",
+            "desc": "Any other QBtn prop expect 'onClick' (use 'handler' instead, only possible with UI config)",
+            "examples": [
+              "label: 'Learn more'",
+              "color: 'primary'"
+            ]
+          }
+        },
+        "examples": [
+          "[ { label: 'Show', handler: () => {}, 'aria-label': 'Button label' }, { icon: 'map', handler: () => {}, color: 'yellow' }, { label: 'Learn more', noDismiss: true, handler: () => {} } ]"
+        ]
+      },
+      "onDismiss": {
+        "type": "Function",
+        "configFileType": null,
+        "desc": "Function to call when notification gets dismissed",
+        "params": null,
+        "returns": null,
+        "examples": [
+          "() => { console.log('Dismissed') }"
+        ]
+      },
       "closeBtn": {
         "type": [
           "Boolean",
@@ -283,18 +338,22 @@
             },
             "color": {
               "type": "String",
+              "tsType": "NamedColor",
               "desc": "Color name for component from the Quasar Color Palette",
               "examples": [
                 "primary",
+                "teal",
                 "teal-10"
               ],
               "category": "style"
             },
             "textColor": {
               "type": "String",
-              "desc": "Color name for component from the Quasar Color Palette",
+              "tsType": "NamedColor",
+              "desc": "Overrides text color (if needed); Color name from the Quasar Color Palette",
               "examples": [
                 "primary",
+                "teal",
                 "teal-10"
               ],
               "category": "style"
@@ -330,9 +389,11 @@
             },
             "iconColor": {
               "type": "String",
+              "tsType": "NamedColor",
               "desc": "Color name for component from the Quasar Color Palette",
               "examples": [
                 "primary",
+                "teal",
                 "teal-10"
               ],
               "category": "style",
@@ -370,9 +431,11 @@
             },
             "spinnerColor": {
               "type": "String",
+              "tsType": "NamedColor",
               "desc": "Color name for component from the Quasar Color Palette",
               "examples": [
                 "primary",
+                "teal",
                 "teal-10"
               ],
               "category": "style",
@@ -420,18 +483,22 @@
             },
             "badgeColor": {
               "type": "String",
+              "tsType": "NamedColor",
               "desc": "Color name for the badge from the Quasar Color Palette",
               "examples": [
                 "primary",
+                "teal",
                 "teal-10"
               ],
               "category": "style"
             },
             "badgeTextColor": {
               "type": "String",
+              "tsType": "NamedColor",
               "desc": "Color name for the badge text from the Quasar Color Palette",
               "examples": [
                 "primary",
+                "teal",
                 "teal-10"
               ],
               "category": "style"
@@ -596,7 +663,7 @@
           "type": "Object",
           "tsType": "QNotifyOptions",
           "required": true,
-          "desc": "Notification options (See 'opts' param of 'create()' for object properties)"
+          "desc": "Notification options except 'ignoreDefaults' (See 'opts' param of 'create()' for object properties)"
         }
       }
     },
@@ -615,7 +682,7 @@
           "type": "Object",
           "tsType": "QNotifyOptions",
           "required": true,
-          "desc": "Notification options (See 'opts' param of 'create()' for object properties)"
+          "desc": "Notification options except 'ignoreDefaults' (See 'opts' param of 'create()' for object properties)"
         }
       }
     }

@@ -1,0 +1,105 @@
+﻿<h2>Role Templates</h2>
+<q-dialog v-model="templates.showForm" @@hide="templates.clear(this)">
+    <q-card style="width: 500px; max-width: 80vw;">
+        <q-form @@submit="templates.submit(this)" v-model="templates.object">
+            <q-card-section>
+                <div class="text-h6">{{templates.editing ? "Edit" : "Create"}} Role Template</div>
+                <div class="bg-negative text-white q-pa-sm rounded" v-if="templates.errors?.message?.length > 0">{{templates.errors.message}}</div>
+            </q-card-section>
+            <q-card-section>
+                <q-input outlined v-model="templates.object.templateName" label="Role"
+                         :error="templates.errors?.templateName?.error"
+                         :error-message="templates.errors?.templateName?.message"></q-input>
+                <q-input outlined v-model="templates.object.description" label="Description" type="textarea"></q-input>
+            </q-card-section>
+            <q-card-actions align="evenly">
+                <q-btn no-caps :label="templates.editing ? 'Update Role Template' : 'Add Role Template'" type="submit" padding="xs sm" color="primary"></q-btn>
+                <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="templates.delete(this)" color="red" v-if="templates.editing"></q-btn>
+            </q-card-actions>
+        </q-form>
+    </q-card>
+</q-dialog>
+
+<div class="q-pa-md">
+    <q-table dense
+             row-key="roleTemplateId"
+             :loading="templates.loading"
+             :rows="templates.rows"
+             :columns="templates.columns"
+             :filter="templates.filter"
+             :filter-method="filterTemplates"
+             :pagination="templates.pagination">
+        <template v-slot:top-left="props">
+            <q-btn no-caps color="green" label="Add Role Template" padding="xs md" @@click="templates.showForm = true"></q-btn>
+        </template>
+        <template v-slot:top-right="props">
+            <q-input class="q-ml-xs q-mr-xs" v-model="templates.filter" dense outlined debounce="300" placeholder="Filter Results">
+                <template v-slot:append>
+                    <q-icon name="filter_alt" />
+                </template>
+            </q-input>
+        </template>
+        <template v-slot:body-cell-links="props">
+            <q-td :props="props">
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleTemplateApply?roleTemplateId=' + props.row.roleTemplateId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'RoleTemplateRoles?roleTemplateId=' + props.row.roleTemplateId"></q-btn>
+            </q-td>
+        </template>
+        <template v-slot:body-cell-roletemplate="props">
+            <q-td :props="props">
+                {{props.row.templateName}}
+                <br />
+                <span style="font-size:.9em">{{props.row.description}}</span>
+            </q-td>
+        </template>
+        <template v-slot:body-cell-action="props">
+            <q-td :props="props">
+                <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs sm" @@click="templates.selectRow(props.row)"></q-btn>
+            </q-td>
+        </template>
+    </q-table>
+</div>
+
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    templates: new quasarTable({
+                        keys: "roleTemplateId",
+                        urlBase: "RoleTemplates",
+                        columns: [
+                            { name: "links", label: "", field: "", style: "width:75px;" },
+                            { name: "roletemplate", label: "Template", field: "", sortable: true, align: "left" }, 
+                            { name: "action", label: "", field: "" }
+                        ],
+                        pagination: {rowsPerPage: 0},
+                        createBody: function (vueApp, data) {
+                            return {
+                                roleTemplateId: data.roleTemplateId,
+                                templateName: data.templateName,
+                                description: data.description
+                            }
+                        }
+                    })
+                }
+            },
+            methods: {
+                filterTemplates: function(rows, terms, cols, getCellValue) {
+                    return rows.reduce((result, row) => 
+                        {
+                            if (row.templateName.toLowerCase().indexOf(terms.toLowerCase()) != -1
+                                || row.description.toLowerCase().indexOf(terms.toLowerCase()) != -1) {
+                                result.push(row)
+                            }
+                            return result
+                        }, [])
+                }
+            },
+            async mounted() {
+                this.templates.load()
+            }
+        })
+    </script>
+}
