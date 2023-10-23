@@ -49,11 +49,14 @@ try
         {
             Region = RegionEndpoint.USWest1            
         };
+        
+        /*
         if(builder.Environment.EnvironmentName == "Test")
         {
             awsOptions.ProfilesLocation = "P:\\viper.net\\awscredentials";
             awsOptions.Profile = "default";
         }
+        */
         builder.Configuration
             .AddSystemsManager("/" + builder.Environment.EnvironmentName, awsOptions)
             .AddSystemsManager("/Shared", awsOptions);
