@@ -51,7 +51,8 @@ try
         };
         if(builder.Environment.EnvironmentName == "Test")
         {
-            awsOptions.ProfilesLocation = "P:\\viper.net";
+            awsOptions.ProfilesLocation = "P:\\viper.net\\awscredentials";
+            awsOptions.Profile = "default";
         }
         builder.Configuration
             .AddSystemsManager("/" + builder.Environment.EnvironmentName, awsOptions)
