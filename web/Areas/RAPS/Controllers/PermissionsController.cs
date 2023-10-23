@@ -34,14 +34,6 @@ namespace Viper.Areas.RAPS.Controllers
             _auditService = new RAPSAuditService(context);
         }
 
-        private static Expression<Func<TblPermission, bool>> FilterToInstance(string instance)
-        {
-            return r =>
-                instance.ToUpper() == "VIPER"
-                ? !r.Permission.ToUpper().StartsWith("VMACS.") && !r.Permission.ToUpper().StartsWith("VIPERFORMS")
-                : r.Permission.StartsWith("VMACS.");
-        }
-
         // GET: Permissions
         [HttpGet]
         [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
@@ -53,7 +45,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             return await _context.TblPermissions
                 .Include(p => p.TblMemberPermissions)
-                .Where(FilterToInstance(instance))
+                .Where(RAPSSecurityService.FilterPermissionsToInstance(instance))
                 .OrderBy(p => p.Permission)
                 .ToListAsync();
         }

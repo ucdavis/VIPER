@@ -45,12 +45,17 @@ try
     try
     {
         // AWS Configurations
-        builder.Configuration.AddSystemsManager("/" + builder.Environment.EnvironmentName, new AWSOptions
+        AWSOptions awsOptions = new()
         {
-            Region = RegionEndpoint.USWest1
-        }).AddSystemsManager("/Shared", new AWSOptions { 
-            Region = RegionEndpoint.USWest1
-        });
+            Region = RegionEndpoint.USWest1            
+        };
+        if(builder.Environment.EnvironmentName == "Test")
+        {
+            awsOptions.ProfilesLocation = "P:\\viper.net";
+        }
+        builder.Configuration
+            .AddSystemsManager("/" + builder.Environment.EnvironmentName, awsOptions)
+            .AddSystemsManager("/Shared", awsOptions);
     }
     catch (Exception ex)
     {
