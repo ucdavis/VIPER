@@ -42,11 +42,11 @@
                     <span id="mainLayoutViper">VIPER 2.0</span>
                     @if (HttpHelper.Environment?.EnvironmentName == "Development")
                     {
-                        <span id="mainLayoutViperMode"> - Development</span>
+                        <span id="mainLayoutViperMode">Development</span>
                     }
                     else if (HttpHelper.Environment?.EnvironmentName == "Test")
                     {
-                        <span id="mainLayoutViperMode"> - Test</span>
+                        <span id="mainLayoutViperMode">Test</span>
                     }
                 </q-btn>
                
@@ -284,7 +284,20 @@
                     vueUnmountedActions.shift().call(this);
                 }
             }
-        }).use(Quasar).mount('body');
+        }).use(Quasar, {
+            config: {
+                brand: {
+                    primary: '#022851',
+                    secondary: '#00B2E3',
+                    accent: '#C6007E',
+                    dark: '#191919',
+                    positive: '#3DAE2B',
+                    negative: '#F93549',
+                    info: '#00C4B3',
+                    warning: '#FFCD00'
+                }
+            }
+        }).mount('body');
     </script>
 
     @await RenderSectionAsync("FinalScripts", required: false)
