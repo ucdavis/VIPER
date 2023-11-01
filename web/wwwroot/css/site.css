@@ -39,8 +39,17 @@ body {
     color: red;
 }
 
-#mainLayoutHeaderTabs {
+#mainLayoutHeaderSections {
     background-color: #1D4776;
+}
+
+/*Footer styles*/
+#footerNavLinks a {
+    text-decoration: none;
+}
+
+#footerNavLinks a:hover {
+    text-decoration: underline;
 }
 
 .sticky-header-table {

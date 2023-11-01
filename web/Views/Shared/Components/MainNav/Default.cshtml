@@ -3,108 +3,53 @@
 @{
     RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
     IUserHelper UserHelper = new UserHelper();
+    //I want to iterate over a list of links to show instead of copying/pasting the link
+    //[href, label, permission, tooltip?]
+    List<string[]> tabLinks = new List<string[]>
+    {
+        new string[] { "/", "1.0", "SVMSecure", "VIPER 1.0" },
+        new string[] { "/Accreditation/default.cfm", "Accreditation", "SVMSecure.Accreditation" },
+        new string[] { "/Admin/default.cfm", "Admin", "SVMSecure.admin" },
+        new string[] { "/Analytics/default.cfm", "Analytics", "SVMSecure.Analytics" },
+        new string[] { "/cats/default.cfm", "Computing", "SVMSecure.CATS" },
+        new string[] { "/curriculum/default.cfm", "Curriculum", "SVMSecure.Curriculum" },
+        new string[] { "/Development/default.cfm", "Development", "SVMSecure.Development" },
+        new string[] { "/facilities/default.cfm", "Facilities", "SVMSecure.Facilities" },
+        new string[] { "/faculty/default.cfm", "Faculty", "SVMSecure.Faculty" },
+        new string[] { "/fiscal/default.cfm", "Fiscal", "SVMSecure.Fiscal" },
+        new string[] { "/IDCards/default.cfm", "IDCards", "SVMSecure.IDCards.Apply" },
+        new string[] { "/personnel/default.cfm", "Personnel", "SVMSecure.Personnel" },
+        new string[] { "/policy/default.cfm", "Policies", "SVMSecure" },
+        new string[] { "/research/default.cfm", "Research", "SVMSecure.Research" },
+        new string[] { "/schedule/default.cfm", "Schedule", "SVMSecure.Schedule" },
+        new string[] { "/students/default.cfm", "Students", "SVMSecure.Students" },
+        new string[] { "/Hospital/default.cfm", "VMTH", "SVMSecure" },
+        new string[] { "https://ucdsvm.knowledgeowl.com/help", "", "", "Help" }
+    };
+
 }
-<q-tabs align="left" class="gt-sm" id="mainLayoutHeaderTabs">
-    <q-route-tab label="1.0" href="/">
-        <q-tooltip>
-            VIPER 1.0
-        </q-tooltip>
-    </q-route-tab>
 
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Accreditation"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Accreditation" href="/Accreditation/default.cfm"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.admin"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Admin" href="/Admin/default.cfm"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Analytics"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Analytics" href="/Analytics/default.cfm"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.CATS"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Computing" href="/cats/default.cfm"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Curriculum"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Curriculum" href="/curriculum/default.cfm"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Development"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Development" href="/Development/default.cfm"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Facilities"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Facilities" href="/facilities/default.cfm"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Faculty"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Faculty" href="/faculty/default.cfm"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Fiscal"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Fiscal" href="/fiscal/default.cfm"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.IDCards.Apply"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="IDCards" href="/IDCards/default.cfm"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Personnel"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Personnel" href="/personnel/default.cfm"></q-route-tab>
-    }
-
-    <q-separator dark vertical></q-separator>
-    <q-route-tab label="Policies" href="/policy/default.cfm"></q-route-tab>
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Research"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Research" href="/research/default.cfm"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Schedule"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Schedule" href="/schedule/default.cfm"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Students"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Students" href="/students/default.cfm"></q-route-tab>
-    }
-
-    <q-separator dark vertical></q-separator>
-    <q-route-tab label="VMTH" href="/Hospital/default.cfm"></q-route-tab>
-    <q-separator dark vertical></q-separator>
-    <q-route-tab icon="help" href="https://ucdsvm.knowledgeowl.com/help">
-        <q-tooltip>
-            Help
-        </q-tooltip>
-    </q-route-tab>
-    <q-separator dark vertical></q-separator>
-</q-tabs>
+<div id="mainLayoutHeaderSections" align="left" class="gt-sm column items-start">
+    <q-btn-group stretch>
+        @{int i = 0;}
+        @foreach (string[] tabLink in tabLinks)
+        {
+            if (tabLink[0] == "https://ucdsvm.knowledgeowl.com/help")
+            {
+                <q-btn flat href="@Url.Content(tabLink[0])" icon="help" class="q-px-md q-py-sm">
+                    <q-tooltip>Help</q-tooltip>
+                </q-btn>
+                <q-separator dark vertical></q-separator>
+            }
+            else if (tabLink[2] == "" || UserHelper.HasPermission(rapsContext, Model, tabLink[2])) {
+                <q-btn flat href="@Url.Content(tabLink[0])" label="@tabLink[1]" class="q-px-md q-py-sm">
+                    @if(tabLink.Length >= 4 && tabLink[3] != "")
+                    {
+                        <q-tooltip>@tabLink[3]</q-tooltip>
+                    }
+                </q-btn>
+                <q-separator dark vertical></q-separator>
+            }
+        }
+    </q-btn-group>
+</div>

@@ -132,17 +132,30 @@
         </q-page-container>
 
         <q-footer elevated class="bg-white">
-            <div class="q-pa-y-sm q-pa-x-md q-gutter-xs text-caption">
-                <div id="ucdavislogo" class="float-right q-mt-sm">
-                    <a href="@HttpHelper.GetOldViperRootURL()"><img src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg" alt="UC Davis Veterinary Medicine logo" border="0" width="134" height="24"></a>
+            <div class="q-pa-y-sm q-pa-x-md q-gutter-xs text-caption row" id="footerNavLinks">
+                <div class="col-12 col-md q-pl-md">
+                    <a href="https://svmithelp.vetmed.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
+                        <q-icon color="primary" name="help_center" size="xs"></q-icon>
+                        SVM-IT ServiceDesk
+                    </a>
+                    <span class="text-primary q-px-sm">|</span>
+                    <a href="http://www.vetmed.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
+                        <q-icon color="primary" name="navigation" size="xs"></q-icon>
+                        SVM Home
+                    </a>
+                    <span class="text-primary q-px-sm">|</span>
+                    <a href="http://www.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
+                        <q-icon color="primary" name="school" size="xs"></q-icon>
+                        UC Davis
+                    </a>
+                    <div class="q-pl-sm text-black">
+                        &copy; 2023 School of Veterinary Medicine
+                    </div>
                 </div>
-                <q-breadcrumbs separator=" | " active-color="primary" class="text-primary">
-                    <q-breadcrumbs-el icon="help_center" label="SVM-IT ServiceDesk" href="https://svmithelp.vetmed.ucdavis.edu/"></q-breadcrumbs-el>
-                    <q-breadcrumbs-el label="SVM Home" icon="navigation" href="http://www.vetmed.ucdavis.edu/"></q-breadcrumbs-el>
-                    <q-breadcrumbs-el label="UC Davis" icon="school" href="http://www.ucdavis.edu/"></q-breadcrumbs-el>
-                </q-breadcrumbs>
-                <div class="q-pl-sm text-black">
-                    &copy; 2023 School of Veterinary Medicine
+                <div class="col-12 col-md-auto">
+                    <div id="ucdavislogo" class="q-mt-sm q-mr-lg">
+                        <a href="@HttpHelper.GetOldViperRootURL()"><img src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg" alt="UC Davis Veterinary Medicine logo" border="0" width="134" height="24"></a>
+                    </div>
                 </div>
             </div>
         </q-footer>
