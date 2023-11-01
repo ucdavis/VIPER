@@ -25,9 +25,9 @@
 </head>
 <body>
     <q-layout view="hHh lpR fFf">
-        <q-header elevated id="mainLayoutHeader" class="text-white" height-hint="98">
+        <q-header elevated id="mainLayoutHeader" height-hint="98">
 
-            <q-toolbar class="text-white">
+            <q-toolbar>
                 <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
                     @await Component.InvokeAsync("MiniNav",
                     new {
@@ -38,18 +38,18 @@
                 <q-btn flat dense icon="list" class="q-mr-xs lt-md" @@click="mainLeftDrawer = !mainLeftDrawer"></q-btn>
                 <q-btn flat dense label="Viper 2.0" class="lt-md" href="@Url.Content("~/")"></q-btn>
 
-                @if (HttpHelper.Environment?.EnvironmentName == "Development")
-                {
-                    <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0 -- DEVELOPMENT" href="@Url.Content("~/")"></q-btn>
-                }
-                else if (HttpHelper.Environment?.EnvironmentName == "Test")
-                {
-                    <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0 - TEST" href="@Url.Content("~/")"></q-btn>
-                }
-                else
-                {
-                    <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0" href="@Url.Content("~/")"></q-btn>
-                }
+                <q-btn flat dense no-caps icon="home" class="gt-sm text-white" href="@Url.Content("~/")">
+                    <span id="mainLayoutViper">VIPER 2.0</span>
+                    @if (HttpHelper.Environment?.EnvironmentName == "Development")
+                    {
+                        <span id="mainLayoutViperMode"> - Development</span>
+                    }
+                    else if (HttpHelper.Environment?.EnvironmentName == "Test")
+                    {
+                        <span id="mainLayoutViperMode"> - Test</span>
+                    }
+                </q-btn>
+               
                 @if (UserHelper.IsEmulating())
                 {
                     <q-banner inline-actions class="bg-warning text-black">

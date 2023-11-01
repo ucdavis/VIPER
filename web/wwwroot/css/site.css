@@ -24,10 +24,25 @@ body {
 /*Top nav/header styles*/
 #mainLayoutHeader {
     background-color: #022851;
+    /*background-color: white;*/
+}
+
+#mainLayoutViper {
+    font-family: Proxima Nova;
+    font-size: 1.6em;
+    font-weight: normal;
+    vertical-align: bottom;
+}
+
+#mainLayoutViperMode {
+    margin-left: .6em;
+    margin-top: .2em;
+    vertical-align: bottom;
+    color: red;
 }
 
 #mainLayoutHeaderTabs {
-    background-color: #033266;
+    background-color: #1D4776;
 }
 
 .sticky-header-table {
