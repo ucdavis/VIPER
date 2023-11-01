@@ -57,9 +57,16 @@
                     </q-banner>
                 }
                 <q-space></q-space>
-                <q-input rounded dense standout v-model="text" color="white" label="Search" bg-color="grey" class="q-pa-xs">
-                    <q-btn flat round dense icon="search" color="black"></q-btn>
-                </q-input>
+                
+                @*Don't show the search until it does something*@
+                @if (HttpHelper.Environment?.EnvironmentName == "Development")
+                {
+                    <q-input rounded dense standout dark v-model="searchText" label="Search" bg-color="white" label-color="black" class="q-pa-xs">
+                        <template v-slot:append>
+                            <q-icon name="search" color="black"></q-icon>
+                        </template>
+                    </q-input>
+                }
 
                 @await Component.InvokeAsync("ProfilePic",
                 new {
@@ -81,18 +88,8 @@
             )
             
         </q-header>
-
        
         <q-drawer v-model="mainLeftDrawer" show-if-above elevated side="left" :mini="!mainLeftDrawer || mainLeftMiniState" @@click.capture="drawerClick">
-            <template v-slot:mini>
-                <q-scroll-area class="fit mini-slot">
-                    <div class="q-ma-sm">
-                        <div class="column items-start">
-                            <q-btn icon="chevron_right" color="secondary" round dense unelevated class="q-mini-drawer-show" @@click="mainLeftMiniState = false"></q-btn>
-                        </div>
-                    </div>
-                </q-scroll-area>
-            </template>
             <template v-slot:default>
                 <div class="q-pa-sm">
                     <q-btn dense
@@ -124,14 +121,6 @@
                             </q-item>
                         </template>
                     </q-list>
-                </div>
-                <div class="q-mini-drawer-hide absolute" style="top: 10px; right: -15px">
-                    <q-btn dense
-                           round
-                           unelevated
-                           color="secondary"
-                           icon="chevron_left"
-                           @@click="mainLeftMiniState = true" ></q-btn>
                 </div>
             </template>
         </q-drawer>
@@ -288,6 +277,7 @@
             config: {
                 brand: {
                     primary: '#022851',
+                    //primary: '#1976d2',
                     secondary: '#00B2E3',
                     accent: '#C6007E',
                     dark: '#191919',
