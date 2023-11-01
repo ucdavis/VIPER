@@ -12,6 +12,12 @@
 
     <title>@ViewData["Title"] - VIPER(2.0)</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @if (HttpHelper.Environment?.EnvironmentName != "Production")
+    {
+        <text>
+            <link rel="stylesheet" href="~/css/site-@(HttpHelper.Environment?.EnvironmentName).css" asp-append-version="true" />
+        </text>
+    }
     <link href="~/lib/quasar/dist/quasar.prod.css" rel="stylesheet" type="text/css">
 
     @RenderSection("Styles", required: false)
@@ -19,9 +25,9 @@
 </head>
 <body>
     <q-layout view="hHh lpR fFf">
-        <q-header elevated class="bg-primary text-white" height-hint="98">
+        <q-header elevated id="mainLayoutHeader" class="text-white" height-hint="98">
 
-            <q-toolbar class="bg-primary text-white">
+            <q-toolbar class="text-white">
                 <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
                     @await Component.InvokeAsync("MiniNav",
                     new {
@@ -279,20 +285,6 @@
                 }
             }
         }).use(Quasar).mount('body');
-
-        @if (HttpHelper.Environment?.EnvironmentName == "Development")
-        {
-            <text>
-            Quasar.setCssVar('primary', '#092');
-            </text>
-        }
-        else if (HttpHelper.Environment?.EnvironmentName == "Test")
-        {
-            <text>
-            Quasar.setCssVar('primary', '#d66902');
-            </text>
-        }
-        
     </script>
 
     @await RenderSectionAsync("FinalScripts", required: false)

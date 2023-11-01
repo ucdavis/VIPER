@@ -21,6 +21,15 @@ body {
     margin-bottom: 60px;
 }
 
+/*Top nav/header styles*/
+#mainLayoutHeader {
+    background-color: #022851;
+}
+
+#mainLayoutHeaderTabs {
+    background-color: #033266;
+}
+
 .sticky-header-table {
     /* height or max-height is important */
     height: 600px;
