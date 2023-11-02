@@ -12,6 +12,12 @@
 
     <title>@ViewData["Title"] - VIPER(2.0)</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @if (HttpHelper.Environment?.EnvironmentName != "Production")
+    {
+        <text>
+            <link rel="stylesheet" href="~/css/site-@(HttpHelper.Environment?.EnvironmentName).css" asp-append-version="true" />
+        </text>
+    }
     <link href="~/lib/quasar/dist/quasar.prod.css" rel="stylesheet" type="text/css">
 
     @RenderSection("Styles", required: false)
@@ -19,9 +25,9 @@
 </head>
 <body>
     <q-layout view="hHh lpR fFf">
-        <q-header elevated class="bg-primary text-white" height-hint="98">
+        <q-header elevated id="mainLayoutHeader" height-hint="98">
 
-            <q-toolbar class="bg-primary text-white">
+            <q-toolbar>
                 <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
                     @await Component.InvokeAsync("MiniNav",
                     new {
@@ -32,18 +38,18 @@
                 <q-btn flat dense icon="list" class="q-mr-xs lt-md" @@click="mainLeftDrawer = !mainLeftDrawer"></q-btn>
                 <q-btn flat dense label="Viper 2.0" class="lt-md" href="@Url.Content("~/")"></q-btn>
 
-                @if (HttpHelper.Environment?.EnvironmentName == "Development")
-                {
-                    <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0 -- DEVELOPMENT" href="@Url.Content("~/")"></q-btn>
-                }
-                else if (HttpHelper.Environment?.EnvironmentName == "Test")
-                {
-                    <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0 - TEST" href="@Url.Content("~/")"></q-btn>
-                }
-                else
-                {
-                    <q-btn flat dense icon="home" class="gt-sm" label="VIPER 2.0" href="@Url.Content("~/")"></q-btn>
-                }
+                <q-btn flat dense no-caps icon="home" class="gt-sm text-white" href="@Url.Content("~/")">
+                    <span id="mainLayoutViper">VIPER 2.0</span>
+                    @if (HttpHelper.Environment?.EnvironmentName == "Development")
+                    {
+                        <span id="mainLayoutViperMode">Development</span>
+                    }
+                    else if (HttpHelper.Environment?.EnvironmentName == "Test")
+                    {
+                        <span id="mainLayoutViperMode">Test</span>
+                    }
+                </q-btn>
+               
                 @if (UserHelper.IsEmulating())
                 {
                     <q-banner inline-actions class="bg-warning text-black">
@@ -51,9 +57,16 @@
                     </q-banner>
                 }
                 <q-space></q-space>
-                <q-input rounded dense standout v-model="text" color="white" label="Search" bg-color="grey" class="q-pa-xs">
-                    <q-btn flat round dense icon="search" color="black"></q-btn>
-                </q-input>
+                
+                @*Don't show the search until it does something*@
+                @if (HttpHelper.Environment?.EnvironmentName == "Development")
+                {
+                    <q-input rounded dense standout dark v-model="searchText" label="Search" bg-color="white" label-color="black" class="q-pa-xs">
+                        <template v-slot:append>
+                            <q-icon name="search" color="black"></q-icon>
+                        </template>
+                    </q-input>
+                }
 
                 @await Component.InvokeAsync("ProfilePic",
                 new {
@@ -75,20 +88,11 @@
             )
             
         </q-header>
-
        
-        <q-drawer v-model="mainLeftDrawer" show-if-above elevated side="left" :mini="!mainLeftDrawer || mainLeftMiniState" @@click.capture="drawerClick">
-            <template v-slot:mini>
-                <q-scroll-area class="fit mini-slot">
-                    <div class="q-ma-sm">
-                        <div class="column items-start">
-                            <q-btn icon="chevron_right" color="secondary" round dense unelevated class="q-mini-drawer-show" @@click="mainLeftMiniState = false"></q-btn>
-                        </div>
-                    </div>
-                </q-scroll-area>
-            </template>
+        <q-drawer v-model="mainLeftDrawer" show-if-above elevated side="left" :mini="!mainLeftDrawer || mainLeftMiniState" @@click.capture="drawerClick"
+            width="300">
             <template v-slot:default>
-                <div class="q-pa-sm">
+                <div class="q-pa-sm" id="leftNavMenu">
                     <q-btn dense
                         round
                         unelevated
@@ -97,10 +101,12 @@
                         class="float-right lt-md"
                         @@click="mainLeftDrawer = false"></q-btn>
 
+                    <h2 v-if="viperNavMenu?.menuHeaderText != ''">{{ viperNavMenu.menuHeaderText }}</h2>
                     <q-list dense separator>
-                        <template v-for="(menuItem, index) in viperNavMenu" :key="index">
+                        <template v-for="(menuItem, index) in viperNavMenu.menuItems" :key="index">
                             <q-item v-if="menuItem.menuItemURL !=''"
-                                clickable v-ripple :href="menuItem.menuItemURL">
+                                clickable v-ripple :href="menuItem.menuItemURL"
+                                class="leftNavLink">
                                 <q-item-section avatar v-if="menuItem.icon">
                                     <q-icon :name="menuItem.icon" />
                                 </q-item-section>
@@ -108,7 +114,7 @@
                                     <q-item-label lines="1">{{ menuItem.menuItemText }}</q-item-label>
                                 </q-item-section>
                             </q-item>
-                            <q-item v-else :class="menuItem.isHeader ? 'leftNavHeader' : ''">
+                            <q-item v-else :class="menuItem.isHeader ? 'leftNavHeader' : '' + menuItem.menuItemText == '' ? ' leftNavSpacer' : ''">
                                 <q-item-section avatar v-if="menuItem.icon">
                                     <q-icon :name="menuItem.icon" />
                                 </q-item-section>
@@ -118,14 +124,6 @@
                             </q-item>
                         </template>
                     </q-list>
-                </div>
-                <div class="q-mini-drawer-hide absolute" style="top: 10px; right: -15px">
-                    <q-btn dense
-                           round
-                           unelevated
-                           color="secondary"
-                           icon="chevron_left"
-                           @@click="mainLeftMiniState = true" ></q-btn>
                 </div>
             </template>
         </q-drawer>
@@ -137,17 +135,30 @@
         </q-page-container>
 
         <q-footer elevated class="bg-white">
-            <div class="q-pa-y-sm q-pa-x-md q-gutter-xs text-caption">
-                <div id="ucdavislogo" class="float-right q-mt-sm">
-                    <a href="@HttpHelper.GetOldViperRootURL()"><img src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg" alt="UC Davis Veterinary Medicine logo" border="0" width="134" height="24"></a>
+            <div class="q-pa-y-sm q-pa-x-md q-gutter-xs text-caption row" id="footerNavLinks">
+                <div class="col-12 col-md q-pl-md">
+                    <a href="https://svmithelp.vetmed.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
+                        <q-icon color="primary" name="help_center" size="xs"></q-icon>
+                        SVM-IT ServiceDesk
+                    </a>
+                    <span class="text-primary q-px-sm">|</span>
+                    <a href="http://www.vetmed.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
+                        <q-icon color="primary" name="navigation" size="xs"></q-icon>
+                        SVM Home
+                    </a>
+                    <span class="text-primary q-px-sm">|</span>
+                    <a href="http://www.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
+                        <q-icon color="primary" name="school" size="xs"></q-icon>
+                        UC Davis
+                    </a>
+                    <div class="text-black">
+                        &copy; 2023 School of Veterinary Medicine
+                    </div>
                 </div>
-                <q-breadcrumbs separator=" | " active-color="primary" class="text-primary">
-                    <q-breadcrumbs-el icon="help_center" label="SVM-IT ServiceDesk" href="https://svmithelp.vetmed.ucdavis.edu/"></q-breadcrumbs-el>
-                    <q-breadcrumbs-el label="SVM Home" icon="navigation" href="http://www.vetmed.ucdavis.edu/"></q-breadcrumbs-el>
-                    <q-breadcrumbs-el label="UC Davis" icon="school" href="http://www.ucdavis.edu/"></q-breadcrumbs-el>
-                </q-breadcrumbs>
-                <div class="q-pl-sm text-black">
-                    &copy; 2023 School of Veterinary Medicine
+                <div class="col-12 col-md-auto gt-sm">
+                    <div id="ucdavislogo" class="q-mt-sm q-mr-lg">
+                        <a href="@HttpHelper.GetOldViperRootURL()"><img src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg" alt="UC Davis Veterinary Medicine logo" border="0" width="134" height="24"></a>
+                    </div>
                 </div>
             </div>
         </q-footer>
@@ -169,7 +180,7 @@
         let vueSetupObjects = {};
         vueSetupObjects.mainLeftDrawer = ref(false);
         vueSetupObjects.mainLeftMiniState = ref(false);
-        let vueObjects = { showViperError: false, viperErrorMessage: "", viperNavMenu: [] };
+        let vueObjects = { showViperError: false, viperErrorMessage: "", viperNavMenu: {} };
         let vueMethods = {};
         let vueWatchers = {};
         let vueEmits = {};
@@ -205,7 +216,7 @@
     *@
     @await RenderSectionAsync("Scripts", required: false)
 
-    <q-dialog v-model="showViperError"
+    <q-dialog v-model="showViperError" v-cloak
               auto-close="true">
         <q-banner>
             <template v-slot:avatar>
@@ -278,21 +289,21 @@
                     vueUnmountedActions.shift().call(this);
                 }
             }
-        }).use(Quasar).mount('body');
-
-        @if (HttpHelper.Environment?.EnvironmentName == "Development")
-        {
-            <text>
-            Quasar.setCssVar('primary', '#092');
-            </text>
-        }
-        else if (HttpHelper.Environment?.EnvironmentName == "Test")
-        {
-            <text>
-            Quasar.setCssVar('primary', '#d66902');
-            </text>
-        }
-        
+        }).use(Quasar, {
+            config: {
+                brand: {
+                    primary: '#022851',
+                    //primary: '#1976d2',
+                    secondary: '#00B2E3',
+                    accent: '#C6007E',
+                    dark: '#191919',
+                    positive: '#3DAE2B',
+                    negative: '#F93549',
+                    info: '#00C4B3',
+                    warning: '#FFCD00'
+                }
+            }
+        }).mount('body');
     </script>
 
     @await RenderSectionAsync("FinalScripts", required: false)

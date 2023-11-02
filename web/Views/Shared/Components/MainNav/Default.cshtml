@@ -3,108 +3,33 @@
 @{
     RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
     IUserHelper UserHelper = new UserHelper();
+    List<string[]> tabLinks = (List<string[]>)ViewData["tabLinks"] ?? new List<string[]>();
 }
-<q-tabs align="left" class="inset-shadow gt-sm">
-    <q-route-tab label="1.0" href="@ViewData["OldViperURL"]">
-        <q-tooltip>
-            VIPER 1.0
-        </q-tooltip>
-    </q-route-tab>
 
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Accreditation"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Accreditation" href="@Url.Content(ViewData["OldViperURL"] + "/Accreditation/default.cfm")"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.admin"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Admin" href="@Url.Content(ViewData["OldViperURL"] + "/Admin/default.cfm")"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Analytics"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Analytics" href="@Url.Content(ViewData["OldViperURL"] + "/Analytics/default.cfm")"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.CATS"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Computing" href="@Url.Content(ViewData["OldViperURL"] + "/cats/default.cfm")"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Curriculum"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Curriculum" href="@Url.Content(ViewData["OldViperURL"] + "/curriculum/default.cfm")"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Development"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Development" href="@Url.Content(ViewData["OldViperURL"] + "/Development/default.cfm")"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Facilities"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Facilities" href="@Url.Content(ViewData["OldViperURL"] + "/facilities/default.cfm")"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Faculty"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Faculty" href="@Url.Content(ViewData["OldViperURL"] + "/faculty/default.cfm")"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Fiscal"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Fiscal" href="@Url.Content(ViewData["OldViperURL"] + "/fiscal/default.cfm")"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.IDCards.Apply"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="IDCards" href="@Url.Content(ViewData["OldViperURL"] + "/IDCards/default.cfm")"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Personnel"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Personnel" href="@Url.Content(ViewData["OldViperURL"] + "/personnel/default.cfm")"></q-route-tab>
-    }
-
-    <q-separator dark vertical></q-separator>
-    <q-route-tab label="Policies" href="@Url.Content(ViewData["OldViperURL"] + "/policy/default.cfm")"></q-route-tab>
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Research"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Research" href="@Url.Content(ViewData["OldViperURL"] + "/research/default.cfm")"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Schedule"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Schedule" href="@Url.Content(ViewData["OldViperURL"] + "/schedule/default.cfm")"></q-route-tab>
-    }
-
-    @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Students"))
-    {
-        <q-separator dark vertical></q-separator>
-        <q-route-tab label="Students" href="@Url.Content(ViewData["OldViperURL"] + "/students/default.cfm")"></q-route-tab>
-    }
-
-    <q-separator dark vertical></q-separator>
-    <q-route-tab label="VMTH" href="@Url.Content(ViewData["OldViperURL"] + "/Hospital/default.cfm")"></q-route-tab>
-    <q-separator dark vertical></q-separator>
-    <q-route-tab icon="help" href="https://ucdsvm.knowledgeowl.com/help">
-        <q-tooltip>
-            Help
-        </q-tooltip>
-    </q-route-tab>
-    <q-separator dark vertical></q-separator>
-</q-tabs>
+<div id="mainLayoutHeaderSections" align="left" class="gt-sm column items-start">
+    <q-btn-group stretch>
+        @{int i = 0;}
+        @foreach (string[] tabLink in tabLinks)
+        {
+            if (tabLink[0] == "https://ucdsvm.knowledgeowl.com/help")
+            {
+                <q-btn flat href="@Url.Content(tabLink[0])" icon="help" class="q-px-md q-py-sm">
+                    <q-tooltip>Help</q-tooltip>
+                </q-btn>
+                <q-separator dark vertical></q-separator>
+            }
+            else if (tabLink[2] == "" || UserHelper.HasPermission(rapsContext, Model, tabLink[2])) {
+                <q-btn flat 
+                    href="@Url.Content(tabLink[0])" 
+                    label="@tabLink[1]"
+                    class="q-px-md q-py-sm @(tabLink[1] == (string)(ViewData["SelectedTopNav"] ?? "") ? " selectedTopNav" : "")">
+                    @if(tabLink.Length >= 4 && tabLink[3] != "")
+                    {
+                        <q-tooltip>@tabLink[3]</q-tooltip>
+                    }
+                </q-btn>
+                <q-separator dark vertical></q-separator>
+            }
+        }
+    </q-btn-group>
+</div>
