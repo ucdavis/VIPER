@@ -65,7 +65,7 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         [Route("/[area]/{instance}/[action]")]
-        public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER")
+        public async Task<ActionResult<NavMenu>> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER")
         {
             TblRole? selectedRole = (roleId != null) ? await _RAPSContext.TblRoles.FindAsync(roleId) : null;
             TblPermission? selectedPermission = (permissionId != null) ? await _RAPSContext.TblPermissions.FindAsync(permissionId) : null;
@@ -159,7 +159,7 @@ namespace Viper.Areas.RAPS.Controllers
                 nav.Add(new NavMenuItem() { MenuItemText = "Export to VMACS", MenuItemURL = "ExportToVMACS" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Update Role Views", MenuItemURL = "RoleViewUpdate" });
             }
-            return nav;
+            return new NavMenu("RAPS", nav);
         }
 
 

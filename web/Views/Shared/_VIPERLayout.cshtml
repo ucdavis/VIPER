@@ -89,9 +89,10 @@
             
         </q-header>
        
-        <q-drawer v-model="mainLeftDrawer" show-if-above elevated side="left" :mini="!mainLeftDrawer || mainLeftMiniState" @@click.capture="drawerClick">
+        <q-drawer v-model="mainLeftDrawer" show-if-above elevated side="left" :mini="!mainLeftDrawer || mainLeftMiniState" @@click.capture="drawerClick"
+            width="300">
             <template v-slot:default>
-                <div class="q-pa-sm">
+                <div class="q-pa-sm" id="leftNavMenu">
                     <q-btn dense
                         round
                         unelevated
@@ -100,10 +101,12 @@
                         class="float-right lt-md"
                         @@click="mainLeftDrawer = false"></q-btn>
 
+                    <h2 v-if="viperNavMenu?.menuHeaderText != ''">{{ viperNavMenu.menuHeaderText }}</h2>
                     <q-list dense separator>
-                        <template v-for="(menuItem, index) in viperNavMenu" :key="index">
+                        <template v-for="(menuItem, index) in viperNavMenu.menuItems" :key="index">
                             <q-item v-if="menuItem.menuItemURL !=''"
-                                clickable v-ripple :href="menuItem.menuItemURL">
+                                clickable v-ripple :href="menuItem.menuItemURL"
+                                class="leftNavLink">
                                 <q-item-section avatar v-if="menuItem.icon">
                                     <q-icon :name="menuItem.icon" />
                                 </q-item-section>
@@ -111,7 +114,7 @@
                                     <q-item-label lines="1">{{ menuItem.menuItemText }}</q-item-label>
                                 </q-item-section>
                             </q-item>
-                            <q-item v-else :class="menuItem.isHeader ? 'leftNavHeader' : ''">
+                            <q-item v-else :class="menuItem.isHeader ? 'leftNavHeader' : '' + menuItem.menuItemText == '' ? ' leftNavSpacer' : ''">
                                 <q-item-section avatar v-if="menuItem.icon">
                                     <q-icon :name="menuItem.icon" />
                                 </q-item-section>
@@ -148,7 +151,7 @@
                         <q-icon color="primary" name="school" size="xs"></q-icon>
                         UC Davis
                     </a>
-                    <div class="q-pl-sm text-black">
+                    <div class="text-black">
                         &copy; 2023 School of Veterinary Medicine
                     </div>
                 </div>
@@ -177,7 +180,7 @@
         let vueSetupObjects = {};
         vueSetupObjects.mainLeftDrawer = ref(false);
         vueSetupObjects.mainLeftMiniState = ref(false);
-        let vueObjects = { showViperError: false, viperErrorMessage: "", viperNavMenu: [] };
+        let vueObjects = { showViperError: false, viperErrorMessage: "", viperNavMenu: {} };
         let vueMethods = {};
         let vueWatchers = {};
         let vueEmits = {};
@@ -213,7 +216,7 @@
     *@
     @await RenderSectionAsync("Scripts", required: false)
 
-    <q-dialog v-model="showViperError"
+    <q-dialog v-model="showViperError" v-cloak
               auto-close="true">
         <q-banner>
             <template v-slot:avatar>

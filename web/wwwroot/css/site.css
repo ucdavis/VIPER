@@ -43,6 +43,40 @@ body {
     background-color: #1D4776;
 }
 
+#mainLayoutHeaderSections .selectedTopNav {
+    background-color: #4F7094;
+}
+
+/*Left Nav styles*/
+#leftNavMenu {
+    /*background-color: #E5E5E5;*/
+}
+
+#leftNavMenu h2 {
+    font-size: 1.4rem;
+    margin: 0;
+    line-height: 1.5rem;
+    padding: .2rem .5rem .1rem .5rem;
+    font-weight: bold;
+}
+
+#leftNavMenu .leftNavHeader {
+    font-weight: bold;
+    font-size: 1rem;
+    padding: 1.5rem .5rem .1rem .5rem;
+    /*background-color: #FFD24C;*/
+    /*color: white;*/
+}
+
+#leftNavMenu .leftNavSpacer {
+    border: 0;
+}
+
+#leftNavMenu .leftNavLink {
+    padding-left: .5rem;
+    /*background-color: #CDD6E0;*/
+}
+
 /*Footer styles*/
 #footerNavLinks a {
     text-decoration: none;
@@ -118,8 +152,4 @@ body {
     font-size: 2rem;
     line-height: 2rem;
     margin: 1rem 0rem;
-}
-
-.leftNavHeader {
-    font-weight: bold;
 }

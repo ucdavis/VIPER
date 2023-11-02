@@ -20,6 +20,7 @@ using Amazon.SimpleSystemsManagement;
 using Amazon.SimpleSystemsManagement.Model;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
+using Viper.Areas.CMS.Data;
 
 namespace Viper.Controllers
 {    
@@ -52,13 +53,10 @@ namespace Viper.Controllers
         }
 
         [Route("nav")]
-#pragma warning disable IDE0060 // Remove unused parameter
-        public ActionResult<IEnumerable<NavMenuItem>> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER")
-#pragma warning restore IDE0060 // Remove unused parameter
+        public ActionResult<NavMenu> Nav()
         {
-            //TODO Populate homepage navigation
-            var nav = new List<NavMenuItem>();
-            return nav;
+            var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
+            return menu ?? new NavMenu("", new List<NavMenuItem>());
         }
 
         /// <summary>
