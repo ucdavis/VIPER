@@ -144,8 +144,8 @@ async function loadViperLeftNav() {
     var qs = [];
     this.urlParams.forEach((val, paramName) => qs.push(paramName + "=" + val))
     qs = qs.length ? ("?" + qs.join("&")) : ""
-    prependSlash = window.location.href[window.location.href.length - 1] != "/"
-    this.viperNavMenu = await viperFetch(this, (prependSlash ? "/" : "") + "nav" + qs)
+    appendSlash = window.location.href[window.location.href.length - 1] != "/"
+    this.viperNavMenu = await viperFetch(this, (appendSlash ? window.location.href + "/nav" : "nav") + qs)
 }
 
 function getItemFromStorage(key) {
