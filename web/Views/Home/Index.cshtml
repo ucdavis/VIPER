@@ -28,3 +28,39 @@
         <q-btn class="bg-negative text-white col-auto offset-md-1" label="Delete (using danger)"></q-btn>
     </div>
 </q-form>
+
+<q-table title="Sample Table"
+         dense
+         row-key="id"
+         loading="false"
+         :rows=rows
+         :columns=columns>
+    <template v-slot:body-cell-id="props">
+        <q-td :props="props">
+            <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs sm"></q-btn>
+        </q-td>
+    </template>
+</q-table>
+
+
+@section Scripts {
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    rows: [
+                        {id: "1", name: "Brandon Edwards"},
+                        {id: "2", name: "Dan Ransom"}
+                    ],
+                    columns: [
+                        { name: "id", field: "id", align: "left", style: "width:75px;" },
+                        { name: "name", label: "Name", field: "name", sortable: true, align: "left" }
+                    ]
+                }
+            },
+            mounted() {
+                
+            }
+        })
+    </script>
+}
