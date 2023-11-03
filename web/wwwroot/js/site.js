@@ -144,8 +144,11 @@ async function loadViperLeftNav() {
     var qs = [];
     this.urlParams.forEach((val, paramName) => qs.push(paramName + "=" + val))
     qs = qs.length ? ("?" + qs.join("&")) : ""
-    appendSlash = window.location.href[window.location.href.length - 1] != "/"
-    this.viperNavMenu = await viperFetch(this, (appendSlash ? window.location.href + "/nav" : "nav") + qs)
+    //fix nav not loading when the url is host/2 instead of host/2/
+    navLocation = window.location.href.substring(window.location.href.length - 2, window.location.href.length) == "/2"
+        ? "/2/nav"
+        : "nav"
+    this.viperNavMenu = await viperFetch(this, navLocation + qs)
 }
 
 function getItemFromStorage(key) {
