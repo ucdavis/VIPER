@@ -13,14 +13,17 @@
             </q-avatar>
         </template>
         <q-list dense>
-            <q-item class="bg-warning" href="@Url.Content("~/ClearEmulation")">
-                <q-item-section avatar>
-                    <q-avatar icon="visibility_off" color="secondary" text-color="white"></q-avatar>
-                </q-item-section>
-                <q-item-section>
-                    End Emulation
-                </q-item-section>
-            </q-item>
+            @if(UserHelper.IsEmulating())
+            {
+                <q-item class="bg-warning" href="@Url.Content("~/ClearEmulation")">
+                    <q-item-section avatar>
+                        <q-avatar icon="visibility_off" color="secondary" text-color="white"></q-avatar>
+                    </q-item-section>
+                    <q-item-section>
+                        End Emulation
+                    </q-item-section>
+                </q-item>
+            }
             <q-item href="@Url.Content("~/")">
                 <q-item-section avatar>
                     <q-avatar icon="settings" color="secondary" text-color="white"></q-avatar>
