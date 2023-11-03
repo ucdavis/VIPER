@@ -3,23 +3,42 @@
 {
     IUserHelper UserHelper = new UserHelper();
 
-    <q-btn round href="@String.Format("https://viper.vetmed.ucdavis.edu/default.cfm?page=userinfo&id={0}", Model.IamId)">
-        <q-avatar size="40px">
-            <img src="@String.Format("https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid={0}&altphoto=1", Model.MailId)" height="40" id="siteProfileAvatar" />
-            <q-tooltip :target="siteProfileAvatar">
-                @Model.DisplayFirstName @Model.DisplayLastName
-            </q-tooltip>
-        </q-avatar>
-    </q-btn>
-    @if (UserHelper.IsEmulating())
-    {
-        <q-btn round href="@Url.Content("~/ClearEmulation")" color="warning" class="text-black" icon="visibility_off" style="left:-15px;">
-            <q-tooltip>
-                End Emulation
-            </q-tooltip>
-        </q-btn>        
-    }
-    
+    <q-btn-dropdown>
+        <template v-slot:label>
+            <q-avatar size="40px">
+                <img src="@String.Format("https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid={0}&altphoto=1", Model.MailId)" height="40" id="siteProfileAvatar" />
+                <q-tooltip :target="siteProfileAvatar">
+                    @Model.DisplayFirstName @Model.DisplayLastName
+                </q-tooltip>
+            </q-avatar>
+        </template>
+        <q-list dense>
+            <q-item class="bg-warning" href="@Url.Content("~/ClearEmulation")">
+                <q-item-section avatar>
+                    <q-avatar icon="visibility_off" color="secondary" text-color="white"></q-avatar>
+                </q-item-section>
+                <q-item-section>
+                    End Emulation
+                </q-item-section>
+            </q-item>
+            <q-item href="@Url.Content("~/")">
+                <q-item-section avatar>
+                    <q-avatar icon="settings" color="secondary" text-color="white"></q-avatar>
+                </q-item-section>
+                <q-item-section>
+                    My Profile
+                </q-item-section>
+            </q-item>
+            <q-item href="@Url.Content("~/logout")">
+                <q-item-section avatar>
+                    <q-avatar icon="logout" color="secondary" text-color="white"></q-avatar>
+                </q-item-section>
+                <q-item-section>
+                    Logout
+                </q-item-section>
+            </q-item>
+        </q-list>
+    </q-btn-dropdown>
 }
 else
 {

@@ -73,12 +73,6 @@
                 userName = UserHelper.GetCurrentUser()?.LoginId
                 }
                 )
-
-                <q-btn flat round dense icon="logout" class="q-mr-xs" href="@Url.Content("~/logout")">
-                    <q-tooltip>
-                        Logout
-                    </q-tooltip>
-                </q-btn>
             </q-toolbar>
 
             @await Component.InvokeAsync("MainNav",
