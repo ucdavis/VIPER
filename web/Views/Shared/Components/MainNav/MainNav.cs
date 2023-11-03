@@ -41,7 +41,7 @@ namespace Viper.Views.Shared.Components.MainNav
             };
             var path = HttpContext.Request.Path.Value;
             var area = (path ?? "/").ToLower().Split("/");
-            switch(area.Length >= 1 ? area[1] : area[0])
+            switch (area.Length >= 2 ? area[1] : area[0])
             {
                 case "raps":
                     ViewData["SelectedTopNav"] = "Computing";
