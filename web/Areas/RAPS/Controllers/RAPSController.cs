@@ -7,6 +7,7 @@ using Web.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Viper.Classes;
 using System.Runtime.Versioning;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -29,6 +30,33 @@ namespace Viper.Areas.RAPS.Controllers
             _securityService = new RAPSSecurityService(context);
             _environment = environment;
             UserHelper = new UserHelper();
+        }
+
+        /// <summary>
+        /// Getting left nav for each page. This is a little complicated - alternatively, ViewData["ViperLeftNav"] = await Nav() 
+        /// could be added to each action.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="next"></param>
+        /// <returns></returns>
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context,
+                                         ActionExecutionDelegate next)
+        {
+            await next();
+            bool roleIdValid = int.TryParse(HttpContext?.Request?.Query["roleId"].FirstOrDefault(), out int roleId);
+            bool permIdValid = int.TryParse(HttpContext?.Request?.Query["permissionId"].FirstOrDefault(), out int permissionId);
+            string? memberId = HttpContext?.Request?.Query["memberId"].FirstOrDefault();
+            List<string>? path = HttpContext?.Request?.Path.ToString().Split("/").ToList();
+            int? rapsIdx = path?.FindIndex(p => p.Equals("raps", StringComparison.OrdinalIgnoreCase));
+            string instance = "VIPER";
+            if(rapsIdx != null && rapsIdx > -1 && path?.Count() > rapsIdx + 1)
+            {
+                instance = path[(int)rapsIdx + 1];
+            }
+            ViewData["ViperLeftNav"] = await Nav(roleIdValid ? roleId : null,
+                roleIdValid ? permissionId : null,
+                memberId,
+                instance);
         }
 
         /// <summary>
@@ -64,8 +92,7 @@ namespace Viper.Areas.RAPS.Controllers
             //            Problem("Entity set 'RAPSContext.TblRoles'  is null.");}
         }
 
-        [Route("/[area]/{instance}/[action]")]
-        public async Task<ActionResult<NavMenu>> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER")
+        public async Task<NavMenu> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER")
         {
             TblRole? selectedRole = (roleId != null) ? await _RAPSContext.TblRoles.FindAsync(roleId) : null;
             TblPermission? selectedPermission = (permissionId != null) ? await _RAPSContext.TblPermissions.FindAsync(permissionId) : null;

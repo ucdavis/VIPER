@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
 using Viper.Models.AAUD;
 
 namespace Viper.Views.Shared.Components.MainNav
@@ -17,7 +18,7 @@ namespace Viper.Views.Shared.Components.MainNav
             ViewData["OldViperURL"] = oldViperURL;
             //I want to iterate over a list of links to show instead of copying/pasting the link
             //[href, label, permission, tooltip?]
-            ViewData["tabLinks"] = new List<string[]>
+            List<string[]> links = new()
             {
                 new string[] { "/", "1.0", "SVMSecure", "VIPER 1.0" },
                 new string[] { "~/", "VIPER Home", "SVMSecure" },
@@ -39,19 +40,28 @@ namespace Viper.Views.Shared.Components.MainNav
                 new string[] { "/Hospital/default.cfm", "VMTH", "SVMSecure" },
                 new string[] { "https://ucdsvm.knowledgeowl.com/help", "", "", "Help" }
             };
+            
+            //for local development in debugging mode, turn the absolute links to external localhost links to use port 80
+            if (HttpHelper.Environment?.EnvironmentName == "Development")
+            {
+                foreach(var link in links)
+                {
+                    if (link[0].Substring(0, 1) == "/")
+                    {
+                        link[0] = "http://localhost" + link[0];
+                    }
+                }
+            }
+
+            ViewData["tabLinks"] = links;
+
             var path = HttpContext.Request.Path.Value;
             var area = (path ?? "/").ToLower().Split("/");
-            switch (area.Length >= 2 ? area[1] : area[0])
+            ViewData["SelectedTopNav"] = (area.Length >= 2 ? area[1] : area[0]) switch
             {
-                case "raps":
-                    ViewData["SelectedTopNav"] = "Computing";
-                    break;
-                default:
-                    ViewData["SelectedTopNav"] = "VIPER Home";
-                    break;
-            }
-            
-
+                "raps" => "Computing",
+                _ => "VIPER Home",
+            };
             return await Task.Run(() => View("Default", user));
         }
 

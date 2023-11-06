@@ -3,33 +3,32 @@
 @{
     RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
     IUserHelper UserHelper = new UserHelper();
-    List<string[]> tabLinks = (List<string[]>)ViewData["tabLinks"] ?? new List<string[]>();
+    List<string[]> tabLinks = (List<string[]>)(ViewData["tabLinks"] ?? new List<string[]>());
 }
 
-<div id="mainLayoutHeaderSections" align="left" class="gt-sm column items-start">
-    <q-btn-group stretch>
-        @{int i = 0;}
-        @foreach (string[] tabLink in tabLinks)
+<q-toolbar id="mainLayoutHeaderSections" class="gt-sm items-stretch">
+    @foreach (string[] tabLink in tabLinks)
+    {
+        if (tabLink[0] == "https://ucdsvm.knowledgeowl.com/help")
         {
-            if (tabLink[0] == "https://ucdsvm.knowledgeowl.com/help")
-            {
-                <q-btn flat href="@Url.Content(tabLink[0])" icon="help" class="q-px-md q-py-sm">
-                    <q-tooltip>Help</q-tooltip>
-                </q-btn>
-                <q-separator dark vertical></q-separator>
-            }
-            else if (tabLink[2] == "" || UserHelper.HasPermission(rapsContext, Model, tabLink[2])) {
-                <q-btn flat 
-                    href="@Url.Content(tabLink[0])" 
-                    label="@tabLink[1]"
-                    class="q-px-md q-py-sm @(tabLink[1] == (string)(ViewData["SelectedTopNav"] ?? "") ? " selectedTopNav" : "")">
-                    @if(tabLink.Length >= 4 && tabLink[3] != "")
-                    {
-                        <q-tooltip>@tabLink[3]</q-tooltip>
-                    }
-                </q-btn>
-                <q-separator dark vertical></q-separator>
-            }
+            <q-btn flat href="@Url.Content(tabLink[0])" icon="help" class="q-px-md q-py-sm">
+                <q-tooltip>Help</q-tooltip>
+            </q-btn>
+            <q-separator dark vertical></q-separator>
         }
-    </q-btn-group>
-</div>
+        else if (tabLink[2] == "" || UserHelper.HasPermission(rapsContext, Model, tabLink[2]))
+        {
+            <q-btn flat
+                   href="@Url.Content(tabLink[0])"
+                   label="@tabLink[1]"
+                   class="q-px-md q-py-sm @(tabLink[1] == (string)(ViewData["SelectedTopNav"] ?? "") ? " selectedTopNav" : "")">
+                @if (tabLink.Length >= 4 && tabLink[3] != "")
+                {
+                    <q-tooltip>@tabLink[3]</q-tooltip>
+                }
+            </q-btn>
+            <q-separator dark vertical></q-separator>
+        }
+    }
+</q-toolbar>
+       

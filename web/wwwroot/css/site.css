@@ -8,6 +8,14 @@ html {
     html {
         font-size: 16px;
     }
+
+    #mainLayoutHeader {
+        min-height: 90px;
+    }
+
+    #mainLeftDrawer {
+        min-width: 300px;
+    }
 }
 
 body {
@@ -89,6 +97,10 @@ body {
 .sticky-header-table {
     /* height or max-height is important */
     height: 600px;
+}
+
+[v-cloak] {
+    display: none;
 }
 
 .q-table__top,
