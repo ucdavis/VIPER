@@ -21,10 +21,11 @@ using Amazon.SimpleSystemsManagement.Model;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 using Viper.Areas.CMS.Data;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Viper.Controllers
 {    
-    public class HomeController : Controller
+    public class HomeController : AreaController
     {
         private readonly Classes.SQLContext.AAUDContext _aAUDContext;
         private readonly XNamespace _ns = "http://www.yale.edu/tp/cas";
@@ -52,10 +53,16 @@ namespace Viper.Controllers
             return View();
         }
 
-        [Route("nav")]
-        public ActionResult<NavMenu> Nav()
+        public override void OnActionExecuting(ActionExecutingContext context)
+        {
+            base.OnActionExecuting(context);
+            ViewData["ViperLeftNav"] = Nav();
+        }
+
+        public NavMenu Nav()
         {
             var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
+            ConvertNavLinksForDevelopment(menu);
             return menu ?? new NavMenu("", new List<NavMenuItem>());
         }
 
