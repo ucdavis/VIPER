@@ -18,13 +18,11 @@ using System.Reflection;
 using Microsoft.AspNetCore.Http.Extensions;
 using Amazon.SimpleSystemsManagement;
 using Amazon.SimpleSystemsManagement.Model;
-using Viper.Classes.SQLContext;
-using Viper.Models.RAPS;
 using Viper.Areas.CMS.Data;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Viper.Controllers
-{    
+{
     public class HomeController : AreaController
     {
         private readonly Classes.SQLContext.AAUDContext _aAUDContext;
@@ -62,7 +60,10 @@ namespace Viper.Controllers
         public NavMenu Nav()
         {
             var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
-            ConvertNavLinksForDevelopment(menu);
+            if(menu != null)
+            {
+                ConvertNavLinksForDevelopment(menu);
+            }
             return menu ?? new NavMenu("", new List<NavMenuItem>());
         }
 
@@ -221,6 +222,7 @@ namespace Viper.Controllers
         [SearchExclude]
         public async Task<IActionResult> Logout()
         {
+            UserHelper.ClearCachedRolesAndPermissions(UserHelper.GetCurrentUser());
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return new RedirectResult(_settings.CasBaseUrl + "logout");
         }

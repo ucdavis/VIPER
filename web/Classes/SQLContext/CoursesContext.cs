@@ -7,6 +7,7 @@ namespace Viper.Classes.SQLContext;
 
 public partial class CoursesContext : DbContext
 {
+#pragma warning disable CS8618
     public CoursesContext()
     {
     }
@@ -15,6 +16,8 @@ public partial class CoursesContext : DbContext
         : base(options)
     {
     }
+#pragma warning restore CS8618
+
 
     public virtual DbSet<Baseinfo> Baseinfos { get; set; }
 
