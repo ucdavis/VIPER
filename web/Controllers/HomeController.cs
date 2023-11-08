@@ -51,13 +51,21 @@ namespace Viper.Controllers
             return View();
         }
 
+        [Route("/[action]/")]
+        [Authorize(Policy = "2faAuthentication")]
+        [Permission(Allow = "SVMSecure")]
+        public IActionResult Policy()
+        {            
+            return View();
+        }
+
         public override void OnActionExecuting(ActionExecutingContext context)
         {
             base.OnActionExecuting(context);
             ViewData["ViperLeftNav"] = Nav();
         }
 
-        public NavMenu Nav()
+        private NavMenu Nav()
         {
             var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
             if(menu != null)
