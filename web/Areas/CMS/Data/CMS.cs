@@ -124,7 +124,7 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get content blocks without filtering on permissions
         /// </summary>
-        /// <param name="contentBlockID"></param>
+        /// <param name="contentBlockId"></param>
         /// <param name="friendlyName"></param>
         /// <param name="system"></param>
         /// <param name="viperSectionPath"></param>
@@ -133,14 +133,17 @@ namespace Viper.Areas.CMS.Data
         /// <param name="allowPublicAccess"></param>
         /// <param name="status"></param>
         /// <returns>List of blocks</returns>
-        public IEnumerable<ContentBlock>? GetContentBlocks(int? contentBlockID, string? friendlyName, string? system, string? viperSectionPath, string? page, int? blockOrder, bool? allowPublicAccess, int? status)
+        public IEnumerable<ContentBlock>? GetContentBlocks(int? contentBlockId = null, string? friendlyName = null, string? system = null,
+            string? viperSectionPath = null, string? page = null, int? blockOrder = null, 
+            bool? allowPublicAccess = null, int? status = null)
         {
             // get blocks based on paramenters
             var blocks = _viperContext?.ContentBlocks
                     .Include(p => p.ContentBlockToPermissions)
                     .Include(f => f.ContentBlockToFiles)
+                        .ThenInclude(cbf => cbf.File)
                     .Include(h => h.ContentHistories)
-                    .Where(c => c.ContentBlockId.Equals(contentBlockID) || contentBlockID == null)
+                    .Where(c => c.ContentBlockId.Equals(contentBlockId) || contentBlockId == null)
                     .Where(c => string.IsNullOrEmpty(c.FriendlyName) ? string.IsNullOrEmpty(friendlyName) : c.FriendlyName.Equals(friendlyName) || string.IsNullOrEmpty(friendlyName))
                     .Where(c => c.System.Equals(system) || string.IsNullOrEmpty(system))
                     .Where(c => string.IsNullOrEmpty(c.ViperSectionPath) ? string.IsNullOrEmpty(viperSectionPath) : c.ViperSectionPath.Equals(viperSectionPath) || string.IsNullOrEmpty(viperSectionPath))
@@ -160,8 +163,8 @@ namespace Viper.Areas.CMS.Data
                 foreach (var b in blocks)
                 {
                     // sanitize content
-                    CleanResults results = antiSamy.Scan(b.ContentBlock1, policy);
-                    b.ContentBlock1 = results.GetCleanHtml();
+                    CleanResults results = antiSamy.Scan(b.Content, policy);
+                    b.Content = results.GetCleanHtml();
 
                 }
 

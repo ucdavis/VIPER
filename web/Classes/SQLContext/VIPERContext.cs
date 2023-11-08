@@ -199,7 +199,7 @@ public partial class VIPERContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("application");
             entity.Property(e => e.BlockOrder).HasColumnName("blockOrder");
-            entity.Property(e => e.ContentBlock1)
+            entity.Property(e => e.Content)
                 .HasColumnType("text")
                 .HasColumnName("contentBlock");
             entity.Property(e => e.DeletedOn)
