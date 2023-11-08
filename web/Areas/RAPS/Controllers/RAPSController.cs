@@ -54,7 +54,7 @@ namespace Viper.Areas.RAPS.Controllers
                 instance = path[(int)rapsIdx + 1];
             }
             ViewData["ViperLeftNav"] = await Nav(roleIdValid ? roleId : null,
-                roleIdValid ? permissionId : null,
+                permIdValid ? permissionId : null,
                 memberId,
                 instance);
         }
