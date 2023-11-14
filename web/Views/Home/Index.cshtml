@@ -1,66 +1,8 @@
 ﻿@{
     ViewData["Title"] = "Home Page";
 }
+@await Component.InvokeAsync("CMSBlocks", new {friendlyName = "prototype-sample"})
+
 <div>
     <a asp-area="RAPS">RAPS</a>
-    <h4>Welcome to the <em>Veterinary Information Portal and Educational Resource</em> - Version 2.0</h4>
-    <p>Stay tuned for many more updates in the future!</p>
 </div>
-
-<h2>Sample Content</h2>
-<q-form>
-    <div class="bg-primary text-white q-pa-sm q-mb-sm">Primary</div>
-    <div class="bg-info q-pa-sm q-mb-sm">Informational Text</div>
-    <div class="bg-positive text-white q-pa-sm q-mb-sm">Success!</div>
-    <div class="bg-warning q-pa-sm q-mb-sm">Warning!</div>
-    <div class="bg-negative text-white q-pa-sm q-mb-sm">Danger!</div>
-    <div class="bg-accent q-pa-sm q-mb-sm">Accent</div>
-    <div class="row q-mb-sm q-gutter-sm">
-        <q-input outlined dense label="A Form Field" class="col col-md-3 col-lg-2"
-                 type="text"></q-input>
-    </div>
-    <div class="row q-mb-sm q-gutter-sm">
-        <q-input outlined dense label="A Form Field" class="col col-md-6 col-lg-4"
-                 type="textarea"></q-input>
-    </div>
-    <div class="row q-mb-sm q-gutter-sm">
-        <q-btn class="bg-primary text-white col-auto" label="Submit (using primary)"></q-btn>
-        <q-btn class="bg-negative text-white col-auto offset-md-1" label="Delete (using danger)"></q-btn>
-    </div>
-</q-form>
-
-<q-table title="Sample Table"
-         dense
-         row-key="id"
-         loading="false"
-         :rows=rows
-         :columns=columns>
-    <template v-slot:body-cell-id="props">
-        <q-td :props="props">
-            <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs sm"></q-btn>
-        </q-td>
-    </template>
-</q-table>
-
-
-@section Scripts {
-    <script asp-add-nonce="true">
-        createVueApp({
-            data() {
-                return {
-                    rows: [
-                        {id: "1", name: "Brandon Edwards"},
-                        {id: "2", name: "Dan Ransom"}
-                    ],
-                    columns: [
-                        { name: "id", field: "id", align: "left", style: "width:75px;" },
-                        { name: "name", label: "Name", field: "name", sortable: true, align: "left" }
-                    ]
-                }
-            },
-            mounted() {
-                
-            }
-        })
-    </script>
-}

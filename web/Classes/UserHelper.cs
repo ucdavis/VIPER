@@ -392,6 +392,18 @@ namespace Viper
         }
         #endregion
 
+        public void ClearCachedRolesAndPermissions(AaudUser? user)
+        {
+            if(user != null && HttpHelper.Cache != null)
+            {
+                HttpHelper.Cache.Remove("Roles-" + user.LoginId);
+                HttpHelper.Cache.Remove("PermissionsAssigned-" + user.LoginId + "-" + true);
+                HttpHelper.Cache.Remove("PermissionsAssigned-" + user.LoginId + "-" + false);
+                HttpHelper.Cache.Remove("PermissionsInherited-" + user.LoginId + "-" + false);
+                HttpHelper.Cache.Remove("PermissionsInherited-" + user.LoginId + "-" + false);
+            }
+
+        }
     }
 
     public interface IUserHelper
@@ -415,5 +427,7 @@ namespace Viper
         AaudUser? GetTrueCurrentUser();
 
         bool IsEmulating();
+
+        void ClearCachedRolesAndPermissions(AaudUser? user);
     }
 }

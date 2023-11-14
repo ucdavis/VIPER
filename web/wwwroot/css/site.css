@@ -160,8 +160,38 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+/* Heading Styles */
 .q-page-container h2 {
-    font-size: 2rem;
-    line-height: 2rem;
-    margin: 1rem 0rem;
+    font-size: 1.4rem;
+    line-height: 1.4rem;
+    margin: 0rem 0rem 1rem 0rem;
+    font-weight: bold;
+}
+
+.q-page-container h3 {
+    font-size: 1.2rem;
+    line-height: 1.2rem;
+    margin: .0rem 0rem .5rem 0rem;
+    font-weight: bold;
+}
+
+
+.q-page-container h4 {
+    font-size: 1.1rem;
+    line-height: 1.1rem;
+    margin: .0rem 0rem .5rem 0rem;
+    font-weight: bold;
+}
+
+.q-page-container h5 {
+    font-size: 1rem;
+    line-height: 1rem;
+    margin: .0rem 0rem .5rem 0rem;
+    font-weight: bold;
+}
+
+.q-page-container h6 {
+    font-size: 1rem;
+    line-height: 1rem;
+    margin: .0rem 0rem .5rem 0rem;
 }

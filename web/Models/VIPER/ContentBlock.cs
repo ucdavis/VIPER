@@ -7,7 +7,7 @@ public partial class ContentBlock
 {
     public int ContentBlockId { get; set; }
 
-    public string ContentBlock1 { get; set; } = null!;
+    public string Content { get; set; } = null!;
 
     public string? Title { get; set; }
 

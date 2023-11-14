@@ -7,7 +7,7 @@ namespace Viper.Classes
     {
         public AreaController() { }
 
-        public void ConvertNavLinksForDevelopment(NavMenu menu)
+        protected void ConvertNavLinksForDevelopment(NavMenu menu)
         {
             if (HttpHelper.Environment?.EnvironmentName == "Development" && menu?.MenuItems != null)
             {

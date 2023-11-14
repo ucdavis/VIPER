@@ -49,12 +49,12 @@ namespace Viper.Areas.RAPS.Controllers
             List<string>? path = HttpContext?.Request?.Path.ToString().Split("/").ToList();
             int? rapsIdx = path?.FindIndex(p => p.Equals("raps", StringComparison.OrdinalIgnoreCase));
             string instance = "VIPER";
-            if(rapsIdx != null && rapsIdx > -1 && path?.Count() > rapsIdx + 1)
+            if(rapsIdx != null && rapsIdx > -1 && path?.Count > rapsIdx + 1)
             {
                 instance = path[(int)rapsIdx + 1];
             }
             ViewData["ViperLeftNav"] = await Nav(roleIdValid ? roleId : null,
-                roleIdValid ? permissionId : null,
+                permIdValid ? permissionId : null,
                 memberId,
                 instance);
         }

@@ -7,6 +7,7 @@ namespace Viper.Classes.SQLContext;
 
 public partial class VIPERContext : DbContext
 {
+#pragma warning disable CS8618
     public VIPERContext()
     {
     }
@@ -15,6 +16,7 @@ public partial class VIPERContext : DbContext
         : base(options)
     {
     }
+#pragma warning restore CS8618
 
     public virtual DbSet<AppControl> AppControls { get; set; }
 
@@ -197,7 +199,7 @@ public partial class VIPERContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("application");
             entity.Property(e => e.BlockOrder).HasColumnName("blockOrder");
-            entity.Property(e => e.ContentBlock1)
+            entity.Property(e => e.Content)
                 .HasColumnType("text")
                 .HasColumnName("contentBlock");
             entity.Property(e => e.DeletedOn)

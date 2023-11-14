@@ -7,6 +7,7 @@ namespace Viper.Classes.SQLContext;
 
 public partial class AAUDContext : DbContext
 {
+#pragma warning disable CS8618
     public AAUDContext()
     {
     }
@@ -15,6 +16,7 @@ public partial class AAUDContext : DbContext
         : base(options)
     {
     }
+#pragma warning restore CS8618
 
     public virtual DbSet<AaudOverride> AaudOverrides { get; set; }
 
