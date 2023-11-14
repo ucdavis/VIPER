@@ -28,7 +28,7 @@ body {
 
 /*Placeholders used when loading*/
 #headerPlaceholder {
-    height: 100px;
+    height: 50px;
     background-color: #022851;
 }
 #topPlaceholder {
@@ -45,23 +45,42 @@ body {
     /*background-color: white;*/
 }
 
-#mainLayoutViper {
+.mainLayoutViper {
     font-family: Proxima Nova;
-    font-size: 1.6em;
+    font-size: 1.6em !important;
     font-weight: normal;
     vertical-align: bottom;
     margin-left: .6em;
 }
 
-#mainLayoutViperMode {
+.mainLayoutViperPlaceholder {
+    margin-left: 10px;
+    height: 24px;
+}
+
+.mainLayoutViperMode {
     margin-left: .6em;
     margin-top: .2em;
     vertical-align: bottom;
     color: red;
 }
 
-#mainLayoutHeaderSections,
-#mainLayoutHeaderSections2 {
+#topPlaceholder {
+    padding: 0 12px;
+}
+/*
+#topPlaceholder a {
+    margin-top: 4px;
+}
+
+#topPlaceholder .mainLayoutViperMode {
+    margin-top: 10px;
+    margin-left: 2px;
+    height: 24px;
+}
+*/
+
+#mainLayoutHeaderSections {
     background-color: #1D4776;
     min-height: 50px;
     padding: 0 12px;
@@ -69,6 +88,10 @@ body {
 
 #mainLayoutHeaderSections .selectedTopNav {
     background-color: #4F7094;
+}
+
+#mainLayoutHeaderSections a.q-btn.navLink {
+    padding-top: 12px;
 }
 
 /*Left Nav styles*/

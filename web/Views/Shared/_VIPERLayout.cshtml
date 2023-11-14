@@ -24,13 +24,22 @@
 
 </head>
 <body>
-    <div v-show="false" id="headerPlaceholder">
-        <div id="topPlaceholder"></div>
-        <div id="mainNavPlaceholder"></div>
-    </div>
     <q-layout view="hHh lpR fFf">
-        <q-header elevated id="mainLayoutHeader" height-hint="98" v-cloak>
-            <q-toolbar>
+        <q-header elevated id="mainLayoutHeader" height-hint="98">
+            <div v-show="false" id="headerPlaceholder">
+                <div id="topPlaceholder" class="row items-center">
+                    <a class="q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable q-btn--no-uppercase q-btn--dense gt-sm text-white"
+                       tabindex="0" href="@Url.Content("~/")">
+                        <span class="q-focus-helper"></span>
+                        <span class="q-btn__content text-center col items-center q-anchor--skip justify-center row">
+                            <i class="q-icon notranslate material-icons" aria-hidden="true" role="img">home</i>
+                            <span class="mainLayoutViper">VIPER 2.0</span>
+                            <span class="mainLayoutViperMode">Development</span>
+                        </span>
+                    </a>
+                </div>
+            </div>
+            <q-toolbar v-cloak>
                 <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
                     @await Component.InvokeAsync("MiniNav",
                     new {
@@ -42,14 +51,14 @@
                 <q-btn flat dense label="Viper 2.0" class="lt-md" href="@Url.Content("~/")"></q-btn>
 
                 <q-btn flat dense no-caps icon="home" class="gt-sm text-white" href="@Url.Content("~/")">
-                    <span id="mainLayoutViper">VIPER 2.0</span>
+                    <span class="mainLayoutViper">VIPER 2.0</span>
                     @if (HttpHelper.Environment?.EnvironmentName == "Development")
                     {
-                        <span id="mainLayoutViperMode">Development</span>
+                        <span class="mainLayoutViperMode">Development</span>
                     }
                     else if (HttpHelper.Environment?.EnvironmentName == "Test")
                     {
-                        <span id="mainLayoutViperMode">Test</span>
+                        <span class="mainLayoutViperMode">Test</span>
                     }
                 </q-btn>
                
@@ -200,7 +209,7 @@
                 }
             }
         }
-        //sleep(5000)
+        //sleep(2000)
         
         for(idx in vueApps) {
             vueApps[idx].create()
