@@ -26,6 +26,19 @@ body {
     box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
 }
 
+/*Placeholders used when loading*/
+#headerPlaceholder {
+    height: 100px;
+    background-color: #022851;
+}
+#topPlaceholder {
+    height: 50px;
+}
+#mainNavPlaceholder {
+    height: 50px;
+    background-color: #1D4776;
+}
+
 /*Top nav/header styles*/
 #mainLayoutHeader {
     background-color: #022851;
@@ -47,8 +60,11 @@ body {
     color: red;
 }
 
-#mainLayoutHeaderSections {
+#mainLayoutHeaderSections,
+#mainLayoutHeaderSections2 {
     background-color: #1D4776;
+    min-height: 50px;
+    padding: 0 12px;
 }
 
 #mainLayoutHeaderSections .selectedTopNav {

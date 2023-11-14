@@ -24,9 +24,12 @@
 
 </head>
 <body>
-    <q-layout view="hHh lpR fFf" v-cloak>
-        <q-header elevated id="mainLayoutHeader" height-hint="98">
-
+    <div v-show="false" id="headerPlaceholder">
+        <div id="topPlaceholder"></div>
+        <div id="mainNavPlaceholder"></div>
+    </div>
+    <q-layout view="hHh lpR fFf">
+        <q-header elevated id="mainLayoutHeader" height-hint="98" v-cloak>
             <q-toolbar>
                 <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
                     @await Component.InvokeAsync("MiniNav",
@@ -91,12 +94,12 @@
         )
         
         <q-page-container id="mainLayoutBody">
-            <div class="q-pa-md">
+            <div class="q-pa-md" v-cloak>
             @RenderBody()
             </div>
         </q-page-container>
 
-        <q-footer elevated class="bg-white">
+        <q-footer elevated class="bg-white" v-cloak>
             <div class="q-pa-y-sm q-pa-x-md q-gutter-xs text-caption row" id="footerNavLinks">
                 <div class="col-12 col-md q-pl-md">
                     <a href="https://svmithelp.vetmed.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">

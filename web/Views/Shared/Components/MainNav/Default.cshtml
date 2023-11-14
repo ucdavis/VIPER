@@ -1,11 +1,34 @@
 ﻿@using Viper.Classes.SQLContext;
-@model Viper.Models.AAUD.AaudUser
 @{
-    RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
-    IUserHelper UserHelper = new UserHelper();
     List<string[]> tabLinks = (List<string[]>)(ViewData["tabLinks"] ?? new List<string[]>());
 }
 
+<div class="row gt-sm items-stretch" id="mainLayoutHeaderSections2">
+    @foreach (string[] tabLink in tabLinks)
+    {
+        if (tabLink[0] == "https://ucdsvm.knowledgeowl.com/help")
+        {
+            <q-btn flat href="@Url.Content(tabLink[0])" icon="help" class="q-px-md q-py-sm">
+                <q-tooltip>Help</q-tooltip>
+            </q-btn>
+            <q-separator dark vertical></q-separator>
+        }
+        else
+        {
+            <q-btn flat
+                   href="@Url.Content(tabLink[0])"
+                   label="@tabLink[1]"
+                   class="q-px-md q-py-sm @(tabLink[1] == (string)(ViewData["SelectedTopNav"] ?? "") ? " selectedTopNav" : "")">
+                @if (tabLink.Length >= 4 && tabLink[3] != "")
+                {
+                    <q-tooltip>@tabLink[3]</q-tooltip>
+                }
+            </q-btn>
+            <q-separator dark vertical></q-separator>
+        }
+    }
+</div>
+@*
 <q-toolbar id="mainLayoutHeaderSections" class="gt-sm items-stretch">
     @foreach (string[] tabLink in tabLinks)
     {
@@ -16,7 +39,7 @@
             </q-btn>
             <q-separator dark vertical></q-separator>
         }
-        else if (tabLink[2] == "" || UserHelper.HasPermission(rapsContext, Model, tabLink[2]))
+        else
         {
             <q-btn flat
                    href="@Url.Content(tabLink[0])"
@@ -31,4 +54,4 @@
         }
     }
 </q-toolbar>
-       
+*@
