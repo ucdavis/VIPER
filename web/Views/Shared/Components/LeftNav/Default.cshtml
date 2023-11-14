@@ -5,7 +5,7 @@
     NavMenu leftNav = (NavMenu)(ViewData["ViperLeftNav"] ?? new NavMenu());
 }
 <q-drawer v-model="mainLeftDrawer" show-if-above elevated side="left" :mini="!mainLeftDrawer" no-mini-animation @@click.capture="drawerClick"
-          width="300" id="mainLeftDrawer">
+          width="300" id="mainLeftDrawer" v-cloak>
     <template v-slot:default>
         <div class="q-pa-sm" id="leftNavMenu">
             <q-btn dense
