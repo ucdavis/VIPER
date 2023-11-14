@@ -16,7 +16,7 @@ namespace Viper.Views.Shared.Components.MainNav
         private readonly List<string[]> links = new()
         {
             new string[] { "/", "1.0", "SVMSecure", "VIPER 1.0" },
-            new string[] { "~/", "VIPER Home", "SVMSecure" },
+            new string[] { "~/", "VIPER Home", "SVMSecure", "VIPER Home Page" },
             new string[] { "/Accreditation/default.cfm", "Accreditation", "SVMSecure.Accreditation" },
             new string[] { "/Admin/default.cfm", "Admin", "SVMSecure.admin" },
             new string[] { "/Analytics/default.cfm", "Analytics", "SVMSecure.Analytics" },

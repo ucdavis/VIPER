@@ -3,55 +3,32 @@
     List<string[]> tabLinks = (List<string[]>)(ViewData["tabLinks"] ?? new List<string[]>());
 }
 
-<div class="row gt-sm items-stretch" id="mainLayoutHeaderSections2">
+<div class="row gt-sm items-stretch" id="mainLayoutHeaderSections">
     @foreach (string[] tabLink in tabLinks)
     {
         if (tabLink[0] == "https://ucdsvm.knowledgeowl.com/help")
         {
-            <q-btn flat href="@Url.Content(tabLink[0])" icon="help" class="q-px-md q-py-sm">
+            <q-btn flat href="@Url.Content(tabLink[0])" icon="help" class="q-px-md q-py-sm" v-cloak>
                 <q-tooltip>Help</q-tooltip>
             </q-btn>
-            <q-separator dark vertical></q-separator>
+            <hr class="q-separator q-separator--vertical q-separator--dark" aria-orientation="vertical">
         }
         else
         {
-            <q-btn flat
-                   href="@Url.Content(tabLink[0])"
-                   label="@tabLink[1]"
-                   class="q-px-md q-py-sm @(tabLink[1] == (string)(ViewData["SelectedTopNav"] ?? "") ? " selectedTopNav" : "")">
+            <a class="q-btn q-btn--flat q-btn--actionable q-hoverable q-px-md q-py-sm text-white navLink @(tabLink[1] == (string)(ViewData["SelectedTopNav"] ?? "") ? " selectedTopNav" : "")"
+               href="@Url.Content(tabLink[0])">
+                <span class="q-focus-helper"></span>
+                <span class="q-btn__content">
+                    <span class="block">
+                        @tabLink[1]
+                    </span>
+                </span>
                 @if (tabLink.Length >= 4 && tabLink[3] != "")
                 {
-                    <q-tooltip>@tabLink[3]</q-tooltip>
+                    <q-tooltip v-cloak>@tabLink[3]</q-tooltip>
                 }
-            </q-btn>
-            <q-separator dark vertical></q-separator>
+            </a>
+            <hr class="q-separator q-separator--vertical q-separator--dark" aria-orientation="vertical">
         }
     }
 </div>
-@*
-<q-toolbar id="mainLayoutHeaderSections" class="gt-sm items-stretch">
-    @foreach (string[] tabLink in tabLinks)
-    {
-        if (tabLink[0] == "https://ucdsvm.knowledgeowl.com/help")
-        {
-            <q-btn flat href="@Url.Content(tabLink[0])" icon="help" class="q-px-md q-py-sm">
-                <q-tooltip>Help</q-tooltip>
-            </q-btn>
-            <q-separator dark vertical></q-separator>
-        }
-        else
-        {
-            <q-btn flat
-                   href="@Url.Content(tabLink[0])"
-                   label="@tabLink[1]"
-                   class="q-px-md q-py-sm @(tabLink[1] == (string)(ViewData["SelectedTopNav"] ?? "") ? " selectedTopNav" : "")">
-                @if (tabLink.Length >= 4 && tabLink[3] != "")
-                {
-                    <q-tooltip>@tabLink[3]</q-tooltip>
-                }
-            </q-btn>
-            <q-separator dark vertical></q-separator>
-        }
-    }
-</q-toolbar>
-*@
