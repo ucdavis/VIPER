@@ -70,6 +70,75 @@ namespace Viper.Areas.RAPS.Controllers
             }
         }
 
+        // GET: Permissions/5/AllMembers
+        [HttpGet("Permissions/{permissionId}/AllMembers")]
+        public async Task<ActionResult<IEnumerable<MemberSearchResult>>> GetAllPermissionMembers(string instance, int? permissionId)
+        {
+            if (_context.TblMemberPermissions == null)
+            {
+                return NotFound();
+            }
+            if (permissionId != null)
+            {
+                TblPermission? permission = _securityService.GetPermissionInInstance(instance, (int)permissionId);
+                if(permission == null)
+                {
+                    return NotFound();
+                }
+
+                //get everyone who currently has the permission. this takes into account deny permissions, deny roles to permission,
+                //role member dates, and permission member dates.
+
+                //basic queries with date checking - not checking access yet
+                var membersWithRole = _context.TblRolePermissions
+                    .Where(rp => rp.PermissionId == permissionId)
+                    .Include(rp => rp.Role)
+                    .ThenInclude(r => r.TblRoleMembers
+                        .Where(rm => rm.StartDate == null || rm.StartDate <= DateTime.Now)
+                        .Where(rm => rm.EndDate == null || rm.EndDate >= DateTime.Now));
+                var membersWithPermission = _context.TblMemberPermissions
+                    .Where(mp => mp.PermissionId == permissionId)
+                    .Where(mp => mp.StartDate == null || mp.StartDate <= DateTime.Now)
+                    .Where(mp => mp.EndDate == null || mp.EndDate >= DateTime.Now);
+
+                //using the above queries, but checking access flag
+                var membersWithRoleGrantingPermission = membersWithRole
+                    .Where(rp => rp.Access == 1)
+                    .SelectMany(rp => rp.Role.TblRoleMembers.Select(rm => rm.AaudUser));
+                var membersWithRoleDenyingPermission = membersWithRole
+                    .Where(rp => rp.Access == 0)
+                    .SelectMany(rp => rp.Role.TblRoleMembers.Select(rm => rm.AaudUser));
+                var membersGrantedPermission = membersWithPermission
+                    .Where(mp => mp.Access == 1)
+                    .Select(mp => mp.Member);
+                var membersDeniedPermission = membersWithPermission
+                    .Where(mp => mp.Access == 0)
+                    .Select(mp => mp.Member);
+
+                return await membersWithRoleGrantingPermission
+                    .Union(membersGrantedPermission)
+                    .Except(membersWithRoleDenyingPermission)
+                    .Except(membersDeniedPermission)    
+                    .Select(aaud => new MemberSearchResult()
+                        {
+                            MemberId = aaud.MothraId,
+                            LoginId = aaud.LoginId,
+                            MailId = aaud.MailId,
+                            DisplayFirstName = aaud.DisplayFirstName,
+                            DisplayLastName = aaud.DisplayLastName,
+                            Current = aaud.Current
+                        })
+                    .OrderBy(result => result.DisplayLastName)
+                    .ThenBy(result => result.DisplayFirstName) 
+                    .ThenBy(result => result.MemberId)
+                    .ToListAsync();
+            }
+            else
+            {
+                return BadRequest("Permission is required");
+            }
+        }
+
         // GET: Members/12345678/Permissions/5
         // GET: Permissions/5/Members/12345678
         [HttpGet("Members/{memberId}/Permissions/{permissionId}")]
@@ -112,7 +181,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            if (_securityService.PermissionBelongsToInstance(instance, tblPermission.Permission))
+            if (!_securityService.PermissionBelongsToInstance(instance, tblPermission.Permission))
             {
                 return BadRequest();
             }

@@ -138,11 +138,11 @@ namespace Viper.Areas.RAPS.Controllers
                     nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected Permission {0}", selectedPermission.Permission), IsHeader = true });
                     if(_securityService.IsAllowedTo("EditRolePermissions"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "Roles w/ Permission", MenuItemURL = "permissionRoles" });
+                        nav.Add(new NavMenuItem() { MenuItemText = "Roles w/ Permission", MenuItemURL = "permissionRoles?permissionId=" + selectedPermission.PermissionId });
                     }
                     if (_securityService.IsAllowedTo("EditMemberPermissions"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "Users w/ Permission", MenuItemURL = "permissionMembers" });
+                        nav.Add(new NavMenuItem() { MenuItemText = "Users w/ Permission", MenuItemURL = "permissionMembers?permissionId=" + selectedPermission.PermissionId });
                     }
                 }
             }
@@ -159,15 +159,15 @@ namespace Viper.Areas.RAPS.Controllers
                     nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected User {0}", selecteduser.DisplayFullName), IsHeader = true });
                     if(_securityService.IsAllowedTo("EditRoleMembership"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "User Roles", MenuItemURL = "memberRoles" });
+                        nav.Add(new NavMenuItem() { MenuItemText = "User Roles", MenuItemURL = "memberRoles?memberId=" + selecteduser.MothraId });
                     }
                     if (_securityService.IsAllowedTo("EditMemberPermissions"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "User Permissions", MenuItemURL = "memberPermissions" });
+                        nav.Add(new NavMenuItem() { MenuItemText = "User Permissions", MenuItemURL = "memberPermissions?memberId=" + selecteduser.MothraId });
                     }
                     if (_securityService.IsAllowedTo("RSOP"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "Combined Permissions", MenuItemURL = "memberRSOP" });
+                        nav.Add(new NavMenuItem() { MenuItemText = "Combined Permissions", MenuItemURL = "RSOP?memberId=" + selecteduser.MothraId });
                     }
                 }
             }
@@ -365,6 +365,21 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
             return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/Roles.cshtml"));
+        }
+
+        [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> AllMembersWithPermission(int? permissionId)
+        {
+            ViewData["permissionId"] = permissionId;
+
+            TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
+
+            if (permission == null)
+            {
+                return NotFound();
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/AllMembers.cshtml"));
         }
 
         /**
