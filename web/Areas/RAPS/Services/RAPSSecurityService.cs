@@ -196,11 +196,15 @@ namespace Viper.Areas.RAPS.Services
 
             switch (action)
             {
-                //TODO: Update for VMACS instances + EditRoleMembership
+                case "ViewRolePermissions":
                 case "EditRoleMembership":
+                    if (IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.EditRoleMembership"))
+                    {
+                        return true;
+                    }
                     List<int> controlledRoleIds = GetControlledRoleIds(User?.MothraId);
                     return controlledRoleIds.Contains(Role.RoleId)
-                            || _userHelper.HasPermission(_context, User, "RAPS.EditRoleMembership");
+                        || _userHelper.HasPermission(_context, User, "RAPS.EditRoleMembership");
                 default:
                     return false;
             }

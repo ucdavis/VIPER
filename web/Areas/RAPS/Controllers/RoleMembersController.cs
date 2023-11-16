@@ -194,13 +194,13 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     return NotFound();
                 }
-                if (!_securityService.IsAllowedTo("EditRoleMembers", instance, tblRole))
+                if (!_securityService.IsAllowedTo("EditRoleMembership", instance, tblRole))
                 {
                     return Forbid();
                 }
             }
             //for a member, check that the user can edit role membership in this instance
-            else if (!_securityService.IsAllowedTo("EditRoleMembers", instance))
+            else if (!_securityService.IsAllowedTo("EditRoleMembership", instance))
             {
                 return Forbid();
             }
