@@ -1,0 +1,62 @@
+﻿<h2>User with Permission {{permission.permission}}</h2>
+<p>
+    {{permission.description}}
+</p>
+<q-table title="Members"
+         dense
+         row-key="memberId"
+         :loading="membersTable.loading"
+         :rows="membersTable.rows"
+         :columns="membersTable.columns"
+         :filter="membersTable.filter"
+         :pagination="membersTable.pagination">
+    <template v-slot:top-right="props">
+        <q-input class="q-ml-xs q-mr-xs" v-model="permissionMembersFilter" dense outlined debounce="300" placeholder="Filter Results">
+            <template v-slot:append>
+                <q-icon name="filter_alt" />
+            </template>
+        </q-input>
+    </template>
+</q-table>
+
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    permissionId: 0,
+                    permission: {},
+                    membersTable: new quasarTable({
+                        keys: ["memberId"],
+                        columns: [
+                            { name: "memberid", label: "MothraID", field: "memberId", align: "left", style: "width:75px;" },
+                            { name: "member", label: "Name", field: "memberName", align: "left", sortable: true },
+                            { name: "active", label: "Active", field: "active", align: "left", sortable: true }
+                        ],
+                        //after loading role members, add the member name and active flag
+                        onLoad: function (data) {
+                            this.rows = data.map(pm => ({
+                                ...pm,
+                                memberName: pm?.displayLastName + ", " + pm?.displayFirstName,
+                                active: pm?.current == 1 ? "Y" : "N"
+                            }))
+                        },
+                        pagination: { rowsPerPage: 0 }
+                    })
+                }
+            },
+            methods: {
+                loadPermission: async function () {
+                    this.permission = await viperFetch(this, "Permissions/" + this.permissionId)
+                }
+            },
+            async mounted() {
+                this.permissionId = this.urlParams.get("permissionId")
+                this.loadPermission()
+                this.membersTable.urlBase = "Permissions/" + this.permissionId + "/AllMembers"
+                this.membersTable.load()
+            }
+        })
+    </script>
+}

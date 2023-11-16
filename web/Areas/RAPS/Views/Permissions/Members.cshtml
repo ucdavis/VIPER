@@ -11,7 +11,7 @@
          :filter="membersTable.filter"
          :pagination="membersTable.pagination">
     <template v-slot:top-left>
-        <q-btn color="green" label="Add Member" @@click="membersTable.showForm = true" no-caps></q-btn>
+        <q-btn color="green" label="Add Member" @@click="membersTable.showForm = true;membersTable.object.access = 1;" no-caps></q-btn>
         <div class="q-pa-sm q-gutter-sm">
             <q-dialog v-model="membersTable.showForm" @@hide="membersTable.clear(this)">
                 <q-card>
@@ -39,7 +39,24 @@
                             </div>
                             <div class="row">
                                 <q-input type="date" outlined dense v-model="membersTable.object.endDate" label="End Date"
-                                         :error="membersTable.errors?.endDate?.error" :error-message="membersTable.endDAte?.startDate?.message"></q-input>
+                                         :error="membersTable.errors?.endDate?.error" :error-message="membersTable.endDate?.startDate?.message"></q-input>
+                            </div>
+                            <div class="row q-pt-sm">
+                                <q-btn-toggle no-caps outlined dense :toggle-color="membersTable.object.access == 0 ? 'red' : 'green'" 
+                                    v-model="membersTable.object.access" :options="allowDenyOptions">
+                                    <template v-slot:allow>
+                                        <div class="q-px-lg" align="evenly">
+                                            <q-icon name="check" color="white" v-if="membersTable.object.access != 0"></q-icon>
+                                            Allow
+                                        </div>
+                                    </template>
+                                    <template v-slot:deny>
+                                        <div class="q-px-lg" align="evenly">
+                                            <q-icon name="close" color="white" v-if="membersTable.object.access == 0"></q-icon>
+                                            Deny
+                                        </div>
+                                    </template>
+                                </q-btn-toggle>
                             </div>
                         </q-card-section>
 
@@ -58,6 +75,11 @@
                 <q-icon name="filter_alt" />
             </template>
         </q-input>
+    </template>
+    <template v-slot:body-cell-access="props">
+        <q-td :props="props">
+            <q-icon size="sm" :name="props.row.access ? 'check' : 'close'" :color="props.row.access ? 'green' : 'red'"></q-icon>
+        </q-td>
     </template>
     <template v-slot:body-cell-memberid="props">
         <q-td :props="props">
@@ -82,11 +104,16 @@
                     permissionId: 0,
                     permission: {},
                     memberSearchResults: [],
+                    allowDenyOptions: [
+                        { value: 1, slot: 'allow' }, 
+                        { value: 0, slot: 'deny' }
+                    ],
                     membersTable: new quasarTable({
                         keys: ["memberId"],
                         urlBase: "Permissions",
                         columns: [
                             { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
+                            { name: "access", label: "", field: "access", align: "left", style: "width:75px;" },
                             { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
                             { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
