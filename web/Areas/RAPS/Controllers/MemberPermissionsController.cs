@@ -242,6 +242,11 @@ namespace Viper.Areas.RAPS.Controllers
                 UpdateTblMemberPermission(tblMemberPermission, memberPermission);
                 _context.TblMemberPermissions.Add(tblMemberPermission);
                 _context.SaveChanges();
+                if (memberPermission.Access == 0)
+                {
+                    //SaveChanges() changes this to 1 if it's set to 0?
+                    tblMemberPermission.Access = 0;
+                }
                 _auditService.AuditPermissionMemberChange(tblMemberPermission, RAPSAuditService.AuditActionType.Create);
                 _context.SaveChanges();
                 transaction.Commit();
