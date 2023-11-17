@@ -118,7 +118,11 @@ namespace Viper.Areas.RAPS.Controllers
             }
             if (selectedRole != null && _securityService.RoleBelongsToInstance(instance, selectedRole))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected Role {0}", selectedRole.Role), IsHeader = true });
+                if ((selectedRole.Application == 0 && _securityService.IsAllowedTo("EditPermissions"))
+                    || _securityService.IsAllowedTo("EditRoleMembership"))
+                {
+                    nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected Role {0}", selectedRole.Role), IsHeader = true });
+                }   
                 if (selectedRole.Application == 0 && _securityService.IsAllowedTo("EditPermissions"))
                 {
                     nav.Add(new NavMenuItem() { MenuItemText = "Edit Permissions", MenuItemURL = "RolePermissions?roleId=" + selectedRole.RoleId });
@@ -135,7 +139,11 @@ namespace Viper.Areas.RAPS.Controllers
                 nav.Add(new NavMenuItem() { MenuItemText = "Permission List", MenuItemURL = "permissionlist" });
                 if(selectedPermission != null)
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected Permission {0}", selectedPermission.Permission), IsHeader = true });
+                    if (_securityService.IsAllowedTo("EditRolePermissions")
+                        || _securityService.IsAllowedTo("EditMemberPermissions"))
+                    {
+                        nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected Permission {0}", selectedPermission.Permission), IsHeader = true });
+                    }
                     if(_securityService.IsAllowedTo("EditRolePermissions"))
                     {
                         nav.Add(new NavMenuItem() { MenuItemText = "Roles w/ Permission", MenuItemURL = "permissionRoles?permissionId=" + selectedPermission.PermissionId });
@@ -156,7 +164,12 @@ namespace Viper.Areas.RAPS.Controllers
                 }
                 if(selecteduser != null)
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected User {0}", selecteduser.DisplayFullName), IsHeader = true });
+                    if (_securityService.IsAllowedTo("EditRoleMembership")
+                        || _securityService.IsAllowedTo("EditMemberPermissions")
+                        || _securityService.IsAllowedTo("RSOP"))
+                    {
+                        nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected User {0}", selecteduser.DisplayFullName), IsHeader = true });
+                    }
                     if(_securityService.IsAllowedTo("EditRoleMembership"))
                     {
                         nav.Add(new NavMenuItem() { MenuItemText = "User Roles", MenuItemURL = "memberRoles?memberId=" + selecteduser.MothraId });
