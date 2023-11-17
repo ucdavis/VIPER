@@ -270,9 +270,8 @@ namespace Viper.Areas.RAPS.Controllers
         /// <returns></returns>
         [Permission(Allow = "RAPS.Admin")]
         [Route("/[area]/{instance}/DelegateRoles")]
-#pragma warning disable IDE0060 // Remove unused parameter
-        public async Task<IActionResult> DelegateRoles(string instance)
-#pragma warning restore IDE0060 // Remove unused parameter
+        public async Task<IActionResult> DelegateRoles()
+
         {
             return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/DelegateRoles.cshtml"));
         }
@@ -313,7 +312,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> PermissionList()
         {
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/List.cshtml"));
+            return await Task.Run(() =>
+                UserHelper.HasPermission(_RAPSContext, UserHelper.GetCurrentUser(), "RAPS.Admin")
+                    ? View("~/Areas/RAPS/Views/Permissions/ListAdmin.cshtml")
+                    : View("~/Areas/RAPS/Views/Permissions/List.cshtml"));
         }
 
         /// <summary>
@@ -364,6 +366,21 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
             return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/Roles.cshtml"));
+        }
+
+        [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> PermissionRolesRO(int? permissionId)
+        {
+            ViewData["permissionId"] = permissionId;
+
+            TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
+
+            if (permission == null)
+            {
+                return NotFound();
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/RolesRO.cshtml"));
         }
 
         [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]

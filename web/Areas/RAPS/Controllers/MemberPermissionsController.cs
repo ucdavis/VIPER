@@ -18,7 +18,7 @@ namespace Viper.Areas.RAPS.Controllers
 {
     [Route("raps/{instance=VIPER}")]
     [Authorize(Roles = "VMDO SVM-IT", Policy = "2faAuthentication")]
-    [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
+    [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions,RAPS.ViewPermissions")]
     public class MemberPermissionsController : ApiController
     {
         private readonly RAPSContext _context;
@@ -38,6 +38,7 @@ namespace Viper.Areas.RAPS.Controllers
         // GET: Permissions/5/Members
         [HttpGet("Members/{memberId}/Permissions")]
         [HttpGet("Permissions/{permissionId}/Members")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
         public async Task<ActionResult<IEnumerable<TblMemberPermission>>> GetTblMemberPermissions(string instance, string? memberId, int? permissionId)
         {
             if (_context.TblMemberPermissions == null)
@@ -72,8 +73,13 @@ namespace Viper.Areas.RAPS.Controllers
 
         // GET: Permissions/5/AllMembers
         [HttpGet("Permissions/{permissionId}/AllMembers")]
+        [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
         public async Task<ActionResult<IEnumerable<MemberSearchResult>>> GetAllPermissionMembers(string instance, int? permissionId)
         {
+            if(!_securityService.IsAllowedTo("ViewAllPermissionMembers", instance))
+            {
+                return Forbid();
+            }
             if (_context.TblMemberPermissions == null)
             {
                 return NotFound();
@@ -143,6 +149,7 @@ namespace Viper.Areas.RAPS.Controllers
         // GET: Permissions/5/Members/12345678
         [HttpGet("Members/{memberId}/Permissions/{permissionId}")]
         [HttpGet("Permissions/{permissionId}/Members/{memberId}")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
         public async Task<ActionResult<TblMemberPermission>> GetTblMemberPermission(string instance, string memberId, int permissionId)
         {
             if (_context.TblMemberPermissions == null)
@@ -168,6 +175,7 @@ namespace Viper.Areas.RAPS.Controllers
         // PUT: Permissions/5/Members/12345678
         [HttpPut("Members/{memberId}/Permissions/{permissionId}")]
         [HttpPut("Permissions/{permissionId}/Members/{memberId}")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
         public async Task<IActionResult> PutTblMemberPermission(string instance, string memberId, int permissionId, MemberPermissionCreateUpdate memberPermission)
         {
             if (memberId != memberPermission.MemberId || permissionId != memberPermission.PermissionId)
@@ -213,6 +221,7 @@ namespace Viper.Areas.RAPS.Controllers
         // POST: Permissions/5/Members
         [HttpPost("Members/{memberId}/Permissions")]
         [HttpPost("Permissions/{permissionId}/Members")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
         public async Task<ActionResult<TblMemberPermission>> PostTblMemberPermission(string instance, string? memberId, int? permissionId, MemberPermissionCreateUpdate memberPermission)
         {
             if (_context.TblMemberPermissions == null)
@@ -270,6 +279,7 @@ namespace Viper.Areas.RAPS.Controllers
         // DELETE: Permissions/5/Members/12345678
         [HttpDelete("Members/{memberId}/Permissions/{permissionId}")]
         [HttpDelete("Permissions/{permissionId}/Members/{memberId}")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
         public async Task<IActionResult> DeleteTblMemberPermission(string instance, string memberId, int permissionId)
         {
             if (_context.TblMemberPermissions == null)
