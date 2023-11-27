@@ -1,0 +1,86 @@
+﻿<h2>Permissions</h2>
+<div class="q-pa-sm q-gutter-sm">
+    <q-dialog v-model="permissionTable.showForm" @@hide="permissionTable.clear(this)">
+        <q-card style="width: 500px; max-width: 80vw;">
+            <q-form @@submit="permissionTable.submit(this)" v-bind="permissionTable.object">
+                <q-card-section>
+                    <div class="text-h6">{{permissionTable.editing ? "Edit" : "Create"}} Permission</div>
+                    <div class="bg-negative text-white q-pa-sm rounded" v-if="permissionTable.errors?.message?.length > 0">{{permissionTable.errors.message}}</div>
+                </q-card-section>
+
+                <q-card-section>
+                    <q-input outlined dense v-model="permissionTable.object.permission" :error="permissionTable.errors?.Permission?.error" :error-message="permissionTable.errors?.Permission?.message" label="Permission Name"></q-input>
+                    <q-input type="textarea" outlined dense v-model="permissionTable.object.description" label="Description"></q-input>
+                </q-card-section>
+
+                <q-card-actions align="evenly">
+                    <q-btn no-caps :label="permissionTable.editing ? 'Update Permission' : 'Add Permission'" type="submit" padding="xs sm" color="primary"></q-btn>
+                    <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="permissionTable.delete(this)" color="red" v-if="permissionTable.editing"></q-btn>
+                </q-card-actions>
+            </q-form>
+        </q-card>
+    </q-dialog>
+</div>
+
+<q-table title="Permissions"
+         dense
+         row-key="permissionId"
+         :loading="permissionTable.loading"
+         :rows="permissionTable.rows"
+         :columns="permissionTable.columns"
+         :filter="permissionTable.filter"
+         :rows-per-page-options="permissionTable.rowsPerPageOptions"
+         v-model:pagination="permissionTable.pagination"
+         @@request="(props) => permissionTable.request(props, this)">
+    <template v-slot:top-left>
+        <q-btn no-caps color="green" label="Create Permission" padding="xs md" @@click="permissionTable.showForm = true"></q-btn>
+    </template>
+    <template v-slot:top-right>
+        <q-input v-model="permissionTable.filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
+            <template v-slot:append>
+                <q-icon name="filter_alt" />
+            </template>
+        </q-input>
+    </template>
+    <template v-slot:body-cell-action="props">
+        <q-td :props="props">
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="groups" :href="'AllMembersWithPermission?permissionId=' + props.row.permissionId"></q-btn>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-edit="props">
+        <q-td :props="props">
+            <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs md" @@click="permissionTable.selectRow(props.row)"></q-btn>
+        </q-td>
+    </template>
+</q-table>
+
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    permissionTable: new quasarTable({
+                        keys: "permissionId",
+                        urlBase: "Permissions",
+                        columns: [
+                            { name: "action", field: "permissionId", align: "left", style: "width:75px;" },
+                            { name: "permission", label: "Permission", field: "permission", sortable: true, align: "left" },
+                            { name: "description", label: "Description", field: "description", sortable: false, align: "left" },
+                            { name: "count", label: "Members", field: "count", sortable: true, align: "left", style: "width:75px;" },
+                            { name: "edit", label: "", field: "", style: "width: 100px;" }
+                        ],
+                        onLoad: function (data) {
+                            this.rows = data.map(p => ({ ...p, count: p.tblMemberPermissions.length }))
+                        }
+                    })
+                }
+            },
+            mounted() {
+                this.permissionTable.load(this)
+            }
+        })
+    </script>
+}

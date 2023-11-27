@@ -27,7 +27,9 @@ quasarTableDefaultConfig = {
     serverSidePagination: false,
     //columns definition, required if exporting is enabled
     columns: [],
-    excludeFromExport: []
+    excludeFromExport: [],
+    //key to use for session storage, e.g. to persist pagination and table sorting
+    sessionKey: null
 }
 class quasarTable {
     constructor(config) {
@@ -55,6 +57,13 @@ class quasarTable {
     load(vueApp) {
         if (vueApp != null && this.vueApp == null) {
             this.vueApp = vueApp
+        }
+
+        if (this.sessionKey != null && this.sessionKey.length) {
+            var pag = getItemFromStorage(this.sessionKey + "_pagination")
+            if (pag) {
+                this.pagination = pag
+            }
         }
         
         var queryParams = "";
@@ -91,6 +100,13 @@ class quasarTable {
                 this.loading = false
                 this.clear()
             })
+    }
+
+    savePagination(v) {
+        this.pagination = v
+        if (this.sessionKey != null && this.sessionKey.length) {
+            putItemInStorage(this.sessionKey + "_pagination", this.pagination)
+        }        
     }
 
     //Select an item for editing

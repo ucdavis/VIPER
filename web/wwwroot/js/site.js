@@ -153,7 +153,11 @@ async function loadViperLeftNav() {
 
 function getItemFromStorage(key) {
     var val = window.sessionStorage.getItem(key)
-    return val != null ? JSON.parse(val) : null
+    try {
+        return val != null ? JSON.parse(val) : null
+    }
+    catch { }
+    return null
 }
 
 function putItemInStorage(key, val) {

@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Connections.Features;
+using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Polly;
 using System.Data;
@@ -46,9 +47,9 @@ namespace Viper.Areas.RAPS.Services
         /// </summary>
         /// <param name="instance">The instance</param>
         /// <returns>True if the instance is a VMACS instance</returns>
-        static public bool IsVMACSInstance(string instance)
+        static public bool IsVMACSInstance(string? instance)
         {
-            return instance.StartsWith("VMACS.");
+            return !string.IsNullOrEmpty(instance) && instance.StartsWith("VMACS.");
         }
 
         static public Expression<Func<TblRole, bool>> FilterRolesToInstance(string instance)
@@ -159,21 +160,25 @@ namespace Viper.Areas.RAPS.Services
             {
                 return true;
             }
+            
             return action switch
             {
-                //special cases where having a permission grants access to certain instances
-                "ViewAllRoles" => instance != null && IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.ViewRoles"),
-                "AccessInstance" => instance != null
-                                        && (IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.ViewRoles")
-                                            || GetControlledRoleIds(_userHelper.GetCurrentUser()?.MothraId).Count > 0
-                                            ),
-                "RSOP" => instance != null && IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.RSOP"),
-                "Clone" => instance != null && IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.Clone"),
-                "ViewHistory" => instance != null && IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.EditRoleMembership"),
-                "RevertPermissions" => false,//admin only
-                "EditRoleMembership" => instance != null && IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.EditRoleMembership"),
-                "EditRoleTemplates" => instance != null && IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.EditRoles"),
-                _ => _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS." + action),//by default, check the action against the user having the permission RAPS.<action> 
+                //admin only
+                "RevertPermissions" => false,
+                //make sure someone can access an instance if they can access vmacs instances, or if they have been delegated a role in the instance
+                "AccessInstance" => (IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.ViewRoles")
+                                        || GetControlledRoleIds(_userHelper.GetCurrentUser()?.MothraId).Count > 0
+                                        ),
+                //special cases for operations personnel having access to the VMACS instances
+                "ViewAllRoles" => IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.ViewRoles"),
+                "RSOP" => IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.RSOP"),
+                "Clone" => IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.Clone"),
+                "ViewHistory" => IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.EditRoleMembership"),
+                "EditRoleMembership" => IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.EditRoleMembership"),
+                "EditRoleTemplates" => IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.EditRoles"),
+                "ViewAllPermissionMembers" => IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.ViewPermissions"),
+                //by default, check the action against the user having the permission RAPS.<action> 
+                _ => _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS." + action),
             };
         }
 
@@ -196,11 +201,15 @@ namespace Viper.Areas.RAPS.Services
 
             switch (action)
             {
-                //TODO: Update for VMACS instances + EditRoleMembership
+                case "ViewRolePermissions":
                 case "EditRoleMembership":
+                    if (IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.EditRoleMembership"))
+                    {
+                        return true;
+                    }
                     List<int> controlledRoleIds = GetControlledRoleIds(User?.MothraId);
                     return controlledRoleIds.Contains(Role.RoleId)
-                            || _userHelper.HasPermission(_context, User, "RAPS.EditRoleMembership");
+                        || _userHelper.HasPermission(_context, User, "RAPS.EditRoleMembership");
                 default:
                     return false;
             }

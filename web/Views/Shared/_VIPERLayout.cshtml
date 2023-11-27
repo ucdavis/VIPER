@@ -71,8 +71,8 @@
                
                 @if (UserHelper.IsEmulating())
                 {
-                    <q-banner inline-actions class="bg-warning text-black">
-                        <strong>EMULATING:</strong> @UserHelper.GetCurrentUser()?.DisplayFullName <q-btn href="@Url.Content("~/ClearEmulation")" color="warning" class="text-black">Stop</q-btn>
+                    <q-banner dense rounded inline-actions class="bg-warning text-black q-ml-lg">
+                        <strong>EMULATING:</strong> @UserHelper.GetCurrentUser()?.DisplayFullName <q-btn no-caps dense href="@Url.Content("~/ClearEmulation")" color="secondary" class="text-white q-px-sm q-ml-md">End Emulation</q-btn>
                     </q-banner>
                 }
                 <q-space></q-space>

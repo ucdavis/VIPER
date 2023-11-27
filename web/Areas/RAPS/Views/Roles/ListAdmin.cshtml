@@ -29,7 +29,8 @@
              :rows="rolesTable.rows"
              :columns="rolesTable.columns"
              :filter="rolesTable.filter"
-             :pagination="rolesTable.pagination">
+             :pagination="rolesTable.pagination"
+            @@update:pagination="(v) => rolesTable.savePagination(v)">
         <template v-slot:top-left>
             <q-btn no-caps color="green" label="Add Role" @@click="rolesTable.showForm = true"></q-btn>
         </template>
@@ -76,6 +77,7 @@
                 return  {
                     views: [],
                     rolesTable: new quasarTable({
+                        sessionKey: "RAPS_roleList",
                         keys: "roleId",
                         urlBase: "Roles",
                         columns: [
