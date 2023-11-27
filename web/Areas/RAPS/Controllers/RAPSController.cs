@@ -107,7 +107,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 if(_securityService.IsAllowedTo("AccessInstance", inst))
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = inst, MenuItemURL = "/raps/" + inst });
+                    nav.Add(new NavMenuItem() { MenuItemText = inst, MenuItemURL = "~/raps/" + inst });
                 }
             }
             nav.Add(new NavMenuItem() { MenuItemText = "Roles", IsHeader = true });
