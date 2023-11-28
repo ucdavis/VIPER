@@ -299,6 +299,7 @@ namespace Viper.Areas.RAPS.Controllers
         public async Task<IActionResult> RoleMembers(string instance, int RoleId)
         {
             ViewData["RoleId"] = RoleId;
+            ViewData["canEditPermissions"] = _securityService.IsAllowedTo("EditMemberPermissions", instance);
 
             TblRole? Role = await _RAPSContext.TblRoles.FindAsync(RoleId);
 
@@ -438,6 +439,7 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> MemberRoles(string instance)
         {
+            ViewData["canEditPermissions"] = _securityService.IsAllowedTo("ManageAllPermissions", instance);
             //EditRoleMembership grants access only to the VMACS instance
             if (!_securityService.IsAllowedTo("EditRoleMembership", instance))
             {
