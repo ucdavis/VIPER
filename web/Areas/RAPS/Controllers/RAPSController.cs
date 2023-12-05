@@ -509,7 +509,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         [Permission(Allow = "RAPS.Admin")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> ExportToVMACS()
+        public async Task<IActionResult> ExportToVMACS(string? server = null , string? loginId = null, bool? debugOnly = false)
         {
             string creds = "vmthRestClient:" + HttpHelper.GetSetting<string>("Credentials", "vmthRestClient");
             if (creds.Length == 15)
@@ -518,9 +518,20 @@ namespace Viper.Areas.RAPS.Controllers
             }
             else
             {
-                ViewData["Messages"] = await new VMACSExport(_environment.EnvironmentName == "Production", _RAPSContext, creds)
-                    .ExportToVMACS(instance: "vmth", server: "qa", debugOnly: false, loginId: "bedwards");
+                var vmacsExport = new VMACSExport(_environment.EnvironmentName == "Production", _RAPSContext, creds);
+                var servers = vmacsExport.GetServers();
+                if (server != null && servers.Contains(server))
+                {
+                    string inst = server.Split('-')[0];
+                    string serv = server.Split('-')[1];
+                    ViewData["Messages"] = await vmacsExport.ExportToVMACS(instance: inst, server: serv, debugOnly: debugOnly ?? true, loginId: loginId);
+                }
+                else
+                {
+                    ViewData["Servers"] = servers;
+                }
             }
+            
             return await Task.Run(() => View("~/Areas/RAPS/Views/Export.cshtml"));
         }
 

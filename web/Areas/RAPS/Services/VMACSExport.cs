@@ -45,6 +45,17 @@ namespace Viper.Areas.RAPS.Services
             UserHelper = new UserHelper();
         }
 
+        public List<string> GetServers()
+        {
+            if(_onProduction)
+            {
+                return _vmacsServers.Keys.ToList();
+            }
+            return _vmacsServers.Keys
+                .Where(x => !x.Contains("prod"))
+                .ToList();
+        }
+
         /// <summary>
         /// Export to multiple instances of VMACS. Intended to be used by routines (can set mothraId for audit log)
         /// </summary>
@@ -55,9 +66,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="action">Action for log</param>
         /// <param name="debugOnly">If true, don't send, just log</param>
         public async Task<List<string>> ExportToInstances(string instances, string? mothraId, string? loginid = null, string? roleIds = null,
-#pragma warning disable IDE0060 // Remove unused parameter
-                string action = "", bool debugOnly = false)
-#pragma warning restore IDE0060 // Remove unused parameter
+            bool debugOnly = false)
         {
             _ = mothraId ?? UserHelper.GetCurrentUser()?.MothraId;
             List<string> messages = new();
