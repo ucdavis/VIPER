@@ -112,7 +112,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             nav.Add(new NavMenuItem() { MenuItemText = "Roles", IsHeader = true });
             nav.Add(new NavMenuItem() { MenuItemText = "Role List", MenuItemURL = "Rolelist" });
-            if(_securityService.IsAllowedTo("CreateRole", instance))
+            if(_securityService.IsAllowedTo("ViewRoles", instance))
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "Role Templates", MenuItemURL = "RoleTemplateList" });
             }
@@ -237,10 +237,12 @@ namespace Viper.Areas.RAPS.Controllers
         [Permission(Allow = "RAPS.Admin,RAPS.ViewRoles")]
         public async Task<IActionResult> RoleTemplateList(string instance)
         {
-            if(!_securityService.IsAllowedTo("ViewAllRoles", instance))
+            if(!_securityService.IsAllowedTo("ViewRoles", instance))
             {
                 return await Task.Run(() => View("~/Views/Home/403.cshtml"));
             }
+            ViewData["canEditRoleTemplates"] = _securityService.IsAllowedTo("EditRoleTemplates", instance);
+            ViewData["canApplyTemplates"] = _securityService.IsAllowedTo("EditRoleMembership", instance);
             return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/Templates.cshtml"));
         }
 

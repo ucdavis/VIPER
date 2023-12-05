@@ -94,6 +94,7 @@
                         columns: [
                             { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
                             { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
+                            { name: "loginid", label: "Login ID", field: "loginId", align: "left", sortable: true },
                             { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
@@ -108,6 +109,7 @@
                                 ...rm,
                                 memberName: rm?.aaudUser?.displayLastName + ", " + rm?.aaudUser?.displayFirstName,
                                 active: rm?.aaudUser?.current == 1 ? "Y" : "N",
+                                loginId: rm?.aaudUser?.loginId,
                                 lastModified: formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")"
                             }))
                         },

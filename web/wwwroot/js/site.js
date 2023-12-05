@@ -108,17 +108,19 @@ function showViperFetchError(VueApp, error, errorTarget) {
     try {
         if (errorTarget) {
             errorTarget.message = error.message
-            if (typeof error.errors == "object") {
-                for (key in error.errors) {
-                    errorTarget[key] = {
-                        error: true,
-                        message: error.errors[key].join("")
+            if (error?.errors != null) {
+                if (typeof error.errors == "object") {
+                    for (key in error.errors) {
+                        errorTarget[key] = {
+                            error: true,
+                            message: error.errors[key].join("")
+                        }
                     }
                 }
-            }
-            else {
-                for (var i = 0; i < 5 && i < error.errors.length; i++) {
-                    errorTarget.message += " " + error.errors[i];
+                else {
+                    for (var i = 0; i < 5 && i < error.errors.length; i++) {
+                        errorTarget.message += " " + error.errors[i];
+                    }
                 }
             }
             shownError = true
