@@ -37,7 +37,6 @@ function formatDateTime(d, options) {
     return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf())) ? dt.toLocaleString("en-US", options) : ""
 }
 
-
 /*
  * Validation error to include the errors object for .NET 400
  */

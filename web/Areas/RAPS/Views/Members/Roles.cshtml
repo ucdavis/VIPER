@@ -61,10 +61,10 @@
         </template>
         <template v-slot:body-cell-links="props">
             <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" title="View members of this role" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
                 @if (ViewData.ContainsKey("canEditPermissions") && (bool)(ViewData["canEditPermissions"] ?? false))
                 {
-                    <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'RolePermissions?roleId=' + props.row.roleId"></q-btn>
+                    <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" title="Set permissions this role controls" :href="'RolePermissions?roleId=' + props.row.roleId"></q-btn>
                 }
             </q-td>
         </template>
@@ -127,7 +127,9 @@
                             { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
-                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
+                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true,
+                                sort: (_1, _2, rowA, rowB) => new Date(rowA.modTime) - new Date(rowB.modTime)
+                            },
                             { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
                         ],
                         //after loading role members, set role name and last modified

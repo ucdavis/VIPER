@@ -41,16 +41,11 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return errorResult;
             }
-            if(!_securityService.IsAllowedTo("ViewAllRoles", instance))
-            {
-                application = 0;
-            }
 
             var roleMembers = _context.TblRoleMembers
                     .Include(rm => rm.Role)
                     .Include(rm => rm.AaudUser)
-                    .Where(rm => rm.ViewName == null)
-                    .Where(rm => application == (int)rm.Role.Application);
+                    .Where(rm => rm.ViewName == null);
             if (roleId != null)
             {
                 roleMembers = roleMembers
@@ -59,8 +54,13 @@ namespace Viper.Areas.RAPS.Controllers
             }
             else
             {
+                if (!_securityService.IsAllowedTo("ViewAllRoles", instance))
+                {
+                    application = 0;
+                }
                 roleMembers = roleMembers
                     .Where(rm => rm.MemberId == memberId)
+                    .Where(rm => application == (int)rm.Role.Application)
                     .OrderBy(rm => rm.Role.DisplayName ?? rm.Role.Role);
             }
             
