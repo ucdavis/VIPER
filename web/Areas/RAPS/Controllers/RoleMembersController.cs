@@ -182,6 +182,28 @@ namespace Viper.Areas.RAPS.Controllers
             return NoContent();
         }
 
+        //POST: Roles/Members/VMACSExport
+        [HttpPost("Roles/Members/VMACSExport")]
+        public async Task<IActionResult> PushRolesToVMACS(string instance, List<int> roleIds)
+        {
+            if (!RAPSSecurityService.IsVMACSInstance(instance))
+            {
+                return BadRequest();
+            }
+            foreach(int roleId in roleIds)
+            {
+                var result = CheckAccess(instance, roleId, null);
+                if (result != null)
+                {
+                    return result;
+                }
+            }
+
+            await new VMACSExport(_context)
+                .ExportToVMACS(instance: instance.Split(".")[1].ToLower(), debugOnly: false, roleIds: string.Join(",", roleIds));
+            return NoContent();
+        }
+
         //POST: Members/12345678/Roles/VMACSExport
         [HttpPost("Members/{memberId}/Roles/VMACSExport")]
         public async Task<IActionResult> PushMemberRolesToVMACS(string instance, string memberId)

@@ -49,6 +49,7 @@
                     permissionId: 0,
                     permission: {},
                     selectedPermissions: [],
+                    VMACSPush: false,
                     rolePermissionTable: new quasarTable({
                         keys: ["roleId"],
                         urlBase: "Roles",
@@ -101,18 +102,27 @@
                     this.permission = await viperFetch(this, "Permissions/" + this.permissionId)
                 },
                 updateRolePermissions: async function (allowAccess = 1) {
-                    this.selectedPermissions.forEach((value, index) => {
-                        var rolePermission = { roleId: value.roleId, permissionId: this.permissionId, access: allowAccess }
-                        viperFetch(this,
-                            "Permissions/" + this.permissionId + "/Roles/",
-                            {
-                                method: "POST",
-                                body: JSON.stringify(rolePermission),
-                                headers: { "Content-Type": "application/json" }
-                            },
-                            [this.loadTables]
-                        )
-                    })
+                    var roleIds = this.selectedPermissions.reduce( (ids, sp) => {ids.push(sp.roleId); return ids;}, [] )
+                    await this.updateEachRolePermission(allowAccess)
+                    this.loadTables()
+                    if(this.VMACSPush) {
+                        this.pushToVMACS(roleIds)
+                    }
+                },
+                updateEachRolePermission: async function(allowAccess = 1) {
+                    await Promise.all(
+                        this.selectedPermissions.map(async sp => {
+                            let rolePermission = { roleId: sp.roleId, permissionId: this.permissionId, access: allowAccess }
+                            await viperFetch(this,
+                                "Permissions/" + this.permissionId + "/Roles/",
+                                {
+                                    method: "POST",
+                                    body: JSON.stringify({ roleId: sp.roleId, permissionId: this.permissionId, access: allowAccess }),
+                                    headers: { "Content-Type": "application/json" }
+                                }
+                            )
+                        })
+                    )
                 },
                 allowRolePermissions: async function () {
                     this.updateRolePermissions(1)
@@ -121,7 +131,7 @@
                     this.updateRolePermissions(0)
                 },
                 deleteRolePermission: async function (rolePermission) {
-                    viperFetch(this,
+                    await viperFetch(this,
                         "Permissions/" + this.permissionId + "/Roles/" + rolePermission.roleId,
                         {
                             method: "DELETE",
@@ -129,6 +139,9 @@
                         },
                         [this.loadTables]
                     )
+                    if(this.VMACSPush) {
+                        this.pushToVMACS([rolePermission.roleId])
+                    }
                 },
                 //Load data
                 loadTables: async function () {
@@ -136,6 +149,13 @@
                     this.roleTable.loading = true
                     this.roleTable.load(this)
                     this.selectedPermissions = []
+                },
+                pushToVMACS: async function(roleIds) {
+                    Quasar.Loading.show({ message: "Updating VMACS" })
+                    await viperFetch(this, "Roles/Members/VMACSExport", 
+                        { method: "POST", body: JSON.stringify(roleIds), headers: { "Content-Type": "application/json" } 
+                    })
+                    Quasar.Loading.hide()
                 }
             },
             async mounted() {
@@ -143,6 +163,7 @@
                 this.loadPermission()
                 this.rolePermissionTable.urlBase = "Permissions/" + this.permissionId + "/Roles"
                 this.loadTables()
+                this.VMACSPush = this.urlPath.indexOf("/VMACS.") > 0
             }
         })
     </script>
