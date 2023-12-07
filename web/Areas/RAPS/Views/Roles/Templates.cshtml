@@ -29,9 +29,12 @@
              :filter="templates.filter"
              :filter-method="filterTemplates"
              :pagination="templates.pagination">
-        <template v-slot:top-left="props">
-            <q-btn no-caps color="green" label="Add Role Template" padding="xs md" @@click="templates.showForm = true"></q-btn>
-        </template>
+        @if (ViewData.ContainsKey("canEditRoleTemplates") && (bool)(ViewData["canEditRoleTemplates"] ?? false))
+        {
+            <template v-slot:top-left="props">
+                <q-btn no-caps color="green" label="Add Role Template" padding="xs md" @@click="templates.showForm = true"></q-btn>
+            </template>
+        }
         <template v-slot:top-right="props">
             <q-input class="q-ml-xs q-mr-xs" v-model="templates.filter" dense outlined debounce="300" placeholder="Filter Results">
                 <template v-slot:append>
@@ -41,8 +44,18 @@
         </template>
         <template v-slot:body-cell-links="props">
             <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleTemplateApply?roleTemplateId=' + props.row.roleTemplateId"></q-btn>
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'RoleTemplateRoles?roleTemplateId=' + props.row.roleTemplateId"></q-btn>
+                @if (ViewData.ContainsKey("canApplyTemplates") && (bool)(ViewData["canApplyTemplates"] ?? false))
+                {
+                    <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" title="Apply Role Template to one or more users" :href="'RoleTemplateApply?roleTemplateId=' + props.row.roleTemplateId"></q-btn>
+                }
+                @if (ViewData.ContainsKey("canEditRoleTemplates") && (bool)(ViewData["canEditRoleTemplates"] ?? false))
+                {
+                    <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="View Roles for this Template" :href="'RoleTemplateRoles?roleTemplateId=' + props.row.roleTemplateId"></q-btn>
+                }
+                else
+                {
+                    <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="Show Roles for this template" @@click="toggleRoles(props.row.roleTemplateId)"></q-btn>
+                }
             </q-td>
         </template>
         <template v-slot:body-cell-roletemplate="props">
@@ -50,13 +63,28 @@
                 {{props.row.templateName}}
                 <br />
                 <span style="font-size:.9em">{{props.row.description}}</span>
+                <br />
+                <div class="q-pl-md" style="font-size:.9em">
+                    <div v-for="roleTemplateRole in props.row.roleTemplateRoles" class="row" v-if="viewRoleTemplateId == props.row.roleTemplateId">
+                        <div class="col">
+                            <q-icon name="lock"></q-icon>
+                            {{roleTemplateRole.role.friendlyName}}
+                        </div>
+                        <div class="col">
+                            {{roleTemplateRole.role.description}}
+                        </div>
+                    </div>
+                </div>
             </q-td>
         </template>
-        <template v-slot:body-cell-action="props">
-            <q-td :props="props">
-                <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs sm" @@click="templates.selectRow(props.row)"></q-btn>
-            </q-td>
-        </template>
+        @if (ViewData.ContainsKey("canEditRoleTemplates") && (bool)(ViewData["canEditRoleTemplates"] ?? false))
+        {
+            <template v-slot:body-cell-action="props">
+                <q-td :props="props">
+                    <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs sm" @@click="templates.selectRow(props.row)"></q-btn>
+                </q-td>
+            </template>
+        }
     </q-table>
 </div>
 
@@ -66,6 +94,7 @@
         createVueApp({
             data() {
                 return {
+                    viewRoleTemplateId: 0,
                     templates: new quasarTable({
                         keys: "roleTemplateId",
                         urlBase: "RoleTemplates",
@@ -86,6 +115,9 @@
                 }
             },
             methods: {
+                toggleRoles: function(roleTemplateId) {
+                    this.viewRoleTemplateId = roleTemplateId
+                },
                 filterTemplates: function(rows, terms, cols, getCellValue) {
                     return rows.reduce((result, row) => 
                         {

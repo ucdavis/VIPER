@@ -8,8 +8,8 @@
 
     <template v-slot:body-cell-links="props">
         <q-td :props="props">
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'RolePermissions?roleId=' + props.row.roleId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" title="View members of this role" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="View permissions granted by this role" :href="'RolePermissions?roleId=' + props.row.roleId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-remove="props">

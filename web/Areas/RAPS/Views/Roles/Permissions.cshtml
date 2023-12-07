@@ -9,8 +9,8 @@
     
     <template v-slot:body-cell-links="props">
         <q-td :props="props">
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" title="View users individually granted this permission" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="View roles granting this permission" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-remove="props">
@@ -51,6 +51,7 @@
                 return {
                     roleId: 0,
                     role: {},
+                    VMACSPush: false,
                     rolePermissionTable: new quasarTable({
                         keys: ["permissionId"],
                         urlBase: "Roles",
@@ -87,6 +88,7 @@
                 this.loadRole()
                 this.rolePermissionTable.urlBase = "Roles/" + this.roleId + "/Permissions"
                 this.loadRolePermissions()
+                this.VMACSPush = this.urlPath.indexOf("/VMACS.") > 0
             }
         })
 
@@ -117,18 +119,26 @@
             },
             methods: {
                 updateRolePermissions: async function (allowAccess = 1) {
-                    this.selectedPermissions.forEach((value, index) => {
-                        var rolePermission = { roleId: this.roleId, permissionId: value.permissionId, access: allowAccess }
-                        viperFetch(this,
-                            "Roles/" + this.roleId + "/Permissions/",
-                            {
-                                method: "POST",
-                                body: JSON.stringify(rolePermission),
-                                headers: { "Content-Type": "application/json" }
-                            },
-                            [this.loadRolePermissions,this.loadPermissions]
-                        )
-                    })
+                    await this.updateEachRolePermission(allowAccess)
+                    this.loadRolePermissions()
+                    this.loadPermissions()
+                    if(this.VMACSPush) {
+                        this.pushToVMACS()
+                    }
+                },
+                updateEachRolePermission: async function (allowAccess = 1) {
+                    await Promise.all(
+                        this.selectedPermissions.map(async sp => {
+                            await viperFetch(this,
+                                "Roles/" + this.roleId + "/Permissions/",
+                                {
+                                    method: "POST",
+                                    body: JSON.stringify({ roleId: this.roleId, permissionId: sp.permissionId, access: allowAccess }),
+                                    headers: { "Content-Type": "application/json" }
+                                }
+                            )
+                        })
+                    )
                 },
                 allowRolePermissions: async function () {
                     this.updateRolePermissions(1)
@@ -145,10 +155,18 @@
                         },
                         [this.loadRolePermissions,this.loadPermissions]
                     )
+                    if(this.VMACSPush) {
+                        this.pushToVMACS()
+                    }
                 },
                 loadPermissions: async function () {
                     this.permissionTable.load(this)
                     this.selectedPermissions = []
+                },
+                pushToVMACS: async function() {
+                    Quasar.Loading.show({ message: "Updating VMACS" })
+                    await viperFetch(this, "Roles/" + this.roleId + "/Members/VMACSExport", { method: "POST" })
+                    Quasar.Loading.hide()
                 }
             },
             async mounted() {

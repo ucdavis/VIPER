@@ -83,9 +83,9 @@
     </template>
     <template v-slot:body-cell-memberid="props">
         <q-td :props="props">
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="policy" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="policy" title="View combined permissions for this user" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="View roles for this user" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" title="View permissions for this user" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-actions="props">
@@ -118,7 +118,9 @@
                             { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
-                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
+                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true,
+                                sort: (_1, _2, rowA, rowB) => new Date(rowA.modTime) - new Date(rowB.modTime)
+                            },
                             { name: "active", label: "Active", field: "active", align: "left", sortable: true },
                             { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
                         ],

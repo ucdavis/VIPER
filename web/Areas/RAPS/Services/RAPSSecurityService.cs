@@ -189,9 +189,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="Instance">Instance the user is working with</param>
         /// <param name="Role">The specific role, used to check if the user has access to this particular role</param>
         /// <returns>true/false</returns>
-#pragma warning disable IDE0060 // Remove unused parameter
         public bool IsAllowedTo(string action, string instance, TblRole Role)
-#pragma warning restore IDE0060 // Remove unused parameter
         {
             AaudUser? User = _userHelper.GetCurrentUser();
             if (_userHelper.HasPermission(_context, User, "RAPS.Admin"))

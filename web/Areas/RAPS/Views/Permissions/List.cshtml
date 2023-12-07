@@ -18,8 +18,8 @@
     </template>
     <template v-slot:body-cell-action="props">
         <q-td :props="props">
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'PermissionRolesRO?permissionId=' + props.row.permissionId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="groups" :href="'AllMembersWithPermission?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" title="View list of roles that grant this permission" :href="'PermissionRolesRO?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="groups" title="View list of all users with this permission (individually or via role)" :href="'AllMembersWithPermission?permissionId=' + props.row.permissionId"></q-btn>
         </q-td>
     </template>
 </q-table>

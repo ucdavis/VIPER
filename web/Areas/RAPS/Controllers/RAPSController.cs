@@ -112,7 +112,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             nav.Add(new NavMenuItem() { MenuItemText = "Roles", IsHeader = true });
             nav.Add(new NavMenuItem() { MenuItemText = "Role List", MenuItemURL = "Rolelist" });
-            if(_securityService.IsAllowedTo("CreateRole", instance))
+            if(_securityService.IsAllowedTo("ViewRoles", instance))
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "Role Templates", MenuItemURL = "RoleTemplateList" });
             }
@@ -237,10 +237,12 @@ namespace Viper.Areas.RAPS.Controllers
         [Permission(Allow = "RAPS.Admin,RAPS.ViewRoles")]
         public async Task<IActionResult> RoleTemplateList(string instance)
         {
-            if(!_securityService.IsAllowedTo("ViewAllRoles", instance))
+            if(!_securityService.IsAllowedTo("ViewRoles", instance))
             {
                 return await Task.Run(() => View("~/Views/Home/403.cshtml"));
             }
+            ViewData["canEditRoleTemplates"] = _securityService.IsAllowedTo("EditRoleTemplates", instance);
+            ViewData["canApplyTemplates"] = _securityService.IsAllowedTo("EditRoleMembership", instance);
             return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/Templates.cshtml"));
         }
 
@@ -507,18 +509,21 @@ namespace Viper.Areas.RAPS.Controllers
 
         [Permission(Allow = "RAPS.Admin")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> ExportToVMACS()
+        public async Task<IActionResult> ExportToVMACS(string? server = null , string? loginId = null, bool? debugOnly = false)
         {
-            string creds = "vmthRestClient:" + HttpHelper.GetSetting<string>("Credentials", "vmthRestClient");
-            if (creds.Length == 15)
+            var vmacsExport = new VMACSExport(_RAPSContext);
+            var servers = vmacsExport.GetServers();
+            if (server != null && servers.Contains(server))
             {
-                ViewData["Messages"] = new List<string>() { "Credentials not found. Cannot connect to VMACS." };
+                string inst = server.Split('-')[0];
+                string serv = server.Split('-')[1];
+                ViewData["Messages"] = await vmacsExport.ExportToVMACS(instance: inst, server: serv, debugOnly: debugOnly ?? true, loginId: loginId);
             }
             else
             {
-                ViewData["Messages"] = await new VMACSExport(_environment.EnvironmentName == "Production", _RAPSContext, creds)
-                    .ExportToVMACS(instance: "vmth", server: "qa", debugOnly: false, loginId: "bedwards");
+                ViewData["Servers"] = servers;
             }
+            
             return await Task.Run(() => View("~/Areas/RAPS/Views/Export.cshtml"));
         }
 

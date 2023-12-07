@@ -50,14 +50,14 @@
     </template>
     <template v-slot:body-cell-actions="props">
         <q-td :props="props">
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="groups" :href="'GroupMembers?groupId=' + props.row.groupId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" :href="'RoleMembers?roleId=' + props.row.groupRoleId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" :href="'GroupRoles?groupId=' + props.row.groupId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="groups" title="All members of all roles linked to this group" :href="'GroupMembers?groupId=' + props.row.groupId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" title="Users who are explict members of this group" :href="'RoleMembers?roleId=' + props.row.groupRoleId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" title="Roles linked to this group" :href="'GroupRoles?groupId=' + props.row.groupId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-edit="props">
         <q-td :props="props">
-            <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs md" @@click="groupTable.selectRow(props.row)"></q-btn>
+            <q-btn :props="props" dense outline color="primary" icon="edit" title="Edit" size="sm" padding="xs md" @@click="groupTable.selectRow(props.row)"></q-btn>
         </q-td>
     </template>
 </q-table>
