@@ -74,21 +74,7 @@
                     sourceUser: getItemFromStorage("sourceUser") ?? { label: "", value: "" },
                     sourceUserResults: [],
                     targetUser: getItemFromStorage("targetUser") ?? { label: "", value: "" },
-                    targetUserResults: [],
-                    rolesColumns: [
-                        { name: "action", field: "", align: "left", sortable: true },
-                        { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
-                        { name: "role", label: "Role", field: "role", align: "left", sortable: true },
-                        { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v => formatDate(v) },
-                        { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
-                    ],
-                    permissionColumns: [
-                        { name: "action", field: "", align: "left", sortable: true },
-                        { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
-                        { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
-                        { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v => formatDate(v) },
-                        { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
-                    ]
+                    targetUserResults: []
                 }
             },
             methods: {
@@ -141,7 +127,21 @@
                     showWhich: "Roles",
                     selectedPermissions: [],
                     selectedRoles: [],
-                    dataLoaded: false
+                    dataLoaded: false,
+                    rolesColumns: [
+                        { name: "action", field: "", align: "left", sortable: true },
+                        { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
+                        { name: "role", label: "Role", field: "role", align: "left", sortable: true },
+                        { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v => formatDate(v) },
+                        { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
+                    ],
+                    permissionColumns: [
+                        { name: "action", field: "", align: "left", sortable: true },
+                        { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
+                        { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
+                        { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v => formatDate(v) },
+                        { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
+                    ]
                 }
             },
             methods: {

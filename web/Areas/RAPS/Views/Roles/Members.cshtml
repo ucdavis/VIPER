@@ -9,11 +9,12 @@
          :filter="membersTable.filter"
          :pagination="membersTable.pagination">
     <template v-slot:top-left>
-        <q-btn color="green" label="Add Member" @@click="membersTable.showForm = true" no-caps></q-btn>
+        <q-btn color="green" label="Add Member" @@click="membersTable.showForm = true" no-caps icon="add"></q-btn>
+        <q-btn color="primary" label="Push Role Membership to VMACS" @@click="pushRoleToVMACS(true)" no-caps icon="upload" class="q-ml-md" v-if="showVMACSPush"></q-btn>
         <div class="q-pa-sm q-gutter-sm">
             <q-dialog v-model="membersTable.showForm" @@hide="membersTable.clear(this)">
                 <q-card>
-                    <q-form @@submit="membersTable.submit(this)" v-bind="membersTable.object">
+                    <q-form @@submit="membersTable.submit(this);pushRoleToVMACS();" v-bind="membersTable.object">
                         <q-card-section>
                             <div class="text-h6">{{membersTable.editing >= 0 ? "Edit" : "Create"}} Role Member</div>
                             <div class="bg-negative text-white q-pa-sm rounded" v-if="membersTable.errors?.message?.length > 0">{{membersTable.errors.message}}</div>
@@ -43,11 +44,14 @@
                                 <q-input outlined dense v-model="membersTable.object.comment" label="Comment"
                                          :error="membersTable.errors?.Comment?.error" :error-message="membersTable.errors?.Comment?.message"></q-input>
                             </div>
+                            <div class="row">
+                                <q-toggle v-model="updateVMACS" label="Push to VMACS" v-if="showVMACSPush"></q-toggle>
+                            </div>
                         </q-card-section>
 
                         <q-card-actions align="evenly">
                             <q-btn no-caps :label="membersTable.editing ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary"></q-btn>
-                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="membersTable.delete(this)" color="red" v-if="membersTable.editing"></q-btn>
+                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="membersTable.delete(this);pushRoleToVMACS();" color="red" v-if="membersTable.editing"></q-btn>
                         </q-card-actions>
                     </q-form>
                 </q-card>
@@ -69,7 +73,6 @@
             {
                 <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
             }
-            
         </q-td>
     </template>
     <template v-slot:body-cell-actions="props">
@@ -88,6 +91,8 @@
                     roleId: 0,
                     role: {},
                     memberSearchResults: [],
+                    updateVMACS: false,
+                    showVMACSPush: false,
                     membersTable: new quasarTable({
                         keys: ["memberId"],
                         urlBase: "Roles",
@@ -158,13 +163,21 @@
                                     .map(m => ({ label: m.displayLastName + ", " + m.displayFirstName, value: m.memberId }))
                             )
                     })
+                },
+                pushRoleToVMACS: async function(skipToggleCheck) {
+                    if (skipToggleCheck || this.updateVMACS) {
+                        Quasar.Loading.show({ message: "Updating VMACS" })
+                        await viperFetch(this, "Roles/" + this.roleId + "/Members/VMACSExport", {method: "POST"})
+                        Quasar.Loading.hide()
+                    }
                 }
             },
             async mounted() {
                 this.roleId = this.urlParams.get("roleId")
-                this.loadRole()
                 this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
                 this.membersTable.load()
+                await this.loadRole()
+                this.showVMACSPush = this.role.instance.indexOf("VMACS") == 0
             }
         })
     </script>

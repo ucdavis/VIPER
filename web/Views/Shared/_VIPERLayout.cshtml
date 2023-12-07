@@ -246,6 +246,7 @@
             },
             created() {
                 this.urlParams = new URLSearchParams(window.location.search)
+                this.urlPath = window.location.pathname
                 while (vueCreatedActions.length) {
                     vueCreatedActions.shift().call(this);
                 }
@@ -295,6 +296,15 @@
                     negative: '#6e2222',
                     info: '#289094',
                     warning: '#ffc519'
+                },
+                loading:{
+                    delay: 100,
+                    message: "Loading",
+                    group: "group",
+                    spinner: Quasar.QSpinnerOval,
+                    spinnerColor: "light",
+                    backgroundColor: "dark",
+                    messageColor: "light"
                 }
             }
         }).mount('body');

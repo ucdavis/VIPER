@@ -164,6 +164,48 @@ namespace Viper.Areas.RAPS.Controllers
             return NoContent();
         }
 
+        //POST: Roles/5/Members/VMACSExport
+        [HttpPost("Roles/{roleId}/Members/VMACSExport")]
+        public async Task<IActionResult> PushRoleToVMACS(string instance, int roleId)
+        {
+            if(!RAPSSecurityService.IsVMACSInstance(instance))
+            {
+                return BadRequest();
+            }
+            var result = CheckAccess(instance, roleId, null);
+            if(result != null)
+            {
+                return result;
+            }
+            await new VMACSExport(_context)
+                .ExportToVMACS(instance: instance.Split(".")[1].ToLower(), debugOnly: false, roleIds: roleId.ToString());
+            return NoContent();
+        }
+
+        //POST: Members/12345678/Roles/VMACSExport
+        [HttpPost("Members/{memberId}/Roles/VMACSExport")]
+        public async Task<IActionResult> PushMemberRolesToVMACS(string instance, string memberId)
+        {
+            if (!RAPSSecurityService.IsVMACSInstance(instance))
+            {
+                return BadRequest();
+            }
+            var result = CheckAccess(instance, null, memberId);
+            if (result != null)
+            {
+                return result;
+            }
+            var user = _context.VwAaudUser
+                    .FirstOrDefault(u => u.MothraId == memberId);
+            if(user == null || string.IsNullOrEmpty(user.LoginId))
+            {
+                return NotFound();
+            }
+            await new VMACSExport(_context)
+                .ExportToVMACS(instance: instance.Split(".")[1].ToLower(), debugOnly: false, loginId: user.LoginId);
+            return NoContent();
+        }
+
         private static void UpdateTblRoleMemberWithDto(TblRoleMember tblRoleMember, RoleMemberCreateUpdate roleMemberCreateUpdate) 
         {
             tblRoleMember.StartDate = roleMemberCreateUpdate.StartDate?.ToDateTime(new TimeOnly(0, 0, 0));
