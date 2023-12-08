@@ -14,7 +14,7 @@
         <div class="q-pa-sm q-gutter-sm">
             <q-dialog v-model="membersTable.showForm" @@hide="membersTable.clear(this)">
                 <q-card>
-                    <q-form @@submit="membersTable.submit(this);pushRoleToVMACS();" v-bind="membersTable.object">
+                    <q-form @@submit="addUpdateMember();" v-bind="membersTable.object">
                         <q-card-section>
                             <div class="text-h6">{{membersTable.editing >= 0 ? "Edit" : "Create"}} Role Member</div>
                             <div class="bg-negative text-white q-pa-sm rounded" v-if="membersTable.errors?.message?.length > 0">{{membersTable.errors.message}}</div>
@@ -51,7 +51,7 @@
 
                         <q-card-actions align="evenly">
                             <q-btn no-caps :label="membersTable.editing ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary"></q-btn>
-                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="membersTable.delete(this);pushRoleToVMACS();" color="red" v-if="membersTable.editing"></q-btn>
+                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="deleteMember(this)" color="red" v-if="membersTable.editing"></q-btn>
                         </q-card-actions>
                     </q-form>
                 </q-card>
@@ -170,6 +170,21 @@
                         await viperFetch(this, "Roles/" + this.roleId + "/Members/VMACSExport", {method: "POST"})
                         Quasar.Loading.hide()
                     }
+                },
+                pushMemberToVMACS: async function () {
+                    if (this.updateVMACS) {
+                        Quasar.Loading.show({ message: "Updating VMACS" })
+                        await viperFetch(this, "Members/" + this.membersTable.object.member.value + "/Roles/VMACSExport", { method: "POST" })
+                        Quasar.Loading.hide()
+                    }
+                },
+                deleteMember: async function() {
+                    await this.membersTable.delete(this)
+                    this.pushMemberToVMACS()
+                },
+                addUpdateMember: async function() {
+                    await this.membersTable.submit(this)
+                    this.pushMemberToVMACS()
                 }
             },
             async mounted() {

@@ -128,7 +128,7 @@ class quasarTable {
     }
 
     //Submit (create or update) the selected item
-    submit(vueApp) {
+    async submit(vueApp) {
         var bodyObject = this.createBody
             ? this.createBody(vueApp, this.object)
             : this.object
@@ -138,8 +138,8 @@ class quasarTable {
             this.update(vueApp, bodyObject)
     }
 
-    create(vueApp, bodyObject) {
-        viperFetch(vueApp,
+    async create(vueApp, bodyObject) {
+        await viperFetch(vueApp,
             this.urlBase,
             {
                 method: "POST",
@@ -153,8 +153,8 @@ class quasarTable {
         )
     }
 
-    update(vueApp, bodyObject) {
-        viperFetch(vueApp,
+    async update(vueApp, bodyObject) {
+        await viperFetch(vueApp,
             this.getUpdateURL(),
             {
                 method: "PUT",
@@ -169,8 +169,8 @@ class quasarTable {
     }
 
     //Delete the selected item
-    delete(vueApp) {
-        viperFetch(vueApp,
+    async delete(vueApp) {
+        await viperFetch(vueApp,
             this.getUpdateURL(),
             { method: "DELETE" },
             [
