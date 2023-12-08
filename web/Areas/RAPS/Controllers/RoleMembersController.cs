@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Polly;
+using System.Text.Json;
 using System.Data;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
@@ -166,7 +167,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         //POST: Roles/5/Members/VMACSExport
         [HttpPost("Roles/{roleId}/Members/VMACSExport")]
-        public async Task<IActionResult> PushRoleToVMACS(string instance, int roleId)
+        public async Task<ActionResult<VmacsResponse?>> PushRoleToVMACS(string instance, int roleId)
         {
             if(!RAPSSecurityService.IsVMACSInstance(instance))
             {
@@ -177,14 +178,14 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return result;
             }
-            await new VMACSExport(_context)
+            var messages = await new VMACSExport(_context)
                 .ExportToVMACS(instance: instance.Split(".")[1].ToLower(), debugOnly: false, roleIds: roleId.ToString());
-            return NoContent();
+            return Ok(GetVMACSExportStatus(messages));
         }
 
         //POST: Roles/Members/VMACSExport
         [HttpPost("Roles/Members/VMACSExport")]
-        public async Task<IActionResult> PushRolesToVMACS(string instance, List<int> roleIds)
+        public async Task<ActionResult<VmacsResponse?>> PushRolesToVMACS(string instance, List<int> roleIds)
         {
             if (!RAPSSecurityService.IsVMACSInstance(instance))
             {
@@ -199,14 +200,14 @@ namespace Viper.Areas.RAPS.Controllers
                 }
             }
 
-            await new VMACSExport(_context)
+            var messages = await new VMACSExport(_context)
                 .ExportToVMACS(instance: instance.Split(".")[1].ToLower(), debugOnly: false, roleIds: string.Join(",", roleIds));
-            return NoContent();
+            return Ok(GetVMACSExportStatus(messages));
         }
 
         //POST: Members/12345678/Roles/VMACSExport
         [HttpPost("Members/{memberId}/Roles/VMACSExport")]
-        public async Task<IActionResult> PushMemberRolesToVMACS(string instance, string memberId)
+        public async Task<ActionResult<VmacsResponse?>> PushMemberRolesToVMACS(string instance, string memberId)
         {
             if (!RAPSSecurityService.IsVMACSInstance(instance))
             {
@@ -223,9 +224,9 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            await new VMACSExport(_context)
+            var messages = await new VMACSExport(_context)
                 .ExportToVMACS(instance: instance.Split(".")[1].ToLower(), debugOnly: false, loginId: user.LoginId);
-            return NoContent();
+            return Ok(GetVMACSExportStatus(messages));
         }
 
         private static void UpdateTblRoleMemberWithDto(TblRoleMember tblRoleMember, RoleMemberCreateUpdate roleMemberCreateUpdate) 
@@ -235,6 +236,28 @@ namespace Viper.Areas.RAPS.Controllers
             tblRoleMember.ModTime = DateTime.Now;
             IUserHelper UserHelper = new UserHelper();
             tblRoleMember.ModBy = UserHelper.GetCurrentUser()?.LoginId;
+        }
+
+        /// <summary>
+        /// Return the VMACS response from the list of messages after a successful VMACS Export
+        /// For non-admins, or if the last message is not a valid response, return null
+        /// </summary>
+        /// <param name="messages"></param>
+        /// <returns>VMACS Response or null</returns>
+        private VmacsResponse? GetVMACSExportStatus(List<string> messages)
+        {
+            //only return vmacs response for admins
+            if (_securityService.IsAllowedTo("RAPS.Admin") && messages.Count > 1)
+            {
+                var finalMessage = messages.Last();
+                var vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(finalMessage);
+                if (vmacsResponse != null)
+                {
+                    return vmacsResponse;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
