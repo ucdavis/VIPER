@@ -3182,8 +3182,7 @@ body.q-ios-padding .q-dialog__inner > div {
   line-height: 1;
   color: rgba(0, 0, 0, 0.54);
   padding: 8px 12px 0;
-  -webkit-backface-visibility: hidden;
-          backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .q-field__bottom--animated {
@@ -3379,8 +3378,7 @@ body.q-ios-padding .q-dialog__inner > div {
   text-decoration: inherit;
   text-transform: inherit;
   transition: transform 0.36s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.324s cubic-bezier(0.4, 0, 0.2, 1);
-  -webkit-backface-visibility: hidden;
-          backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 [dir="ltr"] .q-field__label {
@@ -14903,8 +14901,7 @@ body.q-ios-padding .fullscreen {
 
 .q-transition--flip-right-enter-active, .q-transition--flip-right-leave-active, .q-transition--flip-left-enter-active, .q-transition--flip-left-leave-active, .q-transition--flip-up-enter-active, .q-transition--flip-up-leave-active, .q-transition--flip-down-enter-active, .q-transition--flip-down-leave-active {
   transition: transform var(--q-transition-duration);
-  -webkit-backface-visibility: hidden;
-          backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 [dir="ltr"] .q-transition--flip-right-enter-to, [dir="ltr"] .q-transition--flip-right-leave-from, [dir="ltr"] .q-transition--flip-left-enter-to, [dir="ltr"] .q-transition--flip-left-leave-from, [dir="ltr"] .q-transition--flip-up-enter-to, [dir="ltr"] .q-transition--flip-up-leave-from, [dir="ltr"] .q-transition--flip-down-enter-to, [dir="ltr"] .q-transition--flip-down-leave-from {

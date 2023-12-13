@@ -1,5 +1,5 @@
 /*!
- * Quasar Framework v2.12.5
+ * Quasar Framework v2.14.1
  * (c) 2015-present Razvan Stoenescu
  * Released under the MIT License.
  */
@@ -1651,7 +1651,7 @@ function prepareApp (app, uiOpts, pluginOpts) {
 }
 
 var installQuasar = function (parentApp, opts = {}) {
-    const $q = { version: '2.12.5' };
+    const $q = { version: '2.14.1' };
 
     if (globalConfigIsFrozen === false) {
       if (opts.config !== void 0) {
@@ -3848,7 +3848,7 @@ var QBtn = createComponent({
       props.icon !== void 0 && inner.push(
         h(QIcon, {
           name: props.icon,
-          left: props.stack === false && hasLabel.value === true,
+          left: props.stack !== true && hasLabel.value === true,
           role: 'img',
           'aria-hidden': 'true'
         })
@@ -3864,7 +3864,7 @@ var QBtn = createComponent({
         inner.push(
           h(QIcon, {
             name: props.iconRight,
-            right: props.stack === false && hasLabel.value === true,
+            right: props.stack !== true && hasLabel.value === true,
             role: 'img',
             'aria-hidden': 'true'
           })
@@ -8198,11 +8198,16 @@ var QCircularProgress = createComponent({
 
     const normalized = computed(() => between(props.value, props.min, props.max));
 
-    const strokeDashOffset = computed(() => circumference * (
-      1 - (normalized.value - props.min) / (props.max - props.min)
-    ));
-
+    const range = computed(() => props.max - props.min);
     const strokeWidth = computed(() => props.thickness / 2 * viewBox.value);
+    const strokeDashOffset = computed(() => {
+      const dashRatio = (props.max - normalized.value) / range.value;
+      const dashGap = props.rounded === true && normalized.value < props.max && dashRatio < 0.25
+        ? strokeWidth.value / 2 * (1 - dashRatio / 0.25)
+        : 0;
+
+      return circumference * dashRatio + dashGap
+    });
 
     function getCircle ({ thickness, offset, color, cls, rounded }) {
       return h('circle', {
@@ -8921,9 +8926,12 @@ function useSlider ({ updateValue, updatePosition, getDragging, formAttrs }) {
     + (props.innerTrackColor !== void 0 ? ` bg-${ props.innerTrackColor }` : '')
   );
   const innerBarStyle = computed(() => {
+    const innerDiff = innerMaxRatio.value - innerMinRatio.value;
     const acc = {
       [ positionProp.value ]: `${ 100 * innerMinRatio.value }%`,
-      [ sizeProp.value ]: `${ 100 * (innerMaxRatio.value - innerMinRatio.value) }%`
+      [ sizeProp.value ]: innerDiff === 0
+        ? '2px'
+        : `${ 100 * innerDiff }%`
     };
     if (props.innerTrackImg !== void 0) {
       acc.backgroundImage = `url(${ props.innerTrackImg }) !important`;
@@ -8936,7 +8944,7 @@ function useSlider ({ updateValue, updatePosition, getDragging, formAttrs }) {
     let model = min + ratio * (max - min);
 
     if (step > 0) {
-      const modulo = (model - min) % step;
+      const modulo = (model - innerMin.value) % step;
       model += (Math.abs(modulo) >= step / 2 ? (modulo < 0 ? -1 : 1) * step : 0) - modulo;
     }
 
@@ -9017,18 +9025,16 @@ function useSlider ({ updateValue, updatePosition, getDragging, formAttrs }) {
   }));
 
   const markerStyle = computed(() => {
-    if (innerBarLen.value !== 0) {
-      const size = 100 * markerStep.value / innerBarLen.value;
+    const size = innerBarLen.value === 0
+      ? '2px'
+      : 100 * markerStep.value / innerBarLen.value;
 
-      return {
-        ...innerBarStyle.value,
-        backgroundSize: props.vertical === true
-          ? `2px ${ size }%`
-          : `${ size }% 2px`
-      }
+    return {
+      ...innerBarStyle.value,
+      backgroundSize: props.vertical === true
+        ? `2px ${ size }%`
+        : `${ size }% 2px`
     }
-
-    return null
   });
 
   function getMarkerList (def) {
@@ -13923,10 +13929,22 @@ var QDate = createComponent({
     });
 
     function setToday () {
-      const date = today.value;
-      const month = daysMap.value[ getMonthHash(date) ];
+      const { year, month, day } = today.value;
 
-      if (month === void 0 || month.includes(date.day) === false) {
+      const date = {
+        // contains more props than needed (hour, minute, second, millisecond)
+        // but those aren't used in the processing of this "date" variable
+        ...viewModel.value,
+
+        // overwriting with today's date
+        year,
+        month,
+        day
+      };
+
+      const monthMap = daysMap.value[ getMonthHash(date) ];
+
+      if (monthMap === void 0 || monthMap.includes(date.day) === false) {
         addToModel(date);
       }
 
@@ -14093,17 +14111,17 @@ var QDate = createComponent({
 
     function updateViewModel (year, month, time) {
       if (minNav.value !== null && year <= minNav.value.year) {
-        year = minNav.value.year;
-        if (month < minNav.value.month) {
+        if (month < minNav.value.month || year < minNav.value.year) {
           month = minNav.value.month;
         }
+        year = minNav.value.year;
       }
 
       if (maxNav.value !== null && year >= maxNav.value.year) {
-        year = maxNav.value.year;
-        if (month > maxNav.value.month) {
+        if (month > maxNav.value.month || year > maxNav.value.year) {
           month = maxNav.value.month;
         }
+        year = maxNav.value.year;
       }
 
       if (time !== void 0) {
@@ -16740,7 +16758,7 @@ var QItem = createComponent({
     }
 
     function onKeyup (e) {
-      if (isClickable.value === true && isKeyCode(e, 13) === true) {
+      if (isClickable.value === true && isKeyCode(e, [ 13, 32 ]) === true) {
         stopAndPrevent(e);
 
         // for ripple
@@ -18917,8 +18935,10 @@ function useValidate (focused, innerLoading) {
   }
 }
 
-function getTargetUid (val) {
-  return val === void 0 ? `f_${ uid$3() }` : val
+function getTargetUid (val, requiredForAttr) {
+  return val === void 0
+    ? (requiredForAttr === true ? `f_${ uid$3() }` : void 0)
+    : val
 }
 
 function fieldValueIsFilled (val) {
@@ -18977,12 +18997,17 @@ const useFieldProps = {
 
 const useFieldEmits = [ 'update:modelValue', 'clear', 'focus', 'blur', 'popupShow', 'popupHide' ];
 
-function useFieldState () {
+function useFieldState ({ requiredForAttr = true, tagProp } = {}) {
   const { props, attrs, proxy, vnode } = getCurrentInstance();
 
   const isDark = useDark(props, proxy.$q);
 
   return {
+    requiredForAttr,
+    tag: tagProp === true
+      ? computed(() => props.tag)
+      : { value: 'label' },
+
     isDark,
 
     editable: computed(() =>
@@ -18994,7 +19019,9 @@ function useFieldState () {
     hasPopupOpen: false,
 
     splitAttrs: useSplitAttrs(attrs, vnode),
-    targetUid: ref(getTargetUid(props.for)),
+    targetUid: ref(
+      getTargetUid(props.for, requiredForAttr)
+    ),
 
     rootRef: ref(null),
     targetRef: ref(null),
@@ -19163,7 +19190,7 @@ function useField (state) {
   watch(() => props.for, val => {
     // don't transform targetUid into a computed
     // prop as it will break SSR
-    state.targetUid.value = getTargetUid(val);
+    state.targetUid.value = getTargetUid(val, state.requiredForAttr);
   });
 
   function focusHandler () {
@@ -19448,8 +19475,12 @@ function useField (state) {
   });
 
   onMounted(() => {
-    if (isRuntimeSsrPreHydration.value === true && props.for === void 0) {
-      state.targetUid.value = getTargetUid();
+    if (
+      isRuntimeSsrPreHydration.value === true
+      && state.requiredForAttr === true
+      && props.for === void 0
+    ) {
+      state.targetUid.value = `f_${ uid$3() }`; // getTargetUid(void 0, true)
     }
 
     props.autofocus === true && proxy.focus();
@@ -19471,7 +19502,7 @@ function useField (state) {
         }
       : attributes.value;
 
-    return h('label', {
+    return h(state.tag.value, {
       ref: state.rootRef,
       class: [
         classes.value,
@@ -19517,12 +19548,24 @@ var QField = createComponent({
 
   inheritAttrs: false,
 
-  props: useFieldProps,
+  props: {
+    ...useFieldProps,
+
+    tag: {
+      type: String,
+      default: 'label'
+    }
+  },
 
   emits: useFieldEmits,
 
   setup () {
-    return useField(useFieldState())
+    return useField(
+      useFieldState({
+        requiredForAttr: false,
+        tagProp: true
+      })
+    )
   }
 });
 
@@ -21618,7 +21661,12 @@ function useMask (props, emit, emitValue, inputRef) {
       ? unmaskValue(masked)
       : masked;
 
-    String(props.modelValue) !== val && emitValue(val, true);
+    if (
+      String(props.modelValue) !== val
+      && (props.modelValue !== null || val !== '')
+    ) {
+      emitValue(val, true);
+    }
   }
 
   function moveCursorForPaste (inp, start, end) {
@@ -26299,11 +26347,26 @@ var QScrollArea = createComponent({
       targetRef.value[ dirProps[ axis ].scroll ] = offset;
     }
 
+    let mouseEventTimer = null;
+
     function onMouseenter () {
-      hover.value = true;
+      if (mouseEventTimer !== null) {
+        clearTimeout(mouseEventTimer);
+      }
+
+      // setTimeout needed for iOS; see ticket #16210
+      mouseEventTimer = setTimeout(() => {
+        mouseEventTimer = null;
+        hover.value = true;
+      }, proxy.$q.platform.is.ios ? 50 : 0);
     }
 
     function onMouseleave () {
+      if (mouseEventTimer !== null) {
+        clearTimeout(mouseEventTimer);
+        mouseEventTimer = null;
+      }
+
       hover.value = false;
     }
 
@@ -27297,7 +27360,8 @@ var QSelect = createComponent({
     const dialogFieldFocused = ref(false);
     const innerLoadingIndicator = ref(false);
 
-    let inputTimer = null, innerValueCache,
+    let filterTimer = null, inputValueTimer = null,
+      innerValueCache,
       hasDialog, userInputValue, filterId = null, defaultInputValue,
       transitionShowComputed, searchBuffer, searchBufferExp;
 
@@ -27472,11 +27536,12 @@ var QSelect = createComponent({
 
       return props.options.slice(from, to).map((opt, i) => {
         const disable = isOptionDisabled.value(opt) === true;
+        const active = isOptionSelected(opt) === true;
         const index = from + i;
 
         const itemProps = {
           clickable: true,
-          active: false,
+          active,
           activeClass: computedOptionsSelectedClass.value,
           manualFocus: true,
           focused: false,
@@ -27485,15 +27550,13 @@ var QSelect = createComponent({
           dense: props.optionsDense,
           dark: isOptionsDark.value,
           role: 'option',
+          'aria-selected': active === true ? 'true' : 'false',
           id: `${ state.targetUid.value }_${ index }`,
           onClick: () => { toggleOption(opt); }
         };
 
         if (disable !== true) {
-          isOptionSelected(opt) === true && (itemProps.active = true);
           optionIndex.value === index && (itemProps.focused = true);
-
-          itemProps[ 'aria-selected' ] = itemProps.active === true ? 'true' : 'false';
 
           if ($q.platform.is.desktop === true) {
             itemProps.onMousemove = () => { menu.value === true && setOptionIndex(index); };
@@ -27742,9 +27805,11 @@ var QSelect = createComponent({
           scrollTo(index);
 
           if (skipInputValue !== true && props.useInput === true && props.fillInput === true) {
-            setInputValue(index >= 0
-              ? getOptionLabel.value(props.options[ index ])
-              : defaultInputValue
+            setInputValue(
+              index >= 0
+                ? getOptionLabel.value(props.options[ index ])
+                : defaultInputValue,
+              true
             );
           }
         }
@@ -27805,9 +27870,13 @@ var QSelect = createComponent({
 
       e.target.value = '';
 
-      if (inputTimer !== null) {
-        clearTimeout(inputTimer);
-        inputTimer = null;
+      if (filterTimer !== null) {
+        clearTimeout(filterTimer);
+        filterTimer = null;
+      }
+      if (inputValueTimer !== null) {
+        clearTimeout(inputValueTimer);
+        inputValueTimer = null;
       }
 
       resetInputValue();
@@ -27898,6 +27967,10 @@ var QSelect = createComponent({
       // backspace
       if (
         e.keyCode === 8
+        && (
+          props.useChips === true
+          || props.clearable === true
+        )
         && props.hideSelected !== true
         && inputValue.value.length === 0
       ) {
@@ -27992,7 +28065,7 @@ var QSelect = createComponent({
             scrollTo(index);
 
             if (index >= 0 && props.useInput === true && props.fillInput === true) {
-              setInputValue(getOptionLabel.value(props.options[ index ]));
+              setInputValue(getOptionLabel.value(props.options[ index ]), true);
             }
           });
         }
@@ -28178,9 +28251,13 @@ var QSelect = createComponent({
     }
 
     function onInput (e) {
-      if (inputTimer !== null) {
-        clearTimeout(inputTimer);
-        inputTimer = null;
+      if (filterTimer !== null) {
+        clearTimeout(filterTimer);
+        filterTimer = null;
+      }
+      if (inputValueTimer !== null) {
+        clearTimeout(inputValueTimer);
+        inputValueTimer = null;
       }
 
       if (e && e.target && e.target.qComposing === true) {
@@ -28201,17 +28278,26 @@ var QSelect = createComponent({
       }
 
       if (props.onFilter !== void 0) {
-        inputTimer = setTimeout(() => {
-          inputTimer = null;
+        filterTimer = setTimeout(() => {
+          filterTimer = null;
           filter(inputValue.value);
         }, props.inputDebounce);
       }
     }
 
-    function setInputValue (val) {
+    function setInputValue (val, emitImmediately) {
       if (inputValue.value !== val) {
         inputValue.value = val;
-        emit('inputValue', val);
+
+        if (emitImmediately === true || props.inputDebounce === 0 || props.inputDebounce === '0') {
+          emit('inputValue', val);
+        }
+        else {
+          inputValueTimer = setTimeout(() => {
+            inputValueTimer = null;
+            emit('inputValue', val);
+          }, props.inputDebounce);
+        }
       }
     }
 
@@ -28219,7 +28305,7 @@ var QSelect = createComponent({
       userInputValue = internal !== true;
 
       if (props.useInput === true) {
-        setInputValue(val);
+        setInputValue(val, true);
 
         if (noFiltering === true || internal !== true) {
           defaultInputValue = val;
@@ -28572,7 +28658,8 @@ var QSelect = createComponent({
     updatePreState();
 
     onBeforeUnmount(() => {
-      inputTimer !== null && clearTimeout(inputTimer);
+      filterTimer !== null && clearTimeout(filterTimer);
+      inputValueTimer !== null && clearTimeout(inputValueTimer);
     });
 
     // expose public methods
@@ -31896,6 +31983,9 @@ function useTableSort (props, computedPagination, colList, setPagination) {
               A = val(a),
               B = val(b);
 
+            if (col.rawSort !== void 0) {
+              return col.rawSort(A, B, a, b) * dir
+            }
             if (A === null || A === void 0) {
               return -1 * dir
             }
@@ -31903,6 +31993,8 @@ function useTableSort (props, computedPagination, colList, setPagination) {
               return 1 * dir
             }
             if (col.sort !== void 0) {
+              // gets called without rows that have null/undefined as value
+              // due to the above two statements
               return col.sort(A, B, a, b) * dir
             }
             if (isNumber(A) === true && isNumber(B) === true) {
@@ -34257,23 +34349,36 @@ var QTime = createComponent({
       }
     }
 
+    function goToViewWhenHasModel (newView) {
+      const model = props.modelValue;
+      if (
+        view.value !== newView
+        && model !== void 0
+        && model !== null
+        && model !== ''
+        && typeof model !== 'string'
+      ) {
+        view.value = newView;
+      }
+    }
+
     function verifyAndUpdate () {
       if (hourInSelection.value !== null && hourInSelection.value(innerModel.value.hour) !== true) {
         innerModel.value = __splitDate();
-        view.value = 'hour';
+        goToViewWhenHasModel('hour');
         return
       }
 
       if (minuteInSelection.value !== null && minuteInSelection.value(innerModel.value.minute) !== true) {
         innerModel.value.minute = null;
         innerModel.value.second = null;
-        view.value = 'minute';
+        goToViewWhenHasModel('minute');
         return
       }
 
       if (props.withSeconds === true && secondInSelection.value !== null && secondInSelection.value(innerModel.value.second) !== true) {
         innerModel.value.second = null;
-        view.value = 'second';
+        goToViewWhenHasModel('second');
         return
       }
 
@@ -35135,6 +35240,7 @@ var QTree = createComponent({
       let body = node.body
         ? slots[ `body-${ node.body }` ] || slots[ 'default-body' ]
         : slots[ 'default-body' ];
+
       const slotScope = header !== void 0 || body !== void 0
         ? getSlotScope(node, m, key)
         : null;
@@ -35158,6 +35264,8 @@ var QTree = createComponent({
             + (m.selected === true ? ' q-tree__node--selected' : '')
             + (m.disabled === true ? ' q-tree__node--disabled' : ''),
           tabindex: m.link === true ? 0 : -1,
+          ariaExpanded: children.length > 0 ? m.expanded : null,
+          role: 'treeitem',
           onClick: (e) => {
             onClick(node, m, e);
           },
@@ -35222,16 +35330,21 @@ var QTree = createComponent({
         isParent === true
           ? (
               props.noTransition === true
-                ? h('div', {
-                  class: 'q-tree__node-collapsible' + textColorClass.value,
-                  key: `${ key }__q`
-                }, [
-                  body,
-                  h('div', {
-                    class: 'q-tree__children'
-                      + (m.disabled === true ? ' q-tree__node--disabled' : '')
-                  }, m.expanded ? children : null)
-                ])
+                ? (
+                    m.expanded === true
+                      ? h('div', {
+                        class: 'q-tree__node-collapsible' + textColorClass.value,
+                        key: `${ key }__q`
+                      }, [
+                        body,
+                        h('div', {
+                          class: 'q-tree__children'
+                            + (m.disabled === true ? ' q-tree__node--disabled' : ''),
+                          role: 'group'
+                        }, children)
+                      ])
+                      : null
+                  )
 
                 : h(QSlideTransition, {
                   duration: props.duration,
@@ -35245,7 +35358,8 @@ var QTree = createComponent({
                     body,
                     h('div', {
                       class: 'q-tree__children'
-                        + (m.disabled === true ? ' q-tree__node--disabled' : '')
+                        + (m.disabled === true ? ' q-tree__node--disabled' : ''),
+                      role: 'group'
                     }, children)
                   ]),
                   [ [ vShow, m.expanded ] ]
@@ -35339,7 +35453,8 @@ var QTree = createComponent({
 
       return h(
         'div', {
-          class: classes.value
+          class: classes.value,
+          role: 'tree'
         },
         children.length === 0
           ? (
@@ -40739,7 +40854,7 @@ function runSequentialPromises (
  */
 
 const Quasar = {
-  version: '2.12.5',
+  version: '2.14.1',
   install: installQuasar,
   lang: Plugin$8,
   iconSet: Plugin$7

@@ -31,9 +31,14 @@
       "category": "model"
     },
     "dark": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Notify the component that the background is a dark color (useful when you are using it along with the 'input' prop)",
-      "category": "style"
+      "category": "style",
+      "required": false
     },
     "size": {
       "type": "String",
@@ -119,24 +124,44 @@
       "category": "content"
     },
     "boundary-links": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Show boundary button links",
-      "category": "content"
+      "category": "content",
+      "required": false
     },
     "boundary-numbers": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Always show first and last page buttons (if not using 'input')",
-      "category": "content"
+      "category": "content",
+      "required": false
     },
     "direction-links": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Show direction buttons",
-      "category": "content"
+      "category": "content",
+      "required": false
     },
     "ellipses": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Show ellipses (...) when pages are available",
-      "category": "content"
+      "category": "content",
+      "required": false
     },
     "max-pages": {
       "type": [
@@ -303,7 +328,8 @@
     "ripple": {
       "type": [
         "Boolean",
-        "Object"
+        "Object",
+        "null"
       ],
       "desc": "Configure buttons material ripple (disable it by setting it to 'false' or supply a config object); Does not applies to boundary and ellipsis buttons",
       "default": true,

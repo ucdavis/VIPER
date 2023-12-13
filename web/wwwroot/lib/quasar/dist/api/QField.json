@@ -10,9 +10,14 @@
       "category": "model"
     },
     "error": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Does field have validation errors?",
-      "category": "behavior"
+      "category": "behavior",
+      "required": false
     },
     "error-message": {
       "type": "String",
@@ -132,9 +137,14 @@
       "category": "style"
     },
     "dark": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Notify the component that the background is a dark color",
-      "category": "style"
+      "category": "style",
+      "required": false
     },
     "loading": {
       "type": "Boolean",
@@ -259,6 +269,20 @@
       ],
       "desc": "Specify a max length of model",
       "category": "model"
+    },
+    "tag": {
+      "type": "String",
+      "desc": "HTML tag to use",
+      "examples": [
+        "div",
+        "span",
+        "div",
+        "label"
+      ],
+      "category": "content",
+      "default": "label",
+      "addedIn": "v2.13.1",
+      "required": false
     }
   },
   "slots": {
@@ -343,9 +367,6 @@
           "returns": null
         }
       }
-    },
-    "rawControl": {
-      "internal": true
     }
   },
   "events": {

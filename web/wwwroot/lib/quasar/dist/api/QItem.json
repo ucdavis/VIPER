@@ -69,16 +69,24 @@
       "category": "state"
     },
     "active": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Put item into 'active' state",
       "category": "state",
-      "default": null,
       "required": false
     },
     "dark": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Notify the component that the background is a dark color",
-      "category": "style"
+      "category": "style",
+      "required": false
     },
     "clickable": {
       "type": "Boolean",

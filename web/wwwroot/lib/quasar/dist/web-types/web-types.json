@@ -2,7 +2,7 @@
   "$schema": "",
   "framework": "vue",
   "name": "quasar",
-  "version": "2.12.5",
+  "version": "2.14.1",
   "contributions": {
     "html": {
       "types-syntax": "typescript",
@@ -317,11 +317,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/banner",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/banner"
             }
           ],
           "slots": [
@@ -365,11 +364,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "The component background color lights up the parent's background (as opposed to default behavior which is to darken it); Works unless you specify a CSS background color for it",
-              "doc-url": "https://v2.quasar.dev/vue-components/bar",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/bar"
             }
           ],
           "slots": [
@@ -886,11 +884,10 @@
               "name": "loading",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Put button into loading state (displays a QSpinner -- can be overridden by using a 'loading' slot)",
-              "doc-url": "https://v2.quasar.dev/vue-components/button",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/button"
             },
             {
               "name": "disable",
@@ -1298,11 +1295,10 @@
               "name": "loading",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Put button into loading state (displays a QSpinner -- can be overridden by using a 'loading' slot)",
-              "doc-url": "https://v2.quasar.dev/vue-components/button-dropdown",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/button-dropdown"
             },
             {
               "name": "disable",
@@ -1966,11 +1962,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/card",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/card"
             },
             {
               "name": "square",
@@ -2246,11 +2241,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/carousel",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/carousel"
             },
             {
               "name": "height",
@@ -2876,11 +2870,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/checkbox",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/checkbox"
             },
             {
               "name": "dense",
@@ -2973,11 +2966,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/chip",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/chip"
             },
             {
               "name": "icon",
@@ -3057,11 +3049,10 @@
               "name": "selected",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Model for QChip if it's selected or not\n\nExamples:\nv-model:selected=\"myState\"",
-              "doc-url": "https://v2.quasar.dev/vue-components/chip",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/chip"
             },
             {
               "name": "square",
@@ -3517,11 +3508,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/color-picker",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/color-picker"
             }
           ],
           "events": [
@@ -3633,11 +3623,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/date",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/date"
             },
             {
               "name": "square",
@@ -4314,11 +4303,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/layout/drawer",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/layout/drawer"
             },
             {
               "name": "breakpoint",
@@ -4639,11 +4627,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/editor",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/editor"
             },
             {
               "name": "disable",
@@ -5093,11 +5080,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/expansion-item",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/expansion-item"
             },
             {
               "name": "dense",
@@ -5453,11 +5439,10 @@
               "name": "hide-label",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Hide the label; Useful for animation purposes where you toggle the visibility of the label",
-              "doc-url": "https://v2.quasar.dev/vue-components/floating-action-button",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/floating-action-button"
             },
             {
               "name": "label-class",
@@ -5798,11 +5783,10 @@
               "name": "hide-label",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Hide the label; Useful for animation purposes where you toggle the visibility of the label",
-              "doc-url": "https://v2.quasar.dev/vue-components/floating-action-button",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/floating-action-button"
             },
             {
               "name": "label-class",
@@ -5944,11 +5928,10 @@
               "name": "error",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Does field have validation errors?",
-              "doc-url": "https://v2.quasar.dev/vue-components/field",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/field"
             },
             {
               "name": "error-message",
@@ -6084,11 +6067,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/field",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/field"
             },
             {
               "name": "loading",
@@ -6294,6 +6276,16 @@
               },
               "description": "Specify a max length of model",
               "doc-url": "https://v2.quasar.dev/vue-components/field"
+            },
+            {
+              "name": "tag",
+              "value": {
+                "kind": "expression",
+                "type": "string"
+              },
+              "description": "HTML tag to use\n\nExamples:\ndiv\nspan\ndiv\nlabel",
+              "doc-url": "https://v2.quasar.dev/vue-components/field",
+              "default": "\"label\""
             }
           ],
           "events": [
@@ -6405,10 +6397,6 @@
               "name": "control",
               "description": "Slot for controls; Suggestion QSlider, QRange, QKnob, ...",
               "doc-url": "https://v2.quasar.dev/vue-components/field"
-            },
-            {
-              "name": "rawControl",
-              "doc-url": "https://v2.quasar.dev/vue-components/field"
             }
           ],
           "description": "QField - Quasar component",
@@ -6508,11 +6496,10 @@
               "name": "error",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Does field have validation errors?",
-              "doc-url": "https://v2.quasar.dev/vue-components/file",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/file"
             },
             {
               "name": "error-message",
@@ -6648,11 +6635,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/file",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/file"
             },
             {
               "name": "loading",
@@ -7624,9 +7610,9 @@
               "name": "error",
               "arguments": [
                 {
-                  "name": "src",
-                  "type": "Error",
-                  "description": "JS Error object",
+                  "name": "evt",
+                  "type": "Event",
+                  "description": "JS Event object (same as the browser's native 'error' event)",
                   "doc-url": "https://v2.quasar.dev/vue-components/img"
                 }
               ],
@@ -7853,11 +7839,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/inner-loading",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/inner-loading"
             }
           ],
           "slots": [
@@ -7938,11 +7923,10 @@
               "name": "error",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Does field have validation errors?",
-              "doc-url": "https://v2.quasar.dev/vue-components/input",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/input"
             },
             {
               "name": "error-message",
@@ -8078,11 +8062,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/input",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/input"
             },
             {
               "name": "loading",
@@ -8284,7 +8267,7 @@
               "name": "type",
               "value": {
                 "kind": "expression",
-                "type": "'text'|'password'|'textarea'|'email'|'search'|'tel'|'file'|'number'|'url'|'time'|'date'"
+                "type": "'text'|'password'|'textarea'|'email'|'search'|'tel'|'file'|'number'|'url'|'time'|'date'|'datetime-local'"
               },
               "description": "Input type",
               "doc-url": "https://v2.quasar.dev/vue-components/input",
@@ -8487,7 +8470,7 @@
               "name": "root",
               "value": {
                 "kind": "expression",
-                "type": "Element"
+                "type": "Element|null"
               },
               "description": "[Intersection API root prop] Lets you define an alternative to the viewport as your root (through its DOM element); It is important to keep in mind that root needs to be an ancestor of the observed element\n\nExamples:\n$refs.myTable.$el\ngetElementById(\"myTable\")",
               "doc-url": "https://v2.quasar.dev/vue-components/intersection"
@@ -8656,21 +8639,19 @@
               "name": "active",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Put item into 'active' state",
-              "doc-url": "https://v2.quasar.dev/vue-components/list-and-list-items",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/list-and-list-items"
             },
             {
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/list-and-list-items",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/list-and-list-items"
             },
             {
               "name": "clickable",
@@ -8938,11 +8919,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/list-and-list-items",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/list-and-list-items"
             },
             {
               "name": "padding",
@@ -9358,11 +9338,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/linear-progress",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/linear-progress"
             },
             {
               "name": "reverse",
@@ -9470,11 +9449,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/markup-table",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/markup-table"
             },
             {
               "name": "flat",
@@ -9618,11 +9596,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/menu",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/menu"
             },
             {
               "name": "fit",
@@ -9764,7 +9741,7 @@
               "name": "max-height",
               "value": {
                 "kind": "expression",
-                "type": "string"
+                "type": "string|null"
               },
               "description": "The maximum height of the menu; Size in CSS units, including unit name\n\nExamples:\n16px\n2rem",
               "doc-url": "https://v2.quasar.dev/vue-components/menu"
@@ -9773,7 +9750,7 @@
               "name": "max-width",
               "value": {
                 "kind": "expression",
-                "type": "string"
+                "type": "string|null"
               },
               "description": "The maximum width of the menu; Size in CSS units, including unit name\n\nExamples:\n16px\n2rem",
               "doc-url": "https://v2.quasar.dev/vue-components/menu"
@@ -9980,11 +9957,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/option-group",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/option-group"
             },
             {
               "name": "dense",
@@ -10278,11 +10254,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color (useful when you are using it along with the 'input' prop)",
-              "doc-url": "https://v2.quasar.dev/vue-components/pagination",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/pagination"
             },
             {
               "name": "size",
@@ -10362,41 +10337,37 @@
               "name": "boundary-links",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Show boundary button links",
-              "doc-url": "https://v2.quasar.dev/vue-components/pagination",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/pagination"
             },
             {
               "name": "boundary-numbers",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Always show first and last page buttons (if not using 'input')",
-              "doc-url": "https://v2.quasar.dev/vue-components/pagination",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/pagination"
             },
             {
               "name": "direction-links",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Show direction buttons",
-              "doc-url": "https://v2.quasar.dev/vue-components/pagination",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/pagination"
             },
             {
               "name": "ellipses",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Show ellipses (...) when pages are available",
-              "doc-url": "https://v2.quasar.dev/vue-components/pagination",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/pagination"
             },
             {
               "name": "max-pages",
@@ -10565,7 +10536,7 @@
               "name": "ripple",
               "value": {
                 "kind": "expression",
-                "type": "boolean|object"
+                "type": "boolean|object|null"
               },
               "description": "Configure buttons material ripple (disable it by setting it to 'false' or supply a config object); Does not applies to boundary and ellipsis buttons\n\nExamples:\nfalse\n{ early: true, center: true, color: 'teal', keyCodes: [] }",
               "doc-url": "https://v2.quasar.dev/vue-components/pagination",
@@ -11283,11 +11254,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/radio",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/radio"
             },
             {
               "name": "dense",
@@ -11634,11 +11604,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/range",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/range"
             },
             {
               "name": "dense",
@@ -12087,11 +12056,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/scroll-area",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/scroll-area"
             },
             {
               "name": "bar-style",
@@ -12169,11 +12137,10 @@
               "name": "visible",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Manually control the visibility of the scrollbar; Overrides default mouse over/leave behavior",
-              "doc-url": "https://v2.quasar.dev/vue-components/scroll-area",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/scroll-area"
             },
             {
               "name": "delay",
@@ -12305,7 +12272,7 @@
               "name": "virtual-scroll-slice-size",
               "value": {
                 "kind": "expression",
-                "type": "number|string"
+                "type": "number|string|null"
               },
               "description": "Minimum number of items to render in the virtual list\n\nExamples:\nvirtual-scroll-slice-size=\"60\"",
               "doc-url": "https://v2.quasar.dev/vue-components/select",
@@ -12384,11 +12351,10 @@
               "name": "error",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Does field have validation errors?",
-              "doc-url": "https://v2.quasar.dev/vue-components/select",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/select"
             },
             {
               "name": "error-message",
@@ -12524,11 +12490,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/select",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/select"
             },
             {
               "name": "loading",
@@ -12838,11 +12803,10 @@
               "name": "options-dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Options menu will be colored with a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/select",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/select"
             },
             {
               "name": "options-selected-class",
@@ -12993,7 +12957,7 @@
                 "kind": "expression",
                 "type": "number|string"
               },
-              "description": "Debounce the input model update with an amount of milliseconds",
+              "description": "Debounce the input model update with an amount of milliseconds (also affects the 'filter' event, if used)",
               "doc-url": "https://v2.quasar.dev/vue-components/select",
               "default": "500"
             },
@@ -13325,11 +13289,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/separator",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/separator"
             },
             {
               "name": "spaced",
@@ -13394,11 +13357,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/skeleton",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/skeleton"
             },
             {
               "name": "type",
@@ -13545,11 +13507,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/slide-item",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/slide-item"
             }
           ],
           "events": [
@@ -13996,11 +13957,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/slider",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/slider"
             },
             {
               "name": "dense",
@@ -15288,11 +15248,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/stepper",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/stepper"
             },
             {
               "name": "flat",
@@ -15547,11 +15506,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/tab-panels",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/tab-panels"
             }
           ],
           "slots": [
@@ -16052,11 +16010,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/table",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/table"
             },
             {
               "name": "flat",
@@ -17296,7 +17253,7 @@
               "name": "mask",
               "value": {
                 "kind": "expression",
-                "type": "string"
+                "type": "string|null"
               },
               "description": "Mask (formatting string) used for parsing and formatting value\n\nExamples:\nHH:mm:ss\nYYYY-MM-DD HH:mm:ss\nHH:mm MMMM Do, YYYY",
               "doc-url": "https://v2.quasar.dev/vue-components/time",
@@ -17343,11 +17300,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/time",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/time"
             },
             {
               "name": "square",
@@ -17413,12 +17369,10 @@
               "name": "format24h",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
-              "description": "Forces 24 hour time display instead of AM/PM system",
-              "doc-url": "https://v2.quasar.dev/vue-components/time",
-              "default": "\"(based on Quasar lang language being used)\"",
-              "type": "boolean"
+              "description": "Forces 24 hour time display instead of AM/PM system; If prop is not set, then the default is based on Quasar lang language being used",
+              "doc-url": "https://v2.quasar.dev/vue-components/time"
             },
             {
               "name": "default-date",
@@ -17558,11 +17512,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/timeline",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/timeline"
             }
           ],
           "slots": [
@@ -17848,11 +17801,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/toggle",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/toggle"
             },
             {
               "name": "dense",
@@ -18040,7 +17992,7 @@
               "name": "max-height",
               "value": {
                 "kind": "expression",
-                "type": "string"
+                "type": "string|null"
               },
               "description": "The maximum height of the Tooltip; Size in CSS units, including unit name\n\nExamples:\n16px\n2rem",
               "doc-url": "https://v2.quasar.dev/vue-components/tooltip"
@@ -18049,7 +18001,7 @@
               "name": "max-width",
               "value": {
                 "kind": "expression",
-                "type": "string"
+                "type": "string|null"
               },
               "description": "The maximum width of the Tooltip; Size in CSS units, including unit name\n\nExamples:\n16px\n2rem",
               "doc-url": "https://v2.quasar.dev/vue-components/tooltip"
@@ -18316,11 +18268,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/tree",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/tree"
             },
             {
               "name": "icon",
@@ -18730,11 +18681,10 @@
               "name": "dark",
               "value": {
                 "kind": "expression",
-                "type": "boolean"
+                "type": "boolean|null"
               },
               "description": "Notify the component that the background is a dark color",
-              "doc-url": "https://v2.quasar.dev/vue-components/uploader",
-              "type": "boolean"
+              "doc-url": "https://v2.quasar.dev/vue-components/uploader"
             },
             {
               "name": "square",
@@ -19043,7 +18993,7 @@
               "name": "virtual-scroll-slice-size",
               "value": {
                 "kind": "expression",
-                "type": "number|string"
+                "type": "number|string|null"
               },
               "description": "Minimum number of items to render in the virtual list\n\nExamples:\nvirtual-scroll-slice-size=\"60\"",
               "doc-url": "https://v2.quasar.dev/vue-components/virtual-scroll",
