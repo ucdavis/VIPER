@@ -100,7 +100,7 @@
     "description": "Applies a small standard border-radius for a squared shape of the component"
   },
   "q-banner/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-bar/dense": {
@@ -108,7 +108,7 @@
     "description": "Dense mode; occupies less space"
   },
   "q-bar/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "The component background color lights up the parent's background (as opposed to default behavior which is to darken it); Works unless you specify a CSS background color for it"
   },
   "q-breadcrumbs/separator": {
@@ -292,7 +292,7 @@
     "description": "When used on flexbox parent, button will stretch to parent's height"
   },
   "q-btn/loading": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Put button into loading state (displays a QSpinner -- can be overridden by using a 'loading' slot)"
   },
   "q-btn/disable": {
@@ -444,7 +444,7 @@
     "description": "When used on flexbox parent, button will stretch to parent's height"
   },
   "q-btn-dropdown/loading": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Put button into loading state (displays a QSpinner -- can be overridden by using a 'loading' slot)"
   },
   "q-btn-dropdown/disable": {
@@ -648,7 +648,7 @@
     "description": "Clears model on click of the already selected button"
   },
   "q-card/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-card/square": {
@@ -740,7 +740,7 @@
     "description": "Transition duration (in milliseconds, without unit)"
   },
   "q-carousel/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-carousel/height": {
@@ -936,7 +936,7 @@
     "description": "Should the color (if specified any) be kept when the component is unticked/ off?"
   },
   "q-checkbox/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-checkbox/dense": {
@@ -960,7 +960,7 @@
     "description": "QChip size name or a CSS unit including unit name"
   },
   "q-chip/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-chip/icon": {
@@ -996,7 +996,7 @@
     "description": "Model of the component determining if QChip should be rendered or not"
   },
   "q-chip/selected": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Model for QChip if it's selected or not"
   },
   "q-chip/square": {
@@ -1152,7 +1152,7 @@
     "description": "Put component in readonly mode"
   },
   "q-color/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-date/name": {
@@ -1184,7 +1184,7 @@
     "description": "Overrides text color (if needed); Color name from the Quasar Color Palette"
   },
   "q-date/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-date/square": {
@@ -1388,7 +1388,7 @@
     "description": "Disables animation of the drawer when toggling mini mode"
   },
   "q-drawer/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-drawer/breakpoint": {
@@ -1456,7 +1456,7 @@
     "description": "Dense mode; toolbar buttons are shown on one-line only"
   },
   "q-editor/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-editor/disable": {
@@ -1604,7 +1604,7 @@
     "description": "Apply ellipsis when there's not enough space to render on the specified number of lines; If more than one line specified, then it will only work on webkit browsers because it uses the '-webkit-line-clamp' CSS property!"
   },
   "q-expansion-item/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-expansion-item/dense": {
@@ -1712,7 +1712,7 @@
     "description": "Position of the label around the icon"
   },
   "q-fab/hide-label": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Hide the label; Useful for animation purposes where you toggle the visibility of the label"
   },
   "q-fab/label-class": {
@@ -1812,7 +1812,7 @@
     "description": "Position of the label around the icon"
   },
   "q-fab-action/hide-label": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Hide the label; Useful for animation purposes where you toggle the visibility of the label"
   },
   "q-fab-action/label-class": {
@@ -1856,7 +1856,7 @@
     "description": "Model of the component; Either use this property (along with a listener for 'update:model-value' event) OR use v-model directive"
   },
   "q-field/error": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Does field have validation errors?"
   },
   "q-field/error-message": {
@@ -1916,7 +1916,7 @@
     "description": "Color name for component from the Quasar Color Palette"
   },
   "q-field/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-field/loading": {
@@ -2003,6 +2003,10 @@
     "type": "string|number",
     "description": "Specify a max length of model"
   },
+  "q-field/tag": {
+    "type": "string",
+    "description": "HTML tag to use"
+  },
   "q-file/name": {
     "type": "string",
     "description": "Used to specify the name of the control; Useful if dealing with forms; If not specified, it takes the value of 'for' prop, if it exists"
@@ -2040,7 +2044,7 @@
     "description": "Model of the component; Must be FileList or Array if using 'multiple' prop; Either use this property (along with a listener for 'update:modelValue' event) OR use v-model directive"
   },
   "q-file/error": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Does field have validation errors?"
   },
   "q-file/error-message": {
@@ -2100,7 +2104,7 @@
     "description": "Color name for component from the Quasar Color Palette"
   },
   "q-file/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-file/loading": {
@@ -2448,7 +2452,7 @@
     "description": "Apply custom style to the label; Works along the 'label' prop only"
   },
   "q-inner-loading/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-input/name": {
@@ -2476,7 +2480,7 @@
     "description": "Model of the component; Either use this property (along with a listener for 'update:modelValue' event) OR use v-model directive"
   },
   "q-input/error": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Does field have validation errors?"
   },
   "q-input/error-message": {
@@ -2536,7 +2540,7 @@
     "description": "Color name for component from the Quasar Color Palette"
   },
   "q-input/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-input/loading": {
@@ -2656,7 +2660,7 @@
     "description": "Pre-render content on server side if using SSR (use it to pre-render above the fold content)"
   },
   "q-intersection/root": {
-    "type": "element",
+    "type": "element|null",
     "description": "[Intersection API root prop] Lets you define an alternative to the viewport as your root (through its DOM element); It is important to keep in mind that root needs to be an ancestor of the observed element"
   },
   "q-intersection/margin": {
@@ -2712,11 +2716,11 @@
     "description": "Put component in disabled mode"
   },
   "q-item/active": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Put item into 'active' state"
   },
   "q-item/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-item/clickable": {
@@ -2796,7 +2800,7 @@
     "description": "Applies a separator between contained items"
   },
   "q-list/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-list/padding": {
@@ -2916,7 +2920,7 @@
     "description": "Color name for component's track from the Quasar Color Palette"
   },
   "q-linear-progress/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-linear-progress/reverse": {
@@ -2952,7 +2956,7 @@
     "description": "Dense mode; occupies less space"
   },
   "q-markup-table/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-markup-table/flat": {
@@ -3004,7 +3008,7 @@
     "description": "Model of the component defining shown/hidden state; Either use this property (along with a listener for 'update:model-value' event) OR use v-model directive"
   },
   "q-menu/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-menu/fit": {
@@ -3064,11 +3068,11 @@
     "description": "(Accessibility) When Menu gets shown, do not switch focus on it"
   },
   "q-menu/max-height": {
-    "type": "string",
+    "type": "string|null",
     "description": "The maximum height of the menu; Size in CSS units, including unit name"
   },
   "q-menu/max-width": {
-    "type": "string",
+    "type": "string|null",
     "description": "The maximum width of the menu; Size in CSS units, including unit name"
   },
   "q-no-ssr/tag": {
@@ -3108,7 +3112,7 @@
     "description": "Should the color (if specified any) be kept when input components are unticked?"
   },
   "q-option-group/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-option-group/dense": {
@@ -3184,7 +3188,7 @@
     "description": "Number of last page (must be higher than 'min')"
   },
   "q-pagination/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color (useful when you are using it along with the 'input' prop)"
   },
   "q-pagination/size": {
@@ -3220,19 +3224,19 @@
     "description": "Generate link for page buttons; For best performance, reference it from your scope and do not define it inline"
   },
   "q-pagination/boundary-links": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Show boundary button links"
   },
   "q-pagination/boundary-numbers": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Always show first and last page buttons (if not using 'input')"
   },
   "q-pagination/direction-links": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Show direction buttons"
   },
   "q-pagination/ellipses": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Show ellipses (...) when pages are available"
   },
   "q-pagination/max-pages": {
@@ -3304,7 +3308,7 @@
     "description": "Class definitions to be attributed to the input (if using one)"
   },
   "q-pagination/ripple": {
-    "type": "boolean|object",
+    "type": "boolean|object|null",
     "description": "Configure buttons material ripple (disable it by setting it to 'false' or supply a config object); Does not applies to boundary and ellipsis buttons"
   },
   "q-parallax/src": {
@@ -3488,7 +3492,7 @@
     "description": "Should the color (if specified any) be kept when checkbox is unticked?"
   },
   "q-radio/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-radio/dense": {
@@ -3620,7 +3624,7 @@
     "description": "Set custom thumb svg path"
   },
   "q-range/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-range/dense": {
@@ -3752,7 +3756,7 @@
     "description": "Aspect ratio for the content; If value is a String, then avoid using a computational statement (like '16/9') and instead specify the String value of the result directly (eg. '1.7777')"
   },
   "q-scroll-area/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-scroll-area/bar-style": {
@@ -3788,7 +3792,7 @@
     "description": "Object with CSS properties and values for styling the container of QScrollArea when scroll area becomes active (is mouse hovered)"
   },
   "q-scroll-area/visible": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Manually control the visibility of the scrollbar; Overrides default mouse over/leave behavior"
   },
   "q-scroll-area/delay": {
@@ -3820,7 +3824,7 @@
     "description": "Make virtual list work in horizontal mode"
   },
   "q-select/virtual-scroll-slice-size": {
-    "type": "number|string",
+    "type": "number|string|null",
     "description": "Minimum number of items to render in the virtual list"
   },
   "q-select/virtual-scroll-slice-ratio-before": {
@@ -3852,7 +3856,7 @@
     "description": "Model of the component; Must be Array if using 'multiple' prop; Either use this property (along with a listener for 'update:modelValue' event) OR use v-model directive"
   },
   "q-select/error": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Does field have validation errors?"
   },
   "q-select/error-message": {
@@ -3912,7 +3916,7 @@
     "description": "Color name for component from the Quasar Color Palette"
   },
   "q-select/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-select/loading": {
@@ -4040,7 +4044,7 @@
     "description": "Dense mode for options list; occupies less space"
   },
   "q-select/options-dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Options menu will be colored with a dark color"
   },
   "q-select/options-selected-class": {
@@ -4105,7 +4109,7 @@
   },
   "q-select/input-debounce": {
     "type": "number|string",
-    "description": "Debounce the input model update with an amount of milliseconds"
+    "description": "Debounce the input model update with an amount of milliseconds (also affects the 'filter' event, if used)"
   },
   "q-select/input-class": {
     "type": "string|array|object",
@@ -4140,7 +4144,7 @@
     "description": "Overrides the default dynamic mode of showing as menu on desktop and dialog on mobiles"
   },
   "q-separator/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-separator/spaced": {
@@ -4164,7 +4168,7 @@
     "description": "Color name for component from the Quasar Color Palette"
   },
   "q-skeleton/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-skeleton/type": {
@@ -4220,7 +4224,7 @@
     "description": "Color name for bottom-side background from the Quasar Color Palette"
   },
   "q-slide-item/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-slide-transition/appear": {
@@ -4348,7 +4352,7 @@
     "description": "Set custom thumb svg path"
   },
   "q-slider/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-slider/dense": {
@@ -4724,7 +4728,7 @@
     "description": "Transition duration (in milliseconds, without unit)"
   },
   "q-stepper/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-stepper/flat": {
@@ -4792,7 +4796,7 @@
     "description": "Put component in disabled mode"
   },
   "q-tab-panel/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-tab-panels/model-value": {
@@ -4964,7 +4968,7 @@
     "description": "Hide the pagination controls at the bottom"
   },
   "q-table/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-table/flat": {
@@ -5312,7 +5316,7 @@
     "description": "Display the component in landscape mode"
   },
   "q-time/mask": {
-    "type": "string",
+    "type": "string|null",
     "description": "Mask (formatting string) used for parsing and formatting value"
   },
   "q-time/locale": {
@@ -5332,7 +5336,7 @@
     "description": "Overrides text color (if needed); Color name from the Quasar Color Palette"
   },
   "q-time/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-time/square": {
@@ -5360,8 +5364,8 @@
     "description": "Time of the component; Either use this property (along with a listener for 'update:modelValue' event) OR use v-model directive"
   },
   "q-time/format24h": {
-    "type": "boolean",
-    "description": "Forces 24 hour time display instead of AM/PM system"
+    "type": "boolean|null",
+    "description": "Forces 24 hour time display instead of AM/PM system; If prop is not set, then the default is based on Quasar lang language being used"
   },
   "q-time/default-date": {
     "type": "string",
@@ -5404,7 +5408,7 @@
     "description": "Layout of the timeline. Dense keeps content and labels on one side. Comfortable keeps content on one side and labels on the opposite side. Loose puts content on both sides."
   },
   "q-timeline/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-timeline-entry/heading": {
@@ -5508,7 +5512,7 @@
     "description": "Should the color (if specified any) be kept when the component is unticked/ off?"
   },
   "q-toggle/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-toggle/dense": {
@@ -5556,11 +5560,11 @@
     "description": "Model of the component defining shown/hidden state; Either use this property (along with a listener for 'update:model-value' event) OR use v-model directive"
   },
   "q-tooltip/max-height": {
-    "type": "string",
+    "type": "string|null",
     "description": "The maximum height of the Tooltip; Size in CSS units, including unit name"
   },
   "q-tooltip/max-width": {
-    "type": "string",
+    "type": "string|null",
     "description": "The maximum width of the Tooltip; Size in CSS units, including unit name"
   },
   "q-tooltip/anchor": {
@@ -5636,7 +5640,7 @@
     "description": "Dense mode; occupies less space"
   },
   "q-tree/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-tree/icon": {
@@ -5772,7 +5776,7 @@
     "description": "Overrides text color (if needed); Color name from the Quasar Color Palette"
   },
   "q-uploader/dark": {
-    "type": "boolean",
+    "type": "boolean|null",
     "description": "Notify the component that the background is a dark color"
   },
   "q-uploader/square": {
@@ -5836,7 +5840,7 @@
     "description": "Make virtual list work in horizontal mode"
   },
   "q-virtual-scroll/virtual-scroll-slice-size": {
-    "type": "number|string",
+    "type": "number|string|null",
     "description": "Minimum number of items to render in the virtual list"
   },
   "q-virtual-scroll/virtual-scroll-slice-ratio-before": {

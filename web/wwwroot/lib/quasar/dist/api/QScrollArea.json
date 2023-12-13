@@ -5,9 +5,14 @@
   },
   "props": {
     "dark": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Notify the component that the background is a dark color",
-      "category": "style"
+      "category": "style",
+      "required": false
     },
     "bar-style": {
       "type": [
@@ -102,9 +107,14 @@
       "category": "style"
     },
     "visible": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Manually control the visibility of the scrollbar; Overrides default mouse over/leave behavior",
-      "category": "behavior"
+      "category": "behavior",
+      "required": false
     },
     "delay": {
       "type": [

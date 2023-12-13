@@ -129,9 +129,14 @@
               "desc": "Display actions as a grid instead of as a list"
             },
             "dark": {
-              "type": "Boolean",
+              "type": [
+                "Boolean",
+                "null"
+              ],
+              "default": null,
               "desc": "Apply dark mode",
-              "category": "style"
+              "category": "style",
+              "required": false
             },
             "seamless": {
               "type": "Boolean",

@@ -18,7 +18,10 @@
       "category": "behavior"
     },
     "mask": {
-      "type": "String",
+      "type": [
+        "String",
+        "null"
+      ],
       "desc": "Mask (formatting string) used for parsing and formatting value",
       "category": "model",
       "default": "HH:mm",
@@ -101,9 +104,14 @@
       "category": "style"
     },
     "dark": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Notify the component that the background is a dark color",
-      "category": "style"
+      "category": "style",
+      "required": false
     },
     "square": {
       "type": "Boolean",
@@ -145,9 +153,12 @@
       ]
     },
     "format24h": {
-      "type": "Boolean",
-      "desc": "Forces 24 hour time display instead of AM/PM system",
-      "default": "(based on Quasar lang language being used)",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
+      "desc": "Forces 24 hour time display instead of AM/PM system; If prop is not set, then the default is based on Quasar lang language being used",
       "category": "behavior",
       "required": false
     },
@@ -184,7 +195,14 @@
           "desc": "Seconds"
         }
       },
-      "returns": null,
+      "returns": {
+        "type": [
+          "Boolean",
+          "null",
+          "undefined"
+        ],
+        "desc": "Is the user allowed to set the specified time?"
+      },
       "examples": [
         ":options=\"(hr, min, sec) => hr <= 6\""
       ],

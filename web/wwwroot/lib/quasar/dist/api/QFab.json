@@ -104,9 +104,14 @@
       "category": "style|content"
     },
     "hide-label": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Hide the label; Useful for animation purposes where you toggle the visibility of the label",
-      "category": "style|content"
+      "category": "style|content",
+      "required": false
     },
     "label-class": {
       "type": [
