@@ -60,10 +60,11 @@ namespace Viper.Controllers
             return View();
         }
 
-        public override void OnActionExecuting(ActionExecutingContext context)
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context,
+                                         ActionExecutionDelegate next)
         {
-            base.OnActionExecuting(context);
             ViewData["ViperLeftNav"] = Nav();
+            await base.OnActionExecutionAsync(context, next);
         }
 
         private NavMenu Nav()
