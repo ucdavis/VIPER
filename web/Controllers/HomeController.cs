@@ -20,6 +20,7 @@ using Amazon.SimpleSystemsManagement;
 using Amazon.SimpleSystemsManagement.Model;
 using Viper.Areas.CMS.Data;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Viper.Classes.Utilities;
 
 namespace Viper.Controllers
 {
@@ -95,6 +96,14 @@ namespace Viper.Controllers
             var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnURL));
 
             return new RedirectResult(authorizationEndpoint);
+        }
+
+        [Route("/[action]")]
+        [SearchExclude]
+        public IActionResult RefreshSession()
+        {
+            SessionTimeoutService.UpdateSessionTimeout();
+            return Ok(SessionTimeoutService.GetSessionTimeout());
         }
 
         /// <summary>

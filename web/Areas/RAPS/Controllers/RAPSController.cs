@@ -42,6 +42,7 @@ namespace Viper.Areas.RAPS.Controllers
         public override async Task OnActionExecutionAsync(ActionExecutingContext context,
                                          ActionExecutionDelegate next)
         {
+            await base.OnActionExecutionAsync(context, next);
             await next();
             bool roleIdValid = int.TryParse(HttpContext?.Request?.Query["roleId"].FirstOrDefault(), out int roleId);
             bool permIdValid = int.TryParse(HttpContext?.Request?.Query["permissionId"].FirstOrDefault(), out int permissionId);

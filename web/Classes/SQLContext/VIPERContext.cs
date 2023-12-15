@@ -88,6 +88,8 @@ public partial class VIPERContext : DbContext
 
     public virtual DbSet<SecureMediaAudit> SecureMediaAudits { get; set; }
 
+    public virtual DbSet<SessionTimeout> SessionTimeouts{ get; set; }
+
     public virtual DbSet<SlowPage> SlowPages { get; set; }
 
     public virtual DbSet<Viper.Models.VIPER.System> Systems { get; set; }
@@ -1037,6 +1039,21 @@ public partial class VIPERContext : DbContext
             entity.Property(e => e.Whotime)
                 .HasColumnType("datetime")
                 .HasColumnName("whotime");
+        });
+
+        modelBuilder.Entity<SessionTimeout>(entity =>
+        {
+            entity.HasKey(e => new { e.LoginId, e.Service });
+            entity.ToTable("SessionTimeout");
+            entity.Property(e => e.LoginId)
+                .HasMaxLength(8)
+                .HasColumnName("loginid");
+            entity.Property(e => e.SessionTimeoutDateTime)
+                .HasColumnType("datetime")
+                .HasColumnName("sessionTimeout");
+            entity.Property(e => e.Service)
+                .HasMaxLength(50)
+                .HasColumnName("service");
         });
 
         modelBuilder.Entity<SlowPage>(entity =>
