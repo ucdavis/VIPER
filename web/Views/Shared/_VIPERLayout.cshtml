@@ -197,6 +197,8 @@
     *@
     @await RenderSectionAsync("Scripts", required: false)
 
+    @await Component.InvokeAsync("SessionTimeout")
+
     <q-dialog v-model="showViperError" v-cloak
               auto-close="true">
         <q-banner>

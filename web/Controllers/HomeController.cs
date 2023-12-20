@@ -20,6 +20,7 @@ using Amazon.SimpleSystemsManagement;
 using Amazon.SimpleSystemsManagement.Model;
 using Viper.Areas.CMS.Data;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Viper.Classes.Utilities;
 
 namespace Viper.Controllers
 {
@@ -59,10 +60,11 @@ namespace Viper.Controllers
             return View();
         }
 
-        public override void OnActionExecuting(ActionExecutingContext context)
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context,
+                                         ActionExecutionDelegate next)
         {
-            base.OnActionExecuting(context);
             ViewData["ViperLeftNav"] = Nav();
+            await base.OnActionExecutionAsync(context, next);
         }
 
         private NavMenu Nav()
@@ -95,6 +97,14 @@ namespace Viper.Controllers
             var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnURL));
 
             return new RedirectResult(authorizationEndpoint);
+        }
+
+        [Route("/[action]")]
+        [SearchExclude]
+        public IActionResult RefreshSession()
+        {
+            SessionTimeoutService.UpdateSessionTimeout();
+            return Ok(SessionTimeoutService.GetSessionTimeout());
         }
 
         /// <summary>
