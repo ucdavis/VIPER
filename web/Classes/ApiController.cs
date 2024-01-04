@@ -14,6 +14,7 @@ namespace Viper.Classes
     [ApiController]
     [ApiResponse]
     [ApiExceptionFilter]
+    [ApiSessionUpdateFilter]
     public class ApiController : ControllerBase
     {
         public IOrderedQueryable<T> Sort<T>(IQueryable<T> query, string sortOrder)

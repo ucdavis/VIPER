@@ -281,9 +281,14 @@
               "category": "style"
             },
             "dark": {
-              "type": "Boolean",
+              "type": [
+                "Boolean",
+                "null"
+              ],
+              "default": null,
               "desc": "Apply dark mode",
-              "category": "style"
+              "category": "style",
+              "required": false
             },
             "persistent": {
               "type": "Boolean",

@@ -7,6 +7,7 @@ using Web.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Viper.Classes;
 using System.Runtime.Versioning;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -29,6 +30,34 @@ namespace Viper.Areas.RAPS.Controllers
             _securityService = new RAPSSecurityService(context);
             _environment = environment;
             UserHelper = new UserHelper();
+        }
+
+        /// <summary>
+        /// Getting left nav for each page. This is a little complicated - alternatively, ViewData["ViperLeftNav"] = await Nav() 
+        /// could be added to each action.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="next"></param>
+        /// <returns></returns>
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context,
+                                         ActionExecutionDelegate next)
+        {
+            await base.OnActionExecutionAsync(context, next);
+            await next();
+            bool roleIdValid = int.TryParse(HttpContext?.Request?.Query["roleId"].FirstOrDefault(), out int roleId);
+            bool permIdValid = int.TryParse(HttpContext?.Request?.Query["permissionId"].FirstOrDefault(), out int permissionId);
+            string? memberId = HttpContext?.Request?.Query["memberId"].FirstOrDefault();
+            List<string>? path = HttpContext?.Request?.Path.ToString().Split("/").ToList();
+            int? rapsIdx = path?.FindIndex(p => p.Equals("raps", StringComparison.OrdinalIgnoreCase));
+            string instance = "VIPER";
+            if(rapsIdx != null && rapsIdx > -1 && path?.Count > rapsIdx + 1)
+            {
+                instance = path[(int)rapsIdx + 1];
+            }
+            ViewData["ViperLeftNav"] = await Nav(roleIdValid ? roleId : null,
+                permIdValid ? permissionId : null,
+                memberId,
+                instance);
         }
 
         /// <summary>
@@ -64,8 +93,7 @@ namespace Viper.Areas.RAPS.Controllers
             //            Problem("Entity set 'RAPSContext.TblRoles'  is null.");}
         }
 
-        [Route("/[area]/{instance}/[action]")]
-        public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER")
+        public async Task<NavMenu> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER")
         {
             TblRole? selectedRole = (roleId != null) ? await _RAPSContext.TblRoles.FindAsync(roleId) : null;
             TblPermission? selectedPermission = (permissionId != null) ? await _RAPSContext.TblPermissions.FindAsync(permissionId) : null;
@@ -80,18 +108,22 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 if(_securityService.IsAllowedTo("AccessInstance", inst))
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = inst, MenuItemURL = "/raps/" + inst });
+                    nav.Add(new NavMenuItem() { MenuItemText = inst, MenuItemURL = "~/raps/" + inst });
                 }
             }
             nav.Add(new NavMenuItem() { MenuItemText = "Roles", IsHeader = true });
             nav.Add(new NavMenuItem() { MenuItemText = "Role List", MenuItemURL = "Rolelist" });
-            if(_securityService.IsAllowedTo("CreateRole", instance))
+            if(_securityService.IsAllowedTo("ViewRoles", instance))
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "Role Templates", MenuItemURL = "RoleTemplateList" });
             }
             if (selectedRole != null && _securityService.RoleBelongsToInstance(instance, selectedRole))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected Role {0}", selectedRole.Role), IsHeader = true });
+                if ((selectedRole.Application == 0 && _securityService.IsAllowedTo("EditPermissions"))
+                    || _securityService.IsAllowedTo("EditRoleMembership"))
+                {
+                    nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected Role {0}", selectedRole.Role), IsHeader = true });
+                }   
                 if (selectedRole.Application == 0 && _securityService.IsAllowedTo("EditPermissions"))
                 {
                     nav.Add(new NavMenuItem() { MenuItemText = "Edit Permissions", MenuItemURL = "RolePermissions?roleId=" + selectedRole.RoleId });
@@ -108,14 +140,18 @@ namespace Viper.Areas.RAPS.Controllers
                 nav.Add(new NavMenuItem() { MenuItemText = "Permission List", MenuItemURL = "permissionlist" });
                 if(selectedPermission != null)
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected Permission {0}", selectedPermission.Permission), IsHeader = true });
+                    if (_securityService.IsAllowedTo("EditRolePermissions")
+                        || _securityService.IsAllowedTo("EditMemberPermissions"))
+                    {
+                        nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected Permission {0}", selectedPermission.Permission), IsHeader = true });
+                    }
                     if(_securityService.IsAllowedTo("EditRolePermissions"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "Roles w/ Permission", MenuItemURL = "permissionRoles" });
+                        nav.Add(new NavMenuItem() { MenuItemText = "Roles w/ Permission", MenuItemURL = "permissionRoles?permissionId=" + selectedPermission.PermissionId });
                     }
                     if (_securityService.IsAllowedTo("EditMemberPermissions"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "Users w/ Permission", MenuItemURL = "permissionMembers" });
+                        nav.Add(new NavMenuItem() { MenuItemText = "Users w/ Permission", MenuItemURL = "permissionMembers?permissionId=" + selectedPermission.PermissionId });
                     }
                 }
             }
@@ -129,18 +165,23 @@ namespace Viper.Areas.RAPS.Controllers
                 }
                 if(selecteduser != null)
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected User {0}", selecteduser.DisplayFullName), IsHeader = true });
+                    if (_securityService.IsAllowedTo("EditRoleMembership")
+                        || _securityService.IsAllowedTo("EditMemberPermissions")
+                        || _securityService.IsAllowedTo("RSOP"))
+                    {
+                        nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected User {0}", selecteduser.DisplayFullName), IsHeader = true });
+                    }
                     if(_securityService.IsAllowedTo("EditRoleMembership"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "User Roles", MenuItemURL = "memberRoles" });
+                        nav.Add(new NavMenuItem() { MenuItemText = "User Roles", MenuItemURL = "memberRoles?memberId=" + selecteduser.MothraId });
                     }
                     if (_securityService.IsAllowedTo("EditMemberPermissions"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "User Permissions", MenuItemURL = "memberPermissions" });
+                        nav.Add(new NavMenuItem() { MenuItemText = "User Permissions", MenuItemURL = "memberPermissions?memberId=" + selecteduser.MothraId });
                     }
                     if (_securityService.IsAllowedTo("RSOP"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "Combined Permissions", MenuItemURL = "memberRSOP" });
+                        nav.Add(new NavMenuItem() { MenuItemText = "Combined Permissions", MenuItemURL = "RSOP?memberId=" + selecteduser.MothraId });
                     }
                 }
             }
@@ -159,7 +200,7 @@ namespace Viper.Areas.RAPS.Controllers
                 nav.Add(new NavMenuItem() { MenuItemText = "Export to VMACS", MenuItemURL = "ExportToVMACS" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Update Role Views", MenuItemURL = "RoleViewUpdate" });
             }
-            return nav;
+            return new NavMenu("RAPS", nav);
         }
 
 
@@ -197,10 +238,12 @@ namespace Viper.Areas.RAPS.Controllers
         [Permission(Allow = "RAPS.Admin,RAPS.ViewRoles")]
         public async Task<IActionResult> RoleTemplateList(string instance)
         {
-            if(!_securityService.IsAllowedTo("ViewAllRoles", instance))
+            if(!_securityService.IsAllowedTo("ViewRoles", instance))
             {
                 return await Task.Run(() => View("~/Views/Home/403.cshtml"));
             }
+            ViewData["canEditRoleTemplates"] = _securityService.IsAllowedTo("EditRoleTemplates", instance);
+            ViewData["canApplyTemplates"] = _securityService.IsAllowedTo("EditRoleMembership", instance);
             return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/Templates.cshtml"));
         }
 
@@ -243,9 +286,8 @@ namespace Viper.Areas.RAPS.Controllers
         /// <returns></returns>
         [Permission(Allow = "RAPS.Admin")]
         [Route("/[area]/{instance}/DelegateRoles")]
-#pragma warning disable IDE0060 // Remove unused parameter
-        public async Task<IActionResult> DelegateRoles(string instance)
-#pragma warning restore IDE0060 // Remove unused parameter
+        public async Task<IActionResult> DelegateRoles()
+
         {
             return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/DelegateRoles.cshtml"));
         }
@@ -257,9 +299,10 @@ namespace Viper.Areas.RAPS.Controllers
         /// <param name="RoleId"></param>
         /// <returns></returns>
         [Route("/[area]/{instance}/[action]")]
-        public async Task<IActionResult> RoleMembers(string instance, int RoleId, int v=1)
+        public async Task<IActionResult> RoleMembers(string instance, int RoleId)
         {
             ViewData["RoleId"] = RoleId;
+            ViewData["canEditPermissions"] = _securityService.IsAllowedTo("EditMemberPermissions", instance);
 
             TblRole? Role = await _RAPSContext.TblRoles.FindAsync(RoleId);
 
@@ -267,10 +310,9 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            if (_securityService.IsAllowedTo("EditRoleMembers", instance, Role))
+            if (_securityService.IsAllowedTo("EditRoleMembership", instance, Role))
             { 
-                return v ==1 ? View("~/Areas/RAPS/Views/Roles/Members.cshtml")
-                        : View("~/Areas/RAPS/Views/Roles/Members2.cshtml");
+                return View("~/Areas/RAPS/Views/Roles/Members.cshtml");
             }
             else
             {
@@ -287,7 +329,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> PermissionList()
         {
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/List.cshtml"));
+            return await Task.Run(() =>
+                UserHelper.HasPermission(_RAPSContext, UserHelper.GetCurrentUser(), "RAPS.Admin")
+                    ? View("~/Areas/RAPS/Views/Permissions/ListAdmin.cshtml")
+                    : View("~/Areas/RAPS/Views/Permissions/List.cshtml"));
         }
 
         /// <summary>
@@ -340,6 +385,36 @@ namespace Viper.Areas.RAPS.Controllers
             return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/Roles.cshtml"));
         }
 
+        [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> PermissionRolesRO(int? permissionId)
+        {
+            ViewData["permissionId"] = permissionId;
+
+            TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
+
+            if (permission == null)
+            {
+                return NotFound();
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/RolesRO.cshtml"));
+        }
+
+        [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> AllMembersWithPermission(int? permissionId)
+        {
+            ViewData["permissionId"] = permissionId;
+
+            TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
+
+            if (permission == null)
+            {
+                return NotFound();
+            }
+            return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/AllMembers.cshtml"));
+        }
+
         /**
          * User pages 
          */
@@ -367,6 +442,7 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> MemberRoles(string instance)
         {
+            ViewData["canEditPermissions"] = _securityService.IsAllowedTo("ManageAllPermissions", instance);
             //EditRoleMembership grants access only to the VMACS instance
             if (!_securityService.IsAllowedTo("EditRoleMembership", instance))
             {
@@ -434,18 +510,21 @@ namespace Viper.Areas.RAPS.Controllers
 
         [Permission(Allow = "RAPS.Admin")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> ExportToVMACS()
+        public async Task<IActionResult> ExportToVMACS(string? server = null , string? loginId = null, bool? debugOnly = false)
         {
-            string creds = "vmthRestClient:" + HttpHelper.GetSetting<string>("Credentials", "vmthRestClient");
-            if (creds.Length == 15)
+            var vmacsExport = new VMACSExport(_RAPSContext);
+            var servers = vmacsExport.GetServers();
+            if (server != null && servers.Contains(server))
             {
-                ViewData["Messages"] = new List<string>() { "Credentials not found. Cannot connect to VMACS." };
+                string inst = server.Split('-')[0];
+                string serv = server.Split('-')[1];
+                ViewData["Messages"] = await vmacsExport.ExportToVMACS(instance: inst, server: serv, debugOnly: debugOnly ?? true, loginId: loginId);
             }
             else
             {
-                ViewData["Messages"] = await new VMACSExport(_environment.EnvironmentName == "Production", _RAPSContext, creds)
-                    .ExportToVMACS(instance: "vmth", server: "qa", debugOnly: false, loginId: "bedwards");
+                ViewData["Servers"] = servers;
             }
+            
             return await Task.Run(() => View("~/Areas/RAPS/Views/Export.cshtml"));
         }
 

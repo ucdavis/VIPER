@@ -73,7 +73,7 @@
         0,
         "not_answered"
       ],
-      "category": "behavior",
+      "category": "model",
       "required": false
     },
     "toggle-order": {
@@ -146,9 +146,14 @@
       "category": "behavior"
     },
     "dark": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Notify the component that the background is a dark color",
-      "category": "style"
+      "category": "style",
+      "required": false
     },
     "dense": {
       "type": "Boolean",

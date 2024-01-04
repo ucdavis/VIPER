@@ -19,13 +19,12 @@
              :pagination="memberPermissionsTable.pagination"
              :filter="memberPermissionsTable.filter">
         <template v-slot:top-left>
-
             <div class="q-pa-sm q-gutter-sm">
                 <q-dialog v-model="memberPermissionsTable.showForm" @@hide="memberPermissionsTable.clear(this)">
                     <q-card>
                         <q-form @@submit="memberPermissionsTable.submit(this)" v-bind="memberPermissionsTable.object">
                             <q-card-section>
-                                <div class="text-h6">{{memberPermissionsTable.editing >= 0 ? "Edit" : "Create"}} Permission Member</div>
+                                <div class="text-h6">{{memberPermissionsTable.editing >= 0 ? "Edit" : "Create"}} Permission Membership</div>
                                 <div class="bg-negative text-white q-pa-sm rounded" v-if="memberPermissionsTable.errors?.message?.length > 0">{{memberPermissionsTable.errors.message}}</div>
                             </q-card-section>
 
@@ -37,6 +36,23 @@
                                 <div class="row">
                                     <q-input type="date" outlined dense v-model="memberPermissionsTable.object.endDate" label="End Date"
                                              :error="memberPermissionsTable.errors?.endDate?.error" :error-message="memberPermissionsTable.endDate?.message"></q-input>
+                                </div>
+                                <div class="row q-pt-sm">
+                                    <q-btn-toggle no-caps outlined dense :toggle-color="memberPermissionsTable.object.access == 0 ? 'red' : 'green'"
+                                                  v-model="memberPermissionsTable.object.access" :options="allowDenyOptions">
+                                        <template v-slot:allow>
+                                            <div class="q-px-lg" align="evenly">
+                                                <q-icon name="check" color="white" v-if="memberPermissionsTable.object.access != 0"></q-icon>
+                                                Allow
+                                            </div>
+                                        </template>
+                                        <template v-slot:deny>
+                                            <div class="q-px-lg" align="evenly">
+                                                <q-icon name="close" color="white" v-if="memberPermissionsTable.object.access == 0"></q-icon>
+                                                Deny
+                                            </div>
+                                        </template>
+                                    </q-btn-toggle>
                                 </div>
                             </q-card-section>
 
@@ -58,8 +74,13 @@
         </template>
         <template v-slot:body-cell-links="props">
             <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="Roles that grant this permission" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" title="Users granted this permission individually" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
+            </q-td>
+        </template>
+        <template v-slot:body-cell-access="props">
+            <q-td :props="props">
+                <q-icon size="sm" :name="props.row.access ? 'check' : 'close'" :color="props.row.access ? 'green' : 'red'"></q-icon>
             </q-td>
         </template>
         <template v-slot:body-cell-actions="props">
@@ -78,7 +99,8 @@
         <div class="row">
             <q-input type="date" outlined dense v-model="memberPermissionParams.startDate" label="Start Date"></q-input>
             <q-input type="date" outlined dense v-model="memberPermissionParams.endDate" label="End Date" class="q-ml-md"></q-input>
-            <q-btn sm dense no-caps class="q-px-sm q-ml-md" label="Add Checked" type="button" color="primary" @@click="addPermissions"></q-btn>
+            <q-btn sm dense no-caps class="q-px-sm q-ml-md" label="Grant Checked Permissions" type="button" color="primary" @@click="grantPermissions"></q-btn>
+            <q-btn sm dense no-caps class="q-px-sm q-ml-md" label="Deny Checked Permissions" type="button" color="red" @@click="denyPermissions"></q-btn>
         </div>
         <div class="row q-pt-sm q-mb-sm">
             
@@ -114,16 +136,23 @@
                     showWhich: 'Existing',
                     selectedPermissions: [],
                     memberPermissionParams: { startDate: "", endDate: "", comment: "" },
+                    allowDenyOptions: [
+                        { value: 1, slot: 'allow' },
+                        { value: 0, slot: 'deny' }
+                    ],
                     memberPermissionsTable: new quasarTable({
                         keys: ["permissionId"],
                         urlBase: "Members",
                         columns: [
                             { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
+                            { name: "access", label: "Access", field: "access", align: "left", style: "width:75px;" },
                             { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
                             { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
-                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
+                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true,
+                                sort: (_1, _2, rowA, rowB) => new Date(rowA.modTime) - new Date(rowB.modTime)
+                            },
                             { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
                         ],
                         //after loading member permissions, set last modified
@@ -143,6 +172,7 @@
                             return {
                                 memberId: v.urlParams.get("memberId"),
                                 permissionId: object.permissionId,
+                                access: object.access == 1 ? 1 : 0,
                                 startDate: object?.startDate,
                                 endDate: object?.endDate
                             }
@@ -151,6 +181,7 @@
                         selectObject: function (object) {
                             this.object = {
                                 permissionId: object.permissionId,
+                                access: object.access == 1 ? 1 : 0,
                                 startDate: formatDateForDateInput(object.startDate),
                                 endDate: formatDateForDateInput(object.endDate),
                                 memberId: object.memberId
@@ -180,9 +211,9 @@
                 }
             },
             methods: {
-                addPermissions: async function () {
+                addSelectedPermissions: function(access) {
                     this.selectedPermissions.forEach((value, index) => {
-                        var permissionMember = { permissionId: value.permissionId, memberId: this.memberId }
+                        var permissionMember = { permissionId: value.permissionId, memberId: this.memberId, access: access }
                         if (this.memberPermissionParams.startDate.length) {
                             permissionMember.startDate = this.memberPermissionParams.startDate
                         }
@@ -199,6 +230,12 @@
                             [this.loadTables]
                         )
                     })
+                },
+                grantPermissions: async function () {
+                    this.addSelectedPermissions(1)
+                },
+                denyPermissions: async function () {
+                    this.addSelectedPermissions(0)
                 },
                 loadTables: async function () {
                     await this.memberPermissionsTable.load(this)

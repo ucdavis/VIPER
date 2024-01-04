@@ -39,7 +39,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         // GET: Roles
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TblRole>>> GetTblRoles(string instance, int? Application, bool? allInstances = false)
+        public async Task<ActionResult<IEnumerable<TblRole>>> GetTblRoles(string instance, int? application, bool? allInstances = false)
         {
             if (_context.TblRoles == null)
             {
@@ -49,9 +49,13 @@ namespace Viper.Areas.RAPS.Controllers
             allInstances ??= false;
             if(SecurityService.IsAllowedTo("ViewAllRoles", instance))
             {
+                if(!SecurityService.IsAllowedTo("ManageAllPermissions", instance))
+                {
+                    application = 0;
+                }
                 var q = _context.TblRoles
                     .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
-                    .Where((r => Application == null || r.Application == Application));
+                    .Where((r => application == null || r.Application == application));
                 if(!(bool)allInstances)
                 {
                     q = q.Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance));

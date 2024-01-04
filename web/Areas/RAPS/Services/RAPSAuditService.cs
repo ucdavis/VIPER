@@ -78,7 +78,11 @@ namespace Viper.Areas.RAPS.Services
                         || (
                             role.Role == null
                             || ((instance.StartsWith("VMACS.") || instance == "VIPERForms") && role.Role.StartsWith(instance))
-                            || (!role.Role.StartsWith("VMACS.") && !role.Role.StartsWith("VIPERForms"))
+                            || (
+                                !(instance.StartsWith("VMACS.") || instance == "VIPERForms")
+                                && !role.Role.StartsWith("VMACS.") 
+                                && !role.Role.StartsWith("VIPERForms")
+                                )
                         )
                     )
                     && (instance == null
@@ -86,7 +90,11 @@ namespace Viper.Areas.RAPS.Services
                             permission.Permission == null
                             || (instance.StartsWith("VMACS.") && permission.Permission.StartsWith("VMACS"))
                             || (instance == "VIPERForms" && permission.Permission.StartsWith("VIPERForms"))
-                            || (!permission.Permission.StartsWith("VMACS") && !permission.Permission.StartsWith("VIPERForms"))
+                            || (
+                                !(instance.StartsWith("VMACS.") || instance == "VIPERForms")
+                                && !permission.Permission.StartsWith("VMACS") 
+                                && !permission.Permission.StartsWith("VIPERForms")
+                                )
                         )
                     )
                     && (startDate == null || log.ModTime >= ((DateOnly)startDate).ToDateTime(new TimeOnly(0, 0, 0)))

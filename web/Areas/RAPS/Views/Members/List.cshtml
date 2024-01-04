@@ -24,10 +24,22 @@
     no-results-label="No results found">
     <template v-slot:body-cell-links="props">
         <q-td :props="props">
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="policy" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="history" :href="'MemberHistory?memberId=' + props.row.memberId"></q-btn>
+            @if(ViewData.ContainsKey("CanRSOP") && (bool)(ViewData["CanRSOP"] ?? false))
+            {
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="policy" title="Combined permissions for user" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
+            }
+            @if (ViewData.ContainsKey("canEditRoleMembership") && (bool)(ViewData["canEditRoleMembership"] ?? false))
+            {
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="Show Roles for this user" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
+            }
+            @if (ViewData.ContainsKey("canEditMemberPermissions") && (bool)(ViewData["canEditMemberPermissions"] ?? false))
+            {
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" title="Show individual permissions for this user" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
+            }
+            @if (ViewData.ContainsKey("canViewHistory") && (bool)(ViewData["canViewHistory"] ?? false))
+            {
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="history" title="Show History" :href="'MemberHistory?memberId=' + props.row.memberId"></q-btn>
+            }            
         </q-td>
     </template>
     <template v-slot:body-cell-member="props">
@@ -67,10 +79,19 @@
             },
             mounted() {
                 this.members.loading = false
+                var userSearch = getItemFromStorage("RAPS_userSearch_userSearch")
+                if(userSearch) {
+                    this.userSearch = userSearch
+                    this.findUsers()
+                }
             },
             watch: {
-                userSearch: function () {
-                    this.findUsers()
+                userSearch: {
+                    handler(v) {
+                        putItemInStorage("RAPS_userSearch_userSearch", v)
+                        this.findUsers()
+                    },
+                    deep: true
                 }
             }
         })
