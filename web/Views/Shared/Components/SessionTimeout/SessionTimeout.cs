@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Viper.Models.AAUD;
 
-namespace Viper.Views.Shared.Components.ProfilePic
+namespace Viper.Views.Shared.Components.SessionTimeout
 {
     [ViewComponent(Name = "SessionTimeout")]
     public class SessionTimeout : ViewComponent
