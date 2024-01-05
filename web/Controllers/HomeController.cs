@@ -201,13 +201,6 @@ namespace Viper.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
-        [Route("/[action]")]
-        [SearchExclude]
-        public IActionResult CauseError()
-        {
-            throw new Exception("I am an exception.");
-        }
-
         /// <summary>
         /// StatusCode or 403 page. Example path: /Error/404
         /// </summary>
