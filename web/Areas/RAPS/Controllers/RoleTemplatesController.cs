@@ -36,17 +36,28 @@ namespace Viper.Areas.RAPS.Controllers
 
         // GET: RoleTemplates
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<RoleTemplate>>> GetRoleTemplates(string instance)
+        public async Task<ActionResult<IEnumerable<RoleTemplateSimplified>>> GetRoleTemplates(string instance)
         {
-          if (_context.RoleTemplates == null)
-          {
-              return NotFound();
-          }
+            if (_context.RoleTemplates == null)
+            {
+                return NotFound();
+            }
             return await _context.RoleTemplates
                 .Include(rt => rt.RoleTemplateRoles)
                 .ThenInclude(rtr => rtr.Role)
                 .Where(RAPSSecurityService.FilterRoleTemplatesToInstance(instance))
                 .OrderBy(rt => rt.TemplateName)
+                .Select(rt => new RoleTemplateSimplified()
+                {
+                    RoleTemplateId = rt.RoleTemplateId,
+                    TemplateName = rt.TemplateName,
+                    Description = rt.Description,
+                    Roles = rt.RoleTemplateRoles.Select(rtr => new RoleSimplified()
+                    {
+                        RoleId = rtr.Role.RoleId,
+                        FriendlyName = rtr.Role.FriendlyName
+                    }).ToList()
+                })
                 .ToListAsync();
         }
 
