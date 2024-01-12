@@ -42,23 +42,19 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            return await _context.RoleTemplates
+            List<RoleTemplate> dbRoleTemplates = await _context.RoleTemplates
                 .Include(rt => rt.RoleTemplateRoles)
                 .ThenInclude(rtr => rtr.Role)
                 .Where(RAPSSecurityService.FilterRoleTemplatesToInstance(instance))
                 .OrderBy(rt => rt.TemplateName)
-                .Select(rt => new RoleTemplateSimplified()
-                {
-                    RoleTemplateId = rt.RoleTemplateId,
-                    TemplateName = rt.TemplateName,
-                    Description = rt.Description,
-                    Roles = rt.RoleTemplateRoles.Select(rtr => new RoleSimplified()
-                    {
-                        RoleId = rtr.Role.RoleId,
-                        FriendlyName = rtr.Role.FriendlyName
-                    }).ToList()
-                })
                 .ToListAsync();
+
+            List<RoleTemplateSimplified> roleTemplates = new();
+            foreach(var rt in dbRoleTemplates)
+            {
+                roleTemplates.Add(new RoleTemplateSimplified(rt));
+            }
+            return roleTemplates;
         }
 
         // GET: RoleTemplates/5
