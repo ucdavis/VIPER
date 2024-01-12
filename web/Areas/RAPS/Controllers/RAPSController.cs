@@ -54,10 +54,16 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 instance = path[(int)rapsIdx + 1];
             }
+            string page = "";
+            if (rapsIdx != null && rapsIdx > -1 && path?.Count > rapsIdx + 2)
+            {
+                page = path[(int)rapsIdx + 2];
+            }
             ViewData["ViperLeftNav"] = await Nav(roleIdValid ? roleId : null,
                 permIdValid ? permissionId : null,
                 memberId,
-                instance);
+                instance,
+                page);
         }
 
         /// <summary>
@@ -93,7 +99,7 @@ namespace Viper.Areas.RAPS.Controllers
             //            Problem("Entity set 'RAPSContext.TblRoles'  is null.");}
         }
 
-        public async Task<NavMenu> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER")
+        public async Task<NavMenu> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER", string page = "")
         {
             TblRole? selectedRole = (roleId != null) ? await _RAPSContext.TblRoles.FindAsync(roleId) : null;
             TblPermission? selectedPermission = (permissionId != null) ? await _RAPSContext.TblPermissions.FindAsync(permissionId) : null;
@@ -108,7 +114,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 if(_securityService.IsAllowedTo("AccessInstance", inst))
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = inst, MenuItemURL = "~/raps/" + inst });
+                    nav.Add(new NavMenuItem() { MenuItemText = inst, MenuItemURL = "~/raps/" + inst + "/" + page });
                 }
             }
             nav.Add(new NavMenuItem() { MenuItemText = "Roles", IsHeader = true });
