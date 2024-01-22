@@ -78,7 +78,6 @@
                     if (this.role1.value > 0 && this.role2.value > 0) {
                         this.comparison = await viperFetch(this, "Roles/" + this.role1.value + "/" + this.role2.value + "/PermissionComparison")
                         this.showComparison = true
-                        console.log(this.comparison)
                     }
                 },
                 role1Search: function (val, update, abort) {
