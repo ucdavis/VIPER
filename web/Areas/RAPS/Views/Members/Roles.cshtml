@@ -42,7 +42,7 @@
                                 <div class="row">
                                     <q-input outlined dense v-model="memberRolesTable.object.comment" label="Comment"></q-input>
                                 </div>
-                                <div class="row">
+                                <div class="row" v-if="showVMACSPush">
                                     <q-toggle label="Push to VMACS" v-model="updateVMACS"></q-toggle>
                                 </div>
                             </q-card-section>
@@ -223,7 +223,7 @@
                 addRolesThenPushToVMACS: async function() {
                     await this.addRoles()
                     this.loadTables()
-                    this.pushToVMACS(true)
+                    this.pushToVMACS(false)
                 },
                 loadTables: async function () {
                     await this.memberRolesTable.load(this)
@@ -234,6 +234,7 @@
                     this.member = await viperFetch(this, "members/" + this.memberId)
                 },
                 pushToVMACS: async function (skipToggleCheck) {
+                    console.log(skipToggleCheck, this.updateVMACS)
                     if (skipToggleCheck || this.updateVMACS) {
                         Quasar.Loading.show({ message: "Updating VMACS" })
                         await viperFetch(this, "Members/" + this.memberId + "/Roles/VMACSExport", { method: "POST" })
