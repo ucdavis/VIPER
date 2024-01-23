@@ -1,0 +1,105 @@
+﻿<h2>Compare permissions for two roles</h2>
+<q-form @@submit="return false;">
+    <div class="row">
+        <q-select v-model="role1" :options="role1Roles"
+                  dense options-dense outlined class="col-sm-6 col-md-4"
+                  use-input hide-selected fill-input input-debounce="0" @@filter="role1Search">
+        </q-select>
+        <q-select v-model="role2" :options="role2Roles"
+                  dense options-dense outlined class="col-sm-6 col-md-4"
+                  use-input hide-selected fill-input input-debounce="0" @@filter="role2Search">
+        </q-select>
+        <q-btn label="Compare" dense flat class="bg-primary text-white q-px-md" @@click="compareRoles"></q-btn>
+    </div>
+</q-form>
+
+<div v-if="showComparison" class="q-gutter-sm q-pa-sm row items-start">
+    <q-card flat bordered style="max-width: 500px;" class="q-ml-sm q-m-sm q-px-md">
+        <q-card-section class="q-px-none">
+            <div class="text-h6 text-left">{{role1.label}}</div>
+        </q-card-section>
+        <table class="">
+            <thead>
+                <tr>
+                    <th class="text-left">In Both</th>
+                    <th class="text-left">Permission</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="(permission, index) in comparison.role1Permissions">
+                    <td>
+                        <q-icon name="check" color="green" v-if="permission.isInOtherList"></q-icon>
+                    </td>
+                    <td>{{permission.name}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </q-card>
+    <q-card flat bordered style="max-width: 500px;" class="q-ml-sm q-m-sm q-px-md">
+        <q-card-section class="q-px-none">
+            <div class="text-h6 text-left">{{role2.label}}</div>
+        </q-card-section>
+        <table class="">
+            <thead>
+                <tr>
+                    <th class="text-left">In Both</th>
+                    <th class="text-left">Permission</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="(permission, index) in comparison.role2Permissions">
+                    <td>
+                        <q-icon name="check" color="green" v-if="permission.isInOtherList"></q-icon>
+                    </td>
+                    <td>{{permission.name}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </q-card>
+</div>
+
+
+@section Scripts {
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    role1: 0,
+                    role2: 0,
+                    roles: [],
+                    role1Roles: [],
+                    role2Roles: [],
+                    comparison: {},
+                    showComparison: false
+                }
+            },
+            methods: {
+                compareRoles: async function () {
+                    if (this.role1.value > 0 && this.role2.value > 0) {
+                        this.comparison = await viperFetch(this, "Roles/" + this.role1.value + "/" + this.role2.value + "/PermissionComparison")
+                        this.showComparison = true
+                    }
+                },
+                role1Search: function (val, update, abort) {
+                    update(() => {
+                        const needle = val.toLowerCase()
+                        this.role1Roles = this.roles.filter(v => v.label.toLowerCase().indexOf(needle) > -1)
+                    })
+                },
+                role2Search: function (val, update, abort) {
+                    update(() => {
+                        const needle = val.toLowerCase()
+                        this.role2Roles = this.roles.filter(v => v.label.toLowerCase().indexOf(needle) > -1)
+                    })
+                }
+            },
+            async mounted() {
+                var result = await viperFetch(this, "Roles?application=0")
+                this.roles = result.map(r => ({
+                    value: r.roleId, label: r.friendlyName
+                }))
+                this.role1Roles = this.role2Roles = this.roles
+            }
+        })
+    </script>
+}

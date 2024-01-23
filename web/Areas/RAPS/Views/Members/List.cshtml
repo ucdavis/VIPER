@@ -1,16 +1,23 @@
 ﻿<h2>Search for a user</h2>
 <q-form @@submit="return false;">
-    <q-input 
-        class="q-ml-xs q-mr-xs" 
-        dense 
-        clearable
-        clear-icon="close"
-        outlined 
-        debounce="300" 
-        placeholder="Search for users"
-        v-model="userSearch"
-        autofocus>
-    </q-input>
+    <div class="row">
+        <q-input 
+            class="q-ml-xs q-mr-xs col-12 col-sm-8 col-md-4" 
+            dense 
+            clearable
+            clear-icon="close"
+            outlined 
+            debounce="300" 
+            placeholder="Search for users"
+            v-model="userSearch"
+            autofocus>
+        </q-input>
+        <q-toggle v-model="includeInactive"
+            checked-icon="check"
+            unchecked-icon="clear"
+            label="Include Inactive Users">
+        </q-toggle>
+    </div>
 </q-form>
 
 <q-table title="Search Results"
@@ -47,6 +54,11 @@
             {{props.row.displayLastName}}, {{props.row.displayFirstName}}
         </q-td>
     </template>
+    <template v-slot:body-cell-active="props">
+        <q-td :props="props" :class="props.row.current ? '' : 'bg-red-5 text-white'" width="25px">
+            {{props.row.current ? "Y" : "N"}}
+        </q-td>
+    </template>
 </q-table>
 @section Scripts {
     <script src="~/js/qtable.js"></script>
@@ -55,13 +67,14 @@
             data() {
                 return {
                     userSearch: "",
+                    includeInactive: false,
                     members: new quasarTable({
                         keys: ["memberId"],
                         urlBase: "Members",
                         columns: [
                             { name: "links", label: "", field: "", align: "left", style: "width:100px;" },
                             { name: "member", label: "Member", field: "", align: "left", sortable: true },
-                            { name: "active", label: "Active", field: "current", align: "left", sortable: true, format: v => (v == 1 ? "Y" : "N") },
+                            { name: "active", label: "Active", field: "current", align: "left", sortable: true },
                             { name: "countRoles", label: "Count Roles", field: "countRoles", align: "left", sortable: true },
                             { name: "countPermissions", label: "Count Permissions", field: "countPermissions", align: "left", sortable: true }
                         ],
@@ -71,7 +84,7 @@
             },
             methods: {
                 findUsers: async function () {
-                    this.members.urlBase = "Members?search=" + this.userSearch
+                    this.members.urlBase = "Members?search=" + this.userSearch + "&active=" + (this.includeInactive ? "all" : "active")
                     if (this.userSearch.length >= 3) {
                         this.members.load(this)
                     }
@@ -79,6 +92,10 @@
             },
             mounted() {
                 this.members.loading = false
+                var includeInactive = getItemFromStorage("RAPS_userSearch_includeInactive")
+                if(includeInactive) {
+                    this.includeInactive = includeInactive
+                }
                 var userSearch = getItemFromStorage("RAPS_userSearch_userSearch")
                 if(userSearch) {
                     this.userSearch = userSearch
@@ -92,6 +109,12 @@
                         this.findUsers()
                     },
                     deep: true
+                },
+                includeInactive: {
+                    handler(v) {
+                        putItemInStorage("RAPS_userSearch_includeInactive", v)
+                        this.findUsers()
+                    }
                 }
             }
         })

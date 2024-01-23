@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using Viper.Classes;
 using System.Runtime.Versioning;
 using Microsoft.AspNetCore.Mvc.Filters;
+using System.Data;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -119,7 +120,11 @@ namespace Viper.Areas.RAPS.Controllers
             }
             nav.Add(new NavMenuItem() { MenuItemText = "Roles", IsHeader = true });
             nav.Add(new NavMenuItem() { MenuItemText = "Role List", MenuItemURL = "Rolelist" });
-            if(_securityService.IsAllowedTo("ViewRoles", instance))
+            if (_securityService.IsAllowedTo("EditRoleMembership", instance))
+            {
+                nav.Add(new NavMenuItem() { MenuItemText = "Role Comparison", MenuItemURL = "RolePermissionsComparison" });
+            }
+            if (_securityService.IsAllowedTo("ViewRoles", instance))
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "Role Templates", MenuItemURL = "RoleTemplateList" });
             }
@@ -351,6 +356,23 @@ namespace Viper.Areas.RAPS.Controllers
         {
             ViewData["roleId"] = roleId;
             return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/Permissions.cshtml"));
+        }
+
+        /// <summary>
+        /// Compare permissions for two roles
+        /// </summary>
+        /// <returns></returns>
+        [Route("/[area]/{Instance}/[action]")]
+        public async Task<IActionResult> RolePermissionsComparison(string instance)
+        {
+            if (_securityService.IsAllowedTo("EditRoleMembership", instance))
+            {
+                return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/PermissionComparison.cshtml"));
+            }
+            else
+            {
+                return await Task.Run(() => View("~/Views/Home/403.cshtml"));
+            }
         }
 
         /// <summary>

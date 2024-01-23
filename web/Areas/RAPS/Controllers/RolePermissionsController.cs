@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
 using System.Data;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
@@ -97,6 +98,41 @@ namespace Viper.Areas.RAPS.Controllers
                 .Where(rp => _securityService.RoleBelongsToInstance(instance, rp.Role))
                 .ToList();
             return tblRolePermissions;
+        }
+
+
+        [HttpGet("Roles/{role1Id}/{role2Id}/PermissionComparison")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
+        public async Task<ActionResult<RolePermissionComparison>> CompareRolePermissions(string instance, int role1Id, int role2Id)
+        {
+            TblRole? role1 = _securityService.GetRoleInInstance(instance, role1Id);
+            TblRole? role2 = _securityService.GetRoleInInstance(instance, role2Id);
+            if(role1 == null || role2 == null)
+            {
+                return NotFound();
+            }
+
+            if (!_securityService.IsAllowedTo("EditRoleMembership", instance) ||
+                !_securityService.IsAllowedTo("ViewRolePermissions", instance, role1) ||
+                !_securityService.IsAllowedTo("ViewRolePermissions", instance, role2))
+            {
+                return Forbid();
+            }
+
+            List<TblRolePermission> role1Permissions = await _context.TblRolePermissions
+                    .Include(rp => rp.Permission)
+                    .Where(rp => rp.RoleId == role1Id)
+                    .OrderBy(rp => rp.Permission.Permission)
+                    .ToListAsync();
+            List<TblRolePermission> role2Permissions = await _context.TblRolePermissions
+                    .Include(rp => rp.Permission)
+                    .Where(rp => rp.RoleId == role2Id)
+                    .OrderBy(rp => rp.Permission.Permission)
+                    .ToListAsync();
+
+
+            RolePermissionComparison result = new(role1Permissions, role2Permissions);
+            return result;
         }
 
         // POST Roles/5/Permissions
