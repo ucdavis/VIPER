@@ -52,6 +52,8 @@ public partial class AAUDContext : DbContext
 
     public virtual DbSet<DlUnexRoster> DlUnexRosters { get; set; }
 
+    public virtual DbSet<ExampleComment> ExampleComments { get; set; }   
+
     public virtual DbSet<Employee> Employees { get; set; }
 
     public virtual DbSet<ExceptionDeactivate> ExceptionDeactivates { get; set; }
@@ -1287,6 +1289,17 @@ public partial class AAUDContext : DbContext
                 .HasMaxLength(6)
                 .IsUnicode(false)
                 .HasColumnName("unexRoster_term_code");
+        });
+
+        modelBuilder.Entity<ExampleComment>(entity =>
+        {
+            entity.HasKey(e => e.AaudUserId);
+            entity.ToTable("examplecomment");
+            entity.HasOne(e => e.AaudUser).WithOne(u => u.ExampleComment)
+                .HasForeignKey<AaudUser>(e => e.AaudUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_examplecomment_aaudUser")
+                .IsRequired(false);
         });
 
         modelBuilder.Entity<Employee>(entity =>

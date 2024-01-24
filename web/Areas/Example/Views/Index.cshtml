@@ -1,0 +1,35 @@
+﻿@{
+    IUserHelper UserHelper = new UserHelper();
+    List<AaudUser>? userList = ViewData["UserList"] as List<AaudUser>;
+}
+
+<h3>Hello @UserHelper?.GetCurrentUser()?.DisplayFullName</h3>
+@if(userList != null)
+{
+    <h4>Here are some other people named @UserHelper?.GetCurrentUser()?.DisplayFirstName</h4>
+    <table cellspacing="0" cellpadding="3" border="0">
+        <thead>
+            <tr>
+                <th class="text-left">Name</th>
+                <th class="text-left">Email</th>
+                <th class="text-left">Comment</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach(AaudUser user in userList) 
+            {
+            <tr>
+                <td>@user.DisplayFullName</td>
+                <td>@user.MailId@@ucdavis.edu</td>
+                <td>
+                    <form method="post">
+                        <input type="text" name="comment" id="comment_@user.AaudUserId" style="margin-right: 5px;" value="@user.ExampleComment?.Comment"/>
+                        <input type="hidden" name="aaudUserId" value="@user.AaudUserId" />
+                        <input type="submit" name="action" value="Submit" />
+                    </form>
+                </td>
+            </tr>
+            }
+        </tbody>
+    </table>
+}

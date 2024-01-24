@@ -38,6 +38,8 @@
 
   <ItemGroup>
     <Folder Include="Areas\CMS\Views\" />
+    <Folder Include="Areas\Example\Models\" />
+    <Folder Include="Areas\Example\Services\" />
     <Folder Include="Areas\RAPS\Data\" />
     <Folder Include="wwwroot\images\" />
   </ItemGroup>
