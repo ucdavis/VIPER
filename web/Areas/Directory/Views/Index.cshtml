@@ -1,0 +1,151 @@
+﻿@using Viper.Classes.SQLContext;
+@model Viper.Models.AAUD.AaudUser
+@{
+    RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
+    IUserHelper UserHelper = new UserHelper();
+}
+@{
+    ViewData["Title"] = "Directory";
+}
+<h2>Directory</h2>
+<q-form @@submit="return false;">
+    <q-input class="q-ml-xs q-mr-xs"
+             dense
+             clearable
+             clear-icon="close"
+             outlined
+             debounce="300"
+             placeholder="Search for users"
+             v-model="userSearch"
+             autofocus>
+    </q-input>
+</q-form>
+
+<q-table title="Search Results"
+         dense
+         row-key="mothraId"
+         :loading="users.loading"
+         :rows="users.rows"
+         :columns="users.columns"
+         :pagination="users.pagination"
+         no-data-label="Search by first or last name"
+         no-results-label="No results found">
+    <template v-slot:body-cell-photo="props">
+        <q-td :props="props">
+            <q-img :props="props" :src="'https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mothraID=' + props.row.mothraId + '&altphoto=1'" style="width:87px; height:111px" :id="'photo_' + props.row.mothraId"></q-img>
+            <q-tooltip :target="true">
+                {{props.row.displayFirstName}} {{props.row.displayLastName}}
+            </q-tooltip>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-name="props">
+        <q-td :props="props">
+            @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.userinfo"))
+            {
+                @: <a :href="'userInfo/' + props.row.mothraId">{{ props.row.name }}</a>
+            } else {
+                @: {{ props.row.name }}
+            }
+        </q-td>
+    </template>
+    <template v-slot:body-cell-email="props">
+        <q-td :props="props" v-if="props.row.mailId != ''">
+            <a :href="'mailto:' + props.row.mailId + '@@ucdavis.edu'">{{ props.row.mailId }}</a>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-ids="props">
+        <q-td :props="props">
+            <div>BannerID:
+            @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.SIS.AllStudents"))
+            {
+                   @: <a :href="'https://viper.vetmed.ucdavis.edu/students/sis/default.cfm?Page=AssignPidmAndRedirect&Pidm=' + props.row.spridenId + '&JumpPage=Home'">{{ props.row.spridenId }}</a>
+            } else {
+                   @: {{ props.row.spridenId }}
+            }
+            </div>
+            <div>PIDM: {{ props.row.pidm }}</div>
+            <div>EmployeeID: {{ props.row.employeeId}}</div>
+            <div>IAMID: {{ props.row.iamId }}</div>
+            <div>MothraID: {{ props.row.mothraId }}</div>
+            <div v-if="props.row.mivId > 0">MIVID: {{ props.row.mivId }}</div>
+        </q-td>
+    </template>
+    <template v-slot:body-cell-detail="props">
+        <q-td :props="props">
+            <div><a :href="'https://viper.vetmed.ucdavis.edu/default.cfm?Page=AAUDCheck&mothraID=' + props.row.mothraId + '&loginID=' + props.row.loginId">AAUD Check</a></div>
+            <div><a :href="'https://viper.vetmed.ucdavis.edu/default.cfm?Page=IDCardCheck&LoginID=' + props.row.loginId">ID Check</a></div>
+            <div><a :href="'https://viper.vetmed.ucdavis.edu/default.cfm?Page=UnitHeads&MailID=' + props.row.mailId">MSO/CAO Lookup</a></div>
+            @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.DirectoryUCPathInfo"))
+            {
+                @: <div v-if="props.row.employeeId != ''"><a :href="'https://viper.vetmed.ucdavis.edu/default.cfm?Page=UCPathInfo&emplid=' + props.row.employeeId">UCPath Info</a></div>
+            }
+            @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CATS.ServiceDesk"))
+            {
+                @: <div v-if="props.row.currentAffiliate == true"><a :href="'https://viper.vetmed.ucdavis.edu/default.cfm?Page=alternatePhoto&iamID' + props.row.iamId + '&mailID=' + props.row.mailId + '&empName=' + props.row.name">Alt. Photo</a></div>
+            }
+        </q-td>
+    </template>
+    <template v-slot:body-cell-links="props">
+        <q-td :props="props">
+            @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.userinfo"))
+            {
+                @: <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'userInfo/' + props.row.mothraId"></q-btn>
+            }
+            @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.SU"))
+            {
+                @: <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="face" :href="'/EmulateUser/' + props.row.loginId"></q-btn>
+            }
+        </q-td>
+    </template>
+</q-table>
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    userSearch: getItemFromStorage("searchField") ?? "",
+                    users: new quasarTable({
+                        keys: ["mothraId"],
+                        urlBase: "users",
+                        columns: [
+                            { name: "photo", label: "", field: "", align: "center", style: "width:87px; height:111px;" },
+                            { name: "name", label: "Individual", field: "name", align: "left", style: "max-width:10em; text-wrap:wrap;", sortable: true },
+                            { name: "title", label: "Title", field: "title", align: "left", style: "max-width:10em; text-wrap:wrap;", sortable: true },
+                            { name: "department", label: "Department", field: "department", style: "max-width:10em; text-wrap:wrap;", align: "left", sortable: true },
+                            { name: "ids", label: "", field: "", align: "left" },
+                            @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.DirectoryDetail")) {
+                                @: { name: "detail", label: "", field: "", align: "left" },
+                            }
+                            { name: "loginid", label: "Login ID", field: "loginId", align: "left", sortable: true },
+                            { name: "email", label: "Email", field: "mailId", align: "left", sortable: true },
+                            { name: "links", label: "", field: "", align: "left", style: "width:50px;" }
+                        ],
+                        pagination: { rowsPerPage: 0 }
+                    })
+                }
+            },
+            methods: {
+                findUsers: async function () {
+                    this.users.urlBase = "search/" + this.userSearch
+                    if (this.userSearch.length >= 3) {
+                        this.users.load(this)
+                    }
+                }
+            },
+            mounted() {
+                this.users.loading = false;
+                if (this.userSearch.length >= 3) {
+                    this.users.urlBase = "search/" + this.userSearch;
+                    this.users.load(this);
+                }
+            },
+            watch: {
+                userSearch: function () {
+                    putItemInStorage("searchField", this.userSearch)
+                    this.findUsers()
+                }
+            }
+        })
+    </script>
+}
