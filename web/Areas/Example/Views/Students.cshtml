@@ -1,0 +1,73 @@
+﻿@using System.Web;
+@using Viper.Areas.Example.Models;
+@{
+    List<StudentClassLevelGroup>? students = ViewData["Students"] as List<StudentClassLevelGroup>;
+    string data = "";
+    @if (students != null)
+    {
+        bool first = true;
+        @foreach (var student in students)
+        {
+            if (first)
+            {
+                first = false;
+            }
+            else
+            {
+                data += ",";
+            }
+            data += @String.Format("{{lastName: \"{0}\", firstName: \"{1}\", mailId: \"{2}\", student: \"{3}\", studentGrp: \"{4}\" }}",
+                                    HttpUtility.JavaScriptStringEncode(student.LastName), 
+                                    HttpUtility.JavaScriptStringEncode(student.FirstName), 
+                                    HttpUtility.JavaScriptStringEncode(student.MailId),
+                                    HttpUtility.JavaScriptStringEncode(student?.Student?.StudentsClassLevel),
+                                    HttpUtility.JavaScriptStringEncode(student?.Studentgrp?.Studentgrp20));
+        }
+    }
+}
+
+<h2>@ViewData["ClassLevel"] Students</h2>
+
+@*Our Quasar table, without data, for now*@
+<q-table 
+    dense
+    bordered
+    :rows="rows"
+    :columns="columns"
+    :pagination="pagination">
+</q-table>
+
+@section Scripts {
+    @*By putting this in the Scripts section, it will be added to the page after the vue and quasar setup in _VIPERLayout.cshtml*@
+    <script asp-add-nonce="true">
+        //See wwwroot/js/vueSetup.js
+        createVueApp({
+            //all of our vue variables are declared here
+            data() {
+                return {
+                    pagination: {
+                        rowsPerPage: 0
+                    },
+                    columns: [
+                        { name: "LastName", label: "Last Name", field: "lastName", align: "left", sortable: true },
+                        { name: "FirstName", label: "First Name", field: "firstName", align: "left", sortable: true },
+                        { name: "Email", label: "Email", field: "mailId", align: "left", sortable: true, format: (v) => v + "@@ucdavis.edu" },
+                        { name: "ClassLevel", label: "Class Level", field: "student", align: "left" },
+                        { name: "Student Group", label: "Student Group", field: "studentGrp", align: "left" },
+                    ],
+                    rows: [
+                        @Html.Raw(data)
+                    ]
+                }
+            },
+            //vue methods are declared here
+            methods: {
+            
+            },
+            //code to execute once vue is ready goes here
+            async mounted() {
+            
+            }
+        })
+    </script>
+}

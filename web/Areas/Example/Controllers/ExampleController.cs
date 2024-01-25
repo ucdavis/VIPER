@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Humanizer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using Viper.Areas.Example.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
@@ -24,6 +27,20 @@ namespace Viper.Areas.Example.Controllers
             UserHelper = new UserHelper();
         }
 
+        /// <summary>
+        /// Getting left nav for each page. 
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="next"></param>
+        /// <returns></returns>
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context,
+                                         ActionExecutionDelegate next)
+        {
+            await base.OnActionExecutionAsync(context, next);
+            await next();
+            ViewData["ViperLeftNav"] = Nav();
+        }
+
         public NavMenu Nav()
         {
             var nav = new List<NavMenuItem>
@@ -37,8 +54,6 @@ namespace Viper.Areas.Example.Controllers
 
         public IActionResult Index()
         {
-            ViewData["ViperLeftNav"] = Nav();
-            
             var currentUser = UserHelper.GetCurrentUser();
             if (currentUser != null)
             {
@@ -71,6 +86,39 @@ namespace Viper.Areas.Example.Controllers
             }
             _AaudContext.SaveChanges();
             return Redirect("~/Example/Index");
+        }
+
+        public ActionResult Students(string? classLevel)
+        {
+            List<string> validClassLevels = new() { "V1", "V2", "V3", "V4"};
+            if(classLevel != null && !validClassLevels.Contains(classLevel))
+            {
+                classLevel = null;
+            }
+            ViewData["ClassLevel"] = classLevel ?? "V1";
+            ViewData["Students"] = _AaudContext.AaudUsers
+                .Where(s => (s.CurrentStudent || s.FutureStudent))
+                .Select(s => new StudentClassLevelGroup()
+                {
+                    IamId = s.IamId,
+                    Pidm = s.Pidm,
+                    MailId = s.MailId,                    
+                    FirstName = s.FirstName,
+                    LastName = s.LastName,
+                    MiddleName = s.MiddleName,
+                    Student = _AaudContext.Students
+                        .Where(student => student.StudentsClientid == s.SpridenId && student.StudentsTermCode == s.StudentTerm.ToString())
+                        .FirstOrDefault(),
+                    Studentgrp = _AaudContext.Studentgrps
+                        .Where(studentgrp => studentgrp.StudentgrpPidm == s.Pidm)
+                        .FirstOrDefault()
+                })
+                .Where(s => s.Student != null)
+                .Where(s => s.Student.StudentsClassLevel == classLevel)
+                .OrderBy(s => s.LastName)
+                .ThenBy(s => s.FirstName)
+                .ToList();
+            return View("~/Areas/Example/Views/Students.cshtml");
         }
     }
 }
