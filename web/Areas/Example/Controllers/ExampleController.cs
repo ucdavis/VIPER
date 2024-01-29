@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using Viper.Areas.Example.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -88,36 +90,8 @@ namespace Viper.Areas.Example.Controllers
             return Redirect("~/Example/Index");
         }
 
-        public ActionResult Students(string? classLevel)
+        public ActionResult StudentList()
         {
-            List<string> validClassLevels = new() { "V1", "V2", "V3", "V4"};
-            if(classLevel != null && !validClassLevels.Contains(classLevel))
-            {
-                classLevel = null;
-            }
-            ViewData["ClassLevel"] = classLevel ?? "V1";
-            ViewData["Students"] = _AaudContext.AaudUsers
-                .Where(s => (s.CurrentStudent || s.FutureStudent))
-                .Select(s => new StudentClassLevelGroup()
-                {
-                    IamId = s.IamId,
-                    Pidm = s.Pidm,
-                    MailId = s.MailId,                    
-                    FirstName = s.FirstName,
-                    LastName = s.LastName,
-                    MiddleName = s.MiddleName,
-                    Student = _AaudContext.Students
-                        .Where(student => student.StudentsClientid == s.SpridenId && student.StudentsTermCode == s.StudentTerm.ToString())
-                        .FirstOrDefault(),
-                    Studentgrp = _AaudContext.Studentgrps
-                        .Where(studentgrp => studentgrp.StudentgrpPidm == s.Pidm)
-                        .FirstOrDefault()
-                })
-                .Where(s => s.Student != null)
-                .Where(s => s.Student.StudentsClassLevel == classLevel)
-                .OrderBy(s => s.LastName)
-                .ThenBy(s => s.FirstName)
-                .ToList();
             return View("~/Areas/Example/Views/Students.cshtml");
         }
     }

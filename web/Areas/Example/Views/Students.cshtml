@@ -1,50 +1,57 @@
-﻿@using System.Web;
-@using Viper.Areas.Example.Models;
-@{
-    List<StudentClassLevelGroup>? students = ViewData["Students"] as List<StudentClassLevelGroup>;
-    string data = "";
-    @if (students != null)
-    {
-        bool first = true;
-        @foreach (var student in students)
-        {
-            if (first)
-            {
-                first = false;
-            }
-            else
-            {
-                data += ",";
-            }
-            data += @String.Format("{{lastName: \"{0}\", firstName: \"{1}\", mailId: \"{2}\", student: \"{3}\", studentGrp: \"{4}\" }}",
-                                    HttpUtility.JavaScriptStringEncode(student.LastName), 
-                                    HttpUtility.JavaScriptStringEncode(student.FirstName), 
-                                    HttpUtility.JavaScriptStringEncode(student.MailId),
-                                    HttpUtility.JavaScriptStringEncode(student?.Student?.StudentsClassLevel),
-                                    HttpUtility.JavaScriptStringEncode(student?.Studentgrp?.Studentgrp20));
-        }
-    }
-}
+﻿<h2>Student Groups</h2>
 
-<h2>@ViewData["ClassLevel"] Students</h2>
+<q-dialog v-model="showForm" @@hide="clearGroup">
+    <q-card style="width: 500px; max-width: 80vw;">
+        <q-form @@submit="submitGroup" v-model="studentGroups">
+            <q-card-section>
+                <div class="text-h6">Update Student Groups</div>
+                <div class="bg-negative text-white q-pa-sm rounded" v-if="errors?.message?.length > 0">{{errors?.message}}</div>
+            </q-card-section>
+            <q-card-section>
+                <strong>Groups for {{studentName}}</strong>
+                <br />
+                <label>Student Group:</label>
+                <q-select dense options-dense outlined fill-input hide-selected use-input clearable
+                    v-model="studentGroups.studentgrpGrp" :options="validGroups"
+                    :error="errors?.StudentgrpGrp?.error" :error-message="errors?.StudentgrpGrp?.message"></q-select>
+                <label>20th Group:</label>
+                <q-select dense options-dense outlined fill-input hide-selected use-input clearable
+                    v-model="studentGroups.studentgrp20" :options="valid20ths"
+                    :error="errors?.Studentgrp20?.error" :error-message="errors?.Studentgrp20?.message"></q-select>
+                <label>V3 Group:</label>
+                <q-select dense options-dense outlined fill-input hide-selected use-input clearable
+                    v-model="studentGroups.studentgrpV3grp" :options="validV3Groups"
+                    :error="errors?.StudentgrpV3grp?.error" :error-message="errors?.StudentgrpV3grp?.message"></q-select>
+                <label>Team #</label>
+                <q-input dense outlined v-model="studentGroups.studentgrpTeamno"
+                    :error="errors?.StudentgrpTeamno?.error" :error-message="errors?.StudentgrpTeamno?.message"></q-input>
+                <label>Surgery Team</label>
+                <q-input dense outlined v-model="studentGroups.studentgrpSurgeryTeam"></q-input>
+            </q-card-section>
+            <q-card-actions align="evenly">
+                <q-btn no-caps label="Submit" type="submit" padding="xs sm" color="primary"></q-btn>
+            </q-card-actions>
+        </q-form>
+    </q-card>
+</q-dialog>
 
-@*Our Quasar table, without data, for now*@
 <q-table 
     dense
     bordered
+    row-key="pidm"
     :rows="rows"
     :columns="columns"
-    :pagination="pagination">
+    :pagination="pagination"
+    @@row-click="selectStudent">
 </q-table>
 
 @section Scripts {
     @*By putting this in the Scripts section, it will be added to the page after the vue and quasar setup in _VIPERLayout.cshtml*@
     <script asp-add-nonce="true">
-        //See wwwroot/js/vueSetup.js
         createVueApp({
-            //all of our vue variables are declared here
             data() {
                 return {
+                    //q-table setup
                     pagination: {
                         rowsPerPage: 0
                     },
@@ -52,21 +59,60 @@
                         { name: "LastName", label: "Last Name", field: "lastName", align: "left", sortable: true },
                         { name: "FirstName", label: "First Name", field: "firstName", align: "left", sortable: true },
                         { name: "Email", label: "Email", field: "mailId", align: "left", sortable: true, format: (v) => v + "@@ucdavis.edu" },
-                        { name: "ClassLevel", label: "Class Level", field: "student", align: "left" },
-                        { name: "Student Group", label: "Student Group", field: "studentGrp", align: "left" },
+                        { name: "ClassLevel", label: "Class Level", field: "student", align: "left", format: (v) => v?.studentsClassLevel },
+                        { name: "Group", label: "Group", field: "studentgrp", align: "left", format: (v) => v?.studentgrpGrp},
+                        { name: "20th", label: "20th", field: "studentgrp", align: "left", format: (v) => v?.studentgrp20 },
+                        { name: "V3", label: "V3Group", field: "studentgrp", align: "left", format: (v) => v?.studentgrpV3grp },
+                        { name: "Team", label: "Team", field: "studentgrp", align: "left", format: (v) => v?.studentgrpTeamno },
+                        { name: "Surgery", label: "Sx Team", field: "studentgrp", align: "left", format: (v) => v?.studentgrpSurgeryTeam }
                     ],
-                    rows: [
-                        @Html.Raw(data)
-                    ]
+                    rows: [],
+                    //form set up
+                    errors: {},
+                    showForm: false,
+                    studentGroups: {},
+                    studentName: "",
+                    studentPidm: "",
+                    validGroups: ["1A1","1A2","1B1","1B2","2A1","2A2","2B1","2B2,AAA"],
+                    valid20ths: ["1AA","1AB","1AC","1AD","1AE","1BA","1BB","1BC","1BD","1BE","2AA","2AB","2AC","2AD","2AE","2BA","2BB","2BC","2BD","2BE"],
+                    validV3Groups: ["SA","LA","EQ","LIVE","ZOO"]
                 }
             },
-            //vue methods are declared here
             methods: {
-            
+                //select and clear student
+                clearGroup: function() {
+                    this.studentName = ""
+                    this.studentGroups = {}
+                    this.studentPidm = ""
+                    this.showForm = false
+                },
+                selectStudent: function(evt, row, index) {
+                    this.studentGroups = row.studentgrp
+                    this.studentName = row.firstName + " " + row.lastName
+                    this.studentPidm = row.pidm
+                    this.showForm = true
+                },
+                //submit the form and then load students
+                submitGroup: async function() {
+                    await viperFetch(this,
+                        `Students/${this.studentPidm}/groups`,
+                        {
+                            method: "PUT",
+                            body: JSON.stringify(this.studentGroups),
+                            headers: { "Content-Type": "application/json" }
+                        },
+                        [this.loadStudents],
+                        this.errors
+                    )
+                },
+                loadStudents: async function() {
+                    var cl = this.urlParams.get("classLevel")
+                    this.rows = await viperFetch(this, "Students/" + (cl != null ? "?classLevel=" + cl : ""))
+                    this.clearGroup()
+                }
             },
-            //code to execute once vue is ready goes here
             async mounted() {
-            
+                await this.loadStudents()
             }
         })
     </script>

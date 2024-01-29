@@ -2604,9 +2604,8 @@ public partial class AAUDContext : DbContext
 
         modelBuilder.Entity<Studentgrp>(entity =>
         {
-            entity
-                .HasNoKey()
-                .ToTable("studentgrp");
+            entity.HasKey(e => e.StudentgrpPidm);
+            entity.ToTable("studentgrp");
 
             entity.Property(e => e.Studentgrp20)
                 .HasMaxLength(4)
