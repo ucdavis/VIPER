@@ -68,8 +68,8 @@
 
         public DateTime? Added { get; set; } = null!;
 
-        public bool Can_See_IDs { get; set; } = false;
-        public bool Can_Spoof { get; set; } = false;
-        public bool Can_See_UserInfo { get; set; } = false;
+        public string? Phone { get; set; } = null!;
+        public string? Mobile { get; set; } = null!;
+        public string? UserName { get; set; } = null!;
     }
 }

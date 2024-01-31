@@ -12,24 +12,24 @@ using Viper.Classes.SQLContext;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.Directory.Models;
 using System;
+using Viper;
 
 namespace Viper.Areas.Directory.Controllers
 {
-    //TODO: Create the Directory Delegate Users role and add anyone with access to delegate roles
     [Area("Directory")]
-    [Authorize(Roles = "VMDO SVM-IT,RAPS Delegate Users", Policy = "2faAuthentication")]
+    [Authorize(Roles = "VMDO SVM-IT", Policy = "2faAuthentication")]
+    [Permission(Allow = "SVMSecure")]
     public class DirectoryController : AreaController
     {
-        private readonly Classes.SQLContext.RAPSContext _RAPSContext;
-        private RAPSSecurityService _securityService;
         public Classes.SQLContext.AAUDContext _aaud;
+        private readonly RAPSContext? _rapsContext;
         public IUserHelper UserHelper;
 
         public DirectoryController(Classes.SQLContext.RAPSContext context)
         {
-            _RAPSContext = context;
-            _securityService = new RAPSSecurityService(context);
             _aaud = new AAUDContext();
+            this._rapsContext = (RAPSContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(RAPSContext));
+            UserHelper = new UserHelper();
         }
 
         /// <summary>
@@ -39,13 +39,6 @@ namespace Viper.Areas.Directory.Controllers
         public async Task<ActionResult> Index()
         {
             return await Task.Run(() => View("~/Areas/Directory/Views/Index.cshtml"));
-        }
-
-        [Route("/[area]/[action]")]
-        public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER")
-        {
-            var nav = new List<NavMenuItem>();
-            return nav;
         }
 
         /// <summary>
@@ -60,6 +53,11 @@ namespace Viper.Areas.Directory.Controllers
                      .Where(u => (u.DisplayFirstName + " " + u.DisplayLastName).Contains(search)
                          || (u.MailId != null && u.MailId.Contains(search))
                          || (u.LoginId != null && u.LoginId.Contains(search))
+                         || (u.SpridenId != null && u.SpridenId.Contains(search))
+                         || (u.Pidm != null && u.Pidm.Contains(search))
+                         || (u.MothraId != null && u.MothraId.Contains(search))
+                         || (u.EmployeeId != null && u.EmployeeId.Contains(search))
+                         || (u.IamId != null && u.IamId.Contains(search))
             )
             .Where(u => u.Current != 0)
             .OrderBy(u => u.DisplayLastName)
@@ -70,17 +68,9 @@ namespace Viper.Areas.Directory.Controllers
             {
                 results.Add(new IndividualSearchResult()
                 {
-                    ClientId = m.ClientId,
                     MothraId = m.MothraId,
                     LoginId = m.LoginId,
                     MailId = m.MailId,
-                    SpridenId = m.SpridenId,
-                    Pidm = m.Pidm,
-                    EmployeeId = m.EmployeeId,
-                    VmacsId = m.VmacsId,
-                    VmcasId = m.VmcasId,
-                    UnexId = m.UnexId,
-                    MivId = m.MivId,
                     LastName = m.LastName,
                     FirstName = m.FirstName,
                     MiddleName = m.MiddleName,
@@ -102,14 +92,36 @@ namespace Viper.Areas.Directory.Controllers
                     Future = m.Future,
                     IamId = m.IamId,
                     Ross = m.Ross,
-                    Added = m.Added
+                    Added = m.Added,
+                    SpridenId = m.SpridenId,
+                    Pidm = m.Pidm,
+                    EmployeeId = m.EmployeeId,
+                    VmacsId = m.VmacsId,
+                    UnexId = m.UnexId,
+                    MivId = m.MivId,
                 });
             });
+            AaudUser? currentUser = UserHelper.GetCurrentUser();
+            if (!UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail"))
+            {
+                results.ForEach(r =>
+                {
+                    r.SpridenId = null;
+                    r.Pidm = null;
+                    r.EmployeeId = null;
+                    r.VmacsId = null;
+                    r.UnexId = null;
+                });
+            }
+
             results.ForEach(r =>
             {
-                LdapUser l = new LdapService().GetUser(r.LoginId);
+                LdapUserContact l = new LdapService().GetUserContact(r.LoginId);
                 r.Title = l.Title;
                 r.Department = l.Department;
+                r.Phone = l.Phone;
+                r.Mobile = l.Mobile;
+                r.UserName = l.UserName;
             });
 
             return results;

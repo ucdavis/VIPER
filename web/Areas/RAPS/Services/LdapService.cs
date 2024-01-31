@@ -50,8 +50,22 @@ namespace Viper.Areas.RAPS.Services
             "department",
             "company",
             "uidNumber",
-            "memberOf"
-        };
+            "memberOf",
+            "telephoneNumber",
+            "mobile",
+            "uid",
+            "employeeNumber",
+            "labeledUri",
+            "middlename",
+            "ou",
+            "postalAddress",
+            "ucdPersonAffiliation",
+            "ucdPersonIAMID",
+            "ucdPersonPIDM",
+            "ucdPersonUUID",
+            "ucdStudentLevel",
+            "ucdStudentSID"
+    };
         
         public LdapService() { }
         
@@ -141,6 +155,21 @@ namespace Viper.Areas.RAPS.Services
         public LdapUser? GetUser(string samAccountName, bool fromOu = false)
         {
             return new LdapUser(
+                new DirectorySearcher(GetRoot(fromOu), string.Format("(&(objectClass=user)(samAccountName={0}))", samAccountName), _personProperties, SearchScope.Subtree)
+                .FindOne()
+            );
+
+        }
+
+        /// <summary>
+        /// Gets a single user from ou or ad3
+        /// </summary>
+        /// <param name="samAccountName">samAccountName of user</param>
+        /// <param name="fromOu">If true, searches the SVM OU in ou.ad3.ucdavis.edu, otherwise, searches ucdUsers in ad3</param>
+        /// <returns></returns>
+        public LdapUserContact? GetUserContact(string samAccountName, bool fromOu = false)
+        {
+            return new LdapUserContact(
                 new DirectorySearcher(GetRoot(fromOu), string.Format("(&(objectClass=user)(samAccountName={0}))", samAccountName), _personProperties, SearchScope.Subtree)
                 .FindOne()
             );
