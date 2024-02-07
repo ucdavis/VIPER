@@ -10,20 +10,6 @@
 
         public string? MailId { get; set; } = string.Empty;
 
-        public string? SpridenId { get; set; } = string.Empty;
-
-        public string? Pidm { get; set; } = string.Empty;
-
-        public string? EmployeeId { get; set; } = string.Empty;
-
-        public int? VmacsId { get; set; } = null!;
-
-        public string? VmcasId { get; set; } = string.Empty;
-
-        public string? UnexId { get; set; } = string.Empty;
-
-        public int? MivId { get; set; } = null!;
-
         public string LastName { get; set; } = string.Empty;
 
         public string FirstName { get; set; } = string.Empty;
@@ -71,5 +57,6 @@
         public string? Phone { get; set; } = null!;
         public string? Mobile { get; set; } = null!;
         public string? UserName { get; set; } = null!;
+        public string? originalObject { get; set; } = null!;
     }
 }

@@ -13,6 +13,7 @@ using Viper.Areas.RAPS.Models;
 using Viper.Areas.Directory.Models;
 using System;
 using Viper;
+using System.Runtime.Versioning;
 
 namespace Viper.Areas.Directory.Controllers
 {
@@ -46,6 +47,7 @@ namespace Viper.Areas.Directory.Controllers
         /// </summary>
         /// <param name="search">search string</param>
         /// <returns></returns>
+        [SupportedOSPlatform("windows")]
         [Route("/[area]/search/{search}")]
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> Get(string search)
         {
@@ -64,69 +66,118 @@ namespace Viper.Areas.Directory.Controllers
             .ThenBy(u => u.DisplayFirstName)
                      .ToListAsync();
             List<IndividualSearchResult> results = new();
+            AaudUser? currentUser = UserHelper.GetCurrentUser();
             individuals.ForEach(m =>
             {
-                results.Add(new IndividualSearchResult()
+                if (UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail"))
                 {
-                    MothraId = m.MothraId,
-                    LoginId = m.LoginId,
-                    MailId = m.MailId,
-                    LastName = m.LastName,
-                    FirstName = m.FirstName,
-                    MiddleName = m.MiddleName,
-                    DisplayLastName = m.DisplayLastName,
-                    DisplayFirstName = m.DisplayFirstName,
-                    DisplayMiddleName = m.DisplayMiddleName,
-                    DisplayFullName = m.DisplayFullName,
-                    Name = m.DisplayFullName,
-                    CurrentStudent = m.CurrentStudent,
-                    FutureStudent = m.FutureStudent,
-                    CurrentEmployee = m.CurrentEmployee,
-                    FutureEmployee = m.FutureEmployee,
-                    StudentTerm = m.StudentTerm,
-                    EmployeeTerm = m.EmployeeTerm,
-                    PpsId = m.PpsId,
-                    StudentPKey = m.StudentPKey,
-                    EmployeePKey = m.EmployeePKey,
-                    Current = m.Current,
-                    Future = m.Future,
-                    IamId = m.IamId,
-                    Ross = m.Ross,
-                    Added = m.Added,
-                    SpridenId = m.SpridenId,
-                    Pidm = m.Pidm,
-                    EmployeeId = m.EmployeeId,
-                    VmacsId = m.VmacsId,
-                    UnexId = m.UnexId,
-                    MivId = m.MivId,
-                });
+                    results.Add(new IndividualSearchResultWithIDs()
+                    {
+                        MothraId = m.MothraId,
+                        LoginId = m.LoginId,
+                        MailId = m.MailId,
+                        LastName = m.LastName,
+                        FirstName = m.FirstName,
+                        MiddleName = m.MiddleName,
+                        DisplayLastName = m.DisplayLastName,
+                        DisplayFirstName = m.DisplayFirstName,
+                        DisplayMiddleName = m.DisplayMiddleName,
+                        DisplayFullName = m.DisplayFullName,
+                        Name = m.DisplayFullName,
+                        CurrentStudent = m.CurrentStudent,
+                        FutureStudent = m.FutureStudent,
+                        CurrentEmployee = m.CurrentEmployee,
+                        FutureEmployee = m.FutureEmployee,
+                        StudentTerm = m.StudentTerm,
+                        EmployeeTerm = m.EmployeeTerm,
+                        PpsId = m.PpsId,
+                        StudentPKey = m.StudentPKey,
+                        EmployeePKey = m.EmployeePKey,
+                        Current = m.Current,
+                        Future = m.Future,
+                        IamId = m.IamId,
+                        Ross = m.Ross,
+                        Added = m.Added,
+                        SpridenId = m.SpridenId,
+                        Pidm = m.Pidm,
+                        EmployeeId = m.EmployeeId,
+                        VmacsId = m.VmacsId,
+                        UnexId = m.UnexId,
+                        MivId = m.MivId,
+                    });
+                }
+                else
+                {
+                    results.Add(new IndividualSearchResult()
+                    {
+                        MothraId = m.MothraId,
+                        LoginId = m.LoginId,
+                        MailId = m.MailId,
+                        LastName = m.LastName,
+                        FirstName = m.FirstName,
+                        MiddleName = m.MiddleName,
+                        DisplayLastName = m.DisplayLastName,
+                        DisplayFirstName = m.DisplayFirstName,
+                        DisplayMiddleName = m.DisplayMiddleName,
+                        DisplayFullName = m.DisplayFullName,
+                        Name = m.DisplayFullName,
+                        CurrentStudent = m.CurrentStudent,
+                        FutureStudent = m.FutureStudent,
+                        CurrentEmployee = m.CurrentEmployee,
+                        FutureEmployee = m.FutureEmployee,
+                        StudentTerm = m.StudentTerm,
+                        EmployeeTerm = m.EmployeeTerm,
+                        PpsId = m.PpsId,
+                        StudentPKey = m.StudentPKey,
+                        EmployeePKey = m.EmployeePKey,
+                        Current = m.Current,
+                        Future = m.Future,
+                        IamId = m.IamId,
+                        Ross = m.Ross,
+                        Added = m.Added
+                    });
+                }
             });
-            AaudUser? currentUser = UserHelper.GetCurrentUser();
-            if (!UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail"))
-            {
-                results.ForEach(r =>
-                {
-                    r.SpridenId = null;
-                    r.Pidm = null;
-                    r.EmployeeId = null;
-                    r.VmacsId = null;
-                    r.UnexId = null;
-                });
-            }
-
             results.ForEach(r =>
             {
-                LdapUserContact l = new LdapService().GetUserContact(r.LoginId);
-                r.Title = l.Title;
-                r.Department = l.Department;
-                r.Phone = l.Phone;
-                r.Mobile = l.Mobile;
-                r.UserName = l.UserName;
+                LdapUserContact? l = new LdapService().GetUserContact(r.LoginId);
+                if (l != null)
+                {
+                    r.Title = l.title;
+                    r.Department = l.department;
+                    r.Phone = l.phone;
+                    r.Mobile = l.mobile;
+                    r.UserName = l.username;
+                }
             });
-
             return results;
         }
 
+        /// <summary>
+        /// Directory list
+        /// </summary>
+        /// <param name="search">search string</param>
+        /// <returns></returns>
+        [SupportedOSPlatform("windows")]
+        [Route("/[area]/search/{search}/ucd")]
+        public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> GetUCD(string search)
+        {
+            List<IndividualSearchResult> results = new();
+            List<LdapUserContact> ldap = new LdapService().GetUsersContact(search);
+            ldap.ForEach(l =>
+            {
+                results.Add(new IndividualSearchResult()
+                {
+                    originalObject = l.originalObject,
+                    Title = l.title,
+                    Department = l.department,
+                    Phone = l.phone,
+                    Mobile = l.mobile,
+                    UserName = l.username
+                }); 
+            });
+            return results;
+        }
 
         /// <summary>
         /// Directory results

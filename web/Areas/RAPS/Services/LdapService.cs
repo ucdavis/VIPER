@@ -13,6 +13,7 @@ namespace Viper.Areas.RAPS.Services
         //Start OUs for ou.ad3 (old-style groups and service accounts) and ad3 (users and api managed groups)
         private const string _ouStart = "OU=SVM,OU=Departments,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
         private const string _ad3Users = "OU=ucdUsers,DC=ad3,DC=ucdavis,DC=edu";
+        private const string _ldapUsers = "OU=People,DC=ldap,DC=ucdavis,DC=edu";
 
         //ldap attributes/properties to return for each object type
         private readonly string[] _groupProperties =
@@ -66,6 +67,10 @@ namespace Viper.Areas.RAPS.Services
             "ucdStudentLevel",
             "ucdStudentSID"
     };
+        private readonly string[] CFParams =
+        {
+            "givenName","sn","middlename","ou","mail","telephoneNumber","mobile","postalAddress","ucdStudentLevel","labeledUri","title","uid","ucdPersonPIDM","ucdPersonIAMID","employeeNumber","ucdStudentSID","ucdPersonUUID","eduPersonNickname","ucdPersonAffiliation","displayname"
+        };
         
         public LdapService() { }
         
@@ -119,31 +124,60 @@ namespace Viper.Areas.RAPS.Services
         {
             string filter = "(objectClass=user)";
             string additionalFilters = "";
-            if(name != null)
+            if (name != null)
             {
                 additionalFilters += string.Format("(displayName=*{0}*)", name);
             }
-            if(cn != null)
+            if (cn != null)
             {
                 additionalFilters += string.Format("(cn=*{0}*", cn);
             }
-            if(samAccountName != null)
+            if (samAccountName != null)
             {
                 additionalFilters += string.Format("(samAccountName=*{0}*", samAccountName);
             }
-            if(additionalFilters.Length > 0)
+            if (additionalFilters.Length > 0)
             {
                 filter = string.Format("(&{0}{1})", filter, additionalFilters);
             }
             SearchResultCollection results = new DirectorySearcher(GetRoot(fromOu), filter, _personProperties, SearchScope.Subtree)
-                { PageSize = 1000 }
+            { PageSize = 1000 }
                 .FindAll();
             List<LdapUser> users = new();
-            foreach(SearchResult result in results)
+            foreach (SearchResult result in results)
             {
                 users.Add(new LdapUser(result));
             }
             return SortUsers(users);
+        }
+
+        /// <summary>
+        /// Get users for display, optionally searching ou.ad3, searching by name, cn, or samAccountName
+        /// </summary>
+        /// <param name="fromOu">If true, searches the SVM OU in ou.ad3.ucdavis.edu, otherwise, searches ucdUsers in ad3</param>
+        /// <param name="name">display name to search for</param>
+        /// <param name="cn">canonical name to search for</param>
+        /// <param name="samAccountName">samAccountName to search for</param>
+        /// <returns>List of users</returns>
+        public List<LdapUserContact> GetUsersContact(string search)
+        {
+            string filter = "(objectClass=user)";
+            string additionalFilters = "";
+            additionalFilters += string.Format("(displayName=*{0}*)", search);
+            if (additionalFilters.Length > 0)
+            {
+                filter = string.Format("(&{0}{1})", filter, additionalFilters);
+            }
+            DirectoryEntry de = GetRootContact();
+            SearchResultCollection results = new DirectorySearcher(de, "(|(telephoneNumber=*francis)(sn=francis*)(givenName=francis*)(uid=francis*)(cn=francis)(mail=francis*))", CFParams, SearchScope.Subtree)
+            { PageSize = 1000 }
+                .FindAll();
+            List<LdapUserContact> users = new();
+            foreach (SearchResult result in results)
+            {
+                users.Add(new LdapUserContact(result));
+            }
+            return SortUsersContact(users);
         }
 
         /// <summary>
@@ -167,10 +201,10 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="samAccountName">samAccountName of user</param>
         /// <param name="fromOu">If true, searches the SVM OU in ou.ad3.ucdavis.edu, otherwise, searches ucdUsers in ad3</param>
         /// <returns></returns>
-        public LdapUserContact? GetUserContact(string samAccountName, bool fromOu = false)
+        public LdapUserContact? GetUserContact(string? samAccountName, bool fromOu = false)
         {
             return new LdapUserContact(
-                new DirectorySearcher(GetRoot(fromOu), string.Format("(&(objectClass=user)(samAccountName={0}))", samAccountName), _personProperties, SearchScope.Subtree)
+                new DirectorySearcher(GetRootContact(), string.Format("(&(objectClass=user)(samAccountName={0}))", samAccountName), _personProperties, SearchScope.Subtree)
                 .FindOne()
             );
 
@@ -266,6 +300,15 @@ namespace Viper.Areas.RAPS.Services
             return users;
         }
 
+        //Sort users by description first, or sam account name
+        private static List<LdapUserContact> SortUsersContact(List<LdapUserContact> users)
+        {
+            users.Sort((a, b) => a.Description == b.Description
+                ? a.SamAccountName.CompareTo(b.SamAccountName)
+                : a.Description.CompareTo(b.Description));
+            return users;
+        }
+
         //Get the root to start our ldap query - either the SVM OU in ou.ad3.ucdavis.edu for traditional security groups and SVM managed service accounts or 
         //the ucdUsers OU in ad3.ucdavis.edu for campus user accounts
         private DirectoryEntry GetRoot(bool fromOu = false)
@@ -274,6 +317,15 @@ namespace Viper.Areas.RAPS.Services
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
             return new DirectoryEntry(string.Format("LDAP://{0}", start), _username, creds, AuthenticationTypes.Secure);
         }
+        //Get the root to start our ldap query - either the SVM OU in ou.ad3.ucdavis.edu for traditional security groups and SVM managed service accounts or 
+        //the ucdUsers OU in ad3.ucdavis.edu for campus user accounts
+        private DirectoryEntry GetRootContact()
+        {
+            //string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
+            DirectoryEntry de = new DirectoryEntry("LDAP://ldap.ucdavis.edu", "[username]", "[password]", AuthenticationTypes.Secure);
+            return de;
+        }
+
 
     }
 }

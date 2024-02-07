@@ -17,6 +17,10 @@
              v-model="userSearch"
              autofocus>
     </q-input>
+    <q-toggle v-model="ucd"
+              color="green"
+              label="Search all of UCD">
+    </q-toggle>
 </q-form>
 
 <q-table title="Search Results"
@@ -115,6 +119,7 @@
             data() {
                 return {
                     userSearch: getItemFromStorage("directory_search") ?? "",
+                    ucd: getItemFromStorage("directory_ucd") ?? false,
                     users: new quasarTable({
                         keys: ["mothraId"],
                         urlBase: "users",
@@ -137,7 +142,8 @@
             },
             methods: {
                 findUsers: async function () {
-                    this.users.urlBase = "search/" + this.userSearch
+                    this.users.urlBase = "search/" + this.userSearch;
+                    if (this.ucd) this.users.urlBase = "search/" + this.userSearch + "/ucd";
                     if (this.userSearch.length >= 2) {
                         this.users.load(this)
                     }
@@ -147,13 +153,20 @@
                 this.users.loading = false;
                 if (this.userSearch.length >= 2) {
                     this.users.urlBase = "search/" + this.userSearch;
+                    if (this.ucd) this.users.urlBase = "search/" + this.userSearch + "/ucd";
                     this.users.load(this);
                 }
             },
             watch: {
                 userSearch: function () {
-                    putItemInStorage("directory_search", this.userSearch)
-                    this.findUsers()
+                    putItemInStorage("directory_search", this.userSearch);
+                    putItemInStorage("directory_ucd", this.ucd);
+                    this.findUsers();
+                },
+                ucd: function () {
+                    putItemInStorage("directory_search", this.userSearch);
+                    putItemInStorage("directory_ucd", this.ucd);
+                    this.findUsers();
                 }
             }
         })
