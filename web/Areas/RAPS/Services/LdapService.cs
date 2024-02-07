@@ -8,12 +8,18 @@ namespace Viper.Areas.RAPS.Services
     [SupportedOSPlatform("windows")]
     public class LdapService
     {
+        //username for campus active directory servers (ou.ad3 and ad3)
         private const string _username = "ou\\svc-accounts";
+        //username for ldap.ucdavis.edu
+        private const string _ldapUsername = "uid=vetmed,ou=Special Users,dc=ucdavis,dc=edu";
 
         //Start OUs for ou.ad3 (old-style groups and service accounts) and ad3 (users and api managed groups)
         private const string _ouStart = "OU=SVM,OU=Departments,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
         private const string _ad3Users = "OU=ucdUsers,DC=ad3,DC=ucdavis,DC=edu";
         private const string _ldapUsers = "OU=People,DC=ldap,DC=ucdavis,DC=edu";
+        //server and start for ldap.ucdavis.edu
+        private const string _ldapServer = "ldap.ucdavis.edu";
+        private const string _ldapStart = "ou=People,dc=ucdavis,dc=edu";
 
         //ldap attributes/properties to return for each object type
         private readonly string[] _groupProperties =
@@ -170,7 +176,6 @@ namespace Viper.Areas.RAPS.Services
             }
             DirectoryEntry de = GetRootContact();
             SearchResultCollection results = new DirectorySearcher(de, "(|(telephoneNumber=*francis)(sn=francis*)(givenName=francis*)(uid=francis*)(cn=francis)(mail=francis*))", CFParams, SearchScope.Subtree)
-            { PageSize = 1000 }
                 .FindAll();
             List<LdapUserContact> users = new();
             foreach (SearchResult result in results)
@@ -304,7 +309,7 @@ namespace Viper.Areas.RAPS.Services
         private static List<LdapUserContact> SortUsersContact(List<LdapUserContact> users)
         {
             users.Sort((a, b) => a.Description == b.Description
-                ? a.SamAccountName.CompareTo(b.SamAccountName)
+                ? a.sn.CompareTo(b.sn)
                 : a.Description.CompareTo(b.Description));
             return users;
         }
@@ -317,12 +322,16 @@ namespace Viper.Areas.RAPS.Services
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
             return new DirectoryEntry(string.Format("LDAP://{0}", start), _username, creds, AuthenticationTypes.Secure);
         }
-        //Get the root to start our ldap query - either the SVM OU in ou.ad3.ucdavis.edu for traditional security groups and SVM managed service accounts or 
-        //the ucdUsers OU in ad3.ucdavis.edu for campus user accounts
+        //Get the root to start our ldap.ucdavis.edu query
         private DirectoryEntry GetRootContact()
         {
-            //string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
-            DirectoryEntry de = new DirectoryEntry("LDAP://ldap.ucdavis.edu", "[username]", "[password]", AuthenticationTypes.Secure);
+            string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisDirectoryLDAP") ?? "";
+            string serverAndStart = string.Format("LDAP://{0}/{1}", _ldapServer, _ldapStart);
+            //We have to initialize the DirectoryEntry object using just the server, and then change the path to the server + start OU
+            DirectoryEntry de = new(_ldapServer, _ldapUsername, creds, AuthenticationTypes.SecureSocketsLayer)
+            {
+                Path = serverAndStart
+            };
             return de;
         }
 

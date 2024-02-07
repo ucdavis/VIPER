@@ -142,8 +142,8 @@
             },
             methods: {
                 findUsers: async function () {
-                    this.users.urlBase = "search/" + this.userSearch;
-                    if (this.ucd) this.users.urlBase = "search/" + this.userSearch + "/ucd";
+                    this.users.urlBase = "/Directory/search/" + this.userSearch;
+                    if (this.ucd) this.users.urlBase = "/Directory/search/" + this.userSearch + "/ucd";
                     if (this.userSearch.length >= 2) {
                         this.users.load(this)
                     }
@@ -152,8 +152,8 @@
             mounted() {
                 this.users.loading = false;
                 if (this.userSearch.length >= 2) {
-                    this.users.urlBase = "search/" + this.userSearch;
-                    if (this.ucd) this.users.urlBase = "search/" + this.userSearch + "/ucd";
+                    this.users.urlBase = "/Directory/search/" + this.userSearch;
+                    if (this.ucd) this.users.urlBase = "/Directory/search/" + this.userSearch + "/ucd";
                     this.users.load(this);
                 }
             },
