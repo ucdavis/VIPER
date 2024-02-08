@@ -1,4 +1,5 @@
 ﻿using Microsoft.IdentityModel.Tokens;
+using NLog;
 using Polly;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
@@ -13,6 +14,7 @@ namespace Viper.Classes.Utilities
             string loggedInUserId = GetLoggedInUserId();
             string service = GetService();
             VIPERContext? context = (VIPERContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(VIPERContext));
+            var logger = LogManager.GetCurrentClassLogger();
 
             if (!string.IsNullOrEmpty(loggedInUserId) && context != null) {
                 SessionTimeout? record = context.SessionTimeouts.Find(loggedInUserId, service);
@@ -31,6 +33,15 @@ namespace Viper.Classes.Utilities
                     });
                 }
                 context.SaveChanges();
+                logger.Debug(
+                    string.Format("Updated session timeout. LoggedInUserId: {0}", loggedInUserId)
+                );
+            }
+            else
+            {
+                logger.Warn(
+                    string.Format("Could not update session timeout. Context {0} LoggedInUserId: {1}", context == null ? "is null" : "is not null", loggedInUserId)
+                );
             }
         }
 
