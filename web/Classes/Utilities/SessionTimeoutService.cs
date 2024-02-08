@@ -33,13 +33,13 @@ namespace Viper.Classes.Utilities
                     });
                 }
                 context.SaveChanges();
-                logger.Info(
+                logger.Debug(
                     string.Format("Updated session timeout. LoggedInUserId: {0}", loggedInUserId)
                 );
             }
             else
             {
-                logger.Error(
+                logger.Warn(
                     string.Format("Could not update session timeout. Context {0} LoggedInUserId: {1}", context == null ? "is null" : "is not null", loggedInUserId)
                 );
             }
