@@ -71,7 +71,7 @@ try
     {
         options.ForwardedHeaders =
             ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-        options.KnownProxies.Add(IPAddress.Parse("192.168.56.134"));
+        options.KnownProxies.Add(IPAddress.Parse("192.168.56.134")); //The F5's internal IP
     });
 
     // Add services to the container.
