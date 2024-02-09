@@ -22,6 +22,7 @@ using Viper.Areas.CMS.Data;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Viper.Classes.Utilities;
 using NLog;
+using Microsoft.Extensions.Primitives;
 
 namespace Viper.Controllers
 {
@@ -53,6 +54,10 @@ namespace Viper.Controllers
             var logger = LogManager.GetCurrentClassLogger();
             var ipAddress = HttpHelper.HttpContext?.Connection.RemoteIpAddress;
             logger.Warn(string.Format("IP Address Check {0}", ipAddress?.ToString() ?? ""));
+
+            StringValues forward = new StringValues();
+            var success = HttpHelper.HttpContext?.Request.Headers.TryGetValue("X-Forwarded-For", out forward);
+            logger.Warn(string.Format("Forwarded {0}", forward.ToString() ?? ""));
             return View();
         }
 
