@@ -21,6 +21,7 @@ using Amazon.SimpleSystemsManagement.Model;
 using Viper.Areas.CMS.Data;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Viper.Classes.Utilities;
+using NLog;
 
 namespace Viper.Controllers
 {
@@ -49,6 +50,9 @@ namespace Viper.Controllers
         [SearchName(FriendlyName = "Viper 2 Homepage")]
         public IActionResult Index()
         {
+            var logger = LogManager.GetCurrentClassLogger();
+            var ipAddress = HttpHelper.HttpContext?.Connection.RemoteIpAddress;
+            logger.Warn(string.Format("IP Address Check {0}", ipAddress?.ToString() ?? ""));
             return View();
         }
 
