@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
@@ -64,6 +65,14 @@ try
     {
         logger.Fatal("Failed to get secrets from AWS. Error: " + ex.InnerException);
     }
+
+    //Use forwarded for headers on test and prod
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders =
+            ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownProxies.Add(IPAddress.Parse("192.168.56.134")); //The F5's internal IP
+    });
 
     // Add services to the container.
     builder.Services.AddControllersWithViews().AddSessionStateTempDataProvider().AddNewtonsoftJson(options =>
@@ -220,6 +229,7 @@ try
     // Configure the HTTP request pipeline.
     if (!app.Environment.IsDevelopment())
     {
+        app.UseForwardedHeaders();
         app.UseExceptionHandler("/Error"); // Error page for production
         app.UseHttpsRedirection(); // Force HTTPS
 
