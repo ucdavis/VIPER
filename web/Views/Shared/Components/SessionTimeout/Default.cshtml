@@ -39,7 +39,7 @@
                     fetch(this.sessionRefreshUrl)
                         .then(r => r.status == "200" ? r.json() : r)
                         .then(r => {
-                            var nextCheck = 600
+                            var nextCheck = 300
                             //show timeout warning if the session will time out in 5 minutes or less
                             if (r.secondsUntilTimeout !== undefined && r.secondsUntilTimeout < 300) {
                                 this.showSessionTimeoutWarning = true
