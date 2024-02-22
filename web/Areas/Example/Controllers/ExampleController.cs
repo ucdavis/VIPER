@@ -48,8 +48,8 @@ namespace Viper.Areas.Example.Controllers
             var nav = new List<NavMenuItem>
             {
                 new NavMenuItem() { MenuItemText = "Example Header", IsHeader = true },
-                new NavMenuItem() { MenuItemText = "Home", MenuItemURL = "~/Index" },
-                new NavMenuItem() { MenuItemText = "Students", MenuItemURL = "~/Students" }
+                new NavMenuItem() { MenuItemText = "Home", MenuItemURL = "Index" },
+                new NavMenuItem() { MenuItemText = "Student List", MenuItemURL = "StudentList" }
             };
             return new NavMenu("Example Application", nav);
         }
