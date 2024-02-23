@@ -17,6 +17,11 @@
             </template>
         </q-input>
     </template>
+    <template v-slot:body-cell-member="props">
+        <q-td :props="props">
+            <a :href="'UserSearch?search=' + props.row.memberId">{{props.row.memberName}}</a>
+        </q-td>
+    </template>
 </q-table>
 
 @section Scripts {
