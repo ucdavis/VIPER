@@ -33,6 +33,7 @@ namespace Viper.Areas.RAPS.Controllers
                     .Where(u => (u.DisplayFirstName + " " + u.DisplayLastName).Contains(search)
                         || (u.MailId != null && u.MailId.Contains(search))
                         || (u.LoginId != null && u.LoginId.Contains(search))
+                        || (u.MothraId == search) 
                     )
                     .Where(u => active == "all" || (active == "recent" && u.MostRecentTerm != null && u.MostRecentTerm >= DateTime.Now.Year * 100) || u.Current)
                     .OrderBy(u => u.DisplayLastName)
