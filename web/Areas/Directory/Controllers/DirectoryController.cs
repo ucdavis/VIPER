@@ -43,6 +43,20 @@ namespace Viper.Areas.Directory.Controllers
         }
 
         /// <summary>
+        /// Directory home page
+        /// </summary>
+        [Route("/[area]/nav")]
+        public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav()
+        {
+            var nav = new List<NavMenuItem>
+            {
+                new NavMenuItem() { MenuItemText = "Instances", IsHeader = true }
+            };
+            return nav;
+        }
+
+
+        /// <summary>
         /// Directory list
         /// </summary>
         /// <param name="search">search string</param>
@@ -69,86 +83,52 @@ namespace Viper.Areas.Directory.Controllers
             AaudUser? currentUser = UserHelper.GetCurrentUser();
             individuals.ForEach(m =>
             {
+                dynamic indiv = new IndividualSearchResult();
                 if (UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail"))
                 {
-                    results.Add(new IndividualSearchResultWithIDs()
-                    {
-                        MothraId = m.MothraId,
-                        LoginId = m.LoginId,
-                        MailId = m.MailId,
-                        LastName = m.LastName,
-                        FirstName = m.FirstName,
-                        MiddleName = m.MiddleName,
-                        DisplayLastName = m.DisplayLastName,
-                        DisplayFirstName = m.DisplayFirstName,
-                        DisplayMiddleName = m.DisplayMiddleName,
-                        DisplayFullName = m.DisplayFullName,
-                        Name = m.DisplayFullName,
-                        CurrentStudent = m.CurrentStudent,
-                        FutureStudent = m.FutureStudent,
-                        CurrentEmployee = m.CurrentEmployee,
-                        FutureEmployee = m.FutureEmployee,
-                        StudentTerm = m.StudentTerm,
-                        EmployeeTerm = m.EmployeeTerm,
-                        PpsId = m.PpsId,
-                        StudentPKey = m.StudentPKey,
-                        EmployeePKey = m.EmployeePKey,
-                        Current = m.Current,
-                        Future = m.Future,
-                        IamId = m.IamId,
-                        Ross = m.Ross,
-                        Added = m.Added,
-                        SpridenId = m.SpridenId,
-                        Pidm = m.Pidm,
-                        EmployeeId = m.EmployeeId,
-                        VmacsId = m.VmacsId,
-                        UnexId = m.UnexId,
-                        MivId = m.MivId,
-                    });
+                    indiv = new IndividualSearchResultWithIDs();
+                    indiv.SpridenId = m.SpridenId;
+                    indiv.Pidm = m.Pidm;
+                    indiv.EmployeeId = m.EmployeeId;
+                    indiv.VmacsId = m.VmacsId;
+                    indiv.UnexId = m.UnexId;
+                    indiv.MivId = m.MivId;
                 }
-                else
-                {
-                    results.Add(new IndividualSearchResult()
-                    {
-                        MothraId = m.MothraId,
-                        LoginId = m.LoginId,
-                        MailId = m.MailId,
-                        LastName = m.LastName,
-                        FirstName = m.FirstName,
-                        MiddleName = m.MiddleName,
-                        DisplayLastName = m.DisplayLastName,
-                        DisplayFirstName = m.DisplayFirstName,
-                        DisplayMiddleName = m.DisplayMiddleName,
-                        DisplayFullName = m.DisplayFullName,
-                        Name = m.DisplayFullName,
-                        CurrentStudent = m.CurrentStudent,
-                        FutureStudent = m.FutureStudent,
-                        CurrentEmployee = m.CurrentEmployee,
-                        FutureEmployee = m.FutureEmployee,
-                        StudentTerm = m.StudentTerm,
-                        EmployeeTerm = m.EmployeeTerm,
-                        PpsId = m.PpsId,
-                        StudentPKey = m.StudentPKey,
-                        EmployeePKey = m.EmployeePKey,
-                        Current = m.Current,
-                        Future = m.Future,
-                        IamId = m.IamId,
-                        Ross = m.Ross,
-                        Added = m.Added
-                    });
-                }
-            });
-            results.ForEach(r =>
-            {
-                LdapUserContact? l = new LdapService().GetUserContact(r.LoginId);
+                indiv.MothraId = m.MothraId;
+                indiv.LoginId = m.LoginId;
+                indiv.MailId = m.MailId;
+                indiv.LastName = m.LastName;
+                indiv.FirstName = m.FirstName;
+                indiv.MiddleName = m.MiddleName;
+                indiv.DisplayLastName = m.DisplayLastName;
+                indiv.DisplayFirstName = m.DisplayFirstName;
+                indiv.DisplayMiddleName = m.DisplayMiddleName;
+                indiv.DisplayFullName = m.DisplayFullName;
+                indiv.Name = m.DisplayFullName;
+                indiv.CurrentStudent = m.CurrentStudent;
+                indiv.FutureStudent = m.FutureStudent;
+                indiv.CurrentEmployee = m.CurrentEmployee;
+                indiv.FutureEmployee = m.FutureEmployee;
+                indiv.StudentTerm = m.StudentTerm;
+                indiv.EmployeeTerm = m.EmployeeTerm;
+                indiv.PpsId = m.PpsId;
+                indiv.StudentPKey = m.StudentPKey;
+                indiv.EmployeePKey = m.EmployeePKey;
+                indiv.Current = m.Current;
+                indiv.Future = m.Future;
+                indiv.IamId = m.IamId;
+                indiv.Ross = m.Ross;
+                indiv.Added = m.Added;
+                LdapUserContact? l = new LdapService().GetUserContact(m.LoginId);
                 if (l != null)
                 {
-                    r.Title = l.title;
-                    r.Department = l.department;
-                    r.Phone = l.phone;
-                    r.Mobile = l.mobile;
-                    r.UserName = l.username;
+                    indiv.Title = l.title;
+                    indiv.Department = l.department;
+                    indiv.Phone = l.phone;
+                    indiv.Mobile = l.mobile;
+                    indiv.UserName = l.username;
                 }
+                results.Add(indiv);
             });
             return results;
         }
@@ -164,18 +144,78 @@ namespace Viper.Areas.Directory.Controllers
         {
             List<IndividualSearchResult> results = new();
             List<LdapUserContact> ldap = new LdapService().GetUsersContact(search);
-            ldap.ForEach(l =>
+            var individuals = await _aaud.AaudUsers
+                    .Where(u => (u.DisplayFirstName + " " + u.DisplayLastName).Contains(search)
+                        || (u.MailId != null && u.MailId.Contains(search))
+                        || (u.LoginId != null && u.LoginId.Contains(search))
+                        || (u.SpridenId != null && u.SpridenId.Contains(search))
+                        || (u.Pidm != null && u.Pidm.Contains(search))
+                        || (u.MothraId != null && u.MothraId.Contains(search))
+                        || (u.EmployeeId != null && u.EmployeeId.Contains(search))
+                        || (u.IamId != null && u.IamId.Contains(search))
+           )
+           .Where(u => u.Current != 0)
+           .OrderBy(u => u.DisplayLastName)
+           .ThenBy(u => u.DisplayFirstName)
+                    .ToListAsync();
+            AaudUser? currentUser = UserHelper.GetCurrentUser();
+            foreach (var l in ldap)
             {
-                results.Add(new IndividualSearchResult()
+                dynamic indiv = new IndividualSearchResult();
+                if (UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail"))
                 {
-                    originalObject = l.originalObject,
-                    Title = l.title,
-                    Department = l.department,
-                    Phone = l.phone,
-                    Mobile = l.mobile,
-                    UserName = l.username
-                }); 
-            });
+                    indiv = new IndividualSearchResultWithIDs();
+                }
+                indiv.Title = l.title;
+                indiv.Department = l.department;
+                indiv.Phone = l.phone;
+                indiv.Mobile = l.mobile;
+                indiv.UserName = l.username;
+                indiv.DisplayFullName = l.displayname;
+                indiv.Name = l.displayname;
+                individuals.ForEach(m =>
+                {
+                    if (m.MothraId == l.ucdpersonuuid)
+                    {
+                        if (UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail"))
+                        {
+                            indiv = new IndividualSearchResultWithIDs();
+                            indiv.SpridenId = m.SpridenId;
+                            indiv.Pidm = m.Pidm;
+                            indiv.EmployeeId = m.EmployeeId;
+                            indiv.VmacsId = m.VmacsId;
+                            indiv.UnexId = m.UnexId;
+                            indiv.MivId = m.MivId;
+                        }
+                        indiv.MothraId = m.MothraId;
+                        indiv.LoginId = m.LoginId;
+                        indiv.MailId = m.MailId;
+                        indiv.LastName = m.LastName;
+                        indiv.FirstName = m.FirstName;
+                        indiv.MiddleName = m.MiddleName;
+                        indiv.DisplayLastName = m.DisplayLastName;
+                        indiv.DisplayFirstName = m.DisplayFirstName;
+                        indiv.DisplayMiddleName = m.DisplayMiddleName;
+                        indiv.DisplayFullName = m.DisplayFullName;
+                        indiv.Name = m.DisplayFullName;
+                        indiv.CurrentStudent = m.CurrentStudent;
+                        indiv.FutureStudent = m.FutureStudent;
+                        indiv.CurrentEmployee = m.CurrentEmployee;
+                        indiv.FutureEmployee = m.FutureEmployee;
+                        indiv.StudentTerm = m.StudentTerm;
+                        indiv.EmployeeTerm = m.EmployeeTerm;
+                        indiv.PpsId = m.PpsId;
+                        indiv.StudentPKey = m.StudentPKey;
+                        indiv.EmployeePKey = m.EmployeePKey;
+                        indiv.Current = m.Current;
+                        indiv.Future = m.Future;
+                        indiv.IamId = m.IamId;
+                        indiv.Ross = m.Ross;
+                        indiv.Added = m.Added;
+                    }
+                });
+                results.Add(indiv);
+            };
             return results;
         }
 
