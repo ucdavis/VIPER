@@ -81,54 +81,11 @@ namespace Viper.Areas.Directory.Controllers
                      .ToListAsync();
             List<IndividualSearchResult> results = new();
             AaudUser? currentUser = UserHelper.GetCurrentUser();
+            bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
             individuals.ForEach(m =>
             {
-                dynamic indiv = new IndividualSearchResult();
-                if (UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail"))
-                {
-                    indiv = new IndividualSearchResultWithIDs();
-                    indiv.SpridenId = m.SpridenId;
-                    indiv.Pidm = m.Pidm;
-                    indiv.EmployeeId = m.EmployeeId;
-                    indiv.VmacsId = m.VmacsId;
-                    indiv.UnexId = m.UnexId;
-                    indiv.MivId = m.MivId;
-                }
-                indiv.MothraId = m.MothraId;
-                indiv.LoginId = m.LoginId;
-                indiv.MailId = m.MailId;
-                indiv.LastName = m.LastName;
-                indiv.FirstName = m.FirstName;
-                indiv.MiddleName = m.MiddleName;
-                indiv.DisplayLastName = m.DisplayLastName;
-                indiv.DisplayFirstName = m.DisplayFirstName;
-                indiv.DisplayMiddleName = m.DisplayMiddleName;
-                indiv.DisplayFullName = m.DisplayFullName;
-                indiv.Name = m.DisplayFullName;
-                indiv.CurrentStudent = m.CurrentStudent;
-                indiv.FutureStudent = m.FutureStudent;
-                indiv.CurrentEmployee = m.CurrentEmployee;
-                indiv.FutureEmployee = m.FutureEmployee;
-                indiv.StudentTerm = m.StudentTerm;
-                indiv.EmployeeTerm = m.EmployeeTerm;
-                indiv.PpsId = m.PpsId;
-                indiv.StudentPKey = m.StudentPKey;
-                indiv.EmployeePKey = m.EmployeePKey;
-                indiv.Current = m.Current;
-                indiv.Future = m.Future;
-                indiv.IamId = m.IamId;
-                indiv.Ross = m.Ross;
-                indiv.Added = m.Added;
                 LdapUserContact? l = new LdapService().GetUserContact(m.LoginId);
-                if (l != null)
-                {
-                    indiv.Title = l.title;
-                    indiv.Department = l.department;
-                    indiv.Phone = l.phone;
-                    indiv.Mobile = l.mobile;
-                    indiv.UserName = l.username;
-                }
-                results.Add(indiv);
+                results.Add(IndividualSearchResultCreator.CreateIndividualSearchResult(currentUser, l, hasDetailPermission));
             });
             return results;
         }
@@ -159,62 +116,11 @@ namespace Viper.Areas.Directory.Controllers
            .ThenBy(u => u.DisplayFirstName)
                     .ToListAsync();
             AaudUser? currentUser = UserHelper.GetCurrentUser();
+            bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
             foreach (var l in ldap)
             {
-                dynamic indiv = new IndividualSearchResult();
-                if (UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail"))
-                {
-                    indiv = new IndividualSearchResultWithIDs();
-                }
-                indiv.Title = l.title;
-                indiv.Department = l.department;
-                indiv.Phone = l.phone;
-                indiv.Mobile = l.mobile;
-                indiv.UserName = l.username;
-                indiv.DisplayFullName = l.displayname;
-                indiv.Name = l.displayname;
-                individuals.ForEach(m =>
-                {
-                    if (m.MothraId == l.ucdpersonuuid)
-                    {
-                        if (UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail"))
-                        {
-                            indiv = new IndividualSearchResultWithIDs();
-                            indiv.SpridenId = m.SpridenId;
-                            indiv.Pidm = m.Pidm;
-                            indiv.EmployeeId = m.EmployeeId;
-                            indiv.VmacsId = m.VmacsId;
-                            indiv.UnexId = m.UnexId;
-                            indiv.MivId = m.MivId;
-                        }
-                        indiv.MothraId = m.MothraId;
-                        indiv.LoginId = m.LoginId;
-                        indiv.MailId = m.MailId;
-                        indiv.LastName = m.LastName;
-                        indiv.FirstName = m.FirstName;
-                        indiv.MiddleName = m.MiddleName;
-                        indiv.DisplayLastName = m.DisplayLastName;
-                        indiv.DisplayFirstName = m.DisplayFirstName;
-                        indiv.DisplayMiddleName = m.DisplayMiddleName;
-                        indiv.DisplayFullName = m.DisplayFullName;
-                        indiv.Name = m.DisplayFullName;
-                        indiv.CurrentStudent = m.CurrentStudent;
-                        indiv.FutureStudent = m.FutureStudent;
-                        indiv.CurrentEmployee = m.CurrentEmployee;
-                        indiv.FutureEmployee = m.FutureEmployee;
-                        indiv.StudentTerm = m.StudentTerm;
-                        indiv.EmployeeTerm = m.EmployeeTerm;
-                        indiv.PpsId = m.PpsId;
-                        indiv.StudentPKey = m.StudentPKey;
-                        indiv.EmployeePKey = m.EmployeePKey;
-                        indiv.Current = m.Current;
-                        indiv.Future = m.Future;
-                        indiv.IamId = m.IamId;
-                        indiv.Ross = m.Ross;
-                        indiv.Added = m.Added;
-                    }
-                });
-                results.Add(indiv);
+                AaudUser? userInfo = individuals.Find(m => m.MothraId == l.ucdpersonuuid);
+                results.Add(IndividualSearchResultCreator.CreateIndividualSearchResult(userInfo, l, hasDetailPermission));
             };
             return results;
         }
