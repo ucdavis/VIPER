@@ -85,7 +85,17 @@ namespace Viper.Areas.Directory.Controllers
             individuals.ForEach(m =>
             {
                 LdapUserContact? l = new LdapService().GetUserContact(m.LoginId);
-                results.Add(IndividualSearchResultCreator.CreateIndividualSearchResult(currentUser, l, hasDetailPermission));
+
+                if(false)
+                {
+                    results.Add(IndividualSearchResultCreator.CreateIndividualSearchResult(currentUser, l, hasDetailPermission));
+                }
+                else
+                {
+                    results.Add(hasDetailPermission
+                        ? new IndividualSearchResultWithIDs(m, l)
+                        : new IndividualSearchResult(m, l));
+                }
             });
             return results;
         }
@@ -120,7 +130,16 @@ namespace Viper.Areas.Directory.Controllers
             foreach (var l in ldap)
             {
                 AaudUser? userInfo = individuals.Find(m => m.MothraId == l.ucdpersonuuid);
-                results.Add(IndividualSearchResultCreator.CreateIndividualSearchResult(userInfo, l, hasDetailPermission));
+                if (false)
+                {
+                    results.Add(IndividualSearchResultCreator.CreateIndividualSearchResult(userInfo, l, hasDetailPermission));
+                }
+                else
+                {
+                    results.Add(hasDetailPermission
+                        ? new IndividualSearchResultWithIDs(userInfo, l)
+                        : new IndividualSearchResult(userInfo, l));
+                }
             };
             return results;
         }

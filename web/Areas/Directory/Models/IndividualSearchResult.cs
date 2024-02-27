@@ -1,4 +1,8 @@
-﻿namespace Viper.Areas.Directory.Models
+﻿using System.Runtime.Versioning;
+using Viper.Areas.RAPS.Models;
+using Viper.Models.AAUD;
+
+namespace Viper.Areas.Directory.Models
 {
     public class IndividualSearchResult
     {
@@ -58,5 +62,59 @@
         public string? Mobile { get; set; } = null!;
         public string? UserName { get; set; } = null!;
         public string? originalObject { get; set; } = null!;
+
+        public IndividualSearchResult()
+        {
+
+        }
+
+        [SupportedOSPlatform("windows")]
+        public IndividualSearchResult(AaudUser? aaudUser, LdapUserContact? ldapUserContact)
+        {
+            if (aaudUser != null) { 
+                MothraId = aaudUser.MothraId;
+                LoginId = aaudUser.LoginId;
+                MailId = aaudUser.MailId;
+                LastName = aaudUser.LastName;
+                FirstName = aaudUser.FirstName;
+                MiddleName = aaudUser.MiddleName;
+                DisplayLastName = aaudUser.DisplayLastName;
+                DisplayFirstName = aaudUser.DisplayFirstName;
+                DisplayMiddleName = aaudUser.DisplayMiddleName;
+                DisplayFullName = aaudUser.DisplayFullName;
+                Name = aaudUser.DisplayFullName;
+                CurrentStudent = aaudUser.CurrentStudent;
+                FutureStudent = aaudUser.FutureStudent;
+                CurrentEmployee = aaudUser.CurrentEmployee;
+                FutureEmployee = aaudUser.FutureEmployee;
+                StudentTerm = aaudUser.StudentTerm;
+                EmployeeTerm = aaudUser.EmployeeTerm;
+                PpsId = aaudUser.PpsId;
+                StudentPKey = aaudUser.StudentPKey;
+                EmployeePKey = aaudUser.EmployeePKey;
+                Current = aaudUser.Current;
+                Future = aaudUser.Future;
+                IamId = aaudUser.IamId;
+                Ross = aaudUser.Ross;
+                Added = aaudUser.Added;
+            }
+
+            if (ldapUserContact != null)
+            {
+                Title = ldapUserContact.title;
+                Department = ldapUserContact.department;
+                Phone = ldapUserContact.phone;
+                Mobile = ldapUserContact.mobile;
+                UserName = ldapUserContact.username;
+                if (string.IsNullOrEmpty(DisplayFullName)) 
+                {
+                    DisplayFullName = ldapUserContact.displayname;
+                }
+                if (string.IsNullOrEmpty(Name))
+                {
+                    Name = ldapUserContact.displayname;
+                }
+            }
+        }
     }
 }
