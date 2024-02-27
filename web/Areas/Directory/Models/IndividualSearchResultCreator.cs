@@ -86,8 +86,14 @@ namespace Viper.Areas.Directory.Models
             indiv.Phone = ldapUserContact.phone;
             indiv.Mobile = ldapUserContact.mobile;
             indiv.UserName = ldapUserContact.username;
-            indiv.DisplayFullName = ldapUserContact.displayname;
-            indiv.Name = ldapUserContact.displayname;
+            if(string.IsNullOrEmpty(indiv.DisplayFullName))
+            {
+                indiv.DisplayFullName = ldapUserContact.displayname;
+            }
+            if(string.IsNullOrEmpty(indiv.Name))
+            {
+                indiv.Name = ldapUserContact.displayname;
+            }
         }
     }
 }
