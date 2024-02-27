@@ -1,26 +1,25 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using System.Data;
 using Viper.Classes.SQLContext;
 using Viper.Classes;
-using Viper.Models.RAPS;
-using Viper.Areas.RAPS.Services;
+using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
 {
-    [Area("RAPS")]
+    [Area("CTS")]
     [Route("[area]/[action]")]
-    [Authorize(Roles = "VMDO SVM-IT,RAPS Users", Policy = "2faAuthentication")]
+    [Authorize(Policy = "2faAuthentication")]
+    [Permission(Allow = "SVMSecure.CTS")]
     public class CTSController : AreaController
     {
-        private readonly Classes.SQLContext.CtsContext _ctsContext;
+        private readonly CtsContext _ctsContext;
         public IUserHelper UserHelper;
 
         public int Count { get; set; }
         public string? UserName { get; set; }
 
-        public CTSController(Classes.SQLContext.CtsContext context, IWebHostEnvironment environment)
+        public CTSController(CtsContext context, IWebHostEnvironment environment)
         {
             _ctsContext = context;
             UserHelper = new UserHelper();
@@ -37,10 +36,10 @@ namespace Viper.Areas.CTS.Controllers
         {
             await base.OnActionExecutionAsync(context, next);
             await next();
-            ViewData["ViperLeftNav"] = await Nav();
+            ViewData["ViperLeftNav"] = Nav();
         }
 
-        public async Task<NavMenu> Nav()
+        public NavMenu Nav()
         {
             var nav = new List<NavMenuItem>
             {
@@ -50,9 +49,18 @@ namespace Viper.Areas.CTS.Controllers
             return new NavMenu("Competency Tracking System", nav);
         }
 
-        public IActionResult Home()
+        [Route("/[area]")]
+        public IActionResult Index()
         {
-            return View();
+            return View("~/Areas/CTS/Views/Index.cshtml");
+        }
+
+        [Route("/[area]/[action]")]
+        public IActionResult Epa()
+        {
+            ViewData["VIPERLayout"] = "VIPERLayoutSimplified";
+
+            return View("~/Areas/CTS/Views/Epa.cshtml");
         }
     }
 }

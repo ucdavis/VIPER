@@ -1,0 +1,103 @@
+﻿<q-dialog v-model="showViperError" v-cloak
+          auto-close="true">
+    <q-banner>
+        <template v-slot:avatar>
+            <q-icon name="error" color="red" />
+        </template>
+        {{viperErrorMessage}}
+    </q-banner>
+</q-dialog>
+
+<script asp-add-nonce="true">
+    for (idx in vueApps) {
+        vueApps[idx].create()
+    }
+
+    // initialize VUE and Quasar using global objects
+    createApp({
+        setup() {
+            while (vueSetupActions.length) {
+                vueSetupActions.shift().call(this);
+            }
+
+            return vueSetupObjects
+        },
+        data() {
+            return vueObjects
+        },
+        methods: vueMethods,
+        watch: vueWatchers,
+        emits: vueEmits,
+        props: vueProps,
+        computed: computed,
+        beforeCreate() {
+            while (vueBeforeCreateActions.length) {
+                vueBeforeCreateActions.shift().call(this);
+            }
+        },
+        created() {
+            this.urlParams = new URLSearchParams(window.location.search)
+            this.urlPath = window.location.pathname
+            while (vueCreatedActions.length) {
+                vueCreatedActions.shift().call(this);
+            }
+        },
+        beforeMount() {
+            while (vueBeforeMountActions.length) {
+                vueBeforeMountActions.shift().call(this);
+            }
+        },
+        mounted() {
+            while (vueMountedActions.length) {
+                vueMountedActions.shift().call(this);
+            }
+
+        },
+        beforeUpdate() {
+            while (vueBeforeUpdateActions.length) {
+                vueBeforeUpdateActions.shift().call(this);
+            }
+        },
+        updated() {
+            while (vueUpdatedActions.length) {
+                vueUpdatedActions.shift().call(this);
+            }
+        },
+        beforeUnmount() {
+            while (vueBeforeUnmountActions.length) {
+                vueBeforeUnmountActions.shift().call(this);
+            }
+        },
+        unmounted() {
+            while (vueUnmountedActions.length) {
+                vueUnmountedActions.shift().call(this);
+            }
+        }
+    }).use(Quasar, {
+        config: {
+            brand: {
+                primary: '#022851',
+                secondary: '#295687',
+                accent: '#ffc519',
+
+                dark: '#1d1d1d',
+                'dark-page': '#121212',
+
+                positive: '#226e34',
+                negative: '#6e2222',
+                info: '#289094',
+                warning: '#ffc519'
+            },
+            loading: {
+                delay: 100,
+                message: "Loading",
+                group: "group",
+                spinner: Quasar.QSpinnerOval,
+                spinnerColor: "light",
+                backgroundColor: "dark",
+                messageColor: "light",
+                boxClass: "bg-grey-2 text-grey-9"
+            }
+        }
+    }).mount('body');
+</script>
