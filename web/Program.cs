@@ -199,7 +199,8 @@ try
             .From("viper.vetmed.ucdavis.edu")
             .From("secure.vetmed.ucdavis.edu")
             .From("secure-test.vetmed.ucdavis.edu")
-            .From("*.vetmed.ucdavis.edu");
+            .From("*.vetmed.ucdavis.edu")
+            .From("http://localhost");
 
         csp.AllowPlugins
             .FromNowhere(); // Plugins not allowed
