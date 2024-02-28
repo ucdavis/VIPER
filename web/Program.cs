@@ -215,7 +215,8 @@ try
             .From("viper.vetmed.ucdavis.edu")
             .From("secure.vetmed.ucdavis.edu")
             .From("secure-test.vetmed.ucdavis.edu")
-            .From("*.vetmed.ucdavis.edu");
+            .From("*.vetmed.ucdavis.edu")
+            .From("http://localhost");//viper1 typically runs on http on developer machines
 
         csp.AllowPlugins
             .FromNowhere(); // Plugins not allowed

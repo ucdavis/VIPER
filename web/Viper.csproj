@@ -41,8 +41,13 @@
     <Folder Include="Areas\CTS\Controllers\" />
     <Folder Include="Areas\CTS\Models\" />
     <Folder Include="Areas\CTS\Services\" />
+    <Folder Include="Areas\CTS\Views\css\" />
     <Folder Include="Areas\RAPS\Data\" />
     <Folder Include="wwwroot\images\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\css\cts.css" />
   </ItemGroup>
 
   <ItemGroup>
