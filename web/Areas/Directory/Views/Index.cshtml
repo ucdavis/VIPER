@@ -1,5 +1,5 @@
 ﻿@using Viper.Classes.SQLContext;
-@model Viper.Models.AAUD.AaudUser
+@model Viper.Models.AAUD.AaudUser;
 @{
     RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
     IUserHelper UserHelper = new UserHelper();

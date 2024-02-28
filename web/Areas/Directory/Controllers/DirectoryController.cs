@@ -2,17 +2,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Models.AAUD;
-using Viper.Models.RAPS;
 using Viper.Areas.RAPS.Services;
 using Web.Authorization;
-using Microsoft.IdentityModel.Tokens;
 using Viper.Classes;
-using Polly;
 using Viper.Classes.SQLContext;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.Directory.Models;
-using System;
-using Viper;
 using System.Runtime.Versioning;
 
 namespace Viper.Areas.Directory.Controllers
@@ -37,9 +32,11 @@ namespace Viper.Areas.Directory.Controllers
         /// Directory home page
         /// </summary>
         [Route("/[area]/")]
-        public async Task<ActionResult> Index()
+        public async Task<ActionResult> Index(string? useExample)
         {
-            return await Task.Run(() => View("~/Areas/Directory/Views/Index.cshtml"));
+            return await Task.Run(() => !string.IsNullOrEmpty(useExample) 
+                ? View("~/Areas/Directory/Views/CardExample.cshtml") 
+                : View("~/Areas/Directory/Views/Index.cshtml"));
         }
 
         /// <summary>

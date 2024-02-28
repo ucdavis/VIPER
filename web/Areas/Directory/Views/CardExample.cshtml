@@ -1,0 +1,83 @@
+﻿<h2>Directory</h2>
+<q-form @@submit="return false;">
+    <q-input class="q-ml-xs q-mr-xs"
+             dense
+             clearable
+             clear-icon="close"
+             outlined
+             debounce="300"
+             placeholder="Search for users"
+             v-model="userSearch"
+             autofocus>
+    </q-input>
+    <q-toggle v-model="ucd"
+              color="green"
+              label="Search all of UCD">
+    </q-toggle>
+</q-form>
+
+<div class="row q-pa-sm q-gutter-sm">
+    <q-card v-for="user in results" class="col-12 col-md-8 col-lg-4 col-xl-3">
+        <q-card-section horizontal class="row">
+            <q-card-section class="col-2 col-sm-1">
+                <q-icon name="person" size="sm" class="col"></q-icon>
+                <a :href="'mailto:' + user.mailId + '@@ucdavis.edu'" class="col">
+                    <q-icon name="email" size="sm"></q-icon>
+                </a>
+                <q-btn icon="assignment_ind" size="sm" dense color="red-10" text-color="white"
+                       :href="'/EmulateUser/' + user.loginId"></q-btn>
+            </q-card-section>
+            <q-separator></q-separator>
+            <q-card-section class="col-5 col-sm-3 col-md-3 col-lg-3">
+                <q-avatar square size="87px">
+                    <img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&altphoto=1'" height="40" id="siteProfileAvatar">
+                </q-avatar>
+            </q-card-section>
+            <q-card-section class="col">
+                {{user.name}}
+                <br />
+                {{user.mailId}}@@ucdavis.edu
+            </q-card-section>
+        </q-card-section>
+    </q-card>
+</div>
+
+@section Scripts {
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    userSearch: getItemFromStorage("directory_search") ?? "",
+                    ucd: getItemFromStorage("directory_ucd") ?? false,
+                    results: []
+                }
+            },
+            methods: {
+                findUsers: async function () {
+                    var urlBase = "/Directory/search/" + this.userSearch
+                    if (this.ucd) {
+                        urlBase += "/ucd"
+                    }
+                    if (this.userSearch.length >= 2) {
+                        this.results = (await viperFetch(this, urlBase))
+                    }
+                }
+            },
+            mounted() {
+                this.findUsers()
+            },
+            watch: {
+                userSearch: function () {
+                    putItemInStorage("directory_search", this.userSearch);
+                    putItemInStorage("directory_ucd", this.ucd);
+                    this.findUsers();
+                },
+                ucd: function () {
+                    putItemInStorage("directory_search", this.userSearch);
+                    putItemInStorage("directory_ucd", this.ucd);
+                    this.findUsers();
+                }
+            }
+        })
+    </script>
+}
