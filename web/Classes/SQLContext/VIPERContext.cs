@@ -7,6 +7,7 @@ namespace Viper.Classes.SQLContext;
 
 public partial class VIPERContext : DbContext
 {
+#pragma warning disable CS8618
     public VIPERContext()
     {
     }
@@ -15,6 +16,7 @@ public partial class VIPERContext : DbContext
         : base(options)
     {
     }
+#pragma warning restore CS8618
 
     public virtual DbSet<AppControl> AppControls { get; set; }
 
@@ -85,6 +87,8 @@ public partial class VIPERContext : DbContext
     public virtual DbSet<ReportField> ReportFields { get; set; }
 
     public virtual DbSet<SecureMediaAudit> SecureMediaAudits { get; set; }
+
+    public virtual DbSet<SessionTimeout> SessionTimeouts{ get; set; }
 
     public virtual DbSet<SlowPage> SlowPages { get; set; }
 
@@ -197,7 +201,7 @@ public partial class VIPERContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("application");
             entity.Property(e => e.BlockOrder).HasColumnName("blockOrder");
-            entity.Property(e => e.ContentBlock1)
+            entity.Property(e => e.Content)
                 .HasColumnType("text")
                 .HasColumnName("contentBlock");
             entity.Property(e => e.DeletedOn)
@@ -1035,6 +1039,21 @@ public partial class VIPERContext : DbContext
             entity.Property(e => e.Whotime)
                 .HasColumnType("datetime")
                 .HasColumnName("whotime");
+        });
+
+        modelBuilder.Entity<SessionTimeout>(entity =>
+        {
+            entity.HasKey(e => new { e.LoginId, e.Service });
+            entity.ToTable("SessionTimeout");
+            entity.Property(e => e.LoginId)
+                .HasMaxLength(8)
+                .HasColumnName("loginid");
+            entity.Property(e => e.SessionTimeoutDateTime)
+                .HasColumnType("datetime")
+                .HasColumnName("sessionTimeout");
+            entity.Property(e => e.Service)
+                .HasMaxLength(50)
+                .HasColumnName("service");
         });
 
         modelBuilder.Entity<SlowPage>(entity =>

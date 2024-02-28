@@ -4,6 +4,7 @@
     <q-btn no-caps color="primary" class="q-mb-sm" label="Add Roles" icon="add"
            :outline="showWhich != 'Add'" @@click="showWhich='Add'"></q-btn>
 </q-btn-group>
+<q-btn class="q-ml-md" label="Push Permissions to VMACS" icon="upload" color="primary" no-caps v-if="showVMACSPush" @@click="pushToVMACS(true)"></q-btn>
 
 <div v-show="showWhich == 'Existing'">
     <h2>
@@ -23,7 +24,7 @@
             <div class="q-pa-sm q-gutter-sm">
                 <q-dialog v-model="memberRolesTable.showForm" @@hide="memberRolesTable.clear(this)">
                     <q-card>
-                        <q-form @@submit="memberRolesTable.submit(this)" v-bind="memberRolesTable.object">
+                        <q-form @@submit="memberRolesTable.submit(this);pushToVMACS();" v-bind="memberRolesTable.object">
                             <q-card-section>
                                 <div class="text-h6">{{memberRolesTable.editing >= 0 ? "Edit" : "Create"}} Role Member</div>
                                 <div class="bg-negative text-white q-pa-sm rounded" v-if="memberRolesTable.errors?.message?.length > 0">{{memberRolesTable.errors.message}}</div>
@@ -41,11 +42,14 @@
                                 <div class="row">
                                     <q-input outlined dense v-model="memberRolesTable.object.comment" label="Comment"></q-input>
                                 </div>
+                                <div class="row" v-if="showVMACSPush">
+                                    <q-toggle label="Push to VMACS" v-model="updateVMACS"></q-toggle>
+                                </div>
                             </q-card-section>
 
                             <q-card-actions align="evenly">
                                 <q-btn no-caps :label="memberRolesTable.editing ? 'Update Role for User' : 'Add Role for User'" type="submit" padding="xs sm" color="primary"></q-btn>
-                                <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="memberRolesTable.delete(this)" color="red" v-if="memberRolesTable.editing"></q-btn>
+                                <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="memberRolesTable.delete(this);pushToVMACS();" color="red" v-if="memberRolesTable.editing"></q-btn>
                             </q-card-actions>
                         </q-form>
                     </q-card>
@@ -61,8 +65,11 @@
         </template>
         <template v-slot:body-cell-links="props">
             <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'RolePermissions?roleId=' + props.row.roleId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" title="View members of this role" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
+                @if (ViewData.ContainsKey("canEditPermissions") && (bool)(ViewData["canEditPermissions"] ?? false))
+                {
+                    <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" title="Set permissions this role controls" :href="'RolePermissions?roleId=' + props.row.roleId"></q-btn>
+                }
             </q-td>
         </template>
         <template v-slot:body-cell-actions="props">
@@ -82,7 +89,7 @@
             <q-input type="date" outlined dense v-model="memberRoleParams.startDate" label="Start Date"></q-input>
             <q-input type="date" outlined dense v-model="memberRoleParams.endDate" label="End Date" class="q-ml-md"></q-input>
             <q-input outlined dense v-model="memberRoleParams.comment" label="Comment" class="q-ml-md" size="30"></q-input>
-            <q-btn sm dense no-caps class="q-px-sm q-ml-md" label="Add Checked" type="button" color="primary" @@click="addRoles"></q-btn>
+            <q-btn sm dense no-caps class="q-px-sm q-ml-md" label="Add Checked" type="button" color="primary" @@click="addRolesThenPushToVMACS"></q-btn>
         </div>
     </q-form>
     <q-table dense
@@ -114,7 +121,9 @@
                     memberRoleParams: { startDate: "", endDate: "", comment: "" },
                     memberId: 0,
                     member: {},
-                    showWhich: 'Existing',
+                    showWhich: 'Existing', 
+                    showVMACSPush: false,
+                    updateVMACS: false,
                     memberRolesTable: new quasarTable({
                         keys: ["roleId"],
                         urlBase: "Members",
@@ -124,7 +133,9 @@
                             { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
-                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
+                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true,
+                                sort: (_1, _2, rowA, rowB) => new Date(rowA.modTime) - new Date(rowB.modTime)
+                            },
                             { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
                         ],
                         //after loading role members, set role name and last modified
@@ -189,24 +200,30 @@
             },
             methods: {
                 addRoles: async function () {
-                    this.selectedRoles.forEach((value, index) => {
-                        var roleMember = { roleId: value.roleId, memberId: this.memberId, comment: this.memberRoleParams.comment }
-                        if (this.memberRoleParams.startDate.length) {
-                            roleMember.startDate = this.memberRoleParams.startDate
-                        }
-                        if (this.memberRoleParams.endDate.length) {
-                            roleMember.endDate = this.memberRoleParams.endDate
-                        }
-                        viperFetch(this,
-                            "Members/" + this.memberId + "/Roles/",
-                            {
-                                method: "POST",
-                                body: JSON.stringify(roleMember),
-                                headers: { "Content-Type": "application/json" }
-                            },
-                            [this.loadTables]
-                        )
-                    })
+                    await Promise.all(
+                        this.selectedRoles.map(async(sr) => {
+                            let roleMember = { roleId: sr.roleId, memberId: this.memberId, comment: this.memberRoleParams.comment }
+                            if (this.memberRoleParams.startDate.length) {
+                                roleMember.startDate = this.memberRoleParams.startDate
+                            }
+                            if (this.memberRoleParams.endDate.length) {
+                                roleMember.endDate = this.memberRoleParams.endDate
+                            }
+                            await viperFetch(this,
+                                "Members/" + this.memberId + "/Roles/",
+                                {
+                                    method: "POST",
+                                    body: JSON.stringify(roleMember),
+                                    headers: { "Content-Type": "application/json" }
+                                }
+                            )
+                        })
+                    )
+                },
+                addRolesThenPushToVMACS: async function() {
+                    await this.addRoles()
+                    this.loadTables()
+                    this.pushToVMACS(false)
                 },
                 loadTables: async function () {
                     await this.memberRolesTable.load(this)
@@ -215,8 +232,15 @@
                 }, 
                 loadMember: async function () {
                     this.member = await viperFetch(this, "members/" + this.memberId)
+                },
+                pushToVMACS: async function (skipToggleCheck) {
+                    console.log(skipToggleCheck, this.updateVMACS)
+                    if (skipToggleCheck || this.updateVMACS) {
+                        Quasar.Loading.show({ message: "Updating VMACS" })
+                        await viperFetch(this, "Members/" + this.memberId + "/Roles/VMACSExport", { method: "POST" })
+                        Quasar.Loading.hide()
+                    }
                 }
-
             },
             async mounted() {
                 this.memberId = this.urlParams.get("memberId")
@@ -225,6 +249,7 @@
                 this.loadTables()
                 this.showMemberRoles = true
                 this.showAddRoles = false
+                this.showVMACSPush = this.urlPath.indexOf("/VMACS.") > 0
             }
         })
     </script>

@@ -75,9 +75,14 @@
       "category": "model"
     },
     "dark": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Notify the component that the background is a dark color",
-      "category": "style"
+      "category": "style",
+      "required": false
     },
     "fit": {
       "type": "Boolean",
@@ -197,22 +202,32 @@
       "category": "behavior"
     },
     "max-height": {
-      "type": "String",
+      "type": [
+        "String",
+        "null"
+      ],
       "desc": "The maximum height of the menu; Size in CSS units, including unit name",
       "examples": [
         "16px",
         "2rem"
       ],
-      "category": "style"
+      "category": "style",
+      "default": null,
+      "required": false
     },
     "max-width": {
-      "type": "String",
+      "type": [
+        "String",
+        "null"
+      ],
       "desc": "The maximum width of the menu; Size in CSS units, including unit name",
       "examples": [
         "16px",
         "2rem"
       ],
-      "category": "style"
+      "category": "style",
+      "default": null,
+      "required": false
     }
   },
   "slots": {

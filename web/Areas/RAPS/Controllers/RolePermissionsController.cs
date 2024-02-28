@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AngleSharp.Dom;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
 using System.Data;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
@@ -14,7 +16,6 @@ namespace Viper.Areas.RAPS.Controllers
     [Route("raps/{instance=VIPER}/")]
     [ApiController]
     [Authorize(Roles = "VMDO SVM-IT", Policy = "2faAuthentication")]
-    [Permission(Allow = "RAPS.Admin,RAPS.ManageAllPermissions")]
     public class RolePermissionsController : ApiController
     {
         private readonly RAPSContext _context;
@@ -69,6 +70,22 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return errorResult;
             }
+            if(roleId != null) {
+                TblRole? role = _context.TblRoles.Find(roleId);
+                if(role == null)
+                {
+                    return NotFound();
+                }
+                if (!_securityService.IsAllowedTo("ViewRolePermissions", instance, role))
+                {
+                    return Forbid();
+                }
+            }
+            else if(permissionId != null && !_securityService.IsAllowedTo("ViewAllRoles", instance))
+            {
+                return Forbid();
+            }
+            
             List<TblRolePermission> tblRolePermissions = await _context.TblRolePermissions
                     .Include(rp => rp.Role)
                     .Include(rp => rp.Permission)
@@ -77,14 +94,52 @@ namespace Viper.Areas.RAPS.Controllers
                     .OrderBy(rp => rp.Permission.Permission)
                     .ThenBy(rp => rp.Role.DisplayName ?? rp.Role.Role)
                     .ToListAsync();
-
+            tblRolePermissions = tblRolePermissions
+                .Where(rp => _securityService.RoleBelongsToInstance(instance, rp.Role))
+                .ToList();
             return tblRolePermissions;
+        }
+
+
+        [HttpGet("Roles/{role1Id}/{role2Id}/PermissionComparison")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
+        public async Task<ActionResult<RolePermissionComparison>> CompareRolePermissions(string instance, int role1Id, int role2Id)
+        {
+            TblRole? role1 = _securityService.GetRoleInInstance(instance, role1Id);
+            TblRole? role2 = _securityService.GetRoleInInstance(instance, role2Id);
+            if(role1 == null || role2 == null)
+            {
+                return NotFound();
+            }
+
+            if (!_securityService.IsAllowedTo("EditRoleMembership", instance) ||
+                !_securityService.IsAllowedTo("ViewRolePermissions", instance, role1) ||
+                !_securityService.IsAllowedTo("ViewRolePermissions", instance, role2))
+            {
+                return Forbid();
+            }
+
+            List<TblRolePermission> role1Permissions = await _context.TblRolePermissions
+                    .Include(rp => rp.Permission)
+                    .Where(rp => rp.RoleId == role1Id)
+                    .OrderBy(rp => rp.Permission.Permission)
+                    .ToListAsync();
+            List<TblRolePermission> role2Permissions = await _context.TblRolePermissions
+                    .Include(rp => rp.Permission)
+                    .Where(rp => rp.RoleId == role2Id)
+                    .OrderBy(rp => rp.Permission.Permission)
+                    .ToListAsync();
+
+
+            RolePermissionComparison result = new(role1Permissions, role2Permissions);
+            return result;
         }
 
         // POST Roles/5/Permissions
         // POST Permissions/5/Roles
         [HttpPost("Roles/{roleId}/Permissions")]
         [HttpPost("Permissions/{permissionId}/Roles")]
+        [Permission(Allow = "RAPS.Admin,RAPS.ManageAllPermissions")]
         public async Task<ActionResult<TblRolePermission>> PostTblRolePermission(string instance, int? roleId, int? permissionId, RolePermissionCreateUpdate rolePermission)
         {
             if (_context.TblRoles == null)
@@ -126,6 +181,7 @@ namespace Viper.Areas.RAPS.Controllers
         // DELETE Permissions/5/Roles/123
         [HttpDelete("Roles/{roleId}/Permissions/{permissionId}")]
         [HttpDelete("Permissions/{permissionId}/Roles/{roleId}")]
+        [Permission(Allow = "RAPS.Admin,RAPS.ManageAllPermissions")]
         public async Task<ActionResult<TblPermission>> DeleteTblRolePermission(string instance, int roleId, int permissionId)
         {
             if (_context.TblRolePermissions == null)

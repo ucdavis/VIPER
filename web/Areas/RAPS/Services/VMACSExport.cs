@@ -2,9 +2,11 @@
 using Microsoft.CodeAnalysis.Elfie.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading.Tasks.Dataflow;
 using Viper.Areas.RAPS.Models;
@@ -14,7 +16,7 @@ using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Services
 {
-    public class VMACSExport
+    public partial class VMACSExport
     {
         private readonly Classes.SQLContext.RAPSContext _RAPSContext;
 
@@ -36,13 +38,25 @@ namespace Viper.Areas.RAPS.Services
         };
         private static readonly string apiPermissionURL = "/Vmacs2/rest/raps/permission";
 
-        public VMACSExport(bool onProduction, RAPSContext RAPSContext, string credentials)
+        public VMACSExport(RAPSContext RAPSContext)
         {
             //_HttpRequest = new F5HttpRequest();
             _RAPSContext = RAPSContext;
-            _onProduction = onProduction;
-            _credentials = credentials;
             UserHelper = new UserHelper();
+
+            _onProduction = Environment.GetEnvironmentVariable("EnvironmentName") == "Production";
+            _credentials = "vmthRestClient:" + HttpHelper.GetSetting<string>("Credentials", "vmthRestClient");
+        }
+
+        public List<string> GetServers()
+        {
+            if(_onProduction)
+            {
+                return _vmacsServers.Keys.ToList();
+            }
+            return _vmacsServers.Keys
+                .Where(x => !x.Contains("prod"))
+                .ToList();
         }
 
         /// <summary>
@@ -55,9 +69,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="action">Action for log</param>
         /// <param name="debugOnly">If true, don't send, just log</param>
         public async Task<List<string>> ExportToInstances(string instances, string? mothraId, string? loginid = null, string? roleIds = null,
-#pragma warning disable IDE0060 // Remove unused parameter
-                string action = "", bool debugOnly = false)
-#pragma warning restore IDE0060 // Remove unused parameter
+            bool debugOnly = false)
         {
             _ = mothraId ?? UserHelper.GetCurrentUser()?.MothraId;
             List<string> messages = new();
@@ -79,13 +91,18 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="loginId">A specific user login id to only export that user</param>
         /// <param name="roleIds">Only export users with these role ids</param>
         /// <param name="debugOnly">if true, don't send, just log</param>
-        public async Task<List<string>> ExportToVMACS(string instance, string? server = null, string? loginId = null, 
+        public async Task<List<string>> ExportToVMACS(string instance, string? server = null, string? loginId = null,
             string? roleIds = null, List<string>? messages = null, bool debugOnly = false)
         {
             messages ??= new List<string>();
             server ??= GetDefaultServer();
             string Url = GetServerUrl(instance, server);
-            if(Url.Length > 0)
+            if (_credentials.Length == 15) {
+                messages.Add("Credentials not found. Cannot connect to VMACS.");
+                return messages;
+            }
+
+            if (Url.Length > 0)
             {
                 Url += apiPermissionURL;
                 string rolePrefix = "VMACS." + instance;
@@ -96,13 +113,18 @@ namespace Viper.Areas.RAPS.Services
                     Permissions = GetPermissions(rolePrefix)
                 };
 
+                var serializeOptions = new JsonSerializerOptions
+                {
+                    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                    WriteIndented = true
+                };
                 RecordMessage(messages, "User/Roles Retrieved: " + userList.Count);
                 RecordMessage(messages, "Permissions Retrieved: " + exportData.Permissions.Count);
-                RecordMessage(messages, "VMACS Export Data: " + JsonSerializer.Serialize(exportData));
+                RecordMessage(messages, "VMACS Export Data: " + JsonSerializer.Serialize(exportData, serializeOptions));
 
                 if (!debugOnly)
                 {
-                    using StringContent exportContent = new(JsonSerializer.Serialize(exportData), Encoding.UTF8, "application/json");
+                    using StringContent exportContent = new(JsonSerializer.Serialize(exportData, serializeOptions), Encoding.ASCII, "application/json");
                     using HttpRequestMessage request = new()
                     {
                         RequestUri = new Uri(Url),
@@ -118,7 +140,7 @@ namespace Viper.Areas.RAPS.Services
                         using HttpResponseMessage response = await _f5HttpRequest.Send(request);
                         RecordMessage(messages, "Response Status: " + response.StatusCode);
                         VmacsResponse vmacsResponse = await ParseResponse(response);
-                        RecordMessage(messages, "Response: " + JsonSerializer.Serialize(vmacsResponse));
+                        RecordMessage(messages, JsonSerializer.Serialize(vmacsResponse));
                     }
                     catch (Exception ex) {
                         HttpHelper.Logger.Log(NLog.LogLevel.Warn, ex);
@@ -142,19 +164,27 @@ namespace Viper.Areas.RAPS.Services
 
         private static async Task<VmacsResponse> ParseResponse(HttpResponseMessage response)
         {
-            VmacsResponse vmacsResponse = new()
-            {
-                Success = response.IsSuccessStatusCode
-            };
+            VmacsResponse? vmacsResponse;
             string responseBody = await response.Content.ReadAsStringAsync();
             try
             {
-                JsonSerializer.Deserialize<VmacsResponse>(responseBody);
+                vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(responseBody, new JsonSerializerOptions() { PropertyNameCaseInsensitive= true });
+                if(vmacsResponse == null)
+                {
+                    throw new Exception();
+                }
+                else
+                {
+                    vmacsResponse.Success = response.IsSuccessStatusCode;
+                }
             }
             catch (Exception)
             {
-                vmacsResponse.Success = false;
-                vmacsResponse.ErrorMessage = "Invalid response from VMACS: " + responseBody;
+                vmacsResponse = new()
+                {
+                    Success = false,
+                    ErrorMessage = "Invalid response from VMACS: " + responseBody
+                };
             }
             return vmacsResponse;
         }
@@ -216,9 +246,10 @@ namespace Viper.Areas.RAPS.Services
                 {
                     accessCodes += rolePermission.Role.AccessCode;
                 }
+                
                 var accessCodeArray = accessCodes.ToArray();
                 Array.Sort(accessCodeArray);
-                accessCodes = new string(accessCodes);
+                accessCodes = new string(accessCodeArray);
                 
                 var permissionSplit = permission.Permission.Split(".");
                 vmacsExportPermissions.Add(new VMACSExportPermission()
@@ -306,18 +337,6 @@ namespace Viper.Areas.RAPS.Services
             public required string MailId { get; set;}
             public string AccessCode { get; set; } = string.Empty;
             public int RoleId { get; set; }
-        }
-
-        private class VmacsResponse
-        {
-            public bool Success { get; set; } = false;
-            public string ErrorMessage { get; set; } = string.Empty;
-            public int NumErrors { get; set; }
-            public int NumSkippedUsers { get; set; }
-            public int NumTotalUsers { get; set; }
-            public int NumUsersWithAuthChanged { get; set; }
-            public int NumUsersWithOptionChanged { get; set; }
-            public int NumUsersWithPermChanged { get; set; }
         }
     }
 }

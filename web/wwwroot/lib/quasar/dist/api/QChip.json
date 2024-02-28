@@ -24,9 +24,14 @@
       "category": "style"
     },
     "dark": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Notify the component that the background is a dark color",
-      "category": "style"
+      "category": "style",
+      "required": false
     },
     "icon": {
       "type": "String",
@@ -115,13 +120,18 @@
       "default": true
     },
     "selected": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "sync": true,
       "desc": "Model for QChip if it's selected or not",
       "examples": [
         "v-model:selected=\"myState\""
       ],
       "category": "model",
+      "required": false,
       "syncable": true
     },
     "square": {

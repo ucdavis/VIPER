@@ -5,6 +5,7 @@ namespace Viper.Classes.SQLContext;
 
 public partial class RAPSContext : DbContext
 {
+#pragma warning disable CS8618
     public RAPSContext()
     {
     }
@@ -13,6 +14,7 @@ public partial class RAPSContext : DbContext
         : base(options)
     {
     }
+#pragma warning restore CS8618
 
     public virtual DbSet<ExcelGeneratorRequest> ExcelGeneratorRequests { get; set; }
 

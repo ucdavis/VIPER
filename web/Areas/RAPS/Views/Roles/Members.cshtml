@@ -9,11 +9,12 @@
          :filter="membersTable.filter"
          :pagination="membersTable.pagination">
     <template v-slot:top-left>
-        <q-btn color="green" label="Add Member" @@click="membersTable.showForm = true" no-caps></q-btn>
+        <q-btn color="green" label="Add Member" @@click="membersTable.showForm = true" no-caps icon="add"></q-btn>
+        <q-btn color="primary" label="Push Role Membership to VMACS" @@click="pushRoleToVMACS(true)" no-caps icon="upload" class="q-ml-md" v-if="showVMACSPush"></q-btn>
         <div class="q-pa-sm q-gutter-sm">
             <q-dialog v-model="membersTable.showForm" @@hide="membersTable.clear(this)">
                 <q-card>
-                    <q-form @@submit="membersTable.submit(this)" v-bind="membersTable.object">
+                    <q-form @@submit="addUpdateMember();" v-bind="membersTable.object">
                         <q-card-section>
                             <div class="text-h6">{{membersTable.editing >= 0 ? "Edit" : "Create"}} Role Member</div>
                             <div class="bg-negative text-white q-pa-sm rounded" v-if="membersTable.errors?.message?.length > 0">{{membersTable.errors.message}}</div>
@@ -43,11 +44,14 @@
                                 <q-input outlined dense v-model="membersTable.object.comment" label="Comment"
                                          :error="membersTable.errors?.Comment?.error" :error-message="membersTable.errors?.Comment?.message"></q-input>
                             </div>
+                            <div class="row">
+                                <q-toggle v-model="updateVMACS" label="Push to VMACS" v-if="showVMACSPush"></q-toggle>
+                            </div>
                         </q-card-section>
 
                         <q-card-actions align="evenly">
                             <q-btn no-caps :label="membersTable.editing ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary"></q-btn>
-                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="membersTable.delete(this)" color="red" v-if="membersTable.editing"></q-btn>
+                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="deleteMember(this)" color="red" v-if="membersTable.editing"></q-btn>
                         </q-card-actions>
                     </q-form>
                 </q-card>
@@ -65,7 +69,10 @@
         <q-td :props="props">
             <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="policy" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
             <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
+            @if (ViewData.ContainsKey("canEditPermissions") && (bool)(ViewData["canEditPermissions"] ?? false))
+            {
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
+            }
         </q-td>
     </template>
     <template v-slot:body-cell-actions="props">
@@ -84,53 +91,58 @@
                     roleId: 0,
                     role: {},
                     memberSearchResults: [],
+                    updateVMACS: false,
+                    showVMACSPush: false,
                     membersTable: new quasarTable({
-                    keys: ["memberId"],
-                    urlBase: "Roles",
-                    columns: [
-                        { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
-                        { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
-                        { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
-                        { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
-                        { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
-                        { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true },
-                        { name: "active", label: "Active", field: "active", align: "left", sortable: true },
-                        { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
-                    ],
-                    //after loading role members, add the member name and active flag
-                    onLoad: function (data) {
-                        this.data = data.map(rm => ({
-                            ...rm,
-                            memberName: rm?.aaudUser?.displayLastName + ", " + rm?.aaudUser?.displayFirstName,
-                            active: rm?.aaudUser?.current == 1 ? "Y" : "N",
-                            lastModified: formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")"
-                        }))
-                    },
-                    //set member id and role id when creating/updating
-                    createBody: function (v, object) {
-                        return {
-                            comment: object.comment,
-                            memberId: object.member?.value,
-                            roleId: v.urlParams.get("roleId"),
-                            startDate: object?.startDate,
-                            endDate: object?.endDate
-                        }
-                    },
-                    //on selection, format dates and set up user select box
-                    selectObject: function (object) {
-                        this.object = {
-                            roleId: object.roleId,
-                            startDate: formatDateForDateInput(object.startDate),
-                            endDate: formatDateForDateInput(object.endDate),
-                            member: {
-                                label: object?.aaudUser?.displayLastName + ", " + object?.aaudUser?.displayFirstName,
-                                value: object.memberId
-                            },
-                            memberId: object.memberId
-                        }
-                    },
-                    pagination: { rowsPerPage: 0 }
-                })
+                        keys: ["memberId"],
+                        urlBase: "Roles",
+                        columns: [
+                            { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
+                            { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
+                            { name: "loginid", label: "Login ID", field: "loginId", align: "left", sortable: true },
+                            { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
+                            { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", 
+                                sortable: true, sort: (_1, _2, rowA, rowB) => new Date(rowA.modTime) - new Date(rowB.modTime) },
+                            { name: "active", label: "Active", field: "active", align: "left", sortable: true },
+                            { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+                        ],
+                        //after loading role members, add the member name and active flag
+                        onLoad: function (data) {
+                            this.data = data.map(rm => ({
+                                ...rm,
+                                memberName: rm?.aaudUser?.displayLastName + ", " + rm?.aaudUser?.displayFirstName,
+                                active: rm?.aaudUser?.current == 1 ? "Y" : "N",
+                                loginId: rm?.aaudUser?.loginId,
+                                lastModified: formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")"
+                            }))
+                        },
+                        //set member id and role id when creating/updating
+                        createBody: function (v, object) {
+                            return {
+                                comment: object.comment,
+                                memberId: object.member?.value,
+                                roleId: v.urlParams.get("roleId"),
+                                startDate: object?.startDate,
+                                endDate: object?.endDate
+                            }
+                        },
+                        //on selection, format dates and set up user select box
+                        selectObject: function (object) {
+                            this.object = {
+                                roleId: object.roleId,
+                                startDate: formatDateForDateInput(object.startDate),
+                                endDate: formatDateForDateInput(object.endDate),
+                                member: {
+                                    label: object?.aaudUser?.displayLastName + ", " + object?.aaudUser?.displayFirstName,
+                                    value: object.memberId
+                                },
+                                memberId: object.memberId
+                            }
+                        },
+                        pagination: { rowsPerPage: 0 }
+                    })
                 }
             },
             methods: {
@@ -151,13 +163,37 @@
                                     .map(m => ({ label: m.displayLastName + ", " + m.displayFirstName, value: m.memberId }))
                             )
                     })
+                },
+                pushRoleToVMACS: async function(skipToggleCheck) {
+                    if (skipToggleCheck || this.updateVMACS) {
+                        Quasar.Loading.show({ message: "Updating VMACS" })
+                        await viperFetch(this, "Roles/" + this.roleId + "/Members/VMACSExport", {method: "POST"})
+                        Quasar.Loading.hide()
+                    }
+                },
+                pushMemberToVMACS: async function () {
+                    if (this.updateVMACS) {
+                        Quasar.Loading.show({ message: "Updating VMACS" })
+                        await viperFetch(this, "Members/" + this.membersTable.object.member.value + "/Roles/VMACSExport", { method: "POST" })
+                        Quasar.Loading.hide()
+                    }
+                },
+                deleteMember: async function() {
+                    await this.membersTable.delete(this)
+                    this.pushMemberToVMACS()
+                },
+                addUpdateMember: async function() {
+                    await this.membersTable.submit(this)
+                    this.pushMemberToVMACS()
                 }
             },
             async mounted() {
                 this.roleId = this.urlParams.get("roleId")
-                this.loadRole()
                 this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
                 this.membersTable.load()
+                await this.loadRole()
+                this.showVMACSPush = this.role.instance.indexOf("VMACS") == 0
+                console.log(this.role, this.showVMACSPush)
             }
         })
     </script>

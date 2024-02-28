@@ -18,12 +18,13 @@ using System.Reflection;
 using Microsoft.AspNetCore.Http.Extensions;
 using Amazon.SimpleSystemsManagement;
 using Amazon.SimpleSystemsManagement.Model;
-using Viper.Classes.SQLContext;
-using Viper.Models.RAPS;
+using Viper.Areas.CMS.Data;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Viper.Classes.Utilities;
 
 namespace Viper.Controllers
-{    
-    public class HomeController : Controller
+{
+    public class HomeController : AreaController
     {
         private readonly Classes.SQLContext.AAUDContext _aAUDContext;
         private readonly XNamespace _ns = "http://www.yale.edu/tp/cas";
@@ -51,14 +52,29 @@ namespace Viper.Controllers
             return View();
         }
 
-        [Route("nav")]
-#pragma warning disable IDE0060 // Remove unused parameter
-        public ActionResult<IEnumerable<NavMenuItem>> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER")
-#pragma warning restore IDE0060 // Remove unused parameter
+        [Route("/[action]/")]
+        [Authorize(Policy = "2faAuthentication")]
+        [Permission(Allow = "SVMSecure")]
+        public IActionResult Policy()
+        {            
+            return View();
+        }
+
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context,
+                                         ActionExecutionDelegate next)
         {
-            //TODO Populate homepage navigation
-            var nav = new List<NavMenuItem>();
-            return nav;
+            ViewData["ViperLeftNav"] = Nav();
+            await base.OnActionExecutionAsync(context, next);
+        }
+
+        private NavMenu Nav()
+        {
+            var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
+            if(menu != null)
+            {
+                ConvertNavLinksForDevelopment(menu);
+            }
+            return menu ?? new NavMenu("", new List<NavMenuItem>());
         }
 
         /// <summary>
@@ -81,6 +97,14 @@ namespace Viper.Controllers
             var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnURL));
 
             return new RedirectResult(authorizationEndpoint);
+        }
+
+        [Route("/[action]")]
+        [SearchExclude]
+        public IActionResult RefreshSession()
+        {
+            SessionTimeoutService.UpdateSessionTimeout();
+            return Ok(SessionTimeoutService.GetSessionTimeout());
         }
 
         /// <summary>
@@ -216,6 +240,7 @@ namespace Viper.Controllers
         [SearchExclude]
         public async Task<IActionResult> Logout()
         {
+            UserHelper.ClearCachedRolesAndPermissions(UserHelper.GetCurrentUser());
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return new RedirectResult(_settings.CasBaseUrl + "logout");
         }

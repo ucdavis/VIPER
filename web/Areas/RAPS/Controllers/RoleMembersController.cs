@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Polly;
+using System.Text.Json;
 using System.Data;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
@@ -41,16 +42,11 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return errorResult;
             }
-            if(!_securityService.IsAllowedTo("ViewAllRoles", instance))
-            {
-                application = 0;
-            }
 
             var roleMembers = _context.TblRoleMembers
                     .Include(rm => rm.Role)
                     .Include(rm => rm.AaudUser)
-                    .Where(rm => rm.ViewName == null)
-                    .Where(rm => application == (int)rm.Role.Application);
+                    .Where(rm => rm.ViewName == null);
             if (roleId != null)
             {
                 roleMembers = roleMembers
@@ -59,8 +55,13 @@ namespace Viper.Areas.RAPS.Controllers
             }
             else
             {
+                if (!_securityService.IsAllowedTo("ViewAllRoles", instance))
+                {
+                    application = 0;
+                }
                 roleMembers = roleMembers
                     .Where(rm => rm.MemberId == memberId)
+                    .Where(rm => application == (int)rm.Role.Application)
                     .OrderBy(rm => rm.Role.DisplayName ?? rm.Role.Role);
             }
             
@@ -164,6 +165,70 @@ namespace Viper.Areas.RAPS.Controllers
             return NoContent();
         }
 
+        //POST: Roles/5/Members/VMACSExport
+        [HttpPost("Roles/{roleId}/Members/VMACSExport")]
+        public async Task<ActionResult<VmacsResponse?>> PushRoleToVMACS(string instance, int roleId)
+        {
+            if(!RAPSSecurityService.IsVMACSInstance(instance))
+            {
+                return BadRequest();
+            }
+            var result = CheckAccess(instance, roleId, null);
+            if(result != null)
+            {
+                return result;
+            }
+            var messages = await new VMACSExport(_context)
+                .ExportToVMACS(instance: instance.Split(".")[1].ToLower(), debugOnly: false, roleIds: roleId.ToString());
+            return Ok(GetVMACSExportStatus(messages));
+        }
+
+        //POST: Roles/Members/VMACSExport
+        [HttpPost("Roles/Members/VMACSExport")]
+        public async Task<ActionResult<VmacsResponse?>> PushRolesToVMACS(string instance, List<int> roleIds)
+        {
+            if (!RAPSSecurityService.IsVMACSInstance(instance))
+            {
+                return BadRequest();
+            }
+            foreach(int roleId in roleIds)
+            {
+                var result = CheckAccess(instance, roleId, null);
+                if (result != null)
+                {
+                    return result;
+                }
+            }
+
+            var messages = await new VMACSExport(_context)
+                .ExportToVMACS(instance: instance.Split(".")[1].ToLower(), debugOnly: false, roleIds: string.Join(",", roleIds));
+            return Ok(GetVMACSExportStatus(messages));
+        }
+
+        //POST: Members/12345678/Roles/VMACSExport
+        [HttpPost("Members/{memberId}/Roles/VMACSExport")]
+        public async Task<ActionResult<VmacsResponse?>> PushMemberRolesToVMACS(string instance, string memberId)
+        {
+            if (!RAPSSecurityService.IsVMACSInstance(instance))
+            {
+                return BadRequest();
+            }
+            var result = CheckAccess(instance, null, memberId);
+            if (result != null)
+            {
+                return result;
+            }
+            var user = _context.VwAaudUser
+                    .FirstOrDefault(u => u.MothraId == memberId);
+            if(user == null || string.IsNullOrEmpty(user.LoginId))
+            {
+                return NotFound();
+            }
+            var messages = await new VMACSExport(_context)
+                .ExportToVMACS(instance: instance.Split(".")[1].ToLower(), debugOnly: false, loginId: user.LoginId);
+            return Ok(GetVMACSExportStatus(messages));
+        }
+
         private static void UpdateTblRoleMemberWithDto(TblRoleMember tblRoleMember, RoleMemberCreateUpdate roleMemberCreateUpdate) 
         {
             tblRoleMember.StartDate = roleMemberCreateUpdate.StartDate?.ToDateTime(new TimeOnly(0, 0, 0));
@@ -171,6 +236,28 @@ namespace Viper.Areas.RAPS.Controllers
             tblRoleMember.ModTime = DateTime.Now;
             IUserHelper UserHelper = new UserHelper();
             tblRoleMember.ModBy = UserHelper.GetCurrentUser()?.LoginId;
+        }
+
+        /// <summary>
+        /// Return the VMACS response from the list of messages after a successful VMACS Export
+        /// For non-admins, or if the last message is not a valid response, return null
+        /// </summary>
+        /// <param name="messages"></param>
+        /// <returns>VMACS Response or null</returns>
+        private VmacsResponse? GetVMACSExportStatus(List<string> messages)
+        {
+            //only return vmacs response for admins
+            if (_securityService.IsAllowedTo("RAPS.Admin") && messages.Count > 1)
+            {
+                var finalMessage = messages.Last();
+                var vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(finalMessage);
+                if (vmacsResponse != null)
+                {
+                    return vmacsResponse;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -194,13 +281,13 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     return NotFound();
                 }
-                if (!_securityService.IsAllowedTo("EditRoleMembers", instance, tblRole))
+                if (!_securityService.IsAllowedTo("EditRoleMembership", instance, tblRole))
                 {
                     return Forbid();
                 }
             }
             //for a member, check that the user can edit role membership in this instance
-            else if (!_securityService.IsAllowedTo("EditRoleMembers", instance))
+            else if (!_securityService.IsAllowedTo("EditRoleMembership", instance))
             {
                 return Forbid();
             }

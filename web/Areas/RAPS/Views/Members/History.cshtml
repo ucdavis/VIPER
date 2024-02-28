@@ -2,8 +2,10 @@
     History for {{member.displayFirstName}} {{member.displayLastName}}
 </h2>
 <q-form>
-    <q-select dense options-dense clearable class="col col-md-4 col-lg-3"
-            :options="historyDates" v-model="startDate" label="Select to view changes since this date"></q-select>
+    <div class="row">
+        <q-select dense options-dense outlined clearable class="col col-md-4 col-lg-3 q-mb-sm"
+                :options="historyDates" v-model="startDate" label="Select to view changes since this date"></q-select>
+    </div>
 </q-form>
 
 <q-table dense
@@ -12,7 +14,7 @@
         :pagination="{rowsPerPage:0}">
     <template v-slot:body-cell-area="props">
         <q-td :props="props">
-            {{props.row?.role != null ? 'Role' : 'Permission'}}
+            {{props.row?.role != null ? 'Role' : (props.row?.permission != null ? 'Permission' : '')}}
         </q-td>
     </template>
     <template v-slot:body-cell-object="props">

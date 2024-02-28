@@ -27,7 +27,9 @@ quasarTableDefaultConfig = {
     serverSidePagination: false,
     //columns definition, required if exporting is enabled
     columns: [],
-    excludeFromExport: []
+    excludeFromExport: [],
+    //key to use for session storage, e.g. to persist pagination and table sorting
+    sessionKey: null
 }
 class quasarTable {
     constructor(config) {
@@ -55,6 +57,13 @@ class quasarTable {
     load(vueApp) {
         if (vueApp != null && this.vueApp == null) {
             this.vueApp = vueApp
+        }
+
+        if (this.sessionKey != null && this.sessionKey.length) {
+            var pag = getItemFromStorage(this.sessionKey + "_pagination")
+            if (pag) {
+                this.pagination = pag
+            }
         }
         
         var queryParams = "";
@@ -93,6 +102,13 @@ class quasarTable {
             })
     }
 
+    savePagination(v) {
+        this.pagination = v
+        if (this.sessionKey != null && this.sessionKey.length) {
+            putItemInStorage(this.sessionKey + "_pagination", this.pagination)
+        }        
+    }
+
     //Select an item for editing
     selectRow(item) {
         this.editing = true
@@ -112,7 +128,7 @@ class quasarTable {
     }
 
     //Submit (create or update) the selected item
-    submit(vueApp) {
+    async submit(vueApp) {
         var bodyObject = this.createBody
             ? this.createBody(vueApp, this.object)
             : this.object
@@ -122,8 +138,8 @@ class quasarTable {
             this.update(vueApp, bodyObject)
     }
 
-    create(vueApp, bodyObject) {
-        viperFetch(vueApp,
+    async create(vueApp, bodyObject) {
+        await viperFetch(vueApp,
             this.urlBase,
             {
                 method: "POST",
@@ -137,8 +153,8 @@ class quasarTable {
         )
     }
 
-    update(vueApp, bodyObject) {
-        viperFetch(vueApp,
+    async update(vueApp, bodyObject) {
+        await viperFetch(vueApp,
             this.getUpdateURL(),
             {
                 method: "PUT",
@@ -153,8 +169,8 @@ class quasarTable {
     }
 
     //Delete the selected item
-    delete(vueApp) {
-        viperFetch(vueApp,
+    async delete(vueApp) {
+        await viperFetch(vueApp,
             this.getUpdateURL(),
             { method: "DELETE" },
             [

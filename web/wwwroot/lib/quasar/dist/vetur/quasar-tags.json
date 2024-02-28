@@ -646,7 +646,8 @@
       "autofocus",
       "for",
       "name",
-      "maxlength"
+      "maxlength",
+      "tag"
     ],
     "description": ""
   },

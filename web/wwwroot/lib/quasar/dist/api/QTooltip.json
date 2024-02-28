@@ -42,22 +42,32 @@
       "category": "model"
     },
     "max-height": {
-      "type": "String",
+      "type": [
+        "String",
+        "null"
+      ],
       "desc": "The maximum height of the Tooltip; Size in CSS units, including unit name",
       "examples": [
         "16px",
         "2rem"
       ],
-      "category": "content"
+      "category": "content",
+      "default": null,
+      "required": false
     },
     "max-width": {
-      "type": "String",
+      "type": [
+        "String",
+        "null"
+      ],
       "desc": "The maximum width of the Tooltip; Size in CSS units, including unit name",
       "examples": [
         "16px",
         "2rem"
       ],
-      "category": "content"
+      "category": "content",
+      "default": null,
+      "required": false
     },
     "anchor": {
       "type": "String",

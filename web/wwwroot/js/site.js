@@ -37,7 +37,6 @@ function formatDateTime(d, options) {
     return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf())) ? dt.toLocaleString("en-US", options) : ""
 }
 
-
 /*
  * Validation error to include the errors object for .NET 400
  */
@@ -109,17 +108,19 @@ function showViperFetchError(VueApp, error, errorTarget) {
     try {
         if (errorTarget) {
             errorTarget.message = error.message
-            if (typeof error.errors == "object") {
-                for (key in error.errors) {
-                    errorTarget[key] = {
-                        error: true,
-                        message: error.errors[key].join("")
+            if (error?.errors != null) {
+                if (typeof error.errors == "object") {
+                    for (key in error.errors) {
+                        errorTarget[key] = {
+                            error: true,
+                            message: error.errors[key].join("")
+                        }
                     }
                 }
-            }
-            else {
-                for (var i = 0; i < 5 && i < error.errors.length; i++) {
-                    errorTarget.message += " " + error.errors[i];
+                else {
+                    for (var i = 0; i < 5 && i < error.errors.length; i++) {
+                        errorTarget.message += " " + error.errors[i];
+                    }
                 }
             }
             shownError = true
@@ -144,12 +145,20 @@ async function loadViperLeftNav() {
     var qs = [];
     this.urlParams.forEach((val, paramName) => qs.push(paramName + "=" + val))
     qs = qs.length ? ("?" + qs.join("&")) : ""
-    this.viperNavMenu = await viperFetch(this, "nav" + qs)
+    //fix nav not loading when the url is host/2 instead of host/2/
+    navLocation = window.location.href.substring(window.location.href.length - 2, window.location.href.length) == "/2"
+        ? "/2/nav"
+        : "nav"
+    this.viperNavMenu = await viperFetch(this, navLocation + qs)
 }
 
 function getItemFromStorage(key) {
     var val = window.sessionStorage.getItem(key)
-    return val != null ? JSON.parse(val) : null
+    try {
+        return val != null ? JSON.parse(val) : null
+    }
+    catch { }
+    return null
 }
 
 function putItemInStorage(key, val) {

@@ -16,7 +16,8 @@
         </template>
         <template v-slot:body-cell-roleid="props">
             <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" title="Show members of this role" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
+                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" title="Show permission granted by this role" @@click="togglePermissions(props.row.roleId)"></q-btn>
             </q-td>
         </template>
         <template v-slot:body-cell-role="props">
@@ -24,6 +25,18 @@
                 {{props.row.friendlyName}}
                 <br />
                 <span style="font-size:.9em">{{props.row.description}}</span>
+                <br />
+                <div class="q-pl-md" style="font-size:.9em" v-if="permissionRoleId == props.row.roleId">
+                    <div v-for="permission in permissions" class="row">
+                        <div class="col">
+                            <q-icon name="lock"></q-icon>
+                            {{permission.permission}}
+                         </div>
+                         <div class="col">
+                             {{permission.description}}
+                        </div>
+                    </div>
+                </div>
             </q-td>
         </template>
     </q-table>
@@ -50,7 +63,17 @@
                                 viewName: r.viewName
                             }))
                         }
-                    })
+                    }),
+                    permissionRoleId: 0,
+                    permissions: []
+                }
+            },
+            methods: {
+                togglePermissions: async function(id) {
+                    var perms = (await viperFetch(this, "Roles/" + id + "/Permissions"))
+                        .map(rolePermissions => rolePermissions.permission)
+                    this.permissions = perms
+                    this.permissionRoleId = id
                 }
             },
             async mounted () {

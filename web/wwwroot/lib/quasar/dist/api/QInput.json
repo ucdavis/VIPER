@@ -66,9 +66,14 @@
       ]
     },
     "error": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Does field have validation errors?",
-      "category": "behavior"
+      "category": "behavior",
+      "required": false
     },
     "error-message": {
       "type": "String",
@@ -188,9 +193,14 @@
       "category": "style"
     },
     "dark": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Notify the component that the background is a dark color",
-      "category": "style"
+      "category": "style",
+      "required": false
     },
     "loading": {
       "type": "Boolean",
@@ -323,7 +333,8 @@
         "number",
         "url",
         "time",
-        "date"
+        "date",
+        "datetime-local"
       ],
       "category": "general",
       "required": false

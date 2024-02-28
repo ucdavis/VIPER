@@ -1,29 +1,145 @@
 html {
     font-size: 14px;
+    position: relative;
+    min-height: 100%;
 }
 
 @media (min-width: 768px) {
     html {
         font-size: 16px;
     }
-}
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
+    #mainLayoutHeader {
+        min-height: 90px;
+    }
 
-html {
-    position: relative;
-    min-height: 100%;
+    #mainLeftDrawer {
+        min-width: 300px;
+    }
 }
 
 body {
     margin-bottom: 60px;
 }
 
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+/*Placeholders used when loading*/
+#headerPlaceholder {
+    height: 50px;
+    background-color: #022851;
+}
+#topPlaceholder {
+    height: 50px;
+}
+#mainNavPlaceholder {
+    height: 50px;
+    background-color: #1D4776;
+}
+
+/*Top nav/header styles*/
+#mainLayoutHeader {
+    background-color: #022851;
+    /*background-color: white;*/
+}
+
+.mainLayoutViper {
+    font-family: Proxima Nova;
+    font-size: 1.6em !important;
+    font-weight: normal;
+    vertical-align: bottom;
+    margin-left: .6em;
+}
+
+.mainLayoutViperPlaceholder {
+    margin-left: 10px;
+    height: 24px;
+}
+
+.mainLayoutViperMode {
+    margin-left: .6em;
+    margin-top: .2em;
+    vertical-align: bottom;
+    color: red;
+}
+
+#topPlaceholder {
+    padding: 0 12px;
+}
+/*
+#topPlaceholder a {
+    margin-top: 4px;
+}
+
+#topPlaceholder .mainLayoutViperMode {
+    margin-top: 10px;
+    margin-left: 2px;
+    height: 24px;
+}
+*/
+
+#mainLayoutHeaderSections {
+    background-color: #1D4776;
+    min-height: 50px;
+    padding: 0 12px;
+}
+
+#mainLayoutHeaderSections .selectedTopNav {
+    background-color: #4F7094;
+}
+
+#mainLayoutHeaderSections a.q-btn.navLink {
+    padding-top: 12px;
+}
+
+/*Left Nav styles*/
+#leftNavMenu {
+    /*background-color: #E5E5E5;*/
+}
+
+#leftNavMenu h2 {
+    font-size: 1.4rem;
+    margin: 0;
+    line-height: 1.5rem;
+    padding: .2rem .5rem .1rem .5rem;
+    font-weight: bold;
+}
+
+#leftNavMenu .leftNavHeader {
+    font-weight: bold;
+    font-size: 1rem;
+    padding: 1.5rem .5rem .1rem .5rem;
+    /*background-color: #FFD24C;*/
+    /*color: white;*/
+}
+
+#leftNavMenu .leftNavSpacer {
+    border: 0;
+}
+
+#leftNavMenu .leftNavLink {
+    padding-left: .5rem;
+    /*background-color: #CDD6E0;*/
+}
+
+/*Footer styles*/
+#footerNavLinks a {
+    text-decoration: none;
+}
+
+#footerNavLinks a:hover {
+    text-decoration: underline;
+}
+
 .sticky-header-table {
     /* height or max-height is important */
     height: 600px;
+}
+
+[v-cloak] {
+    display: none;
 }
 
 .q-table__top,
@@ -48,7 +164,7 @@ body {
 }
     
 /* this is when the loading indicator appears */
-&.q-table--loading thead tr:last-child th {
+.q-table--loading thead tr:last-child th {
     /* height of all previous header rows */
     top: 48px;
 }
@@ -83,12 +199,38 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+/* Heading Styles */
 .q-page-container h2 {
-    font-size: 2rem;
-    line-height: 2rem;
-    margin: 1rem 0rem;
+    font-size: 1.4rem;
+    line-height: 1.4rem;
+    margin: 0rem 0rem 1rem 0rem;
+    font-weight: bold;
 }
 
-.leftNavHeader {
+.q-page-container h3 {
+    font-size: 1.2rem;
+    line-height: 1.2rem;
+    margin: .0rem 0rem .5rem 0rem;
     font-weight: bold;
+}
+
+
+.q-page-container h4 {
+    font-size: 1.1rem;
+    line-height: 1.1rem;
+    margin: .0rem 0rem .5rem 0rem;
+    font-weight: bold;
+}
+
+.q-page-container h5 {
+    font-size: 1rem;
+    line-height: 1rem;
+    margin: .0rem 0rem .5rem 0rem;
+    font-weight: bold;
+}
+
+.q-page-container h6 {
+    font-size: 1rem;
+    line-height: 1rem;
+    margin: .0rem 0rem .5rem 0rem;
 }

@@ -20,7 +20,7 @@ namespace Viper.Areas.RAPS.Controllers
 {
     [Route("raps/{instance}/[controller]")]
     [Authorize(Roles = "VMDO SVM-IT", Policy = "2faAuthentication")]
-    [Permission(Allow = "RAPS.Admin")]
+    [Permission(Allow = "RAPS.Admin,RAPS.ViewRoles")]
     public class RoleTemplatesController : ApiController
     {
         private readonly RAPSContext _context;
@@ -36,16 +36,25 @@ namespace Viper.Areas.RAPS.Controllers
 
         // GET: RoleTemplates
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<RoleTemplate>>> GetRoleTemplates(string instance)
+        public async Task<ActionResult<IEnumerable<RoleTemplateSimplified>>> GetRoleTemplates(string instance)
         {
-          if (_context.RoleTemplates == null)
-          {
-              return NotFound();
-          }
-            return await _context.RoleTemplates
+            if (_context.RoleTemplates == null)
+            {
+                return NotFound();
+            }
+            List<RoleTemplate> dbRoleTemplates = await _context.RoleTemplates
+                .Include(rt => rt.RoleTemplateRoles)
+                .ThenInclude(rtr => rtr.Role)
                 .Where(RAPSSecurityService.FilterRoleTemplatesToInstance(instance))
                 .OrderBy(rt => rt.TemplateName)
                 .ToListAsync();
+
+            List<RoleTemplateSimplified> roleTemplates = new();
+            foreach(var rt in dbRoleTemplates)
+            {
+                roleTemplates.Add(new RoleTemplateSimplified(rt));
+            }
+            return roleTemplates;
         }
 
         // GET: RoleTemplates/5
@@ -68,6 +77,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         // GET: RoleTemplates/5
         [HttpGet("{roleTemplateId}/Apply/{memberId}")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
         public async Task<ActionResult<RoleTemplateApplyPreview>> PreviewRoleTemplateApply(string instance, int roleTemplateId, string memberId)
         {
             if (_context.RoleTemplates == null)
@@ -80,7 +90,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
 
-            var preview = await GetRoleTemplateApplyPreview(instance, roleTemplate, memberId);
+            var preview = await GetRoleTemplateApplyPreview(roleTemplate, memberId);
             if(preview == null)
             {
                 return NotFound();
@@ -90,6 +100,7 @@ namespace Viper.Areas.RAPS.Controllers
         
         // Post: RoleTemplates/5/Apply/12345678
         [HttpPost("{roleTemplateId}/Apply/{memberId}")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
         public async Task<ActionResult<RoleTemplateApplyPreview>> RoleTemplateApply(string instance, int roleTemplateId, string memberId)
         {
             if (_context.RoleTemplates == null)
@@ -103,7 +114,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
 
-            var preview = await GetRoleTemplateApplyPreview(instance, roleTemplate, memberId);
+            var preview = await GetRoleTemplateApplyPreview(roleTemplate, memberId);
             if(preview == null)
             {
                 return NotFound();
@@ -146,9 +157,7 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         // Get a list of roles in the template and whether or not the given user already has them
-#pragma warning disable IDE0060 // Remove unused parameter
-        private async Task<RoleTemplateApplyPreview?> GetRoleTemplateApplyPreview(string instance, RoleTemplate roleTemplate, string memberId)
-#pragma warning restore IDE0060 // Remove unused parameter
+        private async Task<RoleTemplateApplyPreview?> GetRoleTemplateApplyPreview(RoleTemplate roleTemplate, string memberId)
         {
             VwAaudUser? user = await _context.VwAaudUser
                 .Where(u => memberId.StartsWith("loginid:")
@@ -216,6 +225,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         // PUT: RoleTemplates/5
         [HttpPut("{roleTemplateId}")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleTemplate")]
         public async Task<IActionResult> PutRoleTemplate(string instance, int roleTemplateId, RoleTemplateCreateUpdate roleTemplate)
         {
             RoleTemplate? rt = await _context.RoleTemplates.FindAsync(roleTemplateId);
@@ -253,6 +263,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         // PUT: RoleTemplates/5/Roles
         [HttpPut("{roleTemplateId}/Roles")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleTemplate")]
 #pragma warning disable IDE0060 // Remove unused parameter
         public async Task<IActionResult> PutRoleTemplateRoles(string instance, int roleTemplateId, List<int> roleIds)
 #pragma warning restore IDE0060 // Remove unused parameter
@@ -291,6 +302,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         // POST: RoleTemplates
         [HttpPost]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleTemplate")]
         public async Task<ActionResult<RoleTemplate>> PostRoleTemplate(string instance, RoleTemplateCreateUpdate roleTemplate)
         {
             if (_context.RoleTemplates == null)
@@ -316,6 +328,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         // DELETE: RoleTemplates/5
         [HttpDelete("{roleTemplateId}")]
+        [Permission(Allow = "RAPS.Admin,RAPS.EditRoleTemplate")]
         public async Task<IActionResult> DeleteRoleTemplate(int roleTemplateId)
         {
             if (_context.RoleTemplates == null)

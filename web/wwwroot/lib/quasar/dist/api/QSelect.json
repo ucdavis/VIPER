@@ -21,7 +21,8 @@
     "virtual-scroll-slice-size": {
       "type": [
         "Number",
-        "String"
+        "String",
+        "null"
       ],
       "desc": "Minimum number of items to render in the virtual list",
       "default": "30",
@@ -100,9 +101,14 @@
       ]
     },
     "error": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Does field have validation errors?",
-      "category": "behavior"
+      "category": "behavior",
+      "required": false
     },
     "error-message": {
       "type": "String",
@@ -222,9 +228,14 @@
       "category": "style"
     },
     "dark": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Notify the component that the background is a dark color",
-      "category": "style"
+      "category": "style",
+      "required": false
     },
     "loading": {
       "type": "Boolean",
@@ -505,9 +516,14 @@
       "category": "options"
     },
     "options-dark": {
-      "type": "Boolean",
+      "type": [
+        "Boolean",
+        "null"
+      ],
+      "default": null,
       "desc": "Options menu will be colored with a dark color",
-      "category": "options"
+      "category": "options",
+      "required": false
     },
     "options-selected-class": {
       "type": "String",
@@ -647,7 +663,7 @@
         "Number",
         "String"
       ],
-      "desc": "Debounce the input model update with an amount of milliseconds",
+      "desc": "Debounce the input model update with an amount of milliseconds (also affects the 'filter' event, if used)",
       "default": 500,
       "category": "content",
       "required": false
