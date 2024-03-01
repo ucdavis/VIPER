@@ -30,6 +30,7 @@ namespace Viper.Areas.RAPS.Services
             {
                 RoleId = roleId,
                 MemberId = memberId,
+                AddDate = DateTime.Now,
                 StartDate = startDate?.ToDateTime(new TimeOnly(0, 0, 0)),
                 EndDate = endDate?.ToDateTime(new TimeOnly(0, 0, 0)),
                 ModTime = DateTime.Now,
