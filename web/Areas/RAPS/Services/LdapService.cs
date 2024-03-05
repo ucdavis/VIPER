@@ -76,7 +76,7 @@ namespace Viper.Areas.RAPS.Services
     };
         private readonly string[] CFParams =
         {
-            "givenName","sn","middlename","ou","mail","telephoneNumber","mobile","postalAddress","ucdStudentLevel","labeledUri","title","uid","ucdPersonPIDM","ucdPersonIAMID","employeeNumber","ucdStudentSID","ucdPersonUUID","eduPersonNickname","ucdPersonAffiliation","displayname"
+            "accountexpires","adspath","badpasswordtime","badpwdcount","cn","codepage","company","countrycode","deliverandredirect","department","deptname","departmentnumber","Description","displayname","distinguishedname","dscorepropagationdata","edupersonaffiliation","edupersonprincipalname","employeenumber","extensionattribute10","extensionattribute11","extensionattribute12","extensionattribute13","extensionattribute14","extensionattribute15","extensionattribute5","extensionattribute6","extensionattribute7","extensionattribute8","extensionattribute9","gidnumber","givenname","instancetype","internetencoding","l","lastlogoff","lastlogon","lastlogontimestamp","legacyexchangedn","lockouttime","logoncount","mail","mailnickname","mapirecipient","memberof","mobile","msexcharchiveguid","msexcharchivename","msexcharchivestatus","msexchblockedsendershash","msexchcomanagedobjectsbl","msexchextensionattribute16","msexchextensionattribute17","msexchmailboxguid","msexchpoliciesexcluded","msexchrecipientdisplaytype","msexchrecipienttypedetails","msexchremoterecipienttype","msexchsafesendershash","msexchtextmessagingstate","msexchumdtmfmap","msexchuseraccountcontrol","msexchversion","msexchwhenmailboxcreated","name","objectcategory","objectclass","objectguid","objectsid","ou","pager","phone","physicaldeliveryofficename","postaladdress","postalcode","primarygroupid","proxyaddresses","pwdlastset","SamAccountName","samaccounttype","showinaddressbook","sn","st","street","streetaddress","targetaddress","telephonenumber","textencodedoraddress","title","ucdappointmentdepartmentcode","ucdappointmenttitlecode","ucdpersonaffiliation","ucdpersoniamid","ucdpersonnetid","ucdpersonpidm","ucdpersonppsid","ucdpersonuuid","ucdpublishitemflag","ucdstudentsid","uid","uidnumber","useraccountcontrol","username","userprincipalname","usnchanged","usncreated","whenchanged","whencreated"
         };
 
         public LdapService() { }
@@ -166,7 +166,7 @@ namespace Viper.Areas.RAPS.Services
         {
             string filter = string.Format("(|(telephoneNumber=*{0})(sn={0}*)(givenName={0}*)(uid={0}*)(cn={0})(mail={0}*))", search);
             DirectoryEntry de = GetRootContact();
-            SearchResultCollection results = new DirectorySearcher(de, filter, CFParams, SearchScope.Subtree)
+            SearchResultCollection results = new DirectorySearcher(de, filter)
             { SizeLimit = 1000 }
                 .FindAll();
             List<LdapUserContact> users = new();
@@ -198,13 +198,34 @@ namespace Viper.Areas.RAPS.Services
         }
 
         /// <summary>
-        /// Look up User by its MothraID
+        /// Look up User by search string
         /// </summary>
-        /// <param name="id">MothraIDs for looking up user</param>
+        /// <param name="search">Search string for looking up user</param>
         /// <returns>LdapUserContact</returns>
-        public LdapUserContact? GetUsersByID(string id)
+        public LdapUserContact? GetUserContact(string search)
         {
-            string filter = string.Format("(|(ucdpersonuuid = {0}))", id);
+            string filter = string.Format("(|(telephoneNumber=*{0})(sn={0}*)(givenName={0}*)(uid={0}*)(cn={0})(mail={0}*))", search);
+            DirectoryEntry de = GetRootContact();
+            SearchResultCollection results = new DirectorySearcher(de, filter, CFParams, SearchScope.Subtree)
+            { SizeLimit = 1 }
+                .FindAll();
+            foreach (SearchResult result in results)
+            {
+                return new LdapUserContact(result);
+            }
+            return null;
+        }
+
+
+        /// <summary>
+        /// Look up User by its iamID
+        /// </summary>
+        /// <param name="id">iamID for looking up user</param>
+        /// <returns>LdapUserContact</returns>
+        public LdapUserContact? GetUserByID(string? id)
+        {
+            if (id == null) return null;
+            string filter = string.Format("(|(ucdpersoniamid = {0}))", id);
             DirectoryEntry de = GetRootContact();
             SearchResultCollection results = new DirectorySearcher(de, filter, CFParams, SearchScope.Subtree)
             { SizeLimit = 1 }

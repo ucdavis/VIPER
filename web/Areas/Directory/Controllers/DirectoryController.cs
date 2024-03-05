@@ -47,9 +47,8 @@ namespace Viper.Areas.Directory.Controllers
         {
             var nav = new List<NavMenuItem>
             {
-                new NavMenuItem() { MenuItemText = "Instances", IsHeader = true }
             };
-            return nav;
+            return await Task.Run(() => nav);
         }
 
 
@@ -81,7 +80,7 @@ namespace Viper.Areas.Directory.Controllers
             bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
             individuals.ForEach(m =>
             {
-                LdapUserContact? l = new LdapService().GetUserContact(m.LoginId);
+                LdapUserContact? l = new LdapService().GetUserByID(m.IamId);
 
                 if(false)
                 {
@@ -126,7 +125,7 @@ namespace Viper.Areas.Directory.Controllers
             bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
             foreach (var l in ldap)
             {
-                AaudUser? userInfo = individuals.Find(m => m.MothraId == l.ucdpersonuuid);
+                AaudUser? userInfo = individuals.Find(m => m.IamId == l.ucdpersoniamid);
                 if (false)
                 {
                     results.Add(IndividualSearchResultCreator.CreateIndividualSearchResult(userInfo, l, hasDetailPermission));

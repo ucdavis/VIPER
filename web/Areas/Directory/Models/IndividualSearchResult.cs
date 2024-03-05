@@ -60,7 +60,10 @@ namespace Viper.Areas.Directory.Models
 
         public string? Phone { get; set; } = null!;
         public string? Mobile { get; set; } = null!;
+        public string? PostalAddress { get; set; } = null!;
+        public string? UCDAffiliation { get; set; } = null!;
         public string? UserName { get; set; } = null!;
+        public bool? SVM { get; set; } = null!;
         public string? originalObject { get; set; } = null!;
 
         public IndividualSearchResult()
@@ -71,6 +74,7 @@ namespace Viper.Areas.Directory.Models
         [SupportedOSPlatform("windows")]
         public IndividualSearchResult(AaudUser? aaudUser, LdapUserContact? ldapUserContact)
         {
+            SVM = false;
             if (aaudUser != null) { 
                 MothraId = aaudUser.MothraId;
                 LoginId = aaudUser.LoginId;
@@ -96,16 +100,20 @@ namespace Viper.Areas.Directory.Models
                 Future = aaudUser.Future;
                 IamId = aaudUser.IamId;
                 Ross = aaudUser.Ross;
+                SVM = true;
                 Added = aaudUser.Added;
             }
 
             if (ldapUserContact != null)
             {
+                originalObject = ldapUserContact.originalObject;
                 Title = ldapUserContact.title;
                 Department = ldapUserContact.department;
-                Phone = ldapUserContact.phone;
+                Phone = ldapUserContact.telephonenumber;
                 Mobile = ldapUserContact.mobile;
-                UserName = ldapUserContact.username;
+                UserName = ldapUserContact.uid;
+                PostalAddress = (ldapUserContact.postaladdress ?? "").Replace("$", '\n'.ToString());
+                UCDAffiliation = ldapUserContact.ucdpersonaffiliation;
                 if (string.IsNullOrEmpty(DisplayFullName)) 
                 {
                     DisplayFullName = ldapUserContact.displayname;
