@@ -1,5 +1,7 @@
 ﻿<h2>Members of {{role.friendlyName}}</h2>
 
+<q-toggle v-model="showViewMembers" label="Show members assigned via view"></q-toggle>
+
 <q-table title="Members"
          dense
          row-key="memberId"
@@ -77,7 +79,9 @@
     </template>
     <template v-slot:body-cell-actions="props">
         <q-td :props="props">
-            <q-btn size="sm" outline icon="edit" :props="props" padding="xs md" color="primary" @@click="membersTable.selectRow(props.row)"></q-btn>
+            <q-btn size="sm" outline icon="edit" :props="props" padding="xs md" color="primary" 
+                v-if="props.row.viewName == null" @@click="membersTable.selectRow(props.row)"></q-btn>
+            <span v-if="props.row.viewName != null">{{props.row.viewName}}</span>
         </q-td>
     </template>
 </q-table>
@@ -90,6 +94,7 @@
                 return {
                     roleId: 0,
                     role: {},
+                    showViewMembers: false,
                     memberSearchResults: [],
                     updateVMACS: false,
                     showVMACSPush: false,
@@ -100,9 +105,9 @@
                             { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
                             { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
                             { name: "loginid", label: "Login ID", field: "loginId", align: "left", sortable: true },
+                            { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
-                            { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", 
                                 sortable: true, sort: (_1, _2, rowA, rowB) => new Date(rowA.modTime) - new Date(rowB.modTime) },
                             { name: "active", label: "Active", field: "active", align: "left", sortable: true },
@@ -115,7 +120,7 @@
                                 memberName: rm?.aaudUser?.displayLastName + ", " + rm?.aaudUser?.displayFirstName,
                                 active: rm?.aaudUser?.current == 1 ? "Y" : "N",
                                 loginId: rm?.aaudUser?.loginId,
-                                lastModified: formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")"
+                                lastModified: rm.modBy == null ? "" : (formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")")
                             }))
                         },
                         //set member id and role id when creating/updating
@@ -193,7 +198,15 @@
                 this.membersTable.load()
                 await this.loadRole()
                 this.showVMACSPush = this.role.instance.indexOf("VMACS") == 0
-                console.log(this.role, this.showVMACSPush)
+            },
+            watch: {
+                showViewMembers: {
+                    handler(v) {
+                        this.membersTable.urlBase = ("Roles/" + this.roleId + "/Members") +
+                            (v ? "?includeViewMembers=true" : "")
+                        this.membersTable.load()
+                    }
+                }
             }
         })
     </script>
