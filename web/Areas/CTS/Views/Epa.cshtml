@@ -1,0 +1,114 @@
+﻿@{
+	IUserHelper UserHelper = new UserHelper();
+}
+<div class="column epa">
+	<div style="max-width: 1200px" class="col self-center">
+		<div class="row justify-between items-start q-mb-lg">
+			<div class="col">
+				<h2 class="epa text-weight-regular">EPA {{epa.num}}: {{epa.name}}</h2>
+			</div>
+			<div class="col text-right">
+				Assessing student {{student.name}}
+				<q-avatar size="40px" v-if="student.mailid != ''">
+					<img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid='+ student.mailid +'&altphoto=1'" height="40" />
+					<q-tooltip :target="siteProfileAvatar">
+						{{student.name}}
+					</q-tooltip>
+				</q-avatar>
+			</div>
+		</div>
+		<q-form @@submit="submitEpa" v-bind="assessment">
+			<div class="row q-mb-sm text-center gt-sm">
+				<div class="col" v-for="level in levelOptions">
+					{{level.text}}
+				</div>
+			</div>
+			<div class="row q-mb-md gt-sm">
+				<div class="col q-mx-sm levelSelection" v-for="level in levelOptions">
+					<q-btn :label="level.label"
+						   push
+						   unelevated
+						   flat
+						   size="lg"
+						   dense
+						   :class="assessment.level == level.value ? 'selectedLevel' : ''"
+						   @@click="assessment.level = level.value">
+					</q-btn>
+				</div>
+			</div>
+			<div class="q-mb-sm text-center lt-md">
+				<div class="q-mx-sm levelSelection" v-for="level in levelOptions">
+					<q-btn push
+						   unelevated
+						   flat
+						   no-caps
+						   size="md"
+						   dense
+						   :class="assessment.level == level.value ? 'selectedLevel' : ''"
+						   @@click="assessment.level = level.value">
+						<template v-slot:default>
+							{{level.label}}. {{level.text}}							
+						</template>
+					</q-btn>
+				</div>
+			</div>
+			<q-input type="textarea" outlined dense v-model="assessment.comment" class="q-mb-md"
+					 label="Comments: What should the student keep doing? How can they improve performance?"></q-input>
+			<div class="column">
+				<q-btn no-caps 
+					label="Submit EPA" 
+					type="submit" 
+					padding="sm xl" 
+					color="primary" 
+					size="md"
+					class="self-center"></q-btn>
+			</div>
+		</q-form>
+	</div>
+</div>
+
+@section Styles {
+	<link rel="stylesheet" href="~/css/cts.css" asp-append-version="true" />
+}
+
+@section Scripts {
+	<script asp-add-nonce="true">
+		createVueApp({
+			data() {
+				return {
+					epa: {name: "Physical Examination", num: "1B"},
+					student: {name: "Firstname Lastname", mailid: ""},
+					levels: [
+						{ "number": 1 },
+						{ "number": 2 },
+						{ "number": 3 },
+						{ "number": 4 },
+						{ "number": 5 }
+					],
+					levelOptions: [
+						{ label: "1", value: 1, slot: 'one', text: "Knowledge of, did not perform" },
+						{ label: "2", value: 2, slot: 'two', text: "Trust with direct supervision" },
+						{ label: "3", value: 3, slot: 'three', text: "Trust with indirect supervision" },
+						{ label: "4", value: 4, slot: 'four', text: "Independent, remote supervision" },
+						{ label: "5", value: 5, slot: 'five', text: "Supervise junior learners" }
+					],
+					assessment: {comment: "I am a comment", level: 0, level2: 0}
+				}
+			},
+			methods: {
+				submitEpa: function() {
+
+				},
+				selectLevel: function(levelValue) {
+					this.assessment.level = levelValue
+				}
+			},
+			mounted: function() {
+				this.student = {
+					name: "Stephanie Student",
+					mailid: "bsedwards"
+				}
+			}
+		})
+	</script>
+}

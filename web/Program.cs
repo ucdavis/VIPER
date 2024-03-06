@@ -164,12 +164,11 @@ try
     });
 
 
-    // TODO Check to see if we can automatically build these from the connectionstrings section of appSettings
-    // Define DATABASE Context from Connection Strings and Enviromental Variables
     builder.Services.AddDbContext<AAUDContext>();
     builder.Services.AddDbContext<CoursesContext>();
     builder.Services.AddDbContext<RAPSContext>();
     builder.Services.AddDbContext<VIPERContext>();
+    builder.Services.AddDbContext<CtsContext>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
@@ -216,7 +215,8 @@ try
             .From("viper.vetmed.ucdavis.edu")
             .From("secure.vetmed.ucdavis.edu")
             .From("secure-test.vetmed.ucdavis.edu")
-            .From("*.vetmed.ucdavis.edu");
+            .From("*.vetmed.ucdavis.edu")
+            .From("http://localhost");//viper1 typically runs on http on developer machines
 
         csp.AllowPlugins
             .FromNowhere(); // Plugins not allowed
