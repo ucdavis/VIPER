@@ -31,7 +31,8 @@ namespace Viper.Areas.RAPS.Controllers
         //GET: Members/12345678/Roles
         [HttpGet("Roles/{roleId}/Members")]
         [HttpGet("Members/{memberId}/Roles")]
-        public async Task<ActionResult<IEnumerable<TblRoleMember>>> GetTblRoleMembers(string instance, int? roleId, string? memberId, int application=0)
+        public async Task<ActionResult<IEnumerable<TblRoleMember>>> GetTblRoleMembers(string instance, int? roleId, string? memberId, 
+                int application=0, bool includeViewMembers=false)
         {
             if (_context.TblRoles == null)
             {
@@ -46,7 +47,7 @@ namespace Viper.Areas.RAPS.Controllers
             var roleMembers = _context.TblRoleMembers
                     .Include(rm => rm.Role)
                     .Include(rm => rm.AaudUser)
-                    .Where(rm => rm.ViewName == null);
+                    .Where(rm => includeViewMembers || rm.ViewName == null);
             if (roleId != null)
             {
                 roleMembers = roleMembers
