@@ -13,15 +13,15 @@ namespace Viper.Areas.CTS.Controllers
     [Permission(Allow = "SVMSecure.CTS")]
     public class CTSController : AreaController
     {
-        private readonly CtsContext _ctsContext;
+        private readonly VIPERContext _viperContext;
         public IUserHelper UserHelper;
 
         public int Count { get; set; }
         public string? UserName { get; set; }
 
-        public CTSController(CtsContext context, IWebHostEnvironment environment)
+        public CTSController(VIPERContext context, IWebHostEnvironment environment)
         {
-            _ctsContext = context;
+            _viperContext = context;
             UserHelper = new UserHelper();
         }
 

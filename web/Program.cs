@@ -168,7 +168,6 @@ try
     builder.Services.AddDbContext<CoursesContext>();
     builder.Services.AddDbContext<RAPSContext>();
     builder.Services.AddDbContext<VIPERContext>();
-    builder.Services.AddDbContext<CtsContext>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();

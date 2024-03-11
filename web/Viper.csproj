@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Areas\CTS\Views\css\**" />
+    <Content Remove="Areas\CTS\Views\css\**" />
+    <EmbeddedResource Remove="Areas\CTS\Views\css\**" />
+    <None Remove="Areas\CTS\Views\css\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <_WebToolingArtifacts Remove="Properties\PublishProfiles\TestProfile.pubxml" />
   </ItemGroup>
 
@@ -37,12 +44,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Areas\ClinicalScheduler\Models\" />
     <Folder Include="Areas\CMS\Views\" />
     <Folder Include="Areas\CTS\Controllers\" />
     <Folder Include="Areas\CTS\Models\" />
     <Folder Include="Areas\CTS\Services\" />
-    <Folder Include="Areas\CTS\Views\css\" />
     <Folder Include="Areas\RAPS\Data\" />
+    <Folder Include="Areas\Students\Models\" />
     <Folder Include="wwwroot\images\" />
   </ItemGroup>
 

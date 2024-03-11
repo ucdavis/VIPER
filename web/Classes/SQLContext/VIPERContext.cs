@@ -1,6 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using Viper.Models.CTS;
 using Viper.Models.VIPER;
 
 namespace Viper.Classes.SQLContext;
@@ -18,6 +17,7 @@ public partial class VIPERContext : DbContext
     }
 #pragma warning restore CS8618
 
+    /* DBO */
     public virtual DbSet<AppControl> AppControls { get; set; }
 
     public virtual DbSet<CasDbcache> CasDbcaches { get; set; }
