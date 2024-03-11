@@ -8,13 +8,33 @@
 				<h2 class="epa text-weight-regular">EPA {{epa.num}}: {{epa.name}}</h2>
 			</div>
 			<div class="col text-right">
-				Assessing student {{student.name}}
-				<q-avatar size="40px" v-if="student.mailid != ''">
-					<img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid='+ student.mailid +'&altphoto=1'" height="40" />
-					<q-tooltip :target="siteProfileAvatar">
-						{{student.name}}
-					</q-tooltip>
-				</q-avatar>
+				<q-btn flat no-caps dense @@click="pickStudent()" v-if="student.name.length">
+					<template v-slot:default>
+						<div class="row items-end no-wrap">
+							<div class="col q-mr-md">Assessing {{student.name}}</div>
+							<div style="height:40px;width:31px;" class="col-auto">
+								<q-img fit="fill" right
+									   :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid='+ student.mailid +'&altphoto=1'"
+									   :title="student.name" style="height:40px;" class="rounded-borders">
+								</q-img>
+							</div>
+						</div>
+					</template>
+				</q-btn>
+				<div v-if="student.name.length == 0">
+					<div class="row items-end no-wrap">
+						<q-select outlined dense options-dense clearable use-input input-debounce="300" style="max-width: 200px"
+							class="q-mr-sm"
+							v-model="selectedStudent"
+							:options="studentOptions" 
+							label="Select Student"
+							@@filter="studentSearch">
+						</q-select>
+						<q-btn-toggle v-model="studentOptionsType" push toggle-color="primary"
+									  :options="[{label: 'Rotation', value: 'Rotation'}, {label: 'V4', value: 'V4'}, {label: 'All', value: 'All'}]">
+						</q-btn-toggle>
+					</div>
+				</div>
 			</div>
 		</div>
 		<q-form @@submit="submitEpa" v-bind="assessment">
@@ -47,7 +67,7 @@
 						   :class="assessment.level == level.value ? 'selectedLevel' : ''"
 						   @@click="assessment.level = level.value">
 						<template v-slot:default>
-							{{level.label}}. {{level.text}}							
+							{{level.label}}. {{level.text}}
 						</template>
 					</q-btn>
 				</div>
@@ -77,7 +97,11 @@
 			data() {
 				return {
 					epa: {name: "Physical Examination", num: "1B"},
-					student: {name: "Firstname Lastname", mailid: ""},
+					student: {name: "", mailid: "", id: ""},
+					students: [],
+					studentOptions: [],
+					selectedStudent: "",
+					studentOptionsType: "Rotation",
 					levels: [
 						{ "number": 1 },
 						{ "number": 2 },
@@ -92,7 +116,7 @@
 						{ label: "4", value: 4, slot: 'four', text: "Independent, remote supervision" },
 						{ label: "5", value: 5, slot: 'five', text: "Supervise junior learners" }
 					],
-					assessment: {comment: "I am a comment", level: 0, level2: 0}
+					assessment: {comment: "", level: 0, level2: 0}
 				}
 			},
 			methods: {
@@ -101,12 +125,64 @@
 				},
 				selectLevel: function(levelValue) {
 					this.assessment.level = levelValue
-				}
+				},
+				//Create the select box options based on the currently selected studentOptionsType
+				pickStudent: async function() {
+					this.student = {name: "", id: "", mailid: ""}
+					this.selectedStudent = null
+					var studentResults = []
+					switch (this.studentOptionsType) {
+						case "Rotation":
+							var d = new Date().toJSON().split("T")[0];
+							var instructorRotation = await viperFetch(this,
+								"/clinicalscheduler/instructors/schedule?date=" + d + "&mothraId=@UserHelper?.GetCurrentUser()?.MothraId")
+							if(instructorRotation.length) {
+								studentResults = await viperFetch(this,
+									"/clinicalscheduler/students/schedule?rotationId=" + instructorRotation[0].rotationId + "&date=" + d)
+							}
+							else {
+								studentResults = []
+							}
+							break;
+						case "V4":
+							studentResults = await viperFetch(this, "/students/dvm?classLevel=V4")
+							break;
+						default:
+							studentResults = await viperFetch(this, "/students/dvm")
+							break;
+					}
+					this.students = studentResults
+				},
+				studentSearch: function (val, update, abort) {
+					if(val === '') {
+						update(() => this.studentOptions = this.students.map(m => ({ label: m.lastName + ", " + m.firstName, value: m.mothraId })))
+						return
+					}
+					update(() => {
+						const s = val.toLowerCase()
+						this.studentOptions = this.students.filter(v => v.label.toLowerCase().indexOf(s) > -1)
+							.map(m => ({ label: m.lastName + ", " + m.firstName, value: m.mothraId }))
+					})
+				},
 			},
 			mounted: function() {
-				this.student = {
-					name: "Stephanie Student",
-					mailid: "bsedwards"
+				this.pickStudent()
+			},
+			watch: {
+				studentOptionsType: {
+					handler(v) {
+						this.pickStudent()
+					}
+				},
+				selectedStudent: {
+					handler(v) {
+						if(this.selectedStudent != null) {
+							var std = this.students.find(s => s.mothraId == this.selectedStudent.value)
+							if (std != null) {
+								this.student = { name: std.lastName + ", " + std.firstName, id: std.mothraId, mailid: std.mailId }
+							}
+						}
+					}
 				}
 			}
 		})

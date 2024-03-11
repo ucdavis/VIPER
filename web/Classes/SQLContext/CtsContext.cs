@@ -5,28 +5,20 @@ using Viper.Models.CTS;
 
 namespace Viper.Classes.SQLContext;
 
-public partial class CtsContext : DbContext
+public partial class VIPERContext : DbContext
 {
-#pragma warning disable CS8618
-    public CtsContext(DbContextOptions<CtsContext> options)
-        : base(options)
-    {
-    }
-#pragma warning restore CS8618
-
     public virtual DbSet<Competency> Competencies { get; set; }
 
     public virtual DbSet<Domain> Domains { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (HttpHelper.Settings != null)
-        {
-            optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:VIPER"]);
-        }
-    }
+    public virtual DbSet<DvmStudent> DvmStudent { get; set; }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    public virtual DbSet<InstructorSchedule> InstructorSchedule { get; set; }
+
+    public virtual DbSet<StudentSchedule> StudentSchedule { get; set; }
+
+
+    partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Competency>(entity =>
         {
@@ -52,8 +44,45 @@ public partial class CtsContext : DbContext
             entity.ToTable("Domain", "cts");
         });
 
-        OnModelCreatingPartial(modelBuilder);
-    }
+        modelBuilder.Entity<DvmStudent>(entity =>
+        {
+            entity.ToTable("vwDvmStudents", schema: "cts");
+            entity.HasKey(e => e.MothraId);
+            entity.Property(e => e.LastName).HasColumnName("person_last_name");
+            entity.Property(e => e.FirstName).HasColumnName("person_first_name");
+            entity.Property(e => e.MiddleName).HasColumnName("person_middle_name");
+            entity.Property(e => e.LoginId).HasColumnName("ids_loginId");
+            entity.Property(e => e.Pidm).HasColumnName("ids_pidm");
+            entity.Property(e => e.MailId).HasColumnName("ids_mailid");
+            entity.Property(e => e.MothraId).HasColumnName("ids_mothraId");
+            entity.Property(e => e.ClassLevel).HasColumnName("students_class_level");
+            entity.Property(e => e.TermCode).HasColumnName("students_term_code");
+        });
 
-    partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+        modelBuilder.Entity<InstructorSchedule>(entity =>
+        {
+            entity.HasKey(e => e.MothraId);
+            entity.ToTable("vwInstructorSchedule", schema: "cts");
+            entity.Property(e => e.MiddleName).IsRequired(false);
+            entity.Property(e => e.MailId).IsRequired(false);
+            entity.Property(e => e.Role).IsRequired(false);
+            entity.Property(e => e.SubjCode).IsRequired(false);
+            entity.Property(e => e.CrseNumb).IsRequired(false);
+        });
+
+        modelBuilder.Entity<StudentSchedule>(entity =>
+        {
+            entity.HasKey(e => e.MothraId);
+            entity.ToTable("vwStudentSchedule", schema: "cts");
+            entity.Property(e => e.MiddleName).IsRequired(false);
+            entity.Property(e => e.MailId).IsRequired(false);
+            entity.Property(e => e.Pidm).IsRequired(false);
+            entity.Property(e => e.NotGraded).IsRequired(false);
+            entity.Property(e => e.NotEnrolled).IsRequired(false);
+            entity.Property(e => e.MakeUp).IsRequired(false);
+            entity.Property(e => e.Incomplete).IsRequired(false);
+            entity.Property(e => e.SubjCode).IsRequired(false);
+            entity.Property(e => e.CrseNumb).IsRequired(false);
+        });
+    }
 }
