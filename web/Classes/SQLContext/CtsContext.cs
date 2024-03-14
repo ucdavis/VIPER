@@ -11,12 +11,16 @@ public partial class VIPERContext : DbContext
 
     public virtual DbSet<Domain> Domains { get; set; }
 
+    /* Students */
     public virtual DbSet<DvmStudent> DvmStudent { get; set; }
 
+    /* Clinical Scheduler */
     public virtual DbSet<InstructorSchedule> InstructorSchedule { get; set; }
 
     public virtual DbSet<StudentSchedule> StudentSchedule { get; set; }
 
+    /* CREST */
+    public virtual DbSet<CourseSessionOffering> CourseSessionOffering { get; set; }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
@@ -44,6 +48,7 @@ public partial class VIPERContext : DbContext
             entity.ToTable("Domain", "cts");
         });
 
+        /* "Exteral" entities */
         modelBuilder.Entity<DvmStudent>(entity =>
         {
             entity.ToTable("vwDvmStudents", schema: "cts");
@@ -84,5 +89,41 @@ public partial class VIPERContext : DbContext
             entity.Property(e => e.SubjCode).IsRequired(false);
             entity.Property(e => e.CrseNumb).IsRequired(false);
         });
+
+        modelBuilder.Entity<CourseSessionOffering>(entity =>
+        {
+            entity.HasKey(e => new { e.CourseId, e.SessionId, e.EduTaskOfferid });
+            entity.ToTable("vwCourseSessionOffering", schema: "cts");
+			entity.Property(e => e.Crn).IsRequired(false);
+			entity.Property(e => e.SsaCourseNum).IsRequired(false);
+			entity.Property(e => e.SessionType).IsRequired(false);
+			entity.Property(e => e.FromDate).IsRequired(false);
+			entity.Property(e => e.ThruDate).IsRequired(false);
+			entity.Property(e => e.FromTime).IsRequired(false);
+			entity.Property(e => e.ThruTime).IsRequired(false);
+			entity.Property(e => e.Room).IsRequired(false);
+			entity.Property(e => e.TypeOrder).HasColumnName("type_order").IsRequired(false);
+			entity.Property(e => e.StudentGroup).IsRequired(false);
+			entity.Property(e => e.ReadingRequired).HasColumnName("reading_required").IsRequired(false);
+			entity.Property(e => e.ReadingRecommended).HasColumnName("reading_recommended").IsRequired(false);
+			entity.Property(e => e.ReadingSessionMaterial).HasColumnName("reading_sessionmaterial").IsRequired(false);
+			entity.Property(e => e.KeyConcept).IsRequired(false);
+			entity.Property(e => e.Equipment).IsRequired(false);
+			entity.Property(e => e.Notes).IsRequired(false);
+			entity.Property(e => e.ModifyDate).IsRequired(false);
+			entity.Property(e => e.ModifyPersonId).IsRequired(false);
+			entity.Property(e => e.PaceOrder).HasColumnName("pace_order").IsRequired(false);
+			entity.Property(e => e.Vocabulary).IsRequired(false);
+			entity.Property(e => e.Supplemental).IsRequired(false);
+			entity.Property(e => e.OfferingNotes).IsRequired(false);
+			entity.Property(e => e.SeqNumb).IsRequired(false);
+			entity.Property(e => e.SvmBlockId).HasColumnName("SVM_blockID").IsRequired(false);
+			entity.Property(e => e.MediasiteSchedule).IsRequired(false);
+			entity.Property(e => e.MediasitePresentation).IsRequired(false);
+			entity.Property(e => e.MediasiteLive).IsRequired(false);
+			entity.Property(e => e.MediasiteTemplate).IsRequired(false);
+			entity.Property(e => e.CanvasCourseId).IsRequired(false);
+			entity.Property(e => e.CanvasEventId).IsRequired(false);
+		});
     }
 }
