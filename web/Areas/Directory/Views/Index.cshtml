@@ -21,6 +21,10 @@
               color="green"
               label="Search all of UCD">
     </q-toggle>
+    <q-toggle v-model="ids"
+              color="blue"
+              label="Show IDs">
+    </q-toggle>
 </q-form>
 
 <q-table title="Search Results"
@@ -120,6 +124,7 @@
                 return {
                     userSearch: getItemFromStorage("directory_search") ?? "",
                     ucd: getItemFromStorage("directory_ucd") ?? false,
+                    ids: getItemFromStorage("directory_ids") ?? false,
                     users: new quasarTable({
                         keys: ["mothraId"],
                         urlBase: "users",

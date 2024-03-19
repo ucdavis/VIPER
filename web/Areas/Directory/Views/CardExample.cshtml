@@ -21,11 +21,20 @@
               color="green"
               label="Search all of UCD">
     </q-toggle>
+    <q-toggle v-model="ids"
+              color="blue"
+              label="Display IDs">
+    </q-toggle>
 </q-form>
 
 <div class="row q-pa-sm q-gutter-sm" style="background-color: #fff">
     <q-card v-for="user in results" class="col-4 col-sm-12 col-md-5 col-lg-4 col-xl-3 block { SVM : user.SVM}" style="background-color: #fff; border: 1px solid #fff; border-radius: 7px; box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;">
         <q-card-section horizontal class="row justify-center">
+            <q-card-section class="col-1 self-center">
+                <q-icon name="person" size="sm" class="col"></q-icon>
+                <a v-if="user.mailId" :href="'mailto:' + user.mailId + '@@ucdavis.edu'" class="col"><q-icon name="email" size="sm"></q-icon></a>
+                <q-btn icon="assignment_ind" size="sm" dense color="red-10" text-color="white" :href="'/EmulateUser/' + user.loginId"></q-btn>
+            </q-card-section>
             <q-card-section class="col-4 col-sm-4 col-md-4 col-lg-4 text-right self-center q-pr-m">
                 <q-avatar square size="87px" class="text-right self-center">
                     <img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&altphoto=1'" height="40" id="siteProfileAvatar">
@@ -47,55 +56,51 @@
                 <h6 v-if="user.svm && ucd">SVM</h6>
             </q-card-section>
         </q-card-section>
-        <q-separator></q-separator>
-        <q-card-section class="row justify-around">
-            <q-icon name="person" size="sm" class="col"></q-icon>
-            <a v-if="user.mailId" :href="'mailto:' + user.mailId + '@@ucdavis.edu'" class="col"><q-icon name="email" size="sm"></q-icon></a>
-            <q-btn icon="assignment_ind" size="sm" dense color="red-10" text-color="white" :href="'/EmulateUser/' + user.loginId"></q-btn>
-        </q-card-section>
-        <q-separator></q-separator>
-        <q-card-section class="row">
-            <ul>
-            <li><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&mothraID=' + user.mothraId + '&loginID=' + user.loginId">AAUD Check</a></li>
-            <li><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&LoginID=' + user.loginId">ID Check</a></li>
-            <li><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UnitHeads&MailID=' + user.mailId">MSO/CAO Lookup</a></li>
-            @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.DirectoryUCPathInfo"))
-            {
-                @: <li v-if="user.employeeId != ''"><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UCPathInfo&emplid=' + user.employeeId">UCPath Info</a></li>
-            }
-            @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CATS.ServiceDesk"))
-            {
-                @: <li v-if="user.currentAffiliate == true"><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID' + user.iamId + '&mailID=' + props.row.mailId + '&empName=' + user.name">Alt. Photo</a></li>
-            }
-            </ul>
-        </q-card-section>
-        <q-separator v-if="user.spridentId || user.pidm || user.employeeId || user.iamId || user.mothraId || user.mivId"></q-separator>
-        <q-card-section class="row" v-if="user.spridentId || user.pidm || user.employeeId || user.iamId || user.mothraId || user.mivId">
-            <ul>
-            <li v-if="user.spridenId">
-                BannerID:
-                @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.SIS.AllStudents"))
-                {
-                    @: <a :href="'@HttpHelper.GetOldViperRootURL()' + '/students/sis/default.cfm?Page=AssignPidmAndRedirect&Pidm=' + user.spridenId + '&JumpPage=Home'">{{ user.spridenId }}</a>
-                }
-                else
-                {
-                    @: {{ user.spridenId }}
-                }
-            </li>
-            <li v-if="user.pidm">PIDM: {{ user.pidm }}</li>
-            <li v-if="user.employeeId">EmployeeID: {{ user.employeeId}}</li>
-            <li v-if="user.iamId">IAMID: {{ user.iamId }}</li>
-            <li v-if="user.mothraId">MothraID: {{ user.mothraId }}</li>
-            <li v-if="user.mivId > 0">MIVID: {{ user.mivId }}</li>
-            </ul>
-        </q-card-section>
         <q-separator v-if="user.phone || user.mobile || user.postalAddress"></q-separator>
         <q-card-section class="row" v-if="user.phone || user.mobile || user.postalAddress">
             <ul>
             <li v-if="user.postalAddress">{{ user.postalAddress }}</li>
             <li v-if="user.phone">Phone: {{ user.phone }}</li>
             <li v-if="user.mobile">Mobile: {{ user.mobile }}</li>
+            </ul>
+        </q-card-section>
+        <q-separator v-if="ids && (user.spridentId || user.pidm || user.employeeId || user.iamId || user.mothraId || user.mivId)"></q-separator>
+        <q-card-section class="row" v-if="ids && (user.spridentId || user.pidm || user.employeeId || user.iamId || user.mothraId || user.mivId)">
+            <ul>
+                <li v-if="user.spridenId">
+                    BannerID:
+                    @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.SIS.AllStudents"))
+                    {
+                        @: <a :href="'@HttpHelper.GetOldViperRootURL()' + '/students/sis/default.cfm?Page=AssignPidmAndRedirect&Pidm=' + user.spridenId + '&JumpPage=Home'">{{ user.spridenId }}</a>
+                    }
+                    else
+                    {
+                        @: {{ user.spridenId }}
+                    }
+                </li>
+                <li v-if="user.pidm">PIDM: {{ user.pidm }}</li>
+                <li v-if="user.employeeId">EmployeeID: {{ user.employeeId}}</li>
+                <li v-if="user.iamId">IAMID: {{ user.iamId }}</li>
+                <li v-if="user.mothraId">MothraID: {{ user.mothraId }}</li>
+                <li v-if="user.mivId > 0">MIVID: {{ user.mivId }}</li>
+            </ul>
+        </q-card-section>
+        <q-separator v-if="ids"></q-separator>
+        <q-card-section v-if="ids" class="row">
+            <ul>
+                <li><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&mothraID=' + user.mothraId + '&loginID=' + user.loginId">AAUD Check</a></li>
+                <li><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&LoginID=' + user.loginId">ID Check</a></li>
+                <li><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UnitHeads&MailID=' + user.mailId">MSO/CAO Lookup</a></li>
+                @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.DirectoryUCPathInfo"))
+                {
+                    @:
+                    <li v-if="user.employeeId != ''"><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UCPathInfo&emplid=' + user.employeeId">UCPath Info</a></li>
+                }
+                @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CATS.ServiceDesk"))
+                {
+                    @:
+                    <li v-if="user.currentAffiliate == true"><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID' + user.iamId + '&mailID=' + props.row.mailId + '&empName=' + user.name">Alt. Photo</a></li>
+                }
             </ul>
         </q-card-section>
     </q-card>
@@ -108,6 +113,7 @@
                 return {
                     userSearch: getItemFromStorage("directory_search") ?? "",
                     ucd: getItemFromStorage("directory_ucd") ?? false,
+                    ids: getItemFromStorage("directory_ids") ?? false,
                     results: []
                 }
             },
@@ -134,6 +140,11 @@
                 ucd: function () {
                     putItemInStorage("directory_search", this.userSearch);
                     putItemInStorage("directory_ucd", this.ucd);
+                    this.findUsers();
+                },
+                ids: function () {
+                    putItemInStorage("directory_search", this.userSearch);
+                    putItemInStorage("directory_ids", this.ids);
                     this.findUsers();
                 }
             }
