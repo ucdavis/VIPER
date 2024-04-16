@@ -13,7 +13,6 @@ using System.Runtime.Versioning;
 namespace Viper.Areas.Directory.Controllers
 {
     [Area("Directory")]
-    [Authorize(Roles = "VMDO SVM-IT", Policy = "2faAuthentication")]
     [Permission(Allow = "SVMSecure")]
     public class DirectoryController : AreaController
     {

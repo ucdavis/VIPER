@@ -5,6 +5,7 @@ using Viper.Areas.RAPS.Models;
 using System.Net.Http;
 using System.Text;
 using System.Xml.Serialization;
+using Microsoft.CodeAnalysis.Elfie.Model.Strings;
 
 namespace Viper.Areas.Directory.Services
 {
@@ -32,6 +33,8 @@ namespace Viper.Areas.Directory.Services
             public string[]? Home { get; set; }
             [XmlElement("Nextel")]
             public string[]? Nextel { get; set; }
+            [XmlElement("LDPager")]
+            public string[]? LDPager { get; set; }
             [XmlElement("Status")]
             public string[]? Status { get; set; }
             [XmlElement("Campus_LoginID")]
@@ -46,22 +49,24 @@ namespace Viper.Areas.Directory.Services
         /// </summary>
         /// <param name="loginID"></param>
         /// <returns></returns>
-        public static async void Search (String? loginID)
+        public static async Task<String?> Search (String? loginID)
         {
 			string request = $"/trust/query.xml?dbfile=3&index=CampusLoginId&find={loginID}&format=CHRIS4&AUTH=06232005".ToString();
             using HttpResponseMessage response = await sharedClient.GetAsync(request);
+            if (response.IsSuccessStatusCode == false){
+                return null;
+            }
             var s = await response.Content.ReadAsStringAsync();
             var buffer = Encoding.UTF8.GetBytes(s);
             using (var stream = new MemoryStream(buffer))
             {
                 var serializer = new XmlSerializer(typeof(VMACS_API));
                 var vmacs_api = (VMACS_API?)serializer.Deserialize(stream);
-
+                if (vmacs_api != null && vmacs_api.Nextel != null){
+                    return vmacs_api.Nextel[0];
+                }
             }
-            var jsonResponse = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"{jsonResponse}\n");
-
-
+            return null;
         }
 
 

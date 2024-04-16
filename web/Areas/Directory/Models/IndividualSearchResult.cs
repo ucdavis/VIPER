@@ -64,6 +64,7 @@ namespace Viper.Areas.Directory.Models
         public DateTime? Added { get; set; } = null!;
 
         public string? Phone { get; set; } = null!;
+        public string? Nextel { get; set; } = null!;
         public string? Mobile { get; set; } = null!;
         public string? PostalAddress { get; set; } = null!;
         public string? UCDAffiliation { get; set; } = null!;
@@ -80,7 +81,7 @@ namespace Viper.Areas.Directory.Models
         public IndividualSearchResult(AaudUser? aaudUser, LdapUserContact? ldapUserContact)
         {
             SVM = false;
-            if (aaudUser != null) { 
+            if (aaudUser != null) {
                 MothraId = aaudUser.MothraId;
                 LoginId = aaudUser.LoginId;
                 MailId = aaudUser.MailId;
@@ -120,7 +121,7 @@ namespace Viper.Areas.Directory.Models
                 PostalAddress = (ldapUserContact.postaladdress ?? "").Replace("$", '\n'.ToString());
                 UCDAffiliation = ldapUserContact.ucdpersonaffiliation;
                 UCDPersonUUID = ldapUserContact.ucdpersonuuid;
-                if (string.IsNullOrEmpty(DisplayFullName)) 
+                if (string.IsNullOrEmpty(DisplayFullName))
                 {
                     DisplayFullName = ldapUserContact.displayname;
                 }
@@ -135,10 +136,11 @@ namespace Viper.Areas.Directory.Models
                 var results = context.Database.SqlQuery<string>(FormattableStringFactory.Create(query)).ToList();
                 foreach (var r in results)
                 {
-                    EmailHost = r;
+                    EmailHost = r.Split("@").Last();
                 }
             }
-            VMACSService.Search(LoginId);
+            Task<string?> vmsearch = VMACSService.Search(LoginId);
+            Nextel = vmsearch.Result;
         }
     }
 }
