@@ -1,4 +1,7 @@
-﻿using System.Runtime.Versioning;
+﻿using Microsoft.EntityFrameworkCore;
+using System.Runtime.CompilerServices;
+using System.Runtime.Versioning;
+using Viper.Areas.Directory.Services;
 using Viper.Areas.RAPS.Models;
 using Viper.Models.AAUD;
 
@@ -9,10 +12,12 @@ namespace Viper.Areas.Directory.Models
         public string ClientId { get; set; } = string.Empty;
 
         public string MothraId { get; set; } = string.Empty;
+        public string UCDPersonUUID { get; set; } = string.Empty;
 
         public string? LoginId { get; set; } = string.Empty;
 
         public string? MailId { get; set; } = string.Empty;
+        public string? EmailHost { get; set; } = string.Empty;
 
         public string LastName { get; set; } = string.Empty;
 
@@ -114,6 +119,7 @@ namespace Viper.Areas.Directory.Models
                 UserName = ldapUserContact.uid;
                 PostalAddress = (ldapUserContact.postaladdress ?? "").Replace("$", '\n'.ToString());
                 UCDAffiliation = ldapUserContact.ucdpersonaffiliation;
+                UCDPersonUUID = ldapUserContact.ucdpersonuuid;
                 if (string.IsNullOrEmpty(DisplayFullName)) 
                 {
                     DisplayFullName = ldapUserContact.displayname;
@@ -123,6 +129,16 @@ namespace Viper.Areas.Directory.Models
                     Name = ldapUserContact.displayname;
                 }
             }
+            using (var context = new Classes.SQLContext.AAUDContext())
+            {
+                var query = $"SELECT * FROM OPENQUERY(UCDMothra,'SELECT (USERPART || ''@'' || HOSTPART) AS USERATHOST FROM MOTHRA.MAILIDS WHERE MOTHRAID = ''{MothraId}'' AND MAILID = ''{MailId}'' AND MAILSTATUS = ''A'' AND MAILTYPE = ''P''')".ToString();
+                var results = context.Database.SqlQuery<string>(FormattableStringFactory.Create(query)).ToList();
+                foreach (var r in results)
+                {
+                    EmailHost = r;
+                }
+            }
+            VMACSService.Search(LoginId);
         }
     }
 }
