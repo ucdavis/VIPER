@@ -53,6 +53,7 @@ namespace Viper.Areas.Directory.Services
         {
 			string request = $"/trust/query.xml?dbfile=3&index=CampusLoginId&find={loginID}&format=CHRIS4&AUTH=06232005".ToString();
             using HttpResponseMessage response = await sharedClient.GetAsync(request);
+            return response.ToString();
             if (response.IsSuccessStatusCode == false){
                 return null;
             }

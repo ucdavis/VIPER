@@ -110,7 +110,7 @@ namespace Viper.Areas.Directory.Models
                 SVM = true;
                 Added = aaudUser.Added;
             }
-
+            /*
             if (ldapUserContact != null)
             {
                 Title = ldapUserContact.title;
@@ -130,6 +130,7 @@ namespace Viper.Areas.Directory.Models
                     Name = ldapUserContact.displayname;
                 }
             }
+
             using (var context = new Classes.SQLContext.AAUDContext())
             {
                 var query = $"SELECT * FROM OPENQUERY(UCDMothra,'SELECT (USERPART || ''@'' || HOSTPART) AS USERATHOST FROM MOTHRA.MAILIDS WHERE MOTHRAID = ''{MothraId}'' AND MAILID = ''{MailId}'' AND MAILSTATUS = ''A'' AND MAILTYPE = ''P''')".ToString();
@@ -139,8 +140,9 @@ namespace Viper.Areas.Directory.Models
                     EmailHost = r.Split("@").Last();
                 }
             }
-            //Task<string?> vmsearch = VMACSService.Search(LoginId);
-            //originalObject = vmsearch.Result;
+            Task<string?> vmsearch = VMACSService.Search(LoginId);
+            originalObject = vmsearch.Result;
+            */
         }
     }
 }
