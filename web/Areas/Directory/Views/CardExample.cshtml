@@ -112,7 +112,7 @@
             <q-separator v-if="debug"></q-separator>
             <q-card-section v-if="debug">
                 <pre>
-                    {{ JSON.stringify(JSON.parse(user.originalObject), null, 2) }}
+                    {{ user.originalObject }}
                 </pre>
             </q-card-section>
         </q-card-section>

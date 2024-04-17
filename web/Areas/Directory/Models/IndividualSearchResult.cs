@@ -112,7 +112,6 @@ namespace Viper.Areas.Directory.Models
 
             if (ldapUserContact != null)
             {
-                originalObject = ldapUserContact.originalObject;
                 Title = ldapUserContact.title;
                 Department = ldapUserContact.department;
                 Phone = ldapUserContact.telephonenumber;
@@ -140,7 +139,7 @@ namespace Viper.Areas.Directory.Models
                 }
             }
             Task<string?> vmsearch = VMACSService.Search(LoginId);
-            Nextel = vmsearch.Result;
+            originalObject = vmsearch.Result;
         }
     }
 }
