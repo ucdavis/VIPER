@@ -81,6 +81,7 @@ namespace Viper.Areas.Directory.Models
         public IndividualSearchResult(AaudUser? aaudUser, LdapUserContact? ldapUserContact)
         {
             SVM = false;
+            originalObject = "";
             if (aaudUser != null) {
                 MothraId = aaudUser.MothraId;
                 LoginId = aaudUser.LoginId;
@@ -138,8 +139,8 @@ namespace Viper.Areas.Directory.Models
                     EmailHost = r.Split("@").Last();
                 }
             }
-            Task<string?> vmsearch = VMACSService.Search(LoginId);
-            originalObject = vmsearch.Result;
+            //Task<string?> vmsearch = VMACSService.Search(LoginId);
+            //originalObject = vmsearch.Result;
         }
     }
 }
