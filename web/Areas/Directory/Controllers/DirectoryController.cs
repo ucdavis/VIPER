@@ -30,7 +30,7 @@ namespace Viper.Areas.Directory.Controllers
         /// <summary>
         /// Directory home page
         /// </summary>
-        [Route("~/[area]/")]
+        [Route("[area]/")]
         public async Task<ActionResult> Index(string? useExample)
         {
             return await Task.Run(() => !string.IsNullOrEmpty(useExample) 
@@ -41,7 +41,7 @@ namespace Viper.Areas.Directory.Controllers
         /// <summary>
         /// Directory home page
         /// </summary>
-        [Route("~/[area]/nav")]
+        [Route("[area]/nav")]
         public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav()
         {
             var nav = new List<NavMenuItem>
@@ -57,7 +57,7 @@ namespace Viper.Areas.Directory.Controllers
         /// <param name="search">search string</param>
         /// <returns></returns>
         [SupportedOSPlatform("windows")]
-        [Route("~/[area]/search/{search}")]
+        [Route("[area]/search/{search}")]
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> Get(string search)
         {
             var individuals = await _aaud.AaudUsers
@@ -101,7 +101,7 @@ namespace Viper.Areas.Directory.Controllers
         /// <param name="search">search string</param>
         /// <returns></returns>
         [SupportedOSPlatform("windows")]
-        [Route("~/[area]/search/{search}/ucd")]
+        [Route("[area]/search/{search}/ucd")]
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> GetUCD(string search)
         {
             List<IndividualSearchResult> results = new();
@@ -144,7 +144,7 @@ namespace Viper.Areas.Directory.Controllers
         /// </summary>
         /// <param name="uid">User ID</param>
         /// <returns></returns>
-        [Route("~/[area]/userInfo/{mothraID}")]
+        [Route("[area]/userInfo/{mothraID}")]
         public async Task<IActionResult> DirectoryResult(string mothraID)
         {
             // pull in the user based on uid
