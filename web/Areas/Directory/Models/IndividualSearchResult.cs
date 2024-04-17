@@ -110,7 +110,6 @@ namespace Viper.Areas.Directory.Models
                 SVM = true;
                 Added = aaudUser.Added;
             }
-            /*
             if (ldapUserContact != null)
             {
                 Title = ldapUserContact.title;
@@ -142,7 +141,6 @@ namespace Viper.Areas.Directory.Models
             }
             Task<string?> vmsearch = VMACSService.Search(LoginId);
             originalObject = vmsearch.Result;
-            */
         }
     }
 }
