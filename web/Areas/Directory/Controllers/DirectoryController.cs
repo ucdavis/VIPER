@@ -61,9 +61,6 @@ namespace Viper.Areas.Directory.Controllers
         [Route("/[area]/search/{search}")]
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> Get(string search)
         {
-            List<IndividualSearchResult> results = new();
-            return results;
-            /*
             var individuals = await _aaud.AaudUsers
                      .Where(u => (u.DisplayFirstName + " " + u.DisplayLastName).Contains(search)
                          || (u.MailId != null && u.MailId.Contains(search))
@@ -81,6 +78,7 @@ namespace Viper.Areas.Directory.Controllers
             List<IndividualSearchResult> results = new();
             AaudUser? currentUser = UserHelper.GetCurrentUser();
             bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
+            /*
             individuals.ForEach(m =>
             {
                 LdapUserContact? l = new LdapService().GetUserByID(m.IamId);
@@ -96,8 +94,8 @@ namespace Viper.Areas.Directory.Controllers
                         : new IndividualSearchResult(m, l));
                 }
             });
-            return results;
             */
+            return results;
         }
 
         /// <summary>
