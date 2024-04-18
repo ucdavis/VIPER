@@ -224,6 +224,7 @@ namespace Viper.Areas.RAPS.Services
         /// <returns>LdapUserContact</returns>
         public LdapUserContact? GetUserByID(string? id)
         {
+            return null;
             if (id == null) return null;
             string filter = string.Format("(|(ucdpersoniamid = {0}))", id);
             DirectoryEntry de = GetRootContact();

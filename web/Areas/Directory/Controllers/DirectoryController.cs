@@ -81,7 +81,6 @@ namespace Viper.Areas.Directory.Controllers
             individuals.ForEach(m =>
             {
                 LdapUserContact? l = new LdapService().GetUserByID(m.IamId);
-                /*
                 if(false)
                 {
                     results.Add(IndividualSearchResultCreator.CreateIndividualSearchResult(currentUser, l, hasDetailPermission));
@@ -92,7 +91,6 @@ namespace Viper.Areas.Directory.Controllers
                         ? new IndividualSearchResultWithIDs(m, l)
                         : new IndividualSearchResult(m, l));
                 }
-                */
             });
             return results;
         }
