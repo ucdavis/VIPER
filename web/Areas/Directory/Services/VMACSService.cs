@@ -60,7 +60,6 @@ namespace Viper.Areas.Directory.Services
             var buffer = Encoding.UTF8.GetBytes(s);
             using (var stream = new MemoryStream(buffer))
             {
-                return stream.ToString();
                 var serializer = new XmlSerializer(typeof(VMACS_API));
                 var vmacs_api = (VMACS_API?)serializer.Deserialize(stream);
                 if (vmacs_api != null && vmacs_api.Nextel != null){
