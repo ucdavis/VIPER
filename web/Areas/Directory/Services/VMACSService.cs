@@ -53,7 +53,6 @@ namespace Viper.Areas.Directory.Services
         {
 			string request = $"/trust/query.xml?dbfile=3&index=CampusLoginId&find={loginID}&format=CHRIS4&AUTH=06232005".ToString();
             using HttpResponseMessage response = await sharedClient.GetAsync(request);
-            return response.ToString();
             if (response.IsSuccessStatusCode == false){
                 return null;
             }
@@ -62,11 +61,11 @@ namespace Viper.Areas.Directory.Services
             using (var stream = new MemoryStream(buffer))
             {
                 return stream.ToString();
-                //var serializer = new XmlSerializer(typeof(VMACS_API));
-                //var vmacs_api = (VMACS_API?)serializer.Deserialize(stream);
-                //if (vmacs_api != null && vmacs_api.Nextel != null){
-                //    return vmacs_api.Nextel[0];
-                //}
+                var serializer = new XmlSerializer(typeof(VMACS_API));
+                var vmacs_api = (VMACS_API?)serializer.Deserialize(stream);
+                if (vmacs_api != null && vmacs_api.Nextel != null){
+                    return vmacs_api.Nextel[0];
+                }
             }
             return null;
         }
