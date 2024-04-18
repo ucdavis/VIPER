@@ -133,7 +133,7 @@
             },
             methods: {
                 findUsers: async function () {
-                    var urlBase = "/Directory/search/" + this.userSearch
+                    var urlBase = "@Url.Content("~/Directory/search/")" + this.userSearch;
                     if (this.ucd) {
                         urlBase += "/ucd"
                     }
