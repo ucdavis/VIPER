@@ -78,11 +78,10 @@ namespace Viper.Areas.Directory.Controllers
             List<IndividualSearchResult> results = new();
             AaudUser? currentUser = UserHelper.GetCurrentUser();
             bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
-            /*
             individuals.ForEach(m =>
             {
                 LdapUserContact? l = new LdapService().GetUserByID(m.IamId);
-
+                /*
                 if(false)
                 {
                     results.Add(IndividualSearchResultCreator.CreateIndividualSearchResult(currentUser, l, hasDetailPermission));
@@ -93,8 +92,8 @@ namespace Viper.Areas.Directory.Controllers
                         ? new IndividualSearchResultWithIDs(m, l)
                         : new IndividualSearchResult(m, l));
                 }
+                */
             });
-            */
             return results;
         }
 
