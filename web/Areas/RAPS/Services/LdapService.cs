@@ -11,7 +11,7 @@ namespace Viper.Areas.RAPS.Services
     public class LdapService
     {
         //username for campus active directory servers (ou.ad3 and ad3)
-        private const string _username = "CN=svc-accounts,OU=Service Accounts,OU=SVM-OU-LocalUsers,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
+        private const string _username = "ou\\svc-accounts";
         //username for ldap.ucdavis.edu
         private const string _ldapUsername = "uid=vetmed,ou=Special Users,dc=ucdavis,dc=edu";
 
@@ -425,9 +425,10 @@ namespace Viper.Areas.RAPS.Services
             _logger.Info("Server is " + server);
             _logger.Info("Root LDAP is " + string.Format("LDAP://{0}/{1}", server, start));
             _logger.Info("Username: " + _username + " c: " + (creds.Length > 0 ? "yes" : "no"));
-            DirectoryEntry de = new DirectoryEntry(server, _username, creds, AuthenticationTypes.Secure)
+            DirectoryEntry de = new DirectoryEntry(_ad3Server, _username, creds, AuthenticationTypes.Secure)
             {
-                Path = string.Format("LDAP://{0}/{1}", server, start)
+                //Path = string.Format("LDAP://{0}/{1}", server, start)
+                Path = string.Format("LDAP://{0}", start)
             };
             return de;
         }
