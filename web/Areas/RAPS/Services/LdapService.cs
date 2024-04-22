@@ -425,7 +425,7 @@ namespace Viper.Areas.RAPS.Services
             string start = fromOu ? _ouStart : _ad3Users;
             //string server = fromOu ? _ouServer : _ad3Server;
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
-            DirectoryEntry de = new DirectoryEntry(string.Format("LDAP://{0}", start), _username, creds, AuthenticationTypes.Secure);
+            DirectoryEntry de = new DirectoryEntry(string.Format("LDAP://{0}", start), _username, creds, AuthenticationTypes.SecureSocketsLayer);
             return de;
         }
         //Get the root to start our ldap.ucdavis.edu query
