@@ -425,10 +425,14 @@ namespace Viper.Areas.RAPS.Services
             _logger.Info("Server is " + server);
             _logger.Info("Root LDAP is " + string.Format("LDAP://{0}/{1}", server, start));
             _logger.Info("Username: " + _username + " c: " + (creds.Length > 0 ? "yes" : "no"));
-            DirectoryEntry de = new DirectoryEntry("addc12c.ad3.ucdavis.edu", _username, creds, AuthenticationTypes.Secure)
+            DirectoryEntry de = new DirectoryEntry(server, _username, creds, AuthenticationTypes.Secure)
             {
                 //Path = string.Format("LDAP://{0}/{1}", server, start)
-                Path = string.Format("LDAP://{0}", start)
+                Path = string.Format("LDAP://{0}", start),
+                Options =
+                {
+                    Referral = ReferralChasingOption.All
+                }
             };
             return de;
         }
