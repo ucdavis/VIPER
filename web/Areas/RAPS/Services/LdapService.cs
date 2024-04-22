@@ -80,9 +80,9 @@ namespace Viper.Areas.RAPS.Services
             try
             {
                 var de = GetRoot(true);
-                _logger.Info("LDAP DE Server: " + de?.Options?.GetCurrentServerName());
+                //_logger.Info("LDAP DE Server: " + de?.Options?.GetCurrentServerName());
                 var ds = new DirectorySearcher(de, filter, _groupProperties, SearchScope.Subtree)
-                    { PageSize = 1000, ReferralChasing = ReferralChasingOption.All };
+                    { ReferralChasing = ReferralChasingOption.All };
 
                 SearchResultCollection results = ds.FindAll();
                 foreach (SearchResult result in results)
@@ -273,8 +273,7 @@ namespace Viper.Areas.RAPS.Services
             _logger.Info("Username: " + _username + " c: " + (creds.Length > 0 ? "yes" : "no"));
             DirectoryEntry de = new DirectoryEntry(server, _username, creds, AuthenticationTypes.Secure)
             {
-                //Path = string.Format("LDAP://{0}/{1}", server, start)
-                Path = string.Format("LDAP://{0}", start),
+                Path = string.Format("LDAP://{0}/{1}", server, start),
                 Options =
                 {
                     Referral = ReferralChasingOption.All
