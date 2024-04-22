@@ -270,7 +270,7 @@ namespace Viper.Areas.RAPS.Services
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
             _logger.Info("Server is " + server);
             _logger.Info("Root LDAP is " + string.Format("LDAP://{0}/{1}", server, start));
-            _logger.Info("Username: " + _username + " c: " + (creds.Length > 0 ? "yes" : "no");
+            _logger.Info("Username: " + _username + " c: " + (creds.Length > 0 ? "yes" : "no"));
             DirectoryEntry de = new DirectoryEntry(server, _username, creds, AuthenticationTypes.Secure)
             {
                 Path = string.Format("LDAP://{0}/{1}", server, start)
