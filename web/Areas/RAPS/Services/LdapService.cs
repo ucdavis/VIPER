@@ -100,12 +100,15 @@ namespace Viper.Areas.RAPS.Services
             {
                 filter = string.Format("(&{0}(cn=*{1}*))", filter, name);
             };
-            _logger.Info("LdapService.GetGroups(" + (name ?? "") + ")");
 
             List<LdapGroup> groups = new();
             try
             {
                 var de = GetRoot(true);
+                if(de.Options != null)
+                {
+                    de.Options.Referral = ReferralChasingOption.All;
+                }                
                 var ds = new DirectorySearcher(de, filter, _groupProperties, SearchScope.Subtree)
                     { PageSize = 1000, ReferralChasing = ReferralChasingOption.All };
 
@@ -419,15 +422,9 @@ namespace Viper.Areas.RAPS.Services
         private DirectoryEntry GetRoot(bool fromOu = false)
         {
             string start = fromOu ? _ouStart : _ad3Users;
-            string server = fromOu ? _ouServer : _ad3Server;
+            //string server = fromOu ? _ouServer : _ad3Server;
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
-            _logger.Info("Server is " + server);
-            _logger.Info("Root LDAP is " + string.Format("LDAP://{0}/{1}", server, start));
-            _logger.Info("Username: " + _username + " c: " + (creds.Length > 0 ? "yes" : "no"));
-            DirectoryEntry de = new DirectoryEntry(string.Format("LDAP://{0}/{1}", server, start), _username, creds, AuthenticationTypes.Secure)
-            {
-                Path = string.Format("LDAP://{0}/{1}", server, start)
-            };
+            DirectoryEntry de = new DirectoryEntry(string.Format("LDAP://{0}", start), _username, creds, AuthenticationTypes.Secure);
             return de;
         }
         //Get the root to start our ldap.ucdavis.edu query
