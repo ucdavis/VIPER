@@ -271,7 +271,10 @@ namespace Viper.Areas.RAPS.Services
             string start = fromOu ? _ouStart : _ad3Users;
             //string server = fromOu ? _ouServer : _ad3Server;
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
-            DirectoryEntry de = new DirectoryEntry(string.Format("LDAP://{0}", start), _username, creds, AuthenticationTypes.SecureSocketsLayer);
+            DirectoryEntry de = new DirectoryEntry("oudc12c.ou.ad3.ucdavis.edu", _username, creds, AuthenticationTypes.Secure)
+            {
+                Path = string.Format("LDAP://{0}", start)
+            };
             return de;
         }
 
