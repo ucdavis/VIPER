@@ -9,7 +9,7 @@ namespace Viper.Areas.RAPS.Services
     [SupportedOSPlatform("windows")]
     public class LdapService
     {
-        private const string _username = "ou\\svc-accounts";
+        private const string _username = "CN=svc-accounts,OU=Service Accounts,OU=SVM-OU-LocalUsers,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
 
         private Logger _logger;
 
@@ -268,7 +268,9 @@ namespace Viper.Areas.RAPS.Services
             string start = fromOu ? _ouStart : _ad3Users;
             string server = fromOu ? _ouServer : _ad3Server;
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
+            _logger.Info("Server is " + server);
             _logger.Info("Root LDAP is " + string.Format("LDAP://{0}/{1}", server, start));
+            _logger.Info("Username: " + _username + " c: " + (creds.Length > 0 ? "yes" : "no");
             DirectoryEntry de = new DirectoryEntry(server, _username, creds, AuthenticationTypes.Secure)
             {
                 Path = string.Format("LDAP://{0}/{1}", server, start)
