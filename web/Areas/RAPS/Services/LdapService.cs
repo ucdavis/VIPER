@@ -423,7 +423,11 @@ namespace Viper.Areas.RAPS.Services
             string server = fromOu ? _ouServer : _ad3Server;
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
             _logger.Info("Root LDAP is " + string.Format("LDAP://{0}/{1}", server, start));
-            return new DirectoryEntry(string.Format("LDAP://{0}", start), _username, creds, AuthenticationTypes.Secure);
+            DirectoryEntry de = new DirectoryEntry(server, _username, creds, AuthenticationTypes.Secure)
+            {
+                Path = string.Format("LDAP://{0}/{1}", server, start)
+            };
+            return de;
         }
         //Get the root to start our ldap.ucdavis.edu query
         private DirectoryEntry GetRootContact()
