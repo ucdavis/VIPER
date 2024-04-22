@@ -14,7 +14,7 @@ namespace Viper.Areas.RAPS.Services
         private Logger _logger;
 
         //Start OUs for ou.ad3 (old-style groups and service accounts) and ad3 (users and api managed groups)
-        private const string _ouStart = "OU=SVM,OU=Departments,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
+        private const string _ouStart = "OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
         private const string _ad3Users = "OU=ucdUsers,DC=ad3,DC=ucdavis,DC=edu";
         private const string _ouServer = "ou.ad3.ucdavis.edu";
         private const string _ad3Server = "ad3.ucdavis.edu";
