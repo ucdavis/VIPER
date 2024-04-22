@@ -94,7 +94,7 @@ namespace Viper.Areas.RAPS.Services
                 filter = string.Format("(&{0}(cn=*{1}*))", filter, name);
             };
             SearchResultCollection results = new DirectorySearcher(GetRoot(true), filter, _groupProperties, SearchScope.Subtree)
-            { PageSize = 1000 }
+                { PageSize = 1000, ReferralChasing = ReferralChasingOption.All }
                 .FindAll();
             List<LdapGroup> groups = new();
             foreach (SearchResult result in results)

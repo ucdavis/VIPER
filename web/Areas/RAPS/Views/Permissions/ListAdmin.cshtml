@@ -79,7 +79,24 @@
                 }
             },
             mounted() {
+                var f = getItemFromStorage("RAPS_permission_filter")
+                if (f) {
+                    this.permissionTable.filter = f
+                }
+                var p = getItemFromStorage("RAPS_permission_pagination")
+                if (p) {
+                    this.permissionTable.pagination = p
+                }
                 this.permissionTable.load(this)
+            },
+            watch: {
+                permissionTable: {
+                    handler(v) {
+                        putItemInStorage("RAPS_permission_filter", v.filter)
+                        putItemInStorage("RAPS_permission_pagination", v.pagination)
+                    },
+                    deep: true
+                }
             }
         })
     </script>
