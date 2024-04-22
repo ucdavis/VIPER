@@ -3,6 +3,7 @@ using System.Runtime.Versioning;
 using System.DirectoryServices.AccountManagement;
 using Viper.Areas.RAPS.Models;
 using Amazon.Runtime.Internal.Transform;
+using NLog;
 
 namespace Viper.Areas.RAPS.Services
 {
@@ -13,6 +14,8 @@ namespace Viper.Areas.RAPS.Services
         private const string _username = "ou\\svc-accounts";
         //username for ldap.ucdavis.edu
         private const string _ldapUsername = "uid=vetmed,ou=Special Users,dc=ucdavis,dc=edu";
+
+        private Logger _logger;
 
         //Start OUs for ou.ad3 (old-style groups and service accounts) and ad3 (users and api managed groups)
         private const string _ouStart = "OU=SVM,OU=Departments,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
@@ -79,7 +82,9 @@ namespace Viper.Areas.RAPS.Services
             "accountexpires","adspath","badpasswordtime","badpwdcount","cn","codepage","company","countrycode","deliverandredirect","department","deptname","departmentnumber","Description","displayname","distinguishedname","dscorepropagationdata","edupersonaffiliation","edupersonprincipalname","employeenumber","extensionattribute10","extensionattribute11","extensionattribute12","extensionattribute13","extensionattribute14","extensionattribute15","extensionattribute5","extensionattribute6","extensionattribute7","extensionattribute8","extensionattribute9","gidnumber","givenname","instancetype","internetencoding","l","lastlogoff","lastlogon","lastlogontimestamp","legacyexchangedn","lockouttime","logoncount","mail","mailnickname","mapirecipient","memberof","mobile","msexcharchiveguid","msexcharchivename","msexcharchivestatus","msexchblockedsendershash","msexchcomanagedobjectsbl","msexchextensionattribute16","msexchextensionattribute17","msexchmailboxguid","msexchpoliciesexcluded","msexchrecipientdisplaytype","msexchrecipienttypedetails","msexchremoterecipienttype","msexchsafesendershash","msexchtextmessagingstate","msexchumdtmfmap","msexchuseraccountcontrol","msexchversion","msexchwhenmailboxcreated","name","objectcategory","objectclass","objectguid","objectsid","ou","pager","phone","physicaldeliveryofficename","postaladdress","postalcode","primarygroupid","proxyaddresses","pwdlastset","SamAccountName","samaccounttype","showinaddressbook","sn","st","street","streetaddress","targetaddress","telephonenumber","textencodedoraddress","title","ucdappointmentdepartmentcode","ucdappointmenttitlecode","ucdpersonaffiliation","ucdpersoniamid","ucdpersonnetid","ucdpersonpidm","ucdpersonppsid","ucdpersonuuid","ucdpublishitemflag","ucdstudentsid","uid","uidnumber","useraccountcontrol","username","userprincipalname","usnchanged","usncreated","whenchanged","whencreated"
         };
 
-        public LdapService() { }
+        public LdapService() {
+            _logger = LogManager.GetCurrentClassLogger();
+        }
 
         /// <summary>
         /// Get groups, optionally filtering with a wildcard match to name
@@ -93,15 +98,24 @@ namespace Viper.Areas.RAPS.Services
             {
                 filter = string.Format("(&{0}(cn=*{1}*))", filter, name);
             };
-            SearchResultCollection results = new DirectorySearcher(GetRoot(true), filter, _groupProperties, SearchScope.Subtree)
-                { PageSize = 1000, ReferralChasing = ReferralChasingOption.All }
-                .FindAll();
+            _logger.Info("LdapService.GetGroups(" + (name ?? "") + ")");
+
             List<LdapGroup> groups = new();
-            foreach (SearchResult result in results)
+            try
             {
-                groups.Add(new LdapGroup(result));
+                SearchResultCollection results = new DirectorySearcher(GetRoot(true), filter, _groupProperties, SearchScope.Subtree)
+                { PageSize = 1000, ReferralChasing = ReferralChasingOption.All }
+                    .FindAll();
+                foreach (SearchResult result in results)
+                {
+                    groups.Add(new LdapGroup(result));
+                }
+                groups.Sort((g1, g2) => g1.DistinguishedName.CompareTo(g2.DistinguishedName));
             }
-            groups.Sort((g1, g2) => g1.DistinguishedName.CompareTo(g2.DistinguishedName));
+            catch (Exception ex)
+            {
+                _logger.Error(ex);
+            }
             return groups;
         }
 
@@ -397,6 +411,7 @@ namespace Viper.Areas.RAPS.Services
         {
             string start = fromOu ? _ouStart : _ad3Users;
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
+            _logger.Info("Root LDAP is " + string.Format("LDAP://{0}", start));
             return new DirectoryEntry(string.Format("LDAP://{0}", start), _username, creds, AuthenticationTypes.Secure);
         }
         //Get the root to start our ldap.ucdavis.edu query
