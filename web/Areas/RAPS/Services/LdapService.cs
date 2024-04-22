@@ -79,12 +79,13 @@ namespace Viper.Areas.RAPS.Services
             try
             {
                 var de = GetRoot(true);
-                if(de.Options != null)
+                if (de.Options != null)
                 {
+                    _logger.Info("Setting DE Referral");
                     de.Options.Referral = ReferralChasingOption.All;
-                }                
+                }
                 var ds = new DirectorySearcher(de, filter, _groupProperties, SearchScope.Subtree)
-                    { PageSize = 1000, ReferralChasing = ReferralChasingOption.All };
+                    { ReferralChasing = ReferralChasingOption.All };
 
                 SearchResultCollection results = ds.FindAll();
                 foreach (SearchResult result in results)
