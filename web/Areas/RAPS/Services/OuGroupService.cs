@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using NLog;
 using NuGet.Protocol.Plugins;
+using Polly;
 using System.Linq.Dynamic.Core;
 using System.Runtime.Versioning;
 using Viper.Areas.RAPS.Models;
@@ -44,7 +46,17 @@ namespace Viper.Areas.RAPS.Services
                 .ThenInclude(gr => gr.Role)
                 .ThenInclude(r => r.TblRoleMembers)
                 .ToListAsync();
-            List<LdapGroup> ldapGroups = _ldapService.GetGroups();
+            List<LdapGroup> ldapGroups = new();
+            try
+            {
+                _ldapService.GetGroups();
+            }
+            catch (Exception ex)
+            {
+                Logger logger = LogManager.GetCurrentClassLogger();
+                logger.Error(ex);
+            }
+
             List<ManagedGroup> managedGroups = await _uInformService.GetManagedGroups();
 
             List<Group> groups = new();
