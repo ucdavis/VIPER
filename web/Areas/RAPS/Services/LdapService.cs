@@ -106,7 +106,7 @@ namespace Viper.Areas.RAPS.Services
                 var de = GetRoot(true);
                 _logger.Info("LDAP DE Server: " + de?.Options?.GetCurrentServerName());
                 var ds = new DirectorySearcher(de, filter, _groupProperties, SearchScope.Subtree)
-                { PageSize = 1000, ReferralChasing = ReferralChasingOption.All };
+                    { PageSize = 1000, ReferralChasing = ReferralChasingOption.All };
 
                 SearchResultCollection results = ds.FindAll();
                 foreach (SearchResult result in results)
@@ -118,7 +118,7 @@ namespace Viper.Areas.RAPS.Services
             catch (DirectoryServicesCOMException cex)
             {
                 _logger.Error(cex);
-                _logger.Error(cex.ExtendedError);
+                _logger.Error("Extended Error: " + cex?.ExtendedErrorMessage);
             }
             catch (Exception ex)
             {
