@@ -101,16 +101,23 @@ namespace Viper.Areas.RAPS.Services
             _logger.Info("LdapService.GetGroups(" + (name ?? "") + ")");
 
             List<LdapGroup> groups = new();
+            var de = GetRoot(true);
+            _logger.Info("LDAP DE Server: " + de?.Options?.GetCurrentServerName());
+            var ds = new DirectorySearcher(de, filter, _groupProperties, SearchScope.Subtree)
+            { PageSize = 1000, ReferralChasing = ReferralChasingOption.All };
             try
             {
-                SearchResultCollection results = new DirectorySearcher(GetRoot(true), filter, _groupProperties, SearchScope.Subtree)
-                { PageSize = 1000, ReferralChasing = ReferralChasingOption.All }
-                    .FindAll();
+                SearchResultCollection results = ds.FindAll();
                 foreach (SearchResult result in results)
                 {
                     groups.Add(new LdapGroup(result));
                 }
                 groups.Sort((g1, g2) => g1.DistinguishedName.CompareTo(g2.DistinguishedName));
+            }
+            catch (DirectoryServicesCOMException cex)
+            {
+                _logger.Error(cex);
+                _logger.Error(cex.ExtendedError);
             }
             catch (Exception ex)
             {
