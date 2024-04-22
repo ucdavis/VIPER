@@ -2,6 +2,7 @@
 using System.Runtime.Versioning;
 using System.DirectoryServices.AccountManagement;
 using Viper.Areas.RAPS.Models;
+using NLog;
 
 namespace Viper.Areas.RAPS.Services
 {
@@ -9,6 +10,8 @@ namespace Viper.Areas.RAPS.Services
     public class LdapService
     {
         private const string _username = "ou\\svc-accounts";
+
+        private Logger _logger;
 
         //Start OUs for ou.ad3 (old-style groups and service accounts) and ad3 (users and api managed groups)
         private const string _ouStart = "OU=SVM,OU=Departments,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
@@ -53,7 +56,9 @@ namespace Viper.Areas.RAPS.Services
             "memberOf"
         };
         
-        public LdapService() { }
+        public LdapService() {
+            _logger = LogManager.GetCurrentClassLogger();
+        }
         
         /// <summary>
         /// Get groups, optionally filtering with a wildcard match to name
@@ -67,15 +72,24 @@ namespace Viper.Areas.RAPS.Services
             {
                 filter = string.Format("(&{0}(cn=*{1}*))", filter, name);
             };
-            SearchResultCollection results = new DirectorySearcher(GetRoot(true), filter, _groupProperties, SearchScope.Subtree)
-                { PageSize = 1000, ReferralChasing = ReferralChasingOption.All }
-                .FindAll();
+            _logger.Info("LdapService.GetGroups(" + (name ?? "") + ")");
+
             List<LdapGroup> groups = new();
-            foreach(SearchResult result in results)
+            try
             {
-                groups.Add(new LdapGroup(result));
+                SearchResultCollection results = new DirectorySearcher(GetRoot(true), filter, _groupProperties, SearchScope.Subtree)
+                { PageSize = 1000, ReferralChasing = ReferralChasingOption.All }
+                    .FindAll();
+                foreach (SearchResult result in results)
+                {
+                    groups.Add(new LdapGroup(result));
+                }
+                groups.Sort((g1, g2) => g1.DistinguishedName.CompareTo(g2.DistinguishedName));
             }
-            groups.Sort((g1, g2) => g1.DistinguishedName.CompareTo(g2.DistinguishedName));
+            catch (Exception ex)
+            {
+                _logger.Error(ex);
+            }
             return groups;
         }
 
@@ -243,6 +257,7 @@ namespace Viper.Areas.RAPS.Services
         {
             string start = fromOu ? _ouStart : _ad3Users;
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
+            _logger.Info("Root LDAP is " + string.Format("LDAP://{0}", start));
             return new DirectoryEntry(string.Format("LDAP://{0}", start), _username, creds, AuthenticationTypes.Secure);
         }
 
