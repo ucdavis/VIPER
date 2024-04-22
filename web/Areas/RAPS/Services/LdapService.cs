@@ -22,6 +22,8 @@ namespace Viper.Areas.RAPS.Services
         private const string _ad3Users = "OU=ucdUsers,DC=ad3,DC=ucdavis,DC=edu";
         private const string _ldapUsers = "OU=People,DC=ldap,DC=ucdavis,DC=edu";
         //server and start for ldap.ucdavis.edu
+        private const string _ouServer = "ou.ad3.ucdavis.edu";
+        private const string _ad3Server = "ad3.ucdavis.edu";
         private const string _ldapServer = "ldap.ucdavis.edu";
         private const string _ldapStart = "ou=People,dc=ucdavis,dc=edu";
 
@@ -418,8 +420,9 @@ namespace Viper.Areas.RAPS.Services
         private DirectoryEntry GetRoot(bool fromOu = false)
         {
             string start = fromOu ? _ouStart : _ad3Users;
+            string server = fromOu ? _ouServer : _ad3Server;
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
-            _logger.Info("Root LDAP is " + string.Format("LDAP://{0}", start));
+            _logger.Info("Root LDAP is " + string.Format("LDAP://{0}/{1}", server, start));
             return new DirectoryEntry(string.Format("LDAP://{0}", start), _username, creds, AuthenticationTypes.Secure);
         }
         //Get the root to start our ldap.ucdavis.edu query
