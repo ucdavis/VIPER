@@ -33,7 +33,7 @@
     -->
 </q-form>
 
-<div class="row q-pa-sm q-gutter-sm" style="background-color: #fff">
+<div class="row q-pa-sm q-gutter-sm" style="background-color: #fff" id="directoryResults">
     <q-card v-for="user in results" class="col-2 col-sm-16 col-md-2 col-lg-3 col-xl-2 block { SVM : user.SVM}" style="background-color: #f8f8f8; border: 2px solid #fff; border-radius: 7px; box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;">
             <q-card-section class="grid row" :style="[user.svm ? {'background-color': '#1D4776'} : {'background-color': '#aaa'}]" style="padding:0; border-right: 1px solid #fff;">
             <a v-if="user.iamId && user.mothraId" :href="'@HttpHelper.GetOldViperRootURL()/default.cfm?page=userinfo&id='+ user.iamId + '&mothraID=' + user.mothraId"><q-icon name="person" size="xs" style="margin: 0.4rem; color: #fff;"></q-icon></a>

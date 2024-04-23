@@ -235,6 +235,12 @@ body {
     margin: .0rem 0rem .5rem 0rem;
 }
 
-.q-avatar {
-    height: 111px !important; width: 87px !important;
+div#directoryResults .q-avatar {
+    height: 111px !important;
+    width: 87px !important;
+}
+
+header .q-avatar {
+    height: 40px !important;
+    width: 31px !important;
 }
