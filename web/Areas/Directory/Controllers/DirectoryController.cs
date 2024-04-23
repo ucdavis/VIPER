@@ -10,6 +10,7 @@ using Viper.Areas.RAPS.Models;
 using Viper.Areas.Directory.Models;
 using System.Runtime.Versioning;
 using System.Collections.Generic;
+using Viper.Areas.Directory.Services;
 
 namespace Viper.Areas.Directory.Controllers
 {
@@ -34,9 +35,7 @@ namespace Viper.Areas.Directory.Controllers
         [Route("/[area]/")]
         public async Task<ActionResult> Index(string? useExample)
         {
-            return await Task.Run(() => !string.IsNullOrEmpty(useExample) 
-                ? View("~/Areas/Directory/Views/CardExample.cshtml") 
-                : View("~/Areas/Directory/Views/Index.cshtml"));
+            return await Task.Run(() => View("~/Areas/Directory/Views/Card.cshtml"));
         }
 
         /// <summary>
@@ -81,15 +80,16 @@ namespace Viper.Areas.Directory.Controllers
             individuals.ForEach(m =>
             {
                 LdapUserContact? l = new LdapService().GetUserByID(m.IamId);
-                if(false)
+                results.Add(hasDetailPermission
+                    ? new IndividualSearchResultWithIDs(m, l)
+                    : new IndividualSearchResult(m, l));
+
+                var vmsearch = VMACSService.Search(results.Last().LoginId);
+                var vm = vmsearch.Result;
+                if (vm != null && vm.item != null && vm.item.Nextel != null && vm.item.LDPager != null)
                 {
-                    results.Add(IndividualSearchResultCreator.CreateIndividualSearchResult(currentUser, l, hasDetailPermission));
-                }
-                else
-                {
-                    results.Add(hasDetailPermission
-                        ? new IndividualSearchResultWithIDs(m, l)
-                        : new IndividualSearchResult(m, l));
+                    results.Last().Nextel = vm.item.Nextel[0];
+                    results.Last().LDPager = vm.item.LDPager[0];
                 }
             });
             return results;
@@ -125,16 +125,9 @@ namespace Viper.Areas.Directory.Controllers
             foreach (var l in ldap)
             {
                 AaudUser? userInfo = individuals.Find(m => m.IamId == l.ucdpersoniamid);
-                if (false)
-                {
-                    results.Add(IndividualSearchResultCreator.CreateIndividualSearchResult(userInfo, l, hasDetailPermission));
-                }
-                else
-                {
-                    results.Add(hasDetailPermission
-                        ? new IndividualSearchResultWithIDs(userInfo, l)
-                        : new IndividualSearchResult(userInfo, l));
-                }
+                results.Add(hasDetailPermission
+                    ? new IndividualSearchResultWithIDs(userInfo, l)
+                    : new IndividualSearchResult(userInfo, l));
             };
             return results;
         }
