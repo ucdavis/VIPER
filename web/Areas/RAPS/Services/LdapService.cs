@@ -12,6 +12,7 @@ namespace Viper.Areas.RAPS.Services
     {
         //username for campus active directory servers (ou.ad3 and ad3)
         private const string _username = "ou\\svc-accounts";
+        //private const string _username = "CN=svc-accounts,OU=Service Accounts,OU=SVM-OU-LocalUsers,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
         //username for ldap.ucdavis.edu
         private const string _ldapUsername = "uid=vetmed,ou=Special Users,dc=ucdavis,dc=edu";
 
@@ -426,10 +427,11 @@ namespace Viper.Areas.RAPS.Services
             string server = fromOu ? _ouServer : _ad3Server;
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
             _logger.Warn(string.Format("GetRoot Connection: {0} {1} {2}", server, start, _username));
-            DirectoryEntry de = new DirectoryEntry(server, _username, creds, AuthenticationTypes.SecureSocketsLayer)
+            DirectoryEntry de = new DirectoryEntry(server, _username, creds, AuthenticationTypes.Secure)
             {
                 Path = string.Format("LDAP://{0}", start)
             };
+            _logger.Warn(string.Format("Path: {0}", de.Path));
             return de;
         }
 
