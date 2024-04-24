@@ -2,8 +2,10 @@
 using System.Runtime.Versioning;
 using System.DirectoryServices.AccountManagement;
 using Viper.Areas.RAPS.Models;
-using Amazon.Runtime.Internal.Transform;
 using NLog;
+using Amazon.Runtime.Internal.Transform;
+using System.Text;
+using System.Security.Cryptography;
 
 namespace Viper.Areas.RAPS.Services
 {
@@ -84,7 +86,8 @@ namespace Viper.Areas.RAPS.Services
             "accountexpires","adspath","badpasswordtime","badpwdcount","cn","codepage","company","countrycode","deliverandredirect","department","deptname","departmentnumber","Description","displayname","distinguishedname","dscorepropagationdata","edupersonaffiliation","edupersonprincipalname","employeenumber","extensionattribute10","extensionattribute11","extensionattribute12","extensionattribute13","extensionattribute14","extensionattribute15","extensionattribute5","extensionattribute6","extensionattribute7","extensionattribute8","extensionattribute9","gidnumber","givenname","instancetype","internetencoding","l","lastlogoff","lastlogon","lastlogontimestamp","legacyexchangedn","lockouttime","logoncount","mail","mailnickname","mapirecipient","memberof","mobile","msexcharchiveguid","msexcharchivename","msexcharchivestatus","msexchblockedsendershash","msexchcomanagedobjectsbl","msexchextensionattribute16","msexchextensionattribute17","msexchmailboxguid","msexchpoliciesexcluded","msexchrecipientdisplaytype","msexchrecipienttypedetails","msexchremoterecipienttype","msexchsafesendershash","msexchtextmessagingstate","msexchumdtmfmap","msexchuseraccountcontrol","msexchversion","msexchwhenmailboxcreated","name","objectcategory","objectclass","objectguid","objectsid","ou","pager","phone","physicaldeliveryofficename","postaladdress","postalcode","primarygroupid","proxyaddresses","pwdlastset","SamAccountName","samaccounttype","showinaddressbook","sn","st","street","streetaddress","targetaddress","telephonenumber","textencodedoraddress","title","ucdappointmentdepartmentcode","ucdappointmenttitlecode","ucdpersonaffiliation","ucdpersoniamid","ucdpersonnetid","ucdpersonpidm","ucdpersonppsid","ucdpersonuuid","ucdpublishitemflag","ucdstudentsid","uid","uidnumber","useraccountcontrol","username","userprincipalname","usnchanged","usncreated","whenchanged","whencreated"
         };
 
-        public LdapService() {
+        public LdapService()
+        {
             _logger = LogManager.GetCurrentClassLogger();
         }
 
@@ -111,7 +114,7 @@ namespace Viper.Areas.RAPS.Services
                     de.Options.Referral = ReferralChasingOption.All;
                 }
                 var ds = new DirectorySearcher(de, filter, _groupProperties, SearchScope.Subtree)
-                    { ReferralChasing = ReferralChasingOption.All };
+                { ReferralChasing = ReferralChasingOption.All };
 
                 SearchResultCollection results = ds.FindAll();
                 foreach (SearchResult result in results)
@@ -209,14 +212,14 @@ namespace Viper.Areas.RAPS.Services
         /// </summary>
         /// <param name="search">Searches all fields (phone number, SN, given name, UID, CN, mail) for this value</param>
         /// <returns>Dictionary of Users, indexed by mothraID</returns>
-        public Dictionary<string,LdapUserContact> GetUsersContactDictionary(string search)
+        public Dictionary<string, LdapUserContact> GetUsersContactDictionary(string search)
         {
             string filter = string.Format("(|(telephoneNumber=*{0})(sn={0}*)(givenName={0}*)(uid={0}*)(cn={0})(mail={0}*))", search);
             DirectoryEntry de = GetRootContact();
             SearchResultCollection results = new DirectorySearcher(de, filter, CFParams, SearchScope.Subtree)
             { SizeLimit = 1000 }
                 .FindAll();
-            Dictionary<string,LdapUserContact> users = new();
+            Dictionary<string, LdapUserContact> users = new();
             foreach (SearchResult result in results)
             {
                 users.Add((string)result.Properties["ucdpersonuuid"][0], new LdapUserContact(result));
@@ -272,7 +275,8 @@ namespace Viper.Areas.RAPS.Services
         public Dictionary<string, LdapUserContact> GetUsersByIDs(List<string> ids)
         {
             string filter = "(|";
-            foreach (string i in ids) {
+            foreach (string i in ids)
+            {
                 filter += string.Format("(ucdpersonuuid = {0})", i);
             }
             filter += ")";
@@ -425,6 +429,7 @@ namespace Viper.Areas.RAPS.Services
             string start = fromOu ? _ouStart : _ad3Users;
             string server = fromOu ? _ouServer : _ad3Server;
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
+            _logger.Info(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(creds))));
             DirectoryEntry de = new DirectoryEntry(server, _username, creds, AuthenticationTypes.None)
             {
                 Path = string.Format("LDAP://{0}", start)
