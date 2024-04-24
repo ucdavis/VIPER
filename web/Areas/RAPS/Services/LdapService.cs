@@ -18,7 +18,7 @@ namespace Viper.Areas.RAPS.Services
         private Logger _logger;
 
         //Start OUs for ou.ad3 (old-style groups and service accounts) and ad3 (users and api managed groups)
-        private const string _ouStart = "DC=ou,DC=ad3,DC=ucdavis,DC=edu";
+        private const string _ouStart = "OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
         private const string _ad3Users = "OU=ucdUsers,DC=ad3,DC=ucdavis,DC=edu";
         private const string _ldapUsers = "OU=People,DC=ldap,DC=ucdavis,DC=edu";
         //server and start for ldap.ucdavis.edu
@@ -425,6 +425,7 @@ namespace Viper.Areas.RAPS.Services
             string start = fromOu ? _ouStart : _ad3Users;
             string server = fromOu ? _ouServer : _ad3Server;
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
+            _logger.Warn(string.Format("GetRoot Connection: {0} {1} {2}", server, start, _username));
             DirectoryEntry de = new DirectoryEntry(server, _username, creds, AuthenticationTypes.SecureSocketsLayer)
             {
                 Path = string.Format("LDAP://{0}", start)
