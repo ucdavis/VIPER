@@ -115,13 +115,13 @@ namespace Viper.Areas.RAPS.Services
 
         public static SearchResponse SearchLdap(string searchFilter)
         {
-            var ldapIdentifier = new LdapDirectoryIdentifier(_ldapServer, _ldapSSLPort);
+            var ldapIdentifier = new LdapDirectoryIdentifier(_ldapServer, 389);
             var cred = HttpHelper.GetSetting<string>("Credentials", "UCDavisDirectoryLDAP") ?? "";
-            using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential(_ldapUsername, cred));
+            using var lc = new LdapConnection(ldapIdentifier);// new System.Net.NetworkCredential(_ldapUsername, cred));
             lc.SessionOptions.ProtocolVersion = 3;
-            lc.SessionOptions.SecureSocketLayer = true;
+            //lc.SessionOptions.SecureSocketLayer = true;
             lc.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
-            lc.AuthType = AuthType.Basic;
+            lc.AuthType = AuthType.Anonymous;
             lc.Bind();
 
             var searchRequest = new SearchRequest(_ldapStart, searchFilter, SearchScope.Subtree, _personProperties);
