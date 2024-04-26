@@ -27,7 +27,7 @@ namespace Viper.Areas.RAPS.Services
         //server and start for ldap.ucdavis.edu
         private const string _ouServer = "ou.ad3.ucdavis.edu";
         private const string _ad3Server = "ad3.ucdavis.edu";
-        private const string _ldapServer = "ldap.ucdavis.edu";
+        private const string _ldapServer = "ldap.gdc.ucdavis.edu";
         private const string _ldapStart = "OU=People,DC=ucdavis,DC=edu";
         private const int _ldapSSLPort = 636;
 
@@ -98,7 +98,7 @@ namespace Viper.Areas.RAPS.Services
                 ? new LdapDirectoryIdentifier(_ouServer, _ldapSSLPort)
                 : new LdapDirectoryIdentifier(_ad3Server, _ldapSSLPort);
             var cred = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
-            using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential(_username, cred, "ou"));
+            using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential(_username, cred, "ou.ad3.ucdavis.edu"));
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
             lc.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
