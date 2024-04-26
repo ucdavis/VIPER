@@ -37,7 +37,26 @@ namespace Viper.Areas.Directory.Models
                 VmacsId = aaudUser.VmacsId;
                 UnexId = aaudUser.UnexId;
                 MivId = aaudUser.MivId;
-            }            
+            }
+            else if(ldapUserContact != null)
+            {
+                Title = ldapUserContact.title;
+                Department = ldapUserContact.department;
+                Phone = ldapUserContact.telephonenumber;
+                Mobile = ldapUserContact.mobile;
+                UserName = ldapUserContact.uid;
+                PostalAddress = (ldapUserContact.postaladdress ?? "").Replace("$", '\n'.ToString());
+                UCDAffiliation = ldapUserContact.ucdpersonaffiliation;
+                UCDPersonUUID = ldapUserContact.ucdpersonuuid;
+                if (string.IsNullOrEmpty(DisplayFullName))
+                {
+                    DisplayFullName = ldapUserContact.displayname;
+                }
+                if (string.IsNullOrEmpty(Name))
+                {
+                    Name = ldapUserContact.displayname;
+                }
+            }
         }
     }
 }

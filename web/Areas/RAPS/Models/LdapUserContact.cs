@@ -1,6 +1,8 @@
 ﻿using Newtonsoft.Json;
 using System.DirectoryServices;
+using System.DirectoryServices.Protocols;
 using System.Linq.Dynamic.Core;
+using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using System.Text.Json;
 
@@ -9,6 +11,16 @@ namespace Viper.Areas.RAPS.Models
     [SupportedOSPlatform("windows")]
     public class LdapUserContact
     {
+        public string? middlename { get; set; } = null!;
+        public string? eduPersonNickname { get; set; } = null!;
+        public string? ucdStudentLevel { get; set; } = null!;
+        public string? ucdPersonIAMID { get; set; } = null!;
+        public string? ucdPersonUUID { get; set; } = null!;
+        public string? ucdStudentSID { get; set; } = null!;
+        public string? ucdPersonPIDM { get; set; } = null!;
+        public string? employeeNumber { get; set; } = null!;
+        public string? ucdPersonAffiliation { get; set; } = null!;
+
         public string? accountexpires { get; set; } = null!;
         public string? adspath { get; set; } = null!;
         public string? badpasswordtime { get; set; } = null!;
@@ -89,7 +101,7 @@ namespace Viper.Areas.RAPS.Models
         public string SamAccountName { get; set; } = null!;
         public string? samaccounttype { get; set; } = null!;
         public string? showinaddressbook { get; set; } = null!;
-        public string sn { get; set; } = null!;
+        public string surName { get; set; } = null!;
         public string? st { get; set; } = null!;
         public string? street { get; set; } = null!;
         public string? streetaddress { get; set; } = null!;
@@ -211,7 +223,7 @@ namespace Viper.Areas.RAPS.Models
                             case "samaccountname": SamAccountName = v[0].ToString(); break;
                             case "samaccounttype": samaccounttype = v[0].ToString(); break;
                             case "showinaddressbook": showinaddressbook = v[0].ToString(); break;
-                            case "sn": sn = v[0].ToString(); break;
+                            case "sn": surName = v[0].ToString(); break;
                             case "st": st = v[0].ToString(); break;
                             case "street": street = v[0].ToString(); break;
                             case "streetaddress": streetaddress = v[0].ToString(); break;
@@ -250,6 +262,47 @@ namespace Viper.Areas.RAPS.Models
 
                     }
                 }
+            }
+        }
+
+        //u.mailID = "";
+        //        u.email = row.mail;
+        //        u.name = row.displayname;
+        //        u.givenName = (len(row?.eduPersonNickname) > 0 ? row.eduPersonNickname : row.givenName);
+        //        u.surName = row.sn;
+        //        u.middlename = row.middlename;
+        public LdapUserContact(SearchResultEntry entry)
+        {
+            foreach (DirectoryAttribute attr in entry.Attributes.Values)
+            {
+                var v = attr[0];
+                switch (attr.Name)
+                {
+                    case "sAMAccountName": SamAccountName = v.ToString(); break;
+                    case "sn": surName = v.ToString(); break;
+
+                    case "givenName": givenname = v.ToString(); break;
+                    case "middlename": middlename = v.ToString(); break;
+                    case "displayName": displayname = v.ToString(); break;
+                    case "eduPersonNickname": eduPersonNickname = v.ToString(); break;
+
+                    case "title": title = v.ToString(); break;
+                    case "postalAddress": postaladdress = v.ToString(); break;
+                    case "telephoneNumber": telephonenumber = v.ToString(); break;
+                    case "mobile": mobile = v.ToString(); break;
+                    case "mail": mail = v.ToString(); break;
+
+                    case "ucdStudentLevel": ucdStudentLevel = v.ToString(); break;
+                    case "ucdStudentSID": ucdStudentSID = v.ToString(); break;
+                    case "ucdPersonPIDM": ucdPersonPIDM = v.ToString(); break;
+                    case "employeeNumber": employeeNumber = v.ToString(); break;
+                    case "ucdPersonUUID": ucdPersonUUID = v.ToString(); break;
+                    case "ucdPersonIAMID": ucdPersonIAMID = v.ToString(); break;
+                    case "ucdPersonAffiliation": ucdPersonAffiliation = v.ToString(); break;
+                   
+                    default: break;
+                }
+
             }
         }
     }
