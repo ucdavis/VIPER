@@ -101,6 +101,7 @@ namespace Viper.Areas.RAPS.Services
             using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential(_username, cred, "ou"));
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
+            lc.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
             lc.Bind();
 
             var searchRequest = new SearchRequest(searchStart, searchFilter, SearchScope.Subtree, _groupProperties)
@@ -119,6 +120,7 @@ namespace Viper.Areas.RAPS.Services
             using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential(_ldapUsername, cred));
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
+            lc.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
             lc.AuthType = AuthType.Basic;
             lc.Bind();
 
