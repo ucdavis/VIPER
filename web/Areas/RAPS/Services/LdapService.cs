@@ -27,7 +27,7 @@ namespace Viper.Areas.RAPS.Services
         //server and start for ldap.ucdavis.edu
         private const string _ouServer = "ou.ad3.ucdavis.edu";
         private const string _ad3Server = "ad3.ucdavis.edu";
-        private const string _ldapServer = "ldap.gdc.ucdavis.edu";
+        private const string _ldapServer = "ldap.ucdavis.edu";
         private const string _ldapStart = "OU=People,DC=ucdavis,DC=edu";
         private const int _ldapSSLPort = 636;
 
@@ -117,10 +117,20 @@ namespace Viper.Areas.RAPS.Services
         {
             var ldapIdentifier = new LdapDirectoryIdentifier(_ldapServer, 636);
             var cred = HttpHelper.GetSetting<string>("Credentials", "UCDavisDirectoryLDAP") ?? "";
-            using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential("uid=vetmed,ou=Special Users,dc=ucdavis,dc=edu", cred), AuthType.Basic);
+            using var lc = new LdapConnection(ldapIdentifier, 
+                    new System.Net.NetworkCredential("uid=vetmed,ou=Special Users,dc=ucdavis,dc=edu", cred), 
+                    AuthType.Basic);
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
-            lc.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
+            lc.SessionOptions.VerifyServerCertificate = (connection, certificate) =>
+            {
+                var _logger = LogManager.GetCurrentClassLogger();
+                _logger.Info(certificate.Issuer);
+                _logger.Info(certificate.Subject);
+                _logger.Info(connection.SessionOptions.HostName);
+                _logger.Info(connection.SessionOptions.HostReachable.ToString());
+                return true;
+            };
             lc.Bind();
 
             var searchRequest = new SearchRequest(_ldapStart, searchFilter, SearchScope.Subtree, _personProperties);
