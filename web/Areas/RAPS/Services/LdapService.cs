@@ -2,10 +2,7 @@
 using System.DirectoryServices.AccountManagement;
 using Viper.Areas.RAPS.Models;
 using NLog;
-using Amazon.Runtime.Internal.Transform;
 using System.DirectoryServices.Protocols;
-using AngleSharp.Html;
-using AngleSharp.Html.Dom.Events;
 
 namespace Viper.Areas.RAPS.Services
 {
@@ -17,8 +14,6 @@ namespace Viper.Areas.RAPS.Services
         //private const string _username = "CN=svc-accounts,OU=Service Accounts,OU=SVM-OU-LocalUsers,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
         //username for ldap.ucdavis.edu
         private const string _ldapUsername = "UID=vetmed,OU=Special Users,DC=ucdavis,DC=edu";
-
-        private Logger _logger;
 
         //Start OUs for ou.ad3 (old-style groups and service accounts) and ad3 (users and api managed groups)
         private const string _ouStart = "OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
@@ -89,7 +84,7 @@ namespace Viper.Areas.RAPS.Services
         };
 
         public LdapService() {
-            _logger = LogManager.GetCurrentClassLogger();
+            
         }
 
         public static SearchResponse SearchActiveDirectory(string searchFilter, string searchStart, bool ou = false)
@@ -106,7 +101,7 @@ namespace Viper.Areas.RAPS.Services
 
             var searchRequest = new SearchRequest(searchStart, searchFilter, SearchScope.Subtree, _groupProperties)
             {
-                SizeLimit = 1000                
+                SizeLimit = 1000
             };
 
             var response = (SearchResponse)lc.SendRequest(searchRequest);
@@ -122,15 +117,7 @@ namespace Viper.Areas.RAPS.Services
                     AuthType.Basic);
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
-            lc.SessionOptions.VerifyServerCertificate = (connection, certificate) =>
-            {
-                var _logger = LogManager.GetCurrentClassLogger();
-                _logger.Info(certificate.Issuer);
-                _logger.Info(certificate.Subject);
-                _logger.Info(connection.SessionOptions.HostName);
-                _logger.Info(connection.SessionOptions.HostReachable.ToString());
-                return true;
-            };
+            lc.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
             lc.Bind();
 
             var searchRequest = new SearchRequest(_ldapStart, searchFilter, SearchScope.Subtree, _personProperties);
@@ -159,35 +146,6 @@ namespace Viper.Areas.RAPS.Services
                 groups.Add(new LdapGroup(e));
             }
 
-            /*
-            try
-            {
-                var de = GetRoot(true);
-                if (de.Options != null)
-                {
-                    _logger.Info("Setting DE Referral");
-                    de.Options.Referral = ReferralChasingOption.All;
-                }
-                var ds = new DirectorySearcher(de, filter, _groupProperties, SearchScope.Subtree)
-                    { ReferralChasing = ReferralChasingOption.All };
-
-                SearchResultCollection results = ds.FindAll();
-                foreach (SearchResult result in results)
-                {
-                    groups.Add(new LdapGroup(result));
-                }
-                groups.Sort((g1, g2) => g1.DistinguishedName.CompareTo(g2.DistinguishedName));
-            }
-            catch (DirectoryServicesCOMException cex)
-            {
-                _logger.Error(cex);
-                _logger.Error("Extended Error: " + cex?.ExtendedErrorMessage);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex);
-            }
-            */
             groups.Sort((g1, g2) => g1.DistinguishedName.CompareTo(g2.DistinguishedName));
             return groups;
         }
