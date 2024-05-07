@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Viper.Classes.SQLContext;
 using Viper.Classes;
 using Web.Authorization;
+using Microsoft.EntityFrameworkCore;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -16,10 +17,7 @@ namespace Viper.Areas.CTS.Controllers
         private readonly VIPERContext _viperContext;
         public IUserHelper UserHelper;
 
-        public int Count { get; set; }
-        public string? UserName { get; set; }
-
-        public CTSController(VIPERContext context, IWebHostEnvironment environment)
+        public CTSController(VIPERContext context)
         {
             _viperContext = context;
             UserHelper = new UserHelper();
@@ -52,6 +50,23 @@ namespace Viper.Areas.CTS.Controllers
         [Route("/[area]")]
         public IActionResult Index()
         {
+            var levels = _viperContext.Levels.ToList();
+            var epas = _viperContext.Epas.ToList();
+            var encounters = _viperContext.Encounters
+                .Include(e => e.EncounterInstructors)
+                .Include(e => e.Clinician)
+                .Include(e => e.Student)
+                .Include(e => e.Service)
+                .Include(e => e.Offering)
+                .Include(e => e.EnteredByPerson)
+                .ToList();
+            var studentEpas = _viperContext.StudentEpas
+                .Include(e => e.Encounter)
+                .Include(e => e.Epa)
+                .Include(e => e.Level)
+                .ToList();
+            var people = _viperContext.People.ToList();
+            
             return View("~/Areas/CTS/Views/Index.cshtml");
         }
 

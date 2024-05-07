@@ -234,3 +234,8 @@ body {
     line-height: 1rem;
     margin: .0rem 0rem .5rem 0rem;
 }
+
+.q-avatar .smallPhoto {
+    height: 40px !important;
+    width: 31px !important;
+}

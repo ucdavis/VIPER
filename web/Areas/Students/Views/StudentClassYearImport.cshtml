@@ -1,0 +1,118 @@
+﻿<h2>Student Class Year Import</h2>
+
+<q-form>
+	<div class="row q-mb-md">
+		<q-select label="Term Code" outlined dense options-dense :options="terms" v-model="term"
+			class="col col-md-2">
+		</q-select>
+		<q-select label="Class Level" outlined dense options-dense :options="classLevels" v-model="classLevel"
+			class="col col-md-1 q-ml-sm">
+		</q-select>
+		<q-btn label="Load student list" dense no-caps class="q-ml-sm q-px-sm" 
+			:disabled="term.value == '' || classLevel.value == ''"
+			:color="term.value == '' || classLevel.value == '' ? 'white' : 'secondary'"
+			:text-color="term.value == '' || classLevel.value == '' ? 'dark' : 'white'"
+			@@click="getStudentsByTermAndClassLevel(this)"></q-btn>
+		<q-btn label="Return to class list" dense no-caps class="q-ml-xl q-px-sm" color="secondary"
+			:href="'StudentClassYear?classYear=' + this.classYear"></q-btn>
+	</div>
+
+	<div v-if="students.length">
+		<q-btn dense no-caps class="q-px-md q-mr-md" color="primary" label="Select All"
+			   @@click="selectAll(this)"></q-btn>
+		<q-btn dense no-caps class="q-px-md" color="primary" label="Import Selected Students"
+			@@click="importStudents(this)"></q-btn>
+		<q-list dense>
+			<q-item-label header background-color="secondary">
+				Students {{classLevel.value}} in {{term.label}}
+			</q-item-label>
+			<q-item dense clickable v-ripple v-for="student in students">
+				<q-item-section side>
+					<q-checkbox v-model="selectedStudents" :val="student.personId" :disable="student.classYears.length != 0"></q-checkbox>
+				</q-item-section>
+				<q-item-section avatar>
+					<q-avatar>
+						<img :src="'https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?altphoto=1&mailId=' + student.mailId" class="smallPhoto" />
+					</q-avatar>
+				</q-item-section>
+				<q-item-section>
+					<q-item-label>
+						{{student.lastName}}, {{student.firstName}}
+					</q-item-label>
+				</q-item-section>
+				<q-item-section v-if="student.classYears.length != 0">
+					Current: Class of {{student.classYear}}
+				</q-item-section>
+			</q-item>
+		</q-list>
+	</div>
+	<div v-if="noStudentsFound">
+		No students found
+	</div>
+</q-form>
+
+@section Scripts {
+	<script asp-add-nonce="true">
+		createVueApp({
+			data() {
+				return {
+					classYear: 0,
+					term: { label: "Spring 2024", value: "202402" },
+					terms: [],
+					classLevel: { label: "V4", value: "V4" },
+					classLevels: [
+						{ label: "V1", value: "V1" },
+						{ label: "V2", value: "V2" },
+						{ label: "V3", value: "V3" },
+						{ label: "V4", value: "V4" }
+					],
+					students: [],
+					selectedStudents: [],
+					noStudentsFound: false
+				}
+			},
+			methods: {
+				getStudentsByTermAndClassLevel: async function () {
+					this.students = []
+					this.noStudentsFound = false
+					if (this.term?.value && this.classLevel?.value) {
+						this.students = await viperFetch(this, "dvm/byTermAndClassLevel/" + this.term.value + "/" + this.classLevel.value)
+						if (this.students.length == 0) {
+							this.noStudentsFound = true
+						}
+					}
+				},
+				importStudents: async function() {
+					await viperFetch(this,
+						"dvm/" + this.classYear + "/import",
+						{
+							method: "POST",
+							body: JSON.stringify(this.selectedStudents),
+							headers: { "Content-Type": "application/json" }
+						}
+					)
+					this.getStudentsByTermAndClassLevel()
+					this.selectedStudents = []
+				},
+				selectAll: function() {
+					this.selectedStudents = this.students.reduce((ids, s) => {
+						if(s.classYears.length == 0)
+							ids.push(s.personId)
+						return ids
+					}, [])
+				}
+			},
+			mounted: function () {
+				this.classYear = this.urlParams.get("classYear")
+				this.terms = viperFetch(this, "/curriculum/terms")
+					.then(data => {
+						this.terms = data
+							.map(t => ({ label: t.description, value: t.termCode }))
+					})
+			},
+			watch: {
+				
+			}
+		})
+	</script>
+}
