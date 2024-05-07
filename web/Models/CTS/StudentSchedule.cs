@@ -25,5 +25,8 @@ namespace Viper.Models.CTS
         public string? CrseNumb { get; set; } = null;
         public int ServiceId { get; set; }
         public string ServiceName { get; set; } = null!;
+
+        public virtual Service Service { get; set; } = null!;
+        public virtual Rotation Rotation { get; set; } = null!;
     }
 }

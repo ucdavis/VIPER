@@ -39,5 +39,5 @@
 		public string? MediasiteTemplate { get; set; }
 		public int? CanvasCourseId { get; set; }
 		public int? CanvasEventId { get; set; }
-	}
+    }
 }

@@ -1,28 +1,33 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Viper.Models.CTS;
 
 namespace Viper.Classes.SQLContext;
 
 public partial class VIPERContext : DbContext
 {
+    /* CTS */
     public virtual DbSet<Competency> Competencies { get; set; }
-
     public virtual DbSet<Domain> Domains { get; set; }
+    public virtual DbSet<Level> Levels { get; set; }
+    public virtual DbSet<Epa> Epas { get; set; }
+    public virtual DbSet<Encounter> Encounters { get; set; }
+    public virtual DbSet<EncounterInstructor> EncounterInstructors { get; set; } 
+    public virtual DbSet<StudentEpa> StudentEpas { get; set; }
+    public virtual DbSet<CtsAudit> CtsAudits { get; set; }
 
     /* Students */
     public virtual DbSet<DvmStudent> DvmStudent { get; set; }
 
     /* Clinical Scheduler */
     public virtual DbSet<InstructorSchedule> InstructorSchedule { get; set; }
-
     public virtual DbSet<StudentSchedule> StudentSchedule { get; set; }
+    public virtual DbSet<Rotation> Rotation { get; set; }
+    public virtual DbSet<Service> Service { get; set; }
 
     /* CREST */
     public virtual DbSet<CourseSessionOffering> CourseSessionOffering { get; set; }
 
-    partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
+    partial void OnModelCreatingCTS(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Competency>(entity =>
         {
@@ -35,17 +40,75 @@ public partial class VIPERContext : DbContext
 
             entity.HasOne(d => d.Domain).WithMany(p => p.Competencies)
                 .HasForeignKey(d => d.DomainId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+                .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("FK_Competency_Domain");
 
             entity.HasOne(d => d.Parent).WithMany(p => p.Children)
                 .HasForeignKey(d => d.ParentId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Competency_Competency");
         });
 
         modelBuilder.Entity<Domain>(entity =>
         {
             entity.ToTable("Domain", "cts");
+        });
+
+        modelBuilder.Entity<Level>(entity =>
+        {
+            entity.ToTable("Level", "cts");
+        });
+
+        modelBuilder.Entity<Epa>(entity =>
+        {
+            entity.ToTable("Epa", "cts");
+        });
+
+        modelBuilder.Entity<Encounter>(entity =>
+        {
+            entity.ToTable("Encounter", "cts");
+            entity.HasOne(e => e.Service).WithMany(e => e.Encounters)
+                .HasForeignKey(e => e.ServiceId);
+            entity.HasOne(e => e.Offering).WithMany()
+                .HasForeignKey(e => e.OfferingId)
+                .HasPrincipalKey(e => e.EduTaskOfferid);
+            entity.HasOne(e => e.Clinician).WithMany()
+                .HasForeignKey(e => e.ClinicianId);
+            entity.HasOne(e => e.Student).WithMany()
+                .HasForeignKey(e => e.StudentUserId);
+            entity.HasOne(e => e.EnteredByPerson).WithMany()
+                .HasForeignKey(e => e.EnteredBy);
+        });
+
+        modelBuilder.Entity<EncounterInstructor>(entity =>
+        {
+            entity.ToTable("EncounterInstructor", "cts");
+            entity.HasOne(e => e.Instructor).WithMany()
+                .HasForeignKey(e => e.InstructorId);
+            entity.HasOne(e => e.Encounter).WithMany(e => e.EncounterInstructors)
+                .HasForeignKey(e => e.EncounterId);
+        });
+
+        modelBuilder.Entity<StudentEpa>(entity =>
+        {
+            entity.ToTable("StudentEpa", "cts");
+            entity.HasOne(e => e.Encounter).WithMany()
+                .HasForeignKey(e => e.EncounterId);
+            entity.HasOne(e => e.Level).WithMany()
+                .HasForeignKey(e => e.LevelId);
+            entity.HasOne(e => e.Epa).WithMany()
+                .HasForeignKey(e => e.EpaId);
+        });
+
+        modelBuilder.Entity<CtsAudit>(entity =>
+        {
+            entity.ToTable("CtsAudit", "cts");
+            entity.HasOne(e => e.Modifier).WithMany()
+                .HasForeignKey(e => e.ModifiedBy);
+            entity.HasOne(e => e.Encounter).WithMany()
+                .HasForeignKey(e => e.EncounterId);
+            entity.HasOne(e => e.StudentEpa).WithMany()
+                .HasForeignKey(e => e.StudentEpaId);
         });
 
         /* "Exteral" entities */
@@ -73,6 +136,10 @@ public partial class VIPERContext : DbContext
             entity.Property(e => e.Role).IsRequired(false);
             entity.Property(e => e.SubjCode).IsRequired(false);
             entity.Property(e => e.CrseNumb).IsRequired(false);
+            entity.HasOne(e => e.Service).WithMany()
+                .HasForeignKey(e => e.ServiceId);
+            entity.HasOne(e => e.Rotation).WithMany()
+                .HasForeignKey(r => r.RotationId);
         });
 
         modelBuilder.Entity<StudentSchedule>(entity =>
@@ -88,11 +155,33 @@ public partial class VIPERContext : DbContext
             entity.Property(e => e.Incomplete).IsRequired(false);
             entity.Property(e => e.SubjCode).IsRequired(false);
             entity.Property(e => e.CrseNumb).IsRequired(false);
+            entity.HasOne(e => e.Service).WithMany()
+                .HasForeignKey(e => e.ServiceId);
+            entity.HasOne(e => e.Rotation).WithMany()
+                .HasForeignKey(r => r.RotationId);
+        });
+
+        modelBuilder.Entity<Rotation>(entity =>
+        {
+            entity.HasKey(e => e.RotId);
+            entity.ToTable("vwRotation", schema: "cts");
+            entity.Property(e => e.SubjectCode).IsRequired(false);
+            entity.Property(e => e.CourseNumber).IsRequired(false);
+            entity.HasOne(e => e.Service).WithMany(s => s.Rotations)
+               .HasForeignKey(e => e.ServiceId)
+               .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<Service>(entity =>
+        {
+            entity.HasKey(e => e.ServiceId);
+            entity.ToTable("vwService", schema: "cts");
         });
 
         modelBuilder.Entity<CourseSessionOffering>(entity =>
         {
             entity.HasKey(e => new { e.CourseId, e.SessionId, e.EduTaskOfferid });
+            entity.HasAlternateKey(e => e.EduTaskOfferid);
             entity.ToTable("vwCourseSessionOffering", schema: "cts");
 			entity.Property(e => e.Crn).IsRequired(false);
 			entity.Property(e => e.SsaCourseNum).IsRequired(false);
