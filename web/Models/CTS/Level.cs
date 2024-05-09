@@ -3,6 +3,7 @@
     public class Level
     {
         public int LevelId { get; set; }
+        public string LevelName { get; set; } = null!;
         public string? Description { get; set; }
         public bool Active { get; set; }
         public int Order { get; set; }

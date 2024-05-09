@@ -1,0 +1,69 @@
+﻿@using Viper.Models.CTS
+
+<h2>Manage Domains</h2>
+@{
+	var errors = ViewData["Errors"] as List<string>;
+	if(errors != null && errors.Count > 0)
+	{
+		<ul class="errorList">
+		@foreach(var e in errors)
+			{
+				<li>@e</li>
+			}
+		</ul>
+	}
+
+	var domain = ViewData["Domain"] as Domain;
+	var domains = ViewData["Domains"] as List<Domain>;
+}
+
+<q-form action="" method="post">
+	<input type="hidden" name="domainId" value="@(domain?.DomainId ?? 0)" />
+	<q-label class="row items-center">
+		<span class="col col-md-2 col-lg-1">Domain:</span>
+		<q-input outlined dense type="text" name="name" v-model="name" size="30" maxlength="250" class="col col-md-5 col-lg-3" />
+	</q-label>
+	<q-label class="row items-center">
+		<span class="col col-md-2 col-lg-1">Order:</span>
+		<q-input outlined dense type="number" name="order" v-model="order" step="1" class="col col-1" />
+	</q-label>
+	<q-label class="row items-start">
+		<span class="col col-md-2 col-lg-1 q-pt-sm">Description:</span>
+		<q-input outlined dense type="textarea" name="description" v-model="description" class="col col-md-5 col-lg-3"></q-input>
+	</q-label>
+	<div class="row q-mt-sm">
+		<q-btn type="submit" label="Submit" no-caps dense color="primary" class="col col-1 offset-md-2 offset-lg-1"></q-btn>
+	</div>
+</q-form>
+
+<div class="row">
+	<q-list class="col col-12 col-md-10 col-lg-6">
+		<q-item-label header class="text-primary"><h3>Domains</h3></q-item-label>
+		@foreach(var d in domains ?? new List<Domain>())
+		{
+			<q-item>
+				<q-item-section top side>
+					<a href="?domainId=@d.DomainId">
+						<q-icon name="edit" size="sm" class="text-secondary"></q-icon>
+					</a>
+				</q-item-section>
+				<q-item-section top>@(d.Order). @d.Name</q-item-section>
+				<q-item-section top>@d.Description</q-item-section>
+			</q-item>
+		}
+	</q-list>
+</div>
+
+@section Scripts {
+	<script asp-add-nonce="true">
+		createVueApp({
+			data() {
+				return {
+					name: '@System.Web.HttpUtility.JavaScriptStringEncode(domain?.Name)',
+					order: '@System.Web.HttpUtility.JavaScriptStringEncode(domain?.Order.ToString())',
+					description: '@System.Web.HttpUtility.JavaScriptStringEncode(domain?.Description)'
+				}
+			}
+		})
+	</script>
+}
