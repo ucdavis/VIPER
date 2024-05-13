@@ -29,9 +29,9 @@
     </div>
     
     <q-list v-if="type == 'EPA'">
-        <q-list-item header class="text-dark text-h6">
+        <q-item-label header class="text-dark text-h6">
             EPA Levels
-        </q-list-item>
+        </q-item-label>
         <q-item v-for="l in levels.filter(l => l.epa)">
             <q-item-section side top>
                 <q-btn dense no-caps size="md" color="primary" icon="edit" @@click="selectLevel(l)"></q-btn>

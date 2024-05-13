@@ -138,6 +138,12 @@ namespace Viper.Areas.CTS.Controllers
             return View("~/Areas/CTS/Views/ManageLevels.cshtml");
         }
 
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
+        public IActionResult ManageEpas()
+        {
+            return View("~/Areas/CTS/Views/ManageEpas.cshtml");
+        }
+
         public IActionResult Epa()
         {
             ViewData["VIPERLayout"] = "VIPERLayoutSimplified";
