@@ -10,6 +10,7 @@ public partial class VIPERContext : DbContext
     public virtual DbSet<Domain> Domains { get; set; }
     public virtual DbSet<Level> Levels { get; set; }
     public virtual DbSet<Epa> Epas { get; set; }
+    public virtual DbSet<EpaService> EpaServices { get; set; }
     public virtual DbSet<Encounter> Encounters { get; set; }
     public virtual DbSet<EncounterInstructor> EncounterInstructors { get; set; } 
     public virtual DbSet<StudentEpa> StudentEpas { get; set; }
@@ -19,10 +20,12 @@ public partial class VIPERContext : DbContext
     public virtual DbSet<DvmStudent> DvmStudent { get; set; }
 
     /* Clinical Scheduler */
-    public virtual DbSet<InstructorSchedule> InstructorSchedule { get; set; }
-    public virtual DbSet<StudentSchedule> StudentSchedule { get; set; }
-    public virtual DbSet<Rotation> Rotation { get; set; }
-    public virtual DbSet<Service> Service { get; set; }
+    public virtual DbSet<InstructorSchedule> InstructorSchedules { get; set; }
+    public virtual DbSet<StudentSchedule> StudentSchedules { get; set; }
+    public virtual DbSet<Rotation> Rotations { get; set; }
+    public virtual DbSet<Service> Services { get; set; }
+    public virtual DbSet<WeekGradYear> WeekGradYears { get; set; }
+    public virtual DbSet<Week> Weeks { get; set; }
 
     /* CREST */
     public virtual DbSet<CourseSessionOffering> CourseSessionOffering { get; set; }
@@ -62,6 +65,17 @@ public partial class VIPERContext : DbContext
         modelBuilder.Entity<Epa>(entity =>
         {
             entity.ToTable("Epa", "cts");
+            entity.HasMany(e => e.Services)
+                .WithMany(s => s.Epas)
+                .UsingEntity<Dictionary<string, object>>(
+                    "EpaService",
+                    r => r.HasOne<Service>().WithMany().HasForeignKey("ServiceId"),
+                    l => l.HasOne<Epa>().WithMany().HasForeignKey("EpaId"),
+                    j =>
+                    {
+                        j.HasKey("EpaId", "ServiceId");
+                        j.ToTable("EpaService", "cts");
+                    });
         });
 
         modelBuilder.Entity<Encounter>(entity =>
@@ -129,7 +143,7 @@ public partial class VIPERContext : DbContext
 
         modelBuilder.Entity<InstructorSchedule>(entity =>
         {
-            entity.HasKey(e => e.MothraId);
+            entity.HasKey(e => e.InstructorScheduleId);
             entity.ToTable("vwInstructorSchedule", schema: "cts");
             entity.Property(e => e.MiddleName).IsRequired(false);
             entity.Property(e => e.MailId).IsRequired(false);
@@ -144,7 +158,7 @@ public partial class VIPERContext : DbContext
 
         modelBuilder.Entity<StudentSchedule>(entity =>
         {
-            entity.HasKey(e => e.MothraId);
+            entity.HasKey(e => e.StudentScheduleId);
             entity.ToTable("vwStudentSchedule", schema: "cts");
             entity.Property(e => e.MiddleName).IsRequired(false);
             entity.Property(e => e.MailId).IsRequired(false);
@@ -176,6 +190,23 @@ public partial class VIPERContext : DbContext
         {
             entity.HasKey(e => e.ServiceId);
             entity.ToTable("vwService", schema: "cts");
+        });
+
+        modelBuilder.Entity<Week>(entity =>
+        {
+            entity.HasKey(e => e.WeekId);
+            entity.ToTable("vwWeeks", schema: "cts");
+            entity.Property(e => e.WeekId).HasColumnName("Week_ID");
+            entity.HasMany(e => e.WeekGradYears).WithOne(e => e.Week)
+                .HasForeignKey(w => w.WeekId);
+        });
+
+        modelBuilder.Entity<WeekGradYear>(entity =>
+        {
+            entity.HasKey(e => e.WeekGradYearId);
+            entity.ToTable("vwWeekGradYears", schema: "cts");
+            entity.Property(e => e.WeekGradYearId).HasColumnName("Weekgradyear_ID");
+            entity.Property(e => e.WeekId).HasColumnName("Week_ID");
         });
 
         modelBuilder.Entity<CourseSessionOffering>(entity =>

@@ -25,7 +25,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             {
                 return ValidationProblem("Date or clinician mothra id is required");
             }
-            var sched = _context.InstructorSchedule.AsQueryable();
+            var sched = _context.InstructorSchedules.AsQueryable();
             if(date != null)
             {
 				var dt = date.Value.ToDateTime(TimeOnly.MinValue);

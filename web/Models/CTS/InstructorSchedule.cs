@@ -1,9 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace Viper.Models.CTS
+﻿namespace Viper.Models.CTS
 {
     public class InstructorSchedule
     {
+        public int InstructorScheduleId { get; set; }
         public string LastName { get; set; } = null!;
         public string FirstName { get; set; } = null!;
         public string? MiddleName { get; set; } = null;
@@ -25,5 +24,6 @@ namespace Viper.Models.CTS
 
         public virtual Service Service { get; set; } = null!;
         public virtual Rotation Rotation { get; set; } = null!;
+        public virtual Week Week { get; set; } = null!;
     }
 }

@@ -7,10 +7,12 @@ using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
+using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
 {
     [Route("/cts/levels")]
+    [Permission(Allow = "SVMSecure")]
     public class LevelsController : ApiController
     {
         private readonly VIPERContext context;
@@ -48,6 +50,7 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpPost]
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
         public async Task<ActionResult<Level>> Createlevel(LevelCreateUpdate level)
         {
             using var trans = context.Database.BeginTransaction();
@@ -78,6 +81,7 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpPut("{levelId}")]
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
         public async Task<ActionResult<Level>> UpdateLevel(LevelCreateUpdate level)
         {
             using var trans = context.Database.BeginTransaction();
@@ -111,6 +115,7 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpDelete("{levelId}")]
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
         public async Task<ActionResult> DeleteLevel(int levelId)
         {
             using var trans = context.Database.BeginTransaction();

@@ -11,6 +11,7 @@ namespace Viper.Areas.CTS.Services
 		private static readonly string MANAGE_PERM = "SVMSecure.ClnSched.Manage";
 		private static readonly string VIEWSTD_PERM = "SVMSecure.ClnSched.ViewStdSchedules";
 		private static readonly string VIEWOWN_PERM = "SVMSecure.ClnSched.MySchedule";
+		private static readonly string VIEWCLN_PERM = "SVMSecure.ClnSched.ViewClnSchedules";
 
 		private readonly RAPSContext rapsContext;
 		public ClinicalScheduleSecurityService(RAPSContext rapsContext)
@@ -51,5 +52,39 @@ namespace Viper.Areas.CTS.Services
 			}
 			return false;
 		}
-	}
+
+
+		/// <summary>
+		/// Check access to instructor schedule(s) with the given params
+		///	 - Manage access grants access to all schedules
+		///	 - Those with ViewClnSchedules can view all instructor schedules
+		///	 - Instructors can always view their own schedule
+		/// </summary>
+		/// <param name="mothraId"></param>
+		/// <param name="rotationId"></param>
+		/// <param name="serviceId"></param>
+		/// <param name="weekId"></param>
+		/// <param name="startDate"></param>
+		/// <param name="endDate"></param>
+		/// <returns></returns>
+		public bool CheckInstructorScheduleParams(string? mothraId, int? rotationId, int? serviceId, int? weekId, DateTime? startDate, DateTime? endDate)
+		{
+            var uh = new UserHelper();
+            var user = uh.GetCurrentUser();
+            if (user != null)
+            {
+                if (uh.HasPermission(rapsContext, user, MANAGE_PERM) || uh.HasPermission(rapsContext, user, VIEWCLN_PERM))
+                {
+                    return true;
+                }
+                if (mothraId != null && mothraId == user.MothraId && uh.HasPermission(rapsContext, user, VIEWOWN_PERM))
+                {
+                    return true;
+                }
+            }
+
+			return false;
+        }
+
+    }
 }

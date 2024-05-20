@@ -1,190 +1,330 @@
 ﻿@{
-	IUserHelper UserHelper = new UserHelper();
+    IUserHelper UserHelper = new UserHelper();
 }
-<div class="column epa">
-	<div style="max-width: 1200px" class="col self-center">
-		<div class="row justify-between items-start q-mb-lg">
-			<div class="col">
-				<h2 class="epa text-weight-regular">EPA {{epa.num}}: {{epa.name}}</h2>
-			</div>
-			<div class="col text-right">
-				<q-btn flat no-caps dense @@click="pickStudent()" v-if="student.name.length">
-					<template v-slot:default>
-						<div class="row items-end no-wrap">
-							<div class="col q-mr-md">Assessing {{student.name}}</div>
-							<div style="height:40px;width:31px;" class="col-auto">
-								<q-img fit="fill" right
-									   :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid='+ student.mailid +'&altphoto=1'"
-									   :title="student.name" style="height:40px;" class="rounded-borders">
-								</q-img>
-							</div>
-						</div>
-					</template>
-				</q-btn>
-				<div v-if="student.name.length == 0">
-					<div class="row items-end no-wrap">
-						<q-select outlined dense options-dense clearable use-input input-debounce="300" style="max-width: 200px"
-							class="q-mr-sm"
-							v-model="selectedStudent"
-							:options="studentOptions" 
-							label="Select Student"
-							@@filter="studentSearch">
-						</q-select>
-						<q-btn-toggle v-model="studentOptionsType" push toggle-color="primary"
-									  :options="[{label: 'Rotation', value: 'Rotation'}, {label: 'V4', value: 'V4'}, {label: 'All', value: 'All'}]">
-						</q-btn-toggle>
-					</div>
-				</div>
-			</div>
-		</div>
-		<q-form @@submit="submitEpa" v-bind="assessment">
-			<div class="row q-mb-sm text-center gt-sm">
-				<div class="col" v-for="level in levelOptions">
-					{{level.text}}
-				</div>
-			</div>
-			<div class="row q-mb-md gt-sm">
-				<div class="col q-mx-sm levelSelection" v-for="level in levelOptions">
-					<q-btn :label="level.label"
-						   push
-						   unelevated
-						   flat
-						   size="lg"
-						   dense
-						   :class="assessment.level == level.value ? 'selectedLevel' : ''"
-						   @@click="assessment.level = level.value">
-					</q-btn>
-				</div>
-			</div>
-			<div class="q-mb-sm text-center lt-md">
-				<div class="q-mx-sm levelSelection" v-for="level in levelOptions">
-					<q-btn push
-						   unelevated
-						   flat
-						   no-caps
-						   size="md"
-						   dense
-						   :class="assessment.level == level.value ? 'selectedLevel' : ''"
-						   @@click="assessment.level = level.value">
-						<template v-slot:default>
-							{{level.label}}. {{level.text}}
-						</template>
-					</q-btn>
-				</div>
-			</div>
-			<q-input type="textarea" outlined dense v-model="assessment.comment" class="q-mb-md"
-					 label="Comments: What should the student keep doing? How can they improve performance?"></q-input>
-			<div class="column">
-				<q-btn no-caps 
-					label="Submit EPA" 
-					type="submit" 
-					padding="sm xl" 
-					color="primary" 
-					size="md"
-					class="self-center"></q-btn>
-			</div>
-		</q-form>
-	</div>
+<div class="row epa justify-center items-start content-start">
+    <div style="max-width: 1200px" class="col">
+
+        <div class="row">
+            <a href="~/CTS/">CTS</a>
+        </div>
+        @*
+        Before showing EPA form, need to select Service, EPA, and student
+        *@
+        <div class="row justify-between items-start q-mb-lg">
+            @*Select Service*@
+            <div class="col-12 col-md-6 col-lg-4">
+                <q-select label="Select Service" dense options-dense :outlined="service.length == 0" 
+                    v-model="service" emit-value map-options :options="services">
+                    <template v-slot:option="scope">
+                        <q-item v-bind="scope.itemProps">
+                            <q-item-section side v-if="serviceThisWeek == scope.opt.value">
+                                <q-badge color="green">This Week</q-badge>
+                            </q-item-section>
+                            <q-item-section side v-if="serviceLastWeek == scope.opt.value">
+                                <q-badge color="blue">Last Week</q-badge>
+                            </q-item-section>
+                            <q-item-section side v-if="servicesScheduled.indexOf(scope.opt.value) >= 0">
+                                <q-badge color="yellow">Scheduled</q-badge>
+                            </q-item-section>
+                            <q-item-section>
+                                <q-item-label>{{scope.opt.label}}</q-item-label>
+                            </q-item-section>
+                        </q-item>
+                    </template>
+                </q-select>
+                {{service}}
+            </div>
+
+            @*Select EPA*@
+            <div class="col-12 col-md-6 col-lg-4">
+                <q-select label="Select EPA" dense options-dense outlined v-model="selectedEpa" emit-value map-options
+                            :options="epas">
+                </q-select>
+            </div>
+
+            @*Select Student*@
+            <div class="col-12 col-md-6 col-lg-4 text-right">
+                <q-select label="Select Student" dense options-dense outlined v-model="selectedStudent" emit-value map-options
+                    :options="students">
+                    <template v-slot:option="std">
+                        <q-item v-bind="std.itemProps">
+                            <q-item-section avatar>
+                                <q-avatar>
+                                    <q-img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid='+ std.opt.mailid +'&altphoto=1'"
+                                            style="height:40px;" class="rounded-borders"></q-img>
+                                </q-avatar>
+                            </q-item-section>
+                            <q-item-section>
+                                <q-item-label>{{std.opt.label}} {{std.opt}}</q-item-label>
+                            </q-item-section>
+                        </q-item>
+                    </template>
+                </q-select>
+
+                <q-btn-toggle v-model="studentOptionsType" push toggle-color="primary"
+                              :options="[{label: 'Service', value: 'Service'}, {label: 'V4', value: 'V4'}, {label: 'All', value: 'All'}]">
+                </q-btn-toggle>
+            </div>
+        </div>
+
+
+
+        <div class="row justify-between items-start q-mb-lg">
+            <div class="col">
+                <h2 class="epa text-weight-regular">EPA {{epa.num}}: {{epa.name}}</h2>
+            </div>
+            <div class="col text-right">
+                <q-btn flat no-caps dense @@click="pickStudent()" v-if="student.name.length">
+                    <template v-slot:default>
+                        <div class="row items-end no-wrap">
+                            <div class="col q-mr-md">Assessing {{student.name}}</div>
+                            <div style="height:40px;width:31px;" class="col-auto">
+                                <q-img fit="fill" right
+                                       :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid='+ student.mailid +'&altphoto=1'"
+                                       :title="student.name" style="height:40px;" class="rounded-borders">
+                                </q-img>
+                            </div>
+                        </div>
+                    </template>
+                </q-btn>
+                <div v-if="student.name.length == 0">
+                    <div class="row items-end no-wrap">
+                        <q-select outlined dense options-dense clearable use-input input-debounce="300" style="max-width: 200px"
+                                  class="q-mr-sm"
+                                  v-model="selectedStudent"
+                                  :options="studentOptions"
+                                  label="Select Student"
+                                  @@filter="studentSearch">
+                        </q-select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div v-if="service != '' && selectedEpa != '' && selectedStudent != ''">
+            <q-form @@submit="submitEpa" v-bind="assessment">
+                <div class="row q-mb-sm text-center gt-sm">
+                    <div class="col" v-for="level in levelOptions">
+                        {{level.text}}
+                    </div>
+                </div>
+                <div class="row q-mb-md gt-sm">
+                    <div class="col q-mx-sm levelSelection" v-for="level in levelOptions">
+                        <q-btn :label="level.label"
+                               push
+                               unelevated
+                               flat
+                               size="lg"
+                               dense
+                               :class="assessment.level == level.value ? 'selectedLevel' : ''"
+                               @@click="assessment.level = level.value">
+                        </q-btn>
+                    </div>
+                </div>
+                <div class="q-mb-sm text-center lt-md">
+                    <div class="q-mx-sm levelSelection" v-for="level in levelOptions">
+                        <q-btn push
+                               unelevated
+                               flat
+                               no-caps
+                               size="md"
+                               dense
+                               :class="assessment.level == level.value ? 'selectedLevel' : ''"
+                               @@click="assessment.level = level.value">
+                            <template v-slot:default>
+                                {{level.label}}. {{level.text}}
+                            </template>
+                        </q-btn>
+                    </div>
+                </div>
+                <q-input type="textarea" outlined dense v-model="assessment.comment" class="q-mb-md"
+                         label="Comments: What should the student keep doing? How can they improve performance?"></q-input>
+                <div class="column">
+                    <q-btn no-caps
+                           label="Submit EPA"
+                           type="submit"
+                           padding="sm xl"
+                           color="primary"
+                           size="md"
+                           class="self-center"></q-btn>
+                </div>
+            </q-form>
+        </div>
+    </div>
 </div>
 
 @section Styles {
-	<link rel="stylesheet" href="~/css/cts.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/cts.css" asp-append-version="true" />
 }
 
 @section Scripts {
-	<script asp-add-nonce="true">
-		createVueApp({
-			data() {
-				return {
-					epa: {name: "Physical Examination", num: "1B"},
-					student: {name: "", mailid: "", id: ""},
-					students: [],
-					studentOptions: [],
-					selectedStudent: "",
-					studentOptionsType: "Rotation",
-					levels: [
-						{ "number": 1 },
-						{ "number": 2 },
-						{ "number": 3 },
-						{ "number": 4 },
-						{ "number": 5 }
-					],
-					levelOptions: [
-						{ label: "1", value: 1, slot: 'one', text: "Knowledge of, did not perform" },
-						{ label: "2", value: 2, slot: 'two', text: "Trust with direct supervision" },
-						{ label: "3", value: 3, slot: 'three', text: "Trust with indirect supervision" },
-						{ label: "4", value: 4, slot: 'four', text: "Independent, remote supervision" },
-						{ label: "5", value: 5, slot: 'five', text: "Supervise junior learners" }
-					],
-					assessment: {comment: "", level: 0, level2: 0}
-				}
-			},
-			methods: {
-				submitEpa: function() {
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    userId: '00534267',//'@UserHelper?.GetCurrentUser()?.MothraId',
+                    //services
+                    service: "",
+                    services: [],
+                    servicesScheduled: [],
+                    serviceThisWeek: 0,
+                    serviceLastWeek: 0,
 
-				},
-				selectLevel: function(levelValue) {
-					this.assessment.level = levelValue
-				},
-				//Create the select box options based on the currently selected studentOptionsType
-				pickStudent: async function() {
-					this.student = {name: "", id: "", mailid: ""}
-					this.selectedStudent = null
-					var studentResults = []
-					switch (this.studentOptionsType) {
-						case "Rotation":
-							var d = new Date().toJSON().split("T")[0];
-							var instructorRotation = await viperFetch(this,
-								"/clinicalscheduler/instructors/schedule?date=" + d + "&mothraId=@UserHelper?.GetCurrentUser()?.MothraId")
-							if(instructorRotation.length) {
-								studentResults = await viperFetch(this,
-									"/clinicalscheduler/students/schedule?rotationId=" + instructorRotation[0].rotationId + "&date=" + d)
-							}
-							else {
-								studentResults = []
-							}
-							break;
-						case "V4":
-							studentResults = await viperFetch(this, "/students/dvm?classLevel=V4")
-							break;
-						default:
-							studentResults = await viperFetch(this, "/students/dvm")
-							break;
-					}
-					this.students = studentResults
-				},
-				studentSearch: function (val, update, abort) {
-					if(val === '') {
-						update(() => this.studentOptions = this.students.map(m => ({ label: m.lastName + ", " + m.firstName, value: m.mothraId })))
-						return
-					}
-					update(() => {
-						const s = val.toLowerCase()
-						this.studentOptions = this.students.filter(v => v.label.toLowerCase().indexOf(s) > -1)
-							.map(m => ({ label: m.lastName + ", " + m.firstName, value: m.mothraId }))
-					})
-				},
-			},
-			mounted: function() {
-				this.pickStudent()
-			},
-			watch: {
-				studentOptionsType: {
-					handler(v) {
-						this.pickStudent()
-					}
-				},
-				selectedStudent: {
-					handler(v) {
-						if(this.selectedStudent != null) {
-							var std = this.students.find(s => s.mothraId == this.selectedStudent.value)
-							if (std != null) {
-								this.student = { name: std.lastName + ", " + std.firstName, id: std.mothraId, mailid: std.mailId }
-							}
-						}
-					}
-				}
-			}
-		})
-	</script>
+                    //epas
+                    epas: [],
+                    selectedEpa: "",
+                    epa: { name: "Physical Examination", num: "1B" },
+
+                    //students
+                    student: { name: "", mailid: "", id: "" },
+                    students: [],
+                    studentOptions: [],
+                    selectedStudent: "",
+                    studentOptionsType: "Service",
+
+                    //levels
+                    levels: [
+                        { "number": 1 },
+                        { "number": 2 },
+                        { "number": 3 },
+                        { "number": 4 },
+                        { "number": 5 }
+                    ],
+                    levelOptions: [
+                        { label: "1", value: 1, slot: 'one', text: "Knowledge of, did not perform" },
+                        { label: "2", value: 2, slot: 'two', text: "Trust with direct supervision" },
+                        { label: "3", value: 3, slot: 'three', text: "Trust with indirect supervision" },
+                        { label: "4", value: 4, slot: 'four', text: "Independent, remote supervision" },
+                        { label: "5", value: 5, slot: 'five', text: "Supervise junior learners" }
+                    ],
+
+                    //assessment data
+                    assessment: { comment: "", level: 0, level2: 0 }
+                }
+            },
+            methods: {
+                //services
+                getServices: async function () {
+                    await viperFetch(this, "clinicalservices")
+                        .then(data => this.services = data.map(d => ({ label: d.serviceName, value: d.serviceId })))
+                    //get all scheduled services along with services schedule this week and last week
+                    var scheduledServices = await viperFetch(this, "clinicalschedule/instructor?mothraId=" + this.userId)
+                    var today = new Date()
+                    today.setHours(0, 0, 0, 0)
+                    var sunday = new Date(today)
+                    sunday.setDate(sunday.getDate() - sunday.getDay())
+                    var schedThisWeek = scheduledServices.find(s => today >= new Date(s.dateStart) && today <= new Date(s.dateEnd))
+                    var schedLastWeek = scheduledServices.find(s => new Date(s.dateEnd).getTime() == sunday.getTime())
+                    this.serviceThisWeek = schedThisWeek ? schedThisWeek.serviceId : 0
+                    this.serviceLastWeek = schedLastWeek && schedLastWeek.serviceId != this.serviceThisWeek ? schedLastWeek.serviceId : 0
+                    this.servicesScheduled = scheduledServices.map(s => s.serviceID)
+
+                    //auto select a service - this week, then last week
+                    if(this.serviceThisWeek > 0)
+                        this.service = this.serviceThisWeek
+                    else if(this.serviceLastWeek > 0)
+                        this.service = this.serviceLastWeek
+                },
+
+                //epas
+                getEpas: async function () {
+                    if (this.service != '') {
+                        viperFetch(this, "epas?serviceId=" + this.service)
+                            .then(data => this.epas = data.map(d => ({ label: d.name, value: d.epaId })))
+                    }
+                },
+                clearEpa: function() {
+                    this.epa = {}
+                    this.selectedEpa = ""
+                },
+
+                //students
+                getStudents: async function() {
+                    var studentResults = []
+                    switch (this.studentOptionsType) {
+                        case "Service":
+                            var d = new Date().toJSON().split("T")[0];
+                            //var instructorRotation = await viperFetch(this,
+                            //    "/clinicalscheduler/instructors/schedule?date=" + d + "&mothraId=@UserHelper?.GetCurrentUser()?.MothraId")
+                            if (this.service) {
+                                studentResults = await viperFetch(this,
+                                    "/cts/clinicalschedule/student?serviceId=" + this.service + "&startDate=" + d + "&endDate=" + d)
+                            }
+                            else {
+                                studentResults = []
+                            }
+                            break;
+                        case "V4":
+                            studentResults = await viperFetch(this, "/students/dvm?classLevel=V4")
+                            break;
+                        default:
+                            studentResults = await viperFetch(this, "/students/dvm")
+                            break;
+                    }
+                    this.students = studentResults.map(s => ({
+                        label: s.lastName + ", " + s.firstName, mailId: s.mailId, value: s.personId
+                    }))
+
+                },
+                clearStudent: function() {
+                    this.student = {}
+                    this.selectedStudent = ""
+                },
+
+                //misc
+
+
+
+
+                submitEpa: function () {
+
+                },
+                selectLevel: function (levelValue) {
+                    this.assessment.level = levelValue
+                },
+                //Create the select box options based on the currently selected studentOptionsType
+                pickStudent: async function () {
+                    this.student = { name: "", id: "", mailid: "" }
+                    this.selectedStudent = null
+                },
+                studentSearch: function (val, update, abort) {
+                    if (val === '') {
+                        update(() => this.studentOptions = this.students.map(m => ({ label: m.lastName + ", " + m.firstName, value: m.mothraId })))
+                        return
+                    }
+                    update(() => {
+                        const s = val.toLowerCase()
+                        this.studentOptions = this.students.filter(v => v.label.toLowerCase().indexOf(s) > -1)
+                            .map(m => ({ label: m.lastName + ", " + m.firstName, value: m.mothraId }))
+                    })
+                },
+            },
+            mounted: async function () {
+                await this.getServices()
+            },
+            watch: {
+                //when service is updated, reload epa list and student list
+                service: {
+                    handler(v) {
+                        this.getEpas()
+                        this.getStudents()
+                    }
+                },
+                studentOptionsType: {
+                    handler(v) {
+                        this.pickStudent()
+                    }
+                },
+                selectedStudent: {
+                    handler(v) {
+                        if (this.selectedStudent != null) {
+                            var std = this.students.find(s => s.mothraId == this.selectedStudent.value)
+                            if (std != null) {
+                                this.student = { name: std.lastName + ", " + std.firstName, id: std.mothraId, mailid: std.mailId }
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    </script>
 }

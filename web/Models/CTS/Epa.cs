@@ -7,5 +7,7 @@
         public string? Description { get; set; }
         public int Order { get; set; }
         public bool Active { get; set; }
+
+        public virtual List<Service> Services { get; set; } = new List<Service>();
     }
 }

@@ -3,11 +3,12 @@ using Viper.Areas.CTS.Models;
 using Viper.Areas.CTS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
 {
 	[Route("/cts/courses/")]
-	[ApiController]
+	[Permission(Allow = "SVMSecure")]
 	public class CourseController : ApiController
 	{
 		private readonly CrestCourseService courseService;

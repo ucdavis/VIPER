@@ -3,11 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
+using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
 {
 	[Route("/cts/domains")]
-	public class DomainController : ApiController
+    [Permission(Allow = "SVMSecure")]
+    public class DomainController : ApiController
 	{
 		private readonly VIPERContext context;
 

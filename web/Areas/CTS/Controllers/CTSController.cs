@@ -43,7 +43,9 @@ namespace Viper.Areas.CTS.Controllers
         {
             var nav = new List<NavMenuItem>
             {
-                new NavMenuItem() { MenuItemText = "CTS Home", MenuItemURL = "" }
+                new NavMenuItem() { MenuItemText = "CTS Home", MenuItemURL = "" },
+                new NavMenuItem() { MenuItemText = "Assessments", IsHeader = true },
+                new NavMenuItem() { MenuItemText = "EPA Assessment", MenuItemURL = "EPA"}
 			};
 
             if(UserHelper.HasPermission(_rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
@@ -80,6 +82,10 @@ namespace Viper.Areas.CTS.Controllers
             
             return View("~/Areas/CTS/Views/Index.cshtml");
         }
+
+        /*
+         * Admin CRUD pages for domains, levels, epas
+         */
 
 		[Permission(Allow = "SVMSecure.CTS.Manage")]
 		public async Task<ActionResult> ManageDomains(int? domainId)
@@ -144,6 +150,10 @@ namespace Viper.Areas.CTS.Controllers
             return View("~/Areas/CTS/Views/ManageEpas.cshtml");
         }
 
+        /*
+         * Assessments
+         */
+        [Permission(Allow = "SVMSecure.CTS.AssessStudent")]
         public IActionResult Epa()
         {
             ViewData["VIPERLayout"] = "VIPERLayoutSimplified";
