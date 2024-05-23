@@ -3,6 +3,7 @@
     public class StudentSchedule
     {
         public int StudentScheduleId { get; set; }
+        public int PersonId { get; set; }
         public string LastName { get; set; } = null!;
         public string FirstName { get; set; } = null!;
         public string? MiddleName { get; set; } = null;

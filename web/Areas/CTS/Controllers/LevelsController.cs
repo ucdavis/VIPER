@@ -22,13 +22,14 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Level>>> GetLevels(bool? epa = null)
+        public async Task<ActionResult<List<Level>>> GetLevels(bool? epa = null, bool active = true)
         {
             var q = context.Levels.AsQueryable();
             if (epa != null)
             {
                 q = q.Where(l => l.Epa == epa);
             }
+            q = q.Where(l => (active && l.Active) || (!active && !l.Active));
             return await q.OrderBy(l => l.Epa ? 1 : 0)
                 .ThenBy(l => l.Dops ? 1 : 0)
                 .ThenBy(l => l.Clinical ? 1 : 0)

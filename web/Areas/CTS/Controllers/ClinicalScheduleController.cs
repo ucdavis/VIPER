@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Viper.Areas.CTS.Models;
 using Viper.Areas.CTS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -36,7 +37,7 @@ namespace Viper.Areas.CTS.Controllers
         /// <param name="endDate"></param>
         /// <returns></returns>
         [HttpGet("student")]
-        public async Task<ActionResult<List<StudentSchedule>>> GetStudentSchedule(int? classYear, string? mothraId, int? rotationId, int? serviceId,
+        public async Task<ActionResult<List<ClinicalScheduledStudent>>> GetStudentSchedule(int? classYear, string? mothraId, int? rotationId, int? serviceId,
             int? weekId, DateTime? startDate, DateTime? endDate)
         {
             if (!clinicalScheduleSecurity.CheckStudentScheduleParams(mothraId, rotationId, serviceId, weekId, startDate, endDate))
