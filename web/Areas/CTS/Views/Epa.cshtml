@@ -9,7 +9,7 @@
         </div>
         *@
         @*
-        Before showing EPA form, need to select Service, EPA, and student
+        Before showing EPA form, need to select Service and EPA
         *@
         <div class="row items-start q-mb-lg">
             @*Select Service*@
@@ -43,6 +43,13 @@
             </div>
         </div>
 
+        <q-banner inline-actions rounded v-if="success" class="bg-green text-white q-mb-md">
+            EPA Saved
+            <template v-slot:action>
+                <q-btn flat label="Dismiss" @@click="success = false"></q-btn>
+            </template>
+        </q-banner>
+
         <div v-if="service != '' && selectedEpa != ''">
             <div class="row justify-between items-center q-mb-lg">
                 <div class="col-12 col-md-6">
@@ -51,24 +58,28 @@
                 <div class="col-12 col-md-6 text-right">
                     <div class="row items-center">
                         <div class="col-12 col-md-8">
-                            <q-select dense options-dense v-model="selectedStudent" label="Student" :options="students" class="q-mr-md"
+                            <q-select dense options-dense v-model="selectedStudent" label="Student" :options="students" class="q-mr-md items-center"
                                       :outlined="selectedStudent == null" :borderless="selectedStudent != null" stack-label="false"
                                       use-input input-debounce="300" @@filter="studentSearch" clearable>
-                                <template v-slot:selected>
-                                    <q-avatar v-if="selectedStudent?.mailId" rounded>
-                                        <q-img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid='+ selectedStudent?.mailId +'&altphoto=1'"
-                                               class="smallPhoto rounded-borders" loading="eager" no-spinner="true"></q-img>
-                                    </q-avatar>
-                                    {{selectedStudent?.label}}
+                                <template v-slot:after>
+                                        <q-avatar v-if="selectedStudent?.mailId" rounded class="fit">
+                                            <q-img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid='+ selectedStudent?.mailId +'&altphoto=1'"
+                                                    class="smallPhoto rounded-borders" loading="eager" no-spinner="true"></q-img>
+                                        </q-avatar>
+                                </template>
+                                <template v-slot:no-option>
+                                    <div class="q-pa-sm">No students found matching the filter</div>
                                 </template>
                                 <template v-slot:option="std">
                                     <q-item v-bind="std.itemProps">
+                                        @*
                                         <q-item-section avatar>
                                             <q-avatar rounded>
                                                 <q-img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid='+ std.opt.mailId +'&altphoto=1'"
                                                        class="smallPhoto" loading="eager" no-spinner="true"></q-img>
                                             </q-avatar>
                                         </q-item-section>
+                                        *@
                                         <q-item-section>
                                             <q-item-label>{{std.opt.label}}</q-item-label>
                                         </q-item-section>
@@ -76,7 +87,6 @@
                                 </template>
                             </q-select>
                         </div>
-
                         <div class="col-auto">
                             <q-btn-toggle v-model="studentOptionsType" push toggle-color="primary"
                                           :options="[{label: 'Service', value: 'Service'}, {label: 'V4', value: 'V4'}, {label: 'All', value: 'All'}]">
@@ -85,7 +95,12 @@
                     </div>
                 </div>
             </div>
+            @*Show form once student is selected*@
             <q-form @@submit="submitEpa" v-bind="assessment" v-if="selectedStudent != null">
+                <div class="bg-red-5 text-white q-pa-sm rounded" v-if="errors?.message?.length > 0">
+                    {{errors.message}}
+                    Please make sure you have selected a service, EPA, student, and a level on the entrustment scale.
+                </div>
                 <div class="row q-mb-sm text-center gt-sm">
                     <div class="col" v-for="level in levelOptions">
                         {{level.text}}
@@ -145,7 +160,7 @@
         createVueApp({
             data() {
                 return {
-                    userId: '00534267',//'@UserHelper?.GetCurrentUser()?.MothraId',
+                    userId: '@UserHelper?.GetCurrentUser()?.MothraId',
                     //services
                     service: "",
                     services: [],
@@ -167,16 +182,12 @@
                     studentOptionsType: "Service",
 
                     //levels
-                    levelOptions: [
-                        { label: "1", value: 1, slot: 'one', text: "Knowledge of, did not perform" },
-                        { label: "2", value: 2, slot: 'two', text: "Trust with direct supervision" },
-                        { label: "3", value: 3, slot: 'three', text: "Trust with indirect supervision" },
-                        { label: "4", value: 4, slot: 'four', text: "Independent, remote supervision" },
-                        { label: "5", value: 5, slot: 'five', text: "Supervise junior learners" }
-                    ],
+                    levelOptions: [],
 
                     //assessment data
-                    assessment: { comment: "", level: 0, service: 0, epa: 0, student: 0 }
+                    assessment: { comment: "", level: "" },
+                    errors: {},
+                    success: false
                 }
             },
             methods: {
@@ -184,7 +195,7 @@
                 getServices: async function () {
                     await viperFetch(this, "clinicalservices")
                         .then(data => this.services = data.map(d => ({ label: d.serviceName, value: d.serviceId })))
-                    //get all scheduled services along with services schedule this week and last week
+                    //get all scheduled services along with services scheduled this week and last week
                     var scheduledServices = await viperFetch(this, "clinicalschedule/instructor?mothraId=" + this.userId)
                     var today = new Date()
                     today.setHours(0, 0, 0, 0)
@@ -205,7 +216,7 @@
 
                 //load epas and auto select if there's only one
                 getEpas: async function () {
-                    this.clearEpa()
+                    this.selectedEpa = ""
                     if (this.service != '') {
                         await viperFetch(this, "epas?serviceId=" + this.service)
                             .then(data => this.epas = data.map(d => ({ label: d.name, value: d.epaId })))
@@ -214,10 +225,6 @@
                         }
                     }
                 },
-                clearEpa: function () {
-                    this.selectedEpa = ""
-                },
-
                 //students
                 getStudents: async function () {
                     //load all students and students on service, if necessary
@@ -249,22 +256,34 @@
                             break;
                     }
                 },
-
-                getLevels: function () {
-                    viperFetch(this, "levels?epa=true")
+                getLevels: async function () {
+                    await viperFetch(this, "levels?epa=true")
                         .then(data => this.levelOptions = data.map(level => ({
                             label: level.order,
-                            value: l.levelId,
+                            value: level.levelId,
                             slot: level.order,
                             text: level.levelName
                         })))
                 },
-                submitEpa: function () {
+                submitEpa: async function () {
+                    this.errors = {}
                     var data = {
                         epaId: this.selectedEpa.value,
                         levelId: this.assessment.level,
                         comment: this.assessment.comment,
-                        studentId: this.selectedStudent.value
+                        studentId: this.selectedStudent.value,
+                        serviceId: this.service.value
+                    }
+                    await viperFetch(this, "studentEpa", {
+                        method: "POST",
+                        body: JSON.stringify(data),
+                        headers: { "Content-Type": "application/json" }
+                    }, [], this.errors)
+                    if(this.errors?.message === undefined) {
+                        this.selectedStudent = null
+                        this.assessment.level = ""
+                        this.assessment.comment = ""
+                        this.success = true
                     }
                 },
                 studentSearch: function (val, update, abort) {
@@ -280,6 +299,7 @@
             },
             mounted: async function () {
                 await this.getServices()
+                this.getLevels()
             },
             watch: {
                 //when service is updated, reload epa list and student list
@@ -289,9 +309,16 @@
                         this.getStudents()
                     }
                 },
+                //set student list when student type is selected
                 studentOptionsType: {
                     handler(v) {
                         this.getStudents()
+                    }
+                },
+                selectedStudent: {
+                    handler(v) {
+                        if(v != null)
+                            this.success = false
                     }
                 }
             }

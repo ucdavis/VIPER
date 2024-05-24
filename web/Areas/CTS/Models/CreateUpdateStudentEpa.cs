@@ -1,4 +1,6 @@
-﻿namespace Viper.Areas.CTS.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Viper.Areas.CTS.Models
 {
     public class CreateUpdateStudentEpa
     {

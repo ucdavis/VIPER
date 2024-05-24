@@ -118,7 +118,6 @@
                         headers: { "Content-Type": "application/json" }
                     })
                     //submit services
-                    
                     await viperFetch(this, "epas/" + updatedEpa.epaId + "/services", {
                         method: "PUT",
                         body: JSON.stringify(this.epaServices),

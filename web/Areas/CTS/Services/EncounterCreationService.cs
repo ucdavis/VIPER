@@ -1,6 +1,6 @@
 ﻿using Viper.Models.CTS;
 
-namespace Viper.Areas.CTS.Models
+namespace Viper.Areas.CTS.Services
 {
     public enum EncounterType
     {
