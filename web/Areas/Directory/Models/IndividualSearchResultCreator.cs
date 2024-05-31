@@ -81,18 +81,18 @@ namespace Viper.Areas.Directory.Models
         [SupportedOSPlatform("windows")]
         private static void AddLdapContact(IndividualSearchResult indiv, LdapUserContact ldapUserContact)
         {
-            indiv.Title = ldapUserContact.title;
-            indiv.Department = ldapUserContact.department;
-            indiv.Phone = ldapUserContact.phone;
-            indiv.Mobile = ldapUserContact.mobile;
-            indiv.UserName = ldapUserContact.username;
+            indiv.Title = ldapUserContact.Title;
+            indiv.Department = ldapUserContact.Ou;
+            indiv.Phone = ldapUserContact.TelephoneNumber;
+            indiv.Mobile = ldapUserContact.Mobile;
+            indiv.UserName = ldapUserContact.Uid;
             if(string.IsNullOrEmpty(indiv.DisplayFullName))
             {
-                indiv.DisplayFullName = ldapUserContact.displayname;
+                indiv.DisplayFullName = ldapUserContact.DisplayName;
             }
             if(string.IsNullOrEmpty(indiv.Name))
             {
-                indiv.Name = ldapUserContact.displayname;
+                indiv.Name = ldapUserContact.DisplayName;
             }
         }
     }

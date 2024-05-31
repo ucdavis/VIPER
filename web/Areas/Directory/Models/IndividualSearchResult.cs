@@ -87,21 +87,21 @@ namespace Viper.Areas.Directory.Models
             }
             if (ldapUserContact != null)
             {
-                Title = ldapUserContact.title;
-                Department = ldapUserContact.department;
-                Phone = ldapUserContact.telephonenumber;
-                Mobile = ldapUserContact.mobile;
-                UserName = ldapUserContact.uid;
-                PostalAddress = (ldapUserContact.postaladdress ?? "").Replace("$", '\n'.ToString());
-                UCDAffiliation = ldapUserContact.ucdpersonaffiliation;
-                UCDPersonUUID = ldapUserContact.ucdpersonuuid;
+                Title = ldapUserContact.Title;
+                //Department = ldapUserContact.Department;
+                Phone = ldapUserContact.TelephoneNumber;
+                Mobile = ldapUserContact.Mobile;
+                UserName = ldapUserContact.Uid;
+                PostalAddress = (ldapUserContact.PostalAddress ?? "").Replace("$", '\n'.ToString());
+                UCDAffiliation = ldapUserContact.UcdPersonAffiliation;
+                UCDPersonUUID = ldapUserContact.UcdPersonUuid;
                 if (string.IsNullOrEmpty(DisplayFullName))
                 {
-                    DisplayFullName = ldapUserContact.displayname;
+                    DisplayFullName = ldapUserContact.DisplayName;
                 }
                 if (string.IsNullOrEmpty(Name))
                 {
-                    Name = ldapUserContact.displayname;
+                    Name = ldapUserContact.DisplayName;
                 }
             }
 

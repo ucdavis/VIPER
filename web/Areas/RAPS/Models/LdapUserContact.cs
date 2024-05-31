@@ -4,6 +4,7 @@ using System.DirectoryServices.Protocols;
 using System.Linq.Dynamic.Core;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace Viper.Areas.RAPS.Models
@@ -11,6 +12,29 @@ namespace Viper.Areas.RAPS.Models
     [SupportedOSPlatform("windows")]
     public class LdapUserContact
     {
+        public string Uid { get; set; } = null!;
+        public string SamAccountName { get; set; } = null!;
+        public string Ou { get; set; } = null!;
+        public string Sn { get; set; } = null!;
+        public string GivenName { get; set; } = null!;
+        public string MiddleName { get; set; } = null!;
+        public string DisplayName { get; set; } = null!;
+        public string EduPersonNickname { get; set; } = null!;
+        public string Title { get; set; } = null!;
+        public string PostalAddress { get; set; } = null!;
+        public string TelephoneNumber { get; set; } = null!;
+        public string Mobile { get; set; } = null!;
+        public string Mail { get; set; } = null!;
+        public string UcdStudentLevel { get; set; } = null!;
+        public string UcdStudentSid { get; set; } = null!;
+        public string UcdPersonPidm { get; set; } = null!;
+        public string EmployeeNumber { get; set; } = null!;
+        public string UcdPersonUuid { get; set; } = null!;
+        public string UcdPersonIamId { get; set; } = null!;
+        public string UcdPersonAffiliation { get; set; } = null!;
+
+        /*
+            
         public string? middlename { get; set; } = null!;
         public string? eduPersonNickname { get; set; } = null!;
         public string? ucdStudentLevel { get; set; } = null!;
@@ -129,7 +153,12 @@ namespace Viper.Areas.RAPS.Models
         public string? whenchanged { get; set; } = null!;
         public string? whencreated { get; set; } = null!;
         public string originalObject { get; set; } = null!;
+
+        */
+
         public LdapUserContact() { }
+
+        /*
         public LdapUserContact(SearchResult? ldapSearchResult)
         {
             if (ldapSearchResult != null)
@@ -264,13 +293,8 @@ namespace Viper.Areas.RAPS.Models
                 }
             }
         }
+        */
 
-        //u.mailID = "";
-        //        u.email = row.mail;
-        //        u.name = row.displayname;
-        //        u.givenName = (len(row?.eduPersonNickname) > 0 ? row.eduPersonNickname : row.givenName);
-        //        u.surName = row.sn;
-        //        u.middlename = row.middlename;
         public LdapUserContact(SearchResultEntry entry)
         {
             foreach (DirectoryAttribute attr in entry.Attributes.Values)
@@ -278,27 +302,29 @@ namespace Viper.Areas.RAPS.Models
                 var v = attr[0];
                 switch (attr.Name)
                 {
+                    case "uid": Uid = v.ToString(); break;
                     case "sAMAccountName": SamAccountName = v.ToString(); break;
-                    case "sn": surName = v.ToString(); break;
+                    case "sn": Sn = v.ToString(); break;
+                    case "ou": Ou = v.ToString(); break;
 
-                    case "givenName": givenname = v.ToString(); break;
-                    case "middlename": middlename = v.ToString(); break;
-                    case "displayName": displayname = v.ToString(); break;
-                    case "eduPersonNickname": eduPersonNickname = v.ToString(); break;
+                    case "givenName": GivenName = v.ToString(); break;
+                    case "middleName": MiddleName = v.ToString(); break;
+                    case "displayName": DisplayName = v.ToString(); break;
+                    case "eduPersonNickname": EduPersonNickname = v.ToString(); break;
 
-                    case "title": title = v.ToString(); break;
-                    case "postalAddress": postaladdress = v.ToString(); break;
-                    case "telephoneNumber": telephonenumber = v.ToString(); break;
-                    case "mobile": mobile = v.ToString(); break;
-                    case "mail": mail = v.ToString(); break;
+                    case "title": Title = v.ToString(); break;
+                    case "postalAddress": PostalAddress = v.ToString(); break;
+                    case "telephoneNumber": TelephoneNumber = v.ToString(); break;
+                    case "mobile": Mobile = v.ToString(); break;
+                    case "mail": Mail = v.ToString(); break;
 
-                    case "ucdStudentLevel": ucdStudentLevel = v.ToString(); break;
-                    case "ucdStudentSID": ucdStudentSID = v.ToString(); break;
-                    case "ucdPersonPIDM": ucdPersonPIDM = v.ToString(); break;
-                    case "employeeNumber": employeeNumber = v.ToString(); break;
-                    case "ucdPersonUUID": ucdPersonUUID = v.ToString(); break;
-                    case "ucdPersonIAMID": ucdPersonIAMID = v.ToString(); break;
-                    case "ucdPersonAffiliation": ucdPersonAffiliation = v.ToString(); break;
+                    case "ucdStudentLevel": UcdStudentLevel = v.ToString(); break;
+                    case "ucdStudentSID": UcdStudentSid = v.ToString(); break;
+                    case "ucdPersonPIDM": UcdPersonPidm = v.ToString(); break;
+                    case "employeeNumber": EmployeeNumber = v.ToString(); break;
+                    case "ucdPersonUUID": UcdPersonUuid = v.ToString(); break;
+                    case "ucdPersonIAMID": UcdPersonIamId = v.ToString(); break;
+                    case "ucdPersonAffiliation": UcdPersonAffiliation = v.ToString(); break;
                    
                     default: break;
                 }
