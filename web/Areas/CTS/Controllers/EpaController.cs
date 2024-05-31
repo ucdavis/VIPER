@@ -40,6 +40,7 @@ namespace Viper.Areas.CTS.Controllers
         {
             var epa = await context.Epas
                 .Include(e => e.Services)
+                .Where(e => e.EpaId == epaId)
                 .FirstOrDefaultAsync();
             if(epa == null)
             {

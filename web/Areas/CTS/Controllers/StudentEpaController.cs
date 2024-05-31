@@ -15,10 +15,77 @@ namespace Viper.Areas.CTS.Controllers
     {
         private readonly VIPERContext context;
         private AuditService auditService;
-        public StudentEpaController(VIPERContext _context)
+        private CtsSecurityService ctsSecurityService;
+
+        public StudentEpaController(VIPERContext _context, RAPSContext rapsContext)
         {
             context = _context;
             auditService = new AuditService(context);
+            ctsSecurityService = new CtsSecurityService(rapsContext, _context);
+        }
+
+        /// <summary>
+        /// Get student epas. Permissions have to be checked based on the arguments provided. Students can access their own,
+        /// assessors can access those they've entered, managers can access all.
+        /// </summary>
+        /// <param name="studentId"></param>
+        /// <param name="enteredById"></param>
+        /// <param name="serviceId"></param>
+        /// <param name="epaId"></param>
+        /// <param name="dateFrom"></param>
+        /// <param name="dateTo"></param>
+        /// <returns></returns>
+        [HttpGet]
+        [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical")]
+        public async Task<ActionResult<List<StudentEpaAssessment>>> GetStudentEpas(int? studentId, int? enteredById, int? serviceId,
+            int? epaId, DateOnly? dateFrom, DateOnly? dateTo)
+        {
+            if (!ctsSecurityService.CheckStudentAssessmentViewAccess(studentId, enteredById))
+            {
+                return Forbid();
+            }
+            var epas = context.StudentEpas
+                .Include(se => se.Epa)
+                .Include(se => se.Level)
+                .Include(se => se.Encounter)
+                    .ThenInclude(e => e.EnteredByPerson)
+                .Include(se => se.Encounter)
+                    .ThenInclude(e => e.Student)
+                .Include(se => se.Encounter)
+                    .ThenInclude(e => e.Service)
+                .Include(se => se.Encounter)
+                    .ThenInclude(e => e.Offering)
+                .AsQueryable();
+            if (studentId != null)
+            {
+                epas = epas.Where(se => se.Encounter.StudentUserId == studentId);
+            }
+            if (enteredById != null)
+            {
+                epas = epas.Where(se => se.Encounter.EnteredBy == enteredById);
+            }
+            if (serviceId != null)
+            {
+                epas = epas.Where(se => se.Encounter.ServiceId == serviceId);
+            }
+            if (epaId != null)
+            {
+                epas = epas.Where(se => se.EpaId == epaId);
+            }
+            if (dateFrom != null)
+            {
+                epas = epas.Where(se => se.Encounter.EncounterDate >= ((DateOnly)dateFrom).ToDateTime(new TimeOnly(0, 0, 0)));
+            }
+            if (dateTo != null)
+            {
+                epas = epas.Where(se => se.Encounter.EncounterDate <= ((DateOnly)dateTo).ToDateTime(new TimeOnly(0, 0, 0)));
+            }
+            var epaList = await epas.ToListAsync();
+
+            //if this is not a student viewing their own assessments, set the editable flag
+            return epaList
+                .Select(e => new StudentEpaAssessment(e))
+                .ToList();
         }
 
         [HttpPost]
@@ -35,11 +102,11 @@ namespace Viper.Areas.CTS.Controllers
             }
 
             var personId = new UserHelper()?.GetCurrentUser()?.AaudUserId;
-            if(personId == null)
+            if (personId == null)
             {
                 return Unauthorized(); //shouldn't happen
             }
-            
+
             using var trans = context.Database.BeginTransaction();
             var encounter = EncounterCreationService.CreateEncounterForEpa(epaData.StudentId, student.StudentInfo.ClassLevel, (int)personId, epaData.ServiceId);
             context.Add(encounter);

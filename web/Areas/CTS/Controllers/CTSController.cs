@@ -10,8 +10,8 @@ using NLog;
 namespace Viper.Areas.CTS.Controllers
 {
     [Area("CTS")]
-	[Route("[area]/[action]")]
-	[Authorize(Policy = "2faAuthentication")]
+    [Route("[area]/[action]")]
+    [Authorize(Policy = "2faAuthentication")]
     [Permission(Allow = "SVMSecure.CTS")]
     public class CTSController : AreaController
     {
@@ -44,18 +44,35 @@ namespace Viper.Areas.CTS.Controllers
             var nav = new List<NavMenuItem>
             {
                 new NavMenuItem() { MenuItemText = "CTS Home", MenuItemURL = "" },
-                new NavMenuItem() { MenuItemText = "Assessments", IsHeader = true },
-                new NavMenuItem() { MenuItemText = "EPA Assessment", MenuItemURL = "EPA"}
-			};
+                new NavMenuItem() { MenuItemText = "Assessments", IsHeader = true }
+            };
 
-            if(UserHelper.HasPermission(_rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
+            if (UserHelper.HasPermission(_rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CTS.AssessClinical"))
             {
-				nav.Add(new NavMenuItem() { MenuItemText = "Admin Functions", IsHeader = true });
-				nav.Add(new NavMenuItem() { MenuItemText = "Manage Domains", MenuItemURL = "ManageDomains" });
-				nav.Add(new NavMenuItem() { MenuItemText = "Manage Competencies", MenuItemURL = "ManageCompetencies" });
-				nav.Add(new NavMenuItem() { MenuItemText = "Manage Levels", MenuItemURL = "ManageLevels" });
-				nav.Add(new NavMenuItem() { MenuItemText = "Manage EPAs", MenuItemURL = "ManageEPAs" });
-			}
+                nav.Add(new NavMenuItem() { MenuItemText = "EPA Assessment", MenuItemURL = "EPA" });
+            }
+
+            //All assessments, or assessments the logged in user has created
+            if (UserHelper.HasPermission(_rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CTS.Manage")
+                || UserHelper.HasPermission(_rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CTS.StudentAssessments")
+                || UserHelper.HasPermission(_rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CTS.AssessClinical"))
+            {
+                nav.Add(new NavMenuItem() { MenuItemText = "View Assessments", MenuItemURL = "Assessments" });
+            }
+            //Assessments of the logged in user
+            if (UserHelper.HasPermission(_rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CTS.Students"))
+            {
+                nav.Add(new NavMenuItem() { MenuItemText = "My Assessments", MenuItemURL = "MyAssessments" });
+            }
+
+            if (UserHelper.HasPermission(_rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
+            {
+                nav.Add(new NavMenuItem() { MenuItemText = "Admin Functions", IsHeader = true });
+                nav.Add(new NavMenuItem() { MenuItemText = "Manage Domains", MenuItemURL = "ManageDomains" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Manage Competencies", MenuItemURL = "ManageCompetencies" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Manage Levels", MenuItemURL = "ManageLevels" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Manage EPAs", MenuItemURL = "ManageEPAs" });
+            }
 
             return new NavMenu("Competency Tracking System", nav);
         }
@@ -79,7 +96,7 @@ namespace Viper.Areas.CTS.Controllers
                 .Include(e => e.Level)
                 .ToList();
             var people = _viperContext.People.ToList();
-            
+
             return View("~/Areas/CTS/Views/Index.cshtml");
         }
 
@@ -87,33 +104,34 @@ namespace Viper.Areas.CTS.Controllers
          * Admin CRUD pages for domains, levels, epas
          */
 
-		[Permission(Allow = "SVMSecure.CTS.Manage")]
-		public async Task<ActionResult> ManageDomains(int? domainId)
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
+        public async Task<ActionResult> ManageDomains(int? domainId)
         {
-            if(domainId != null)
+            if (domainId != null)
             {
                 ViewData["Domain"] = await _viperContext.Domains.FindAsync(domainId);
             }
             ViewData["Domains"] = await _viperContext.Domains.ToListAsync();
             return View("~/Areas/CTS/Views/ManageDomains.cshtml");
-		}
-		
-		[HttpPost]
-		[Permission(Allow = "SVMSecure.CTS.Manage")]
-		public async Task<ActionResult> ManageDomains(int domainId, string name, int order, string description) {
+        }
+
+        [HttpPost]
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
+        public async Task<ActionResult> ManageDomains(int domainId, string name, int order, string description)
+        {
             Logger l = LogManager.GetCurrentClassLogger();
             l.Warn("In Domain Save");
 
-			List<string> errors = new();
-            if(string.IsNullOrEmpty(name))
+            List<string> errors = new();
+            if (string.IsNullOrEmpty(name))
             {
                 errors.Add("Domain Name is required");
             }
 
-            if(domainId > 0 && errors.Count == 0)
+            if (domainId > 0 && errors.Count == 0)
             {
                 var existing = _viperContext.Domains.Find(domainId);
-                if(existing == null)
+                if (existing == null)
                 {
                     errors.Add("Domain not found.");
                 }
@@ -129,17 +147,17 @@ namespace Viper.Areas.CTS.Controllers
             {
                 l.Warn("Saving!");
                 var newDomain = new Viper.Models.CTS.Domain() { Name = name, Order = order, Description = description };
-				_viperContext.Domains.Add(newDomain);
-			}
-			await _viperContext.SaveChangesAsync();
+                _viperContext.Domains.Add(newDomain);
+            }
+            await _viperContext.SaveChangesAsync();
 
-			ViewData["Errors"] = errors;
+            ViewData["Errors"] = errors;
 
             return errors.Count == 0 ? Redirect("~/CTS/ManageDomains") : View("~/Areas/CTS/Views/ManageDomains.cshtml");
-		}
+        }
 
-		[Permission(Allow = "SVMSecure.CTS.Manage")]
-		public IActionResult ManageLevels()
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
+        public IActionResult ManageLevels()
         {
             return View("~/Areas/CTS/Views/ManageLevels.cshtml");
         }
@@ -159,6 +177,18 @@ namespace Viper.Areas.CTS.Controllers
             ViewData["VIPERLayout"] = "VIPERLayoutSimplified";
 
             return View("~/Areas/CTS/Views/Epa.cshtml");
+        }
+
+        [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical")]
+        public IActionResult Assessments()
+        {
+            return View("~/Areas/CTS/Views/Assessments.cshtml");
+        }
+
+        [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.Students")]
+        public IActionResult MyAssessments()
+        {
+            return View("~/Areas/CTS/Views/MyAssessments.cshtml");
         }
     }
 }
