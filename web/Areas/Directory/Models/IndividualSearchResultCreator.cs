@@ -1,5 +1,4 @@
 ﻿using System.Runtime.Versioning;
-using Viper.Areas.RAPS.Models;
 using Viper.Models.AAUD;
 
 namespace Viper.Areas.Directory.Models

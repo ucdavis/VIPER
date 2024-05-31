@@ -6,7 +6,6 @@ using Viper.Areas.RAPS.Services;
 using Web.Authorization;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Areas.RAPS.Models;
 using Viper.Areas.Directory.Models;
 using System.Runtime.Versioning;
 using System.Collections.Generic;

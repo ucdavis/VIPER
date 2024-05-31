@@ -2,7 +2,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using Viper.Areas.Directory.Services;
-using Viper.Areas.RAPS.Models;
 using Viper.Models.AAUD;
 
 namespace Viper.Areas.Directory.Models

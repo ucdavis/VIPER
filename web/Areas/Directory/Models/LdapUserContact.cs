@@ -7,7 +7,7 @@ using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text.Json;
 
-namespace Viper.Areas.RAPS.Models
+namespace Viper.Areas.Directory.Models
 {
     [SupportedOSPlatform("windows")]
     public class LdapUserContact
@@ -325,7 +325,7 @@ namespace Viper.Areas.RAPS.Models
                     case "ucdPersonUUID": UcdPersonUuid = v.ToString(); break;
                     case "ucdPersonIAMID": UcdPersonIamId = v.ToString(); break;
                     case "ucdPersonAffiliation": UcdPersonAffiliation = v.ToString(); break;
-                   
+
                     default: break;
                 }
 

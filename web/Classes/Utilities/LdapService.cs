@@ -1,10 +1,10 @@
 ﻿using System.Runtime.Versioning;
 using System.DirectoryServices.AccountManagement;
-using Viper.Areas.RAPS.Models;
 using System.DirectoryServices.Protocols;
 using System.Reflection;
 using Amazon.Runtime.Internal.Transform;
 using Viper.Models.AAUD;
+using Viper.Areas.Directory.Models;
 
 namespace Viper.Classes.Utilities
 {
