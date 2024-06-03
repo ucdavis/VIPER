@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using NLog;
 using System.Net;
+using System.Transactions;
 
 namespace Viper.Classes
 {
@@ -16,6 +18,8 @@ namespace Viper.Classes
                 }
             );
             context.HttpContext.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+            Logger logger = LogManager.GetCurrentClassLogger();
+            logger.Error(context.Exception);
         }
 
         private List<string> GetErrorList(ExceptionContext context)

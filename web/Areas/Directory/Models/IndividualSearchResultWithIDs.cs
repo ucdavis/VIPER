@@ -1,5 +1,4 @@
 ﻿using System.Runtime.Versioning;
-using Viper.Areas.RAPS.Models;
 using Viper.Models.AAUD;
 
 namespace Viper.Areas.Directory.Models
@@ -37,7 +36,26 @@ namespace Viper.Areas.Directory.Models
                 VmacsId = aaudUser.VmacsId;
                 UnexId = aaudUser.UnexId;
                 MivId = aaudUser.MivId;
-            }            
+            }
+            else if(ldapUserContact != null)
+            {
+                Title = ldapUserContact.Title;
+                Department = ldapUserContact.Ou;
+                Phone = ldapUserContact.TelephoneNumber;
+                Mobile = ldapUserContact.Mobile;
+                UserName = ldapUserContact.Uid;
+                PostalAddress = (ldapUserContact.PostalAddress ?? "").Replace("$", '\n'.ToString());
+                UCDAffiliation = ldapUserContact.UcdPersonAffiliation;
+                UCDPersonUUID = ldapUserContact.UcdPersonUuid;
+                if (string.IsNullOrEmpty(DisplayFullName))
+                {
+                    DisplayFullName = ldapUserContact.DisplayName;
+                }
+                if (string.IsNullOrEmpty(Name))
+                {
+                    Name = ldapUserContact.DisplayName;
+                }
+            }
         }
     }
 }

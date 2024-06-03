@@ -1,11 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using NuGet.Protocol.Plugins;
+using NLog;
 using System.Linq.Dynamic.Core;
 using System.Runtime.Versioning;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Models.Uinform;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using Viper.Models.RAPS;
 using static Viper.Areas.RAPS.Services.RAPSAuditService;
 
@@ -16,7 +17,6 @@ namespace Viper.Areas.RAPS.Services
     {
         private readonly RAPSContext _context;
         private readonly RAPSAuditService _auditService;
-        private readonly LdapService _ldapService;
         private readonly UinformService _uInformService;
 
         private const string _exceptionRolePrefix = "RAPS.Groups.";
@@ -28,7 +28,6 @@ namespace Viper.Areas.RAPS.Services
             _context = context;
             _auditService = new RAPSAuditService(_context);
             _uInformService = new();
-            _ldapService = new();
         }
         
         /// <summary>
@@ -44,7 +43,17 @@ namespace Viper.Areas.RAPS.Services
                 .ThenInclude(gr => gr.Role)
                 .ThenInclude(r => r.TblRoleMembers)
                 .ToListAsync();
-            List<LdapGroup> ldapGroups = _ldapService.GetGroups();
+            List<LdapGroup> ldapGroups = new();
+            try
+            {
+                ActiveDirectoryService.GetGroups();
+            }
+            catch (Exception ex)
+            {
+                Logger logger = LogManager.GetCurrentClassLogger();
+                logger.Error(ex);
+            }
+
             List<ManagedGroup> managedGroups = await _uInformService.GetManagedGroups();
 
             List<Group> groups = new();
@@ -256,7 +265,7 @@ namespace Viper.Areas.RAPS.Services
             //For OU groups, use LdapService to get members
             if (IsOuGroup(groupName))
             {
-                List<LdapUser> usersInGroup = _ldapService.GetGroupMembership(groupName);
+                List<LdapUser> usersInGroup = ActiveDirectoryService.GetGroupMembership(groupName);
                 foreach (LdapUser user in usersInGroup)
                 {
                     //Record this user is in the group
@@ -352,7 +361,7 @@ namespace Viper.Areas.RAPS.Services
             }
             if(dn == null)
             {
-                dn = _ldapService.GetUser(loginId)?.DistinguishedName;
+                dn = ActiveDirectoryService.GetUser(loginId)?.DistinguishedName;
                 HttpHelper.Cache?.Set("ou.ad3-distinguishedname-" + loginId, dn, new TimeSpan(0, 20, 0));
             }
             
@@ -360,11 +369,11 @@ namespace Viper.Areas.RAPS.Services
             {
                 if (add)
                 {
-                    _ldapService.AddUserToGroup(dn, groupName);
+                    ActiveDirectoryService.AddUserToGroup(dn, groupName);
                 }
                 else
                 {
-                    _ldapService.RemoveUserFromGroup(dn, groupName);
+                    ActiveDirectoryService.RemoveUserFromGroup(dn, groupName);
                 }
                 
             }

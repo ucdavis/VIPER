@@ -2,14 +2,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
-using System.Runtime.Loader;
 using System.Runtime.Versioning;
-using System.Text.RegularExpressions;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Models.Uinform;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using Viper.Models.RAPS;
 using Web.Authorization;
 
@@ -64,7 +63,7 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpGet("OU")]
         public ActionResult<LdapGroup> GetLdapGroups()
         {
-            List<LdapGroup> ouGroups = new LdapService().GetGroups();
+            List<LdapGroup> ouGroups = ActiveDirectoryService.GetGroups();
             return Ok(ouGroups);
         }
 

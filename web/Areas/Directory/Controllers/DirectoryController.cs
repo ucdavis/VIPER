@@ -6,11 +6,11 @@ using Viper.Areas.RAPS.Services;
 using Web.Authorization;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Areas.RAPS.Models;
 using Viper.Areas.Directory.Models;
 using System.Runtime.Versioning;
 using System.Collections.Generic;
 using Viper.Areas.Directory.Services;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Directory.Controllers
 {
@@ -105,7 +105,7 @@ namespace Viper.Areas.Directory.Controllers
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> GetUCD(string search)
         {
             List<IndividualSearchResult> results = new();
-            List<LdapUserContact> ldap = new LdapService().GetUsersContact(search);
+            List<LdapUserContact> ldap = LdapService.GetUsersContact(search);
             var individuals = await _aaud.AaudUsers
                     .Where(u => (u.DisplayFirstName + " " + u.DisplayLastName).Contains(search)
                         || (u.MailId != null && u.MailId.Contains(search))
@@ -124,7 +124,7 @@ namespace Viper.Areas.Directory.Controllers
             bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
             foreach (var l in ldap)
             {
-                AaudUser? userInfo = individuals.Find(m => m.IamId == l.ucdpersoniamid);
+                AaudUser? userInfo = individuals.Find(m => m.IamId == l.UcdPersonIamId);
                 results.Add(hasDetailPermission
                     ? new IndividualSearchResultWithIDs(userInfo, l)
                     : new IndividualSearchResult(userInfo, l));
