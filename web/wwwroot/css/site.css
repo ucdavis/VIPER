@@ -234,3 +234,13 @@ body {
     line-height: 1rem;
     margin: .0rem 0rem .5rem 0rem;
 }
+
+div#directoryResults .q-avatar {
+    height: 111px !important;
+    width: 87px !important;
+}
+
+header .q-avatar {
+    height: 40px !important;
+    width: 31px !important;
+}

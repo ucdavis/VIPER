@@ -1,21 +1,27 @@
-﻿using System.DirectoryServices;
+﻿using System.DirectoryServices.AccountManagement;
+using System.DirectoryServices.Protocols;
 using System.Runtime.Versioning;
-using System.DirectoryServices.AccountManagement;
 using Viper.Areas.RAPS.Models;
 
-namespace Viper.Areas.RAPS.Services
+namespace Viper.Classes.Utilities
 {
     [SupportedOSPlatform("windows")]
-    public class LdapService
+    public class ActiveDirectoryService
     {
-        private const string _username = "ou\\svc-accounts";
+        //username for campus active directory servers (ou.ad3 and ad3)
+        //private const string _username = "CN=svc-accounts,OU=Service Accounts,OU=SVM-OU-LocalUsers,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
+        private const string _username = "svc-accounts";
 
         //Start OUs for ou.ad3 (old-style groups and service accounts) and ad3 (users and api managed groups)
-        private const string _ouStart = "OU=SVM,OU=Departments,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
+        private const string _ouStart = "OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
         private const string _ad3Users = "OU=ucdUsers,DC=ad3,DC=ucdavis,DC=edu";
+        //server and start for ldap.ucdavis.edu
+        private const string _ouServer = "ou.ad3.ucdavis.edu";
+        private const string _ad3Server = "ad3.ucdavis.edu";
 
+        private const int port = 636;
         //ldap attributes/properties to return for each object type
-        private readonly string[] _groupProperties =
+        private static readonly string[] _groupProperties =
         {
             "sAMAccountName",
             "objectGuid",
@@ -30,7 +36,7 @@ namespace Viper.Areas.RAPS.Services
             "extensionAttribute2",
             "extensionAttribute3"
         };
-        private readonly string[] _personProperties =
+        private static readonly string[] _personProperties =
         {
             "sAMAccountName",
             "objectGuid",
@@ -50,31 +56,55 @@ namespace Viper.Areas.RAPS.Services
             "department",
             "company",
             "uidNumber",
-            "memberOf"
+            "memberOf",
+            "telephoneNumber",
+            "mobile",
+            "uid",
+            "employeeNumber",
+            "labeledUri",
+            "middlename",
+            "ou",
+            "postalAddress",
+            "ucdPersonAffiliation",
+            "ucdPersonIAMID",
+            "ucdPersonPIDM",
+            "ucdPersonUUID",
+            "ucdStudentLevel",
+            "ucdStudentSID"
         };
-        
-        public LdapService() { }
-        
+
+        private enum Server {
+            AD3,
+            OU
+        }
+
+        private enum ObjectType
+        {
+            Person,
+            Group
+        }
+
         /// <summary>
         /// Get groups, optionally filtering with a wildcard match to name
         /// </summary>
         /// <param name="name">Partial name of group to search for</param>
         /// <returns>List of groups</returns>
-        public List<LdapGroup> GetGroups(string? name = null)
+        public static List<LdapGroup> GetGroups(string? name = null)
         {
             string filter = "(objectClass=group)";
             if (name != null)
             {
                 filter = string.Format("(&{0}(cn=*{1}*))", filter, name);
             };
-            SearchResultCollection results = new DirectorySearcher(GetRoot(true), filter, _groupProperties, SearchScope.Subtree)
-                { PageSize = 1000 }
-                .FindAll();
+
+            var searchResults = SearchActiveDirectory(filter, Server.OU, ObjectType.Group);
             List<LdapGroup> groups = new();
-            foreach(SearchResult result in results)
+
+            foreach (SearchResultEntry e in searchResults.Entries)
             {
-                groups.Add(new LdapGroup(result));
+                groups.Add(new LdapGroup(e));
             }
+
             groups.Sort((g1, g2) => g1.DistinguishedName.CompareTo(g2.DistinguishedName));
             return groups;
         }
@@ -84,13 +114,17 @@ namespace Viper.Areas.RAPS.Services
         /// </summary>
         /// <param name="dn">Distinguished name of group</param>
         /// <returns>The group, if found</returns>
-        public LdapGroup? GetGroup(string dn)
+        public static LdapGroup? GetGroup(string dn)
         {
             string filter = string.Format("(&(objectClass=group)(distinguishedName={0}))", dn);
-            return new LdapGroup(
-                new DirectorySearcher(GetRoot(true), filter, _groupProperties, SearchScope.Subtree)
-                    .FindOne()
-            );
+            var searchResults = SearchActiveDirectory(filter, Server.OU, ObjectType.Group);
+            LdapGroup? group = null;
+            if (searchResults.Entries.Count == 1)
+            {
+                group = new LdapGroup(searchResults.Entries[0]);
+            }
+
+            return group;
         }
 
         /// <summary>
@@ -101,34 +135,35 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="cn">canonical name to search for</param>
         /// <param name="samAccountName">samAccountName to search for</param>
         /// <returns>List of users</returns>
-        public List<LdapUser> GetUsers(bool fromOu = false, string? name = null, string? cn = null, string? samAccountName = null)
+        public static List<LdapUser> GetUsers(bool fromOu = false, string? name = null, string? cn = null, string? samAccountName = null)
         {
             string filter = "(objectClass=user)";
             string additionalFilters = "";
-            if(name != null)
+            if (name != null)
             {
                 additionalFilters += string.Format("(displayName=*{0}*)", name);
             }
-            if(cn != null)
+            if (cn != null)
             {
-                additionalFilters += string.Format("(cn=*{0}*", cn);
+                additionalFilters += string.Format("(cn=*{0}*)", cn);
             }
-            if(samAccountName != null)
+            if (samAccountName != null)
             {
-                additionalFilters += string.Format("(samAccountName=*{0}*", samAccountName);
+                additionalFilters += string.Format("(samAccountName=*{0}*)", samAccountName);
             }
-            if(additionalFilters.Length > 0)
+            if (additionalFilters.Length > 0)
             {
                 filter = string.Format("(&{0}{1})", filter, additionalFilters);
             }
-            SearchResultCollection results = new DirectorySearcher(GetRoot(fromOu), filter, _personProperties, SearchScope.Subtree)
-                { PageSize = 1000 }
-                .FindAll();
+
+            var searchResults = SearchActiveDirectory(filter, fromOu ? Server.OU : Server.AD3, ObjectType.Person);
+
             List<LdapUser> users = new();
-            foreach(SearchResult result in results)
+            foreach (SearchResultEntry result in searchResults.Entries)
             {
                 users.Add(new LdapUser(result));
             }
+
             return SortUsers(users);
         }
 
@@ -138,13 +173,13 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="samAccountName">samAccountName of user</param>
         /// <param name="fromOu">If true, searches the SVM OU in ou.ad3.ucdavis.edu, otherwise, searches ucdUsers in ad3</param>
         /// <returns></returns>
-        public LdapUser? GetUser(string samAccountName, bool fromOu = false)
+        public static LdapUser? GetUser(string samAccountName, bool fromOu = false)
         {
-            return new LdapUser(
-                new DirectorySearcher(GetRoot(fromOu), string.Format("(&(objectClass=user)(samAccountName={0}))", samAccountName), _personProperties, SearchScope.Subtree)
-                .FindOne()
-            );
-
+            var searchResults = SearchActiveDirectory(
+                string.Format("(&(objectClass=user)(samAccountName={0}))", samAccountName),
+                fromOu ? Server.OU : Server.AD3,
+                ObjectType.Person);
+            return searchResults.Entries.Count == 1 ? new LdapUser(searchResults.Entries[0]) : null;
         }
 
         /// <summary>
@@ -152,23 +187,19 @@ namespace Viper.Areas.RAPS.Services
         /// </summary>
         /// <param name="groupDn">Distingushed name of the group</param>
         /// <returns>List of members of the group</returns>
-        public List<LdapUser> GetGroupMembership(string groupDn)
+        public static List<LdapUser> GetGroupMembership(string groupDn)
         {
             List<LdapUser> users = new();
             string filter = string.Format("(&(objectClass=user)(memberOf={0}))", groupDn);
-            
-            //Need to get users from both AD3 and OU
-            SearchResultCollection ouResults = new DirectorySearcher(GetRoot(true), filter, _personProperties, SearchScope.Subtree)
-                .FindAll();
-            foreach(SearchResult result in ouResults)
+            ////Need to get users from both AD3 and OU
+            var ouSearchResults = SearchActiveDirectory(filter, Server.OU, ObjectType.Person);
+            var ad3SearchResults = SearchActiveDirectory(filter, Server.AD3, ObjectType.Person);
+
+            foreach (SearchResultEntry result in ouSearchResults.Entries)
             {
                 users.Add(new LdapUser(result));
             }
-
-            SearchResultCollection ad3Results = new DirectorySearcher(GetRoot(false), filter, _personProperties, SearchScope.Subtree)
-                { PageSize = 1000 }
-                .FindAll();
-            foreach (SearchResult result in ad3Results)
+            foreach (SearchResultEntry result in ad3SearchResults.Entries)
             {
                 users.Add(new LdapUser(result));
             }
@@ -181,7 +212,7 @@ namespace Viper.Areas.RAPS.Services
         /// </summary>
         /// <param name="userDn">The distinguished name of the user</param>
         /// <param name="groupDn">The distinguised name of the group</param>
-        public void AddUserToGroup(string userDn, string groupDn)
+        public static void AddUserToGroup(string userDn, string groupDn)
         {
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
             try
@@ -190,7 +221,7 @@ namespace Viper.Areas.RAPS.Services
                 using PrincipalContext ouPc = new(ContextType.Domain, "ou.ad3.ucdavis.edu", _username, creds);
                 GroupPrincipal? group = GroupPrincipal.FindByIdentity(ouPc, IdentityType.DistinguishedName, groupDn);
                 UserPrincipal? user = UserPrincipal.FindByIdentity(ad3Pc, IdentityType.DistinguishedName, userDn);
-                if(group != null && user != null)
+                if (group != null && user != null)
                 {
                     group.Members.Add(user);
                     group.Save();
@@ -207,7 +238,7 @@ namespace Viper.Areas.RAPS.Services
         /// </summary>
         /// <param name="userDn">The distinguished name of the user</param>
         /// <param name="groupDn">The distinguised name of the group</param>
-        public void RemoveUserFromGroup(string userDn, string groupDn)
+        public static void RemoveUserFromGroup(string userDn, string groupDn)
         {
             string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
             try
@@ -237,14 +268,35 @@ namespace Viper.Areas.RAPS.Services
             return users;
         }
 
-        //Get the root to start our ldap query - either the SVM OU in ou.ad3.ucdavis.edu for traditional security groups and SVM managed service accounts or 
-        //the ucdUsers OU in ad3.ucdavis.edu for campus user accounts
-        private DirectoryEntry GetRoot(bool fromOu = false)
+        /// <summary>
+        /// Generic search function
+        /// </summary>
+        /// <param name="searchFilter"></param>
+        /// <param name="searchStart"></param>
+        /// <param name="ou"></param>
+        /// <param name="groupProperties"></param>
+        /// <returns></returns>
+        private static SearchResponse SearchActiveDirectory(string searchFilter, Server server, ObjectType objectType)
         {
-            string start = fromOu ? _ouStart : _ad3Users;
-            string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
-            return new DirectoryEntry(string.Format("LDAP://{0}", start), _username, creds, AuthenticationTypes.Secure);
-        }
+            var ldapIdentifier = server == Server.OU
+                ? new LdapDirectoryIdentifier(_ouServer, port)
+                : new LdapDirectoryIdentifier(_ad3Server, port);
+            var searchStart = server == Server.OU
+                ? _ouStart
+                : _ad3Users;
+            var props = objectType == ObjectType.Group
+                ? _groupProperties
+                : _personProperties;
+            var cred = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
+            using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential(_username, cred, "ou.ad3.ucdavis.edu"));
+            lc.SessionOptions.ProtocolVersion = 3;
+            lc.SessionOptions.SecureSocketLayer = true;
+            lc.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
+            lc.Bind();
 
+            var searchRequest = new SearchRequest(searchStart, searchFilter, SearchScope.Subtree, props);
+            var response = (SearchResponse)lc.SendRequest(searchRequest);
+            return response;
+        }
     }
 }

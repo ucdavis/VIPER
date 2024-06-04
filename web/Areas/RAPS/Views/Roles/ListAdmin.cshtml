@@ -101,8 +101,25 @@
                 }
             },
             async mounted() {
+                var f = getItemFromStorage("RAPS_roles_filter")
+                if (f) {
+                    this.rolesTable.filter = f
+                }
+                var p = getItemFromStorage("RAPS_roles_pagination")
+                if (p) {
+                    this.rolesTable.pagination = p
+                }
                 this.rolesTable.load()
                 this.views = await viperFetch(this, "Roles/Views")
+            },
+            watch: {
+                rolesTable: {
+                    handler(v) {
+                        putItemInStorage("RAPS_roles_filter", v.filter)
+                        putItemInStorage("RAPS_roles_pagination", v.pagination)
+                    },
+                    deep: true
+                }
             }
         })
     </script>
