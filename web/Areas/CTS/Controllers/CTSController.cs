@@ -6,6 +6,7 @@ using Viper.Classes;
 using Web.Authorization;
 using Microsoft.EntityFrameworkCore;
 using NLog;
+using Viper.Areas.CTS.Services;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -17,12 +18,14 @@ namespace Viper.Areas.CTS.Controllers
     {
         private readonly VIPERContext _viperContext;
         private readonly RAPSContext _rapsContext;
+        private readonly CtsSecurityService ctsSecurityService;
         public IUserHelper UserHelper;
 
         public CTSController(VIPERContext context, RAPSContext rapsContext)
         {
             _viperContext = context;
             _rapsContext = rapsContext;
+            ctsSecurityService = new CtsSecurityService(rapsContext, _viperContext);
             UserHelper = new UserHelper();
         }
 
@@ -171,12 +174,26 @@ namespace Viper.Areas.CTS.Controllers
         /*
          * Assessments
          */
-        [Permission(Allow = "SVMSecure.CTS.AssessStudent")]
+        [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.AssessStudent")]
         public IActionResult Epa()
         {
             ViewData["VIPERLayout"] = "VIPERLayoutSimplified";
 
             return View("~/Areas/CTS/Views/Epa.cshtml");
+        }
+
+        [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.AssessStudent")]
+        public async Task<IActionResult> EditEpa(int studentEpaId)
+        {
+            var studentEpa = await _viperContext.StudentEpas
+                .Include(e => e.Encounter)
+                .SingleOrDefaultAsync(e => e.StudentEpaId == studentEpaId);
+            if (studentEpa == null || !ctsSecurityService.CanEditStudentAssessment(studentEpa.Encounter.EnteredBy))
+            {
+                return await Task.Run(() => View("~/Views/Home/403.cshtml"));
+            }
+            ViewData["VIPERLayout"] = "VIPERLayoutSimplified";
+            return await Task.Run(() => View("~/Areas/CTS/Views/EpaEdit.cshtml"));
         }
 
         [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical")]

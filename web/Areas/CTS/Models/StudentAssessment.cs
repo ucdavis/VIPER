@@ -32,7 +32,7 @@ namespace Viper.Areas.CTS.Models
         public string EnteredByName { get; set; } = null!;
 
         //can the logged in user edit
-        public bool? editable { get; set; }
+        public bool? Editable { get; set; }
 
         //not common properties - should go into derived type when it is created
         //public int? RoleId { get; set; }

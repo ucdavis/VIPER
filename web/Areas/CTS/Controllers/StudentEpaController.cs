@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics.Metrics;
+using System.Diagnostics;
 using Viper.Areas.CTS.Models;
 using Viper.Areas.CTS.Services;
 using Viper.Classes;
@@ -83,9 +85,15 @@ namespace Viper.Areas.CTS.Controllers
             var epaList = await epas.ToListAsync();
 
             //if this is not a student viewing their own assessments, set the editable flag
-            return epaList
+            var userHelper = new UserHelper();
+            var studentEpas = epaList
                 .Select(e => new StudentEpaAssessment(e))
                 .ToList();
+            if (studentId != userHelper.GetCurrentUser()?.AaudUserId)
+            {
+                studentEpas.ForEach(s => s.Editable = ctsSecurityService.CanEditStudentAssessment(s.EnteredBy));
+            }
+            return studentEpas;
         }
 
         [HttpPost]
@@ -123,6 +131,45 @@ namespace Viper.Areas.CTS.Controllers
             await context.SaveChangesAsync();
 
             await auditService.AuditStudentEpa(encounter, studentEpa, AuditService.AuditActionType.Create, (int)personId);
+            await trans.CommitAsync();
+
+            return studentEpa;
+        }
+
+        [HttpPut("{studentEpaId}")]
+        public async Task<ActionResult<StudentEpa>> UpdateStudentEpa(int studentEpaId, CreateUpdateStudentEpa epaData)
+        {
+            var studentEpa = await context.StudentEpas
+                .Include(e => e.Epa)
+                .SingleOrDefaultAsync(e => e.StudentEpaId == studentEpaId);
+            if (studentEpa == null)
+            {
+                return NotFound();
+            }
+            //can't change epa or student
+            if (studentEpa.EpaId != epaData.EpaId || studentEpa.Encounter.StudentUserId != epaData.StudentId)
+            {
+                return BadRequest();
+            }
+
+            var personId = new UserHelper()?.GetCurrentUser()?.AaudUserId;
+            if (personId == null)
+            {
+                return Unauthorized(); //shouldn't happen
+            }
+
+            using var trans = context.Database.BeginTransaction();
+            studentEpa.Comment = epaData.Comment;
+            studentEpa.LevelId = epaData.LevelId;
+            if (epaData.EncounterDate != null)
+            {
+                studentEpa.Encounter.EncounterDate = (DateTime)epaData.EncounterDate;
+            }
+
+            context.Update(studentEpa);
+            await context.SaveChangesAsync();
+
+            await auditService.AuditStudentEpa(studentEpa.Encounter, studentEpa, AuditService.AuditActionType.Update, (int)personId);
             await trans.CommitAsync();
 
             return studentEpa;

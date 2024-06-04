@@ -34,7 +34,7 @@ namespace Viper.Areas.CTS.Services
                 encounter.EncounterDate,
                 encounter.ServiceId,
                 encounter.StudentLevel,
-                encounter?.EditComment,
+                encounter.EditComment,
                 studentEpa.LevelId,
                 studentEpa.Comment
             });

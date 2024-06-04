@@ -8,6 +8,11 @@ namespace Viper.Areas.CTS.Services
         private readonly VIPERContext viperContext;
         public IUserHelper userHelper;
 
+        private const string ManagerPermission = "SVMSecure.CTS.Manage";
+        private const string AssessmentsViewPermission = "SVMSecure.CTS.StudentAssessments";
+        private const string AssessClinicalPermission = "SVMSecure.CTS.AssessClinical";
+
+
         public CtsSecurityService(RAPSContext rapsContext, VIPERContext viperContext)
         {
             this.rapsContext = rapsContext;
@@ -26,11 +31,12 @@ namespace Viper.Areas.CTS.Services
         /// <returns></returns>
         public bool CheckStudentAssessmentViewAccess(int? studentId = null, int? enteredBy = null)
         {
-            if(userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
+            if(userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), ManagerPermission) ||
+                userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), AssessmentsViewPermission))
             {
                 return true;
             }
-            if (userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.StudentAssessments")
+            if (userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), AssessClinicalPermission)
                 && enteredBy == userHelper.GetCurrentUser()?.AaudUserId)
             {
                 return true;
@@ -41,6 +47,12 @@ namespace Viper.Areas.CTS.Services
             }
 
             return false;
+        }
+
+        public bool CanEditStudentAssessment(int enteredBy)
+        {
+            return userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), ManagerPermission)
+                || (userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), AssessClinicalPermission) && enteredBy == userHelper.GetCurrentUser()?.AaudUserId);
         }
     }
 }
