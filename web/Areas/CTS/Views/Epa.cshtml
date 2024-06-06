@@ -4,11 +4,6 @@
 <div class="row epa justify-center items-start content-start">
     <div style="max-width: 1200px" class="col">
         @*
-        <div class="row">
-        <a href="~/CTS/">CTS</a>
-        </div>
-        *@
-        @*
         Before showing EPA form, need to select Service and EPA
         *@
         <div class="row items-start q-mb-lg">
@@ -97,7 +92,7 @@
             </div>
             @*Show form once student is selected*@
             <q-form @@submit="submitEpa" v-bind="assessment" v-if="selectedStudent != null">
-                <div class="bg-red-5 text-white q-pa-sm rounded" v-if="errors?.message?.length > 0">
+                <div class="bg-red-5 text-white q-pa-sm rounded q-mb-md" v-if="errors?.message?.length > 0">
                     {{errors.message}}
                     Please make sure you have selected a service, EPA, student, and a level on the entrustment scale.
                 </div>
@@ -272,7 +267,7 @@
                         levelId: this.assessment.level,
                         comment: this.assessment.comment,
                         studentId: this.selectedStudent.value,
-                        serviceId: this.service.value
+                        serviceId: this.service
                     }
                     await viperFetch(this, "studentEpa", {
                         method: "POST",
@@ -295,11 +290,15 @@
                         const s = val.toLowerCase()
                         this.students = this.allStudents.filter(v => v.label.toLowerCase().indexOf(s) > -1)
                     })
-                },
+                }
             },
             mounted: async function () {
                 await this.getServices()
                 this.getLevels()
+
+                var selectedService = getItemFromStorage("Cts_Epa_ServiceId")
+                if(selectedService != null)
+                    this.service = selectedService
             },
             watch: {
                 //when service is updated, reload epa list and student list
@@ -307,6 +306,7 @@
                     handler(v) {
                         this.getEpas()
                         this.getStudents()
+                        putItemInStorage("Cts_Epa_ServiceId", v)
                     }
                 },
                 //set student list when student type is selected

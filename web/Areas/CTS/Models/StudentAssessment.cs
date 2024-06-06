@@ -28,6 +28,7 @@ namespace Viper.Areas.CTS.Models
         //Objects linked to the encounter
         public int StudentUserId { get; set; }
         public string StudentName { get; set; } = null!;
+        public string StudentMailId { get; set; } = null!;
         public int EnteredBy { get; set; }
         public string EnteredByName { get; set; } = null!;
 
@@ -64,6 +65,7 @@ namespace Viper.Areas.CTS.Models
             EncounterComment = enc.Comment;
             EditComment = enc.EditComment;
             StudentName = enc.Student.FullName;
+            StudentMailId = enc.Student.MailId;
             EnteredByName = enc.EnteredByPerson.FullName;
         }
     }

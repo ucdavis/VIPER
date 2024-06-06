@@ -1,0 +1,162 @@
+﻿@{
+    IUserHelper UserHelper = new UserHelper();
+}
+<div class="row epa justify-center items-start content-start">
+    <div style="max-width: 1200px" class="col">
+        <q-banner inline-actions rounded v-if="success" class="bg-green text-white q-mb-md">
+            EPA Saved
+            <template v-slot:action>
+                <q-btn flat label="Dismiss" @@click="success = false"></q-btn>
+            </template>
+        </q-banner>
+
+        <div v-if="service != '' && selectedEpa != ''">
+            <div class="row justify-between items-end q-mb-lg">
+                <div class="col-12 col-md-6 col-lg-5">
+                    <h2 class="epa">{{ assessment.epaName }}</h2>
+                </div>
+                 <div class="col-12 col-md-6 col-lg-3 q-mr-md text-weight-medium text-body1">
+                    Service: {{ assessment.serviceName }}
+                </div>
+                <div class="col-12 col-md-6 col-lg-3 text-right">
+                    <div class="row items-end">
+                        <div class="col-10 text-body1">
+                            Assessment for {{ assessment.studentName }}
+                        </div>
+                        <div class="col-2">
+                            <q-avatar v-if="assessment.studentMailId" rounded class="fit">
+                                <q-img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid='+ assessment.studentMailId +'&altphoto=1'"
+                                        class="smallPhoto rounded-borders" loading="eager" no-spinner="true"></q-img>
+                            </q-avatar>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <q-form @@submit="submitEpa" v-bind="assessment">
+                <div class="bg-red-5 text-white q-pa-sm rounded" v-if="errors?.message?.length > 0">
+                    {{errors.message}}
+                    Please make sure you have selected a service, EPA, student, and a level on the entrustment scale.
+                </div>
+                <div class="row q-mb-sm text-center gt-sm">
+                    <div class="col" v-for="level in levelOptions">
+                        {{level.text}}
+                    </div>
+                </div>
+                <div class="row q-mb-md gt-sm">
+                    <div class="col q-mx-sm levelSelection" v-for="level in levelOptions">
+                        <q-btn :label="level.label"
+                               push
+                               unelevated
+                               flat
+                               size="md"
+                               dense
+                               :class="assessment.levelId == level.value ? 'selectedLevel q-py-sm' : 'q-py-sm'"
+                               @@click="assessment.levelId = level.value">
+                        </q-btn>
+                    </div>
+                </div>
+                <div class="q-mb-sm text-center lt-md">
+                    <div class="q-mx-sm levelSelection" v-for="level in levelOptions">
+                        <q-btn push
+                               unelevated
+                               flat
+                               no-caps
+                               size="md"
+                               dense
+                               :class="assessment.levelId == level.value ? 'selectedLevel' : ''"
+                               @@click="assessment.levelId = level.value">
+                            <template v-slot:default>
+                                {{level.label}}. {{level.text}}
+                            </template>
+                        </q-btn>
+                    </div>
+                </div>
+                <div class="row q-mb-md">
+                    <q-input type="textarea" outlined dense v-model="assessment.comment" class="col-12"
+                             label="Comments: What should the student keep doing? How can they improve performance?"></q-input>
+                </div>
+
+                <div class="row">
+                    <div class="col-12">Entered By: {{ assessment.enteredByName }}</div>
+                    <q-input dense outlined type="date" label="Encounter Date" v-model="assessment.encounterDate" class="col-8 col-md-4"></q-input>
+                </div>
+                
+                <div class="column">
+                    <q-btn no-caps
+                           label="Submit EPA"
+                           type="submit"
+                           padding="sm xl"
+                           color="primary"
+                           size="md"
+                           class="self-center"></q-btn>
+                </div>
+            </q-form>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/cts.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    userId: '@UserHelper?.GetCurrentUser()?.MothraId',
+                    studentEpaId: "",
+                    //levels
+                    levelOptions: [],
+
+                    //assessment data
+                    assessment: { 
+                        
+                    },
+                    errors: {},
+                    success: false
+                }
+            },
+            methods: {
+                getLevels: async function () {
+                    await viperFetch(this, "levels?epa=true")
+                        .then(data => this.levelOptions = data.map(level => ({
+                            label: level.order,
+                            value: level.levelId,
+                            slot: level.order,
+                            text: level.levelName
+                        })))
+                },
+                submitEpa: async function () {
+                    this.errors = {}
+                    var data = {
+                        studentId: this.assessment.studentId,
+                        epaId: this.assessment.epaId,
+                        levelId: this.assessment.levelId,
+                        comment: this.assessment.comment,
+                        serviceId: this.assessment.serviceId,
+                        encounterDate: this.assessment.encounterDate
+                    }
+                    await viperFetch(this, "studentEpa/" + this.studentEpaId, {
+                        method: "PUT",
+                        body: JSON.stringify(data),
+                        headers: { "Content-Type": "application/json" }
+                    }, [], this.errors)
+                    if(this.errors?.message === undefined) {
+                        this.success = true
+                    }
+                },
+                getStudentEpa: async function() {
+                    await viperFetch(this, "studentEpa/" + this.studentEpaId)
+                        .then(data => this.assessment = data)
+                    this.assessment.encounterDate = this.assessment.encounterDate.substr(0, 10)
+                }
+            },
+            mounted: async function () {
+                this.studentEpaId = this.urlParams.get("studentEpaId")
+                await this.getLevels()
+                await this.getStudentEpa()
+            }
+        })
+    </script>
+}

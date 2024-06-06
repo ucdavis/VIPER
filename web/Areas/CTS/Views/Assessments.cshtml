@@ -49,7 +49,7 @@
       <template v-slot:body-cell-action="props">
           <q-td :props="props">
             <q-btn :props="props" color="primary" square flat icon="edit" title="Edit EPA"
-                :href="'~EditEpa/' + props.row.id">
+                :href="'EditEpa?studentEpaId=' + props.row.id" target="_blank">
             </q-btn>
           </q-td>
       </template>
@@ -59,7 +59,6 @@
           </q-td>
       </template>
 </q-table>
-{{ this.assessments }}
 
 @section Scripts {
     <script src="~/js/qtable.js"></script>
@@ -84,10 +83,10 @@
                             { name: "action", label: "", field: "id", align: "left" },
                             { name: "studentName", label: "Student", field: "studentName", align: "left", sortable: true },
                             { name: "epaName", label: "EPA", field: "epaName", align: "left", sortable: true },
-                            { name: "service", label: "Service", field: "service", align: "left", sortable: true },
+                            { name: "service", label: "Service", field: "serviceName", align: "left", sortable: true },
                             { name: "level", label: "Level", field: "levelName", align: "left", sortable: true },
                             { name: "enteredBy", label: "Entered By", field: "enteredByName", align: "left", sortable: true },
-                            { name: "entredOn", label: "Entered On", field: "entredOn", align: "left", sortable: true }
+                            { name: "enteredOn", label: "Entered On", field: "enteredOn", align: "left", sortable: true, format: v => formatDate(v) }
                         ]
                     })
                 }

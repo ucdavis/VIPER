@@ -96,6 +96,33 @@ namespace Viper.Areas.CTS.Controllers
             return studentEpas;
         }
 
+        [HttpGet("{studentEpaId}")]
+        [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical")]
+        public async Task<ActionResult<StudentEpaAssessment>> GetStudentEpaAssessment(int studentEpaId)
+        {
+            var studentEpa = await context.StudentEpas
+                .Include(e => e.Epa)
+                .Include(se => se.Encounter)
+                    .ThenInclude(e => e.EnteredByPerson)
+                .Include(e => e.Encounter)
+                    .ThenInclude(e => e.Student)
+                .Include(se => se.Encounter)
+                    .ThenInclude(e => e.Service)
+                .Include(se => se.Encounter)
+                    .ThenInclude(e => e.Offering)
+                .Include(e => e.Level)
+                .SingleOrDefaultAsync(e => e.StudentEpaId == studentEpaId);
+            if(studentEpa == null)
+            {
+                return NotFound();
+            }
+            if (!ctsSecurityService.CheckStudentAssessmentViewAccess(studentEpa.Encounter.StudentUserId, studentEpa.Encounter.EnteredBy))
+            {
+                return Forbid();
+            }
+            return new StudentEpaAssessment(studentEpa);
+        }
+
         [HttpPost]
         [Permission(Allow = "SVMSecure.CTS.AssessClinical,SVMSecure.CTS.Manage")]
         public async Task<ActionResult<StudentEpa>> CreateStudentEpa(CreateUpdateStudentEpa epaData)
@@ -137,21 +164,22 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpPut("{studentEpaId}")]
+        [Permission(Allow = "SVMSecure.CTS.AssessClinical,SVMSecure.CTS.Manage")]
         public async Task<ActionResult<StudentEpa>> UpdateStudentEpa(int studentEpaId, CreateUpdateStudentEpa epaData)
         {
             var studentEpa = await context.StudentEpas
-                .Include(e => e.Epa)
+                .Include(e => e.Encounter)
                 .SingleOrDefaultAsync(e => e.StudentEpaId == studentEpaId);
             if (studentEpa == null)
             {
                 return NotFound();
             }
-            //can't change epa or student
-            if (studentEpa.EpaId != epaData.EpaId || studentEpa.Encounter.StudentUserId != epaData.StudentId)
+            //check the logged in user can edit
+            if(!ctsSecurityService.CanEditStudentAssessment(studentEpa.Encounter.EnteredBy))
             {
-                return BadRequest();
+                return Forbid();
             }
-
+            
             var personId = new UserHelper()?.GetCurrentUser()?.AaudUserId;
             if (personId == null)
             {
