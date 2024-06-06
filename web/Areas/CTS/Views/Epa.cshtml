@@ -1,5 +1,6 @@
 ﻿@{
     IUserHelper UserHelper = new UserHelper();
+    var siteRootUrl = Url.Content("~/");
 }
 <div class="row epa justify-center items-start content-start">
     <div style="max-width: 1200px" class="col">
@@ -224,7 +225,7 @@
                 getStudents: async function () {
                     //load all students and students on service, if necessary
                     if (this.allStudents.length == 0) {
-                        await viperFetch(this, "/students/dvm")
+                        await viperFetch(this, "@siteRootUrl" + "students/dvm")
                             .then(data => this.allStudents = data.map(s => ({
                                 label: s.lastName + ", " + s.firstName, mailId: s.mailId, value: s.personId, classLevel: s.classLevel
                             })))
@@ -232,7 +233,7 @@
 
                     if (this.service && this.service != this.studentsLoadedForService) {
                         var d = new Date().toJSON().split("T")[0]
-                        await viperFetch(this, "/cts/clinicalschedule/student?serviceId=" + this.service + "&startDate=" + d + "&endDate=" + d)
+                        await viperFetch(this, "clinicalschedule/student?serviceId=" + this.service + "&startDate=" + d + "&endDate=" + d)
                             .then(data => this.studentsOnService = data.map(s => ({
                                 label: s.lastName + ", " + s.firstName, mailId: s.mailId, value: s.personId
                             })))
