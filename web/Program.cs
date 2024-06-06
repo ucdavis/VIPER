@@ -48,7 +48,7 @@ try
         // AWS Configurations
         AWSOptions awsOptions = new()
         {
-            Region = RegionEndpoint.USWest1            
+            Region = RegionEndpoint.USWest1
         };
         /*
         if(builder.Environment.EnvironmentName == "Test")
@@ -97,7 +97,8 @@ try
 
     // Cross site request forgery security
     // For AJAX calls be sure to set the header name to this value and pass the antiforgery token
-    builder.Services.AddAntiforgery(options => {
+    builder.Services.AddAntiforgery(options =>
+    {
         options.HeaderName = "X-CSRF-TOKEN";
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         options.Cookie.Name = "VIPER.Antiforgery";
@@ -167,7 +168,13 @@ try
     builder.Services.AddDbContext<AAUDContext>();
     builder.Services.AddDbContext<CoursesContext>();
     builder.Services.AddDbContext<RAPSContext>();
-    builder.Services.AddDbContext<VIPERContext>();
+    builder.Services.AddDbContext<VIPERContext>(opt =>
+    {
+        if (builder.Environment.EnvironmentName != "Production")
+        {
+            opt.EnableDetailedErrors(true);
+        }
+    });
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
@@ -251,7 +258,7 @@ try
     app.UseSession();
 
     // Define the default route mapping and require authentication by default (fail safe)
-    #pragma warning disable ASP0014
+#pragma warning disable ASP0014
     app.UseEndpoints(endpoints =>
     {
         endpoints.MapControllerRoute(
@@ -265,7 +272,7 @@ try
         // DefaultPolicy not applied, as authorization not required
         //endpoints.MapHealthChecks("/public");
     });
-    #pragma warning restore ASP0014
+#pragma warning restore ASP0014
 
     // Setup the memory cache so we can use it via a simple static method
     HttpHelper.Configure(app.Services.GetService<IMemoryCache>(), app.Services.GetService<IConfiguration>(), app.Environment, app.Services.GetService<IHttpContextAccessor>(), app.Services.GetService<IAuthorizationService>(), app.Services.GetService<IDataProtectionProvider>());

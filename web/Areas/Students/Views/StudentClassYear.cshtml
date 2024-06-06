@@ -1,0 +1,167 @@
+﻿
+<q-dialog v-model="showForm" @@hide="clear(this)">
+	<q-card style="width: 500px; max-width: 80vw;">
+		<q-form @@submit="submitStudentClassYear" v-model="studentClassYear">
+			<q-card-section>
+				<div class="text-h6">Updating record for {{selectedStudentName}} Class of {{studentClassYear.classYear}}</div>
+				If you change the class year one the current class year, a new record will be created and the current class year one will be marked
+				as inactive with the reasons and term below.
+			</q-card-section>
+			<q-card-section>
+				<q-checkbox v-model="studentClassYear.active" label="Current class year"></q-checkbox>
+				<br />
+				<q-checkbox v-model="studentClassYear.ross" label="Ross Student"></q-checkbox>
+				@* :true-value="1" :false-value="0" *@
+				<div>If changing class year, please fill out below.</div>
+				<q-select outlined dense options-dense label="Class Year" v-model="studentClassYear.classYear" emit-value :options="classYearOptions"></q-select>
+				<q-select outlined dense options-dense clearable label="Reason Left" v-model="studentClassYear.leftReason" emit-value map-options :options="reasons"></q-select>
+				<q-select outlined dense options-dense clearable label="Term Left" v-model="studentClassYear.leftTerm" emit-value map-options :options="terms"></q-select>
+				<q-input type="textarea" outlined dense label="Comment" v-model="studentClassYear.comment"></q-input>
+			</q-card-section>
+			<q-card-actions align="evenly">
+				<q-btn no-caps label="Save" type="submit" padding="xs sm" color="primary"></q-btn>
+				<q-btn no-caps label="Delete" type="button" padding="xs md" @@click="deleteStudentClassYear(this)" color="red"></q-btn>
+			</q-card-actions>
+		</q-form>
+	</q-card>
+</q-dialog>
+
+<q-form @@submit="return false;">
+	<div class="row q-mb-md">
+		<q-select outlined dense options-dense class="col col-md-3 col-lg-2"
+			label="Class Year" v-model="classYear" :options="classYearOptions">
+		</q-select>
+		<q-toggle v-model="activeOnly" label="Only students currently in this class"></q-toggle>
+		<q-btn v-if="classYear.value" :label="'Add students into ' + classYear?.label" dense no-caps color="secondary"
+			class="col col-md-2 col-lg-2 offset-md-3"
+			@@click="toImport(this)"></q-btn>
+	</div>
+
+	<div class="studentList row" v-if="students.length > 0">
+		<q-list dense class="col col-md-6 col-lg-4">
+			<q-item-label header background-color="secondary">
+				{{classYear.label}}
+			</q-item-label>
+			<q-item dense v-ripple v-for="student in students">
+				<q-item-section avatar>
+					<q-avatar>
+						<img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?altphoto=1&mailId=' + student.mailId" class="smallPhoto" />
+					</q-avatar>
+				</q-item-section>
+				<q-item-section>
+						{{student.lastName}}, {{student.firstName}}
+				</q-item-section>
+				<q-item-section side v-for="studentClassYear in student.classYears">
+					<q-btn dense no-caps :label="studentClassYear.classYear" :color="studentClassYear.active ? 'primary' : 'secondary'"
+						   class="q-px-sm" @@click="selectStudent(studentClassYear)">
+						<q-badge v-if="studentClassYear.ross" color="red" class="q-mx-sm">Ross</q-badge>
+						<q-badge color="orange" class="q-mx-sm" v-if="studentClassYear.leftReason">{{studentClassYear.leftReasonText}}</q-badge>
+					</q-btn>
+				</q-item-section>
+			</q-item>
+		</q-list>
+	</div>
+	<div v-if="students.length == 0 && classYear.value">
+		No students found. Please import this class year.
+	</div>
+</q-form>
+
+@section Scripts {
+	<script asp-add-nonce="true">
+		createVueApp({
+			data() {
+				return {
+					classYear: {label: "", value: ""},
+					classYearUpdate: {},
+					classYearOptions: [],
+					students: [],
+					activeOnly: false,
+					showForm: false,
+
+					selectedStudentName: "",
+					studentClassYear: { personId: 0, ross: false, reason: "", leftTerm: "", comment: "", active: false },
+					terms: [],
+					reasons: ["PELP", "VSTP", "Left"]
+				}
+			},
+			methods: {
+				getStudents: async function () {
+					if (this.classYear?.value) {
+						this.students = await viperFetch(this, "dvm/?classYear=" + this.classYear.value + "&includeAllClassYears=" + !this.activeOnly)
+					}
+				},
+				clear: function () {
+					this.studentClassYear = { personId: 0, ross: false, reason: "", leftTerm: "", comment: "" }
+					this.showForm = false
+				},
+				selectStudent: function (cy) {
+					this.selectedStudentName = cy.student.fullName
+
+					this.studentClassYear = { ...cy }
+					this.showForm = true
+				},
+				submitStudentClassYear: async function() {
+					await viperFetch(this,
+						"dvm/" + this.studentClassYear.classYear + "/" + this.studentClassYear.personId,
+						{
+							method: "PUT",
+							body: JSON.stringify(this.studentClassYear),
+							headers: { "Content-Type": "application/json" }
+						}
+					)
+					this.getStudents()
+					this.clear()
+				},
+				deleteStudentClassYear: async function() {
+					await viperFetch(this,
+						"dvm/studentClassYears/" + this.studentClassYear.studentClassYearId,
+						{
+							method: "DELETE",
+							headers: { "Content-Type": "application/json" }
+						}
+					)
+					this.getStudents()
+					this.clear()
+				},
+				toImport: function() {
+					location.href = "?import=1&classYear=" + this.classYear.value
+				}
+			},
+			mounted: async function() {
+				//get class year from url
+				var cy = this.urlParams.get("classYear") ?? ""
+				if (cy) {
+					this.classYear = { label: "Class of " + cy, value: cy }
+				}
+				//get all class years, reasons, terms for select boxes
+				this.classYearOptions.push({ label: "", value: "" })
+				for (var i = new Date().getFullYear() + 4; i >= 2016; i--){
+					this.classYearOptions.push({label: "Class of " + i, value: i})
+				}
+				viperFetch(this, "/curriculum/terms")
+					.then(data => {
+						this.terms = data
+							.map(t => ({ label: t.description, value: t.termCode }))
+					})
+				viperFetch(this, "dvm/leftReasons")
+					.then(data => {
+						this.reasons = data
+							.map(r => ({ label: r.reason, value: r.classYearLeftReasonId }))
+					})
+				//get students
+				this.getStudents()
+			},
+			watch: {
+				classYear: function() {
+					var qp = new URLSearchParams(window.location.search)
+					qp.set("classYear", this.classYear.value)
+					history.pushState(null, null, "?"+qp.toString())
+					this.getStudents()
+				},
+				activeOnly: function() {
+					this.getStudents()
+				}
+			}
+		})
+	</script>
+}

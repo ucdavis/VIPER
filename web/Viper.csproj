@@ -46,11 +46,7 @@
   <ItemGroup>
     <Folder Include="Areas\ClinicalScheduler\Models\" />
     <Folder Include="Areas\CMS\Views\" />
-    <Folder Include="Areas\CTS\Controllers\" />
-    <Folder Include="Areas\CTS\Models\" />
-    <Folder Include="Areas\CTS\Services\" />
     <Folder Include="Areas\RAPS\Data\" />
-    <Folder Include="Areas\Students\Models\" />
     <Folder Include="wwwroot\images\" />
   </ItemGroup>
 

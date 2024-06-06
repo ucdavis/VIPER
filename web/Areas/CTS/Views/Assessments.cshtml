@@ -1,0 +1,122 @@
+﻿
+<h2>View Assessments</h2>
+
+<q-form>
+    <div class="row">
+        <div class="col-12 col-md-6 col-lg-3">
+            <q-select outlined dense options-dense label="Service" v-model="searchForm.serviceId" :options="services" emit-value></q-select>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <q-select outlined dense options-dense label="Student" v-model="searchForm.studentId" :options="students" emit-value></q-select>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <q-select outlined dense options-dense label="Entered By" v-model="searchForm.enteredById" :options="assessors" emit-value></q-select>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-12 col-md-6 col-lg-3">
+            <q-input outlined dense type="date" v-model="searchForm.dateFrom" label="Date from"></q-input>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <q-input outlined dense type="date" v-model="searchForm.dateTo" label="Date To"></q-input>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <q-select outlined dense options-dense label="Assessment Type" v-model="assessmentType" :options="assessmentTypes" emit-value></q-select>
+        </div>
+    </div>
+    <div class="row q-mt-sm">
+        <div class="col-6 col-md-3 offset-3 text-center">
+            <q-btn label="View Assessments" color="primary" @@click="loadAssessments()"></q-btn>
+        </div>
+    </div>
+</q-form>
+
+<q-table
+    row-key="id"
+    title="Assessments"
+    :rows="assessmentsTable.rows"
+    :columns="assessmentsTable.columns"
+    dense
+    :pagination="assessmentsTable.pagination"
+    :filter="assessmentsTable.filter">
+    <template v-slot:top-right>
+        <q-input borderless dense debounce="300" v-model="assessmentsTable.filter" placeholder="Search">
+          <template v-slot:append>
+            <q-icon name="search" />
+          </template>
+        </q-input>
+      </template>
+      <template v-slot:body-cell-action="props">
+          <q-td :props="props">
+            <q-btn :props="props" color="primary" square flat icon="edit" title="Edit EPA"
+                :href="'EditEpa?studentEpaId=' + props.row.id" target="_blank">
+            </q-btn>
+          </q-td>
+      </template>
+      <template v-slot:body-cell-level="props">
+          <q-td :props="props">
+            {{ props.row.levelValue }}. {{ props.row.levelName }}
+          </q-td>
+      </template>
+</q-table>
+
+@section Scripts {
+    <script src="~/js/qtable.js"></script>
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    //parameters for loading assessments
+                    searchForm: {
+                        serviceId: null,
+                        studentId: null,
+                        enteredById: null,
+                        dateFrom: null,
+                        dateTo: null
+                    },
+                    assessmentType: "EPA",
+                    assessmentTypes: [ {label: "EPA", value: "EPA"} ],
+                    assessmentsTable: new quasarTable({
+                        keys: "id",
+                        urlBase: "",
+                        columns: [
+                            { name: "action", label: "", field: "id", align: "left" },
+                            { name: "studentName", label: "Student", field: "studentName", align: "left", sortable: true },
+                            { name: "epaName", label: "EPA", field: "epaName", align: "left", sortable: true },
+                            { name: "service", label: "Service", field: "serviceName", align: "left", sortable: true },
+                            { name: "level", label: "Level", field: "levelName", align: "left", sortable: true },
+                            { name: "enteredBy", label: "Entered By", field: "enteredByName", align: "left", sortable: true },
+                            { name: "enteredOn", label: "Entered On", field: "enteredOn", align: "left", sortable: true, format: v => formatDate(v) }
+                        ]
+                    })
+                }
+            },
+            methods: {
+                loadAssessments: async function() {
+                    const y = Object.fromEntries(
+                      Object.entries(this.searchForm).filter(([key, value]) => value !== null)
+                    );
+                    var u = null;
+                    switch(this.assessmentType) {
+                        case "EPA":
+                            u = new URL("studentepa", location.href);
+                            this.assessmentsTable.onLoad = function (data) {
+                                this.rows = data.map(d => ({ ...d, id: d.studentEpaId }))
+                            }
+                            break;
+                        default: break;
+                    }
+
+                    if(u != null) {
+                        u.search = new URLSearchParams(y)
+                        this.assessmentsTable.urlBase = u
+                        this.assessmentsTable.load()
+                    }
+                }
+            },
+            mounted: async function() {
+                await this.loadAssessments()
+            }
+        })
+    </script>
+}

@@ -1,24 +1,36 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Viper.Models.CTS;
 
 namespace Viper.Classes.SQLContext;
 
 public partial class VIPERContext : DbContext
 {
+    /* CTS */
     public virtual DbSet<Competency> Competencies { get; set; }
-
     public virtual DbSet<Domain> Domains { get; set; }
+    public virtual DbSet<Level> Levels { get; set; }
+    public virtual DbSet<Epa> Epas { get; set; }
+    public virtual DbSet<EpaService> EpaServices { get; set; }
+    public virtual DbSet<Encounter> Encounters { get; set; }
+    public virtual DbSet<EncounterInstructor> EncounterInstructors { get; set; } 
+    public virtual DbSet<StudentEpa> StudentEpas { get; set; }
+    public virtual DbSet<CtsAudit> CtsAudits { get; set; }
 
+    /* Students */
     public virtual DbSet<DvmStudent> DvmStudent { get; set; }
 
-    public virtual DbSet<InstructorSchedule> InstructorSchedule { get; set; }
+    /* Clinical Scheduler */
+    public virtual DbSet<InstructorSchedule> InstructorSchedules { get; set; }
+    public virtual DbSet<StudentSchedule> StudentSchedules { get; set; }
+    public virtual DbSet<Rotation> Rotations { get; set; }
+    public virtual DbSet<Service> Services { get; set; }
+    public virtual DbSet<WeekGradYear> WeekGradYears { get; set; }
+    public virtual DbSet<Week> Weeks { get; set; }
 
-    public virtual DbSet<StudentSchedule> StudentSchedule { get; set; }
+    /* CREST */
+    public virtual DbSet<CourseSessionOffering> CourseSessionOffering { get; set; }
 
-
-    partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
+    partial void OnModelCreatingCTS(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Competency>(entity =>
         {
@@ -31,11 +43,12 @@ public partial class VIPERContext : DbContext
 
             entity.HasOne(d => d.Domain).WithMany(p => p.Competencies)
                 .HasForeignKey(d => d.DomainId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+                .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("FK_Competency_Domain");
 
             entity.HasOne(d => d.Parent).WithMany(p => p.Children)
                 .HasForeignKey(d => d.ParentId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Competency_Competency");
         });
 
@@ -44,6 +57,75 @@ public partial class VIPERContext : DbContext
             entity.ToTable("Domain", "cts");
         });
 
+        modelBuilder.Entity<Level>(entity =>
+        {
+            entity.ToTable("Level", "cts");
+        });
+
+        modelBuilder.Entity<Epa>(entity =>
+        {
+            entity.ToTable("Epa", "cts");
+            entity.HasMany(e => e.Services)
+                .WithMany(s => s.Epas)
+                .UsingEntity<Dictionary<string, object>>(
+                    "EpaService",
+                    r => r.HasOne<Service>().WithMany().HasForeignKey("ServiceId"),
+                    l => l.HasOne<Epa>().WithMany().HasForeignKey("EpaId"),
+                    j =>
+                    {
+                        j.HasKey("EpaId", "ServiceId");
+                        j.ToTable("EpaService", "cts");
+                    });
+        });
+
+        modelBuilder.Entity<Encounter>(entity =>
+        {
+            entity.ToTable("Encounter", "cts");
+            entity.HasOne(e => e.Service).WithMany(e => e.Encounters)
+                .HasForeignKey(e => e.ServiceId);
+            entity.HasOne(e => e.Offering).WithMany()
+                .HasForeignKey(e => e.OfferingId)
+                .HasPrincipalKey(e => e.EduTaskOfferid);
+            entity.HasOne(e => e.Clinician).WithMany()
+                .HasForeignKey(e => e.ClinicianId);
+            entity.HasOne(e => e.Student).WithMany()
+                .HasForeignKey(e => e.StudentUserId);
+            entity.HasOne(e => e.EnteredByPerson).WithMany()
+                .HasForeignKey(e => e.EnteredBy);
+        });
+
+        modelBuilder.Entity<EncounterInstructor>(entity =>
+        {
+            entity.ToTable("EncounterInstructor", "cts");
+            entity.HasOne(e => e.Instructor).WithMany()
+                .HasForeignKey(e => e.InstructorId);
+            entity.HasOne(e => e.Encounter).WithMany(e => e.EncounterInstructors)
+                .HasForeignKey(e => e.EncounterId);
+        });
+
+        modelBuilder.Entity<StudentEpa>(entity =>
+        {
+            entity.ToTable("StudentEpa", "cts");
+            entity.HasOne(e => e.Encounter).WithMany()
+                .HasForeignKey(e => e.EncounterId);
+            entity.HasOne(e => e.Level).WithMany()
+                .HasForeignKey(e => e.LevelId);
+            entity.HasOne(e => e.Epa).WithMany()
+                .HasForeignKey(e => e.EpaId);
+        });
+
+        modelBuilder.Entity<CtsAudit>(entity =>
+        {
+            entity.ToTable("CtsAudit", "cts");
+            entity.HasOne(e => e.Modifier).WithMany()
+                .HasForeignKey(e => e.ModifiedBy);
+            entity.HasOne(e => e.Encounter).WithMany()
+                .HasForeignKey(e => e.EncounterId);
+            entity.HasOne(e => e.StudentEpa).WithMany()
+                .HasForeignKey(e => e.StudentEpaId);
+        });
+
+        /* "Exteral" entities */
         modelBuilder.Entity<DvmStudent>(entity =>
         {
             entity.ToTable("vwDvmStudents", schema: "cts");
@@ -61,18 +143,22 @@ public partial class VIPERContext : DbContext
 
         modelBuilder.Entity<InstructorSchedule>(entity =>
         {
-            entity.HasKey(e => e.MothraId);
+            entity.HasKey(e => e.InstructorScheduleId);
             entity.ToTable("vwInstructorSchedule", schema: "cts");
             entity.Property(e => e.MiddleName).IsRequired(false);
             entity.Property(e => e.MailId).IsRequired(false);
             entity.Property(e => e.Role).IsRequired(false);
             entity.Property(e => e.SubjCode).IsRequired(false);
             entity.Property(e => e.CrseNumb).IsRequired(false);
+            entity.HasOne(e => e.Service).WithMany()
+                .HasForeignKey(e => e.ServiceId);
+            entity.HasOne(e => e.Rotation).WithMany()
+                .HasForeignKey(r => r.RotationId);
         });
 
         modelBuilder.Entity<StudentSchedule>(entity =>
         {
-            entity.HasKey(e => e.MothraId);
+            entity.HasKey(e => e.StudentScheduleId);
             entity.ToTable("vwStudentSchedule", schema: "cts");
             entity.Property(e => e.MiddleName).IsRequired(false);
             entity.Property(e => e.MailId).IsRequired(false);
@@ -83,6 +169,81 @@ public partial class VIPERContext : DbContext
             entity.Property(e => e.Incomplete).IsRequired(false);
             entity.Property(e => e.SubjCode).IsRequired(false);
             entity.Property(e => e.CrseNumb).IsRequired(false);
+            entity.HasOne(e => e.Service).WithMany()
+                .HasForeignKey(e => e.ServiceId);
+            entity.HasOne(e => e.Rotation).WithMany()
+                .HasForeignKey(r => r.RotationId);
         });
+
+        modelBuilder.Entity<Rotation>(entity =>
+        {
+            entity.HasKey(e => e.RotId);
+            entity.ToTable("vwRotation", schema: "cts");
+            entity.Property(e => e.SubjectCode).IsRequired(false);
+            entity.Property(e => e.CourseNumber).IsRequired(false);
+            entity.HasOne(e => e.Service).WithMany(s => s.Rotations)
+               .HasForeignKey(e => e.ServiceId)
+               .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<Service>(entity =>
+        {
+            entity.HasKey(e => e.ServiceId);
+            entity.ToTable("vwService", schema: "cts");
+        });
+
+        modelBuilder.Entity<Week>(entity =>
+        {
+            entity.HasKey(e => e.WeekId);
+            entity.ToTable("vwWeeks", schema: "cts");
+            entity.Property(e => e.WeekId).HasColumnName("Week_ID");
+            entity.HasMany(e => e.WeekGradYears).WithOne(e => e.Week)
+                .HasForeignKey(w => w.WeekId);
+        });
+
+        modelBuilder.Entity<WeekGradYear>(entity =>
+        {
+            entity.HasKey(e => e.WeekGradYearId);
+            entity.ToTable("vwWeekGradYears", schema: "cts");
+            entity.Property(e => e.WeekGradYearId).HasColumnName("Weekgradyear_ID");
+            entity.Property(e => e.WeekId).HasColumnName("Week_ID");
+        });
+
+        modelBuilder.Entity<CourseSessionOffering>(entity =>
+        {
+            entity.HasKey(e => new { e.CourseId, e.SessionId, e.EduTaskOfferid });
+            entity.HasAlternateKey(e => e.EduTaskOfferid);
+            entity.ToTable("vwCourseSessionOffering", schema: "cts");
+			entity.Property(e => e.Crn).IsRequired(false);
+			entity.Property(e => e.SsaCourseNum).IsRequired(false);
+			entity.Property(e => e.SessionType).IsRequired(false);
+			entity.Property(e => e.FromDate).IsRequired(false);
+			entity.Property(e => e.ThruDate).IsRequired(false);
+			entity.Property(e => e.FromTime).IsRequired(false);
+			entity.Property(e => e.ThruTime).IsRequired(false);
+			entity.Property(e => e.Room).IsRequired(false);
+			entity.Property(e => e.TypeOrder).HasColumnName("type_order").IsRequired(false);
+			entity.Property(e => e.StudentGroup).IsRequired(false);
+			entity.Property(e => e.ReadingRequired).HasColumnName("reading_required").IsRequired(false);
+			entity.Property(e => e.ReadingRecommended).HasColumnName("reading_recommended").IsRequired(false);
+			entity.Property(e => e.ReadingSessionMaterial).HasColumnName("reading_sessionmaterial").IsRequired(false);
+			entity.Property(e => e.KeyConcept).IsRequired(false);
+			entity.Property(e => e.Equipment).IsRequired(false);
+			entity.Property(e => e.Notes).IsRequired(false);
+			entity.Property(e => e.ModifyDate).IsRequired(false);
+			entity.Property(e => e.ModifyPersonId).IsRequired(false);
+			entity.Property(e => e.PaceOrder).HasColumnName("pace_order").IsRequired(false);
+			entity.Property(e => e.Vocabulary).IsRequired(false);
+			entity.Property(e => e.Supplemental).IsRequired(false);
+			entity.Property(e => e.OfferingNotes).IsRequired(false);
+			entity.Property(e => e.SeqNumb).IsRequired(false);
+			entity.Property(e => e.SvmBlockId).HasColumnName("SVM_blockID").IsRequired(false);
+			entity.Property(e => e.MediasiteSchedule).IsRequired(false);
+			entity.Property(e => e.MediasitePresentation).IsRequired(false);
+			entity.Property(e => e.MediasiteLive).IsRequired(false);
+			entity.Property(e => e.MediasiteTemplate).IsRequired(false);
+			entity.Property(e => e.CanvasCourseId).IsRequired(false);
+			entity.Property(e => e.CanvasEventId).IsRequired(false);
+		});
     }
 }
