@@ -76,6 +76,9 @@ namespace Viper.Areas.CTS.Controllers
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Competencies", MenuItemURL = "~/CTS/ManageCompetencies" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Levels", MenuItemURL = "~/CTS/ManageLevels" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage EPAs", MenuItemURL = "~/CTS/ManageEPAs" });
+
+                nav.Add(new NavMenuItem() { MenuItemText = "Reports", IsHeader = true });
+                nav.Add(new NavMenuItem() { MenuItemText = "Assessment Charts", MenuItemURL = "~/CTS/AssessmentCharts" });
             }
 
             return new NavMenu("Competency Tracking System", nav);
@@ -207,6 +210,14 @@ namespace Viper.Areas.CTS.Controllers
         public IActionResult MyAssessments()
         {
             return View("~/Areas/CTS/Views/MyAssessments.cshtml");
+        }
+
+        /* Reports */
+
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
+        public IActionResult AssessmentCharts()
+        {
+            return View("~/Areas/CTS/Views/AssessmentCharts.cshtml");
         }
     }
 }
