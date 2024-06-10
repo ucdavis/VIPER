@@ -19,14 +19,16 @@ namespace Viper.Areas.CTS.Controllers
         private readonly VIPERContext _viperContext;
         private readonly RAPSContext _rapsContext;
         private readonly CtsSecurityService ctsSecurityService;
+        private readonly IWebHostEnvironment environment;
         public IUserHelper UserHelper;
 
-        public CTSController(VIPERContext context, RAPSContext rapsContext)
+        public CTSController(VIPERContext context, RAPSContext rapsContext, IWebHostEnvironment env)
         {
             _viperContext = context;
             _rapsContext = rapsContext;
             ctsSecurityService = new CtsSecurityService(rapsContext, _viperContext);
             UserHelper = new UserHelper();
+            environment = env;
         }
 
         /// <summary>
@@ -76,6 +78,9 @@ namespace Viper.Areas.CTS.Controllers
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Competencies", MenuItemURL = "~/CTS/ManageCompetencies" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Levels", MenuItemURL = "~/CTS/ManageLevels" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage EPAs", MenuItemURL = "~/CTS/ManageEPAs" });
+
+                nav.Add(new NavMenuItem() { MenuItemText = "Reports", IsHeader = true });
+                nav.Add(new NavMenuItem() { MenuItemText = "Assessment Charts", MenuItemURL = "~/CTS/AssessmentCharts" });
             }
 
             return new NavMenu("Competency Tracking System", nav);
@@ -207,6 +212,27 @@ namespace Viper.Areas.CTS.Controllers
         public IActionResult MyAssessments()
         {
             return View("~/Areas/CTS/Views/MyAssessments.cshtml");
+        }
+
+        /* Reports */
+
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
+        public IActionResult AssessmentCharts()
+        {
+            return View("~/Areas/CTS/Views/AssessmentCharts.cshtml");
+        }
+
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
+        public IActionResult TestVue()
+        {
+            var c = environment.ContentRootPath;
+            var w = environment.WebRootPath;
+            var html = System.IO.File.ReadAllText(w + "/vue/src/cts/index.html");
+            ViewData["html"] = html;
+
+            ViewData["VIPERLayout"] = "VIPERLayoutVue";
+            return View("~/Areas/CTS/Views/Index.cshtml");
+            //return View("~/vue/src/CTS/index.html");
         }
     }
 }

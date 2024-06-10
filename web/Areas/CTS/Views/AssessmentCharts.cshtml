@@ -1,0 +1,117 @@
+﻿@*
+    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+*@
+
+<div style="width:800px;">
+    <canvas ref="canvasRef" id="chart" width="800" height="600"></canvas>
+</div>
+
+
+@section Styles {
+
+}
+
+@section Scripts {
+    <script asp-add-nonce="true" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    
+    
+    <script asp-add-nonce="true">
+        createVueApp({
+            data() {
+                return {
+                    canvasRef: ref(null)
+                }
+            },
+            mounted: async function() {
+                console.log(document.getElementById('chart'))
+                this.loadChart()
+                return { canvasRef:this.canvasRef }
+            },
+            methods: {
+                loadChart: async function() {
+                    const data = [
+                        { year: 2010, count: 10 },
+                        { year: 2011, count: 20 },
+                        { year: 2012, count: 15 },
+                        { year: 2013, count: 25 },
+                        { year: 2014, count: 22 },
+                        { year: 2015, count: 30 },
+                        { year: 2016, count: 28 }
+                      ];
+
+                    var c = new Chart(
+                        document.getElementById('chart'),
+                        {
+                            type: 'bar',
+                            data: {
+                                labels: data.map(row => row.year),
+                                datasets: [
+                                    {
+                                        label: 'Acquisitions by year',
+                                        data: data.map(row => row.count)
+                                    }
+                                ]
+                            }
+                        }
+                    );
+                }
+            }
+        })
+
+        /*
+        window.addEventListener('load', function() {
+            let labels = ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'];
+            let itemData = [12, 19, 3, 5, 2, 3];
+
+            const data = {
+                labels: labels,
+                datasets: [{
+                    data: itemData,
+                    backgroundColor: 'rgb(66, 221, 245)'
+                }]
+            };
+
+            const config = {
+                type: 'bar',
+                data: data
+            };
+
+            const chart = new Chart(
+                document.getElementById('chart'),
+                config
+            );
+        })
+        */
+        
+        /*
+            (async function() {
+              const data = [
+                { year: 2010, count: 10 },
+                { year: 2011, count: 20 },
+                { year: 2012, count: 15 },
+                { year: 2013, count: 25 },
+                { year: 2014, count: 22 },
+                { year: 2015, count: 30 },
+                { year: 2016, count: 28 }
+              ];
+
+              var c = new Chart(
+                document.getElementById('chart'),
+                {
+                  type: 'bar',
+                  data: {
+                    labels: data.map(row => row.year),
+                    datasets: [
+                      {
+                        label: 'Acquisitions by year',
+                        data: data.map(row => row.count)
+                      }
+                    ]
+                  }
+                }
+              );
+              console.log(c)
+            })()
+            */
+    </script>
+}
