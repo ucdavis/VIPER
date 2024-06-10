@@ -37,12 +37,17 @@ pipeline {
 			bat '"C:\\Program Files\\dotnet\\dotnet" clean Viper.sln'
 		  }
 		}
+		stage('Build Vue App') {
+			steps {
+				bat 'pushd VueApp && npm install && popd'
+				bat 'npm run --prefix VueApp build'
+			}
+		}
 		stage('Build for test') {
 			when {
 				expression { params.Branch == 'development' }
 			}
 			steps {
-				bat 'npm run --prefix VueApp build'
 				bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Test'
 			}
 		}
@@ -51,7 +56,6 @@ pipeline {
 				expression { params.Branch == 'master' || params.Branch == "main" }
 			}
 			steps {
-				bat 'npm run --prefix VueApp build'
 				bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Production'
 			}
 		}
