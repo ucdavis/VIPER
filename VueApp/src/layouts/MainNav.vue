@@ -1,0 +1,48 @@
+<template>
+    <div class="row gt-sm items-stretch" id="mainLayoutHeaderSections">
+        <template v-for="nav in topNav">
+            <!--
+
+        @(tabLink[1] == (string)(ViewData[" SelectedTopNav"] ?? "" ) ? " selectedTopNav" : "" )
+        -->
+            <a class="q-btn q-btn--flat q-btn--actionable q-hoverable q-px-md q-py-sm text-white navLink "
+               :href="nav.menuItemURL">
+                <span class="q-focus-helper"></span>
+                <span class="q-btn__content">
+                    <span class="block">
+                        {{ nav.menuItemText }}
+                    </span>
+                </span>
+            </a>
+            <hr class="q-separator q-separator--vertical q-separator--dark" aria-orientation="vertical" />
+        </template>
+        <q-btn flat href="helpNav.menuItemURL" icon="help" class="q-px-md q-py-sm" v-cloak>
+            <q-tooltip>Help</q-tooltip>
+        </q-btn>
+        <hr class="q-separator q-separator--vertical q-separator--dark" aria-orientation="vertical">
+    </div>
+</template>
+
+<script>
+    import { ref, defineComponent } from 'vue'
+    export default defineComponent({
+        name: 'MainNav',
+        data() {
+            return {
+                topNav: ref([]),
+                helpNav: ref(""),
+            }
+        },
+        methods: {
+            async getTopNav() {
+                var d = await fetch(import.meta.env.VITE_API_URL + "layout/topnav")
+                    .then(r => (r.status == 204 || r.status == 202) ? r : r.json())
+                this.helpNav = d.result.pop()
+                this.topNav = d.result
+            }
+        },
+        mounted: async function () {
+            await this.getTopNav()
+        }
+    })
+</script>

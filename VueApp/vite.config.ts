@@ -6,6 +6,8 @@ import fs from 'fs';
 import path from 'path';
 import child_process from 'child_process';
 import { env } from 'process';
+import { quasar, transformAssetUrls } from '@quasar/vite-plugin'
+import vue from '@vitejs/plugin-vue'
 
 import { resolve } from 'node:path'
 const baseFolder =
@@ -35,8 +37,16 @@ const target = env.ASPNETCORE_HTTPS_PORT ? `https://localhost:${env.ASPNETCORE_H
     env.ASPNETCORE_URLS ? env.ASPNETCORE_URLS.split(';')[0] : 'https://localhost:5001';
 
 // https://vitejs.dev/config/
-export default defineConfig({
-    plugins: [plugin()],
+export default defineConfig(({ mode }) => ({
+    plugins: [
+        plugin(),
+        // @quasar/plugin-vite options list:
+        // https://github.com/quasarframework/quasar/blob/dev/vite-plugin/index.d.ts
+        //quasar({
+         //   sassVariables: 'src/quasar-variables.sass'
+        //})
+        quasar()
+    ],
     resolve: {
         alias: {
             '@': fileURLToPath(new URL('./src', import.meta.url))
@@ -56,6 +66,7 @@ export default defineConfig({
         }
     },
     build: {
+        minify: false,
         outDir: "../web/wwwroot/vue",
         emptyOutDir: true,
         rollupOptions: {
@@ -65,5 +76,8 @@ export default defineConfig({
             }
         }
     },
-    base: '/vue/'
-})
+    define: {
+        __VUE_PROD_DEVTOOLS__: mode !== 'production'
+    },
+    base: '/2/vue/'
+}))

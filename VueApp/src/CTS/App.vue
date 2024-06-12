@@ -1,19 +1,14 @@
-<script setup lang="ts">
-    import Welcome from './components/Welcome.vue'
-</script>
-
 <template>
-    <header>
-        <div class="wrapper">
-            
-        </div>
-    </header>
-
     <main>
-        <Welcome />
+        <component :is="$route.meta.layout || 'div'"
+                   nav="cts" navarea="true">
+            <router-view></router-view>
+        </component>
     </main>
 </template>
 
-<style scoped>
-   
-</style>
+<script>
+    export default {
+        name: 'CTSApplication',
+    }
+</script>
