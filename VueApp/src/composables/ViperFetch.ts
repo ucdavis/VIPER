@@ -1,4 +1,4 @@
-import { onMounted, ref, type Ref } from 'vue'
+import { ref, type Ref } from 'vue'
 import { useGenericErrorHandler } from './ErrorHandler'
 const errorHandler = useGenericErrorHandler();
 
@@ -26,7 +26,7 @@ export function useFetch(url: string, options: any = {}) {
             //handle 4xx and 5xx status codes
             .then(r => handleViperFetchError(r))
             //return json (unless we got 204 No Content or 202 Accepted)
-            .then(r => (r.status == "204" || r.status == "202") ? r : r.json())
+            .then(r => (r.status == 204 || r.status == 202) ? r : r.json())
             //check for success flag and result being defined. call additional functions
             .then(r => {
                 let intialResult = r

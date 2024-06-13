@@ -16,7 +16,7 @@ namespace Viper.Areas.CTS.Services
             
             var nav = new List<NavMenuItem>
             {
-                new NavMenuItem() { MenuItemText = "CTS Home", MenuItemURL = "" },
+                new NavMenuItem() { MenuItemText = "CTS Home", MenuItemURL = "Home" },
                 new NavMenuItem() { MenuItemText = "Assessments", IsHeader = true }
             };
 

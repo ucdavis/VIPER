@@ -7,7 +7,7 @@ using Web.Authorization;
 namespace Viper.Controllers
 {
     [Route("/loggedInUser")]
-    [Permission(Allow = "SVMSecure")]
+    //[Permission(Allow = "SVMSecure")]
     public class LoggedInUserController : ApiController
     {
         private readonly IAntiforgery _antiforgery;
@@ -33,7 +33,8 @@ namespace Viper.Controllers
                     MothraId = user.MothraId,
                     FirstName = user.FirstName,
                     LastName = user.LastName,
-                    Token = _antiforgery.GetAndStoreTokens(HttpContext).RequestToken
+                    Token = _antiforgery.GetAndStoreTokens(HttpContext).RequestToken,
+                    Emulating = userHelper.IsEmulating()
                 };
         }
     }

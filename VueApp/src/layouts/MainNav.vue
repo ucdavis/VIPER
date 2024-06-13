@@ -1,11 +1,7 @@
 <template>
     <div class="row gt-sm items-stretch" id="mainLayoutHeaderSections">
         <template v-for="nav in topNav">
-            <!--
-
-        @(tabLink[1] == (string)(ViewData[" SelectedTopNav"] ?? "" ) ? " selectedTopNav" : "" )
-        -->
-            <a class="q-btn q-btn--flat q-btn--actionable q-hoverable q-px-md q-py-sm text-white navLink "
+            <a :class="navClass + (nav.menuItemText == highlightedTopNav ? 'selectedTopNav' : '')"
                :href="nav.menuItemURL">
                 <span class="q-focus-helper"></span>
                 <span class="q-btn__content">
@@ -27,10 +23,14 @@
     import { ref, defineComponent } from 'vue'
     export default defineComponent({
         name: 'MainNav',
+        props: {
+            highlightedTopNav: String  
+        },
         data() {
             return {
                 topNav: ref([]),
                 helpNav: ref(""),
+                navClass: ref("q-btn q-btn--flat q-btn--actionable q-hoverable q-px-md q-py-sm text-white navLink "),
             }
         },
         methods: {

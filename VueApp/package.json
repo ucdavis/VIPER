@@ -12,7 +12,9 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
     "watch": "watch \"npm run build-dev\" ./src",
     "build-dev": "run-p type-check \"build-only-dev {@}\" --",
-    "build-only-dev": "vite build --mode development"
+    "build-only-dev": "vite build --mode development",
+    "build-test": "run-p type-check \"build-only-test {@}\" --",
+    "build-only-test": "vite build --mode test"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.11",

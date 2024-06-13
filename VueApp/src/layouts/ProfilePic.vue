@@ -3,7 +3,7 @@
         <template v-slot:label>
             <q-avatar size="40px">
                 <img :src="picSrc" height="40" id="siteProfileAvatar" />
-                <q-tooltip :target="siteProfileAvatar">
+                <q-tooltip>
                     {{ userName }}
                 </q-tooltip>
             </q-avatar>
@@ -37,50 +37,27 @@
     </q-btn-dropdown>
 </template>
 
-<script>
-    import { ref, defineComponent } from 'vue'
-    /*
+<script lang="ts">
+    import { ref, defineComponent, computed } from 'vue'
     import { useUserStore } from '@/store/UserStore'
-    try {
-        const userStore = useUserStore()
-    }
-    catch (e) {
-        console.log(e)
-    }
-    */
     export default defineComponent({
         name: 'ProfilePic',
         data() {
             return {
-                picSrc: ref(""),
-                userName: ref(""),
-                isLoggedIn: ref(false),
-                isEmulating: ref(false),
-                clearEmulationHref: ref(""),
-                logoutHref: ref("")
+                clearEmulationHref: ref(import.meta.env.VITE_API_URL + "ClearEmulation"),
+                logoutHref: ref(import.meta.env.VITE_API_URL + "logout")
             }
         },
-        methods: {
+        setup() {
+            const userStore = useUserStore()
+            const picSrc = computed(() => "https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid=" + userStore.userInfo.mailId + "&altphoto=1")
+            const userName = computed(() => userStore.userInfo.firstName + " " + userStore.userInfo.lastName)
+            const isLoggedIn = computed(() => userStore.isLoggedIn)
+            const isEmulating = computed(() => userStore.isEmulating)
             
-        },
-        /*
-        mounted: async function () {
-            try {
-                if (userStore) {
-                    this.isLoggedIn = userStore.isLoggedIn
-                    if (userStore.isLoggedIn) {
-                        this.picSrc = "https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid=" + userStore.userInfo.mailId + "&altphoto=1"
-                        this.userName = userStore.userInfo.firstName + " " + userStore.userInfo.lastName
-                        this.logoutHref = import.meta.env.VITE_API_URL + "logout"
-                        this.clearEmulationHref = import.meta.env.VITE_API_URL + "ClearEmulation"
-                        this.isEmulating = userStore.isEmulating
-
-                    }
-                }
-            } catch (e) {
-                console.log(e)
+            return {
+                userStore, picSrc, userName, isLoggedIn, isEmulating
             }
-        }
-        */
+        },
     })
 </script>

@@ -8,7 +8,7 @@ const routes = [
         name: "CtsHome"
     },
     {
-        path: '/CTS/AnotherHome',
+        path: '/CTS/Home',
         meta: { layout: ViperLayout },
         component: () => import('@/CTS/pages/CtsHome.vue'),
     },

@@ -10,15 +10,15 @@
                             <i class="q-icon notranslate material-icons" aria-hidden="true" role="img">home</i>
                             <span class="mainLayoutViper">VIPER 2.0</span>
                             <!--
-                        @if (HttpHelper.Environment?.EnvironmentName == "Development")
-                        {
-                        <span class="mainLayoutViperMode">Development</span>
-                        }
-                        else if (HttpHelper.Environment?.EnvironmentName == "Test")
-                        {
-                        <span class="mainLayoutViperMode">Test</span>
-                        }
-                            -->
+                            @if (HttpHelper.Environment?.EnvironmentName == "Development")
+                            {
+                            <span class="mainLayoutViperMode">Development</span>
+                            }
+                            else if (HttpHelper.Environment?.EnvironmentName == "Test")
+                            {
+                            <span class="mainLayoutViperMode">Test</span>
+                            }
+                                -->
                         </span>
                     </a>
                 </div>
@@ -27,51 +27,45 @@
                 <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
                     <MiniNav v-if="userStore.isLoggedIn"></MiniNav>
                 </q-btn>
-                <q-btn flat dense icon="list" class="q-mr-xs lt-md" @@click="mainLeftDrawer = !mainLeftDrawer"></q-btn>
+                <q-btn flat dense icon="list" class="q-mr-xs lt-md" @click="mainLeftDrawer = !mainLeftDrawer"></q-btn>
                 <q-btn flat dense label="Viper 2.0" class="lt-md" href="~/"></q-btn>
 
                 <q-btn flat dense no-caps icon="home" class="gt-sm text-white" href="~/">
                     <span class="mainLayoutViper">VIPER 2.0</span>
-                    <!--
-                @if (HttpHelper.Environment?.EnvironmentName == "Development")
-                {
-                <span class="mainLayoutViperMode">Development</span>
-                }
-                else if (HttpHelper.Environment?.EnvironmentName == "Test")
-                {
-                <span class="mainLayoutViperMode">Test</span>
-                }
-                    -->
+                    <span v-if="environment == 'DEVELOPMENT'" class="mainLayoutViperMode">Development</span>
+                    <span v-if="environment == 'TEST'" class="mainLayoutViperMode">Test</span>
                 </q-btn>
 
-                <!--
-            @if (UserHelper.IsEmulating())
-            {
-            <q-banner dense rounded inline-actions class="bg-warning text-black q-ml-lg">
-                <strong>EMULATING:</strong> @UserHelper.GetCurrentUser()?.DisplayFullName <q-btn no-caps dense href="@Url.Content(" ~ /ClearEmulation")" color="secondary" class="text-white q-px-sm q-ml-md">End Emulation</q-btn>
-            </q-banner>
-            }
-                -->
+                <q-banner v-if="userStore.isEmulating" dense rounded inline-actions class="bg-warning text-black q-ml-lg">
+                    <strong>EMULATING:</strong>
+                    {{ userStore.userInfo.firstName }} {{ userStore.userInfo.lastName }}
+                    <q-btn no-caps dense :href="clearEmulationHref" color="secondary" class="text-white q-px-sm q-ml-md">End Emulation</q-btn>
+                </q-banner>
+               
                 <q-space></q-space>
 
                 <!--
-            @*Don't show the search until it does something*@
-            @if (HttpHelper.Environment?.EnvironmentName == "Development")
-            {
-            <q-input rounded dense standout dark v-model="searchText" label="Search" bg-color="white" label-color="black" class="q-pa-xs">
-                <template v-slot:append>
-                    <q-icon name="search" color="black"></q-icon>
-                </template>
-            </q-input>
-            }
-                -->
+                @*Don't show the search until it does something*@
+                @if (HttpHelper.Environment?.EnvironmentName == "Development")
+                {
+                <q-input rounded dense standout dark v-model="searchText" label="Search" bg-color="white" label-color="black" class="q-pa-xs">
+                    <template v-slot:append>
+                        <q-icon name="search" color="black"></q-icon>
+                    </template>
+                </q-input>
+                }
+                    -->
                 <ProfilePic></ProfilePic>
             </q-toolbar>
 
-            <MainNav v-if="userStore.isLoggedIn"></MainNav>
+            <MainNav v-if="userStore.isLoggedIn" :highlightedTopNav="highlightedTopNav"></MainNav>
         </q-header>
 
-        <LeftNav v-if="userStore.isLoggedIn" :nav="nav" :navarea="navarea"></LeftNav>
+        <LeftNav v-if="userStore.isLoggedIn" 
+                 :nav="nav" 
+                 :navarea="navarea" 
+                 :mainLeftDrawer="mainLeftDrawer"
+                 @drawer-change="handleDrawerChange"></LeftNav>
 
         <q-page-container id="mainLayoutBody">
             <div class="q-pa-md" v-cloak>
@@ -106,25 +100,27 @@
                     </div>
                 </div>
             </div>
-
-            <router-link to="ManageDomains" tag="button">foo</router-link>
         </q-footer>
     </q-layout>
 </template>
-<script setup>
+<script lang="ts">
+    import { ref } from 'vue'
     import { useUserStore } from '@/store/UserStore'
-    const userStore = useUserStore()
-</script>
-<script>
     import LeftNav from '@/layouts/LeftNav.vue'
     import MainNav from '@/layouts/MainNav.vue'
     import MiniNav from '@/layouts/MiniNav.vue'
     import ProfilePic from '@/layouts/ProfilePic.vue'
     export default {
         name: 'ViperLayout',
+        setup() {
+            const userStore = useUserStore()
+            const mainLeftDrawer = ref(false)
+            return { userStore, mainLeftDrawer }
+        },
         props: {
             nav: String,
-            navarea: Boolean
+            navarea: Boolean,
+            highlightedTopNav: String
         },
         components: {
             LeftNav,
@@ -134,10 +130,16 @@
         },
         data() {
             return {
-                mainLeftDrawer: false,
                 topNav: [],
-                leftNav: []
+                leftNav: [],
+                clearEmulationHref: ref(import.meta.env.VITE_API_URL + "ClearEmulation"),
+                environment: ref(import.meta.env.VITE_ENVIRONMENT),
             }
-        }
+        },
+        methods: {
+            handleDrawerChange(newDrawerValue: boolean) : void {
+                this.mainLeftDrawer = newDrawerValue
+            }
+        },
     }
 </script>
