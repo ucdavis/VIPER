@@ -7,7 +7,7 @@ using Web.Authorization;
 
 namespace Viper.Controllers
 {
-    [Route("/layout")]
+    [Route("/api/layout")]
     [Permission(Allow = "SVMSecure")]
     public class LayoutController : ApiController
     {

@@ -6,7 +6,7 @@ using Web.Authorization;
 
 namespace Viper.Controllers
 {
-    [Route("/loggedInUser")]
+    [Route("/api/loggedInUser")]
     //[Permission(Allow = "SVMSecure")]
     public class LoggedInUserController : ApiController
     {

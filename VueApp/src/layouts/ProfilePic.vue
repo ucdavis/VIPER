@@ -44,8 +44,8 @@
         name: 'ProfilePic',
         data() {
             return {
-                clearEmulationHref: ref(import.meta.env.VITE_API_URL + "ClearEmulation"),
-                logoutHref: ref(import.meta.env.VITE_API_URL + "logout")
+                clearEmulationHref: ref(import.meta.env.VITE_VIPER_HOME + "ClearEmulation"),
+                logoutHref: ref(import.meta.env.VITE_VIPER_HOME + "logout")
             }
         },
         setup() {

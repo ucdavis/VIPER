@@ -47,16 +47,20 @@ export function useFetch(url: string, options: any = {}) {
 
     async function handleViperFetchError(response: any) {
         if (!response.ok) {
+            let result = null
+            let message = ""
             try {
-                const result = await response.json()
-                const message = result.errorMessage != null ? result.errorMessage
-                    : result.detail != null ? result.detail
+                result = await response.json()
+                message = result.errorMessage != null
+                    ? result.errorMessage
+                    : result.detail != null
+                        ? result.detail
                         : result.statusText
-                throw new ValidationError(message, result?.errors)
             }
             catch (e) {
                 throw Error("An error occurred")
-            }            
+            }         
+            throw new ValidationError(message, result?.errors)
         }
         return response
     }

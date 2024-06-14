@@ -27,7 +27,7 @@
             const { result, errors, vfetch } = useFetch(import.meta.env.VITE_API_URL + "loggedInUser")
             var r = await vfetch()
             if (errors.value.length || !result.value.userId) {
-                window.location.href = import.meta.env.VITE_API_URL + "login?ReturnUrl=" + import.meta.env.VITE_API_URL + "CTS/"
+                window.location.href = import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + import.meta.env.VITE_VIPER_HOME + "CTS/"
             }
             else {
                 userStore.loadUser(result.value)
@@ -35,7 +35,7 @@
             $q.loading.hide()
 
             if (userStore.isLoggedIn) {
-                const redirect = this.$route.query.sendBackTo?.toString() || (import.meta.env.VITE_API_URL + 'CTS/Assessments')
+                const redirect = this.$route.query.sendBackTo?.toString() || (import.meta.env.VITE_VIPER_HOME + 'CTS/Assessments')
                 this.$router.push({path: redirect})
             }
         }

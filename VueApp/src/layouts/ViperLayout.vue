@@ -132,7 +132,7 @@
             return {
                 topNav: [],
                 leftNav: [],
-                clearEmulationHref: ref(import.meta.env.VITE_API_URL + "ClearEmulation"),
+                clearEmulationHref: ref(import.meta.env.VITE_VIPER_HOME + "ClearEmulation"),
                 environment: ref(import.meta.env.VITE_ENVIRONMENT),
             }
         },
