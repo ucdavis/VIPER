@@ -1,11 +1,12 @@
-import { ref, type Ref } from 'vue'
+import { ref, type Ref, computed } from 'vue'
 import { useGenericErrorHandler } from './ErrorHandler'
 const errorHandler = useGenericErrorHandler();
 
-export function useFetch(url: string, options: any = {}) {
+export function useFetch() {
     const errors : Ref<string[]> = ref([])
-    const result : any = ref(null)
-
+    const result: any = ref(null)
+    const success = computed(() => errors.value.length == 0)
+    
     class ValidationError extends Error {
         constructor(message: string, errors: []) {
             super(message)
@@ -15,13 +16,47 @@ export function useFetch(url: string, options: any = {}) {
         errors = []
     }
 
-    async function vfetch() {
+    function addHeader(options: any, headerName: string, headerValue: string) {
         if (options.headers === undefined) {
             options.headers = {}
         }
-        if (options.headers["X-CSRF-TOKEN"] === undefined) {
-            options.headers["X-CSRF-TOKEN"] = ''//csrfToken
+        if (options.headers[headerName] === undefined) {
+            options.headers[headerName] = headerValue
         }
+    }
+
+    async function get(url: string = "", options: any = {}) {
+        options.method = "GET"
+        addHeader(options, "Content-Type", "application / json")
+        await vfetch(url, options)
+    }
+
+    async function post(url: string = "", body: any = {}, options: any = {}) {
+        options.method = "POST"
+        options.body = JSON.stringify(body)
+        addHeader(options, "Content-Type", "application / json")
+        await vfetch(url, options)
+    }
+
+    async function put(url: string = "", body: any = {}, options: any = {}) {
+        options.method = "PUT"
+        options.body = JSON.stringify(body)
+        addHeader(options, "Content-Type", "application / json")
+        await vfetch(url, options)
+    }
+
+    async function remove(url: string = "", options: any = {}) {
+        options.method = "DELETE"
+        addHeader(options, "Content-Type", "application / json")
+        await vfetch(url, options)
+    }
+
+    async function vfetch(url: string, options: any = {}) {
+        if (options.headers === undefined) {
+            options.headers = {}
+        }
+        addHeader(options, "X-CSRF-TOKEN", "")
+
         result.value = await fetch(url, options)
             //handle 4xx and 5xx status codes
             .then(r => handleViperFetchError(r))
@@ -65,5 +100,5 @@ export function useFetch(url: string, options: any = {}) {
         return response
     }
 
-    return { result, errors, vfetch }
+    return { result, errors, success, vfetch, get, post, put, remove }
 }

@@ -23,6 +23,11 @@ const routes = [
         component: () => import('@/CTS/pages/ManageDomains.vue'),
     },
     {
+        path: '/CTS/ManageEPAs',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/ManageEpas.vue'),
+    },
+    {
         path: '/:catchAll(.*)*',
         component: () => import('@/pages/Error404.vue')
     }

@@ -1,3 +1,58 @@
+<script setup lang="ts">
+    type DomainData = {
+        domainId: number
+        order: number | null
+        name: string
+        description: string
+    }
+    import type { Ref } from "vue"
+    import { ref } from "vue"
+    import { useFetch } from '@/composables/ViperFetch'
+
+    const domain = ref({
+        domainId: 0,
+        order: null,
+        name: '',
+        description: '',
+    }) as Ref<DomainData>
+    const domains = ref([]) as Ref<DomainData[]>
+    const baseUrl = import.meta.env.VITE_API_URL + "cts/domains"
+
+    async function getDomains() {
+        const { result, get } = useFetch()
+        await get(baseUrl)
+        domains.value = result.value
+    }
+    async function save() {
+        const { put, post, success } = useFetch()
+
+        if (domain.value.domainId > 0) {
+            await put(baseUrl + "/" + domain.value.domainId, domain.value)
+        }
+        else {
+            await post(baseUrl, domain.value)
+        }
+
+        if (success) {
+            clearDomain()
+            await getDomains()
+        }
+    }
+    function clearDomain() {
+        domain.value = { domainId: 0, order: null, name: '', description: '' }
+    }
+    async function deleteDomain() {
+        const { remove, success } = useFetch()
+        await remove(baseUrl + "/" + domain.value.domainId)
+        if (success) {
+            clearDomain()
+            await getDomains()
+        }
+    }
+
+    getDomains()
+</script>
+
 <template>
     <h2>Manage Domains</h2>
     <q-form method="post" @submit="save">
@@ -15,7 +70,8 @@
         </q-label>
         <div class="row q-mt-sm">
             <q-btn type="submit" label="Submit" no-caps dense color="primary" class="col col-4 col-lg-1 offset-md-2 offset-lg-1"></q-btn>
-            <q-btn v-if="domain.domainId > 0" @click="clearDomain" label="Clear" no-caps dense color="red-5" class="col col-4 col-lg-1 offset-md-2 offset-lg-1"></q-btn>
+            <q-btn v-if="domain.domainId > 0" @click="deleteDomain" label="Delete" no-caps dense color="red-7" class="col col-4 col-lg-1 q-ml-md"></q-btn>
+            <q-btn v-if="domain.domainId > 0" @click="clearDomain" label="Clear" no-caps dense color="info" class="col col-4 col-lg-1 q-ml-md"></q-btn>
         </div>
     </q-form>
 
@@ -32,56 +88,3 @@
         </q-list>
     </div>
 </template>
-
-<script lang="ts">
-    type DomainData = {
-        domainId: number
-        order: number | null
-        name: string
-        description: string
-    }
-    import type { Ref } from "vue"
-    import { defineComponent, ref } from "vue"
-    import { useFetch } from '@/composables/ViperFetch'
-    export default defineComponent({
-        name: "ManageDomains",
-        data() {
-            return {
-                domain: ref({
-                    domainId: 0,
-                    order: null,
-                    name: '',
-                    description: '',
-                }) as Ref<DomainData>,
-                domains: [] as DomainData[],
-            }
-        },
-        async mounted() {
-            await this.getDomains()
-        },
-        methods: {
-            save: async function () {
-                let u = import.meta.env.VITE_API_URL + "cts/domains"
-                if (this.domain.domainId > 0)
-                    u += "/" + this.domain.domainId
-                const { vfetch } =
-                    useFetch(u,
-                        {
-                            method: this.domain.domainId > 0 ? "PUT" : "POST",
-                            body: JSON.stringify(this.domain),
-                            headers: { "Content-Type": "application/json" }
-                        })
-                await vfetch()
-                this.clearDomain()
-            },
-            getDomains: async function () {
-                const { result, errors, vfetch } = useFetch(import.meta.env.VITE_API_URL + "cts/domains")
-                await vfetch()
-                this.domains = result.value
-            },
-            clearDomain: function () {
-                this.domain = { domainId: 0, order: null, name: '', description: '' }
-            }
-        }
-    })
-</script>

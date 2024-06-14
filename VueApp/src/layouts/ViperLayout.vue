@@ -9,16 +9,8 @@
                         <span class="q-btn__content text-center col items-center q-anchor--skip justify-center row">
                             <i class="q-icon notranslate material-icons" aria-hidden="true" role="img">home</i>
                             <span class="mainLayoutViper">VIPER 2.0</span>
-                            <!--
-                            @if (HttpHelper.Environment?.EnvironmentName == "Development")
-                            {
-                            <span class="mainLayoutViperMode">Development</span>
-                            }
-                            else if (HttpHelper.Environment?.EnvironmentName == "Test")
-                            {
-                            <span class="mainLayoutViperMode">Test</span>
-                            }
-                                -->
+                            <span v-if="environment == 'DEVELOPMENT'" class="mainLayoutViperMode">Development</span>
+                            <span v-if="environment == 'TEST'" class="mainLayoutViperMode">Test</span>
                         </span>
                     </a>
                 </div>

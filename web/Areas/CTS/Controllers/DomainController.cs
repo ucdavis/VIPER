@@ -33,6 +33,7 @@ namespace Viper.Areas.CTS.Controllers
 		}
 
 		[HttpPost]
+		[Permission(Allow = "SVMSecure.CTS.Manage")]
 		public async Task<ActionResult<Domain>> CreateDomain(Domain domain)
 		{
 			if(domain.DomainId != 0)
@@ -54,7 +55,8 @@ namespace Viper.Areas.CTS.Controllers
 		}
 
 		[HttpPut("{domainId}")]
-		public async Task<ActionResult<Domain>> UpdateDomain(int domainId, Domain domain)
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
+        public async Task<ActionResult<Domain>> UpdateDomain(int domainId, Domain domain)
 		{
 			if(domain.DomainId != domainId)
 			{
@@ -70,6 +72,28 @@ namespace Viper.Areas.CTS.Controllers
 
             context.Domains.Update(domain);
 			await context.SaveChangesAsync();
+			return domain;
+		}
+
+		[HttpDelete("{domainId}")]
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
+        public async Task<ActionResult<Domain>> DeleteDomain(int domainId)
+		{
+			var domain = await context.Domains.FindAsync(domainId);
+			if(domain == null)
+			{
+				return NotFound();
+			}
+
+			context.Domains.Remove(domain);
+			try
+			{
+				await context.SaveChangesAsync();
+			}
+			catch(Exception ex)
+			{
+				return BadRequest("Could not remove domain. It may be linked to other objects.");
+			}
 			return domain;
 		}
 	}

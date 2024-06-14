@@ -24,9 +24,9 @@
                 delay: 250 // ms
             })
     
-            const { result, errors, vfetch } = useFetch(import.meta.env.VITE_API_URL + "loggedInUser")
-            var r = await vfetch()
-            if (errors.value.length || !result.value.userId) {
+            const { result, success, get } = useFetch()
+            await get(import.meta.env.VITE_API_URL + "loggedInUser")
+            if (!success || !result.value.userId) {
                 window.location.href = import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + import.meta.env.VITE_VIPER_HOME + "CTS/"
             }
             else {

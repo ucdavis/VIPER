@@ -51,10 +51,10 @@
             }
         },
         methods: {
-            async getTopNav() {
+            async getLeftNav() {
                 var u = new URL(import.meta.env.VITE_API_URL + "layout/leftnav/?area=" + this.navarea + "&nav=" + this.nav, document.baseURI)
-                const { result, errors, vfetch } = useFetch(u.toString())
-                await vfetch()
+                const { result, get } = useFetch()
+                await get(u.toString())
                 this.navHeader = result.value.menuHeaderText
                 this.rawItems = result.value.menuItems
                 this.menuItems = result.value.menuItems.map((r: any) => ({
@@ -72,7 +72,7 @@
             }
         },
         mounted: async function () {
-            await this.getTopNav()
+            await this.getLeftNav()
         },
         watch: {
             myMainLeftDrawer: function() {
