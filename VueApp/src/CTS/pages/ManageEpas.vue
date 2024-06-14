@@ -2,19 +2,7 @@
     import type { Ref } from "vue"
     import { ref } from "vue"
     import { useFetch } from '@/composables/ViperFetch'
-
-    type Epa = {
-        epaId: number | null
-        order: number | null
-        name: string
-        description: string,
-        active: boolean,
-        services: Service[]
-    }
-    type Service = {
-        serviceId: number,
-        serviceName: string
-    }
+    import type { Epa, Service } from '@/CTS/types'    
 
     const showForm = ref(false)
     const epas = ref([]) as Ref<Epa[]>

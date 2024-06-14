@@ -1,4 +1,5 @@
 import ViperLayout from '@/layouts/ViperLayout.vue'
+import ViperLayoutSimple from '@/layouts/ViperLayoutSimple.vue'
 
 const routes = [
     {
@@ -12,11 +13,18 @@ const routes = [
         meta: { layout: ViperLayout },
         component: () => import('@/CTS/pages/CtsHome.vue'),
     },
+    /* Assessments */
+    {
+        path: '/CTS/EPA',
+        meta: { layout: ViperLayoutSimple },
+        component: () => import('@/CTS/pages/AssessmentEpa.vue'),
+    },
     {
         path: '/CTS/Assessments',
         meta: { layout: ViperLayout },
         component: () => import('@/CTS/pages/Assessments.vue'),
     },
+    /* Application Management */
     {
         path: '/CTS/ManageDomains',
         meta: { layout: ViperLayout },

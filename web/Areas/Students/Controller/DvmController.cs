@@ -13,7 +13,7 @@ using Web.Authorization;
 
 namespace Viper.Areas.Students.Controller
 {
-    [Route("/students/dvm")]
+    [Route("/api/students/dvm")]
     [Permission(Allow = "SVMSecure.Students")]
     public class DvmStudentsController : ApiController
     {

@@ -12,7 +12,7 @@ namespace Viper.Areas.CTS.Controllers
     /// Controller for retrieving student and instructor schedules. Note this should be moved into the clinical scheduler when that app is
     /// created, and the routes adjusted.
     /// </summary>
-    [Route("/cts/clinicalschedule/")]
+    [Route("/api/cts/clinicalschedule/")]
     //most people have this. each function will have more complex permission checking.
     [Permission(Allow = "SVMSecure.ClnSched")]
     public class ClinicalScheduleController : ApiController

@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="src\CTS\components\" />
+    <Folder Include="src\CTS\types\" />
     <Folder Include="src\js\" />
     <Folder Include="src\composables\" />
   </ItemGroup>
