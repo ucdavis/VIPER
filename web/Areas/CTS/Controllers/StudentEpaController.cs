@@ -125,7 +125,7 @@ namespace Viper.Areas.CTS.Controllers
 
         [HttpPost]
         [Permission(Allow = "SVMSecure.CTS.AssessClinical,SVMSecure.CTS.Manage")]
-        public async Task<ActionResult<StudentEpa>> CreateStudentEpa(CreateUpdateStudentEpa epaData)
+        public async Task<ActionResult<CreateUpdateStudentEpa>> CreateStudentEpa(CreateUpdateStudentEpa epaData)
         {
             var student = await context.People
                     .Include(p => p.StudentInfo)
@@ -160,12 +160,21 @@ namespace Viper.Areas.CTS.Controllers
             await auditService.AuditStudentEpa(encounter, studentEpa, AuditService.AuditActionType.Create, (int)personId);
             await trans.CommitAsync();
 
-            return studentEpa;
+            return new CreateUpdateStudentEpa()
+            {
+                StudentEpaId = studentEpa.StudentEpaId,
+                EpaId = studentEpa.EpaId,
+                ServiceId = studentEpa.Encounter.ServiceId ?? 0,
+                StudentId = studentEpa.Encounter.Student.PersonId,
+                LevelId = studentEpa.LevelId,
+                Comment = studentEpa.Comment,
+                EncounterDate = studentEpa.Encounter.EncounterDate
+            };
         }
 
         [HttpPut("{studentEpaId}")]
         [Permission(Allow = "SVMSecure.CTS.AssessClinical,SVMSecure.CTS.Manage")]
-        public async Task<ActionResult<StudentEpa>> UpdateStudentEpa(int studentEpaId, CreateUpdateStudentEpa epaData)
+        public async Task<ActionResult<CreateUpdateStudentEpa>> UpdateStudentEpa(int studentEpaId, CreateUpdateStudentEpa epaData)
         {
             var studentEpa = await context.StudentEpas
                 .Include(e => e.Encounter)
@@ -200,7 +209,16 @@ namespace Viper.Areas.CTS.Controllers
             await auditService.AuditStudentEpa(studentEpa.Encounter, studentEpa, AuditService.AuditActionType.Update, (int)personId);
             await trans.CommitAsync();
 
-            return studentEpa;
+            return new CreateUpdateStudentEpa()
+            {
+                StudentEpaId = studentEpa.StudentEpaId,
+                EpaId = studentEpa.EpaId,
+                ServiceId = studentEpa.Encounter.ServiceId ?? 0,
+                StudentId = studentEpa.Encounter.Student.PersonId,
+                LevelId = studentEpa.LevelId,
+                Comment = studentEpa.Comment,
+                EncounterDate = studentEpa.Encounter.EncounterDate
+            };
         }
     }
 }
