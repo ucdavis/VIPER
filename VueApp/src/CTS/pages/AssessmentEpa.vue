@@ -5,6 +5,7 @@
     import type { Epa, Level, ServiceSelect, Student, StudentEpaFormData } from '@/CTS/types'
     import StudentSelect from '@/CTS/components/StudentSelect.vue'
     import ServiceSelectBox from '@/CTS/components/ServiceSelect.vue'
+    import LevelSelect from '@/CTS/components/LevelSelect.vue'
 
     //epas
     const epas = ref([]) as Ref<Epa[]>
@@ -13,12 +14,11 @@
 
     //students select list value and filter
     const selectedStudentId = ref(0)
-    const studentOptionsType = ref("Service")
     const clearStudent = ref(false)
 
     //levels
-    const levels = ref([]) as Ref<Level[]>
-    const level = ref({}) as Ref<Level>
+    const levelId = ref(null) as Ref<number | null>
+    const clearLevel = ref(false)
 
     //assessment data
     const studentEpa = ref({}) as Ref<any>
@@ -45,15 +45,11 @@
     function handleServiceChange(s: number) {
         serviceId.value = s
     }
-    async function getLevels() {
-        const { get, result } = useFetch()
-        await get(baseUrl + "levels?epa=true")
-        levels.value = result.value
-    }
     async function submitEpa() {
         studentEpa.value.epaId = epa.value.epaId
         studentEpa.value.studentId = selectedStudentId.value
         studentEpa.value.serviceId = serviceId.value
+        studentEpa.value.levelId = levelId.value
 
         const { post, success: submitSuccess, errors } = useFetch()
         await post(baseUrl + "studentEpa", studentEpa.value)
@@ -62,6 +58,7 @@
         }
         else {
             clearStudent.value = true
+            clearLevel.value = true
             selectedStudentId.value = 0
             studentEpa.value.levelId = ""
             studentEpa.value.comment = ""
@@ -77,7 +74,7 @@
             success.value = false //hide "Success" banner
         }
     })
-    getLevels()
+    
 </script>
 <template>
     <div class="row epa justify-center items-start content-start">
@@ -87,7 +84,8 @@
             <div class="row items-start q-mb-lg">
                 <!--Service-->
                 <div class="col-12 col-md-6 col-lg-4 q-mr-md">
-                    <ServiceSelectBox @serviceChange="handleServiceChange" :forScheduledInstructor="true"/>
+                    <ServiceSelectBox @serviceChange="(s : number) => serviceId = s" 
+                                      :forScheduledInstructor="true" />
                 </div>
 
                 <!--Epa-->
@@ -111,49 +109,21 @@
                         <h2 class="epa text-weight-regular">{{epa.name}}</h2>
                     </div>
                     <div class="col-12 col-md-6 text-right">
-                        <StudentSelect @studentChange="handleStudentChange" :selectedFilter="studentOptionsType" :serviceId="serviceId" :clearStudent="clearStudent"/>
+                        <StudentSelect @studentChange="(s : number) => selectedStudentId = s"
+                                       selectedFilter="Service"
+                                       :serviceId="serviceId"
+                                       :clearStudent="clearStudent" />
                     </div>
                 </div>
                 <!--Show form once student is selected-->
-                <q-form @submit="submitEpa" v-bind="studentEpa" v-if="selectedStudentId > 0">
+                <q-form @submit="submitEpa" v-bind="studentEpa" v-show="selectedStudentId > 0">
                     <div class="bg-red-5 text-white q-pa-sm rounded q-mb-md" v-if="submitErrors?.message?.length > 0">
                         {{submitErrors.message}}
                         Please make sure you have selected a service, EPA, student, and a level on the entrustment scale.
                     </div>
-                    <div class="row q-mb-sm text-center gt-sm">
-                        <div class="col" v-for="level in levels">
-                            {{level.levelName}}
-                        </div>
-                    </div>
-                    <div class="row q-mb-md gt-sm">
-                        <div class="col q-mx-sm levelSelection" v-for="level in levels">
-                            <q-btn :label="level.order"
-                                   push
-                                   unelevated
-                                   flat
-                                   size="md"
-                                   dense
-                                   :class="studentEpa.levelId == level.levelId ? 'selectedLevel q-py-sm' : 'q-py-sm'"
-                                   @click="studentEpa.levelId = level.levelId">
-                            </q-btn>
-                        </div>
-                    </div>
-                    <div class="q-mb-sm text-center lt-md">
-                        <div class="q-mx-sm levelSelection" v-for="level in levels">
-                            <q-btn push
-                                   unelevated
-                                   flat
-                                   no-caps
-                                   size="md"
-                                   dense
-                                   :class="studentEpa.levelId == level.levelId ? 'selectedLevel' : ''"
-                                   @click="studentEpa.levelId = level.levelId">
-                                <template v-slot:default>
-                                    {{level.order}}. {{level.levelName}}
-                                </template>
-                            </q-btn>
-                        </div>
-                    </div>
+                    <LevelSelect levelType="epa" 
+                                 @levelChange="(selectedLevelId : number) => levelId = selectedLevelId"
+                                 :clearLevel="clearLevel"/>
                     <q-input type="textarea" outlined dense v-model="studentEpa.comment" class="q-mb-md"
                              label="Comments: What should the student keep doing? How can they improve performance?"></q-input>
                     <div class="column">
@@ -176,17 +146,5 @@
         font-weight: 400;
         font-size: 2.0rem;
         margin-bottom: 4px;
-    }
-
-    div.levelSelection button {
-        border: 1px solid rgb(30, 136, 229);
-        color: rgb(30, 136, 229);
-        width: 100%;
-        margin-bottom: .2rem;
-    }
-
-    div.levelSelection button.selectedLevel {
-        background-color: rgb(30, 136, 229);
-        color: white;
     }
 </style>

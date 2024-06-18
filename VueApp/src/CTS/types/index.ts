@@ -8,6 +8,10 @@ export type Epa = {
     services: Service[]
 }
 
+export type Assessment = {
+
+}
+
 export type StudentEpaFormData = {
     epaId: number,
     levelId: number,
@@ -50,5 +54,12 @@ export type Student = {
     mothraId: string,
     iamId: string,
     mailId: string,
-    classLevel: string | null
+    classLevel: string | null,
+    classYear: number | null
+}
+
+export type Person = {
+    personId: number,
+    firstName: string,
+    lastName: string
 }

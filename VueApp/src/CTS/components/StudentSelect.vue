@@ -30,7 +30,7 @@
     const emit = defineEmits(['studentChange'])
 
     const handleStudentChange = (event: any) => {
-        emit('studentChange', selectedStudent.value.personId)
+        emit('studentChange', selectedStudent.value?.personId ?? 0)
     }
 
     /* Get students by service, class level, or all */
@@ -93,10 +93,10 @@
                       use-input input-debounce="300" @filter="studentSearch" clearable
                       v-model="selectedStudent" :options="students" option-label="lastName" option-value="personId">
                 <template v-slot:selected>
-                    {{ selectedStudent.lastName }}{{ selectedStudent.lastName.length ? ',' : '' }} {{selectedStudent.firstName}}
+                    {{ selectedStudent?.lastName }}{{ selectedStudent?.lastName?.length ? ',' : '' }} {{selectedStudent?.firstName}}
                 </template>
                 <template v-slot:after>
-                    <q-avatar v-if="selectedStudent?.mailId" rounded class="fit">
+                    <q-avatar v-show="selectedStudent?.mailId" rounded class="fit">
                         <q-img :src="photoBaseUrl + selectedStudent?.mailId +'&altphoto=1'"
                                class="smallPhoto rounded-borders" loading="eager" :no-spinner="true"></q-img>
                     </q-avatar>

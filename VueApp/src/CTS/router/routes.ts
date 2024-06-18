@@ -4,13 +4,13 @@ import ViperLayoutSimple from '@/layouts/ViperLayoutSimple.vue'
 const routes = [
     {
         path: '/CTS/',
-        meta: { layout: ViperLayout, allowUnAuth: true },
+        meta: { layout: ViperLayoutSimple, allowUnAuth: true },
         component: () => import('@/CTS/pages/CtsHome.vue'),
         name: "CtsHome"
     },
     {
         path: '/CTS/Home',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayoutSimple },
         component: () => import('@/CTS/pages/CtsHome.vue'),
     },
     /* Assessments */
@@ -20,9 +20,9 @@ const routes = [
         component: () => import('@/CTS/pages/AssessmentEpa.vue'),
     },
     {
-        path: '/CTS/Assessments',
+        path: '/CTS/AssessmentList',
         meta: { layout: ViperLayout },
-        component: () => import('@/CTS/pages/Assessments.vue'),
+        component: () => import('@/CTS/pages/AssessmentList.vue'),
     },
     /* Application Management */
     {

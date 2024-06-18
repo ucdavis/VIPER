@@ -35,7 +35,7 @@
             $q.loading.hide()
 
             if (userStore.isLoggedIn) {
-                const redirect = this.$route.query.sendBackTo?.toString() || (import.meta.env.VITE_VIPER_HOME + 'CTS/Assessments')
+                const redirect = this.$route.query.sendBackTo?.toString() || (import.meta.env.VITE_VIPER_HOME + 'CTS/AssessmentList')
                 this.$router.push({path: redirect})
             }
         }
