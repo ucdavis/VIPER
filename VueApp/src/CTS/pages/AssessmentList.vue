@@ -12,7 +12,7 @@
     const { formatDate } = useDateFunctions()
     const assessments = ref([]) as Ref<Object[]>
     const assessmentType = ref("EPA")
-    const assessmentTypes = [{ label: "EPA", value: "EPA"}]
+    const assessmentTypes = [{ label: "EPA", value: "EPA" }]
     const searchForm = ref({
         service: null as Service | null,
         student: null as Student | null,
@@ -28,7 +28,7 @@
         { name: "level", label: "Level", field: "levelName", align: "left", sortable: true },
         { name: "enteredBy", label: "Entered By", field: "enteredByName", align: "left", sortable: true },
         { name: "enteredOn", label: "Entered On", field: "enteredOn", align: "left", sortable: true, format: formatDate }
-    ] 
+    ]
     const filter = ref("")
     const services = ref([])
     const students = ref([]) as Ref<Student[]>
@@ -94,7 +94,7 @@
     <q-form>
         <div class="row">
             <div class="col-12 col-md-6 col-lg-3">
-                <q-select outlined dense options-dense label="Service" v-model="searchForm.service" :options="services" 
+                <q-select outlined dense options-dense label="Service" v-model="searchForm.service" :options="services"
                           option-label="serviceName" option-value="serviceId" clearable></q-select>
             </div>
             <div class="col-12 col-md-6 col-lg-3">
@@ -134,7 +134,7 @@
         </div>
     </q-form>
 
-    <q-table row-key="id"
+    <q-table row-key="studentEpaId"
              title="Assessments"
              :rows="assessments"
              :columns="columns"
@@ -148,11 +148,14 @@
                 </template>
             </q-input>
         </template>
+        <!-- to do: modify for non-epa assessment types-->
         <template v-slot:body-cell-action="props">
             <q-td :props="props">
-                <q-btn :props="props" color="primary" square flat icon="edit" title="Edit EPA"
-                       :href="'EditEpa?studentEpaId=' + props.row.id" target="_blank">
-                </q-btn>
+                <router-link :props="props" 
+                             :to="{name: 'AssessmentEpaEdit', query: {studentEpaId: props.row.studentEpaId}}"
+                             v-slot:default="props">
+                    <q-btn color="primary" square flat icon="edit" title="Edit EPA" />
+                </router-link>
             </q-td>
         </template>
         <template v-slot:body-cell-level="props">

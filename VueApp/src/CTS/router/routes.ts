@@ -21,8 +21,15 @@ const routes = [
     },
     {
         path: '/CTS/AssessmentList',
+        name: 'AssessmentList',
         meta: { layout: ViperLayout },
         component: () => import('@/CTS/pages/AssessmentList.vue'),
+    },
+    {
+        path: '/CTS/AssessmentEpaEdit',
+        name: 'AssessmentEpaEdit',
+        meta: { layout: ViperLayoutSimple },
+        component: () => import('@/CTS/pages/AssessmentEpaEdit.vue'),
     },
     /* Application Management */
     {

@@ -1,5 +1,5 @@
 <template>
-    Competency Tracking System 2.0
+    
 </template>
 <script setup lang="ts">
     import { useQuasar } from 'quasar'
@@ -36,7 +36,15 @@
 
             if (userStore.isLoggedIn) {
                 const redirect = this.$route.query.sendBackTo?.toString() || (import.meta.env.VITE_VIPER_HOME + 'CTS/AssessmentList')
-                this.$router.push({path: redirect})
+                let paramString = redirect.split("?")[1]
+                if (paramString) {
+                    let queryString = new URLSearchParams(paramString)
+                    let params = {} as any
+                    queryString.forEach((val: string, key: string) => {
+                        params[key] = val
+                    })
+                    this.$router.push({ path: redirect.split("?")[0], query: params })
+                }
             }
         }
     })

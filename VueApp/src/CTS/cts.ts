@@ -20,6 +20,7 @@ app.config.errorHandler = (err: any, instance: any, info: any) => {
     const errorStore = useErrorStore();
     errorStore.setError(err.message);
 }
+app.provide("apiURL", import.meta.env.VITE_API_URL)
 
 app.use(pinia)
 app.use(router)

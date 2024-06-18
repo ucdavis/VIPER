@@ -12,6 +12,9 @@
         clearLevel: {
             type: Boolean
         },
+        levelId: {
+            type: Number
+        },
     })
     const emit = defineEmits(["levelChange"])
 
@@ -25,6 +28,12 @@
         const { get, result } = useFetch()
         await get(baseUrl + "?" + props.levelType + "=true")
         levels.value = result.value
+        if (props.levelId) {
+            const l = levels.value.find((l) => l.levelId == props.levelId)
+            if (l) {
+                selectedLevel.value = l
+            }
+        }
     }
 
     watch(selectedLevel, () => {
@@ -33,6 +42,12 @@
     watch(props, () => {
         if (props.clearLevel) {
             selectedLevel.value = {} as Level
+        }
+        if (props.levelId) {
+            const l = levels.value.find((l) => l.levelId == props.levelId)
+            if (l) {
+                selectedLevel.value = l
+            }
         }
     })
 

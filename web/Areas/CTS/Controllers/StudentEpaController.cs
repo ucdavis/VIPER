@@ -214,7 +214,7 @@ namespace Viper.Areas.CTS.Controllers
                 StudentEpaId = studentEpa.StudentEpaId,
                 EpaId = studentEpa.EpaId,
                 ServiceId = studentEpa.Encounter.ServiceId ?? 0,
-                StudentId = studentEpa.Encounter.Student.PersonId,
+                StudentId = epaData.StudentId,
                 LevelId = studentEpa.LevelId,
                 Comment = studentEpa.Comment,
                 EncounterDate = studentEpa.Encounter.EncounterDate

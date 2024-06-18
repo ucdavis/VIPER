@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import type { Ref } from 'vue'
-    import { ref, watch } from 'vue'
+    import { ref, watch, inject} from 'vue'
     import { useFetch } from '@/composables/ViperFetch'
     import type { Epa, Level, ServiceSelect, Student, StudentEpaFormData } from '@/CTS/types'
     import StudentSelect from '@/CTS/components/StudentSelect.vue'
@@ -26,7 +26,7 @@
     const submitErrors = ref({}) as Ref<any>
 
     //urls
-    const baseUrl = import.meta.env.VITE_API_URL + "cts/"
+    const baseUrl = inject('apiURL') + "cts/"
 
     async function getEpas() {
         const { result, get } = useFetch()
@@ -38,12 +38,6 @@
                 epa.value = epas.value[0]
             }
         }
-    }
-    function handleStudentChange(s: number) {
-        selectedStudentId.value = s
-    }
-    function handleServiceChange(s: number) {
-        serviceId.value = s
     }
     async function submitEpa() {
         studentEpa.value.epaId = epa.value.epaId
@@ -66,12 +60,15 @@
         }
     }
 
+    //load EPAs when service is changed
     watch(serviceId, () => {
         getEpas()
     })
+
+    //when student is changed after the form is submitted, hide the success banner
     watch(selectedStudentId, () => {
         if (selectedStudentId.value > 0) {
-            success.value = false //hide "Success" banner
+            success.value = false
         }
     })
     
