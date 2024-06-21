@@ -5,6 +5,7 @@ const errorHandler = useGenericErrorHandler();
 export function useFetch() {
     const errors : Ref<string[]> = ref([])
     const result: any = ref(null)
+    const pagination: any = ref(null)
     const success = computed(() => errors.value.length == 0)
     
     class ValidationError extends Error {
@@ -78,6 +79,10 @@ export function useFetch() {
                 errorHandler.handleError(e)
                 errors.value = errorHandler.errors.value
             })
+        if (result.value.pagination) {
+            pagination.value = result.value.pagination
+            result.value= result.value.result
+        }
     }
 
     async function handleViperFetchError(response: any) {
@@ -100,5 +105,5 @@ export function useFetch() {
         return response
     }
 
-    return { result, errors, success, vfetch, get, post, put, remove }
+    return { result, errors, success, vfetch, get, post, put, remove, pagination }
 }

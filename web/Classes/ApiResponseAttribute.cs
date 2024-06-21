@@ -12,6 +12,10 @@ namespace Viper.Classes
             {
                 return;
             }
+            if(objectResult.Value is ApiResponse apiResponseAlreadyCreated)
+            {
+                return;
+            }
             HttpStatusCode statusCode = objectResult.StatusCode != null ? (HttpStatusCode)objectResult.StatusCode : HttpStatusCode.InternalServerError;
             bool isSuccess = IsSuccessCode(statusCode);
             if(isSuccess)

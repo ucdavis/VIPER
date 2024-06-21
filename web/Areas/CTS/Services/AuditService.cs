@@ -13,6 +13,10 @@ namespace Viper.Areas.CTS.Services
             Update,
             Delete
         }
+        public static readonly List<string> AuditAreas = new()
+        {
+            "Student Epa",
+        };
 
         private readonly VIPERContext context;
         public AuditService(VIPERContext context)
@@ -28,23 +32,23 @@ namespace Viper.Areas.CTS.Services
         /// <param name="actionType"></param>
         /// <param name="modifier"></param>
         /// <returns></returns>
-        public async Task AuditStudentEpa(Encounter encounter, StudentEpa studentEpa, AuditActionType actionType, int modifier)
+        public async Task AuditStudentEpa(Encounter encounter, AuditActionType actionType, int modifier)
         {
             var details = JsonSerializer.Serialize(new {
                 encounter.EncounterDate,
                 encounter.ServiceId,
                 encounter.StudentLevel,
                 encounter.EditComment,
-                studentEpa.LevelId,
-                studentEpa.Comment
+                encounter.EpaId,
+                encounter.LevelId,
+                encounter.Comment
             });
             var audit = new CtsAudit()
             {
                 ModifiedBy = modifier,
                 TimeStamp = DateTime.Now,
-                Area = "Studet EPA",
+                Area = "Student EPA",
                 Detail = details,
-                StudentEpaId = studentEpa.StudentEpaId,
                 EncounterId = encounter.EncounterId
             };
             switch (actionType)

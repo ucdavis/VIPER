@@ -11,8 +11,9 @@
 
     const { formatDateForDateInput } = useDateFunctions()
     const route = useRoute()
+    const router = useRouter()
     //the epa we are editing
-    const studentEpaId = parseInt(route.query.studentEpaId as string)
+    const studentEpaId = parseInt(route.query.assessmentId as string)
 
     //levels
     const levelId = ref(null) as Ref<number | null>
@@ -36,10 +37,10 @@
             comment: studentEpa.value.comment,
             serviceId: studentEpa.value.serviceId,
             encounterDate: studentEpa.value.encounterDate,
-            studentEpaId: studentEpa.value.studentEpaId
+            encounterId: studentEpa.value.encounterId
         }
         const { put, result, success: submitSuccess, errors } = useFetch()
-        await put(baseUrl + "studentEpa/" + studentEpaId, data)
+        await put(baseUrl + "assessments/epa/" + studentEpaId, data)
         if (!submitSuccess) {
             submitErrors.value = errors
         }
@@ -54,14 +55,16 @@
     }
 
     async function getStudentEpa() {
-        const { get, result } = useFetch()
+        const { get, result, success } = useFetch()
         if (studentEpaId && studentEpaId > 0) {
-            await get(baseUrl + "studentEpa/" + studentEpaId)
-            studentEpa.value = result.value
-            studentEpa.value.encounterDate = formatDateForDateInput(studentEpa.value.encounterDate)
+            await get(baseUrl + "assessments/" + studentEpaId)
+            if (success.value) {
+                studentEpa.value = result.value
+                studentEpa.value.encounterDate = formatDateForDateInput(studentEpa.value.encounterDate)
+            }
         }
-        else {
-            const router = useRouter()
+
+        if (studentEpa.value?.encounterId === undefined) {
             router.push({ name: 'AssessmentList' })
         }
     }
@@ -70,7 +73,7 @@
 </script>
 <template>
     <div class="row epa justify-center items-start content-start">
-        <div style="max-width: 1200px" class="col" v-show="studentEpa.studentEpaId">
+        <div style="max-width: 1200px" class="col" v-show="studentEpa.encounterId">
             <q-banner inline-actions rounded v-if="success" class="bg-green text-white q-mb-md">
                 EPA Saved
                 <template v-slot:action>

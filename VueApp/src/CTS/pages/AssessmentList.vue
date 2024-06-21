@@ -13,6 +13,12 @@
     const assessments = ref([]) as Ref<Object[]>
     const assessmentType = ref("EPA")
     const assessmentTypes = [{ label: "EPA", value: "EPA" }]
+    const paging = ref({
+        page: 1, rowsPerPage: 25
+    })
+    const loading = ref(false)
+    const showMaxRows = ref(false)
+
     const searchForm = ref({
         service: null as Service | null,
         student: null as Student | null,
@@ -32,12 +38,12 @@
     const filter = ref("")
     const services = ref([])
     const students = ref([]) as Ref<Student[]>
-    const assessors = ref([])
+    const assessors = ref([]) as Ref<Person[]>
 
     const baseUrl = import.meta.env.VITE_API_URL + "cts/"
 
     async function loadAssessments() {
-        const { success, result, get } = useFetch()
+        const { success, result, get, pagination } = useFetch()
         const p = new URLSearchParams
         if (searchForm.value.service?.serviceId != null)
             p.append("serviceId", searchForm.value.service.serviceId.toString())
@@ -50,22 +56,32 @@
         if (searchForm.value.dateTo != null)
             p.append("dateTo", searchForm.value.dateTo)
 
-        var u = null as URL | null;
         switch (assessmentType.value) {
             case "EPA":
-                u = new URL(baseUrl + "studentEpa", document.baseURI);
+                p.append("type", "1")
                 break;
             default: break;
         }
 
-        if (u != null) {
+        assessments.value = []
+        const u = new URL(baseUrl + "assessments", document.baseURI);
+        p.append("page", "1")
+
+        //get 10  * default page size rows
+        loading.value = true
+        for (let i = 0; i < 10; i++) {
+            p.set("page", (i + 1).toString())
             u.search = p.toString()
             await get(u.toString())
             if (success.value) {
-                assessments.value = result.value
+                assessments.value = assessments.value.concat(result.value)
             }
         }
+
+        showMaxRows.value = pagination.value && pagination.value.pages < (pagination.value.perPage * 10)
+        loading.value = false
     }
+
     async function loadServices() {
         const { result, get } = useFetch()
         await get(baseUrl + "clinicalservices")
@@ -78,7 +94,7 @@
     }
     async function loadAssessors() {
         const { result, get } = useFetch()
-        await get(baseUrl + "clinicalservices")
+        await get(baseUrl + "assessments/assessors")
         assessors.value = result.value
     }
 
@@ -113,7 +129,8 @@
                 </q-select>
             </div>
             <div class="col-12 col-md-6 col-lg-3">
-                <q-select outlined dense options-dense label="Entered By" v-model="searchForm.enteredBy" :options="assessors" emit-value></q-select>
+                <q-select outlined dense options-dense label="Entered By" v-model="searchForm.enteredBy" :options="assessors"
+                          option-label="fullNameLastFirst" option-value="personId"></q-select>
             </div>
         </div>
         <div class="row">
@@ -134,13 +151,18 @@
         </div>
     </q-form>
 
+    <q-banner v-if="showMaxRows" rounded class="bg-yellow-3 text-dark q-mb-md" dense>
+        Maximum number of rows reached. Please use filters to limit the amount of data returned.
+    </q-banner>
+
     <q-table row-key="studentEpaId"
              title="Assessments"
              :rows="assessments"
              :columns="columns"
              dense
-             :pagination="{rowsPerPage: 25}"
-             :filter="filter">
+             v-model:pagination="paging"
+             :filter="filter"
+             :loading="loading">
         <template v-slot:top-right>
             <q-input borderless dense debounce="300" v-model="filter" placeholder="Search">
                 <template v-slot:append>
@@ -151,8 +173,8 @@
         <!-- to do: modify for non-epa assessment types-->
         <template v-slot:body-cell-action="props">
             <q-td :props="props">
-                <router-link :props="props" 
-                             :to="{name: 'AssessmentEpaEdit', query: {studentEpaId: props.row.studentEpaId}}"
+                <router-link :props="props"
+                             :to="{name: 'AssessmentEpaEdit', query: {assessmentId: props.row.encounterId}}"
                              v-slot:default="props">
                     <q-btn color="primary" square flat icon="edit" title="Edit EPA" />
                 </router-link>

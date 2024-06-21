@@ -46,7 +46,7 @@
         studentEpa.value.levelId = levelId.value
 
         const { post, success: submitSuccess, errors } = useFetch()
-        await post(baseUrl + "studentEpa", studentEpa.value)
+        await post(baseUrl + "assessments/epa", studentEpa.value)
         if (!submitSuccess) {
             submitErrors.value = errors
         }

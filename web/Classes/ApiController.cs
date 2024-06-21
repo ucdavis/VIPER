@@ -12,7 +12,7 @@ namespace Viper.Classes
     /// Common base class for API style controllers
     /// </summary>
     [ApiController]
-    [ApiResponse]
+    [ApiResponse(Order = 1000)] //specify a lower order for ApiPaginated actions
     [ApiExceptionFilter]
     [ApiSessionUpdateFilter]
     public class ApiController : ControllerBase

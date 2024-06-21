@@ -37,14 +37,14 @@
             if (userStore.isLoggedIn) {
                 const redirect = this.$route.query.sendBackTo?.toString() || (import.meta.env.VITE_VIPER_HOME + 'CTS/AssessmentList')
                 let paramString = redirect.split("?")[1]
+                let params = {} as any
                 if (paramString) {
                     let queryString = new URLSearchParams(paramString)
-                    let params = {} as any
                     queryString.forEach((val: string, key: string) => {
                         params[key] = val
                     })
-                    this.$router.push({ path: redirect.split("?")[0], query: params })
                 }
+                this.$router.push({ path: redirect.split("?")[0], query: params ?? null })
             }
         }
     })

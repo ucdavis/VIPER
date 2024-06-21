@@ -61,5 +61,7 @@ export type Student = {
 export type Person = {
     personId: number,
     firstName: string,
-    lastName: string
+    lastName: string,
+    fullName: string,
+    fullNameLastFirst: string,
 }
