@@ -48,6 +48,12 @@ const routes = [
         component: () => import('@/CTS/pages/ManageLevels.vue'),
     },
     {
+        path: '/CTS/Audit',
+        name: 'Audit Log',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/AuditList.vue'),
+    },
+    {
         path: '/:catchAll(.*)*',
         component: () => import('@/pages/Error404.vue')
     }

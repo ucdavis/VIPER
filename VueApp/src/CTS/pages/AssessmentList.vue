@@ -2,7 +2,7 @@
 <script setup lang="ts">
     import { useUserStore } from '@/store/UserStore'
     import type { Ref } from 'vue'
-    import { ref } from 'vue'
+    import { ref, inject } from 'vue'
     import { useFetch } from '@/composables/ViperFetch'
     import type { QTableProps } from 'quasar'
     import { useDateFunctions } from '@/composables/DateFunctions'
@@ -39,8 +39,8 @@
     const services = ref([])
     const students = ref([]) as Ref<Student[]>
     const assessors = ref([]) as Ref<Person[]>
-
-    const baseUrl = import.meta.env.VITE_API_URL + "cts/"
+    
+    const baseUrl = inject('apiURL') + "cts/"
 
     async function loadAssessments() {
         const { success, result, get, pagination } = useFetch()

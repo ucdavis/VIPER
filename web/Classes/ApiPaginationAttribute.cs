@@ -105,6 +105,10 @@ namespace Viper.Classes
             {
                 perPage = DefaultPerPage;
             }
+            if(perPage == 0)
+            {
+                perPage = MaxPerPage;
+            }
 
             ApiPagination pagination = new()
             {

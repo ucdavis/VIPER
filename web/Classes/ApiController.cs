@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Security;
@@ -32,16 +33,26 @@ namespace Viper.Classes
                 : query.OrderBy(q => q != null ? EF.Property<object>(q, sortOrder) : null);
         }
 
-        public async Task<List<T>> GetPage<T>(IQueryable<T> query, ApiPagination? pagination)
+        public IOrderedQueryable<T> Sort<T>(IQueryable<T> query, string sortColumn, bool descending = false)
+        {
+            PropertyInfo? propertyInfo = typeof(T).GetProperty(sortColumn);
+            TextInfo textInfo = new CultureInfo("en-US", false).TextInfo;
+            sortColumn = textInfo.ToTitleCase(sortColumn);
+            //TODO: This throws an error if the property is not found. It's also case sensitive.
+            return descending
+                ? query.OrderByDescending(q => q != null ? EF.Property<object>(q, sortColumn) : null)
+                : query.OrderBy(q => q != null ? EF.Property<object>(q, sortColumn) : null);
+        }
+
+        public IQueryable<T> GetPage<T>(IQueryable<T> query, ApiPagination? pagination)
         {
             if(pagination != null && pagination.PerPage > 0)
             {
-                return await query
+                return query
                      .Skip((pagination.Page - 1) * pagination.PerPage)
-                     .Take(pagination.PerPage)
-                     .ToListAsync();
+                     .Take(pagination.PerPage);
             }
-            return await query.ToListAsync();
+            return query;
         }
     }
 }
