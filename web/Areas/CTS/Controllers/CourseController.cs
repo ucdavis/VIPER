@@ -7,7 +7,7 @@ using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
 {
-	[Route("/cts/courses/")]
+	[Route("/api/cts/courses/")]
 	[Permission(Allow = "SVMSecure")]
 	public class CourseController : ApiController
 	{

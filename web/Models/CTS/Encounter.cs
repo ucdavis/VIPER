@@ -25,11 +25,19 @@ namespace Viper.Models.CTS
         public string? Comment { get; set; }
         public string? EditComment { get; set; }
 
+        //for assessments
+        public int? EpaId { get; set; }
+        public int? LevelId { get; set; }
+
         public virtual Person Student { get; set; } = null!;
         public virtual Person EnteredByPerson { get; set; } = null!;
         public virtual Person? Clinician { get; set; }
         public virtual CourseSessionOffering? Offering { get; set; }
         public virtual Service? Service { get; set; }
         public virtual ICollection<EncounterInstructor> EncounterInstructors { get; set; } = new List<EncounterInstructor>();
+
+        //For assessments
+        public virtual Epa? Epa { get; set; } = null!;
+        public virtual Level? Level { get; set; } = null!;
     }
 }

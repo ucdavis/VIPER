@@ -13,7 +13,6 @@ public partial class VIPERContext : DbContext
     public virtual DbSet<EpaService> EpaServices { get; set; }
     public virtual DbSet<Encounter> Encounters { get; set; }
     public virtual DbSet<EncounterInstructor> EncounterInstructors { get; set; } 
-    public virtual DbSet<StudentEpa> StudentEpas { get; set; }
     public virtual DbSet<CtsAudit> CtsAudits { get; set; }
 
     /* Students */
@@ -92,6 +91,10 @@ public partial class VIPERContext : DbContext
                 .HasForeignKey(e => e.StudentUserId);
             entity.HasOne(e => e.EnteredByPerson).WithMany()
                 .HasForeignKey(e => e.EnteredBy);
+            entity.HasOne(e => e.Epa).WithMany()
+                .HasForeignKey(e => e.EpaId);
+            entity.HasOne(e => e.Level).WithMany()
+                .HasForeignKey(e => e.LevelId);
         });
 
         modelBuilder.Entity<EncounterInstructor>(entity =>
@@ -103,17 +106,6 @@ public partial class VIPERContext : DbContext
                 .HasForeignKey(e => e.EncounterId);
         });
 
-        modelBuilder.Entity<StudentEpa>(entity =>
-        {
-            entity.ToTable("StudentEpa", "cts");
-            entity.HasOne(e => e.Encounter).WithMany()
-                .HasForeignKey(e => e.EncounterId);
-            entity.HasOne(e => e.Level).WithMany()
-                .HasForeignKey(e => e.LevelId);
-            entity.HasOne(e => e.Epa).WithMany()
-                .HasForeignKey(e => e.EpaId);
-        });
-
         modelBuilder.Entity<CtsAudit>(entity =>
         {
             entity.ToTable("CtsAudit", "cts");
@@ -121,8 +113,6 @@ public partial class VIPERContext : DbContext
                 .HasForeignKey(e => e.ModifiedBy);
             entity.HasOne(e => e.Encounter).WithMany()
                 .HasForeignKey(e => e.EncounterId);
-            entity.HasOne(e => e.StudentEpa).WithMany()
-                .HasForeignKey(e => e.StudentEpaId);
         });
 
         /* "Exteral" entities */

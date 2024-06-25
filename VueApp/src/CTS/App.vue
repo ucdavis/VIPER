@@ -1,19 +1,19 @@
-<script setup lang="ts">
-    import Welcome from './components/Welcome.vue'
-</script>
-
 <template>
-    <header>
-        <div class="wrapper">
-            
-        </div>
-    </header>
-
     <main>
-        <Welcome />
+        <component :is="$route.meta.layout || 'div'"
+                   nav="cts" navarea="true" highlightedTopNav="Curriculum">
+        </component>
     </main>
+    <GenericError></GenericError>
 </template>
 
-<style scoped>
-   
-</style>
+<script>
+    import GenericError from '@/components/GenericError.vue'
+    export default {
+        name: 'CTSApplication',
+        components: {
+            GenericError
+        }
+       
+    }
+</script>
