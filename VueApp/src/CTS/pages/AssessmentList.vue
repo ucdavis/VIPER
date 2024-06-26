@@ -16,7 +16,6 @@
     const assessmentTypes = [{ label: "EPA", value: "EPA" }]
     const paging = ref({ page: 1, sortBy: "enteredOn", descending: true, rowsPerPage: 25, rowsNumber: 100 }) as Ref<any>
     const loading = ref(false)
-    const showMaxRows = ref(false)
 
     const searchForm = ref({
         service: null as Service | null,
@@ -150,16 +149,12 @@
                 <q-select outlined dense options-dense label="Assessment Type" v-model="assessmentType" :options="assessmentTypes" emit-value clearable></q-select>
             </div>
         </div>
-        <div class="row q-mt-sm">
+        <div class="row q-my-sm">
             <div class="col-6 col-md-3 offset-3 text-center">
                 <q-btn label="View Assessments" color="primary" @click="loadAssessmentsManual()"></q-btn>
             </div>
         </div>
     </q-form>
-
-    <q-banner v-if="showMaxRows" rounded class="bg-yellow-3 text-dark q-mb-md" dense>
-        Maximum number of rows reached. Please use filters to limit the amount of data returned.
-    </q-banner>
 
     <q-table row-key="studentEpaId"
              title="Assessments"
