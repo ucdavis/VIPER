@@ -10,12 +10,11 @@
 
     const userStore = useUserStore()
     const { formatDate } = useDateFunctions()
+    const { get, createUrlSearchParams } = useFetch()
     const assessments = ref([]) as Ref<Object[]>
     const assessmentType = ref("EPA")
     const assessmentTypes = [{ label: "EPA", value: "EPA" }]
-    const paging = ref({
-        page: 1, rowsPerPage: 25
-    })
+    const paging = ref({ page: 1, sortBy: "enteredOn", descending: true, rowsPerPage: 25, rowsNumber: 100 }) as Ref<any>
     const loading = ref(false)
     const showMaxRows = ref(false)
 
@@ -30,9 +29,9 @@
         { name: "action", label: "", field: "id", align: "left" },
         { name: "studentName", label: "Student", field: "studentName", align: "left", sortable: true },
         { name: "epaName", label: "EPA", field: "epaName", align: "left", sortable: true },
-        { name: "service", label: "Service", field: "serviceName", align: "left", sortable: true },
-        { name: "level", label: "Level", field: "levelName", align: "left", sortable: true },
-        { name: "enteredBy", label: "Entered By", field: "enteredByName", align: "left", sortable: true },
+        { name: "serviceName", label: "Service", field: "serviceName", align: "left", sortable: true },
+        { name: "levelName", label: "Level", field: "levelName", align: "left", sortable: true },
+        { name: "enteredByName", label: "Entered By", field: "enteredByName", align: "left", sortable: true },
         { name: "enteredOn", label: "Entered On", field: "enteredOn", align: "left", sortable: true, format: formatDate }
     ]
     const filter = ref("")
@@ -42,19 +41,32 @@
     
     const baseUrl = inject('apiURL') + "cts/"
 
-    async function loadAssessments() {
-        const { success, result, get, pagination } = useFetch()
-        const p = new URLSearchParams
-        if (searchForm.value.service?.serviceId != null)
-            p.append("serviceId", searchForm.value.service.serviceId.toString())
-        if (searchForm.value.enteredBy?.personId != null)
-            p.append("enteredById", searchForm.value.enteredBy.personId.toString())
-        if (searchForm.value.student?.personId != null)
-            p.append("studentId", searchForm.value.student.personId.toString())
-        if (searchForm.value.dateFrom != null)
-            p.append("dateFrom", searchForm.value.dateFrom)
-        if (searchForm.value.dateTo != null)
-            p.append("dateTo", searchForm.value.dateTo)
+    async function loadAssessmentRows(props: any) {
+        const { page, rowsPerPage, sortBy, descending } = props.pagination
+        loading.value = true
+        assessments.value = []
+
+        await loadAssessments(page, rowsPerPage, sortBy, descending)
+        paging.value.page = page
+        paging.value.rowsPerPage = rowsPerPage
+        paging.value.sortBy = sortBy
+        paging.value.descending = descending
+        loading.value = false
+    }
+
+    async function loadAssessmentsManual() {
+        //always start over if filter has changed
+        await loadAssessments(1, paging.value.rowsPerPage, paging.value.sortBy, paging.value.descending)
+    }
+
+    async function loadAssessments(page: number, perPage: number, sortBy: string, descending: boolean) {
+        const p = createUrlSearchParams({
+            "serviceId": searchForm.value.service?.serviceId,
+            "enteredById": searchForm.value.enteredBy?.personId,
+            "studentId": searchForm.value.student?.personId,
+            "dateFrom": searchForm.value.dateFrom,
+            "dateTo": searchForm.value.dateTo,
+        })
 
         switch (assessmentType.value) {
             case "EPA":
@@ -63,42 +75,36 @@
             default: break;
         }
 
-        assessments.value = []
         const u = new URL(baseUrl + "assessments", document.baseURI);
-        p.append("page", "1")
+        p.append("page", page.toString())
+        p.append("perPage", perPage.toString())
+        p.append("sortBy", sortBy)
+        p.append("descending", descending.toString())
+        u.search = p.toString()
 
-        //get 10  * default page size rows
         loading.value = true
-        for (let i = 0; i < 10; i++) {
-            p.set("page", (i + 1).toString())
-            u.search = p.toString()
-            await get(u.toString())
-            if (success.value) {
-                assessments.value = assessments.value.concat(result.value)
-            }
-        }
-
-        showMaxRows.value = pagination.value && pagination.value.pages < (pagination.value.perPage * 10)
+        get(u.toString())
+            .then(({ result, pagination: resultPagination, success }) => {
+                assessments.value = result
+                paging.value.rowsNumber = resultPagination?.totalRecords
+            })
         loading.value = false
     }
 
     async function loadServices() {
-        const { result, get } = useFetch()
-        await get(baseUrl + "clinicalservices")
-        services.value = result.value
+        const r = await get(baseUrl + "clinicalservices")
+        services.value = r.result
     }
     async function loadStudents() {
-        const { result, get } = useFetch()
-        await get(import.meta.env.VITE_API_URL + "students/dvm")
-        students.value = result.value
+        const r = await get(import.meta.env.VITE_API_URL + "students/dvm")
+        students.value = r.result
     }
     async function loadAssessors() {
-        const { result, get } = useFetch()
-        await get(baseUrl + "assessments/assessors")
-        assessors.value = result.value
+        const r = await get(baseUrl + "assessments/assessors")
+        assessors.value = r.result
     }
 
-    loadAssessments()
+    loadAssessments(paging.value.page, paging.value.rowsPerPage, paging.value.sortBy, paging.value.descending)
     loadServices()
     loadStudents()
     loadAssessors()
@@ -130,23 +136,23 @@
             </div>
             <div class="col-12 col-md-6 col-lg-3">
                 <q-select outlined dense options-dense label="Entered By" v-model="searchForm.enteredBy" :options="assessors"
-                          option-label="fullNameLastFirst" option-value="personId"></q-select>
+                          option-label="fullNameLastFirst" option-value="personId" clearable></q-select>
             </div>
         </div>
         <div class="row">
             <div class="col-12 col-md-6 col-lg-3">
-                <q-input outlined dense type="date" v-model="searchForm.dateFrom" label="Date from"></q-input>
+                <q-input outlined dense type="date" v-model="searchForm.dateFrom" label="Date from" clearable></q-input>
             </div>
             <div class="col-12 col-md-6 col-lg-3">
-                <q-input outlined dense type="date" v-model="searchForm.dateTo" label="Date To"></q-input>
+                <q-input outlined dense type="date" v-model="searchForm.dateTo" label="Date To" clearable></q-input>
             </div>
             <div class="col-12 col-md-6 col-lg-3">
-                <q-select outlined dense options-dense label="Assessment Type" v-model="assessmentType" :options="assessmentTypes" emit-value></q-select>
+                <q-select outlined dense options-dense label="Assessment Type" v-model="assessmentType" :options="assessmentTypes" emit-value clearable></q-select>
             </div>
         </div>
         <div class="row q-mt-sm">
             <div class="col-6 col-md-3 offset-3 text-center">
-                <q-btn label="View Assessments" color="primary" @click="loadAssessments()"></q-btn>
+                <q-btn label="View Assessments" color="primary" @click="loadAssessmentsManual()"></q-btn>
             </div>
         </div>
     </q-form>
@@ -161,8 +167,10 @@
              :columns="columns"
              dense
              v-model:pagination="paging"
+             :rows-per-page-options="[5, 10, 15, 25, 50, 100]"
              :filter="filter"
-             :loading="loading">
+             :loading="loading"
+            @request="loadAssessmentRows">
         <template v-slot:top-right>
             <q-input borderless dense debounce="300" v-model="filter" placeholder="Search">
                 <template v-slot:append>

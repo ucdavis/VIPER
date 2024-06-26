@@ -13,14 +13,14 @@
     const serviceUrl = import.meta.env.VITE_API_URL + "cts/clinicalservices"
 
     async function getServices() {
-        const { get, result } = useFetch()
-        await get(serviceUrl)
-        services.value = result.value.map((r : any) => ({ label: r.serviceName, value: r.serviceId }))
+        const { get } = useFetch()
+        const r = await get(serviceUrl)
+        services.value = r.result.map((r : any) => ({ label: r.serviceName, value: r.serviceId }))
     }
     async function getEpas() {
-        const { get, result } = useFetch()
-        await get(epaUrl)
-        epas.value = result.value
+        const { get } = useFetch()
+        const r = await get(epaUrl)
+        epas.value = r.result
         clearEpa()
     }
     function selectEpa(e: Epa) {
@@ -29,29 +29,30 @@
         showForm.value = true
     }
     async function submitEpa() {
-        const { success, result, put, post } = useFetch()
+        const { put, post } = useFetch()
         let { services: _, ...epaObj } = epa.value
+        let r = { success: false, result: null}
         if (epa.value?.epaId) {
-            await put(epaUrl + "/" + epa.value.epaId, epaObj)
+            r = await put(epaUrl + "/" + epa.value.epaId, epaObj)
         }
         else {
             epaObj.epaId = 0
-            await post(epaUrl, epaObj)
-            epa.value.epaId = result.value.epaId
+            r = await post(epaUrl, epaObj)
+            epa.value.epaId = r.result
         }
 
-        if (success.value) {
+        if (r.success) {
             await put(epaUrl + "/" + epa.value.epaId + "/services", epaServices.value)
         }
 
-        if (success.value) {
+        if (r.success) {
             getEpas()
         }
     }
     async function deleteEpa() {
-        const { remove, success } = useFetch()
-        await remove(epaUrl + "/" + epa.value.epaId)
-        if (success) {
+        const { del } = useFetch()
+        const r = await del(epaUrl + "/" + epa.value.epaId)
+        if (r.success) {
             getEpas()
         }
     }

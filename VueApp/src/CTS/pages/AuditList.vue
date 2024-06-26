@@ -36,7 +36,6 @@
         modifiedPerson: null as number | null,
     }) as Ref<any>
 
-    //async function loadAuditRows(startRow, count, filter, sortBy, descending) {
     async function loadAuditRows(props: any) {
         const { page, rowsPerPage, sortBy, descending } = props.pagination
         loading.value = true
@@ -56,7 +55,7 @@
     }
 
     async function loadAudit(page: number, perPage: number, sortBy: string, descending: boolean) {
-        const { get, result, success, pagination: resultPagination} = useFetch()
+        const { get } = useFetch()
         const p = new URLSearchParams
         if (filter.value.area != null)
             p.append("area", filter.value.area)
@@ -78,45 +77,45 @@
         p.append("descending", descending.toString())
         u.search = p.toString()
         loading.value = true
-        await get(u.toString())
-        if (success) {
-            auditRows.value = result.value
-                .map((o: any) => {
-                    try {
-                        return { ...o, detail2: JSON.parse(o.detail) }
-                    }
-                    catch (e: any) {
-                        return { ...o, detail2: o.detail }
-                    }
-                })
-            pagination.value.rowsNumber = resultPagination.value.totalRecords
-        }
+
+        get(u.toString())
+            .then(({ result, pagination: resultPagination, success }) => {
+                auditRows.value = result
+                    .map((o: any) => {
+                        try {
+                            return { ...o, detail2: JSON.parse(o.detail) }
+                        }
+                        catch (e: any) {
+                            return { ...o, detail2: o.detail }
+                        }
+                    })
+                pagination.value.rowsNumber = resultPagination?.totalRecords
+            })
         loading.value = false
     }
 
     async function loadModifiers() {
-        const { get, result, success } = useFetch()
-        await get(baseUrl + "audit/modifiers")
-        modifiers.value = result.value
+        const { get } = useFetch()
+        get(baseUrl + "audit/modifiers")
+            .then(({result}) => modifiers.value = result)
     }
 
     async function loadUsers() {
-        const { get, result, success } = useFetch()
-        await get(apiUrl + "people")
-        allUsers.value = result.value
+        const { get } = useFetch()
+        get(apiUrl + "people")
+            .then(({ result }) => allUsers.value = result)
     }
 
     async function loadActions() {
-        const { get, result, success } = useFetch()
-        await get(baseUrl + "audit/actions")
-        actions.value = result.value
+        const { get } = useFetch()
+        get(baseUrl + "audit/actions")
+            .then(({ result }) => actions.value = result)
     }
 
     async function loadAreas() {
-        const { get, result, success } = useFetch()
-        await get(baseUrl + "audit/areas")
-        areas.value = result.value
-
+        const { get } = useFetch()
+        get(baseUrl + "audit/areas")
+            .then(({ result }) => areas.value = result)
     }
 
     loadModifiers()

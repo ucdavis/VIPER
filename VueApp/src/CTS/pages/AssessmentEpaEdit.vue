@@ -39,27 +39,27 @@
             encounterDate: studentEpa.value.encounterDate,
             encounterId: studentEpa.value.encounterId
         }
-        const { put, result, success: submitSuccess, errors } = useFetch()
-        await put(baseUrl + "assessments/epa/" + studentEpaId, data)
-        if (!submitSuccess) {
-            submitErrors.value = errors
+        const { put } = useFetch()
+        const r = await put(baseUrl + "assessments/epa/" + studentEpaId, data)
+        if (!r.success) {
+            submitErrors.value = r.errors
         }
         else {
             
             clearLevel.value = true
-            studentEpa.value.levelId = result.value.levelId
-            studentEpa.value.comment = result.value.comment
-            studentEpa.value.encounterDate = formatDateForDateInput(result.value.encounterDate)
+            studentEpa.value.levelId = r.result.levelId
+            studentEpa.value.comment = r.result.comment
+            studentEpa.value.encounterDate = formatDateForDateInput(r.result.encounterDate)
             success.value = true
         }
     }
 
     async function getStudentEpa() {
-        const { get, result, success } = useFetch()
+        const { get } = useFetch()
         if (studentEpaId && studentEpaId > 0) {
-            await get(baseUrl + "assessments/" + studentEpaId)
-            if (success.value) {
-                studentEpa.value = result.value
+            const r = await get(baseUrl + "assessments/" + studentEpaId)
+            if (r.success) {
+                studentEpa.value = r.result
                 studentEpa.value.encounterDate = formatDateForDateInput(studentEpa.value.encounterDate)
             }
         }

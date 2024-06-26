@@ -24,13 +24,13 @@
                 delay: 250 // ms
             })
     
-            const { result, success, get } = useFetch()
-            await get(import.meta.env.VITE_API_URL + "loggedInUser")
-            if (!success || !result.value.userId) {
+            const { get } = useFetch()
+            const r = await get(import.meta.env.VITE_API_URL + "loggedInUser")
+            if (!r.success || !r.result.userId) {
                 window.location.href = import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + import.meta.env.VITE_VIPER_HOME + "CTS/"
             }
             else {
-                userStore.loadUser(result.value)
+                userStore.loadUser(r.result)
             }
             $q.loading.hide()
 
