@@ -19,21 +19,21 @@
     const baseUrl = import.meta.env.VITE_API_URL + "cts/domains"
 
     async function getDomains() {
-        const { result, get } = useFetch()
-        await get(baseUrl)
-        domains.value = result.value
+        const { get } = useFetch()
+        const r = await get(baseUrl)
+        domains.value = r.result
     }
     async function save() {
-        const { put, post, success } = useFetch()
-
+        const { put, post } = useFetch()
+        let r = { success: false }
         if (domain.value.domainId > 0) {
-            await put(baseUrl + "/" + domain.value.domainId, domain.value)
+            r = await put(baseUrl + "/" + domain.value.domainId, domain.value)
         }
         else {
-            await post(baseUrl, domain.value)
+            r = await post(baseUrl, domain.value)
         }
 
-        if (success) {
+        if (r.success) {
             clearDomain()
             await getDomains()
         }
@@ -42,9 +42,9 @@
         domain.value = { domainId: 0, order: null, name: '', description: '' }
     }
     async function deleteDomain() {
-        const { remove, success } = useFetch()
-        await remove(baseUrl + "/" + domain.value.domainId)
-        if (success) {
+        const { del } = useFetch()
+        const r = await del(baseUrl + "/" + domain.value.domainId)
+        if (r.success) {
             clearDomain()
             await getDomains()
         }

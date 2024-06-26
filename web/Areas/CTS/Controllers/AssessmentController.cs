@@ -41,14 +41,15 @@ namespace Viper.Areas.CTS.Controllers
         [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical")]
         [ApiPagination(DefaultPerPage = 100, MaxPerPage = 100)]
         public async Task<ActionResult<List<StudentAssessment>>> GetAssessments(int? type, int? studentId, int? enteredById, int? serviceId,
-            int? epaId, DateOnly? dateFrom, DateOnly? dateTo, ApiPagination? pagination)
+            int? epaId, DateOnly? dateFrom, DateOnly? dateTo, ApiPagination? pagination,
+            string? sortBy = null, bool descending = false)
         {
             if (!ctsSecurityService.CheckStudentAssessmentViewAccess(studentId, enteredById))
             {
                 return Forbid();
             }
 
-            var epas = context.Encounters
+            var assessments = context.Encounters
                 .Include(e => e.Epa)
                 .Include(e => e.Level)
                 .Include(e => e.EnteredByPerson)
@@ -58,50 +59,82 @@ namespace Viper.Areas.CTS.Controllers
                 .AsQueryable();
             if (type != null)
             {
-                epas = epas.Where(e => e.EncounterType == type);
+                assessments = assessments.Where(e => e.EncounterType == type);
             }
             if (studentId != null)
             {
-                epas = epas.Where(e => e.StudentUserId == studentId);
+                assessments = assessments.Where(e => e.StudentUserId == studentId);
             }
             if (enteredById != null)
             {
-                epas = epas.Where(e => e.EnteredBy == enteredById);
+                assessments = assessments.Where(e => e.EnteredBy == enteredById);
             }
             if (serviceId != null)
             {
-                epas = epas.Where(e => e.ServiceId == serviceId);
+                assessments = assessments.Where(e => e.ServiceId == serviceId);
             }
             if (epaId != null)
             {
-                epas = epas.Where(e => e.EpaId == epaId);
+                assessments = assessments.Where(e => e.EpaId == epaId);
             }
             if (dateFrom != null)
             {
-                epas = epas.Where(e => e.EncounterDate >= ((DateOnly)dateFrom).ToDateTime(new TimeOnly(0, 0, 0)));
+                assessments = assessments.Where(e => e.EncounterDate >= ((DateOnly)dateFrom).ToDateTime(new TimeOnly(0, 0, 0)));
             }
             if (dateTo != null)
             {
-                epas = epas.Where(e => e.EncounterDate <= ((DateOnly)dateTo).ToDateTime(new TimeOnly(0, 0, 0)));
+                assessments = assessments.Where(e => e.EncounterDate <= ((DateOnly)dateTo).ToDateTime(new TimeOnly(0, 0, 0)));
             }
 
+            if (!string.IsNullOrEmpty(sortBy))
+            {
+                switch (sortBy.ToLower())
+                {
+                    case "enteredon": assessments = descending ? assessments.OrderByDescending(a => a.EnteredOn) : assessments.OrderBy(a => a.EnteredOn); break;
+                    case "enteredbyname": 
+                        assessments = descending
+                            ? assessments.OrderByDescending(a => a.EnteredByPerson.LastName)
+                                .ThenByDescending(a => a.EnteredByPerson.FirstName)
+                            : assessments.OrderBy(a => a.EnteredByPerson.LastName)
+                                .ThenBy(a => a.EnteredByPerson.FirstName);
+                        break;
+                    case "levelname": assessments = descending 
+                            ? assessments.OrderByDescending(a => a.Level != null ? a.Level.LevelName : "") 
+                            : assessments.OrderBy(a => a.Level != null ? a.Level.LevelName : ""); break;
+                    case "servicename":
+                        assessments = descending
+                            ? assessments.OrderByDescending(a => a.Service != null ? a.Service.ServiceName : "")
+                            : assessments.OrderBy(a => a.Service != null ? a.Service.ServiceName : ""); break;
+                    case "epaname":
+                        assessments = descending
+                            ? assessments.OrderByDescending(a => a.Epa != null ? a.Epa.Name : "")
+                            : assessments.OrderBy(a => a.Epa != null ? a.Epa.Name : ""); break;
+                    case "studentname":
+                        assessments = descending
+                            ? assessments.OrderByDescending(a => a.Student.LastName)
+                                .ThenByDescending(a => a.Student.FirstName)
+                            : assessments.OrderBy(a => a.Student.LastName)
+                                .ThenBy(a => a.Student.FirstName);
+                        break;   
+                }
+            }
             if (pagination != null)
             {
                 var s = (pagination.PerPage - 1) * pagination.Page;
-                pagination.TotalRecords = epas.Count();
-                epas = epas
+                pagination.TotalRecords = assessments.Count();
+                assessments = assessments
                     .Skip((pagination.Page - 1) * pagination.PerPage)
                     .Take(pagination.PerPage);
             }
 
-            var assessments = await epas
+            var assessmentsList = await assessments
                 .ToListAsync();
 
             //if this is not a student viewing their own assessments, set the editable flag
             var userHelper = new UserHelper();
 
             List<StudentAssessment> studentAssessments = new();
-            foreach (var a in assessments)
+            foreach (var a in assessmentsList)
             {
                 var sa = CreateStudentAssessment(a);
                 sa.Editable = ctsSecurityService.CanEditStudentAssessment(sa.EnteredBy);

@@ -28,13 +28,13 @@
     }
 
     async function getServices() {
-        const { result, get } = useFetch()
-        await get(baseUrl + "clinicalservices")
-        services.value = result.value
+        const { get } = useFetch()
+        const r = await get(baseUrl + "clinicalservices")
+        services.value = r.result
 
         //get all scheduled services along with services scheduled this week and last week
-        await get(baseUrl + "clinicalschedule/instructor?mothraId=" + userStore.userInfo.mothraId)
-        const scheduledServices = result.value
+        const r2 = await get(baseUrl + "clinicalschedule/instructor?mothraId=" + userStore.userInfo.mothraId)
+        const scheduledServices = r2.result
 
         let today = new Date()
         today.setHours(0, 0, 0, 0)

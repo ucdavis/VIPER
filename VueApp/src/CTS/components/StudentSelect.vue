@@ -35,17 +35,17 @@
 
     /* Get students by service, class level, or all */
     async function getStudents() {
-        const { get, result } = useFetch()
+        const { get } = useFetch()
         //load all students and students on service, if necessary
         if (allStudents.value.length == 0) {
-            await get(studentsUrl + "dvm")
-            allStudents.value = result.value
+            const r= await get(studentsUrl + "dvm")
+            allStudents.value = r.result
         }
 
         if (props.serviceId && props.serviceId != studentsLoadedForServiceId.value) {
             var d = new Date().toJSON().split("T")[0]
-            await get(baseUrl + "clinicalschedule/student?serviceId=" + props.serviceId + "&startDate=" + d + "&endDate=" + d)
-            studentsOnService.value = result.value
+            const r = await get(baseUrl + "clinicalschedule/student?serviceId=" + props.serviceId + "&startDate=" + d + "&endDate=" + d)
+            studentsOnService.value = r.result
             studentsLoadedForServiceId.value = props.serviceId
         }
 

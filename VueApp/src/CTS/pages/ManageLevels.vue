@@ -32,20 +32,23 @@
     const levelUrl = import.meta.env.VITE_API_URL + "cts/levels"
 
     async function loadLevels() {
-        const { get, result } = useFetch()
-        await get(levelUrl)
-        levels.value = result.value
+        const { get } = useFetch()
+        get(levelUrl)
+            .then(({result}) => levels.value = result)
         level.value = emptyLevel
     }
 
     async function submitLevel() {
-        const { post, put, result, success } = useFetch()
+        const { post, put } = useFetch()
+        let success = false
         if (level.value.levelId) {
-            await put(levelUrl + "/" + level.value.levelId, level.value)
+            const r = await put(levelUrl + "/" + level.value.levelId, level.value)
+            success = r.success
         }
         else {
             level.value.epa = type.value == "EPA"
-            await post(levelUrl, level.value)
+            const r = await post(levelUrl, level.value)
+            success = r.success
         }
 
         if (success) {
@@ -54,9 +57,9 @@
     }
 
     async function deleteLevel() {
-        const { remove, success } = useFetch()
-        await remove(levelUrl + "/" + level.value.levelId)
-        if (success) {
+        const { del } = useFetch()
+        const r = await del(levelUrl + "/" + level.value.levelId)
+        if (r.success) {
             loadLevels()
         }
     }

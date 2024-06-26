@@ -25,9 +25,9 @@
     const baseUrl = import.meta.env.VITE_API_URL + "cts/levels"
 
     async function getLevels() {
-        const { get, result } = useFetch()
-        await get(baseUrl + "?" + props.levelType + "=true")
-        levels.value = result.value
+        const { get } = useFetch()
+        const r = await get(baseUrl + "?" + props.levelType + "=true")
+        levels.value = r.result
         if (props.levelId) {
             const l = levels.value.find((l) => l.levelId == props.levelId)
             if (l) {

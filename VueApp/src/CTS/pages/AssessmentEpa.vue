@@ -29,11 +29,11 @@
     const baseUrl = inject('apiURL') + "cts/"
 
     async function getEpas() {
-        const { result, get } = useFetch()
+        const { get } = useFetch()
         epa.value = { epaId: 0, name: "" } as Epa
         if (serviceId.value) {
-            await get(baseUrl + "epas?serviceId=" + serviceId.value)
-            epas.value = result.value
+            const r = await get(baseUrl + "epas?serviceId=" + serviceId.value)
+            epas.value = r.result
             if (epas.value.length == 1) {
                 epa.value = epas.value[0]
             }
@@ -45,10 +45,10 @@
         studentEpa.value.serviceId = serviceId.value
         studentEpa.value.levelId = levelId.value
 
-        const { post, success: submitSuccess, errors } = useFetch()
-        await post(baseUrl + "assessments/epa", studentEpa.value)
-        if (!submitSuccess) {
-            submitErrors.value = errors
+        const { post } = useFetch()
+        const r = await post(baseUrl + "assessments/epa", studentEpa.value)
+        if (!r.success) {
+            submitErrors.value = r.errors
         }
         else {
             clearStudent.value = true

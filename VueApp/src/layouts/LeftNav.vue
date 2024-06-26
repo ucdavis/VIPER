@@ -53,11 +53,11 @@
         methods: {
             async getLeftNav() {
                 var u = new URL(import.meta.env.VITE_API_URL + "layout/leftnav/?area=" + this.navarea + "&nav=" + this.nav, document.baseURI)
-                const { result, get } = useFetch()
-                await get(u.toString())
-                this.navHeader = result.value.menuHeaderText
-                this.rawItems = result.value.menuItems
-                this.menuItems = result.value.menuItems.map((r: any) => ({
+                const { get } = useFetch()
+                const r = await get(u.toString())
+                this.navHeader = r.result.menuHeaderText
+                this.rawItems = r.result.menuItems
+                this.menuItems = r.result.menuItems.map((r: any) => ({
                     menuItemUrl: (r.menuItemURL.length > 4 && r.menuItemURL.substr(0, 4) == "http") ? r.menuItemURL : null,
                     routeTo: (r.menuItemURL.length <= 4 || r.menuItemURL.substr(0, 4) != "http") ? r.menuItemURL : "test",
                     menuItemText: r.menuItemText,

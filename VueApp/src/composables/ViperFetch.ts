@@ -1,13 +1,27 @@
-import { ref, type Ref, computed } from 'vue'
 import { useGenericErrorHandler } from './ErrorHandler'
 const errorHandler = useGenericErrorHandler();
 
 export function useFetch() {
-    const errors : Ref<string[]> = ref([])
-    const result: any = ref(null)
-    const pagination: any = ref(null)
-    const success = computed(() => errors.value.length == 0)
-    
+    type Pagination = {
+        page: number,
+        perPage: number,
+        pages: number,
+        totalRecords: number,
+        next: string | null,
+        previous: string | null
+    }
+
+    type Result = {
+        result: any,
+        errors: any,
+        success: boolean,
+        pagination: Pagination | null
+    }
+
+    type UrlParams = {
+        [key: string]: string | number | null | undefined
+    }
+
     class ValidationError extends Error {
         constructor(message: string, errors: []) {
             super(message)
@@ -15,6 +29,43 @@ export function useFetch() {
         }
 
         errors = []
+    }
+
+    async function get(url: string = "", options: any = {}): Promise<Result> {
+        options.method = "GET"
+        addHeader(options, "Content-Type", "application / json")
+        return await fetchWrapper(url, options)
+    }
+
+    async function post(url: string = "", body: any = {}, options: any = {}): Promise<Result> {
+        options.method = "POST"
+        options.body = JSON.stringify(body)
+        addHeader(options, "Content-Type", "application / json")
+        return await fetchWrapper(url, options)
+    }
+
+    async function put(url: string = "", body: any = {}, options: any = {}): Promise<Result> {
+        options.method = "PUT"
+        options.body = JSON.stringify(body)
+        addHeader(options, "Content-Type", "application / json")
+        return await fetchWrapper(url, options)
+    }
+
+    async function del(url: string = "", options: any = {}): Promise<Result> {
+        options.method = "DELETE"
+        addHeader(options, "Content-Type", "application / json")
+        return await fetchWrapper(url, options)
+    }
+
+    function createUrlSearchParams(obj: UrlParams): URLSearchParams {
+        const params = new URLSearchParams
+        for (const key in obj) {
+            const value = obj[key]
+            if (value != null) {
+                params.append(key, value.toString())
+            }
+        }
+        return params
     }
 
     function addHeader(options: any, headerName: string, headerValue: string) {
@@ -26,44 +77,19 @@ export function useFetch() {
         }
     }
 
-    async function get(url: string = "", options: any = {}) {
-        options.method = "GET"
-        addHeader(options, "Content-Type", "application / json")
-        await vfetch(url, options)
-    }
-
-    async function post(url: string = "", body: any = {}, options: any = {}) {
-        options.method = "POST"
-        options.body = JSON.stringify(body)
-        addHeader(options, "Content-Type", "application / json")
-        await vfetch(url, options)
-    }
-
-    async function put(url: string = "", body: any = {}, options: any = {}) {
-        options.method = "PUT"
-        options.body = JSON.stringify(body)
-        addHeader(options, "Content-Type", "application / json")
-        await vfetch(url, options)
-    }
-
-    async function remove(url: string = "", options: any = {}) {
-        options.method = "DELETE"
-        addHeader(options, "Content-Type", "application / json")
-        await vfetch(url, options)
-    }
-
-    async function vfetch(url: string, options: any = {}) {
+    async function fetchWrapper(url: string, options: any = {}) {
         if (options.headers === undefined) {
             options.headers = {}
         }
         addHeader(options, "X-CSRF-TOKEN", "")
 
-        result.value = await fetch(url, options)
+        let errors: string[] = []
+        const result = await fetch(url, options)
             //handle 4xx and 5xx status codes
             .then(r => handleViperFetchError(r))
             //return json (unless we got 204 No Content or 202 Accepted)
             .then(r => (r.status == 204 || r.status == 202) ? r : r.json())
-            //check for success flag and result being defined. call additional functions
+            //check for success flag and result being defined.
             .then(r => {
                 let intialResult = r
                 if (r.success !== undefined) {
@@ -77,12 +103,19 @@ export function useFetch() {
             //catch errors, including those thrown by handleViperFetchError
             .catch(e => {
                 errorHandler.handleError(e)
-                errors.value = errorHandler.errors.value
+                errors = errorHandler.errors.value
             })
-        if (result.value.pagination) {
-            pagination.value = result.value.pagination
-            result.value= result.value.result
+        const resultObj: Result = {
+            result: result,
+            errors: errors,
+            success: errors.length == 0,
+            pagination: null
         }
+        if (result.pagination) {
+            resultObj.pagination = result.pagination
+            resultObj.result = result.result
+        }
+        return resultObj
     }
 
     async function handleViperFetchError(response: any) {
@@ -99,11 +132,11 @@ export function useFetch() {
             }
             catch (e) {
                 throw Error("An error occurred")
-            }         
+            }
             throw new ValidationError(message, result?.errors)
         }
         return response
     }
 
-    return { result, errors, success, vfetch, get, post, put, remove, pagination }
+    return { get, post, put, del, createUrlSearchParams }
 }
