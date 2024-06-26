@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import routes from './routes'
 import { useUserStore } from '@/store/UserStore'
 
-const baseUrl = import.meta.env.VITE_VIPER_URL
+const baseUrl = import.meta.env.VITE_VIPER_HOME
 const router = createRouter({
     scrollBehavior: () => ({ left: 0, top: 0 }),
     history: createWebHistory(baseUrl),
