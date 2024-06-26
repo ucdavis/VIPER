@@ -266,7 +266,7 @@ try
         DefaultFileNames = new List<string> { "index.html" },
         FileProvider = new PhysicalFileProvider(
             Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
-        RequestPath = "/2/vue",
+        RequestPath = "/vue",
         RedirectToAppendTrailingSlash = true
     });
 
