@@ -55,6 +55,7 @@ const routes = [
     },
     {
         path: '/:catchAll(.*)*',
+        meta: { layout: ViperLayout },
         component: () => import('@/pages/Error404.vue')
     }
 ]
