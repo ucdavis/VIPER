@@ -11,6 +11,9 @@ import '@quasar/extras/material-icons/material-icons.css'
 // Import Quasar css
 import 'quasar/dist/quasar.css'
 
+//import our css
+import '@/assets/site.css'
+
 import { useErrorStore } from '@/store/ErrorStore'
 
 const pinia = createPinia()
