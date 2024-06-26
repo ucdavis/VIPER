@@ -251,8 +251,9 @@ try
 
     app.UseSitemapMiddleware();
 
+    var baseUrl = builder.Environment.IsDevelopment() ? "" : "2/";
     RewriteOptions rewriteOptions = new RewriteOptions()
-                .AddRewrite("CTS", "/2/vue/src/cts/index.html", true);
+                .AddRewrite($"{baseUrl}CTS", "/2/vue/src/cts/index.html", true);
     app.UseRewriter(rewriteOptions);
 
     //for the vue src files, use directories in the url but serve index.html
