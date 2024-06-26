@@ -253,7 +253,7 @@ try
 
     var baseUrl = app.Environment.IsDevelopment() ? "" : "2/";
     RewriteOptions rewriteOptions = new RewriteOptions()
-                .AddRewrite($"(?i)^{baseUrl}CTS", "/2/vue/src/cts/index.html", true)
+                .AddRewrite(@"(?i)^CTS", "/2/vue/src/cts/index.html", true)
                 .AddRewrite(@"(?i)2/CTS2", "/2/vue/src/cts/index.html", true)
                 .AddRewrite(@"(?i)2/TEST", "/2/raps/VIPER/rolelist", true)
                 .AddRewrite(@"(?i)^TEST", "/raps/VIPER/permissionlist", true)
