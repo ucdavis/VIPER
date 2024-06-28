@@ -2,15 +2,16 @@
 
 namespace Viper.Areas.CTS.Services
 {
-    public enum EncounterType
-    {
-        Epa = 1
-    }
+
 
     public class EncounterCreationService
     {
-
-        public static Encounter CreateEncounterForEpa(int studentUserId, string studentLevel, int enteredBy, int serviceId, DateTime? encounterDate = null)
+        public enum EncounterType
+        {
+            Epa = 1
+        }
+        public static Encounter CreateEncounterForEpa(int studentUserId, string studentLevel, int enteredBy, int serviceId, 
+            int epaId, int levelId, string? comment = "", DateTime? encounterDate = null)
         {
             if (encounterDate == null)
             {
@@ -22,6 +23,9 @@ namespace Viper.Areas.CTS.Services
                 StudentLevel = studentLevel,
                 EnteredBy = enteredBy,
                 ServiceId = serviceId,
+                EpaId = epaId,
+                LevelId = levelId,
+                Comment = comment,
                 EncounterDate = (DateTime)encounterDate,
                 EncounterType = (int)EncounterType.Epa,
                 EnteredOn = DateTime.Now

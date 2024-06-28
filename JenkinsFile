@@ -23,6 +23,7 @@ def copyOfflineOperations = [
 ]
 pipeline {
     agent any
+	tools { nodejs "NodeJS 20.6.1" }
     options {
         skipStagesAfterUnstable()
     }
@@ -36,6 +37,12 @@ pipeline {
 		  steps {
 			bat '"C:\\Program Files\\dotnet\\dotnet" clean Viper.sln'
 		  }
+		}
+		stage('Build Vue App') {
+			steps {
+				bat 'pushd VueApp && npm install && popd'
+				bat 'npm run --prefix VueApp build'
+			}
 		}
 		stage('Build for test') {
 			when {

@@ -7,8 +7,10 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.FileProviders;
 using Newtonsoft.Json;
 using NLog;
 using NLog.Web;
@@ -248,7 +250,43 @@ try
     }
 
     app.UseSitemapMiddleware();
-    app.UseStaticFiles(); // allow static file serving
+
+    var baseUrl = app.Environment.IsDevelopment() ? "" : "2/";
+    RewriteOptions rewriteOptions = new RewriteOptions()
+                .AddRewrite(@"(?i)^CTS", "/vue/src/cts/index.html", true)
+                .AddRewrite(@"(?i)^CTS2", "/2/vue/src/cts/index.html", true)
+                .AddRewrite(@"(?i)^TEST", "/raps/VIPER/rolelist", true)
+                .AddRewrite(@"(?i)^TEST", "/raps/VIPER/permissionlist", true)
+                .AddRewrite(@"(?i)^AnotherTest", "/raps/VIPER/UserClone", true);
+    app.UseRewriter(rewriteOptions);
+
+    //for the vue src files, use directories in the url but serve index.html
+    app.UseDefaultFiles(new DefaultFilesOptions
+    {
+        DefaultFileNames = new List<string> { "index.html" },
+        FileProvider = new PhysicalFileProvider(
+            Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
+        RequestPath = "/vue",
+        RedirectToAppendTrailingSlash = true
+    });
+
+    // allow static file serving
+    if (app.Environment.IsDevelopment())
+    {
+        //In development, make sure files can be found when the vue app
+        //uses /2/vue/....
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(
+            Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
+            RequestPath = "/2/vue"
+        });
+        app.UseStaticFiles();
+    }
+    else
+    {
+        app.UseStaticFiles();
+    }
 
     // apply settings define earlier
     app.UseRouting();

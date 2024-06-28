@@ -8,7 +8,7 @@ using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
 {
-    [Route("/cts/epas")]
+    [Route("/api/cts/epas")]
     [Permission(Allow = "SVMSecure")]
     public class EpaController : ApiController
     {

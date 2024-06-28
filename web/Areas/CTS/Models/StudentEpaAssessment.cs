@@ -6,9 +6,6 @@ namespace Viper.Areas.CTS.Models
     {
         public override string AssessmentType { get; } = "EPA";
 
-        public int StudentEpaId { get; set; }
-        public string? Comment { get; set; }
-
         //Epa Info
         public int EpaId { get; set; }
         public string EpaName { get; set; } = string.Empty;
@@ -22,14 +19,18 @@ namespace Viper.Areas.CTS.Models
 
         }
 
-        public StudentEpaAssessment(StudentEpa epa) : base(epa.Level, epa.Encounter)
+        public StudentEpaAssessment(Encounter encounter) : base(encounter, encounter.Level)
         {
-            StudentEpaId = epa.StudentEpaId;
-            Comment = epa.Comment;
-            EpaId = epa.EpaId;
-            EpaName = epa.Epa.Name;
-            ServiceId = epa.Encounter.ServiceId;
-            ServiceName = epa.Encounter.Service?.ServiceName;
+            if(encounter.Epa != null && encounter.EpaId != null)
+            {
+                EpaId = (int)encounter.EpaId;
+                EpaName = encounter.Epa.Name;
+            }
+            if(encounter.Service != null)
+            {
+                ServiceId = encounter.ServiceId;
+                ServiceName = encounter.Service?.ServiceName;
+            }
         }
     }
 }

@@ -12,17 +12,17 @@ namespace Viper.Areas.CTS.Models
     {
         public virtual string AssessmentType { get; } = null!; //should be overridden by derived classes
 
-        //assessment level
+        //assessment data
         public int LevelId { get; set; }
         public string LevelName { get; set; } = null!;
         public int LevelValue { get; set; }
+        public string? Comment { get; set; }
 
         //Encounter Info
         public int EncounterId { get; set; }
         public int EncounterType { get; set; }
         public DateTime EncounterDate { get; set; }
         public DateTime EnteredOn { get; set; }
-        public string? EncounterComment { get; set; }
         public string? EditComment { get; set; }
 
         //Objects linked to the encounter
@@ -51,18 +51,22 @@ namespace Viper.Areas.CTS.Models
 
         }
 
-        public StudentAssessment(Level level, Encounter enc)
+        public StudentAssessment(Encounter enc, Level? level)
         {
-            LevelId = level.LevelId;
-            LevelName = level.LevelName;
-            LevelValue = level.Order;
+            if(level != null)
+            {
+                LevelId = level.LevelId;
+                LevelName = level.LevelName;
+                LevelValue = level.Order;
+            }
+            
             EncounterId = enc.EncounterId;
             StudentUserId = enc.StudentUserId;
             EncounterType = enc.EncounterType;
             EncounterDate = enc.EncounterDate;
             EnteredOn = enc.EnteredOn;
             EnteredBy = enc.EnteredBy;
-            EncounterComment = enc.Comment;
+            Comment = enc.Comment;
             EditComment = enc.EditComment;
             StudentName = enc.Student.FullName;
             StudentMailId = enc.Student.MailId;
