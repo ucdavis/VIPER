@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import type { Ref } from "vue"
-    import { ref } from "vue"
+    import { ref, inject } from "vue"
     import { useFetch } from '@/composables/ViperFetch'
 
     type Level = {
@@ -29,7 +29,7 @@
         { label: "Milestone", value: "Milestone" }
     ]
     const showForm = ref(false)
-    const levelUrl = import.meta.env.VITE_API_URL + "cts/levels"
+    const levelUrl = inject('apiURL') + "cts/levels"
 
     async function loadLevels() {
         const { get } = useFetch()

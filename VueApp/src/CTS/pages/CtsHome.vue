@@ -3,9 +3,10 @@
 </template>
 <script setup lang="ts">
     import { useQuasar } from 'quasar'
-    import { ref, defineComponent } from 'vue'
+    import { ref, defineComponent, inject } from 'vue'
     import { useFetch } from '@/composables/ViperFetch'
     import { useUserStore } from '@/store/UserStore'
+
 </script>
 <script lang="ts">
     export default defineComponent({
@@ -17,6 +18,7 @@
         }
         ,
         mounted: async function () {
+            const baseUrl = inject('apiURL')
             const userStore = useUserStore()
             const $q = useQuasar()
             $q.loading.show({
@@ -25,7 +27,7 @@
             })
     
             const { get } = useFetch()
-            const r = await get(import.meta.env.VITE_API_URL + "loggedInUser")
+            const r = await get(baseUrl + "loggedInUser")
             if (!r.success || !r.result.userId) {
                 window.location.href = import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + import.meta.env.VITE_VIPER_HOME + "CTS/"
             }
@@ -35,7 +37,7 @@
             $q.loading.hide()
 
             if (userStore.isLoggedIn) {
-                const redirect = this.$route.query.sendBackTo?.toString() || (import.meta.env.VITE_VIPER_HOME + 'CTS/AssessmentList')
+                const redirect = this.$route.query.sendBackTo?.toString() || '/CTS/AssessmentList'
                 let paramString = redirect.split("?")[1]
                 let params = {} as any
                 if (paramString) {

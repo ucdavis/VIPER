@@ -39,6 +39,7 @@
     const assessors = ref([]) as Ref<Person[]>
     
     const baseUrl = inject('apiURL') + "cts/"
+    const studentsUrl = inject('apiURL') + "students/dvm"
 
     async function loadAssessmentRows(props: any) {
         const { page, rowsPerPage, sortBy, descending } = props.pagination
@@ -95,7 +96,7 @@
         services.value = r.result
     }
     async function loadStudents() {
-        const r = await get(import.meta.env.VITE_API_URL + "students/dvm")
+        const r = await get(studentsUrl)
         students.value = r.result
     }
     async function loadAssessors() {

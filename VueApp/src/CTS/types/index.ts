@@ -55,7 +55,9 @@ export type Student = {
     iamId: string,
     mailId: string,
     classLevel: string | null,
-    classYear: number | null
+    classYear: number | null,
+    active: boolean,
+    currentClassYear: boolean,
 }
 
 export type Person = {

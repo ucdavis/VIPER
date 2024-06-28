@@ -54,6 +54,12 @@ const routes = [
         component: () => import('@/CTS/pages/AuditList.vue'),
     },
     {
+        path: '/CTS/Test',
+        name: 'Test Page',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/TestPage.vue'),
+    },
+    {
         path: '/:catchAll(.*)*',
         meta: { layout: ViperLayout },
         component: () => import('@/pages/Error404.vue')

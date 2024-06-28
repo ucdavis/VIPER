@@ -1,13 +1,14 @@
 ﻿using Microsoft.AspNetCore.Connections.Features;
+using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Models.VIPER;
 
 namespace Viper.Areas.Curriculum.Services
 {
-    public class TermCode
+    public class TermCodeService
     {
         private readonly VIPERContext _context;
-        public TermCode(VIPERContext context)
+        public TermCodeService(VIPERContext context)
         {
             _context = context;
         }
@@ -36,7 +37,7 @@ namespace Viper.Areas.Curriculum.Services
             return string.Format("{0} {1}", desc, year.ToString());
         }
 
-        public List<Term> GetTerms(string? TermType = null, bool? current = null, bool? currentMulti = null)
+        public async Task<List<Term>> GetTerms(string? TermType = null, bool? current = null, bool? currentMulti = null)
         {
             var q = _context.Terms.Select(t => t);
             if(TermType  != null)
@@ -52,16 +53,21 @@ namespace Viper.Areas.Curriculum.Services
                 q = q.Where(t => t.CurrentTermMulti == currentMulti);
             }
 
-            return q
+            return await q
                 .OrderByDescending(t => t.TermCode)
-                .ToList();
+                .ToListAsync();
         }
 
-        public List<int> GetActiveClassYears(int? termCode = null)
+        public async Task<Term> GetActiveTerm()
+        {
+            return (await GetTerms(current: true))[0];
+        }
+
+        public async Task<List<int>> GetActiveClassYears(int? termCode = null)
         {
             if(termCode == null)
             {
-                termCode = GetTerms(current: true).FirstOrDefault()?.TermCode;
+                termCode = (await GetTerms(current: true)).FirstOrDefault()?.TermCode;
             }
 
             List<int> classYears = new();
