@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import type { Ref } from "vue"
-    import { ref } from "vue"
+    import { ref, inject } from "vue"
     import { useFetch } from '@/composables/ViperFetch'
     import type { Epa, Service } from '@/CTS/types'    
 
@@ -9,8 +9,8 @@
     const services = ref([]) as Ref<Service[]>
     const epaServices = ref([]) as Ref<number[]>
     const epa = ref({ epaId: null, order: null, name: "", description: "", active: false, services: [] }) as Ref<Epa>
-    const epaUrl = import.meta.env.VITE_API_URL + "cts/epas"
-    const serviceUrl = import.meta.env.VITE_API_URL + "cts/clinicalservices"
+    const epaUrl = inject('apiURL') + "cts/epas"
+    const serviceUrl = inject('apiURL') + "cts/clinicalservices"
 
     async function getServices() {
         const { get } = useFetch()

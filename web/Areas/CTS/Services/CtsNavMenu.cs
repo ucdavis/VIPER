@@ -31,7 +31,7 @@ namespace Viper.Areas.CTS.Services
                 || userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.StudentAssessments")
                 || userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.AssessClinical"))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "View Assessments", MenuItemURL = "Assessments" });
+                nav.Add(new NavMenuItem() { MenuItemText = "View Assessments", MenuItemURL = "AssessmentList" });
             }
             //Assessments of the logged in user
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Students"))

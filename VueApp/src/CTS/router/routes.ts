@@ -1,6 +1,9 @@
 import ViperLayout from '@/layouts/ViperLayout.vue'
 import ViperLayoutSimple from '@/layouts/ViperLayoutSimple.vue'
 
+const viperURL = import.meta.env.VITE_VIPER_HOME
+const ctsBreadcrumbs = [{ url: viperURL + "CTS", name: "Return to CTS 2.0" }]
+
 const routes = [
     {
         path: '/CTS/',
@@ -10,13 +13,13 @@ const routes = [
     },
     {
         path: '/CTS/Home',
-        meta: { layout: ViperLayoutSimple },
+        meta: { layout: ViperLayout},
         component: () => import('@/CTS/pages/CtsHome.vue'),
     },
     /* Assessments */
     {
         path: '/CTS/EPA',
-        meta: { layout: ViperLayoutSimple },
+        meta: { layout: ViperLayoutSimple, breadcrumbs: ctsBreadcrumbs },
         component: () => import('@/CTS/pages/AssessmentEpa.vue'),
     },
     {
@@ -28,7 +31,7 @@ const routes = [
     {
         path: '/CTS/AssessmentEpaEdit',
         name: 'AssessmentEpaEdit',
-        meta: { layout: ViperLayoutSimple },
+        meta: { layout: ViperLayoutSimple, breadcrumbs: ctsBreadcrumbs },
         component: () => import('@/CTS/pages/AssessmentEpaEdit.vue'),
     },
     /* Application Management */
@@ -52,6 +55,12 @@ const routes = [
         name: 'Audit Log',
         meta: { layout: ViperLayout },
         component: () => import('@/CTS/pages/AuditList.vue'),
+    },
+    {
+        path: '/CTS/Test',
+        name: 'Test Page',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/TestPage.vue'),
     },
     {
         path: '/:catchAll(.*)*',

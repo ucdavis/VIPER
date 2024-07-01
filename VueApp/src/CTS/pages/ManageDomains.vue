@@ -6,7 +6,7 @@
         description: string
     }
     import type { Ref } from "vue"
-    import { ref } from "vue"
+    import { ref, inject } from "vue"
     import { useFetch } from '@/composables/ViperFetch'
 
     const domain = ref({
@@ -16,7 +16,7 @@
         description: '',
     }) as Ref<DomainData>
     const domains = ref([]) as Ref<DomainData[]>
-    const baseUrl = import.meta.env.VITE_API_URL + "cts/domains"
+    const baseUrl = inject('apiURL') + "cts/domains"
 
     async function getDomains() {
         const { get } = useFetch()

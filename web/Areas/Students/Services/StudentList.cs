@@ -16,8 +16,8 @@ namespace Viper.Areas.Students.Services
         public async Task<List<Student>> GetStudents(string? classLevel = null, int? classYear = null, bool currentYearsOnly = true,
                 bool includeRoss = true, bool activeYearOnly = true)
         {
-            var termCodeService = new TermCode(_context);
-            int termCode = termCodeService.GetTerms(current: true).First().TermCode;
+            var termCodeService = new TermCodeService(_context);
+            int termCode = (await termCodeService.GetTerms(current: true)).First().TermCode;
             if (!string.IsNullOrEmpty(classLevel))
             {
                 var gradYearFromClassLevel = GradYearClassLevel.GetGradYear(classLevel, termCode);
@@ -31,6 +31,7 @@ namespace Viper.Areas.Students.Services
                 }
             }
 
+            List<int> activeClassYear = await termCodeService.GetActiveClassYears(termCode);
             var q = _context.StudentClassYears
                 .Include(q => q.ClassYearLeftReason)
                 .Include(q => q.Student)
@@ -53,7 +54,6 @@ namespace Viper.Areas.Students.Services
 			}
             if(currentYearsOnly)
             {
-                List<int> activeClassYear = termCodeService.GetActiveClassYears(termCode);
                 q = q.Where(q => activeClassYear.Contains(q.ClassYear));
             }
 
@@ -61,10 +61,15 @@ namespace Viper.Areas.Students.Services
                 .OrderBy(q => q.Student == null ? "" : q.Student.LastName)
                 .ThenBy(q => q.Student == null ? "" : q.Student.FirstName)
                 .ThenBy(q => q.Student == null ? 0 : q.Student.PersonId)
-                .ThenBy(q => q.Active ? 0 : 1)
+                .ThenBy(q => q.Active ? 1 : 0)
                 .ThenBy(q => q.ClassYear);
                 
-            return CreateStudentListFromStudentGradYears(await q.ToListAsync(), activeYearOnly: activeYearOnly);
+            var studentList = CreateStudentListFromStudentGradYears(await q.ToListAsync(), activeYearOnly: activeYearOnly);
+            foreach(var s in studentList)
+            {
+                s.CurrentClassYear = s.ClassYear != null && activeClassYear.Contains((int)s.ClassYear);
+            }
+            return studentList;
         }
 
         public async Task<List<Student>> GetStudentsByTermCodeAndClassLevel(int termCode, string classLevel)
@@ -113,7 +118,8 @@ namespace Viper.Areas.Students.Services
                         MiddleName = std.Student.MiddleName,
                         FullName = std.Student.FullName,
                         ClassLevel = std.Student?.StudentInfo?.ClassLevel,
-                        ClassYear = std.ClassYear
+                        ClassYear = std.ClassYear,
+                        Active = std?.Student?.Current == 1 || std?.Student?.Future == 1
 				    };
 					if (!activeYearOnly)
                     {

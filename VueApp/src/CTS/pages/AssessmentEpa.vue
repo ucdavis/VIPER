@@ -109,7 +109,9 @@
                         <StudentSelect @studentChange="(s : number) => selectedStudentId = s"
                                        selectedFilter="Service"
                                        :serviceId="serviceId"
-                                       :clearStudent="clearStudent" />
+                                       :clearStudent="clearStudent"
+                                       :borderless="true"
+                                       :outlined="false"/>
                     </div>
                 </div>
                 <!--Show form once student is selected-->

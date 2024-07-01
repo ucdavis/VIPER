@@ -1,8 +1,18 @@
-
 <script setup lang="ts">
-    import { ref } from 'vue'
+    import { defineProps, ref } from 'vue'
+    import type { PropType } from 'vue'
     import { useUserStore } from '@/store/UserStore'
     import ProfilePic from '@/layouts/ProfilePic.vue'
+
+    export type BreadCrumb = {
+        url: string,
+        name: string,
+    }
+    const props = defineProps({
+        breadcrumbs: {
+            type: Array as PropType<BreadCrumb[]>
+        },
+    })
 
     const userStore = useUserStore()
     const clearEmulationHref = ref(import.meta.env.VITE_VIPER_HOME + "ClearEmulation")
@@ -12,6 +22,7 @@
 
 <template>
     <q-layout view="hHh lpr fff">
+        {{props}}
         <q-header elevated id="simplifiedLayoutHeader" height-hint="98" class="bg-white text-dark">
             <div v-show="false" id="headerPlaceholder">
                 <a href="/"><img src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg" alt="UC Davis Veterinary Medicine logo" border="0" width="134" height="24"></a>
@@ -31,12 +42,20 @@
             <q-toolbar v-cloak>
                 <q-btn flat dense label="Viper 2.0" class="lt-md" :href="viperHome"></q-btn>
 
-                <q-btn flat dense no-caps class="gt-sm" :href="viperHome">
-                    <a href="/"><img src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg" alt="UC Davis Veterinary Medicine logo" border="0" width="201" height="36"></a>
+                <a href="/"><img src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg" alt="UC Davis Veterinary Medicine logo" border="0" width="201" height="36"></a>
+                <q-btn flat dense no-caps class="gt-sm self-end" :href="viperHome">
                     <span class="mainLayoutViper">VIPER 2.0</span>
                     <span v-if="environment == 'DEVELOPMENT'" class="mainLayoutViperMode">Development</span>
                     <span v-if="environment == 'TEST'" class="mainLayoutViperMode">Test</span>
                 </q-btn>
+
+                <div class="breadcrumbs self-end q-ml-lg q-pb-xs row">
+                    <span v-for="(breadcrumb, index) in props?.breadcrumbs" :key="breadcrumb.url">
+                        <RouterLink v-if="breadcrumb?.url?.length" :to="breadcrumb.url">{{ breadcrumb.name }}</RouterLink>
+                        <span v-else>{{ breadcrumb.name }}</span>
+                        <span v-if="props?.breadcrumbs != undefined && index < props?.breadcrumbs.length - 1" class="q-px-sm">&gt;</span>
+                    </span>
+                </div>
 
                 <q-banner v-if="userStore.isEmulating" dense rounded inline-actions class="bg-warning text-black q-ml-lg">
                     <strong>EMULATING:</strong>
