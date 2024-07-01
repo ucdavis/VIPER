@@ -2,7 +2,7 @@ import ViperLayout from '@/layouts/ViperLayout.vue'
 import ViperLayoutSimple from '@/layouts/ViperLayoutSimple.vue'
 
 const viperURL = import.meta.env.VITE_VIPER_HOME
-const ctsBreadcrumbs = [{ url: "CTS", name: "Return to CTS 2.0" }]
+const ctsBreadcrumbs = [{ url: "Home", name: "Return to CTS 2.0" }]
 
 const routes = [
     {
