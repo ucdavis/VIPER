@@ -7,7 +7,7 @@ const ctsBreadcrumbs = [{ url: viperURL + "CTS", name: "Return to CTS 2.0" }]
 const routes = [
     {
         path: '/CTS/',
-        meta: { layout: ViperLayoutSimple, allowUnAuth: true },
+        meta: { layout: ViperLayout, allowUnAuth: true },
         component: () => import('@/CTS/pages/CtsHome.vue'),
         name: "CtsHome"
     },
