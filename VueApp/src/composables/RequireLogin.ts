@@ -13,8 +13,6 @@ export default function useRequireLogin(to: RouteLocationNormalized) {
         const router = useRouter()
         const allowUnAuth = to.matched.some(record => record.meta.allowUnAuth)
 
-        console.log(allowUnAuth, userStore, to)
-
         //note that this only checks authentication, not authorization. server side functions should validate authorization before returning data.
         if (allowUnAuth || userStore.isLoggedIn) {
             return true;

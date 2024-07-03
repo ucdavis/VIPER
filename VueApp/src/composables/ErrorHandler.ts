@@ -9,5 +9,12 @@ export function useGenericErrorHandler() {
         errors.value.push(error)
         errorStore.setError(errors.value.join(','))
     }
-    return { errors, handleError }
+
+    function handleAuthError(status: number) {
+        const errorStore = useErrorStore()
+        errorStore.setError(status == 401 ? "Error: not logged in." : "Error: Access Denied.")
+        errorStore.setStatus(status)
+    }
+
+    return { errors, handleError, handleAuthError }
 }
