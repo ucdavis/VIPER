@@ -3,6 +3,7 @@
     import type { PropType } from 'vue'
     import { useUserStore } from '@/store/UserStore'
     import ProfilePic from '@/layouts/ProfilePic.vue'
+    import SessionTimeout from '@/components/SessionTimeout.vue'
 
     export type BreadCrumb = {
         url: string,
@@ -69,7 +70,7 @@
         </q-header>
 
         <q-page-container id="mainLayoutBody">
-            <div class="q-pa-md" v-cloak>
+            <div class="q-pa-md" v-cloak v-show="userStore.isLoggedIn">
                 <router-view></router-view>
             </div>
         </q-page-container>
@@ -105,5 +106,6 @@
             </div>
         </q-footer>
 
+        <SessionTimeout/>
     </q-layout>
 </template>

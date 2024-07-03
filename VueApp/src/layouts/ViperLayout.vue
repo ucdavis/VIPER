@@ -37,16 +37,16 @@
                 <q-space></q-space>
 
                 <!--
-                @*Don't show the search until it does something*@
-                @if (HttpHelper.Environment?.EnvironmentName == "Development")
-                {
-                <q-input rounded dense standout dark v-model="searchText" label="Search" bg-color="white" label-color="black" class="q-pa-xs">
-                    <template v-slot:append>
-                        <q-icon name="search" color="black"></q-icon>
-                    </template>
-                </q-input>
-                }
-                    -->
+            @*Don't show the search until it does something*@
+            @if (HttpHelper.Environment?.EnvironmentName == "Development")
+            {
+            <q-input rounded dense standout dark v-model="searchText" label="Search" bg-color="white" label-color="black" class="q-pa-xs">
+                <template v-slot:append>
+                    <q-icon name="search" color="black"></q-icon>
+                </template>
+            </q-input>
+            }
+                -->
                 <ProfilePic></ProfilePic>
             </q-toolbar>
 
@@ -60,7 +60,7 @@
                  @drawer-change="handleDrawerChange"></LeftNav>
 
         <q-page-container id="mainLayoutBody">
-            <div class="q-pa-md" v-cloak>
+            <div class="q-pa-md" v-cloak v-show="userStore.isLoggedIn">
                 <router-view></router-view>
             </div>
         </q-page-container>
@@ -93,6 +93,7 @@
                 </div>
             </div>
         </q-footer>
+        <SessionTimeout />
     </q-layout>
 </template>
 <script lang="ts">
@@ -102,6 +103,7 @@
     import MainNav from '@/layouts/MainNav.vue'
     import MiniNav from '@/layouts/MiniNav.vue'
     import ProfilePic from '@/layouts/ProfilePic.vue'
+    import SessionTimeout from '@/components/SessionTimeout.vue'
     export default {
         name: 'ViperLayout',
         setup() {
