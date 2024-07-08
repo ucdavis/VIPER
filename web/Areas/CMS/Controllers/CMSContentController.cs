@@ -8,8 +8,8 @@ using Web.Authorization;
 
 namespace Viper.Areas.CMS.Controllers
 {
-    [Route("CMS/content")]
-    [Permission(Allow = "SVMSecure.CMS")]
+    //NOTE: no controller-wide permissions being checked because CMS content can be publically accessible
+    [Route("/api/CMS/content")]
     public class CMSContentController : ApiController
     {
         private readonly VIPERContext _context;
@@ -31,6 +31,19 @@ namespace Viper.Areas.CMS.Controllers
                 return NotFound();
             }
             return new Data.CMS().GetContentBlocks()?.ToList() ?? new List<ContentBlock>();
+        }
+
+        //GET: content/fn/{friendlyName}
+        [HttpGet("fn/{friendlyName}")]
+        public ActionResult<ContentBlock?> GetContentBlockByFn(string friendlyName)
+        {
+            var blocks = new Data.CMS().GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, null);
+            if(blocks == null || !blocks.Any())
+            {
+                return NotFound();
+            }
+
+            return blocks.First();
         }
 
         //PUT: content/5
