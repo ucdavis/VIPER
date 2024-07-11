@@ -5,7 +5,7 @@
     import { useFetch } from '@/composables/ViperFetch'
     import type { Epa, Level, ServiceSelect, Student, StudentEpaFormData } from '@/CTS/types'
     import { useDateFunctions } from '@/composables/DateFunctions'
-    import StudentSelect from '@/CTS/components/StudentSelect.vue'
+    import StudentSelect from '@/components/StudentSelect.vue'
     import ServiceSelectBox from '@/CTS/components/ServiceSelect.vue'
     import LevelSelect from '@/CTS/components/LevelSelect.vue'
 

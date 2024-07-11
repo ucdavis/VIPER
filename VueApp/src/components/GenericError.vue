@@ -1,12 +1,19 @@
 <template>
     <q-dialog v-model="showError" 
-              @hide="hide" v-cloak auto-close
+              @hide="hide" v-cloak auto-close full-width backdrop-filter="brightness(50%)"
               position="top">
-        <q-banner>
+        <q-banner class="text-center">
             <template v-slot:avatar>
                 <q-icon name="error" color="red" />
             </template>
             {{ errorMessage }}
+            <span v-if="showLogin">
+                Your session may have expired. 
+                <a :href="loginUrl" target="_blank">
+                    Click to log in, and then try your action again.
+                    <q-icon name="launch"></q-icon>
+                </a>
+            </span>
         </q-banner>
     </q-dialog>
 </template>
@@ -19,15 +26,17 @@
     export default defineComponent({
         name: "GenericError",
         setup() {
-            const { errorMessage } = storeToRefs(useErrorStore())
+            const { errorMessage, status } = storeToRefs(useErrorStore())
             const showErrorMessage = computed(() => errorMessage != null
                 && errorMessage.value != null
                 && errorMessage.value.length > 0)
-            return { showErrorMessage, errorMessage }
+            const loginUrl = import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + window.location.pathname
+            return { showErrorMessage, errorMessage, status, loginUrl }
         },
         data() {
             return {
-                showError: ref(false)
+                showError: ref(false),
+                showLogin: ref(false)
             }
         },
         methods: {
@@ -39,6 +48,7 @@
         watch: {
             showErrorMessage: function (v) {
                 this.showError = this.showErrorMessage
+                this.showLogin = this.status !== undefined
             }
         }
     })

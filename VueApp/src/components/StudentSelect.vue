@@ -294,11 +294,11 @@
             <q-btn-toggle v-model="studentOptionsType" push toggle-color="primary" toggle-text-color="white" no-caps
                           :options="studentOptions">
                 <template v-slot:class-of>
-                    <div class="row items-center no-wrap">
+                    <div class="row items-center no-wrap" v-if="studentOptionsType == 'Class of'">
                         <!--v-if="studentOptionsType == 'Class of'"-->
                         <q-select v-model="selectedClassYear" dense options-dense right
-                                  :options="classYearOptions" emit-value class="q-ml-sm" label-color="white" color="white" dark
-                                  >
+                                  :options="classYearOptions" emit-value class="q-ml-sm q-py-none" input-class="q-py-none"
+                                  label-color="white" color="white" dark>
                             <template v-if="selectedClassYear" v-slot:append>
                                 <q-icon name="cancel" @click.stop.prevent="selectedClassYear = null" class="cursor-pointer" size="sm" />
                             </template>

@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import routes from './routes'
-import { useUserStore } from '@/store/UserStore'
+import useRequireLogin from '@/composables/RequireLogin'
 
 const baseUrl = import.meta.env.VITE_VIPER_HOME
 const router = createRouter({
@@ -10,17 +10,8 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-    const userStore = useUserStore()
-    if (!(to.matched.some(record => record.meta.allowUnAuth)) && !userStore.isLoggedIn) {
-        return {
-            name: "CtsHome",
-            query: {
-                sendBackTo: to.fullPath
-            }
-        }
-    }
-   
-    return true
+    const { requireLogin } = useRequireLogin(to)
+    return requireLogin()
 })
 
 export default router

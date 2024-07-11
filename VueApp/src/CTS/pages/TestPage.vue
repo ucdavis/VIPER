@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import StudentSelect from '@/CTS/components/StudentSelect.vue'
+    import StudentSelect from '@/components/StudentSelect.vue'
 </script>
 
 <template>

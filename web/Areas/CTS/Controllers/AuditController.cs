@@ -31,7 +31,7 @@ namespace Viper.Areas.CTS.Controllers
         {
             var audit = context.CtsAudits
                 .Include(a => a.Encounter)
-                    .ThenInclude(e => e.Student)
+                    .ThenInclude(e => e!.Student)
                 .Include(a => a.Modifier)
                 .AsQueryable();
             if (area != null)

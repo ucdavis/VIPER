@@ -31,6 +31,14 @@ export function useFetch() {
         errors = []
     }
 
+    class AuthError extends Error {
+        constructor(message: string, status: number) {
+            super(message)
+            this.status = status
+        }
+        status = 0
+    }
+
     async function get(url: string = "", options: any = {}): Promise<Result> {
         options.method = "GET"
         addHeader(options, "Content-Type", "application / json")
@@ -102,8 +110,13 @@ export function useFetch() {
             })
             //catch errors, including those thrown by handleViperFetchError
             .catch(e => {
-                errorHandler.handleError(e)
-                errors = errorHandler.errors.value
+                if (e?.status !== undefined) {
+                    errorHandler.handleAuthError(e.status)
+                }
+                else {
+                    errorHandler.handleError(e)
+                    errors = errorHandler.errors.value
+                }
             })
         const resultObj: Result = {
             result: result,
@@ -111,7 +124,7 @@ export function useFetch() {
             success: errors.length == 0,
             pagination: null
         }
-        if (result.pagination) {
+        if (result && result.pagination) {
             resultObj.pagination = result.pagination
             resultObj.result = result.result
         }
@@ -119,22 +132,35 @@ export function useFetch() {
     }
 
     async function handleViperFetchError(response: any) {
+        //handle 4XX and 5XX errors
         if (!response.ok) {
             let result = null
             let message = ""
+            let isAuthError = false
             try {
-                result = await response.json()
-                message = result.errorMessage != null
-                    ? result.errorMessage
-                    : result.detail != null
-                        ? result.detail
-                        : result.statusText
+                if (response.status == 401 || response.status == 403) {
+                    isAuthError = true
+                }
+                else {
+                    result = await response.json()
+                    message = result.errorMessage != null
+                        ? result.errorMessage
+                        : result.detail != null
+                            ? result.detail
+                            : result.statusText
+                }
             }
             catch (e) {
                 throw Error("An error occurred")
             }
-            throw new ValidationError(message, result?.errors)
+            if (!isAuthError) {
+                throw new ValidationError(message, result?.errors)
+            }
+            else {
+                throw new AuthError("Auth Error", response.status)
+            }
         }
+
         return response
     }
 

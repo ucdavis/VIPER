@@ -35,7 +35,7 @@ namespace Viper.Areas.Students.Services
             var q = _context.StudentClassYears
                 .Include(q => q.ClassYearLeftReason)
                 .Include(q => q.Student)
-                .ThenInclude(q => q.StudentInfo)
+                .ThenInclude(q => q!.StudentInfo)
                 .Where(q => includeRoss || !q.Ross);
 
             if (activeYearOnly)
