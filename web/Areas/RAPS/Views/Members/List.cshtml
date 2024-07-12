@@ -96,11 +96,16 @@
                 if(includeInactive) {
                     this.includeInactive = includeInactive
                 }
+
+                var urlSearch = this.urlParams.get("search")
                 var userSearch = getItemFromStorage("RAPS_userSearch_userSearch")
-                if(userSearch) {
-                    this.userSearch = userSearch
-                    this.findUsers()
+                if(urlSearch) {
+                    this.userSearch = urlSearch
                 }
+                else if (userSearch) {
+                    this.userSearch = userSearch
+                }
+                this.findUsers()
             },
             watch: {
                 userSearch: {

@@ -9,6 +9,7 @@ using Viper.Classes;
 using System.Runtime.Versioning;
 using Microsoft.AspNetCore.Mvc.Filters;
 using System.Data;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -85,19 +86,6 @@ namespace Viper.Areas.RAPS.Controllers
                 "VIPERFORMS" => await Task.Run(() => Redirect(string.Format("~/raps/ViperForms/rolelist"))),
                 _ => await Task.Run(() => View("~/Views/Home/403.cshtml")),
             };
-
-
-            //var data = await _RAPSContext.TblRoles.ToListAsync();
-            //var skipList = new List<string> { "Description" };
-            //var altColumnNames = new List<Tuple<string, string>> { new Tuple<string, string>("ViewName","Viewer") };
-
-            //ViewData["Columns"] = VueTableDefaultViewComponent.GetDefaultColumnNames(data, skipList, altColumnNames);
-            //ViewData["Rows"] = VueTableDefaultViewComponent.GetDefaultRows(data, skipList);
-            //ViewData["VisibleColumns"] = VueTableDefaultViewComponent.GetDefaultVisibleColumns(data, skipList);
-
-            //return _RAPSContext.TblRoles != null ?
-            //            View("~/Areas/RAPS/Views/Index.cshtml", data) :
-            //            Problem("Entity set 'RAPSContext.TblRoles'  is null.");}
         }
 
         public async Task<NavMenu> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER", string page = "")
