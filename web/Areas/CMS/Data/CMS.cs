@@ -67,7 +67,8 @@ namespace Viper.Areas.CMS.Data
             UserHelper = new UserHelper();
         }
 
-        public CMS(VIPERContext viperContext, RAPSContext rapsContext) {
+        public CMS(VIPERContext viperContext, RAPSContext rapsContext)
+        {
             this._viperContext = viperContext;
             this._rapsContext = rapsContext;
             UserHelper = new UserHelper();
@@ -93,7 +94,7 @@ namespace Viper.Areas.CMS.Data
             var blocks = GetContentBlocks(contentBlockID, friendlyName, system, viperSectionPath, page, blockOrder, allowPublicAccess, status);
 
             AaudUser? currentUser = UserHelper.GetCurrentUser();
-            List<ContentBlock> goodBlocks = new();  
+            List<ContentBlock> goodBlocks = new();
 
             if (blocks != null && currentUser != null && _rapsContext != null)
             {
@@ -112,6 +113,10 @@ namespace Viper.Areas.CMS.Data
 
                 }
 
+                if(goodBlocks.Any())
+                {
+                    Sanitize(goodBlocks);
+                }
                 return goodBlocks;
 
             }
@@ -134,7 +139,7 @@ namespace Viper.Areas.CMS.Data
         /// <param name="status"></param>
         /// <returns>List of blocks</returns>
         public IEnumerable<ContentBlock>? GetContentBlocks(int? contentBlockId = null, string? friendlyName = null, string? system = null,
-            string? viperSectionPath = null, string? page = null, int? blockOrder = null, 
+            string? viperSectionPath = null, string? page = null, int? blockOrder = null,
             bool? allowPublicAccess = null, int? status = null)
         {
             // get blocks based on paramenters
@@ -157,6 +162,7 @@ namespace Viper.Areas.CMS.Data
 
             if (blocks != null)
             {
+                Sanitize(blocks);
                 Policy policy = Policy.GetInstance("antisamy-cms.xml");
                 var antiSamy = new AntiSamy();
 
@@ -176,6 +182,19 @@ namespace Viper.Areas.CMS.Data
         }
         #endregion
 
+        public void Sanitize(IEnumerable<ContentBlock> blocks)
+        {
+            Policy policy = Policy.GetInstance("antisamy-cms.xml");
+            var antiSamy = new AntiSamy();
+
+            foreach (var b in blocks)
+            {
+                // sanitize content
+                CleanResults results = antiSamy.Scan(b.Content, policy);
+                b.Content = results.GetCleanHtml();
+            }
+        }
+
         #region public CMSFile? GetFile(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name)
         /// <summary>
         /// Returns the first file that matches the parameters past (or null)
@@ -192,7 +211,7 @@ namespace Viper.Areas.CMS.Data
             var files = GetFiles(fileGUID, oldURL, friendlyName, folder, name);
 
             return files?.FirstOrDefault();
-            
+
         }
         #endregion
 
@@ -268,9 +287,9 @@ namespace Viper.Areas.CMS.Data
                     .Where(f => f.AllowPublicAccess.Equals(isPublic) || isPublic == null)
                     .Where(c => (string.IsNullOrEmpty(status) || (c.DeletedOn == null && status.ToLower() != "active") || (c.DeletedOn != null && status.ToLower() == "active")))
                     .Where(f => f.Encrypted.Equals(encrypted) || encrypted == null)
-                    .Where(f => (string.IsNullOrEmpty(search) || f.FriendlyName.Contains(search, StringComparison.OrdinalIgnoreCase) || 
+                    .Where(f => (string.IsNullOrEmpty(search) || f.FriendlyName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                         f.Description.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                        string.IsNullOrEmpty(f.OldUrl) ? string.IsNullOrEmpty(search) : f.OldUrl.Contains(search, StringComparison.OrdinalIgnoreCase) || 
+                        string.IsNullOrEmpty(f.OldUrl) ? string.IsNullOrEmpty(search) : f.OldUrl.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                         f.FilePath.Contains(search, StringComparison.OrdinalIgnoreCase)))
                 .OrderBy(c => c.FriendlyName)
                 .AsSplitQuery()
@@ -313,7 +332,7 @@ namespace Viper.Areas.CMS.Data
                 Uri url = new(thisRequest.GetDisplayUrl());
                 rootURL = url.Scheme + Uri.SchemeDelimiter + url.Host;
             }
-            
+
             return rootURL + (allowPublicAccess ? @"/public" : "") + @"/cms/files/?fn=" + WebUtility.UrlEncode(friendlyName);
         }
         #endregion
@@ -356,7 +375,7 @@ namespace Viper.Areas.CMS.Data
         {
             string filePath = file.FilePath;
             string rootFolder = GetRootFileFolder();
-            
+
             if (!filePath.StartsWith(rootFolder))
             {
                 string endPath = filePath[(filePath.IndexOf(@"\Files", StringComparison.OrdinalIgnoreCase) + 6)..];
@@ -373,7 +392,7 @@ namespace Viper.Areas.CMS.Data
         /// <param name="filePath"></param>
         /// <returns></returns>
         public string FilePathToWebPath(string filePath)
-        {            
+        {
             return filePath.Replace(GetRootFileFolder(), "").Replace(@"\", @"/");
         }
         #endregion
@@ -383,7 +402,7 @@ namespace Viper.Areas.CMS.Data
         {
             AaudUser? currentUser = UserHelper.GetCurrentUser();
 
-            if (_rapsContext !!= null && currentUser != null)
+            if (_rapsContext! != null && currentUser != null)
             {
                 if (file.AllowPublicAccess ||
                     (file.FileToPermissions.Count == 0 && UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure")) ||
@@ -417,7 +436,7 @@ namespace Viper.Areas.CMS.Data
             List<CMSFile> files = new();
             AaudUser? currentUser = UserHelper.GetCurrentUser();
 
-            foreach(var guid in fileGUIDs)
+            foreach (var guid in fileGUIDs)
             {
                 CMSFile? file = GetFile(guid, null, null, null, null);
 
@@ -471,7 +490,7 @@ namespace Viper.Areas.CMS.Data
             string extension = "zip";
 
             return controller.File(bytes, MimeTypes[extension.ToLower()], fileName);
-           
+
         }
         #endregion
 

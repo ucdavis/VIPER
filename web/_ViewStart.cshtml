@@ -1,4 +1,5 @@
 ﻿@{
-    // Set the dault layout 
-    Layout = "_VIPERLayout"; // located in Views/Shared
+    // Set the layout 
+    string? layout = ViewData["VIPERLayout"] as string;
+    Layout = layout ?? "_VIPERLayout"; // located in Views/Shared
 }

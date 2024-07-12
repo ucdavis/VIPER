@@ -1,0 +1,10 @@
+﻿@{
+    var html = ViewData["html"] as string;
+}
+
+<h2>CTS Home</h2>
+
+@if (html != null) { Html.Raw(html); }
+<script asp-asp-add-nonce="true">
+    
+</script>

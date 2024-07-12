@@ -7,8 +7,10 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.FileProviders;
 using Newtonsoft.Json;
 using NLog;
 using NLog.Web;
@@ -48,7 +50,7 @@ try
         // AWS Configurations
         AWSOptions awsOptions = new()
         {
-            Region = RegionEndpoint.USWest1            
+            Region = RegionEndpoint.USWest1
         };
         /*
         if(builder.Environment.EnvironmentName == "Test")
@@ -97,7 +99,8 @@ try
 
     // Cross site request forgery security
     // For AJAX calls be sure to set the header name to this value and pass the antiforgery token
-    builder.Services.AddAntiforgery(options => {
+    builder.Services.AddAntiforgery(options =>
+    {
         options.HeaderName = "X-CSRF-TOKEN";
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         options.Cookie.Name = "VIPER.Antiforgery";
@@ -164,12 +167,16 @@ try
     });
 
 
-    // TODO Check to see if we can automatically build these from the connectionstrings section of appSettings
-    // Define DATABASE Context from Connection Strings and Enviromental Variables
     builder.Services.AddDbContext<AAUDContext>();
     builder.Services.AddDbContext<CoursesContext>();
     builder.Services.AddDbContext<RAPSContext>();
-    builder.Services.AddDbContext<VIPERContext>();
+    builder.Services.AddDbContext<VIPERContext>(opt =>
+    {
+        if (builder.Environment.EnvironmentName != "Production")
+        {
+            opt.EnableDetailedErrors(true);
+        }
+    });
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
@@ -217,7 +224,7 @@ try
             .From("secure.vetmed.ucdavis.edu")
             .From("secure-test.vetmed.ucdavis.edu")
             .From("*.vetmed.ucdavis.edu")
-            .From("http://localhost");
+            .From("http://localhost");//viper1 typically runs on http on developer machines
 
         csp.AllowPlugins
             .FromNowhere(); // Plugins not allowed
@@ -243,7 +250,43 @@ try
     }
 
     app.UseSitemapMiddleware();
-    app.UseStaticFiles(); // allow static file serving
+
+    var baseUrl = app.Environment.IsDevelopment() ? "" : "2/";
+    RewriteOptions rewriteOptions = new RewriteOptions()
+                .AddRewrite(@"(?i)^CTS", "/vue/src/cts/index.html", true)
+                .AddRewrite(@"(?i)^CTS2", "/2/vue/src/cts/index.html", true)
+                .AddRewrite(@"(?i)^TEST", "/raps/VIPER/rolelist", true)
+                .AddRewrite(@"(?i)^TEST", "/raps/VIPER/permissionlist", true)
+                .AddRewrite(@"(?i)^AnotherTest", "/raps/VIPER/UserClone", true);
+    app.UseRewriter(rewriteOptions);
+
+    //for the vue src files, use directories in the url but serve index.html
+    app.UseDefaultFiles(new DefaultFilesOptions
+    {
+        DefaultFileNames = new List<string> { "index.html" },
+        FileProvider = new PhysicalFileProvider(
+            Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
+        RequestPath = "/vue",
+        RedirectToAppendTrailingSlash = true
+    });
+
+    // allow static file serving
+    if (app.Environment.IsDevelopment())
+    {
+        //In development, make sure files can be found when the vue app
+        //uses /2/vue/....
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(
+            Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
+            RequestPath = "/2/vue"
+        });
+        app.UseStaticFiles();
+    }
+    else
+    {
+        app.UseStaticFiles();
+    }
 
     // apply settings define earlier
     app.UseRouting();
@@ -253,7 +296,7 @@ try
     app.UseSession();
 
     // Define the default route mapping and require authentication by default (fail safe)
-    #pragma warning disable ASP0014
+#pragma warning disable ASP0014
     app.UseEndpoints(endpoints =>
     {
         endpoints.MapControllerRoute(
@@ -267,7 +310,7 @@ try
         // DefaultPolicy not applied, as authorization not required
         //endpoints.MapHealthChecks("/public");
     });
-    #pragma warning restore ASP0014
+#pragma warning restore ASP0014
 
     // Setup the memory cache so we can use it via a simple static method
     HttpHelper.Configure(app.Services.GetService<IMemoryCache>(), app.Services.GetService<IConfiguration>(), app.Environment, app.Services.GetService<IHttpContextAccessor>(), app.Services.GetService<IAuthorizationService>(), app.Services.GetService<IDataProtectionProvider>());
