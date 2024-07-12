@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.DirectoryServices;
 using System.DirectoryServices.Protocols;
 using System.Linq.Dynamic.Core;
@@ -29,9 +30,10 @@ namespace Viper.Areas.Directory.Models
         public string UcdStudentSid { get; set; } = null!;
         public string UcdPersonPidm { get; set; } = null!;
         public string EmployeeNumber { get; set; } = null!;
-        public string UcdPersonUuid { get; set; } = null!;
-        public string UcdPersonIamId { get; set; } = null!;
+        public string MothraId { get; set; } = null!;
+        public string IamId { get; set; } = null!;
         public string UcdPersonAffiliation { get; set; } = null!;
+        public string originalObject { get; set; } = null!;
 
         /*
             
@@ -297,9 +299,11 @@ namespace Viper.Areas.Directory.Models
 
         public LdapUserContact(SearchResultEntry entry)
         {
+            var or = new List<string>();
             foreach (DirectoryAttribute attr in entry.Attributes.Values)
             {
                 var v = attr[0];
+                or.Add(attr.Name + "=" + v.ToString());
                 switch (attr.Name)
                 {
                     case "uid": Uid = v.ToString(); break;
@@ -309,7 +313,7 @@ namespace Viper.Areas.Directory.Models
 
                     case "givenName": GivenName = v.ToString(); break;
                     case "middleName": MiddleName = v.ToString(); break;
-                    case "displayName": DisplayName = v.ToString(); break;
+                    case "displayname": DisplayName = v.ToString(); break;
                     case "eduPersonNickname": EduPersonNickname = v.ToString(); break;
 
                     case "title": Title = v.ToString(); break;
@@ -318,18 +322,18 @@ namespace Viper.Areas.Directory.Models
                     case "mobile": Mobile = v.ToString(); break;
                     case "mail": Mail = v.ToString(); break;
 
+                    case "employeeNumber": EmployeeNumber = v.ToString(); break;
                     case "ucdStudentLevel": UcdStudentLevel = v.ToString(); break;
                     case "ucdStudentSID": UcdStudentSid = v.ToString(); break;
                     case "ucdPersonPIDM": UcdPersonPidm = v.ToString(); break;
-                    case "employeeNumber": EmployeeNumber = v.ToString(); break;
-                    case "ucdPersonUUID": UcdPersonUuid = v.ToString(); break;
-                    case "ucdPersonIAMID": UcdPersonIamId = v.ToString(); break;
+                    case "ucdPersonUUID": MothraId = v.ToString(); break;
+                    case "ucdPersonIAMID": IamId = v.ToString(); break;
                     case "ucdPersonAffiliation": UcdPersonAffiliation = v.ToString(); break;
 
                     default: break;
                 }
-
             }
+            originalObject = string.Join(",", or);
         }
     }
 }

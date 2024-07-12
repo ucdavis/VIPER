@@ -1,0 +1,88 @@
+#directory_results {
+    background-color: #fff;
+}
+
+.directory {
+    font-size: 12px;
+    background-color: #f8f8f8;
+    border: 2px solid #fff;
+    border-radius: 7px;
+    box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+    padding: 0;
+    overflow: clip;
+}
+
+.directory .row {
+    padding: 0;
+}
+.directory .col {
+    padding: 8px;
+    display: block;
+}
+.directory .ids, .directory .tools {
+    padding: 8px;
+}
+    .directory .contact div, .directory .ids div, .directory .tools div {
+        flex: 0 0 95%;
+    }
+.directory .contact {
+    margin-top: 1em;
+}
+.directory div {
+}
+.directory .card_header {
+    background-color: #adb5bd; 
+}
+.directory .SVM {
+    background-color: #1D4776;
+}
+
+.directory .photo {
+    width: 87px;
+    min-width: 87px;
+    max-width: 87px !important;
+    padding: 2px;
+    margin: 0;
+}
+
+.directory .photo_avatar {
+    min-width: 87px;
+    width: 87px;
+    max-width: 87px;
+    min-height: 111px;
+    height: 111px;
+    max-height: 111px;
+    border: 1px solid #fff;
+}
+
+.directory h1, .directory h2, .directory h3, .directory h4, .directory h5, .directory h6, .directory h7, .directory h8 { line-height: 1.5; margin: 0; padding: 0; }
+.directory h1 {
+    font-size: 15px;
+    font-weight: 600;
+}
+.directory h2 {
+    font-size: 12px;
+    font-weight: 400;
+}
+.directory h3 {
+    font-size: 12px;
+}
+.directory h4 {
+    font-size: 11px;
+    color: #868e96;
+    font-weight: bold;
+}
+.directory h5 {
+    font-size: 10px;
+}
+.directory .userinfo_button, .directory .email_button {
+    color: #fff;
+    padding: 8px;
+}
+.directory .emulate_button {
+    color: #fff;
+    border: none;
+}
+.directory .emulate_button:before {
+    box-shadow: none;
+}

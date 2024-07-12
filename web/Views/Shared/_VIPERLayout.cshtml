@@ -12,6 +12,12 @@
 
     <title>@ViewData["Title"] - VIPER(2.0)</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @if (HttpHelper.HttpContext != null && HttpHelper.HttpContext.Request.Path.ToString().Contains("/directory/"))
+        {
+        <text>
+            <link rel="stylesheet" href="~/css/directory.css" asp-append-version="true" />
+        </text>
+    }
     @if (HttpHelper.Environment?.EnvironmentName != "Production")
     {
         <text>

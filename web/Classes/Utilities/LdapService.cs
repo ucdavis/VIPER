@@ -79,9 +79,9 @@ namespace Viper.Classes.Utilities
             foreach (SearchResultEntry entry in results.Entries)
             {
                 var user = new LdapUserContact(entry);
-                if (user.UcdPersonUuid != null)
+                if (user.MothraId != null)
                 {
-                    users.Add(user.UcdPersonUuid, user);
+                    users.Add(user.MothraId, user);
                 }
             }
             return users;
@@ -139,9 +139,9 @@ namespace Viper.Classes.Utilities
             foreach (SearchResultEntry entry in results.Entries)
             {
                 var user = new LdapUserContact(entry);
-                if (user.UcdPersonUuid != null)
+                if (user.MothraId != null)
                 {
-                    users.Add(user.UcdPersonUuid, user);
+                    users.Add(user.MothraId, user);
                 }
             }
             return users;

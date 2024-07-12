@@ -80,6 +80,7 @@ namespace Viper.Areas.Directory.Models
         [SupportedOSPlatform("windows")]
         private static void AddLdapContact(IndividualSearchResult indiv, LdapUserContact ldapUserContact)
         {
+            indiv.originalObject = System.Text.Json.JsonSerializer.Serialize(ldapUserContact);
             indiv.Title = ldapUserContact.Title;
             indiv.Department = ldapUserContact.Ou;
             indiv.Phone = ldapUserContact.TelephoneNumber;
