@@ -125,7 +125,7 @@ namespace Viper.Areas.Directory.Controllers
             bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
             foreach (var l in ldap)
             {
-                AaudUser? userInfo = individuals.Find(m => m.IamId == l.UcdPersonIamId);
+                AaudUser? userInfo = individuals.Find(m => m.IamId == l.IamId);
                 results.Add(hasDetailPermission
                     ? new IndividualSearchResultWithIDs(userInfo, l)
                     : new IndividualSearchResult(userInfo, l));

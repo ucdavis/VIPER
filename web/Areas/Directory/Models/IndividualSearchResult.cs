@@ -10,7 +10,6 @@ namespace Viper.Areas.Directory.Models
     {
         public string ClientId { get; set; } = string.Empty;
         public string MothraId { get; set; } = string.Empty;
-        public string UCDPersonUUID { get; set; } = string.Empty;
         public string? LoginId { get; set; } = string.Empty;
         public string? MailId { get; set; } = string.Empty;
         public string? EmailHost { get; set; } = string.Empty;
@@ -86,14 +85,19 @@ namespace Viper.Areas.Directory.Models
             }
             if (ldapUserContact != null)
             {
+                // displayname=Francisco Javier Acosta,ucdPersonAffiliation=student:undergraduate,ucdPersonUUID=02198608,mail=facosta@ucdavis.edu,ucdPersonPIDM=3817514,ucdStudentSID=921084299,sn=Acosta,givenName=Francisco,employeeNumber=10665044,ucdStudentLevel=Sophomore,title=STDT 2,ucdPersonIAMID=1000459572,uid=fcobay04,ou=STUDENT HOUSING DINING SVCS
+                DisplayFullName = ldapUserContact.DisplayName;
+                FirstName = ldapUserContact.GivenName;
+                MiddleName = ldapUserContact.MiddleName;
+                LastName = ldapUserContact.Sn;
                 Title = ldapUserContact.Title;
-                //Department = ldapUserContact.Department;
+                Department = ldapUserContact.Ou;
                 Phone = ldapUserContact.TelephoneNumber;
                 Mobile = ldapUserContact.Mobile;
+                MailId = ldapUserContact.Mail;
                 UserName = ldapUserContact.Uid;
                 PostalAddress = (ldapUserContact.PostalAddress ?? "").Replace("$", '\n'.ToString());
                 UCDAffiliation = ldapUserContact.UcdPersonAffiliation;
-                UCDPersonUUID = ldapUserContact.UcdPersonUuid;
                 if (string.IsNullOrEmpty(DisplayFullName))
                 {
                     DisplayFullName = ldapUserContact.DisplayName;
@@ -102,15 +106,24 @@ namespace Viper.Areas.Directory.Models
                 {
                     Name = ldapUserContact.DisplayName;
                 }
+                originalObject = ldapUserContact.originalObject;
             }
+
 
             using (var context = new Classes.SQLContext.AAUDContext())
             {
-                var query = $"SELECT * FROM OPENQUERY(UCDMothra,'SELECT (USERPART || ''@'' || HOSTPART) AS USERATHOST FROM MOTHRA.MAILIDS WHERE MOTHRAID = ''{MothraId}'' AND MAILID = ''{MailId}'' AND MAILSTATUS = ''A'' AND MAILTYPE = ''P''')".ToString();
-                var results = context.Database.SqlQuery<string>(FormattableStringFactory.Create(query)).ToList();
-                foreach (var r in results)
+                if (MailId != null)
                 {
-                    EmailHost = r.Split("@").Last();
+                    var split_mailid = MailId.Split('@');
+                    if (split_mailid.Length > 0)
+                    {
+                        var query = $"SELECT * FROM OPENQUERY(UCDMothra,'SELECT (USERPART || ''@'' || HOSTPART) AS USERATHOST FROM MOTHRA.MAILIDS WHERE MAILID = ''{split_mailid[0]}'' AND MAILSTATUS = ''A'' AND MAILTYPE = ''P''')".ToString();
+                        var results = context.Database.SqlQuery<string>(FormattableStringFactory.Create(query)).ToList();
+                        foreach (var r in results)
+                        {
+                            EmailHost = r.Split("@").Last();
+                        }
+                    }
                 }
             }
         }
