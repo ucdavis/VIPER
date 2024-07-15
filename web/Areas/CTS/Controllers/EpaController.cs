@@ -1,6 +1,8 @@
-﻿using Ganss.Xss;
+﻿using AngleSharp.Dom;
+using Ganss.Xss;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Polly;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
@@ -25,12 +27,17 @@ namespace Viper.Areas.CTS.Controllers
         public async Task<ActionResult<List<Epa>>> GetEpas(int? serviceId)
         {
             var epas = await context.Epas
+                .AsNoTracking()
                 .Include(e => e.Services)
                 .Where(e => serviceId == null || e.Services.Any(s => s.ServiceId == serviceId))
                 .OrderBy(e => e.Name)
                 .ToListAsync();
-
-            epas.ForEach(e => e.Description = e.Description != null ? sanitizer.Sanitize(e.Description) : null);
+            
+            epas.ForEach(e =>
+            {
+                e.Description = e.Description != null ? sanitizer.Sanitize(e.Description) : null;
+                e.Services = e.Services.OrderBy(s => s.ServiceName).ToList();
+            });
 
             return epas;
         }
@@ -39,14 +46,16 @@ namespace Viper.Areas.CTS.Controllers
         public async Task<ActionResult<Epa>> GetEpa(int epaId)
         {
             var epa = await context.Epas
+                .AsNoTracking()
                 .Include(e => e.Services)
                 .Where(e => e.EpaId == epaId)
                 .FirstOrDefaultAsync();
-            if(epa == null)
+            if (epa == null)
             {
                 return NotFound();
             }
             epa.Description = epa.Description != null ? sanitizer.Sanitize(epa.Description) : null;
+            epa.Services = epa.Services.OrderBy(s => s.ServiceName).ToList();
             return epa;
         }
 
@@ -67,7 +76,7 @@ namespace Viper.Areas.CTS.Controllers
         [Permission(Allow = "SVMSecure.CTS.Manage")]
         public async Task<ActionResult<Epa>> UpdateEpa(int epaId, Epa epa)
         {
-            if(epaId != epa.EpaId)
+            if (epaId != epa.EpaId)
             {
                 return BadRequest();
             }
@@ -86,7 +95,7 @@ namespace Viper.Areas.CTS.Controllers
         public async Task<ActionResult<Epa>> DeleteEpa(int epaId)
         {
             var epa = await context.Epas.FindAsync(epaId);
-            if(epa == null)
+            if (epa == null)
             {
                 return NotFound();
             }
@@ -96,7 +105,7 @@ namespace Viper.Areas.CTS.Controllers
                 context.Entry(epa).State = EntityState.Deleted;
                 await context.SaveChangesAsync();
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return BadRequest(ex.Message);
             }
@@ -115,16 +124,17 @@ namespace Viper.Areas.CTS.Controllers
             {
                 return NotFound();
             }
-            
+
             int removed = epa.Services.RemoveAll(s => !serviceIds.Contains(s.ServiceId));
             bool modified = removed > 0;
 
             //look for services to add
-            foreach (var serviceId in serviceIds) {
-                if(epa.Services.Find(e => e.ServiceId == serviceId) == null)
+            foreach (var serviceId in serviceIds)
+            {
+                if (epa.Services.Find(e => e.ServiceId == serviceId) == null)
                 {
                     var s = await context.Services.FindAsync(serviceId);
-                    if(s != null)
+                    if (s != null)
                     {
                         epa.Services.Add(s);
                         modified = true;
@@ -132,7 +142,7 @@ namespace Viper.Areas.CTS.Controllers
                 }
             }
 
-            if(modified)
+            if (modified)
             {
                 context.Entry(epa).State = EntityState.Modified;
             }

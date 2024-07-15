@@ -1,4 +1,5 @@
 <template>
+    <div id="pageTop"></div>
     <q-layout view="hHh lpR fFf">
         <q-header elevated id="mainLayoutHeader" height-hint="98" v-cloak>
             <div v-show="false" id="headerPlaceholder">

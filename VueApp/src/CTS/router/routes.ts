@@ -62,6 +62,13 @@ const routes = [
         meta: { layout: ViperLayout },
         component: () => import('@/CTS/pages/TestPage.vue'),
     },
+    /* Reports */
+    {
+        path: '/CTS/AssessmentChart',
+        name: 'AssessmentCharts',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/AssessmentChart.vue'),
+    },
     {
         path: '/:catchAll(.*)*',
         meta: { layout: ViperLayout },
