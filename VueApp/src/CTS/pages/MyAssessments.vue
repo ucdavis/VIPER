@@ -15,7 +15,7 @@
         CategoryScale,
         LinearScale,
     } from 'chart.js/auto'
-    import { Bar, Line } from 'vue-chartjs'
+    import { Line } from 'vue-chartjs'
     import type { ChartData, Point } from 'chart.js'
 
     const apiUrl = inject('apiURL')
