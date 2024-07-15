@@ -63,7 +63,7 @@
         const p = createUrlSearchParams({
             "serviceId": searchForm.value.service?.serviceId,
             "enteredById": searchForm.value.enteredBy?.personId,
-            "studentId": searchForm.value.student?.personId,
+            "studentUserId": searchForm.value.student?.personId,
             "dateFrom": searchForm.value.dateFrom,
             "dateTo": searchForm.value.dateTo,
         })
@@ -166,7 +166,7 @@
              :rows-per-page-options="[5, 10, 15, 25, 50, 100]"
              :filter="filter"
              :loading="loading"
-            @request="loadAssessmentRows">
+             @request="loadAssessmentRows">
         <template v-slot:top-right>
             <q-input borderless dense debounce="300" v-model="filter" placeholder="Search">
                 <template v-slot:append>
@@ -182,6 +182,11 @@
                              v-slot:default="props">
                     <q-btn color="primary" square flat icon="edit" title="Edit EPA" />
                 </router-link>
+            </q-td>
+        </template>
+        <template v-slot:body-cell-studentName="props">
+            <q-td :props="props">
+                <RouterLink :to="'MyAssessments?student=' + props.row.studentUserId">{{ props.row.studentName }}</RouterLink>
             </q-td>
         </template>
         <template v-slot:body-cell-level="props">

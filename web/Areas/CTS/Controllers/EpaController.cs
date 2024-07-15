@@ -24,13 +24,14 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Epa>>> GetEpas(int? serviceId)
+        public async Task<ActionResult<List<Models.Epa>>> GetEpas(int? serviceId)
         {
             var epas = await context.Epas
                 .AsNoTracking()
                 .Include(e => e.Services)
                 .Where(e => serviceId == null || e.Services.Any(s => s.ServiceId == serviceId))
                 .OrderBy(e => e.Name)
+                .Select(e => new Models.Epa(e))
                 .ToListAsync();
             
             epas.ForEach(e =>
@@ -43,12 +44,13 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpGet("{epaId}")]
-        public async Task<ActionResult<Epa>> GetEpa(int epaId)
+        public async Task<ActionResult<Models.Epa>> GetEpa(int epaId)
         {
             var epa = await context.Epas
                 .AsNoTracking()
                 .Include(e => e.Services)
                 .Where(e => e.EpaId == epaId)
+                .Select(e => new Models.Epa(e))
                 .FirstOrDefaultAsync();
             if (epa == null)
             {

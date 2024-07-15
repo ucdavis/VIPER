@@ -13,8 +13,15 @@ const routes = [
     },
     {
         path: '/CTS/Home',
-        meta: { layout: ViperLayout},
+        meta: { layout: ViperLayout },
         component: () => import('@/CTS/pages/CtsHome.vue'),
+    },
+    /* Student pages */
+    {
+        path: '/CTS/MyAssessments',
+        name: 'MyAssessments',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/MyAssessments.vue'),
     },
     /* Assessments */
     {

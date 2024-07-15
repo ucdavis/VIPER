@@ -30,7 +30,7 @@ namespace Viper.Areas.CTS.Controllers
         /// Generic assessment get with params - note that this returns StudentAssessments of derived types
         /// </summary>
         /// <param name="type"></param>
-        /// <param name="studentId"></param>
+        /// <param name="studentUserId"></param>
         /// <param name="enteredById"></param>
         /// <param name="serviceId"></param>
         /// <param name="epaId"></param>
@@ -40,11 +40,11 @@ namespace Viper.Areas.CTS.Controllers
         [HttpGet]
         [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical")]
         [ApiPagination(DefaultPerPage = 100, MaxPerPage = 100)]
-        public async Task<ActionResult<List<StudentAssessment>>> GetAssessments(int? type, int? studentId, int? enteredById, int? serviceId,
+        public async Task<ActionResult<List<StudentAssessment>>> GetAssessments(int? type, int? studentUserId, int? enteredById, int? serviceId,
             int? epaId, DateOnly? dateFrom, DateOnly? dateTo, ApiPagination? pagination,
             string? sortBy = null, bool descending = false)
         {
-            if (!ctsSecurityService.CheckStudentAssessmentViewAccess(studentId, enteredById))
+            if (!ctsSecurityService.CheckStudentAssessmentViewAccess(studentUserId, enteredById))
             {
                 return Forbid();
             }
@@ -61,9 +61,9 @@ namespace Viper.Areas.CTS.Controllers
             {
                 assessments = assessments.Where(e => e.EncounterType == type);
             }
-            if (studentId != null)
+            if (studentUserId != null)
             {
-                assessments = assessments.Where(e => e.StudentUserId == studentId);
+                assessments = assessments.Where(e => e.StudentUserId == studentUserId);
             }
             if (enteredById != null)
             {

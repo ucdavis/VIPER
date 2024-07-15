@@ -11,7 +11,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
     const { requireLogin } = useRequireLogin(to)
-    return requireLogin()
+    return requireLogin(true, "SVMSecure.CTS")
 })
 
 export default router
