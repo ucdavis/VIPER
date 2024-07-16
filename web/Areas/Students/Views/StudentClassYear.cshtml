@@ -44,7 +44,7 @@
 			</q-item-label>
 			<q-item dense v-ripple v-for="student in students">
 				<q-item-section avatar>
-					<q-avatar style="width:87px;height:111px;" square>
+					<q-avatar square>
 						<img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?altphoto=1&mailId=' + student.mailId" class="smallPhoto" />
 					</q-avatar>
 				</q-item-section>
