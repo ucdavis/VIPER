@@ -76,7 +76,7 @@
 					this.students = []
 					this.noStudentsFound = false
 					if (this.term?.value && this.classLevel?.value) {
-						this.students = await viperFetch(this, "dvm/byTermAndClassLevel/" + this.term.value + "/" + this.classLevel.value)
+						this.students = await viperFetch(this, "/api/students/dvm/byTermAndClassLevel/" + this.term.value + "/" + this.classLevel.value)
 						if (this.students.length == 0) {
 							this.noStudentsFound = true
 						}
@@ -84,7 +84,7 @@
 				},
 				importStudents: async function() {
 					await viperFetch(this,
-						"dvm/" + this.classYear + "/import",
+						"/api/students/dvm/" + this.classYear + "/import",
 						{
 							method: "POST",
 							body: JSON.stringify(this.selectedStudents),
