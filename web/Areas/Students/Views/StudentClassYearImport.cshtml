@@ -31,7 +31,7 @@
                     <q-checkbox v-model="selectedStudents" :val="student.personId" :disable="student.classYears.length != 0"></q-checkbox>
                 </q-item-section>
                 <q-item-section avatar>
-                    <q-avatar style="width:87px;height:111px;" square>
+                    <q-avatar square>
                         <img :src="'https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?altphoto=1&mailId=' + student.mailId" class="smallPhoto" />
                     </q-avatar>
                 </q-item-section>

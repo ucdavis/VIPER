@@ -243,6 +243,11 @@ body {
 }
 
 .q-avatar .smallPhoto {
+    height: 40px !important;
+    width: 31px !important;
+}
+
+div#directoryResults .q-avatar {
     height: 111px !important;
     width: 87px !important;
 }
