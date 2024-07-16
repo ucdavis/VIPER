@@ -37,8 +37,9 @@ namespace Viper.Areas.Directory.Models
                 UnexId = aaudUser.UnexId;
                 MothraId = aaudUser.MothraId;
                 IamId = aaudUser.IamId;
-            }
-            else if(ldapUserContact != null)
+                MivId = aaudUser.MivId;
+        }
+        else if(ldapUserContact != null)
             {
                 Title = ldapUserContact.Title;
                 Department = ldapUserContact.Ou;

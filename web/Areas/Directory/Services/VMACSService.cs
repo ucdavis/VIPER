@@ -26,7 +26,8 @@ namespace Viper.Areas.Directory.Services
         /// <returns></returns>
         public static async Task<VMACSQuery?> Search (String? loginID)
         {
-			string request = $"/trust/query.xml?dbfile=3&index=CampusLoginId&find={loginID}&format=CHRIS4&AUTH=06232005".ToString();
+			
+            string request = $"/trust/query.xml?dbfile=3&index=CampusLoginId&find={loginID}&format=CHRIS4&AUTH=06232005".ToString();
             using HttpResponseMessage response = await sharedClient.GetAsync(request);
             if (response.IsSuccessStatusCode == false){
                 return null;
@@ -38,7 +39,7 @@ namespace Viper.Areas.Directory.Services
                 var serializer = new XmlSerializer(typeof(VMACSQuery));
                 //return Encoding.ASCII.GetString(stream.ToArray());
                 var vmacs_api = (VMACSQuery?)serializer.Deserialize(stream);
-                if (vmacs_api != null && vmacs_api.item != null && vmacs_api.item.Nextel != null)
+                if (vmacs_api != null && vmacs_api.item != null)
                 {
                     return vmacs_api;
                 }

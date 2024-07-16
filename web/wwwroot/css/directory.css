@@ -25,6 +25,16 @@
     .directory .contact div, .directory .ids div, .directory .tools div {
         flex: 0 0 95%;
     }
+        .directory .ids div {
+            font-weight: bold;
+        }
+        .directory .ids div span {
+            font-weight: normal;
+            display: inline-block;
+            width: 85px;
+            text-align: right;
+            margin-right: 0;
+        }
 .directory .contact {
     margin-top: 1em;
 }
@@ -43,6 +53,7 @@
     max-width: 87px !important;
     padding: 2px;
     margin: 0;
+    margin-top: 22px;
 }
 
 .directory .photo_avatar {
@@ -75,14 +86,15 @@
 .directory h5 {
     font-size: 10px;
 }
-.directory .userinfo_button, .directory .email_button {
-    color: #fff;
-    padding: 8px;
-}
-.directory .emulate_button {
-    color: #fff;
-    border: none;
-}
-.directory .emulate_button:before {
-    box-shadow: none;
-}
+    .directory .top_button {
+        color: #fff;
+        text-align: center;
+        line-height: 40px;
+        height: 40px;
+        width: 12%;
+        max-width: 40px;
+        color: #a4b5c8;
+    }
+    .directory .top_button:hover {
+        color: #fff;
+    }
