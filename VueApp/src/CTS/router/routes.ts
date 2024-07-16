@@ -13,8 +13,15 @@ const routes = [
     },
     {
         path: '/CTS/Home',
-        meta: { layout: ViperLayout},
+        meta: { layout: ViperLayout },
         component: () => import('@/CTS/pages/CtsHome.vue'),
+    },
+    /* Student pages */
+    {
+        path: '/CTS/MyAssessments',
+        name: 'MyAssessments',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/MyAssessments.vue'),
     },
     /* Assessments */
     {
@@ -61,6 +68,13 @@ const routes = [
         name: 'Test Page',
         meta: { layout: ViperLayout },
         component: () => import('@/CTS/pages/TestPage.vue'),
+    },
+    /* Reports */
+    {
+        path: '/CTS/AssessmentChart',
+        name: 'AssessmentCharts',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/AssessmentChart.vue'),
     },
     {
         path: '/:catchAll(.*)*',

@@ -49,7 +49,7 @@ namespace Viper.Areas.CTS.Services
                 nav.Add(new NavMenuItem() { MenuItemText = "Audit Log", MenuItemURL = "Audit" });
 
                 nav.Add(new NavMenuItem() { MenuItemText = "Reports", IsHeader = true });
-                nav.Add(new NavMenuItem() { MenuItemText = "Assessment Charts", MenuItemURL = "AssessmentCharts" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Assessment Charts", MenuItemURL = "AssessmentChart" });
             }
 
             return new NavMenu("Competency Tracking System", nav);

@@ -242,7 +242,12 @@ body {
     margin: .0rem 0rem .5rem 0rem;
 }
 
-.q-avatar .smallPhoto, v#directoryResults .q-avatar {
+.q-avatar .smallPhoto {
+    height: 40px !important;
+    width: 31px !important;
+}
+
+div#directoryResults .q-avatar {
     height: 111px !important;
     width: 87px !important;
 }

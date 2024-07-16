@@ -2,7 +2,7 @@
     import type { Ref } from "vue"
     import { ref, inject } from "vue"
     import { useFetch } from '@/composables/ViperFetch'
-    import type { Epa, Service } from '@/CTS/types'    
+    import type { Epa, Service } from '@/CTS/types'
 
     const showForm = ref(false)
     const epas = ref([]) as Ref<Epa[]>
@@ -15,7 +15,7 @@
     async function getServices() {
         const { get } = useFetch()
         const r = await get(serviceUrl)
-        services.value = r.result.map((r : any) => ({ label: r.serviceName, value: r.serviceId }))
+        services.value = r.result.map((r: any) => ({ label: r.serviceName, value: r.serviceId }))
     }
     async function getEpas() {
         const { get } = useFetch()
@@ -27,18 +27,21 @@
         epa.value = e
         epaServices.value = epa.value.services.map(s => s.serviceId)
         showForm.value = true
+        window.scrollTo(0, 0)
     }
     async function submitEpa() {
         const { put, post } = useFetch()
         let { services: _, ...epaObj } = epa.value
-        let r = { success: false, result: null}
+        let r = { success: false, result: null as Epa | null }
         if (epa.value?.epaId) {
             r = await put(epaUrl + "/" + epa.value.epaId, epaObj)
         }
         else {
             epaObj.epaId = 0
             r = await post(epaUrl, epaObj)
-            epa.value.epaId = r.result
+            if (r.result != null) {
+                epa.value.epaId = r.result.epaId
+            }
         }
 
         if (r.success) {
@@ -68,7 +71,7 @@
 <template>
     <q-form @submit="submitEpa" v-if="showForm" class="q-mb-md">
         <h2>{{ epa.epaId ? 'Updating EPA' : 'Creating EPA' }}</h2>
-        
+
         <div class="row">
             <q-input outlined dense type="text" label="Name" v-model="epa.name" class="col col-lg-6"></q-input>
         </div>
@@ -139,9 +142,11 @@
             <!--v-html - this is sanitized in EpaController-->
             <q-item-section top class="text-dark col-12 col-md-6 col-lg-4" v-html="epa.description"></q-item-section>
             <q-item-section top class="text-dark col-12 col-md-6 col-lg-3">
-                <span v-for="epaService in epa.services">
-                    {{epaService.serviceName}}
-                </span>
+                <q-expansion-item expand-separator :label="epa.services.length + ' services'">
+                    <span v-for="epaService in epa.services">
+                        {{epaService.serviceName}}<br />
+                    </span>
+                </q-expansion-item>
             </q-item-section>
         </q-item>
     </q-list>

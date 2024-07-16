@@ -44,7 +44,7 @@
 			</q-item-label>
 			<q-item dense v-ripple v-for="student in students">
 				<q-item-section avatar>
-					<q-avatar>
+					<q-avatar square>
 						<img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?altphoto=1&mailId=' + student.mailId" class="smallPhoto" />
 					</q-avatar>
 				</q-item-section>
@@ -87,7 +87,8 @@
 			methods: {
 				getStudents: async function () {
 					if (this.classYear?.value) {
-						this.students = await viperFetch(this, "dvm/?classYear=" + this.classYear.value + "&includeAllClassYears=" + !this.activeOnly)
+						var u = "@Url.Content("~/api/students/dvm/?classYear=")" + this.classYear.value + "&includeAllClassYears=" + !this.activeOnly
+						this.students = await viperFetch(this, u)
 					}
 				},
 				clear: function () {
@@ -101,8 +102,9 @@
 					this.showForm = true
 				},
 				submitStudentClassYear: async function() {
+					var u = "@Url.Content("~/api/students/dvm/")" + this.studentClassYear.classYear + "/" + this.studentClassYear.personId
 					await viperFetch(this,
-						"dvm/" + this.studentClassYear.classYear + "/" + this.studentClassYear.personId,
+						u,
 						{
 							method: "PUT",
 							body: JSON.stringify(this.studentClassYear),
@@ -112,9 +114,10 @@
 					this.getStudents()
 					this.clear()
 				},
-				deleteStudentClassYear: async function() {
+				deleteStudentClassYear: async function () {
+					var u = "@Url.Content("~/api/students/dvm/studentClassYears/")" + this.studentClassYear.studentClassYearId
 					await viperFetch(this,
-						"dvm/studentClassYears/" + this.studentClassYear.studentClassYearId,
+						u,
 						{
 							method: "DELETE",
 							headers: { "Content-Type": "application/json" }
@@ -138,12 +141,12 @@
 				for (var i = new Date().getFullYear() + 4; i >= 2016; i--){
 					this.classYearOptions.push({label: "Class of " + i, value: i})
 				}
-				viperFetch(this, "/curriculum/terms")
+				viperFetch(this, "@Url.Content("~/curriculum/terms")")
 					.then(data => {
 						this.terms = data
 							.map(t => ({ label: t.description, value: t.termCode }))
 					})
-				viperFetch(this, "dvm/leftReasons")
+				viperFetch(this, "@Url.Content("~/api/students/dvm/leftReasons")")
 					.then(data => {
 						this.reasons = data
 							.map(r => ({ label: r.reason, value: r.classYearLeftReasonId }))

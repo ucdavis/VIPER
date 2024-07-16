@@ -222,14 +222,19 @@
 
     //filter students - start with whatever student population is currently selected and then filter on name
     function studentSearch(val: string, update: any, abort: any) {
+        if (students == null) {
+            getStudents()
+        }
         if (val === '') {
             update(() => getStudents())
             return
         }
         update(() => {
             const s = val.toLowerCase()
-            students.value = allStudents.value
-                .filter(v => (v.firstName.toLowerCase() + v.lastName.toLowerCase()).indexOf(s) > -1)
+            if (students.value != null) {
+                students.value = students.value
+                    .filter(v => (v.firstName.toLowerCase() + v.lastName.toLowerCase()).indexOf(s) > -1)
+            }
         })
     }
     watch(props, () => {
@@ -276,13 +281,13 @@
                 <template v-slot:option="std">
                     <q-item v-bind="std.itemProps">
                         <!--
-                <q-item-section avatar>
-                    <q-avatar rounded>
-                        <q-img :src="photoBaseUrl + std.opt.mailId +'&altphoto=1'"
-                               class="smallPhoto" loading="eager" no-spinner="true"></q-img>
-                    </q-avatar>
-                </q-item-section>
-                -->
+                        <q-item-section avatar>
+                            <q-avatar rounded>
+                                <q-img :src="photoBaseUrl + std.opt.mailId +'&altphoto=1'"
+                                       class="smallPhoto" loading="eager" no-spinner="true"></q-img>
+                            </q-avatar>
+                        </q-item-section>
+                        -->
                         <q-item-section>
                             <q-item-label>{{std.opt.lastName}}, {{std.opt.firstName}}</q-item-label>
                         </q-item-section>
