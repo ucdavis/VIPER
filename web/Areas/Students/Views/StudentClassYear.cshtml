@@ -44,7 +44,7 @@
 			</q-item-label>
 			<q-item dense v-ripple v-for="student in students">
 				<q-item-section avatar>
-					<q-avatar>
+					<q-avatar style="width:87px;height:111px;" square>
 						<img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?altphoto=1&mailId=' + student.mailId" class="smallPhoto" />
 					</q-avatar>
 				</q-item-section>
@@ -87,7 +87,7 @@
 			methods: {
 				getStudents: async function () {
 					if (this.classYear?.value) {
-						this.students = await viperFetch(this, "dvm/?classYear=" + this.classYear.value + "&includeAllClassYears=" + !this.activeOnly)
+						this.students = await viperFetch(this, "/api/students/dvm/?classYear=" + this.classYear.value + "&includeAllClassYears=" + !this.activeOnly)
 					}
 				},
 				clear: function () {
@@ -102,7 +102,7 @@
 				},
 				submitStudentClassYear: async function() {
 					await viperFetch(this,
-						"dvm/" + this.studentClassYear.classYear + "/" + this.studentClassYear.personId,
+						"/api/students/dvm/" + this.studentClassYear.classYear + "/" + this.studentClassYear.personId,
 						{
 							method: "PUT",
 							body: JSON.stringify(this.studentClassYear),
@@ -114,7 +114,7 @@
 				},
 				deleteStudentClassYear: async function() {
 					await viperFetch(this,
-						"dvm/studentClassYears/" + this.studentClassYear.studentClassYearId,
+						"/api/students/dvm/studentClassYears/" + this.studentClassYear.studentClassYearId,
 						{
 							method: "DELETE",
 							headers: { "Content-Type": "application/json" }
@@ -143,7 +143,7 @@
 						this.terms = data
 							.map(t => ({ label: t.description, value: t.termCode }))
 					})
-				viperFetch(this, "dvm/leftReasons")
+				viperFetch(this, "/api/students/dvm/leftReasons")
 					.then(data => {
 						this.reasons = data
 							.map(r => ({ label: r.reason, value: r.classYearLeftReasonId }))

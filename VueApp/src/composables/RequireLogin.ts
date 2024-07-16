@@ -6,7 +6,7 @@ import { useRouter, useRoute } from 'vue-router'
 import type { RouteLocationNormalized } from 'vue-router'
 
 export default function useRequireLogin(to: RouteLocationNormalized) {
-    async function requireLogin() {
+    async function requireLogin(loadPermissions: boolean | null = null, permissionPrefix: string | null = null) {
         const baseUrl = inject('apiURL')
         const userStore = useUserStore()
         const route = useRoute()
@@ -35,6 +35,14 @@ export default function useRequireLogin(to: RouteLocationNormalized) {
         else {
             //store the logged in user info
             userStore.loadUser(r.result)
+            if (loadPermissions) {
+                const permissionQueryParam = permissionPrefix != null ? ("?prefix=" + permissionPrefix) : ""
+                const permissionResult = await get(baseUrl + "loggedInUser/permissions" + permissionQueryParam)
+                if (permissionResult.success) {
+                    userStore.setPermissions(permissionResult.result)
+                }
+            }
+
         }
         $q.loading.hide()
 

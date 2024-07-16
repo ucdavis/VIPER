@@ -5,10 +5,10 @@ class userObject {
     mailId = ""
     loginId = ""
     mothraId = ""
-    userId = ""
+    userId = null as number | null
     token = ""
     emulating = false
-
+    permissions = [] as string[]
 }
 export const useUserStore = defineStore('userStore', {
     state: () => ({
@@ -18,14 +18,16 @@ export const useUserStore = defineStore('userStore', {
             mailId: "",
             loginId: "",
             mothraId: "",
-            userId: "",
+            userId: null,
             token: "",
-            emulating: false
-        }
+            emulating: false,
+            permissions: []
+        } as userObject
     }),
     getters: {
         isLoggedIn: (state) => state.userInfo.loginId != "",
-        isEmulating: (state) => state.userInfo.emulating
+        isEmulating: (state) => state.userInfo.emulating,
+        //userPermissions: (state) => state.userInfo.permissions,
     },
     actions: {
         loadUser(payload: userObject) {
@@ -38,13 +40,16 @@ export const useUserStore = defineStore('userStore', {
             this.userInfo.token = payload.token
             this.userInfo.emulating = payload.emulating
         },
+        setPermissions(perms: []) {
+            this.userInfo.permissions = perms
+        },
         clearUser() {
             this.userInfo.firstName = ""
             this.userInfo.lastName = ""
             this.userInfo.mailId = ""
             this.userInfo.loginId = ""
             this.userInfo.mothraId = ""
-            this.userInfo.userId = ""
+            this.userInfo.userId = null
             this.userInfo.token = ""
             this.userInfo.emulating = false
         }

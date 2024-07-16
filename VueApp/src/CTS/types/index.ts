@@ -9,7 +9,27 @@ export type Epa = {
 }
 
 export type Assessment = {
+    AssessmentType: string
+    levelId: number
+    levelName: string
+    levelValue: number
+    comment: string | null
 
+    encounterId: number
+    encounterType: string
+    encounterDate: Date
+    enteredOn: Date
+    editComment: string | null
+
+    studentUserId: number
+    studentName: string
+    studentMailId: string
+    enteredBy: number
+    enteredByName: string
+    editable: boolean | null
+
+    epaId: number | null
+    epaName: string | null
 }
 
 export type StudentEpaFormData = {
