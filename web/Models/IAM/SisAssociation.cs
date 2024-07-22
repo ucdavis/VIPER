@@ -1,6 +1,6 @@
 ﻿namespace Viper.Models.IAM
 {
-    public class SisAssociation
+    public class SisAssociation : IIamData
     {
         public required string IamId { get; set; }
         public string? LevelCode { get; set; }
@@ -16,5 +16,9 @@
         public string? FerpaCode { get; set; }
         public DateTime? CreateDate { get; set; }
         public DateTime? ModifyDate { get; set; }
+        public string? FilterableId
+        {
+            get { return IamId; }
+        }
     }
 }

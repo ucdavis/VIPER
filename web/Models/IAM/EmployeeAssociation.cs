@@ -1,6 +1,6 @@
 ﻿namespace Viper.Models.IAM
 {
-    public class EmployeeAssociation
+    public class EmployeeAssociation : IIamData
     {
         public required string IamId { get; set; }
         public string? DeptCode { get; set; }
@@ -34,5 +34,9 @@
         public DateTime? ModifyDate { get; set; }
         public string? EmplClass { get; set; }
         public string? EmplClassDesc { get; set; }
+        public string? FilterableId
+        {
+            get { return IamId; }
+        }
     }
 }

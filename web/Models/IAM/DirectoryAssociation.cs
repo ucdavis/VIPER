@@ -1,6 +1,6 @@
 ﻿namespace Viper.Models.IAM
 {
-    public class DirectoryAssociation
+    public class DirectoryAssociation : IIamData
     {
         public required string IamId { get; set; }
         public string? DeptCode { get; set; }
@@ -15,5 +15,9 @@
         public string? TitleDisplayName { get; set; }
         public DateTime? CreateDate { get; set; }
         public DateTime? ModifyDate { get; set; }
+        public string? FilterableId
+        {
+            get { return IamId; }
+        }
     }
 }

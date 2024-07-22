@@ -1,6 +1,6 @@
 ﻿namespace Viper.Models.IAM
 {
-    public class CorePerson
+    public class CorePerson : IIamData
     {
         public required string IamId { get; set; }
         public string? MothraId { get; set; }
@@ -27,5 +27,9 @@
         public bool IsExternal { get; set; }
         public string? PrivacyCode { get; set; }
         public DateTime? ModifyDate { get; set; }
+        public string? FilterableId
+        {
+            get { return IamId; }
+        }
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace Viper.Models.IAM
 {
-    public class ContactInfo
+    public class ContactInfo : IIamData
     {
         public required string IamId { get; set; }
         public required string Email { get; set; }
@@ -15,5 +15,9 @@
         public string? WorkCell { get; set; }
         public string? WorkPager { get; set; }
         public string? WorkFax { get; set; }
+        public string? FilterableId
+        {
+            get { return IamId; }
+        }
     }
 }
