@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using NLog.Config;
 using Viper.Areas.CMS.Data;
 using Viper.Classes;
+using Viper.Classes.Utilities;
 using Web.Authorization;
 
 namespace Viper.Areas.Computing.Controllers
@@ -14,14 +16,16 @@ namespace Viper.Areas.Computing.Controllers
     public class ComputingController : AreaController
     {
         private readonly IWebHostEnvironment _environment;
+        private readonly IHttpClientFactory _factory;
         public IUserHelper UserHelper;
 
         public int Count { get; set; }
         public string? UserName { get; set; }
 
-        public ComputingController(IWebHostEnvironment environment)
+        public ComputingController(IWebHostEnvironment environment, IHttpClientFactory factory)
         {
             _environment = environment;
+            _factory = factory;
             UserHelper = new UserHelper();
         }
 
@@ -31,13 +35,6 @@ namespace Viper.Areas.Computing.Controllers
         public IActionResult Index()
         {
             return View("~/Areas/Computing/Views/Index.cshtml");
-        }
-
-        [Authorize(Policy = "2faAuthentication")]
-        [Permission(Allow = "SVMSecure")]
-        public IActionResult Test()
-        {
-            return View();
         }
 
         public override void OnActionExecuting(ActionExecutingContext context)

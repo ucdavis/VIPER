@@ -175,7 +175,7 @@ namespace Viper.Classes.Utilities
             var callList = new List<Tuple<string, NameValueCollection?>>();
             foreach (var iamId in iamIds)
             {
-                callList.Add(new Tuple<string, NameValueCollection?>("iam/people/contactinfo" + iamId, null));
+                callList.Add(new Tuple<string, NameValueCollection?>("iam/people/contactinfo/" + iamId, null));
             }
             return await SendMultiple<ContactInfo>(callList, false);
         }
@@ -246,7 +246,7 @@ namespace Viper.Classes.Utilities
             string? assocRank = null, string? majorCode = null, string? majorName = null)
         {
             var requestParams = new NameValueCollection();
-            if(!string.IsNullOrEmpty(levelCode))
+            if (!string.IsNullOrEmpty(levelCode))
             {
                 requestParams.Add("levelCode", levelCode);
             }
@@ -376,15 +376,17 @@ namespace Viper.Classes.Utilities
                 if (!string.IsNullOrEmpty(t.ErrorMessage))
                 {
                     r.ErrorMessage += (!string.IsNullOrEmpty(r.ErrorMessage) ? ", " : "") + t.ErrorMessage;
-                    if (t.Data != null)
-                    {
-                        r.Data ??= new List<T>();
-                        if (filterToUnique)
-                        {
-                            t.Data = t.Data.Where(d => r.Data.Any(existing => existing.FilterableId == d.FilterableId));
-                        }
-                        r.Data = r.Data.Concat(t.Data);
-                    }
+                }
+
+                r.Data ??= new List<T>();
+
+                if (t.Data != null && filterToUnique)
+                {
+                    t.Data = t.Data.Where(thisResultData => !r.Data.Any(existing => existing.FilterableId == thisResultData.FilterableId)).ToList();
+                }
+                if (t.Data != null)
+                {
+                    r.Data = r.Data.Concat(t.Data).ToList();
                 }
             }
             return r;
