@@ -47,7 +47,6 @@
         },
         watch: {
             showErrorMessage: function (v) {
-                console.log(this.showErrorMessage, this.status)
                 this.showError = this.showErrorMessage
                 this.showLogin = this.status !== undefined && this.status != null
             }
