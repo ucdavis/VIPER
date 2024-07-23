@@ -22,9 +22,14 @@ namespace Viper.Areas.Computing.Services
             List<Task<BiorenderStudent>> resultList = new();
             foreach (var email in emails)
             {
-                if (IsValidEmail(email))
+                var emailTrimmed = email.Trim();
+                if(!emailTrimmed.Contains("@"))
                 {
-                    resultList.Add(GetSingleStudent(email));
+                    emailTrimmed = emailTrimmed + "@ucdavis.edu";
+                }
+                if (IsValidEmail(emailTrimmed))
+                {
+                    resultList.Add(GetSingleStudent(emailTrimmed));
                 }
             }
 
@@ -32,7 +37,7 @@ namespace Viper.Areas.Computing.Services
             List<BiorenderStudent> students = new();
             foreach (var t in taskResults)
             {
-                if(t != null)
+                if (t != null)
                 {
                     students.Add(t);
                 }
@@ -52,7 +57,7 @@ namespace Viper.Areas.Computing.Services
 
             //get iam info by email
             var iamContact = await iam.GetContactInfoByEmail(email);
-            if(iamContact.Data == null || !iamContact.Data.Any())
+            if (iamContact.Data == null || !iamContact.Data.Any())
             {
                 return std;
             }
@@ -60,7 +65,7 @@ namespace Viper.Areas.Computing.Services
 
             //get student associations
             var stdAssoc = await iam.GetSisAssociations(std.IamId);
-            if(stdAssoc.Data != null && stdAssoc.Data.Any())
+            if (stdAssoc.Data != null && stdAssoc.Data.Any())
             {
                 std.StudentAssociations = stdAssoc.Data.ToList();
             }

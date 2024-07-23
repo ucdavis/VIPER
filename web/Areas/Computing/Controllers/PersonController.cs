@@ -39,9 +39,9 @@ namespace Viper.Areas.Computing.Controllers
                 .ToListAsync();
         }
 
-        [HttpGet("biorenderStudents")]
+        [HttpPost("biorenderStudents")]
         [Permission(Allow = "SVMSecure.CATS.BiorenderStudentLookup")]
-        public async Task<ActionResult<List<BiorenderStudent>>> GetBiorenderStudentList([FromQuery] List<string> emails)
+        public async Task<ActionResult<List<BiorenderStudent>>> GetBiorenderStudentList(List<string> emails)
         {
             var list = await new BiorenderStudentLookup(new Classes.Utilities.IamApi(httpFactory))
                 .GetBiorenderStudentInfo(emails);

@@ -148,7 +148,7 @@ namespace Viper.Classes.Utilities
         /// <returns></returns>
         public async Task<Response<ContactInfo>> GetContactInfoByEmail(string email)
         {
-            if (!email.Contains("@"))
+            if (!email.Contains('@'))
             {
                 email += "@ucdavis.edu";
             }

@@ -5,9 +5,30 @@
     import { useFetch } from '@/composables/ViperFetch'
     import { exportTable } from '@/composables/QuasarTableUtilities'
 
+    type StudentAssociation = {
+        collegeName: string | null,
+        majorName: string | null,
+        levelName: string | null,
+        className: string | null
+    }
+
+    type StudentInfo = {
+        email: string | null,
+        iamId: string | null,
+        firstName: string | null,
+        lastName: string | null,
+        studentType: string[] | null,
+        collegeSchool: string[] | null,
+        major: string[] | null,
+        level: string[] | null,
+        studentAssociations: StudentAssociation[] | null,
+        studentAssociationsList: string[] | null
+    }
+
     const emails = ref("") as Ref<string>
-    const rows = ref([]) as Ref<any[]>
+    const rows = ref([]) as Ref<StudentInfo[]>
     const search = ref("")
+    const loading = ref(false)
     const cols: QTableProps['columns'] = [
         { name: "email", label: "Email", field: "email", align: "left" },
         { name: "iamId", label: "Iam Id", field: "iamId", align: "left", sortable: true },
@@ -15,18 +36,23 @@
         { name: "lastName", label: "Last Name", field: "lastName", align: "left", sortable: true },
         { name: "studentType", label: "Student Type", field: "studentType", align: "left", sortable: true },
         { name: "collegeSchool", label: "College / School", field: "collegeSchool", align: "left", sortable: true },
-        { name: "studentAssociations", label: "Student Associations (College/Major/Level/Class)", field: "", align: "left", sortable: true },
+        { name: "major", label: "Major", field: "major", align: "left", sortable: true },
+        { name: "level", label: "Level", field: "level", align: "left", sortable: true },
+        { name: "studentAssociations", label: "Student Associations (College/Major/Level/Class)", field: "studentAssociationsList", align: "left", sortable: true },
     ]
-    const pagination = ref({ page: 1, sortBy: "lastName", descending: true, rowsPerPage: 0 }) as Ref<any>
+    const pagination = ref({ sortBy: "lastName", descending: false, rowsPerPage: 25 }) as Ref<any>
     const stdUrl = inject('apiURL') + "people/biorenderStudents"
 
     async function getData() {
-        const { get } = useFetch()
+        rows.value = []
+        loading.value = true
+
+        const { post } = useFetch()
         const url = new URL(stdUrl, document.baseURI)
         var emailArray = emails.value.split(",")
-        emailArray.forEach(e => url.searchParams.append('emails', e))
-        const r = await get(url.toString())
+        const r = await post(url.toString(), emailArray)
         rows.value = r.result
+        loading.value = false
     }
 
     function exportData() {
@@ -49,7 +75,8 @@
              dense
              v-model:pagination="pagination"
              :filter="search"
-             title="Student Info">
+             title="Student Info"
+             :loading="loading">
         <template v-slot:top-right="props">
             <q-btn dense no-caps label="Export" @click="exportData()" color="primary" class="q-px-md q-mr-md"></q-btn>
             <q-input class="q-ml-xs q-mr-xs" v-model="search" dense outlined debounce="300" placeholder="Filter Results">
@@ -58,22 +85,29 @@
                 </template>
             </q-input>
         </template>
+        <template v-slot:body-cell-studentType="props">
+            <q-td :props="props">
+                <div v-for="s in props.row.studentType">{{s}}</div>
+            </q-td>
+        </template>
+        <template v-slot:body-cell-collegeSchool="props">
+            <q-td :props="props">
+                <div v-for="c in props.row.collegeSchool">{{c}}</div>
+            </q-td>
+        </template>
+        <template v-slot:body-cell-major="props">
+            <q-td :props="props">
+                <div v-for="m in props.row.major">{{m}}</div>
+            </q-td>
+        </template>
+        <template v-slot:body-cell-level="props">
+            <q-td :props="props">
+                <div v-for="l in props.row.level">{{l}}</div>
+            </q-td>
+        </template>
         <template v-slot:body-cell-studentAssociations="props">
             <q-td :props="props">
-                <div v-for="s in props.row.studentAssociations">
-                    {{ s.assocRank }}.
-                    {{ s.collegeCode }}
-                    {{ s.collegeName }}
-                    /
-                    {{ s.majorCode }}
-                    {{ s.majorName }}
-                    /
-                    {{ s.levelCode }}
-                    {{ s.levelName  }}
-                    /
-                    {{ s.classCode  }}
-                    {{ s.className  }}
-                </div>
+                <div v-for="s in props.row.studentAssociationsList">{{s}}</div>
             </q-td>
         </template>
     </q-table>
