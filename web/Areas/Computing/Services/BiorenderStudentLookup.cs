@@ -23,9 +23,9 @@ namespace Viper.Areas.Computing.Services
             foreach (var email in emails)
             {
                 var emailTrimmed = email.Trim();
-                if(!emailTrimmed.Contains("@"))
+                if(!emailTrimmed.Contains('@'))
                 {
-                    emailTrimmed = emailTrimmed + "@ucdavis.edu";
+                    emailTrimmed += "@ucdavis.edu";
                 }
                 if (IsValidEmail(emailTrimmed))
                 {
