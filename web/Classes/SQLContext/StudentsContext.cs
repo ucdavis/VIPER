@@ -8,6 +8,8 @@ public partial class VIPERContext : DbContext
     public DbSet<AaudStudent> AaudStudents { get; set; }
     public DbSet<StudentClassYear> StudentClassYears { get; set; }
     public DbSet<ClassYearLeftReason> ClassYearLeftReasons { get; set; }
+    public DbSet<StudentContact> StudentContacts { get; set; }
+    public DbSet<EmergencyContact> EmergencyContact { get; set; }
 
     partial void OnModelCreatingStudents(ModelBuilder modelBuilder)
     {
@@ -29,6 +31,21 @@ public partial class VIPERContext : DbContext
         {
             entity.ToTable("vwStudents", "students");
             entity.HasKey(e => new { e.TermCode, e.SpridenId });
+        });
+
+        modelBuilder.Entity<StudentContact>(entity =>
+        {
+            entity.ToTable("StudentContact", "students");
+            entity.HasKey(e => e.StdContactId);
+        });
+
+        modelBuilder.Entity<EmergencyContact>(entity =>
+        {
+            entity.ToTable("EmergencyContact", "students");
+            entity.HasKey(e => e.EmContactId);
+            entity.HasOne(e => e.StudentContact)
+                .WithMany(e => e.EmergencyContacts)
+                .HasForeignKey(e => e.StdContactId);
         });
     }
 }
