@@ -87,11 +87,10 @@ namespace Viper.Areas.Directory.Controllers
 
                 var vmsearch = VMACSService.Search(results.Last().LoginId);
                 var vm = vmsearch.Result;
-                if (vm != null && vm.item != null && vm.item.Nextel != null && vm.item.LDPager != null)
-                {
-                    results.Last().Nextel = vm.item.Nextel[0];
-                    results.Last().LDPager = vm.item.LDPager[0];
-                }
+                if (vm != null && vm.item != null && vm.item.Nextel != null) results.Last().Nextel = vm.item.Nextel[0];
+                if (vm != null && vm.item != null && vm.item.LDPager != null) results.Last().LDPager = vm.item.LDPager[0];
+                if (vm != null && vm.item != null && vm.item.Unit != null) results.Last().Department = vm.item.Unit[0];
+
             });
             return results;
         }
@@ -129,7 +128,13 @@ namespace Viper.Areas.Directory.Controllers
                 results.Add(hasDetailPermission
                     ? new IndividualSearchResultWithIDs(userInfo, l)
                     : new IndividualSearchResult(userInfo, l));
-            };
+
+                var vmsearch = VMACSService.Search(results.Last().LoginId);
+                var vm = vmsearch.Result;
+                if (vm != null && vm.item != null && vm.item.Nextel != null) results.Last().Nextel = vm.item.Nextel[0];
+                if (vm != null && vm.item != null && vm.item.LDPager != null) results.Last().LDPager = vm.item.LDPager[0];
+                if (vm != null && vm.item != null && vm.item.Unit != null) results.Last().Department = vm.item.Unit[0];
+        };
             return results;
         }
 

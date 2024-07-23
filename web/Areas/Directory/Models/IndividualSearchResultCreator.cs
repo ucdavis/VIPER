@@ -1,5 +1,6 @@
 ﻿using System.Runtime.Versioning;
 using Viper.Models.AAUD;
+using System.Text.Json;
 
 namespace Viper.Areas.Directory.Models
 {
@@ -40,6 +41,7 @@ namespace Viper.Areas.Directory.Models
 
         private static void AddAaudUser(IndividualSearchResult indiv, AaudUser aaudUser)
         {
+            indiv.originalObject = JsonSerializer.Serialize(aaudUser);
             indiv.MothraId = aaudUser.MothraId;
             indiv.LoginId = aaudUser.LoginId;
             indiv.MailId = aaudUser.MailId;

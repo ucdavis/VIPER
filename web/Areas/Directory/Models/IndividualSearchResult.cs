@@ -11,6 +11,7 @@ namespace Viper.Areas.Directory.Models
         public string ClientId { get; set; } = string.Empty;
         public string MothraId { get; set; } = string.Empty;
         public string? LoginId { get; set; } = string.Empty;
+        public string? Email { get; set; } = string.Empty;
         public string? MailId { get; set; } = string.Empty;
         public string? EmailHost { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
@@ -57,7 +58,8 @@ namespace Viper.Areas.Directory.Models
             if (aaudUser != null) {
                 MothraId = aaudUser.MothraId;
                 LoginId = aaudUser.LoginId;
-                MailId = aaudUser.MailId;
+                Email = aaudUser.MailId;
+                MailId = aaudUser.MailId?.Split("@").First();
                 LastName = aaudUser.LastName;
                 FirstName = aaudUser.FirstName;
                 MiddleName = aaudUser.MiddleName;
@@ -94,7 +96,8 @@ namespace Viper.Areas.Directory.Models
                 Department = ldapUserContact.Ou;
                 Phone = ldapUserContact.TelephoneNumber;
                 Mobile = ldapUserContact.Mobile;
-                MailId = ldapUserContact.Mail;
+                Email = ldapUserContact.Mail;
+                MailId = ldapUserContact.Mail?.Split("@").First();
                 UserName = ldapUserContact.Uid;
                 PostalAddress = (ldapUserContact.PostalAddress ?? "").Replace("$", '\n'.ToString());
                 UCDAffiliation = ldapUserContact.UcdPersonAffiliation;
@@ -114,15 +117,11 @@ namespace Viper.Areas.Directory.Models
             {
                 if (MailId != null)
                 {
-                    var split_mailid = MailId.Split('@');
-                    if (split_mailid.Length > 0)
+                    var query = $"SELECT * FROM OPENQUERY(UCDMothra,'SELECT (USERPART || ''@'' || HOSTPART) AS USERATHOST FROM MOTHRA.MAILIDS WHERE MAILID = ''{MailId}'' AND MAILSTATUS = ''A'' AND MAILTYPE = ''P''')".ToString();
+                    var results = context.Database.SqlQuery<string>(FormattableStringFactory.Create(query)).ToList();
+                    foreach (var r in results)
                     {
-                        var query = $"SELECT * FROM OPENQUERY(UCDMothra,'SELECT (USERPART || ''@'' || HOSTPART) AS USERATHOST FROM MOTHRA.MAILIDS WHERE MAILID = ''{split_mailid[0]}'' AND MAILSTATUS = ''A'' AND MAILTYPE = ''P''')".ToString();
-                        var results = context.Database.SqlQuery<string>(FormattableStringFactory.Create(query)).ToList();
-                        foreach (var r in results)
-                        {
-                            EmailHost = r.Split("@").Last();
-                        }
+                        EmailHost = r.Split("@").Last();
                     }
                 }
             }
