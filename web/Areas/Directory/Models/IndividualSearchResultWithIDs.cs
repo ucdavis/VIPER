@@ -35,9 +35,11 @@ namespace Viper.Areas.Directory.Models
                 EmployeeId = aaudUser.EmployeeId;
                 VmacsId = aaudUser.VmacsId;
                 UnexId = aaudUser.UnexId;
+                MothraId = aaudUser.MothraId;
+                IamId = aaudUser.IamId;
                 MivId = aaudUser.MivId;
-            }
-            else if(ldapUserContact != null)
+        }
+        else if(ldapUserContact != null)
             {
                 Title = ldapUserContact.Title;
                 Department = ldapUserContact.Ou;
@@ -46,7 +48,8 @@ namespace Viper.Areas.Directory.Models
                 UserName = ldapUserContact.Uid;
                 PostalAddress = (ldapUserContact.PostalAddress ?? "").Replace("$", '\n'.ToString());
                 UCDAffiliation = ldapUserContact.UcdPersonAffiliation;
-                UCDPersonUUID = ldapUserContact.UcdPersonUuid;
+                MothraId = ldapUserContact.MothraId;
+                IamId = ldapUserContact.IamId;
                 if (string.IsNullOrEmpty(DisplayFullName))
                 {
                     DisplayFullName = ldapUserContact.DisplayName;

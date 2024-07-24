@@ -32,91 +32,101 @@
     </q-toggle>
     -->
 </q-form>
-
-<div class="row q-pa-sm q-gutter-sm" style="background-color: #fff" id="directoryResults">
-    <q-card v-for="user in results" class="col-2 col-sm-16 col-md-2 col-lg-3 col-xl-2 block { SVM : user.SVM}" style="background-color: #f8f8f8; border: 2px solid #fff; border-radius: 7px; box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;">
-            <q-card-section class="grid row" :style="[user.svm ? {'background-color': '#1D4776'} : {'background-color': '#aaa'}]" style="padding:0; border-right: 1px solid #fff;">
-            <a v-if="user.iamId && user.mothraId" :href="'@HttpHelper.GetOldViperRootURL()/default.cfm?page=userinfo&id='+ user.iamId + '&mothraID=' + user.mothraId"><q-icon name="person" size="xs" style="margin: 0.4rem; color: #fff;"></q-icon></a>
-                <a v-if="user.mailId" :href="'mailto:' + user.mailId + '@@ucdavis.edu'"><q-icon name="email" size="xs" style="margin: 0.4rem; color: #fff;"></q-icon></a>
-                <q-btn icon="assignment_ind" size="xs" dense :href="'/EmulateUser/' + user.loginId" style="margin: 0.4rem; background-color: ; color: #fff;"></q-btn>
-            </q-card-section>
-            <q-card-section class="row">
-                <q-card-section class="col" style="width:87px; min-width: 87px; max-width: 87px; padding: 0;margin: 0;">
-                    <q-avatar size="87px" square style="min-width:87px;width:87px;max-width:87px;min-height:111px;height:111px;max-height:111px;border:1px solid #fff;" class="text-right">
-                        <img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&altphoto=1'" height="40" id="siteProfileAvatar">
-                    </q-avatar>
-                </q-card-section>
-                <q-card-section class="col">
-                    <q-card-section class="row" style="padding:0; display: block;">
-                        <h3 style="font-weight: 600;">
-                            {{user.name}}
-                        </h3>
-                        <h4 style="font-weight: 400;" v-if="user.title">
-                            {{user.title}}
-                        </h4>
-                    </q-card-section>
-                </q-card-section>
-            </q-card-section>
-            <q-card-section class="row">
-                <h6 style="font-weight: 600;" v-if="user.userName">
-                    {{user.userName}}
-                </h6>
-                <h5 style="font-weight: 400;" v-if="user.mailId">
-                    <a href="mailto:{{user.mailId}}@@ucdavis.edu">{{user.mailId}}@@ucdavis.edu</a> [{{user.emailHost}}]
-                </h5>
-                <h6 v-if="user.svm && ucd">SVM</h6>
-            </q-card-section>
-            <q-separator v-if="user.phone || user.mobile || user.postalAddress"></q-separator>
-            <q-card-section style="padding-top: 0.5rem;" v-if="user.phone || user.mobile || user.postalAddress">
-                <div v-if="user.postalAddress">{{ user.postalAddress }}</div>
-                <div v-if="user.phone">{{ user.phone }}</div>
-                <div v-if="user.mobile">{{ user.mobile }}</div>
-                <div v-if="user.nextel">{{ user.nextel }}</div>
-        </q-card-section>
-            <q-separator v-if="ids && (user.spridentId || user.pidm || user.employeeId || user.iamId || user.mothraId || user.mivId)"></q-separator>
-            <q-card-section v-if="ids && (user.spridentId || user.pidm || user.employeeId || user.iamId || user.mothraId || user.mivId)">
-                <div v-if="user.spridenId">
-                    BannerID:
-                    @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.SIS.AllStudents"))
-                    {
-                        @: <a :href="'@HttpHelper.GetOldViperRootURL()' + '/students/sis/default.cfm?Page=AssignPidmAndRedirect&Pidm=' + user.spridenId + '&JumpPage=Home'">{{ user.spridenId }}</a>
-                    }
-                    else
-                    {
-                        @: {{ user.spridenId }}
-                    }
-                </div>
-                <div v-if="user.pidm">PIDM: {{ user.pidm }}</div>
-                <div v-if="user.employeeId">EmployeeID: {{ user.employeeId}}</div>
-                <div v-if="user.iamId">IAMID: {{ user.iamId }}</div>
-                <div v-if="user.mothraId">MothraID: {{ user.mothraId }}</div>
-                <div v-if="user.mivId > 0">MIVID: {{ user.mivId }}</div>
-            </q-card-section>
-            <q-separator v-if="ids"></q-separator>
-            <q-card-section style="font-size:90%;" v-if="ids">
-                <div><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&mothraID=' + user.mothraId + '&loginID=' + user.loginId">AAUD Check</a></div>
-                <div><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&LoginID=' + user.loginId">ID Check</a></div>
-                <div><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UnitHeads&MailID=' + user.mailId">MSO/CAO Lookup</a></div>
+    <div class="row q-pa-sm q-gutter-sm" id="directoryResults">
+        <q-card v-for="user in results" class="col-2 col-xs-8 col-sm-5 col-md-8 col-lg-3 col-xl-2 block directory">
+            <q-card-section class="grid row card_header" :class="[user.svm ? 'SVM' : '']">
+                <a v-if="user.svm && user.iamId && user.mothraId" :href="'@HttpHelper.GetOldViperRootURL()/default.cfm?page=userinfo&id='+ user.iamId + '&mothraID=' + user.mothraId" class="userinfo_button top_button">
+                    <q-icon name="person" size="xs"></q-icon>
+                    <q-tooltip>User Information</q-tooltip>
+                </a>
+                <a v-if="user.mailId" :href="'mailto:' + user.mailId + '@@ucdavis.edu'" class="email_button top_button">
+                    <q-icon name="email" size="xs"></q-icon>
+                    <q-tooltip>Email {{user.mailId}}</q-tooltip>
+                </a>
+                <a v-if="user.svm" :href="'@HttpHelper.GetRootURL()/EmulateUser/' + user.loginId" class="emulate_button top_button">
+                    <q-icon name="face" size="xs"></q-icon>
+                    <q-tooltip>Emulate {{user.name}}</q-tooltip>
+                </a>
+                <a v-if="ids" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&mothraID=' + user.mothraId + '&loginID=' + user.loginId" class="AAUD_button top_button">
+                    <q-icon name="account_circle" size="xs"></q-icon>
+                    <q-tooltip>AAUD Check</q-tooltip>
+                </a>
+                <a v-if="ids" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&LoginID=' + user.loginId" v-if="ids" class="ID_button top_button">
+                    <q-icon name="account_box" size="xs"></q-icon>
+                    <q-tooltip>ID Check</q-tooltip>
+                </a>
+                <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UnitHeads&MailID=' + user.mailId" v-if="ids" class="MSO_button top_button">
+                    <q-icon name="supervisor_account" size="xs"></q-icon>
+                    <q-tooltip>MSO/CAO Lookup</q-tooltip>
+                </a>
                 @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.DirectoryUCPathInfo"))
                 {
                     @:
-                    <div v-if="user.employeeId != ''"><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UCPathInfo&emplid=' + user.employeeId">UCPath Info</a></div>
+                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UCPathInfo&emplid=' + user.employeeId" v-if="ids && user.employeeId" class="UCPath_button top_button">
+                        <q-icon name="school" size="sm"></q-icon>
+                        <q-tooltip>UCPath Info</q-tooltip>
+                    </a>
                 }
-                @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CATS.ServiceDesk"))
+                    @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CATS.ServiceDesk"))
                 {
                     @:
-                    <dv v-if="user.currentAffiliate == true"><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID' + user.iamId + '&mailID=' + props.row.mailId + '&empName=' + user.name">Alt. Photo</a></dv>
+                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID' + user.iamId + '&mailID=' + props.row.mailId + '&empName=' + user.name" v-if="ids && user.currentAffiliate" class="photo_button top_button">
+                        <q-icon name="photo_camera" size="xs"></q-icon>
+                        <q-tooltip>Alt. Photo</q-tooltip>
+                    </a>
                 }
+        </q-card-section>
+            <q-card-section class="row">
+                <q-card-section class="col photo">
+                    <q-avatar size="87px" square class="text-right photo_avatar">
+                    <img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&altphoto=1'" height="40" id="siteProfileAvatar">
+                    </q-avatar>
+                </q-card-section>
+                <q-card-section class="col">
+                    <h5 v-if="user.userName">{{user.userName}}</h5>
+                    <h1>{{user.name}}</h1>
+                    <h2 v-if="user.title">{{user.title}}</h2>
+                    <h2 v-if="user.department">{{user.department}}</h2>
+                    <h3 v-if="user.ucdStudentLevel">{{user.ucdStudentLevel}}</h3>
+                    <h4 v-if="user.svm && ucd">SVM</h4>
+                    <div class="contact">
+                        <div class="mail" v-if="user.email"><a :href="'mailto:' + user.email">{{user.email}}</a></div>
+                        <div class="host" v-if="ids && user.emailHost">[{{user.emailHost}}]</div>
+                        <div class="phone" v-if="user.phone">Ph: {{ user.phone }}</div>
+                        <div class="mobile" v-if="user.mobile">M: {{ user.mobile }}</div>
+                        <div class="nextel" v-if="user.ldpager">Pager: {{ user.ldpager }}</div>
+                        <div class="nextel" v-if="user.nextel">M: {{ user.nextel }} (VMACS)</div>
+                        <div class="address" v-if="user.postalAddress">{{ user.postalAddress }}</div>
+                    </div>
+            </q-card-section>
+            </q-card-section>
+            <q-separator v-if="ids && (user.spridentId || user.pidm || user.employeeId || user.iamId || user.mothraId || user.mivId)"></q-separator>
+            <q-card-section class="row ids" v-if="ids && (user.spridentId || user.pidm || user.employeeId || user.iamId || user.mothraId || user.mivId)">
+                <div v-if="user.spridenId">
+                    <span>BannerID:</span>
+                    @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.SIS.AllStudents"))
+                    {
+                    @: <a :href="'@HttpHelper.GetOldViperRootURL()' + '/students/sis/default.cfm?Page=AssignPidmAndRedirect&Pidm=' + user.spridenId + '&JumpPage=Home'">{{ user.spridenId }}</a>
+                    }
+                    else
+                    {
+                    @: {{ user.spridenId }}
+                    }
+                </div>
+                <div v-if="user.pidm"><span>PIDM:</span> {{ user.pidm }}</div>
+                <div v-if="user.employeeId"><span>EmployeeID:</span> {{ user.employeeId}}</div>
+                <div v-if="user.iamId"><span>IAMID:</span> {{ user.iamId }}</div>
+                <div v-if="user.mothraId"><span>MothraID:</span> {{ user.mothraId }}</div>
+                <div v-if="user.mivId"><span>MIVID:</span> {{ user.mivId }}</div>
             </q-card-section>
             <q-separator v-if="debug"></q-separator>
             <q-card-section v-if="debug">
                 <pre>
-                    {{ user.originalObject }}
+                {{ user.originalObject }}
                 </pre>
             </q-card-section>
-        </q-card-section>
-    </q-card>
-</div>
+        </q-card>
+    </div>
 
 @section Scripts {
     <script asp-add-nonce="true">
