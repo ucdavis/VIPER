@@ -18,9 +18,11 @@ html {
     }
 }
 
+/*
 body {
     margin-bottom: 60px;
 }
+*/
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
     box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
@@ -200,14 +202,16 @@ body {
 }
 
 /* Heading Styles */
-.q-page-container h2 {
+.q-page-container h2,
+.q-page-container .text-h2 {
     font-size: 1.4rem;
     line-height: 1.4rem;
     margin: 0rem 0rem 1rem 0rem;
     font-weight: bold;
 }
 
-.q-page-container h3 {
+.q-page-container h3,
+.q-page-container .text-h3 {
     font-size: 1.2rem;
     line-height: 1.2rem;
     margin: .0rem 0rem .5rem 0rem;
@@ -215,24 +219,32 @@ body {
 }
 
 
-.q-page-container h4 {
+.q-page-container h4,
+.q-page-container .text-h4 {
     font-size: 1.1rem;
     line-height: 1.1rem;
     margin: .0rem 0rem .5rem 0rem;
     font-weight: bold;
 }
 
-.q-page-container h5 {
+.q-page-container h5,
+.q-page-container .text-h5 {
     font-size: 1rem;
     line-height: 1rem;
     margin: .0rem 0rem .5rem 0rem;
     font-weight: bold;
 }
 
-.q-page-container h6 {
+.q-page-container h6,
+.q-page-container .text-h6 {
     font-size: 1rem;
     line-height: 1rem;
     margin: .0rem 0rem .5rem 0rem;
+}
+
+.q-avatar .smallPhoto {
+    height: 40px !important;
+    width: 31px !important;
 }
 
 div#directoryResults .q-avatar {

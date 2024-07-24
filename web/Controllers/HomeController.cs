@@ -94,6 +94,11 @@ namespace Viper.Controllers
                 returnURL = Request.Query["ReturnUrl"].ToString();
             }
 
+            if(returnURL.StartsWith("/api"))
+            {
+                return Unauthorized();
+            }
+
             var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnURL));
 
             return new RedirectResult(authorizationEndpoint);

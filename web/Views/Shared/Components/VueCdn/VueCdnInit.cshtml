@@ -1,0 +1,50 @@
+﻿@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+<script src="~/lib/vue/vue.global.prod.js"></script>
+<script src="~/lib/quasar/dist/quasar.umd.prod.js"></script>
+<script asp-add-nonce="true">
+    // set global JS object with the CSRF token.
+    var csrfToken = "@Xsrf.GetAndStoreTokens(Context).RequestToken";
+</script>
+<script src="~/js/site.js"></script>
+<script src="~/js/vueSetup.js"></script>
+<script asp-add-nonce="true">
+    // define global Vue objects
+    const { createApp, ref, computed, watch, nextTick, toRaw } = Vue;
+    let vueSetupActions = [];
+    let vueSetupObjects = {};
+    vueSetupObjects.mainLeftDrawer = ref(false);
+    vueSetupObjects.mainLeftMiniState = ref(false);
+    let vueObjects = { viperFinishedLoading: false, showViperError: false, viperErrorMessage: "", viperNavMenu: {} };
+    let vueMethods = {};
+    let vueWatchers = {};
+    let vueEmits = {};
+    let vueProps = {};
+    var vueBeforeCreateActions = [];
+    var vueCreatedActions = [];
+    var vueBeforeMountActions = [];
+    var vueMountedActions = [];
+    //vueMountedActions.push(loadViperLeftNav);
+    var vueBeforeUnmountActions = [];
+    var vueUnmountedActions = [];
+    var vueBeforeUpdateActions = [];
+    var vueUpdatedActions = [];
+</script>
+
+@* Pages or controls can update the global VUE objects
+    // BE SURE TO USE UNIQUE NAMES
+    vueObjects.rapsCount = @Model.Count;
+    vueMethods.rapsIncrementCount = function(){
+    this.rapsCount = this.rapsCount + 1;
+    var headers = {
+    "RequestVerificationToken": $('input:hidden[name="__RequestVerificationToken"]').val()
+    }
+    $.ajax({
+    type: "POST",
+    url: 'RAPS?counter=' + this.rapsCount,
+    });
+    };
+    vueWatchers.rapsCount = function(newCount, oldCount){
+    alert("Value changed from " + oldCount + " to " + newCount);
+    };
+    vueMountedActions.push(function(){alert('Vue is mounted!')});
+    *@

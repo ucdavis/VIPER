@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Viper.Models.VIPER;
 
 namespace Viper.Classes.SQLContext;
@@ -18,6 +16,7 @@ public partial class VIPERContext : DbContext
     }
 #pragma warning restore CS8618
 
+    /* DBO */
     public virtual DbSet<AppControl> AppControls { get; set; }
 
     public virtual DbSet<CasDbcache> CasDbcaches { get; set; }
@@ -98,6 +97,8 @@ public partial class VIPERContext : DbContext
 
     public virtual DbSet<TblVfNotificationLog> TblVfNotificationLogs { get; set; }
 
+    public virtual DbSet<Term> Terms { get; set; }
+
     public virtual DbSet<VfNotification> VfNotifications { get; set; }
 
     public virtual DbSet<VwSvmAffiliate> VwSvmAffiliates { get; set; }
@@ -107,6 +108,9 @@ public partial class VIPERContext : DbContext
     public virtual DbSet<WorkflowStageTransition> WorkflowStageTransitions { get; set; }
 
     public virtual DbSet<WorkflowStageVersion> WorkflowStageVersions { get; set; }
+
+    /* users */
+    public virtual DbSet<Person> People { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -1129,6 +1133,12 @@ public partial class VIPERContext : DbContext
                 .HasColumnName("notify_log_send_to");
         });
 
+        modelBuilder.Entity<Term>(entity =>
+        {
+            entity.ToTable("vwTerms");
+            entity.HasKey(e => e.TermCode);
+        });
+
         modelBuilder.Entity<VfNotification>(entity =>
         {
             entity.HasKey(e => e.NotifyId).HasName("PK_tbl_VF_notify");
@@ -1305,8 +1315,19 @@ public partial class VIPERContext : DbContext
                 .HasConstraintName("FK_WorkflowStageVersion_WorkflowStage");
         });
 
-        OnModelCreatingPartial(modelBuilder);
+        /* users */
+        modelBuilder.Entity<Person>(entity =>
+        {
+            entity.ToTable("Person", "users");
+            entity.HasKey("PersonId");
+            entity.HasOne(e => e.StudentInfo).WithMany()
+                .HasForeignKey(e => new { e.StudentTerm, e.SpridenId });
+        });
+        OnModelCreatingCTS(modelBuilder);
+        OnModelCreatingStudents(modelBuilder);
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+    partial void OnModelCreatingCTS(ModelBuilder modelBuilder);
+    partial void OnModelCreatingStudents(ModelBuilder modelBuilder);
 }
