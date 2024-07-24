@@ -234,7 +234,6 @@
                     this.member = await viperFetch(this, "members/" + this.memberId)
                 },
                 pushToVMACS: async function (skipToggleCheck) {
-                    console.log(skipToggleCheck, this.updateVMACS)
                     if (skipToggleCheck || this.updateVMACS) {
                         Quasar.Loading.show({ message: "Updating VMACS" })
                         await viperFetch(this, "Members/" + this.memberId + "/Roles/VMACSExport", { method: "POST" })
