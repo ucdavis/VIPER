@@ -20,7 +20,7 @@ namespace Viper.Areas.RAPS.Models
             {
                 if (Name.IndexOf(",") > 4)
                 {
-                    return Name.Substring(3, Name.IndexOf(",") - 3);
+                    return Name[3..Name.IndexOf(",")];
                 }
                 return Name;
             }
