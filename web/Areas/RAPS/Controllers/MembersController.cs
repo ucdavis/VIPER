@@ -129,8 +129,8 @@ namespace Viper.Areas.RAPS.Controllers
             //add permissions that assigned via roles (could be deny or allow)
             foreach(var p in permsViaRoles)
             {
-                if (permissions.ContainsKey(p.PermissionId)) {
-                    var existingPerm = permissions[p.PermissionId];
+                if (permissions.TryGetValue(p.PermissionId, out PermissionResult? value)) {
+                    var existingPerm = value;
                     //record deny if this role is denying access
                     if (existingPerm.Access && p.Access == 0)
                     {
@@ -152,9 +152,9 @@ namespace Viper.Areas.RAPS.Controllers
             //add permissions assigned manually (could be deny or allow)
             foreach (var p in permsAssigned)
             {
-                if (permissions.ContainsKey(p.PermissionId))
+                if (permissions.TryGetValue(p.PermissionId, out PermissionResult? value))
                 {
-                    var existingPerm = permissions[p.PermissionId];
+                    var existingPerm = value;
                     //record deny if permission assignment is denying access
                     if (existingPerm.Access && p.Access == 0)
                     {
