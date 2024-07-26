@@ -20,16 +20,31 @@ namespace Viper.Areas.Computing.Services
         public async Task<List<BiorenderStudent>> GetBiorenderStudentInfo(List<string> emails)
         {
             List<Task<BiorenderStudent>> resultList = new();
+            var throttler = new SemaphoreSlim(initialCount: 20);
             foreach (var email in emails)
             {
+                await throttler.WaitAsync();
+
                 var emailTrimmed = email.Trim();
-                if(!emailTrimmed.Contains('@'))
+                if (!emailTrimmed.Contains('@'))
                 {
                     emailTrimmed += "@ucdavis.edu";
                 }
                 if (IsValidEmail(emailTrimmed))
                 {
-                    resultList.Add(GetSingleStudent(emailTrimmed));
+                    resultList.Add(
+                        Task.Run(async () =>
+                        {
+                            try
+                            {
+                                return await GetSingleStudent(emailTrimmed);
+                            }
+                            finally
+                            {
+                                throttler.Release();
+                            }
+                        })
+                    );
                 }
             }
 
