@@ -18,15 +18,23 @@
         firstName: string | null,
         lastName: string | null,
         studentType: string[] | null,
-        collegeSchool: string[] | null,
-        major: string[] | null,
-        level: string[] | null,
-        studentAssociations: StudentAssociation[] | null,
-        studentAssociationsList: string[] | null
+        studentAssociations: StudentAssociation[] | null
+    }
+
+    type StudentInfoPerLine = {
+        email: string | null,
+        iamId: string | null,
+        firstName: string | null,
+        lastName: string | null,
+        studentType: string | null,
+        collegeSchool: string | null,
+        major: string | null,
+        level: string | null,
+        studentAssociation: StudentAssociation | null
     }
 
     const emails = ref("") as Ref<string>
-    const rows = ref([]) as Ref<StudentInfo[]>
+    const rows = ref([]) as Ref<StudentInfoPerLine[]>
     const search = ref("")
     const loading = ref(false)
     const cols: QTableProps['columns'] = [
@@ -38,7 +46,7 @@
         { name: "collegeSchool", label: "College / School", field: "collegeSchool", align: "left", sortable: true },
         { name: "major", label: "Major", field: "major", align: "left", sortable: true },
         { name: "level", label: "Level", field: "level", align: "left", sortable: true },
-        { name: "studentAssociations", label: "Student Associations (College/Major/Level/Class)", field: "studentAssociationsList", align: "left", sortable: true },
+        { name: "studentAssociations", label: "Student Associations (College/Major/Level/Class)", field: "studentAssociation", align: "left", sortable: true },
     ]
     const pagination = ref({ sortBy: "lastName", descending: false, rowsPerPage: 25 }) as Ref<any>
     const stdUrl = inject('apiURL') + "people/biorenderStudents"
@@ -51,7 +59,24 @@
         const url = new URL(stdUrl, document.baseURI)
         var emailArray = emails.value.split(",")
         const r = await post(url.toString(), emailArray)
-        rows.value = r.result
+        let newValue = [] as StudentInfoPerLine[]
+        //create one line per student association
+        r.result.forEach((std: StudentInfo) => {
+            std.studentAssociations?.forEach((sa: StudentAssociation, i: number) => {
+                newValue.push({
+                    iamId: std.iamId,
+                    firstName: std.firstName,
+                    lastName: std.lastName,
+                    studentType: std.studentType == null || std.studentType[i] == null ? "" : std.studentType[i],
+                    collegeSchool: sa.collegeName,
+                    major: sa.majorName,
+                    level: sa.levelName,
+                    studentAssociation: sa,
+                    email: std.email
+                })
+            })
+        })
+        rows.value = newValue
         loading.value = false
     }
 
@@ -85,29 +110,15 @@
                 </template>
             </q-input>
         </template>
-        <template v-slot:body-cell-studentType="props">
-            <q-td :props="props">
-                <div v-for="s in props.row.studentType">{{s}}</div>
-            </q-td>
-        </template>
-        <template v-slot:body-cell-collegeSchool="props">
-            <q-td :props="props">
-                <div v-for="c in props.row.collegeSchool">{{c}}</div>
-            </q-td>
-        </template>
-        <template v-slot:body-cell-major="props">
-            <q-td :props="props">
-                <div v-for="m in props.row.major">{{m}}</div>
-            </q-td>
-        </template>
-        <template v-slot:body-cell-level="props">
-            <q-td :props="props">
-                <div v-for="l in props.row.level">{{l}}</div>
-            </q-td>
-        </template>
         <template v-slot:body-cell-studentAssociations="props">
             <q-td :props="props">
-                <div v-for="s in props.row.studentAssociationsList">{{s}}</div>
+                {{props.row.studentAssociation.collegeName}}
+                /
+                {{props.row.studentAssociation.majorName}}
+                /
+                {{props.row.studentAssociation.levelName}}
+                /
+                {{props.row.studentAssociation.className}}
             </q-td>
         </template>
     </q-table>
