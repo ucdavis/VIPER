@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
+using Viper.Areas.Students.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
@@ -33,7 +34,6 @@ namespace Viper.Areas.Students.Controller
                                          ActionExecutionDelegate next)
         {
             await base.OnActionExecutionAsync(context, next);
-            await next();
             ViewData["ViperLeftNav"] = Nav();
         }
 
@@ -54,11 +54,28 @@ namespace Viper.Areas.Students.Controller
         }
 
         [Route("/[area]/[action]")]
-        public IActionResult StudentClassYear(string? import = null, int? classYear= null)
+        public IActionResult StudentClassYear(string? import = null, int? classYear = null)
         {
-            return import != null 
+            return import != null
                 ? View("~/Areas/Students/Views/StudentClassYearImport.cshtml")
                 : View("~/Areas/Students/Views/StudentClassYear.cshtml");
         }
+
+        [Route("/[area]/[action]")]
+        public IActionResult StudentClassYearreport()
+        {
+            var termCode = 0;
+            var classLevel = "";
+            foreach (var term in new List<int> { 202402, 202404, 202409, 202502 })
+            {
+                foreach (var gradYear in new List<int>() { 2024, 2025, 2026, 2027, 2028, 2029 })
+                {
+                    (termCode, classLevel) = GradYearClassLevel.GetTermCodeAndClassLevelForGradYear(gradYear, term);
+                }
+            }
+
+            return View("~/Areas/Students/Views/StudentClassYear.cshtml");
+        }
+
     }
 }

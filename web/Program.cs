@@ -254,10 +254,7 @@ try
     var baseUrl = app.Environment.IsDevelopment() ? "" : "2/";
     RewriteOptions rewriteOptions = new RewriteOptions()
                 .AddRewrite(@"(?i)^CTS", "/vue/src/cts/index.html", true)
-                .AddRewrite(@"(?i)^CTS2", "/2/vue/src/cts/index.html", true)
-                .AddRewrite(@"(?i)^TEST", "/raps/VIPER/rolelist", true)
-                .AddRewrite(@"(?i)^TEST", "/raps/VIPER/permissionlist", true)
-                .AddRewrite(@"(?i)^AnotherTest", "/raps/VIPER/UserClone", true);
+                .AddRewrite(@"(?i)^Computing", "/vue/src/computing/index.html", true);
     app.UseRewriter(rewriteOptions);
 
     //for the vue src files, use directories in the url but serve index.html
