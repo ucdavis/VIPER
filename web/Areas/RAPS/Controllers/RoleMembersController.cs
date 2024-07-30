@@ -251,10 +251,21 @@ namespace Viper.Areas.RAPS.Controllers
             if (_securityService.IsAllowedTo("RAPS.Admin") && messages.Count > 1)
             {
                 var finalMessage = messages.Last();
-                var vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(finalMessage);
-                if (vmacsResponse != null)
+                try
                 {
-                    return vmacsResponse;
+                    var vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(finalMessage);
+                    if (vmacsResponse != null)
+                    {
+                        return vmacsResponse;
+                    }
+                }
+                catch
+                {
+                    return new VmacsResponse()
+                    {
+                        ErrorMessage = "Could not parse response from VMACS: " + finalMessage,
+                        Success = false
+                    };
                 }
             }
 

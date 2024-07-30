@@ -1,18 +1,10 @@
-﻿using Amazon.Runtime.Internal.Transform;
-using Microsoft.CodeAnalysis.Elfie.Diagnostics;
-using Microsoft.EntityFrameworkCore;
-using System.IdentityModel.Tokens.Jwt;
-using System.IO;
-using System.Net;
-using System.Net.Http;
+﻿using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Threading.Tasks.Dataflow;
 using Viper.Areas.RAPS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
-using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Services
 {
@@ -23,7 +15,7 @@ namespace Viper.Areas.RAPS.Services
         public IUserHelper UserHelper;
         private readonly bool _onProduction;
         private readonly string _credentials;
-        private static readonly F5HttpRequest _f5HttpRequest= new();
+        private static readonly F5HttpRequest _f5HttpRequest = new();
         private readonly Dictionary<string, string> _vmacsServers = new()
         {
             { "vmth-test", "https://vmacs-test.vetmed.ucdavis.edu" },
@@ -50,7 +42,7 @@ namespace Viper.Areas.RAPS.Services
 
         public List<string> GetServers()
         {
-            if(_onProduction)
+            if (_onProduction)
             {
                 return _vmacsServers.Keys.ToList();
             }
@@ -73,7 +65,7 @@ namespace Viper.Areas.RAPS.Services
         {
             _ = mothraId ?? UserHelper.GetCurrentUser()?.MothraId;
             List<string> messages = new();
-            foreach(string instance in instances.Split(","))
+            foreach (string instance in instances.Split(","))
             {
                 if (!string.IsNullOrEmpty(instance))
                 {
@@ -97,7 +89,8 @@ namespace Viper.Areas.RAPS.Services
             messages ??= new List<string>();
             server ??= GetDefaultServer();
             string Url = GetServerUrl(instance, server);
-            if (_credentials.Length == 15) {
+            if (_credentials.Length == 15)
+            {
                 messages.Add("Credentials not found. Cannot connect to VMACS.");
                 return messages;
             }
@@ -118,9 +111,9 @@ namespace Viper.Areas.RAPS.Services
                     Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
                     WriteIndented = true
                 };
-                RecordMessage(messages, "User/Roles Retrieved: " + userList.Count);
-                RecordMessage(messages, "Permissions Retrieved: " + exportData.Permissions.Count);
-                RecordMessage(messages, "VMACS Export Data: " + JsonSerializer.Serialize(exportData, serializeOptions));
+                RecordMessage(messages, "\"User/Roles Retrieved\": " + userList.Count);
+                RecordMessage(messages, "\"Permissions Retrieved\": " + exportData.Permissions.Count);
+                RecordMessage(messages, "\"VMACS Export Data\": " + JsonSerializer.Serialize(exportData, serializeOptions));
 
                 if (!debugOnly)
                 {
@@ -132,9 +125,9 @@ namespace Viper.Areas.RAPS.Services
                         Content = exportContent
                     };
                     request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", GetAuthorization());
-                    
+
                     RecordMessage(messages, "Sending data to: " + Url);
-                    
+
                     try
                     {
                         using HttpResponseMessage response = await _f5HttpRequest.Send(request);
@@ -142,10 +135,11 @@ namespace Viper.Areas.RAPS.Services
                         VmacsResponse vmacsResponse = await ParseResponse(response);
                         RecordMessage(messages, JsonSerializer.Serialize(vmacsResponse));
                     }
-                    catch (Exception ex) {
+                    catch (Exception ex)
+                    {
                         HttpHelper.Logger.Log(NLog.LogLevel.Warn, ex);
                         RecordMessage(messages, "Error: " + ex.Message + " " + ex?.StackTrace);
-                        if(ex?.InnerException != null)
+                        if (ex?.InnerException != null)
                         {
                             RecordMessage(messages, "Error: " + ex.InnerException.Message + " " + ex.InnerException?.StackTrace);
                         }
@@ -168,8 +162,8 @@ namespace Viper.Areas.RAPS.Services
             string responseBody = await response.Content.ReadAsStringAsync();
             try
             {
-                vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(responseBody, new JsonSerializerOptions() { PropertyNameCaseInsensitive= true });
-                if(vmacsResponse == null)
+                vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(responseBody, new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+                if (vmacsResponse == null)
                 {
                     throw new Exception();
                 }
@@ -189,23 +183,23 @@ namespace Viper.Areas.RAPS.Services
             return vmacsResponse;
         }
 
-        private List<UserList> GetUsers(string rolePrefix, string loginId="", string roleIds="")
+        private List<UserList> GetUsers(string rolePrefix, string loginId = "", string roleIds = "")
         {
             var users = from user in _RAPSContext.VwAaudUser
-                         join rm in _RAPSContext.TblRoleMembers on user.MothraId equals rm.MemberId
-                         join role in _RAPSContext.TblRoles on rm.RoleId equals role.RoleId
-                         where (rm.StartDate == null || rm.StartDate <= DateTime.Now)
-                         && (rm.EndDate == null || rm.EndDate > DateTime.Now)
-                         && (user.Current || user.Future)
-                         && (role.Role.StartsWith(rolePrefix))
-                         select new UserList()
-                         {
-                             LoginId = user.LoginId,
-                             MothraId = user.MothraId,
-                             MailId = user.MailId,
-                             AccessCode = role.AccessCode,
-                             RoleId = role.RoleId
-                         };
+                        join rm in _RAPSContext.TblRoleMembers on user.MothraId equals rm.MemberId
+                        join role in _RAPSContext.TblRoles on rm.RoleId equals role.RoleId
+                        where (rm.StartDate == null || rm.StartDate <= DateTime.Now)
+                        && (rm.EndDate == null || rm.EndDate > DateTime.Now)
+                        && (loginId.Length > 0 || user.Current || user.Future)
+                        && (role.Role.StartsWith(rolePrefix))
+                        select new UserList()
+                        {
+                            LoginId = user.LoginId,
+                            MothraId = user.MothraId,
+                            MailId = user.MailId,
+                            AccessCode = role.AccessCode,
+                            RoleId = role.RoleId
+                        };
             if (roleIds.Length > 0)
             {
                 List<int> roleIdList = new(roleIds.Split(",").Select(int.Parse));
@@ -216,10 +210,30 @@ namespace Viper.Areas.RAPS.Services
                 users = users.Where(row => row.LoginId.Equals(loginId));
             }
 
-            return users
+            var userList = users
                 .OrderBy(u => u.LoginId)
                 .ThenBy(u => u.RoleId)
                 .ToList();
+
+            //For a single user, if the user was not found they have no VMACS roles.
+            //Get a single record with their ids and blank role so that an empty permissions array can be pushed.
+            if (userList.Count == 0 && loginId.Length > 0)
+            {
+                var user = _RAPSContext.VwAaudUser.Where(a => a.LoginId == loginId).FirstOrDefault();
+                if (user != null)
+                {
+                    userList.Add(new UserList()
+                    {
+                        LoginId = loginId,
+                        MailId = user.MailId,
+                        MothraId = user.MothraId,
+                        AccessCode = "",
+                        RoleId = 0
+                    });
+                }
+            }
+
+            return userList;
         }
 
         private List<VMACSExportPermission> GetPermissions(string rolePrefix)
@@ -237,7 +251,7 @@ namespace Viper.Areas.RAPS.Services
             List<VMACSExportPermission> vmacsExportPermissions = new();
             foreach (var permission in permissions)
             {
-                if(permission.TblRolePermissions.Count == 0)
+                if (permission.TblRolePermissions.Count == 0)
                 {
                     continue;
                 }
@@ -246,11 +260,11 @@ namespace Viper.Areas.RAPS.Services
                 {
                     accessCodes += rolePermission.Role.AccessCode;
                 }
-                
+
                 var accessCodeArray = accessCodes.ToArray();
                 Array.Sort(accessCodeArray);
                 accessCodes = new string(accessCodeArray);
-                
+
                 var permissionSplit = permission.Permission.Split(".");
                 vmacsExportPermissions.Add(new VMACSExportPermission()
                 {
@@ -272,16 +286,16 @@ namespace Viper.Areas.RAPS.Services
             var userPermissions = _RAPSContext.GetVMACSUserPermissionsResult.FromSql($"dbo.usp_getVMACSUserPermissions @Instance = {instance}")
                 .ToList();
             Dictionary<string, string> permissionsByMemberId = new();
-            foreach(var userPermissionList in userPermissions)
+            foreach (var userPermissionList in userPermissions)
             {
                 permissionsByMemberId[userPermissionList.MemberId.Trim()] = userPermissionList.PermissionIds ?? "";
             }
 
             string lastUser = "";
-            foreach(var user in users)
+            foreach (var user in users)
             {
                 //loop over multiple records for each user, each row containing a different role
-                if(lastUser != user.LoginId)
+                if (lastUser != user.LoginId)
                 {
                     string permissionIdList = permissionsByMemberId.ContainsKey(user.MothraId.Trim())
                         ? permissionsByMemberId[user.MothraId.Trim()]
@@ -303,7 +317,7 @@ namespace Viper.Areas.RAPS.Services
             }
 
             //alpha sort the access codes
-            foreach(var user in exportUsers)
+            foreach (var user in exportUsers)
             {
                 var accessCodeArray = user.AccessCodes.ToArray();
                 Array.Sort(accessCodeArray, StringComparer.Ordinal);
@@ -334,7 +348,7 @@ namespace Viper.Areas.RAPS.Services
         {
             public required string LoginId { get; set; }
             public required string MothraId { get; set; }
-            public required string MailId { get; set;}
+            public required string MailId { get; set; }
             public string AccessCode { get; set; } = string.Empty;
             public int RoleId { get; set; }
         }

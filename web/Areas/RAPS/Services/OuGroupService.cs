@@ -229,8 +229,7 @@ namespace Viper.Areas.RAPS.Services
             {
                 if (members.Count == 0 || members.Last().MemberId != roleMember.MemberId)
                 {
-                    GroupMember member = CreateGroupMember(roleMember);
-                    members.Add(member);
+                    members.Add(CreateGroupMember(roleMember));
                 }
                 members.Last().Roles.Add(CreateGroupMemberRole(roleMember));
             }
@@ -256,7 +255,10 @@ namespace Viper.Areas.RAPS.Services
             Dictionary<string, bool> membersInRoles = new();
             foreach (GroupMember m in members)
             {
-                membersInRoles[m.LoginId] = true;
+                if(m.LoginId != null)
+                {
+                    membersInRoles[m.LoginId] = true;
+                }
             }
 
             //Create a lookup of loginids of people already in the group

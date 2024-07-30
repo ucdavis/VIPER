@@ -238,7 +238,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return BadRequest();
             }
             rt.TemplateName = roleTemplate.TemplateName;
-            rt.Description = roleTemplate.Description;
+            rt.Description = roleTemplate.Description ?? "";
 
             _context.Entry(rt).State = EntityState.Modified;
 
@@ -312,7 +312,7 @@ namespace Viper.Areas.RAPS.Controllers
             RoleTemplate rt = new()
             {
                 TemplateName = roleTemplate.TemplateName,
-                Description = roleTemplate.Description
+                Description = roleTemplate.Description ?? ""
             };
 
             if(!_securityService.RoleTemplateBelongsToInstance(instance, rt))
