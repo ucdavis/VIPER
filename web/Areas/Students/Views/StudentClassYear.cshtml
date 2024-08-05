@@ -54,7 +54,16 @@
          :title="classYear.label"
          :pagination="{rowsPerPage: 0}"
          no-data-label="No students found. Please import this year."
+         :filter="filter"
          dense>
+    <template v-slot:top-right>
+        <q-toggle v-model="problemsOnly" label="Problems Only" class="q-mr-md"></q-toggle>
+        <q-input v-model="filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
+            <template v-slot:append>
+                <q-icon name="filter_alt" />
+            </template>
+        </q-input>
+    </template>
     <template v-slot:body-cell-avatar="props">
         <q-td :props="props">
             <q-avatar square>
@@ -64,7 +73,9 @@
     </template>
     <template v-slot:body-cell-name="props">
         <q-td :props="props">
-            {{props.row.lastName}}, {{props.row.firstName}}
+            <a :href="">
+                {{props.row.lastName}}, {{props.row.firstName}}
+            </a>
         </q-td>
     </template>
     <template v-slot:body-cell-classyear="props">
@@ -111,10 +122,12 @@
                         { name: "previousyears", label: "Prev Years", field: "firstName", align: "left", sortable: true },
                         { name: "problems", label: "Problems", field: "problems", align: "left", sortable: true },
                     ],
+                    allStudents: [],
                     students: [],
                     activeOnly: false,
                     problemsOnly: false,
                     loading: false,
+                    filter: null,
 
                     //form
                     showForm: false,
@@ -128,7 +141,7 @@
                 getStudents: async function () {
                     this.loading = true
                     this.students = []
-                    var newStudents = []
+                    this.allStudents = []
 
                     //if class year specified, add to url params and get students with this class year
                     if (this.classYear?.value) {
@@ -136,20 +149,20 @@
                         qp.set("classYear", this.classYear.value)
                         history.pushState(null, null, "?" + qp.toString())
                         var u = "@Url.Content("~/api/students/dvm/?classYear=")" + this.classYear.value + "&includeAllClassYears=" + !this.activeOnly
-                        newStudents = await viperFetch(this, u)
+                        this.allStudents = await viperFetch(this, u)
 
                         //get problems
                         var u = "@Url.Content("~/api/students/dvm/classYearReport?classYear=")" + this.classYear.value
                         var problems = await viperFetch(this, u)
                         problems.forEach(p => {
-                            var s = newStudents.find(s => s.personId == p.personId)
+                            var s = this.allStudents.find(s => s.personId == p.personId)
                             if(s != undefined) {
                                 s.problems = p.problems
                             }
                         })
                     }
 
-                    this.students = newStudents
+                    this.students = this.allStudents.filter(s => !this.problemsOnly || s?.problems?.length)
                     this.loading = false
                 },
                 clear: function () {
@@ -199,7 +212,7 @@
                 }
                 //get all class years, reasons, terms for select boxes
                 this.classYearOptions.push({ label: "", value: "" })
-                for (var i = new Date().getFullYear() + 4; i >= 2016; i--) {
+                for (var i = new Date().getFullYear() + 6; i >= 2016; i--) {
                     this.classYearOptions.push({ label: "Class of " + i, value: i })
                 }
                 viperFetch(this, "@Url.Content("~/curriculum/terms")")
@@ -216,6 +229,9 @@
                 this.getStudents()
             },
             watch: {
+                problemsOnly: function() {
+                    this.students = this.allStudents.filter(s => !this.problemsOnly || s?.problems?.length)
+                }
             }
         })
     </script>

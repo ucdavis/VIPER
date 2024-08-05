@@ -53,6 +53,7 @@ namespace Viper.Models.Students
             AddedBy = cy.AddedBy;
             UpdatedBy = cy.UpdatedBy;
             Comment = cy.Comment;
+            ClassYearLeftReason = cy.ClassYearLeftReason;
         }
     }
 }
