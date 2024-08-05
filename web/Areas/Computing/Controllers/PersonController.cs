@@ -18,13 +18,17 @@ namespace Viper.Areas.Computing.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<PersonSimple>>> GetPeople(bool? active = null)
+        public async Task<ActionResult<List<PersonSimple>>> GetPeople(bool? active = null, string? name = null)
         {
             var people = context.People
                 .AsQueryable();
             if(active != null)
             {
                 people = people.Where(p => p.Current == 1 || p.Future == 1);
+            }
+            if(name != null)
+            {
+                people = people.Where(p => p.FirstName.Contains(name) || p.LastName.Contains(name));
             }
             return await people
                 .OrderBy(p => p.LastName)

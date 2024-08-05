@@ -2,6 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
+using Polly;
+using Viper.Areas.CMS.Data;
+using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -39,12 +42,12 @@ namespace Viper.Areas.Students.Controller
 
         public NavMenu Nav()
         {
-            var nav = new List<NavMenuItem>
+            var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-students")?.FirstOrDefault();
+            if (menu != null)
             {
-                new() { MenuItemText = "Home", MenuItemURL = "Home" }
-            };
-
-            return new NavMenu("Student Resources", nav);
+                ConvertNavLinksForDevelopment(menu);
+            }
+            return menu ?? new NavMenu("", new List<NavMenuItem>());
         }
 
         [Route("/[area]")]
@@ -64,17 +67,7 @@ namespace Viper.Areas.Students.Controller
         [Route("/[area]/[action]")]
         public IActionResult StudentClassYearreport()
         {
-            var termCode = 0;
-            var classLevel = "";
-            foreach (var term in new List<int> { 202402, 202404, 202409, 202502 })
-            {
-                foreach (var gradYear in new List<int>() { 2024, 2025, 2026, 2027, 2028, 2029 })
-                {
-                    (termCode, classLevel) = GradYearClassLevel.GetTermCodeAndClassLevelForGradYear(gradYear, term);
-                }
-            }
-
-            return View("~/Areas/Students/Views/StudentClassYear.cshtml");
+            return View("~/Areas/Students/Views/StudentClassYearReport.cshtml");
         }
 
     }

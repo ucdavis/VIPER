@@ -52,6 +52,19 @@ namespace Viper.Areas.Students.Controller
         }
 
         /// <summary>
+        /// Get a single student
+        /// </summary>
+        /// <param name="personId"></param>
+        /// <returns></returns>
+        [HttpGet("{personId}")]
+        [Permission(Allow ="SVMSecure.Students")]
+        public async Task<ActionResult<Models.Student>> GetDvmStudent(int personId)
+        {
+			var student = await studentList.GetStudent(personId);
+            return student == null ? NotFound() : student;
+		}
+
+        /// <summary>
         /// Get students by term and class level. Uses AAUD student info table, which is driven by registration data and exceptions.
         /// </summary>
         /// <param name="termCode"></param>
@@ -64,13 +77,12 @@ namespace Viper.Areas.Students.Controller
             return await studentList.GetStudentsByTermCodeAndClassLevel(termCode, classLevel);
         }
 
-        [HttpGet("checkClassLists")]
+        [HttpGet("classYearReport")]
         [Permission(Allow = "SVMSecure.SIS.AllStudents")]
-        public async Task<ActionResult> CheckClassLists(int? classYear)
+        public async Task<ActionResult<List<StudentClassYearProblem>>> ClassYearReport(int? classYear)
         {
-
-
-            return Ok();
+            var problems = await studentList.GetStudentClassYearProblems(classYear);
+            return problems;
         }
 
 

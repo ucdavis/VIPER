@@ -5,6 +5,7 @@ namespace Viper.Models.Students
 {
     public class StudentClassYear
     {
+
         public int StudentClassYearId { get; set; }
         public int PersonId { get; set; }
         public int ClassYear { get; set; }
@@ -31,6 +32,27 @@ namespace Viper.Models.Students
             {
                 return ClassYearLeftReason?.Reason;
             }
+        }
+
+        public StudentClassYear()
+        {
+
+        }
+        public StudentClassYear(StudentClassYear cy)
+        {
+            StudentClassYearId = cy.StudentClassYearId;
+            PersonId = cy.PersonId;
+            ClassYear = cy.ClassYear;
+            Active = cy.Active;
+            Graduated = cy.Graduated;
+            Ross = cy.Ross;
+            LeftTerm = cy.LeftTerm;
+            LeftReason = cy.LeftReason;
+            Added = cy.Added;
+            Updated = cy.Updated;
+            AddedBy = cy.AddedBy;
+            UpdatedBy = cy.UpdatedBy;
+            Comment = cy.Comment;
         }
     }
 }

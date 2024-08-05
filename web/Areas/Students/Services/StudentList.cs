@@ -24,8 +24,8 @@ namespace Viper.Areas.Students.Services
         /// <param name="includeRoss"></param>
         /// <param name="activeYearOnly"></param>
         /// <returns></returns>
-        public async Task<List<Student>> GetStudents(string? classLevel = null, int? classYear = null, bool currentYearsOnly = true,
-                bool includeRoss = true, bool activeYearOnly = true)
+        public async Task<List<Student>> GetStudents(string? classLevel = null, int? classYear = null, int? personId = null,
+                bool currentYearsOnly = true, bool includeRoss = true, bool activeYearOnly = true)
         {
             var termCodeService = new TermCodeService(_context);
             int termCode = (await termCodeService.GetTerms(current: true)).First().TermCode;
@@ -66,6 +66,11 @@ namespace Viper.Areas.Students.Services
                 q = q.Where(q => q.Student != null && studentPersonIds.Contains(q.Student.PersonId));
             }
 
+            if(personId != null)
+            {
+                q = q.Where(q => q.PersonId == personId);
+            }
+
             //include only active class years, i.e. V1-V4 students now
             if (currentYearsOnly)
             {
@@ -87,13 +92,18 @@ namespace Viper.Areas.Students.Services
             return studentList;
         }
 
-        /// <summary>
-        /// Get students from AAUD based on term code and class level
-        /// </summary>
-        /// <param name="termCode"></param>
-        /// <param name="classLevel"></param>
-        /// <returns></returns>
-        public async Task<List<Student>> GetStudentsByTermCodeAndClassLevel(int termCode, string classLevel)
+		public async Task<Student?> GetStudent(int personId)
+		{
+            return (await GetStudents(personId: personId)).FirstOrDefault();
+		}
+
+		/// <summary>
+		/// Get students from AAUD based on term code and class level
+		/// </summary>
+		/// <param name="termCode"></param>
+		/// <param name="classLevel"></param>
+		/// <returns></returns>
+		public async Task<List<Student>> GetStudentsByTermCodeAndClassLevel(int termCode, string classLevel)
         {
             //Get students based on AAUD Student info for the given term
             var students = _context.People
@@ -110,13 +120,19 @@ namespace Viper.Areas.Students.Services
                 .Include(s => s.ClassYearLeftReason)
                 .Where(s => studentIds.Contains(s.PersonId))
                 .OrderBy(g => g.Active ? 0 : 1)
-                .ThenByDescending(g => g.ClassYear);
+                .ThenByDescending(g => g.ClassYear)
+                .AsNoTracking()
+                .ToList();
             foreach (var student in studentList)
             {
                 var studentGradYears = gradYears
                     .Where(g => g.PersonId == student.PersonId)
                     .ToList();
-                student.ClassYears = studentGradYears;
+                student.ClassYears = new List<StudentClassYear>();
+                foreach (var cy in studentGradYears)
+                {
+                    student.ClassYears.Add(new StudentClassYear(cy));
+                }
                 student.ClassYear = studentGradYears?.FirstOrDefault()?.ClassYear;
             }
             return studentList;
@@ -127,7 +143,7 @@ namespace Viper.Areas.Students.Services
         /// that appear to be in a different class year based on their class level for the current term
         /// </summary>
         /// <returns></returns>
-        public async Task<List<StudentClassYearProblem>> GetStudentClassYearProblems(int? classYear)
+        public async Task<List<StudentClassYearProblem>> GetStudentClassYearProblems(int? classYear = null)
         {
             var termCodeService = new TermCodeService(_context);
             int termCode = (await termCodeService.GetTerms(current: true)).First().TermCode;
@@ -141,7 +157,12 @@ namespace Viper.Areas.Students.Services
             List<StudentClassYearProblem> students = new();
             foreach (var cy in activeClassYears)
             {
-                students = students.Concat(await GetStudentClassYearProblemsForOneYear(cy, termCode)).ToList();
+                var classYearProblems = await GetStudentClassYearProblemsForOneYear(cy, termCode);
+                students = students
+                    .Concat(classYearProblems.Where(newProblem => !students.Any(s => s.PersonId == newProblem.PersonId)))
+                    .OrderBy(s => s.LastName)
+                    .ThenBy(s => s.FirstName)
+                    .ToList();
             }
 
             return students;
@@ -170,10 +191,13 @@ namespace Viper.Areas.Students.Services
             {
                 if (!expectedStudents.Any(e => e.PersonId == s.PersonId))
                 {
+                    var expected = (s.ClassLevel != null && s.TermCode != null) ? GradYearClassLevel.GetGradYear(s.ClassLevel, (int)s.TermCode) : null;
                     studentProblems.Add(new StudentClassYearProblem(s)
                     {
-                        ExpectedClassYear = (s.ClassLevel != null && s.TermCode != null) ? GradYearClassLevel.GetGradYear(s.ClassLevel, (int)s.TermCode) : null,
-                        Problems = "Student is not expected in class year."
+                        ExpectedClassYear = expected,
+                        Problems = expected != null
+                            ? string.Format("Student is expected in class year {0}.", expected)
+                            : string.Format("Student is not expected in class year {0}.", s.ClassYear)
                     });
                 }
             }
@@ -181,12 +205,15 @@ namespace Viper.Areas.Students.Services
             //For each student that should be considered part of this class year based on class level and term code, check that they are in the class year.
             foreach (var e in expectedStudents)
             {
-                if (!studentsInClassYear.Any(s => s.PersonId == e.PersonId))
+                if (!studentsInClassYear.Any(s => s.PersonId == e.PersonId) && !studentProblems.Any(p => p.PersonId == e.PersonId))
                 {
+                    var expected = (e.ClassLevel != null && e.TermCode != null) ? GradYearClassLevel.GetGradYear(e.ClassLevel, (int)e.TermCode) : null;
                     studentProblems.Add(new StudentClassYearProblem(e)
                     {
-                        ExpectedClassYear = (e.ClassLevel != null && e.TermCode != null) ? GradYearClassLevel.GetGradYear(e.ClassLevel, (int)e.TermCode) : null,
-                        Problems = "Student is expected in this class year"
+                        ExpectedClassYear = expected,
+                        Problems = expected != null
+                            ? string.Format("Student is expected in class year {0}.", expected)
+                            : string.Format("Student is not expected in class year {0}.", e.ClassYear)
                     });
                 }
             }
@@ -216,22 +243,33 @@ namespace Viper.Areas.Students.Services
                         MiddleName = std.Student.MiddleName,
                         FullName = std.Student.FullName,
                         ClassLevel = std.Student?.StudentInfo?.ClassLevel,
+                        TermCode = std.Student?.StudentInfo?.TermCode,
                         ClassYear = std.ClassYear,
                         Active = std?.Student?.Current == 1 || std?.Student?.Future == 1
                     };
+
+                    List<StudentClassYear> classYears = new List<StudentClassYear>();
                     if (!activeYearOnly)
                     {
-                        newStd.ClassYears = student.ToList();
+                        classYears = student.ToList();
                     }
                     else
                     {
-                        newStd.ClassYears = student.Where(s => s.Active).ToList();
+                        classYears = student.Where(s => s.Active).ToList();
                     }
+
+                    newStd.ClassYears = new List<StudentClassYear>();
+                    foreach (var cy in classYears)
+                    {
+                        newStd.ClassYears.Add(new StudentClassYear(cy));
+                    }
+
                     students.Add(newStd);
                 }
             }
 
             return students;
         }
-    }
+
+	}
 }
