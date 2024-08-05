@@ -31,7 +31,7 @@
               label="Display debugging">
     </q-toggle>
     -->
-    <q-spinner color="primary" size="2em" style="margin-left: 2em;" :class="{ invisible: !spinner }"></q-spinner>
+    <q-spinner v-if="spinner" color="primary" size="2em" style="margin-left: 2em;"></q-spinner>
 </q-form>
     <div class="row q-pa-sm q-gutter-sm" id="directoryResults">
         <q-card v-for="user in results" class="col-2 col-xs-8 col-sm-5 col-md-8 col-lg-3 col-xl-2 block directory">
