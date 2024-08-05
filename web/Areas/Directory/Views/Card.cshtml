@@ -31,6 +31,7 @@
               label="Display debugging">
     </q-toggle>
     -->
+    <q-spinner color="primary" size="2em" style="margin-left: 2em;" :class="{ invisible: !spinner }"></q-spinner>
 </q-form>
     <div class="row q-pa-sm q-gutter-sm" id="directoryResults">
         <q-card v-for="user in results" class="col-2 col-xs-8 col-sm-5 col-md-8 col-lg-3 col-xl-2 block directory">
@@ -137,22 +138,27 @@
                     ucd: getItemFromStorage("directory_ucd") ?? false,
                     ids: getItemFromStorage("directory_ids") ?? false,
                     debug: getItemFromStorage("directory_debug") ?? false,
+                    spinner: false,
                     results: []
                 }
             },
             methods: {
                 findUsers: async function () {
+                    this.spinner = false;
+                    this.results = [];
                     var urlBase = "@Url.Content("~/Directory/search/")" + this.userSearch;
                     if (this.ucd) {
                         urlBase += "/ucd"
                     }
                     if (this.userSearch.length >= 2) {
+                        this.spinner = true;
                         this.results = (await viperFetch(this, urlBase))
+                        this.spinner = false;
                     }
                 }
             },
             mounted() {
-                this.findUsers()
+                this.findUsers();
             },
             watch: {
                 userSearch: function () {

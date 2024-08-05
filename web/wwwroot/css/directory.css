@@ -98,3 +98,6 @@
     .directory .top_button:hover {
         color: #fff;
     }
+.directory .invisible {
+    display: none;
+}
