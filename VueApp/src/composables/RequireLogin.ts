@@ -30,7 +30,12 @@ export default function useRequireLogin(to: RouteLocationNormalized) {
         const r = await get(baseUrl + "loggedInUser")
         if (!r.success || !r.result.userId) {
             //if user has not authed, send to VIPER 2.0 login url with this app's home page as the return url
-            window.location.href = import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + to.fullPath//import.meta.env.VITE_VIPER_HOME + appBase + "/"
+            //application base will be "" on dev and "/2" on prod and test
+            //to.fullPath will be e.g. /area/page and on test and prod we need /2/area/page as the return url
+            const applicationBase = (import.meta.env.VITE_VIPER_HOME.length == 1
+                ? ""
+                : import.meta.env.VITE_VIPER_HOME.substring(0, import.meta.env.VITE_VIPER_HOME.length - 1))
+            window.location.href = import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + applicationBase + to.fullPath
         }
         else {
             //store the logged in user info
