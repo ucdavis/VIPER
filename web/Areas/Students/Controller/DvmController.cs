@@ -142,10 +142,7 @@ namespace Viper.Areas.Students.Controller
                 return null;
             }
 
-            if (user == null)
-            {
-                user = userHelper.GetCurrentUser();
-            }
+            user ??= userHelper.GetCurrentUser();
 
             StudentClassYear sgy = new()
             {
@@ -274,7 +271,7 @@ namespace Viper.Areas.Students.Controller
                 var minCY = activeClassYears[0];
                 for (var i = minCY - 1; i >= (minClassYear ?? minCY - 10); i--)
                 {
-                    activeClassYears.Prepend(i);
+                    activeClassYears = activeClassYears.Prepend(i).ToList();
                 }
             }
             return activeClassYears;
