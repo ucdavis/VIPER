@@ -39,7 +39,7 @@
             </q-select>
             <q-toggle v-model="activeOnly" label="Only students currently in this class"></q-toggle>
             <br />
-            <q-btn no-caps color="primary" label="Submit" class="q-mt-md" @@click="getStudents()"></q-btn>
+            <q-btn no-caps color="primary" label="Submit" class="q-mt-md" @@click="getStudents"></q-btn>
         </div>
         <div class="col col-md-2 col-lg-2 offset-md-3">
             <q-btn v-if="classYear.value" :label="'Import students into ' + classYear?.label" dense no-caps color="secondary"
@@ -53,7 +53,8 @@
          :columns="cols"
          :title="classYear.label"
          :pagination="{rowsPerPage: 0}"
-         no-data-label="No students found. Please import this year."
+         :no-data-label="nodata"
+         :loading="loading"
          :filter="filter"
          dense>
     <template v-slot:top-right>
@@ -102,9 +103,6 @@
     </template>
 </q-table>
 
-<div v-if="students.length == 0 && classYear.value && !loading">
-    No students found. Please import this class year.
-</div>
 @section Scripts {
     <script asp-add-nonce="true">
         createVueApp({
@@ -128,6 +126,7 @@
                     problemsOnly: false,
                     loading: false,
                     filter: null,
+                    nodata: "",
 
                     //form
                     showForm: false,
@@ -142,9 +141,10 @@
                     this.loading = true
                     this.students = []
                     this.allStudents = []
+                    this.nodata = ""
 
                     //if class year specified, add to url params and get students with this class year
-                    if (this.classYear?.value) {
+                    if (this.classYear?.value && this.classYear.value) {
                         var qp = new URLSearchParams(window.location.search)
                         qp.set("classYear", this.classYear.value)
                         history.pushState(null, null, "?" + qp.toString())
@@ -156,13 +156,19 @@
                         var problems = await viperFetch(this, u)
                         problems.forEach(p => {
                             var s = this.allStudents.find(s => s.personId == p.personId)
-                            if(s != undefined) {
+                            if (s != undefined) {
                                 s.problems = p.problems
                             }
                         })
                     }
+                    else {
+                        this.nodata = "Select a class year and hit submit"
+                    }
 
                     this.students = this.allStudents.filter(s => !this.problemsOnly || s?.problems?.length)
+                    if (this.students.length == 0 && this.classYear?.value && this.classYear.value) {
+                        this.nodata = "No students found. Please import this year."
+                    }
                     this.loading = false
                 },
                 clear: function () {
@@ -229,7 +235,7 @@
                 this.getStudents()
             },
             watch: {
-                problemsOnly: function() {
+                problemsOnly: function () {
                     this.students = this.allStudents.filter(s => !this.problemsOnly || s?.problems?.length)
                 }
             }
