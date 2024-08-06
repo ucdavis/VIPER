@@ -14,6 +14,7 @@ namespace Viper.Models
 
         public string FullName => $"{FirstName} {LastName}";
         public string FullNameLastFirst => $"{LastName}, {FirstName}";
+        public string Email => $"{MailId}@ucdavis.edu";
 
         public PersonSimple() { }
         public PersonSimple(Person p)

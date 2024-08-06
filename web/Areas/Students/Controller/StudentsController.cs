@@ -2,6 +2,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
+using Polly;
+using Viper.Areas.CMS.Data;
+using Viper.Areas.Curriculum.Services;
+using Viper.Areas.Students.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
@@ -33,18 +37,17 @@ namespace Viper.Areas.Students.Controller
                                          ActionExecutionDelegate next)
         {
             await base.OnActionExecutionAsync(context, next);
-            await next();
             ViewData["ViperLeftNav"] = Nav();
         }
 
         public NavMenu Nav()
         {
-            var nav = new List<NavMenuItem>
+            var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-students")?.FirstOrDefault();
+            if (menu != null)
             {
-                new() { MenuItemText = "Home", MenuItemURL = "Home" }
-            };
-
-            return new NavMenu("Student Resources", nav);
+                ConvertNavLinksForDevelopment(menu);
+            }
+            return menu ?? new NavMenu("", new List<NavMenuItem>());
         }
 
         [Route("/[area]")]
@@ -54,11 +57,18 @@ namespace Viper.Areas.Students.Controller
         }
 
         [Route("/[area]/[action]")]
-        public IActionResult StudentClassYear(string? import = null, int? classYear= null)
+        public IActionResult StudentClassYear(string? import = null, int? classYear = null)
         {
-            return import != null 
+            return import != null
                 ? View("~/Areas/Students/Views/StudentClassYearImport.cshtml")
                 : View("~/Areas/Students/Views/StudentClassYear.cshtml");
         }
+
+        [Route("/[area]/[action]")]
+        public IActionResult StudentClassYearreport()
+        {
+            return View("~/Areas/Students/Views/StudentClassYearReport.cshtml");
+        }
+
     }
 }
