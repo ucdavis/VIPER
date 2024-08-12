@@ -11,7 +11,8 @@ namespace Viper.Areas.Students.Models
         public string FirstName { get; set; } = null!;
         public string? MiddleName { get; set; }
         public string FullName { get; set; } = null!;
-        public string? ClassLevel { get; set; } = null!;
+        public string? ClassLevel { get; set; }
+        public int? TermCode { get; set; }
         public int? ClassYear { get; set; }
         public string Email => MailId + "@ucdavis.edu";
         public bool CurrentClassYear { get; set; }
@@ -24,6 +25,22 @@ namespace Viper.Areas.Students.Models
 
         }
 
+        public Student(Student s)
+        {
+            PersonId = s.PersonId;
+            MailId = s.MailId;
+            LastName = s.LastName;
+            FirstName = s.FirstName;
+            MiddleName = s.MiddleName;
+            FullName = s.FullName;
+            ClassLevel = s.ClassLevel;
+            TermCode = s.TermCode;
+            ClassYear = s.ClassYear;
+            CurrentClassYear = s.CurrentClassYear;
+            Active = s.Active;
+            ClassYears = s.ClassYears;
+        }
+
         public Student(Person p)
         {
             PersonId = p.PersonId;
@@ -33,6 +50,7 @@ namespace Viper.Areas.Students.Models
             MiddleName = p.MiddleName;
             FullName = p.FullName;
             ClassLevel = p.StudentInfo?.ClassLevel;
+            TermCode = p.StudentInfo?.TermCode;
             Active = p.CurrentStudent || p.FutureStudent;
             CurrentClassYear = false;
         }

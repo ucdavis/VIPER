@@ -52,22 +52,17 @@ namespace Viper.Areas.Students.Controller
         }
 
         /// <summary>
-        /// Get all student class years records for a given class year. Returns students with the class year as their active year only.
+        /// Get a single student
         /// </summary>
-        /// <param name="classYear"></param>
+        /// <param name="personId"></param>
         /// <returns></returns>
-        [HttpGet("byClassYear/{classYear}")]
-        [Permission(Allow = "SVMSecure.SIS.AllStudents")]
-        public async Task<ActionResult<IEnumerable<StudentClassYear>>> GetDvmStudentGradYears(int classYear)
+        [HttpGet("{personId}")]
+        [Permission(Allow ="SVMSecure.Students")]
+        public async Task<ActionResult<Models.Student>> GetDvmStudent(int personId)
         {
-            //get students with all grad years
-            var students = context.StudentClassYears
-                .Where(s => s.ClassYear == classYear && s.Active)
-                .OrderBy(s => s.Student == null ? "" : s.Student.LastName)
-                .ThenBy(s => s.Student == null ? "" : s.Student.FirstName);
-
-            return await students.ToListAsync();
-        }
+			var student = await studentList.GetStudent(personId);
+            return student == null ? NotFound() : student;
+		}
 
         /// <summary>
         /// Get students by term and class level. Uses AAUD student info table, which is driven by registration data and exceptions.
@@ -81,6 +76,15 @@ namespace Viper.Areas.Students.Controller
         {
             return await studentList.GetStudentsByTermCodeAndClassLevel(termCode, classLevel);
         }
+
+        [HttpGet("classYearReport")]
+        [Permission(Allow = "SVMSecure.SIS.AllStudents")]
+        public async Task<ActionResult<List<StudentClassYearProblem>>> ClassYearReport(int? classYear)
+        {
+            var problems = await studentList.GetStudentClassYearProblems(classYear);
+            return problems;
+        }
+
 
         /// <summary>
         /// Import the listed people into a class year. Must be their first class year.
@@ -262,10 +266,10 @@ namespace Viper.Areas.Students.Controller
         {
             var termCodeService = new TermCodeService(context);
             List<int> activeClassYears = (await termCodeService.GetActiveClassYears((await termCodeService.GetActiveTerm()).TermCode));
-            if(!activeOnly)
+            if (!activeOnly)
             {
                 var minCY = activeClassYears[0];
-                for(var i = minCY - 1; i >= (minClassYear ?? minCY - 10); i--)
+                for (var i = minCY - 1; i >= (minClassYear ?? minCY - 10); i--)
                 {
                     activeClassYears = activeClassYears.Prepend(i).ToList();
                 }
