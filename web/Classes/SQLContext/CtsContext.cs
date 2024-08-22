@@ -29,6 +29,10 @@ public partial class VIPERContext : DbContext
     /* CREST */
     public virtual DbSet<CourseSessionOffering> CourseSessionOffering { get; set; }
 
+    /* Eval */
+    public virtual DbSet<Instance> Instances { get; set; }
+    public virtual DbSet<EvaluateesByInstance> EvaluateesByInstances { get; set; }
+
     partial void OnModelCreatingCTS(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Competency>(entity =>
@@ -235,5 +239,22 @@ public partial class VIPERContext : DbContext
 			entity.Property(e => e.CanvasCourseId).IsRequired(false);
 			entity.Property(e => e.CanvasEventId).IsRequired(false);
 		});
+
+        modelBuilder.Entity<Instance>(entity =>
+        {
+            entity.HasKey(e => e.InstanceId);
+            entity.ToTable("vwInstances", schema: "eval");
+            entity.Property(e => e.InstanceMode).IsRequired(false);
+            entity.Property(e => e.InstanceDueDate).IsRequired(false);
+            entity.Property(e => e.InstanceStartWeek).IsRequired(false);
+            entity.Property(e => e.InstanceStartWeekId).IsRequired(false);
+        });
+
+
+        modelBuilder.Entity<EvaluateesByInstance>(entity =>
+        {
+            entity.HasKey(e => e.EvaluateeId);
+            entity.ToTable("vwEvaluateesByInstances", schema: "eval");
+        });
     }
 }

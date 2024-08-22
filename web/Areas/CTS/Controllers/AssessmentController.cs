@@ -16,12 +16,14 @@ namespace Viper.Areas.CTS.Controllers
     public class AssessmentController : ApiController
     {
         private readonly VIPERContext context;
-        private AuditService auditService;
-        private CtsSecurityService ctsSecurityService;
+        private readonly RAPSContext rapsContext;
+        private readonly AuditService auditService;
+        private readonly CtsSecurityService ctsSecurityService;
 
         public AssessmentController(VIPERContext _context, RAPSContext rapsContext)
         {
             context = _context;
+            this.rapsContext = rapsContext;
             auditService = new AuditService(context);
             ctsSecurityService = new CtsSecurityService(rapsContext, _context);
         }
@@ -91,15 +93,16 @@ namespace Viper.Areas.CTS.Controllers
                 switch (sortBy.ToLower())
                 {
                     case "enteredon": assessments = descending ? assessments.OrderByDescending(a => a.EnteredOn) : assessments.OrderBy(a => a.EnteredOn); break;
-                    case "enteredbyname": 
+                    case "enteredbyname":
                         assessments = descending
                             ? assessments.OrderByDescending(a => a.EnteredByPerson.LastName)
                                 .ThenByDescending(a => a.EnteredByPerson.FirstName)
                             : assessments.OrderBy(a => a.EnteredByPerson.LastName)
                                 .ThenBy(a => a.EnteredByPerson.FirstName);
                         break;
-                    case "levelname": assessments = descending 
-                            ? assessments.OrderByDescending(a => a.Level != null ? a.Level.LevelName : "") 
+                    case "levelname":
+                        assessments = descending
+                            ? assessments.OrderByDescending(a => a.Level != null ? a.Level.LevelName : "")
                             : assessments.OrderBy(a => a.Level != null ? a.Level.LevelName : ""); break;
                     case "servicename":
                         assessments = descending
@@ -115,7 +118,7 @@ namespace Viper.Areas.CTS.Controllers
                                 .ThenByDescending(a => a.Student.FirstName)
                             : assessments.OrderBy(a => a.Student.LastName)
                                 .ThenBy(a => a.Student.FirstName);
-                        break;   
+                        break;
                 }
             }
             if (pagination != null)
@@ -204,6 +207,56 @@ namespace Viper.Areas.CTS.Controllers
             var sa = CreateStudentAssessment(encounter);
             sa.Editable = ctsSecurityService.CanEditStudentAssessment(sa.EnteredBy);
             return sa;
+        }
+
+        /// <summary>
+        /// Given an Eval360 instance id, get the list of student evalautees for this evaluator and whether or not they have an EPA during
+        /// this rotation.
+        /// </summary>
+        /// <param name="instanceId"></param>
+        /// <returns></returns>
+        [HttpGet("epacompletion")]
+        [Permission(Allow = "SVMSecure")]
+        public async Task<ActionResult<List<EvaluateeWithEpaCompletion>>> EvalauteeStudentsWithEpas(int instanceId)
+        {
+            List<EvaluateeWithEpaCompletion> evaluateesWithCompletion = new();
+            var userHelper = new UserHelper();
+            var user = userHelper.GetCurrentUser();
+            //get instance and check to make sure it belongs to the logged in user, or the logged in user has an admin permission
+            var instance = await context.Instances.FindAsync(instanceId);
+            if (instance == null)
+            {
+                return NotFound();
+            }
+
+            if (instance.InstanceMothraId != user?.MothraId
+                && !userHelper.HasPermission(rapsContext, user, "SVMSecure.Eval.ViewStudentClinResultsAll")
+                && !userHelper.HasPermission(rapsContext, user, "SVMSecure.CTS.Manage"))
+            {
+                return Forbid();
+            }
+
+            //get evaluatees for this eval that are on the rotation for at least one week the logged in user is on this rotation
+            var evaluatees = await context.EvaluateesByInstances
+                .Where(e => e.InstanceId == instanceId)
+                .OrderBy(e => e.LastName)
+                .ThenBy(e => e.FirstName)
+                .ThenBy(e => e.PersonId)
+                .ToListAsync();
+
+            //for each evaluatee, get the epas for this service that are dated within the block start/end, and mark that an EPA has been done or not done
+            foreach (var e in evaluatees)
+            {
+                var epaAssessments = await context.Encounters
+                    .Where(enc => enc.EncounterType == (int)EncounterCreationService.EncounterType.Epa)
+                    .Where(enc => enc.EncounterDate >= e.StartDate && enc.EncounterDate <= e.EndDate)
+                    .Where(enc => enc.Student.PersonId == e.PersonId)
+                    .Where(enc => enc.ServiceId == e.ServiceId)
+                    .CountAsync();
+                evaluateesWithCompletion.Add(new(e, epaAssessments > 0));
+            }
+
+            return evaluateesWithCompletion;
         }
 
         /// <summary>
