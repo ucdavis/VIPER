@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import { ref, inject, watch } from 'vue'
-    import { useRoute } from 'vue-router';
+    import { useRoute } from 'vue-router'
     import type { Ref } from 'vue'
     import type { QTableProps } from 'quasar'
     import { useFetch } from '@/composables/ViperFetch'
@@ -47,6 +47,7 @@
         nodata.value = ""
 
         //if class year specified, add to url params and get students with this class year
+        //TODO: simplify logic here and put on server
         if (classYear?.value && classYear.value.value) {
             let qp = new URLSearchParams(window.location.search)
             qp.set("classYear", classYear.value.value.toString())
@@ -88,21 +89,12 @@
     }
     async function submitStudentClassYear() {
         var u = apiUrl + "students/dvm/" + studentClassYear.value.classYear + "/" + studentClassYear.value.personId
-        console.log(studentClassYear.value)
-        await put(u, {
-            studentClassYearId: studentClassYear.value.studentClassYearId,
-            active: studentClassYear.value.active,
-            ross: studentClassYear.value.ross,
-            leftTerm: studentClassYear.value.leftTerm,
-            leftReason: studentClassYear.value.leftReason,
-            comment: studentClassYear.value.comment,
-        })
+        await put(u, studentClassYear.value);
         getStudents()
         clear()
     }
     async function deleteStudentClassYear() {
         var u = apiUrl + "students/dvm/studentClassYears/" + studentClassYear.value.studentClassYearId
-        
         await del(u)
         getStudents()
         clear()

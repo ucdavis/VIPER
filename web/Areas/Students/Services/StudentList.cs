@@ -111,8 +111,8 @@ namespace Viper.Areas.Students.Services
         {
             //Get students based on AAUD Student info for the given term
             var students = _context.People
-                .Include(p => p.StudentInfo)
-                .Where(p => p.StudentInfo != null && p.StudentInfo.TermCode == termCode && p.StudentInfo.ClassLevel == classLevel)
+                .Include(p => p.StudentHistory)
+                .Where(p => p.StudentHistory != null && p.StudentHistory.Any(h => h.TermCode == termCode && h.ClassLevel == classLevel))
                 .OrderBy(p => p.LastName)
                 .ThenBy(p => p.FirstName);
             var studentList = await students
