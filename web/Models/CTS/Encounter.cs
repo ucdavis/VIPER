@@ -35,6 +35,7 @@ namespace Viper.Models.CTS
         public virtual CourseSessionOffering? Offering { get; set; }
         public virtual Service? Service { get; set; }
         public virtual ICollection<EncounterInstructor> EncounterInstructors { get; set; } = new List<EncounterInstructor>();
+        public virtual Patient? Patient { get; set; }
 
         //For assessments
         public virtual Epa? Epa { get; set; } = null!;
