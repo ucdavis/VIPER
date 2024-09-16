@@ -1,0 +1,110 @@
+.assessmentGroup {
+    border-top: 1px solid silver;
+}
+/*
+.assessmentbubble {
+    width: 15px;
+    height: 15px;
+    margin-left: 5px;
+    margin-right: 5px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.assessmentbubble.ab5_1 {
+    background-color: rgba(174,235,255,1);
+}
+
+.assessmentbubble.ab5_2 {
+    background-color: rgba(134,198,255,1);
+}
+
+.assessmentbubble.ab5_3 {
+    background-color: rgba(62,127,238,1);
+}
+
+.assessmentbubble.ab5_4 {
+    background-color: rgba(0,44,219,1);
+}
+
+.assessmentbubble.ab5_5 {
+    background-color: rgba(11,3,139,1);
+}
+
+.assessmentIcon.ab5_1 {
+    color: rgba(174,235,255,1);
+}
+
+.assessmentIcon.ab5_2 {
+    color: rgba(134,198,255,1);
+}
+
+.assessmentIcon.ab5_3 {
+    color: rgba(62,127,238,1);
+}
+
+.assessmentIcon.ab5_4 {
+    color: rgba(0,44,219,1);
+}
+
+.assessmentIcon.ab5_5 {
+    color: rgba(11,3,139,1);
+}
+*/
+.assessmentBubble5_1 {
+    color: rgba(62,127,238,.3);
+}
+
+.assessmentBubble5_2 {
+    color: rgba(62,127,238,.7);
+}
+
+.assessmentBubble5_3 {
+    color: rgba(62,127,238,1);
+}
+
+.assessmentBubble5_4 {
+    color: rgba(0,44,175,.8);
+}
+
+.assessmentBubble5_5 {
+    color: rgba(11,3,139,1);
+}
+
+.assessmentBubbleCloser5_1 {
+    color: rgba(2,40,150,.7);
+}
+
+.assessmentBubbleCloser5_2 {
+    color: rgba(2,40,150,.8);
+}
+
+.assessmentBubbleCloser5_3 {
+    color: rgba(2,40,150,.9);
+}
+
+.assessmentBubbleCloser5_4 {
+    color: rgba(2,40,150,.95);
+}
+
+.assessmentBubbleCloser5_5 {
+    color: rgba(2,40,150,1);
+}
+
+/*
+.assessmentbubble.ab5_1 {
+    background-color: rgb(169, 208, 255)
+}
+.assessmentbubble.ab5_2 {
+    background-color: rgb(121, 158, 223)
+}
+.assessmentbubble.ab5_3 {
+    background-color: rgb(78, 108, 189)
+}
+.assessmentbubble.ab5_4 {
+    background-color: rgb(42, 60, 152)
+}
+.assessmentbubble.ab5_5 {
+    background-color: rgb(0, 11, 113) 
+}
+*/
