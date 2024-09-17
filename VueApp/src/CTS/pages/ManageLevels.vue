@@ -47,6 +47,10 @@
         }
         else {
             level.value.epa = type.value == "EPA"
+            level.value.clinical = type.value == "Clinical"
+            level.value.course = type.value == "Course"
+            level.value.dops = type.value == "DOPS"
+            level.value.milestone = type.value == "Milestone"
             const r = await post(levelUrl, level.value)
             success = r.success
         }
@@ -61,6 +65,17 @@
         const r = await del(levelUrl + "/" + level.value.levelId)
         if (r.success) {
             loadLevels()
+        }
+    }
+
+    function filterLevels() {
+        switch (type.value) {
+            case "EPA": return levels.value.filter(l => l.epa)
+            case "Milestone": return levels.value.filter(l => l.milestone)
+            case "DOPS": return levels.value.filter(l => l.dops)
+            case "Clinical": return levels.value.filter(l => l.clinical)
+            case "Course": return levels.value.filter(l => l.course)
+            default: return []
         }
     }
 
@@ -98,11 +113,11 @@
         <div>
         </div>
 
-        <q-list v-if="type == 'EPA'">
+        <q-list v-if="type != ''">
             <q-item-label header class="text-dark text-h6">
-                EPA Levels
+                {{type}} Levels
             </q-item-label>
-            <q-item v-for="l in levels.filter(l => l.epa)">
+            <q-item v-for="l in filterLevels()">
                 <q-item-section side top>
                     <q-btn dense no-caps size="md" color="primary" icon="edit" @click="level = l;showForm = true"></q-btn>
                 </q-item-section>

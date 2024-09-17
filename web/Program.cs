@@ -190,6 +190,9 @@ try
     // Add Data Protection services (i.e. encryption)
     builder.Services.AddDataProtection();
 
+    // Add automapper
+    builder.Services.AddAutoMapper(typeof(Program));
+
     var app = builder.Build();
 
     // Add Content Security Policy

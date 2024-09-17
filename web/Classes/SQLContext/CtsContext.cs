@@ -54,6 +54,9 @@ public partial class VIPERContext : DbContext
             entity.ToTable("Competency", "cts");
 
             entity.Property(e => e.Description).IsUnicode(false);
+            entity.Property(e => e.Number)
+                .HasMaxLength(20)
+                .IsUnicode(false);
             entity.Property(e => e.Name)
                 .HasMaxLength(250)
                 .IsUnicode(false);
@@ -204,7 +207,7 @@ public partial class VIPERContext : DbContext
                 .HasForeignKey(d => d.BundleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_BundleRole_Bundle");
-            entity.HasOne(d => d.Role).WithMany()
+            entity.HasOne(d => d.Role).WithMany(r => r.BundleRoles)
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_BundleRole_Role");

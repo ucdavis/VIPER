@@ -2,7 +2,7 @@
     <q-dialog v-model="showError" 
               @hide="hide" v-cloak auto-close full-width backdrop-filter="brightness(50%)"
               position="top">
-        <q-banner class="text-center">
+        <q-banner class="text-center bg-red-1">
             <template v-slot:avatar>
                 <q-icon name="error" color="red" />
             </template>

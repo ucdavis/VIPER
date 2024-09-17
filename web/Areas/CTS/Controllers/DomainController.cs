@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Dynamic.Core;
+using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
@@ -21,20 +22,22 @@ namespace Viper.Areas.CTS.Controllers
 		}
 
 		[HttpGet]
-		public async Task<ActionResult<List<Domain>>> Index()
+		public async Task<ActionResult<List<DomainDto>>> Index()
 		{
-			return await context.Domains.OrderBy(d => d.Order).ToListAsync();
+			return await context.Domains.OrderBy(d => d.Order).Select(d => new DomainDto(d)).ToListAsync();
 		}
 
 		[HttpGet("{domainId}")]
-		public async Task<ActionResult<Domain?>> GetDomain(int domainId)
+		public async Task<ActionResult<DomainDto?>> GetDomain(int domainId)
 		{
-			return await context.Domains.FindAsync(domainId);
+			var d = await context.Domains.FindAsync(domainId);
+
+            return d == null ? NotFound() : new DomainDto(d);
 		}
 
 		[HttpPost]
 		[Permission(Allow = "SVMSecure.CTS.Manage")]
-		public async Task<ActionResult<Domain>> CreateDomain(Domain domain)
+		public async Task<ActionResult<DomainDto>> CreateDomain(Domain domain)
 		{
 			if(domain.DomainId != 0)
 			{
@@ -51,12 +54,12 @@ namespace Viper.Areas.CTS.Controllers
 			context.Add(domain);
 			await context.SaveChangesAsync();
 
-			return domain;
+			return new DomainDto(domain);
 		}
 
 		[HttpPut("{domainId}")]
         [Permission(Allow = "SVMSecure.CTS.Manage")]
-        public async Task<ActionResult<Domain>> UpdateDomain(int domainId, Domain domain)
+        public async Task<ActionResult<DomainDto>> UpdateDomain(int domainId, Domain domain)
 		{
 			if(domain.DomainId != domainId)
 			{
@@ -72,12 +75,12 @@ namespace Viper.Areas.CTS.Controllers
 
             context.Domains.Update(domain);
 			await context.SaveChangesAsync();
-			return domain;
-		}
+			return new DomainDto(domain);
+        }
 
 		[HttpDelete("{domainId}")]
         [Permission(Allow = "SVMSecure.CTS.Manage")]
-        public async Task<ActionResult<Domain>> DeleteDomain(int domainId)
+        public async Task<ActionResult<DomainDto>> DeleteDomain(int domainId)
 		{
 			var domain = await context.Domains.FindAsync(domainId);
 			if(domain == null)
@@ -94,7 +97,7 @@ namespace Viper.Areas.CTS.Controllers
 			{
 				return BadRequest("Could not remove domain. It may be linked to other objects.");
 			}
-			return domain;
+			return new DomainDto(domain);
 		}
 	}
 }

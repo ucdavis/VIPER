@@ -1,4 +1,24 @@
 import { computed } from 'vue'
+
+export type Domain = {
+    domainId: number,
+    name: string,
+    order: number,
+    description: string | null
+}
+
+export type Competency = {
+    competencyId: number | null,
+    domainId: number | null,
+    parentId: number | null,
+    name: string,
+    number: string,
+    description: string | null,
+    canLinkToStudent: boolean,
+    domain: Domain | null,
+    children: Competency[] | null,
+}
+
 export type Epa = {
     epaId: number | null
     order: number | null
@@ -86,4 +106,23 @@ export type Person = {
     lastName: string,
     fullName: string,
     fullNameLastFirst: string,
+}
+
+export type Role = {
+    roleId: number,
+    name: string,
+}
+
+export type Bundle = {
+    bundleId: number | null,
+    name: string,
+    clinical: boolean,
+    assessment: boolean,
+    milestone: boolean,
+}
+
+export type BundleRole = {
+    bundleRoleId: number,
+    bundleId: number,
+    roleId: number,
 }

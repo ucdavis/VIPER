@@ -8,4 +8,6 @@ public partial class Role
     public int RoleId { get; set; }
 
     public string Name { get; set; } = null!;
+
+    public virtual ICollection<BundleRole> BundleRoles { get; set; } = new List<BundleRole>();
 }
