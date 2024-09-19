@@ -31,7 +31,7 @@ namespace Viper.Areas.CTS.Models
             CanLinkToStudent = c.CanLinkToStudent;
             DomainName = c?.Domain?.Name;
             DomainOrder = c?.Domain?.Order;
-            Parent = c.Parent != null ? new CompetencyDto(c.Parent) : null;
+            Parent = c?.Parent != null ? new CompetencyDto(c.Parent) : null;
         }
     }
 }

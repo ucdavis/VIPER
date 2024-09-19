@@ -119,10 +119,42 @@ export type Bundle = {
     clinical: boolean,
     assessment: boolean,
     milestone: boolean,
+    roles: Role[]
 }
 
 export type BundleRole = {
     bundleRoleId: number,
     bundleId: number,
     roleId: number,
+}
+
+export type BundleCompetency = {
+    bundleCompetencyId: number,
+    bundleId: number,
+    roleId: number | null,
+    roleName: number | null,
+    levels: Level[],
+    competencyId: number,
+    competencyNumber: string,
+    competencyName: string,
+    description: string | null,
+    canLinkToStudent: boolean,
+    bundleCompetencyGroupId: number | null,
+    order: number,
+}
+
+export type BundleCompetencyAddUpdate = {
+    bundleCompetencyId: number | null,
+    bundleId: number,
+    competencyId: number | null,
+    order: number,
+    levelIds: number[],
+    roleId: number | null,
+    bundleCompetencyGroupId: number | null,
+}
+
+export type BundleCompetencyGroup = {
+    bundleCompetencyGroupId: number | null,
+    name: string,
+    order: number,
 }

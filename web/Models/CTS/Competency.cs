@@ -23,5 +23,7 @@ public partial class Competency
 
     public virtual ICollection<Competency> Children { get; set; } = new List<Competency>();
 
+    public virtual ICollection<BundleCompetency> BundleCompetencies { get; set; } = new List<BundleCompetency>();
+
     public virtual Competency? Parent { get; set; }
 }

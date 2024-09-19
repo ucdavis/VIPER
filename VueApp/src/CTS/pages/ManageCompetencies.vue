@@ -9,7 +9,7 @@
     const domains = ref([]) as Ref<Domain[]>
     const competencies = ref([]) as Ref<Competency[]>
     const emptyComp = { name: "", number: "", description: "", canLinkToStudent: false, domainId: 0, parentId: null, competencyId: null, domain: null, children: null } as Competency
-    const selectedComp = ref(emptyComp) as Ref<Competency>
+    const selectedComp = ref(structuredClone(emptyComp)) as Ref<Competency>
     const loaded = ref(false)
     const showForm = ref(false)
 

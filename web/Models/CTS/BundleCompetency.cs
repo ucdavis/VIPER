@@ -19,5 +19,9 @@ public partial class BundleCompetency
 
     public virtual Bundle Bundle { get; set; } = null!;
 
+    public virtual Competency Competency { get; set; } = null!;
+
+    public virtual ICollection<BundleCompetencyLevel> BundleCompetencyLevels { get; set; } = new List<BundleCompetencyLevel>();
+
     public virtual BundleCompetencyGroup? BundleCompetencyGroup { get; set; }
 }

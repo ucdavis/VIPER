@@ -176,19 +176,19 @@ namespace Viper.Areas.CTS.Controllers
             }
             if (level.Milestone)
             {
-                levels = levels.Where(l => !l.Milestone);
+                levels = levels.Where(l => l.Milestone);
             }
             if (level.Course)
             {
-                levels = levels.Where(l => !l.Milestone);
+                levels = levels.Where(l => l.Course);
             }
             if (level.Clinical)
             {
-                levels = levels.Where(l => !l.Milestone);
+                levels = levels.Where(l => l.Clinical);
             }
             if (level.Dops)
             {
-                levels = levels.Where(l => !l.Milestone);
+                levels = levels.Where(l => l.Dops);
             }
             levels = levels.OrderBy(l => l.Order);
 

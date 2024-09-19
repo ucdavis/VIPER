@@ -19,7 +19,7 @@ public partial class Bundle
 
     public virtual ICollection<BundleCompetencyGroup> BundleCompetencyGroups { get; set; } = new List<BundleCompetencyGroup>();
 
-    public virtual ICollection<BundleLevel> BundleLevels { get; set; } = new List<BundleLevel>();
+    //public virtual ICollection<BundleLevel> BundleLevels { get; set; } = new List<BundleLevel>();
 
     public virtual ICollection<BundleRole> BundleRoles { get; set; } = new List<BundleRole>();
 

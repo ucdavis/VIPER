@@ -18,7 +18,7 @@ public partial class VIPERContext : DbContext
     public virtual DbSet<Bundle> Bundles { get; set; }
     public virtual DbSet<BundleCompetency> BundleCompetencies { get; set; }
     public virtual DbSet<BundleCompetencyGroup> BundleCompetencyGroups { get; set; }
-    public virtual DbSet<BundleLevel> BundleLevels { get; set; }
+    public virtual DbSet<BundleCompetencyLevel> BundleCompetencyLevels { get; set; }
     public virtual DbSet<BundleRole> BundleRoles { get; set; }
     public virtual DbSet<BundleService> BundleServices { get; set; }
     public virtual DbSet<CompetencyOutcome> CompetencyOutcomes { get; set; }
@@ -166,6 +166,11 @@ public partial class VIPERContext : DbContext
                 .HasForeignKey(d => d.BundleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_BundleCompetency_Bundle");
+
+            entity.HasOne(d => d.Competency).WithMany(p => p.BundleCompetencies)
+                .HasForeignKey(d => d.CompetencyId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_BundleCompetency_Competency");
         });
 
         modelBuilder.Entity<BundleCompetencyGroup>(entity =>
@@ -184,15 +189,15 @@ public partial class VIPERContext : DbContext
                 .HasConstraintName("FK_BundleCompetencyGroupId_Bundle");
         });
 
-        modelBuilder.Entity<BundleLevel>(entity =>
+        modelBuilder.Entity<BundleCompetencyLevel>(entity =>
         {
-            entity.ToTable("BundleLevel", "cts");
+            entity.ToTable("BundleCompetencyLevel", "cts");
+            entity.HasKey(e => e.BundleCompetencyLevelId);
 
-            entity.HasOne(d => d.Bundle).WithMany(p => p.BundleLevels)
-                .HasForeignKey(d => d.BundleId)
+            entity.HasOne(d => d.BundleCompetency).WithMany(p => p.BundleCompetencyLevels)
+                .HasForeignKey(d => d.BundleCompetencyId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_BundleLevel_Bundle");
-
+                .HasConstraintName("FK_BundleLevel_BundleCompetency");
             entity.HasOne(d => d.Level).WithMany()
                 .HasForeignKey(d => d.LevelId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
