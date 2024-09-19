@@ -251,11 +251,12 @@
                 {{ props.row.competencyNumber }} {{ props.row.competencyName }}
             </q-td>
         </template>
-
         <template v-for="level in levels" :v-slot:"'body-cell-level' + level.levelId="props">
-            <q-td :props="props">
-                {{ level.levelName }}
-            </q-td>
+            <!--
+    <q-td :props="props">
+        {{ level.levelName }}
+    </q-td>
+        -->
         </template>
         <template v-slot:body-cell-action="props">
             <q-td :props="props">
