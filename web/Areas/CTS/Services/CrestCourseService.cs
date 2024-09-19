@@ -1,12 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using NuGet.Protocol;
 using Viper.Areas.CTS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
+using Course = Viper.Areas.CTS.Models.Course;
+using Session = Viper.Areas.CTS.Models.Session;
 
 namespace Viper.Areas.CTS.Services
 {
-	public class CrestCourseService
+    public class CrestCourseService
 	{
 		private readonly VIPERContext _context;
 		public CrestCourseService(VIPERContext context)

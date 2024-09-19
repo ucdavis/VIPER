@@ -142,12 +142,21 @@ export function useFetch() {
                     isAuthError = true
                 }
                 else {
-                    result = await response.json()
-                    message = result.errorMessage != null
-                        ? result.errorMessage
-                        : result.detail != null
-                            ? result.detail
-                            : result.statusText
+                    try {
+                        result = await response.json()
+                    }
+                    catch (e) {
+                        result = response
+                    }
+                    if (result.errorMessage != null) {
+                        message = result.errorMessage
+                    }
+                    else if (result.detail != null) {
+                        message = result.detail
+                    }
+                    else if (result.statusText != null) {
+                        message = result.statusText
+                    }
                 }
             }
             catch (e) {

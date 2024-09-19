@@ -56,7 +56,7 @@ namespace Viper.Controllers
         [Authorize(Policy = "2faAuthentication")]
         [Permission(Allow = "SVMSecure")]
         public IActionResult Policy()
-        {            
+        {
             return View();
         }
 

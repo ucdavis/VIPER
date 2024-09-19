@@ -1,7 +1,6 @@
 import ViperLayout from '@/layouts/ViperLayout.vue'
 import ViperLayoutSimple from '@/layouts/ViperLayoutSimple.vue'
 
-const viperURL = import.meta.env.VITE_VIPER_HOME
 const ctsBreadcrumbs = [{ url: "Home", name: "Return to CTS 2.0" }]
 
 const routes = [
@@ -43,6 +42,11 @@ const routes = [
     },
     /* Application Management */
     {
+        path: '/CTS/ManageCompetencies',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/ManageCompetencies.vue'),
+    },
+    {
         path: '/CTS/ManageDomains',
         meta: { layout: ViperLayout },
         component: () => import('@/CTS/pages/ManageDomains.vue'),
@@ -56,6 +60,21 @@ const routes = [
         path: '/CTS/ManageLevels',
         meta: { layout: ViperLayout },
         component: () => import('@/CTS/pages/ManageLevels.vue'),
+    },
+    {
+        path: '/CTS/ManageBundles',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/ManageBundles.vue'),
+    },
+    {
+        path: '/CTS/ManageBundleCompetencies',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/ManageBundleCompetencies.vue'),
+    },
+    {
+        path: '/CTS/ManageRoles',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/ManageRoles.vue'),
     },
     {
         path: '/CTS/Audit',

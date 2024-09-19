@@ -11,6 +11,8 @@ public partial class Competency
 
     public int? ParentId { get; set; }
 
+    public string Number { get; set; } = null!;
+
     public string Name { get; set; } = null!;
 
     public string? Description { get; set; }
@@ -20,6 +22,8 @@ public partial class Competency
     public virtual Domain Domain { get; set; } = null!;
 
     public virtual ICollection<Competency> Children { get; set; } = new List<Competency>();
+
+    public virtual ICollection<BundleCompetency> BundleCompetencies { get; set; } = new List<BundleCompetency>();
 
     public virtual Competency? Parent { get; set; }
 }

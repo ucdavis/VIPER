@@ -9,6 +9,7 @@ using Web.Authorization;
 namespace Viper.Areas.Curriculum.Controllers
 {
 	[Route("/curriculum/terms")]
+    [Route("/api/curriculum/terms")]
     [Permission(Allow = "SVMSecure.Curriculum")]
 	public class TermsController : ApiController
 	{

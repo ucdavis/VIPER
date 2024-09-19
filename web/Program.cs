@@ -190,6 +190,9 @@ try
     // Add Data Protection services (i.e. encryption)
     builder.Services.AddDataProtection();
 
+    // Add automapper
+    builder.Services.AddAutoMapper(typeof(Program));
+
     var app = builder.Build();
 
     // Add Content Security Policy
@@ -254,7 +257,8 @@ try
     var baseUrl = app.Environment.IsDevelopment() ? "" : "2/";
     RewriteOptions rewriteOptions = new RewriteOptions()
                 .AddRewrite(@"(?i)^CTS", "/vue/src/cts/index.html", true)
-                .AddRewrite(@"(?i)^Computing", "/vue/src/computing/index.html", true);
+                .AddRewrite(@"(?i)^Computing", "/vue/src/computing/index.html", true)
+                .AddRewrite(@"(?i)^Students", "/vue/src/students/index.html", true);
     app.UseRewriter(rewriteOptions);
 
     //for the vue src files, use directories in the url but serve index.html
