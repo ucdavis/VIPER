@@ -16,8 +16,15 @@
         type: {
             type: String,
             default: "bubble"
-        }
+        },
+        id: {
+            type: Number,
+            required: false
+        },
     })
+
+    const emit = defineEmits(["bubbleClick"])
+
     const classes5 = ["assessmentBubble5_1", "assessmentBubble5_2", "assessmentBubble5_3", "assessmentBubble5_4", "assessmentBubble5_5"]
     const classes5_closer = ["assessmentBubbleCloser5_1", "assessmentBubbleCloser5_2", "assessmentBubbleCloser5_3", "assessmentBubbleCloser5_4", "assessmentBubbleCloser5_5"]
     const clockIcons5 = ["sym_o_clock_loader_10", "sym_o_clock_loader_40", "sym_o_clock_loader_60", "sym_o_clock_loader_80", "circle"]
@@ -29,6 +36,12 @@
     watch(props, () => {
         setBubbleAttrs()
     })
+
+    function clickBubble() {
+        if (props.id !== undefined) {
+            emit("bubbleClick", props.id)
+        }
+    }
 
     function setBubbleAttrs() {
         if (props.maxValue == 5 && props.value <= 5 && props.value > 0) {
@@ -54,5 +67,5 @@
     setBubbleAttrs()
 </script>
 <template>
-    <q-icon :name="bubbleIcon" size="sm" :class="'assessmentIcon ' + bubbleClass" :title="props?.text"></q-icon>
+    <q-icon :name="bubbleIcon" size="sm" :class="'assessmentIcon ' + bubbleClass" :title="props?.text" @click="clickBubble"></q-icon>
 </template>

@@ -17,6 +17,7 @@ public partial class BundleCompetency
 
     public int Order { get; set; }
 
+    public virtual Role? Role { get; set; }
     public virtual Bundle Bundle { get; set; } = null!;
 
     public virtual Competency Competency { get; set; } = null!;

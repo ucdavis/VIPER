@@ -10,6 +10,7 @@ namespace Viper.Areas.CTS.Models
                 .ForMember(dest => dest.Levels, opt => opt.MapFrom(src => src.BundleCompetencyLevels.Select(bcl => bcl.Level).ToList()))
                 .ForMember(dest => dest.CompetencyName, opt => opt.MapFrom(src => src.Competency.Name))
                 .ForMember(dest => dest.CompetencyNumber, opt => opt.MapFrom(src => src.Competency.Number))
+                .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role.Name))
                 .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Competency.Description))
                 .ForMember(dest => dest.CanLinkToStudent, opt => opt.MapFrom(src => src.Competency.CanLinkToStudent));
             CreateMap<BundleCompetencyGroup, BundleCompetencyGroupDto>();
