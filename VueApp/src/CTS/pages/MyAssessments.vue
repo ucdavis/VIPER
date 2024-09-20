@@ -114,8 +114,9 @@
                     </div>
                     <div class="row q-mt-md">
                         <div class="col-12">
-                            Entered by
+                            Entered
                             {{ formatDate(epaAssessment.encounterDate.toString()) }}
+                            by 
                             {{ epaAssessment.enteredByName }}
                         </div>
                     </div>
@@ -128,11 +129,13 @@
             </q-card>
         </q-dialog>
 
-        <div class="col col-md-11 col-lg-7 q-mr-sm">
-            <h3>Entrustable Professional Activities</h3>
-        </div>
-        <div class="col-1">
-            <q-btn dense color="secondary" :icon="showDetails.find(s => s) != undefined ? 'expand_less' : 'expand_more'" @click="toggleExpandAll()"></q-btn>
+        <div class="row">
+            <div class="col col-md-11 col-lg-7 q-mr-sm">
+                <h3>Entrustable Professional Activities</h3>
+            </div>
+            <div class="col-1">
+                <q-btn dense color="secondary" :icon="showDetails.find(s => s) != undefined ? 'expand_less' : 'expand_more'" @click="toggleExpandAll()"></q-btn>
+            </div>
         </div>
         <div v-for="(epa, index) in epas" class="row q-mt-sm q-pt-sm assessmentGroup">
             <div class="col col-md-4 col-lg-3 q-mr-sm">
