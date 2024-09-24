@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Viper.Models.CTS;
 using Viper.Areas.CTS.Models;
 using System.DirectoryServices.ActiveDirectory;
+using AutoMapper;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -14,10 +15,12 @@ namespace Viper.Areas.CTS.Controllers
     public class CompetencyController : ApiController
     {
         private readonly VIPERContext context;
+        private readonly IMapper mapper;
 
-        public CompetencyController(VIPERContext context)
+        public CompetencyController(VIPERContext context, IMapper mapper)
         {
             this.context = context;
+            this.mapper = mapper;
         }
 
         [HttpGet]
@@ -54,6 +57,36 @@ namespace Viper.Areas.CTS.Controllers
                 return NotFound();
             }
             return comps;
+        }
+
+
+        [HttpGet("hierarchy")]
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
+        public async Task<ActionResult<List<CompetencyHierarchyDto>>> GetCompetencyHierarchy()
+        {
+            var comps = await context.Competencies
+                .Include(c => c.Domain)
+                .OrderBy(c => c.Domain.Order)
+                .ThenBy(c => c.Number)
+                .ToListAsync();
+            var compHierarchy = new List<CompetencyHierarchyDto>();
+            var allCompDtos = mapper.Map<List<CompetencyHierarchyDto>>(comps);
+            foreach (var comp in allCompDtos)
+            {
+                if (comp.ParentId == null)
+                {
+                    compHierarchy.Add(comp);
+                }
+                else
+                {
+                    var parent = allCompDtos.Where(c => c.CompetencyId == comp.ParentId).FirstOrDefault();
+                    if (parent != null)
+                    {
+                        parent.Children.Append(comp);
+                    }
+                }
+            }
+            return compHierarchy;
         }
 
         [HttpPost]
@@ -95,7 +128,7 @@ namespace Viper.Areas.CTS.Controllers
         [Permission(Allow = "SVMSecure.CTS.Manage")]
         public async Task<ActionResult<CompetencyDto>> UpdateComptency(int competencyId, CompetencyAddUpdate competency)
         {
-            if(competencyId != competency.CompetencyId)
+            if (competencyId != competency.CompetencyId)
             {
                 return BadRequest();
             }

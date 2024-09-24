@@ -17,6 +17,7 @@ export type Competency = {
     canLinkToStudent: boolean,
     domain: Domain | null,
     children: Competency[] | null,
+    type: string
 }
 
 export type Epa = {

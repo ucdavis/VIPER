@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import { inject, ref } from 'vue'
     import type { Ref } from 'vue'
+    import type { QTreeNode } from 'quasar'
     import { useFetch } from '@/composables/ViperFetch'
     import type { Competency, Domain } from '@/CTS/types'
 
@@ -8,17 +9,34 @@
     const apiUrl = inject('apiURL')
     const domains = ref([]) as Ref<Domain[]>
     const competencies = ref([]) as Ref<Competency[]>
-    const emptyComp = { name: "", number: "", description: "", canLinkToStudent: false, domainId: 0, parentId: null, competencyId: null, domain: null, children: null } as Competency
+    const competencyHierachy = ref([]) as Ref<Competency[]>
+    const emptyComp = { name: "", number: "", description: "", canLinkToStudent: false, domainId: null, parentId: null, competencyId: null, domain: null, children: null } as Competency
     const selectedComp = ref(structuredClone(emptyComp)) as Ref<Competency>
     const loaded = ref(false)
     const showForm = ref(false)
+    const treeNodes = ref([]) as Ref<QTreeNode[]>
+    const expanded = ref([]) as Ref<number[]>
+    const showDescriptions = ref(false)
+    const tree = ref(null) as Ref<any>
 
     async function load() {
         Promise.resolve([
             get(apiUrl + "cts/domains").then(r => domains.value = r.result),
             get(apiUrl + "cts/competencies").then(r => competencies.value = r.result)
         ])
+        await get(apiUrl + "cts/competencies/hierarchy").then(r => competencyHierachy.value = r.result)
+        treeNodes.value = competencyHierachy.value.map(createTreeNode)
         loaded.value = true
+    }
+
+    function createTreeNode(comp: Competency): QTreeNode {
+        return {
+            label: comp.number + " " + comp.name,
+            body: comp.description ?? "",
+            children: comp?.children?.map(createTreeNode),
+            competencyId: comp.competencyId,
+            comp: comp,
+        }
     }
 
     async function submitComp() {
@@ -46,82 +64,103 @@
         }
     }
 
+    function addChild(comp: Competency) {
+        selectedComp.value = structuredClone(emptyComp)
+        selectedComp.value.parentId = comp.competencyId
+        selectedComp.value.domainId = comp.domainId
+        selectedComp.value.number = comp.number
+        showForm.value = true
+    }
+
     function clearComp() {
-        selectedComp.value = emptyComp
+        selectedComp.value = structuredClone(emptyComp)
         showForm.value = false
+    }
+
+    function expandTopLevel() {
+        competencyHierachy.value.forEach((c: Competency) => {
+            expanded.value.push(c.competencyId!)
+        })
     }
 
     load()
 </script>
 <template>
     <h2>Manage Competencies</h2>
-    <h3>Add/Edit Competency <q-btn dense no-caps icon="add" label="Add Competency" color="primary" class="q-ml-md q-mt-xs q-px-md q-py-sm" @click="showForm = true"></q-btn></h3>
-    <q-form @submit="submitComp" v-if="showForm" v-model="selectedComp">
-        <div class="row">
-            <q-input dense outlined v-model="selectedComp.number" label="Number" class="col-12 col-sm-6 col-md-3 col-lg-1"></q-input>
-            <q-input dense outlined v-model="selectedComp.name" label="Name" class="col-12 col-md-6 col-lg-3"></q-input>
-        </div>
-        <div class="row">
-            <q-select dense options-dense outlined 
-                      v-model="selectedComp.domainId" 
-                      label="Domain" 
-                      map-options 
-                      emit-value 
-                      :option-label="opt => opt.order + '. ' + opt.name" 
-                      option-value="domainId" 
-                      :options="domains" 
-                      class="col-12 col-md-9 col-lg-4"></q-select>
-        </div>
-        <div class="row">
-            <q-select dense options-dense outlined 
-                      v-model="selectedComp.parentId" 
-                      label="Parent" 
-                      map-options 
-                      emit-value 
-                      :option-label="opt => opt.number + ' ' + opt.name" 
-                      option-value="competencyId" 
-                      :options="competencies" 
-                      class="col-12 col-md-9 col-lg-4"></q-select>
-        </div>
-        <div class="row">
-            <q-toggle v-model="selectedComp.canLinkToStudent" label="Can link to student"></q-toggle>
-        </div>
-        <div class="row">
-            <q-input type="textarea" dense outlined v-model="selectedComp.description" label="Description" class="col-12 col-md-8 col-lg-4"></q-input>
-        </div>
-        <div class="row q-mt-md">
-            <q-btn type="submit" dense no-caps label="Submit" color="primary" class="q-px-md q-mx-md col-2 col-md-1"></q-btn>
-            <q-btn type="button" dense no-caps label="Cancel" color="secondary" class="q-px-md q-mx-md col-2 col-md-1" @click="clearComp()"></q-btn>
-            <q-btn type="button" dense no-caps label="Delete" v-if="selectedComp.competencyId != null" color="red-5" class="q-px-md q-mx-md col-2 col-md-1" @click="deleteComp()"></q-btn>
-        </div>
-    </q-form>
-    <div v-if="loaded" class="q-mt-md">
-        <h3>Existing Competencies</h3>
-        <div class="row items-center">
-            <div class="col-1">
-                &nbsp;
+    <q-btn dense no-caps icon="add" label="Add Competency" color="green" class="q-mb-md q-mt-xs q-px-md q-py-sm" @click="showForm = true"></q-btn>
+    <q-dialog v-model="showForm">
+        <q-card style="width:500px;max-width:80vw;" class="q-pa-sm">
+            <q-form @submit="submitComp" v-model="selectedComp">
+                <div class="row">
+                    <q-input dense outlined v-model="selectedComp.number" label="Number" class="col-12 col-md-3"></q-input>
+                    <q-input dense outlined v-model="selectedComp.name" label="Name" class="col-12 col-md-9"></q-input>
+                </div>
+                <div class="row">
+                    <q-select dense options-dense outlined
+                              v-model="selectedComp.domainId"
+                              label="Domain"
+                              map-options
+                              emit-value
+                              :option-label="opt => opt.order + '. ' + opt.name"
+                              option-value="domainId"
+                              :options="domains"
+                              class="col-12"></q-select>
+                </div>
+                <div class="row">
+                    <q-select dense options-dense outlined
+                              v-model="selectedComp.parentId"
+                              label="Parent"
+                              map-options
+                              emit-value
+                              :option-label="opt => opt.number + ' ' + opt.name"
+                              option-value="competencyId"
+                              :options="competencies"
+                              class="col-12"></q-select>
+                </div>
+                <div class="row">
+                    <q-toggle v-model="selectedComp.canLinkToStudent" label="Can link to student"></q-toggle>
+                </div>
+                <div class="row">
+                    <q-input type="textarea" dense outlined v-model="selectedComp.description" label="Description" class="col-12"></q-input>
+                </div>
+                <div class="row q-mt-md">
+                    <q-btn type="submit" dense no-caps label="Submit" color="primary" class="q-px-md q-mx-md col"></q-btn>
+                    <q-btn type="button" dense no-caps label="Cancel" color="secondary" class="q-px-md q-mx-md col" @click="clearComp()"></q-btn>
+                    <q-btn type="button" dense no-caps label="Delete" v-if="selectedComp.competencyId != null" color="red-5" class="q-px-md q-mx-md col" @click="deleteComp()"></q-btn>
+                </div>
+            </q-form>
+        </q-card>
+    </q-dialog>
+
+    <h3>
+        Existing Competencies
+        <span class="text-body2">
+            <q-toggle v-model="showDescriptions" label="Show Descriptions"></q-toggle>
+            <q-btn dense no-caps class="q-px-sm q-ml-md" color="secondary" label="Expand all" @click="tree.expandAll()"></q-btn>
+            <q-btn dense no-caps class="q-px-sm q-ml-md" color="secondary" label="Expand Competencies" @click="expandTopLevel()"></q-btn>
+            <q-btn dense no-caps class="q-px-sm q-ml-md" color="secondary" label="Collapse all" @click="tree.collapseAll()"></q-btn>
+        </span>
+    </h3>
+    <q-tree :nodes="treeNodes"
+            node-key="competencyId"
+            v-model:expanded="expanded"
+            dense
+            v-if="loaded"
+            ref="tree">
+        <template v-slot:default-header="prop">
+            <div class="row full-width items-center">
+                <div :class="'col-auto q-mr-sm ' + (prop.node.children.length == 0 ? 'q-ml-sm' : '')" @click.stop>
+                    <q-btn dense flat size="sm" icon="add" color="green" @click="addChild(prop.node.comp)" title="Add child here"></q-btn>
+                </div>
+                <div class="col-auto q-mr-sm" @click.stop>
+                    <q-btn dense flat size="sm" icon="edit" color="grey" @click="selectedComp = prop.node.comp;showForm = true;" title="Edit"></q-btn>
+                </div>
+                <div class="col-9 col-sm-10">
+                    <span :class="prop.node.comp.type == 'Competency' ? 'text-weight-bold' : ''">{{ prop.node.label }}</span>
+                    <q-icon name="school" color="green" v-if="prop.node.comp.canLinkToStudent" class="q-ml-md"></q-icon>
+                    <div v-if="showDescriptions">{{ prop.node.body }}</div>
+                </div>
             </div>
-            <div class="col-2 col-sm-1">Number</div>
-            <div class="col-9 col-md-4 col-lg-3">Name</div>
-            <div class="col-11 col-md-5 col-lg-3">Description</div>
-            <div class="col-1">Std</div>
-        </div>
-        <div class="row items-start q-mb-sm" v-for="comp in competencies">
-            <div class="col-1">
-                <q-btn dense no-caps size="sm" icon="edit" color="primary" @click="selectedComp = comp;showForm = true;"></q-btn>
-            </div>
-            <div class="col-2 col-sm-1">
-                {{ comp.number }}
-            </div>
-            <div class="col-9 col-md-4 col-lg-3">
-                {{ comp.name }}
-            </div>
-            <div class="col-11 col-md-5 col-lg-3">
-                {{ comp.description }}
-            </div>
-            <div class="col-1">
-                <q-icon name="check" color="green" v-if="comp.canLinkToStudent"></q-icon>
-            </div>
-        </div>
-    </div>
+        </template>
+    </q-tree>
 </template>

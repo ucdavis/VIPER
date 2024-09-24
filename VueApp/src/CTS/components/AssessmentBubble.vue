@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import { defineProps, ref, watch } from 'vue'
+    import { defineProps, defineEmits, ref, watch } from 'vue'
 
     const props = defineProps({
         maxValue: {

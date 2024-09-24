@@ -19,6 +19,9 @@ namespace Viper.Areas.CTS.Models
                 .ForMember(dest => dest.Roles, opt => opt.MapFrom(src => src.BundleRoles.Select(br => br.Role).ToList()))
                 .ReverseMap();
             CreateMap<BundleRole, BundleRoleDto>();
+            CreateMap<Competency, CompetencyHierarchyDto>()
+                .ForMember(dest => dest.DomainName, opt => opt.MapFrom(src => src.Domain.Name))
+                .ForMember(dest => dest.DomainOrder, opt => opt.MapFrom(src => src.Domain.Order));
             CreateMap<Role, RoleDto>().ReverseMap();
             CreateMap<Service, ServiceDto>();
             CreateMap<Level, LevelDto>();
