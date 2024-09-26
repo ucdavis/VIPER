@@ -159,3 +159,24 @@ export type BundleCompetencyGroup = {
     name: string,
     order: number,
 }
+
+export type Milestone = {
+    milestoneId: number,
+    name: string,
+    competencyId: number,
+    competencyName: string,
+}
+
+export type MilestoneLevel = {
+    milestoneLevelId: number | null,
+    milestoneId: number,
+    levelId: number,
+    levelName: string,
+    levelOrder: number,
+    description: string,
+}
+
+export type MilestoneLevelUpdate = {
+    levelId: number,
+    description: string,
+}

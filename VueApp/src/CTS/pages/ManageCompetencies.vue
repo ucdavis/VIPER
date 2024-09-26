@@ -87,7 +87,6 @@
 </script>
 <template>
     <h2>Manage Competencies</h2>
-    <q-btn dense no-caps icon="add" label="Add Competency" color="green" class="q-mb-md q-mt-xs q-px-md q-py-sm" @click="showForm = true"></q-btn>
     <q-dialog v-model="showForm">
         <q-card style="width:500px;max-width:80vw;" class="q-pa-sm">
             <q-form @submit="submitComp" v-model="selectedComp">
@@ -139,6 +138,7 @@
             <q-btn dense no-caps class="q-px-sm q-ml-md" color="secondary" label="Expand all" @click="tree.expandAll()"></q-btn>
             <q-btn dense no-caps class="q-px-sm q-ml-md" color="secondary" label="Expand Competencies" @click="expandTopLevel()"></q-btn>
             <q-btn dense no-caps class="q-px-sm q-ml-md" color="secondary" label="Collapse all" @click="tree.collapseAll()"></q-btn>
+            <q-btn dense no-caps class="q-px-sm q-ml-md" color="green" icon="add" label="Add Competency" @click="showForm = true"></q-btn>
         </span>
     </h3>
     <q-tree :nodes="treeNodes"
@@ -150,7 +150,7 @@
         <template v-slot:default-header="prop">
             <div class="row full-width items-center">
                 <div :class="'col-auto q-mr-sm ' + (prop.node.children.length == 0 ? 'q-ml-sm' : '')" @click.stop>
-                    <q-btn dense flat size="sm" icon="add" color="green" @click="addChild(prop.node.comp)" title="Add child here"></q-btn>
+                    <q-btn dense flat size="sm" icon="add" color="green" @click="addChild(prop.node.comp)" title="Add child of this competency"></q-btn>
                 </div>
                 <div class="col-auto q-mr-sm" @click.stop>
                     <q-btn dense flat size="sm" icon="edit" color="grey" @click="selectedComp = prop.node.comp;showForm = true;" title="Edit"></q-btn>

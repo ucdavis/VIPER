@@ -57,6 +57,11 @@ const routes = [
         component: () => import('@/CTS/pages/ManageEpas.vue'),
     },
     {
+        path: '/CTS/ManageMilestones',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/ManageMilestones.vue')
+    },
+    {
         path: '/CTS/ManageLevels',
         meta: { layout: ViperLayout },
         component: () => import('@/CTS/pages/ManageLevels.vue'),

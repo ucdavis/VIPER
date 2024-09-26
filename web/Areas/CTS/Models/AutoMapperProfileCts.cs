@@ -10,7 +10,7 @@ namespace Viper.Areas.CTS.Models
                 .ForMember(dest => dest.Levels, opt => opt.MapFrom(src => src.BundleCompetencyLevels.Select(bcl => bcl.Level).ToList()))
                 .ForMember(dest => dest.CompetencyName, opt => opt.MapFrom(src => src.Competency.Name))
                 .ForMember(dest => dest.CompetencyNumber, opt => opt.MapFrom(src => src.Competency.Number))
-                .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role.Name))
+                .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role == null ? null : src.Role.Name))
                 .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Competency.Description))
                 .ForMember(dest => dest.CanLinkToStudent, opt => opt.MapFrom(src => src.Competency.CanLinkToStudent));
             CreateMap<BundleCompetencyGroup, BundleCompetencyGroupDto>();
@@ -25,6 +25,26 @@ namespace Viper.Areas.CTS.Models
             CreateMap<Role, RoleDto>().ReverseMap();
             CreateMap<Service, ServiceDto>();
             CreateMap<Level, LevelDto>();
+            CreateMap<Bundle, MilestoneDto>()
+                .ForMember(dest => dest.MilestoneId, opt => opt.MapFrom(src => src.BundleId))
+                .ForMember(
+                    dest => dest.CompetencyName, 
+                    opt => opt.MapFrom(src => 
+                        src.BundleCompetencies.Count > 0 
+                            ? src.BundleCompetencies.First().Competency.Name
+                            : null
+                    ))
+                .ForMember(
+                    dest => dest.CompetencyId,
+                    opt => opt.MapFrom(src =>
+                        src.BundleCompetencies.Count > 0
+                            ? src.BundleCompetencies.First().Competency.CompetencyId
+                            : (int?)null
+                    ));
+            CreateMap<MilestoneLevel, MilestoneLevelDto>()
+                .ForMember(dest => dest.MilestoneId, opt => opt.MapFrom(src => src.BundleId))
+                .ForMember(dest => dest.LevelName, opt => opt.MapFrom(src => src.Level.LevelName))
+                .ForMember(dest => dest.LevelOrder, opt => opt.MapFrom(src => src.Level.Order));
         }
     }
 }

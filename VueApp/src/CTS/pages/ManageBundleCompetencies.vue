@@ -193,7 +193,7 @@
                 <q-select dense options-dense outlined class="col-12 col-sm-6 col-md-4" label="Group"
                           v-model="bundleCompetency.bundleCompetencyGroupId" emit-value map-options
                           :options="bundleCompetencyGroups" option-value="bundleCompetencyGroupId" option-label="name"></q-select>
-                <q-btn dense size="md" type="submit" label="Add" icon="add" color="green" class="col-auto q-ml-md q-px-sm"></q-btn>
+                <q-btn dense no-caps size="md" type="submit" label="Add" icon="add" color="green" class="col-auto q-ml-md q-px-sm"></q-btn>
             </div>
         </q-form>
     </div>
