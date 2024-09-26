@@ -18,11 +18,14 @@
     let studentUserId = userStore.userInfo.userId
     const showPersonName = ref(false)
     const epaAssessments = ref([]) as Ref<Assessment[]>
+    const epaAssessment = ref() as Ref<Assessment>
     const epas = ref([]) as Ref<Epa[]>
     const levels = ref([]) as Ref<Level[]>
     const loaded = ref(false)
     const showDetails = ref([]) as Ref<boolean[]>
     const bubbleType = ref("bubble")
+
+    const showAssessmentDetail = ref(false)
 
     async function load() {
         const $q = useQuasar()
@@ -48,7 +51,7 @@
         let p4 = getAssessments()
         await Promise.all([p1, p2, p3, p4])
 
-        for(let i = 0; i < epas.value.length; i++) {
+        for (let i = 0; i < epas.value.length; i++) {
             showDetails.value[i] = false
         }
         loaded.value = true
@@ -71,21 +74,26 @@
     }
 
     function getText(date: Date, enteredBy: string, levelName: string, comment: string | null) {
-        return formatDate(date.toString()) + ' ' + enteredBy+ ' ' + levelName + '\n ' + (comment != null ? comment : "")
+        return formatDate(date.toString()) + ' ' + enteredBy + ' ' + levelName + '\n ' + (comment != null ? comment : "")
     }
 
     function toggleExpandAll() {
         let anyExpanded = false
-        for(let i = 0; i < showDetails.value.length; i++) {
-            if(showDetails.value[i]) {
+        for (let i = 0; i < showDetails.value.length; i++) {
+            if (showDetails.value[i]) {
                 anyExpanded = true
                 break;
             }
         }
 
-        for(let i = 0; i < showDetails.value.length; i++) {
+        for (let i = 0; i < showDetails.value.length; i++) {
             showDetails.value[i] = !anyExpanded
         }
+    }
+
+    function handleAssessmentClick(id: number) {
+        epaAssessment.value = epaAssessments.value.find(a => a.encounterId == id)!
+        showAssessmentDetail.value = true
     }
 
     load()
@@ -93,6 +101,33 @@
 <template>
     <div v-if="loaded">
         <h2>Assessments for <span v-if="showPersonName && person != null">{{ person.firstName }} {{ person.lastName }}</span></h2>
+
+        <q-dialog v-model="showAssessmentDetail">
+            <q-card style="width:700px; max-width: 80vw;">
+                <q-card-section>
+                    <div class="text-h6">Assessment Details</div>
+                    <div class="row">
+                        <div class="col-12">
+                            <AssessmentBubble class="q-mr-md" :maxValue="5" :value=epaAssessment.levelValue></AssessmentBubble>
+                            {{ epaAssessment.levelName }}
+                        </div>
+                    </div>
+                    <div class="row q-mt-md">
+                        <div class="col-12">
+                            Entered
+                            {{ formatDate(epaAssessment.encounterDate.toString()) }}
+                            by 
+                            {{ epaAssessment.enteredByName }}
+                        </div>
+                    </div>
+                    <div class="row q-mt-md">
+                        <div class="col-12">
+                            {{ epaAssessment.comment }}
+                        </div>
+                    </div>
+                </q-card-section>
+            </q-card>
+        </q-dialog>
 
         <div class="row">
             <div class="col col-md-11 col-lg-7 q-mr-sm">
@@ -107,7 +142,8 @@
                 {{ epa.name }}
             </div>
             <div class="col col-md-7 col-lg-4">
-                <AssessmentBubble :maxValue="5" :value=a.levelValue :text="getText(a.encounterDate, a.enteredByName, a.levelName, a?.comment)"
+                <AssessmentBubble :maxValue="5" :value=a.levelValue :text="getText(a.encounterDate, a.enteredByName, a.levelName, a?.comment)" :id="a.encounterId"
+                                  @bubbleClick="handleAssessmentClick"
                                   v-for="a in getAssessmentsForEpa(epa.epaId)" :type="bubbleType"></AssessmentBubble>
             </div>
             <div class="col-1">

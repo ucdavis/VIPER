@@ -23,7 +23,7 @@
     const columns = ref([
         { name: "order", label: "Order", field: "order", align: "left", sortable: true },
         { name: "competencyname", label: "Competency", field: "competencyName", align: "left", sortable: true },
-        { name: "roles", label: "Roles", field: "roles", align: "left", sortable: true },
+        { name: "role", label: "Role", field: "roleName", align: "left", sortable: true },
         { name: "action", label: "", field: "", align: "left" },
     ]) as Ref<QTableProps['columns']>
 
@@ -165,24 +165,10 @@
     load()
 </script>
 <template>
-    {{bundleCompetencies}}
     <div v-if="bundle != null">
         <h2>Competencies for Bundle {{ bundle?.name }}</h2>
-        <q-btn dense no-caps label="Add Group" @click="showGroupForm = true" class="q-my-lg q-px-sm" color="green" icon="add"></q-btn>
-        <q-form @submit="addBundleCompetency()" class="col-12">
-            <div class="row">
-                <q-select dense options-dense outlined behavior="dialog" class="col-10 col-sm-6 col-md-4" label="Add Competency"
-                          v-model="bundleCompetency.competencyId" emit-value map-options
-                          :options="competencyOptions" option-value="competencyId" :option-label="opt => (opt.number + ' ' + opt.name)"
-                          use-input input-debounce="0" @filter="filterComps"></q-select>
-                <q-select dense options-dense outlined class="col-12 col-sm-6 col-md-4" label="Group"
-                          v-model="bundleCompetency.bundleCompetencyGroupId" emit-value map-options
-                          :options="bundleCompetencyGroups" option-value="bundleCompetencyGroupId" option-label="name"></q-select>
-                <q-btn dense size="md" type="submit" label="Add" icon="add" color="green" class="col-auto q-ml-md q-px-sm"></q-btn>
-            </div>
-        </q-form>
-
-        <div v-if="showGroupForm" class="q-mt-sm">
+        <q-btn dense no-caps label="Add Group" @click="showGroupForm = true" class="q-mt-lg q-px-sm" color="green" icon="add"></q-btn>
+        <div v-if="showGroupForm" class="q-mt-sm q-mb-md">
             <q-form @submit="saveBundleCompetencyGroup()">
                 <div class="row">
                     <q-input dense outlined label="Name" class="col-12 col-md-6 col-lg-4" v-model="bundleCompetencyGroup.name"></q-input>
@@ -191,16 +177,29 @@
                     <q-input type="number" label="Order" dense outlined class="col-4 col-md-2 col-lg-1" v-model="bundleCompetencyGroup.order"></q-input>
                 </div>
                 <div class="row q-mt-sm">
-                    <q-btn type="submit" color="primary" dense class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md" label="Submit"></q-btn>
-                    <q-btn v-if="bundleCompetencyGroup?.bundleCompetencyGroupId" type="button" @click="clearBundleCompetencyGroup()" color="primary" dense class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md" label="Cancel"></q-btn>
+                    <q-btn type="submit" color="primary" dense class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md" label="Submit Group"></q-btn>
+                    <q-btn type="button" @click="clearBundleCompetencyGroup()" color="secondary" dense class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md" label="Cancel"></q-btn>
                     <q-btn v-if="bundleCompetencyGroup?.bundleCompetencyGroupId" type="button" @click="removeBundleCompetencyGroup()" color="red-5" dense class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md" label="Delete"></q-btn>
                 </div>
             </q-form>
         </div>
+
+        <q-form @submit="addBundleCompetency()" class="col-12 q-mt-md">
+            <div class="row">
+                <q-select dense options-dense outlined behavior="dialog" class="col-10 col-sm-6 col-md-4" label="Add Competency"
+                          v-model="bundleCompetency.competencyId" emit-value map-options
+                          :options="competencyOptions" option-value="competencyId" :option-label="opt => (opt.number + ' ' + opt.name)"
+                          use-input input-debounce="0" @filter="filterComps"></q-select>
+                <q-select dense options-dense outlined class="col-12 col-sm-6 col-md-4" label="Group"
+                          v-model="bundleCompetency.bundleCompetencyGroupId" emit-value map-options
+                          :options="bundleCompetencyGroups" option-value="bundleCompetencyGroupId" option-label="name"></q-select>
+                <q-btn dense no-caps size="md" type="submit" label="Add" icon="add" color="green" class="col-auto q-ml-md q-px-sm"></q-btn>
+            </div>
+        </q-form>
     </div>
 
     <q-dialog v-model="showCompForm">
-        <q-card>
+        <q-card class="q-pa-lg">
             <q-form @submit="updateBundleCompetency()">
                 <q-card-section>
                     <div class="row">
@@ -251,12 +250,10 @@
                 {{ props.row.competencyNumber }} {{ props.row.competencyName }}
             </q-td>
         </template>
-        <template v-for="level in levels" :v-slot:"'body-cell-level' + level.levelId="props">
-            <!--
-    <q-td :props="props">
-        {{ level.levelName }}
-    </q-td>
-        -->
+        <template v-for="level in levels" v-slot:['body-cell-level_'+level.levelId]="props">
+            <q-td :props="props">
+                <q-icon v-if="props.row.levels.findIndex((l: any) => l.levelId == level.levelId) > -1" name="check" color="green"></q-icon>
+            </q-td>
         </template>
         <template v-slot:body-cell-action="props">
             <q-td :props="props">

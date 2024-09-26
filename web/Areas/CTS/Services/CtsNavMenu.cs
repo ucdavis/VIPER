@@ -47,6 +47,7 @@ namespace Viper.Areas.CTS.Services
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Bundles", MenuItemURL = "ManageBundles" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Levels", MenuItemURL = "ManageLevels" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage EPAs", MenuItemURL = "ManageEPAs" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Manage Milestones", MenuItemURL = "ManageMilestones" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Roles", MenuItemURL = "ManageRoles" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Audit Log", MenuItemURL = "Audit" });
 

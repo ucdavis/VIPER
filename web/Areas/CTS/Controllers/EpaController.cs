@@ -116,6 +116,7 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpPut("{epaId}/services")]
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
         public async Task<ActionResult> UpdateServices(int epaId, List<int> serviceIds)
         {
             var epa = await context.Epas

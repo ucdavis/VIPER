@@ -44,6 +44,7 @@ namespace Viper.Areas.CTS.Controllers
 
             var bundleComps = await context.BundleCompetencies
                 .Include(bc => bc.Competency)
+                .Include(bc => bc.Role)
                 .Include(bc => bc.BundleCompetencyGroup)
                 .Include(bc => bc.BundleCompetencyLevels)
                 .ThenInclude(bcl => bcl.Level)
@@ -121,7 +122,9 @@ namespace Viper.Areas.CTS.Controllers
 
             using var trans = context.Database.BeginTransaction();
             bundleComp.Order = bundleCompetency.Order;
-            foreach (var existingLevel in bundleComp.BundleCompetencyLevels)
+            bundleComp.RoleId = bundleCompetency.RoleId;
+            var existingLevels = await context.BundleCompetencyLevels.Where(bcl => bcl.BundleCompetencyId == bundleCompetencyId).ToListAsync();
+            foreach (var existingLevel in existingLevels)
             {
                 if (!bundleCompetency.LevelIds.Any(l => l == existingLevel.LevelId))
                 {
@@ -139,9 +142,8 @@ namespace Viper.Areas.CTS.Controllers
                     });
                 }
             }
-            AdjustBundleCompetencyOrders(bundleComp);
-
             await context.SaveChangesAsync();
+            AdjustBundleCompetencyOrders(bundleComp);
             await trans.CommitAsync();
 
             return mapper.Map<BundleCompetencyDto>(bundleComp);

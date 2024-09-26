@@ -30,6 +30,7 @@ namespace Viper.Areas.CTS.Controllers
             var bundleQuery = context.Bundles
                 .Include(b => b.BundleRoles)
                 .ThenInclude(br => br.Role)
+                .Include(b => b.BundleCompetencies)
                 .AsQueryable();
             if (clinical != null)
             {

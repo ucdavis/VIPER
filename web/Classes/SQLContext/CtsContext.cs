@@ -167,6 +167,12 @@ public partial class VIPERContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_BundleCompetency_Bundle");
 
+            entity.HasOne(d => d.Role).WithMany()
+                .HasForeignKey(d => d.RoleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_BundleCompetency_Role")
+                .IsRequired(false);
+
             entity.HasOne(d => d.Competency).WithMany(p => p.BundleCompetencies)
                 .HasForeignKey(d => d.CompetencyId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
