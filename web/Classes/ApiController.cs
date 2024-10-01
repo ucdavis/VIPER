@@ -54,5 +54,10 @@ namespace Viper.Classes
             }
             return query;
         }
+
+        protected ActionResult ForbidApi(string message = "Access Denied.")
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, message);
+        }
     }
 }

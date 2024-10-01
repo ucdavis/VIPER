@@ -51,6 +51,9 @@ export type Assessment = {
 
     epaId: number | null
     epaName: string | null
+
+    serviceId: number | null
+    serviceName: string | null
 }
 
 export type StudentEpaFormData = {

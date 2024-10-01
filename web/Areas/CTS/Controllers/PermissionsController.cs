@@ -25,10 +25,13 @@ namespace Viper.Areas.CTS.Controllers
         [HttpGet]
         public ActionResult<bool> HasAccess(string access, int studentId)
         {
+            var userHelper = new UserHelper();
             switch(access)
             {
                 case "ViewStudentAssessments":
                     return ctsSecurityService.CheckStudentAssessmentViewAccess(studentId);
+                case "ViewAllAssessments":
+                    return ctsSecurityService.CheckStudentAssessmentViewAccess();
             }
             return false;
         }
