@@ -28,6 +28,7 @@ public partial class VIPERContext : DbContext
     public virtual DbSet<Patient> Patients { get; set; }
     public virtual DbSet<SessionCompetency> SessionCompetencies { get; set; }
     public virtual DbSet<StudentCompetency> StudentCompetencies { get; set; }
+    public virtual DbSet<CompetencyMapping> CompetencyMappings { get; set; }
 
     /* Students */
     public virtual DbSet<DvmStudent> DvmStudent { get; set; }
@@ -42,10 +43,16 @@ public partial class VIPERContext : DbContext
 
     /* CREST */
     public virtual DbSet<CourseSessionOffering> CourseSessionOffering { get; set; }
+    public virtual DbSet<Course> Courses { get; set; }
+    public virtual DbSet<Session> Sessions { get; set; }
 
     /* Eval */
     public virtual DbSet<Instance> Instances { get; set; }
     public virtual DbSet<EvaluateesByInstance> EvaluateesByInstances { get; set; }
+
+    /* Legacy CTS */
+    public virtual DbSet<LegacyCompetency> LegacyCompetencies { get; set; }
+    public virtual DbSet<LegacySessionCompetency> LegacySessionCompetencies { get; set; }
 
     partial void OnModelCreatingCTS(ModelBuilder modelBuilder)
     {
@@ -305,7 +312,7 @@ public partial class VIPERContext : DbContext
                 .HasForeignKey(d => d.CompetencyId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_SessionCompetency_Competency");
-            entity.HasOne(d => d.Session).WithMany()
+            entity.HasOne(d => d.Session).WithMany(s => s.Competencies)
                 .HasForeignKey(d => d.SessionId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
             entity.HasOne(d => d.Level).WithMany()
@@ -367,6 +374,17 @@ public partial class VIPERContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .IsRequired(false);
         });
+
+        modelBuilder.Entity<CompetencyMapping>(entity =>
+        {
+            entity.ToTable("CompetencyMapping", schema: "cts");
+            entity.HasKey(e => e.CompetencyMappingId);
+            entity.HasOne(e => e.Competency).WithMany()
+                .HasForeignKey(e => e.CompetencyId);
+            entity.HasOne(e => e.LegacyCompetency).WithMany(e => e.DvmCompetencyMapping)
+                .HasForeignKey(e => e.DvmCompetencyId);
+        });
+
 
         /* "Exteral" entities */
         modelBuilder.Entity<DvmStudent>(entity =>
@@ -506,6 +524,23 @@ public partial class VIPERContext : DbContext
             entity.Property(e => e.Description).IsRequired(false);
         });
 
+        //Legacy CTS Competencies and CREST session competencies
+        modelBuilder.Entity<LegacyCompetency>(entity =>
+        {
+            entity.ToTable("vwLegacyCompetencies", schema: "cts");
+            entity.HasKey(e => e.DvmCompetencyId);
+        });
+
+        modelBuilder.Entity<LegacySessionCompetency>(entity =>
+        {
+            entity.ToTable("vwLegacySessionCompetencies", schema: "cts");
+            entity.HasKey(e => new
+            {
+                e.SessionCompetencyId,
+                e.SessionId
+            });
+        });
+        
         /*
         modelBuilder.Entity<Outcome>(entity =>
         {

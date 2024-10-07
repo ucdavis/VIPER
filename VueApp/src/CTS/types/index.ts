@@ -20,6 +20,33 @@ export type Competency = {
     type: string
 }
 
+export type SessionCompetency = {
+    sessionCompetencyId: number,
+    order: number,
+    sessionId: number,
+    sessionName: string,
+    type: string | null,
+    typeOrder: number,
+    paceOrder: number,
+    multiRole: boolean | null,
+    competencyId: number,
+    competencyNumber: string,
+    competencyName: string,
+    canLinkToStudent: boolean,
+    levelId: number,
+    levelName: string,
+    roleId: number | null,
+    roleName: string | null
+}
+
+export type LegacyComptency = {
+    dvmCompetencyId: number,
+    dvmCompetencyName: string,
+    dvmCompetencyParentId: number | null,
+    dvmCompetencyActive: boolean,
+    competencies: Competency[]
+}
+
 export type Epa = {
     epaId: number | null
     order: number | null
@@ -181,5 +208,33 @@ export type MilestoneLevel = {
 
 export type MilestoneLevelUpdate = {
     levelId: number,
+    description: string,
+}
+
+
+export type Course = {
+    courseId: number,
+    status: string,
+    title: string,
+    description: string | null,
+    academicYear: string,
+    crn: string | null,
+    courseNum: string,
+    competencyCount: number | null,
+}
+
+export type Session = {
+    sessionId: number,
+    type: string | null,
+    typeDescription: string | null,
+    title: string,
+    typeOrder: number | null,
+    paceOrder: number | null,
+    competencyCount: number | null
+}
+
+export type Term = {
+    termCode: number,
+    academicYear: string,
     description: string,
 }
