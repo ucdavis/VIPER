@@ -1,5 +1,3 @@
-import { computed } from 'vue'
-
 export type Domain = {
     domainId: number,
     name: string,
@@ -33,10 +31,18 @@ export type SessionCompetency = {
     competencyNumber: string,
     competencyName: string,
     canLinkToStudent: boolean,
-    levelId: number,
-    levelName: string,
     roleId: number | null,
-    roleName: string | null
+    roleName: string | null,
+    levels: Level[],
+}
+
+export type SessionCompetencyAddUpdate = {
+    sessionCompetencyId: number | null,
+    sessionId: number,
+    competencyId: number | null,
+    order: number | null,
+    levelIds: number[],
+    roleId: number | null
 }
 
 export type LegacyComptency = {
@@ -44,7 +50,9 @@ export type LegacyComptency = {
     dvmCompetencyName: string,
     dvmCompetencyParentId: number | null,
     dvmCompetencyActive: boolean,
-    competencies: Competency[]
+    levels: Level[],
+    dvmRoleName: string | null,
+    competencies: Competency[],
 }
 
 export type Epa = {
@@ -228,9 +236,12 @@ export type Session = {
     type: string | null,
     typeDescription: string | null,
     title: string,
+    courseTitle: string,
+    courseId: number,
     typeOrder: number | null,
     paceOrder: number | null,
-    competencyCount: number | null
+    competencyCount: number | null,
+    multiRole: boolean,
 }
 
 export type Term = {

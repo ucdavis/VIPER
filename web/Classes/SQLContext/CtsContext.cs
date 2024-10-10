@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Viper.Models.CTS;
 
 namespace Viper.Classes.SQLContext;
@@ -45,6 +46,7 @@ public partial class VIPERContext : DbContext
     public virtual DbSet<CourseSessionOffering> CourseSessionOffering { get; set; }
     public virtual DbSet<Course> Courses { get; set; }
     public virtual DbSet<Session> Sessions { get; set; }
+    public virtual DbSet<MyCourse> MyCourses { get; set; }
 
     /* Eval */
     public virtual DbSet<Instance> Instances { get; set; }
@@ -565,4 +567,15 @@ public partial class VIPERContext : DbContext
             entity.ToTable("vwEvaluateesByInstances", schema: "eval");
         });
     }
+
+    /*
+     * Stored procedures
+     */
+    public virtual List<MyCourse> GetMyCourses(string academicYear, int userPidm)
+    {
+        //var academicYearParam = new SqlParameter("@academicYear", academicYear);
+        //var userPidmParam = new SqlParameter("@userPidm", userPidm);
+        return MyCourses.FromSql($"getMyCourses {academicYear} {userPidm}").ToList();
+    }
+
 }

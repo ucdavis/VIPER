@@ -51,6 +51,11 @@ const routes = [
         meta: { layout: ViperLayout },
         component: () => import('@/CTS/pages/ManageLegacyCompetencyMapping.vue'),
     },
+    {
+        path: '/CTS/ManageSessionCompetencies',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/ManageSessionCompetencies.vue'),
+    },
     /* Application Management */
     {
         path: '/CTS/ManageCompetencies',

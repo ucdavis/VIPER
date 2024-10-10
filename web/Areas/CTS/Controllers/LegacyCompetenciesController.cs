@@ -34,33 +34,69 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpGet("session/{sessionId}")]
-        public async Task<ActionResult<List<LegacySessionCompetency>>> GetSessionCompentencies(int sessionId)
+        public async Task<ActionResult<List<LegacySessionCompetencyDto>>> GetSessionCompentencies(int sessionId)
         {
-            return await context.LegacySessionCompetencies
+            var comps = await context.LegacySessionCompetencies
                 .Where(l => l.SessionId == sessionId)
                 .OrderBy(l => l.SessionCompetencyOrder)
+                .ThenBy(l => l.DvmCompetencyId)
+                .ThenBy(l => l.DvmRoleName)
+                .ThenBy(l => l.DvmLevelOrder)
                 .ToListAsync();
+            return GroupSessionCompetencies(comps);
         }
 
         [HttpGet("course/{courseId}")]
-        public async Task<ActionResult<List<LegacySessionCompetency>>> GetCourseCompetencies(int courseId)
+        public async Task<ActionResult<List<LegacySessionCompetencyDto>>> GetCourseCompetencies(int courseId)
         {
-            return await context.LegacySessionCompetencies
+            var comps = await context.LegacySessionCompetencies
                 .Where(l => l.CourseId == courseId)
                 .OrderBy(l => l.PaceOrder)
                 .ThenBy(l => l.SessionCompetencyOrder)
+                .ThenBy(l => l.DvmCompetencyId)
+                .ThenBy(l => l.DvmRoleName)
+                .ThenBy(l => l.DvmLevelOrder)
                 .ToListAsync();
+            return GroupSessionCompetencies(comps);
+        }
+
+        private List<LegacySessionCompetencyDto> GroupSessionCompetencies(List<LegacySessionCompetency> comps)
+        {
+            List<LegacySessionCompetencyDto> lscs = new();
+            int lastComp = 0;
+            int? lastRole = null;
+            LegacySessionCompetencyDto? current = null;
+            foreach (var sessionCompetency in comps)
+            {
+                if (sessionCompetency.DvmCompetencyId != null && lastComp != sessionCompetency.DvmCompetencyId || lastRole != sessionCompetency.DvmRoleId)
+                {
+                    current = mapper.Map<LegacySessionCompetencyDto>(sessionCompetency);
+                    lscs.Add(current);
+                    lastComp = (int)sessionCompetency.DvmCompetencyId!;
+                    lastRole = sessionCompetency.DvmRoleId;
+                }
+                if (current != null && sessionCompetency.DvmLevelId != null)
+                {
+                    current.Levels.Add(new LevelIdAndNameDto()
+                    {
+                        LevelId = (int)sessionCompetency.DvmLevelId,
+                        LevelName = sessionCompetency.DvmLevelName,
+                    });
+                }
+            }
+            return lscs;
         }
 
         [HttpGet("term/{termCode}")]
-        public async Task<ActionResult<List<LegacySessionCompetency>>> GetCoursesCompetenciesForTerm(int termCode)
+        public async Task<ActionResult<List<LegacySessionCompetencyDto>>> GetCoursesCompetenciesForTerm(int termCode)
         {
-            return await context.LegacySessionCompetencies
+            var comps = await context.LegacySessionCompetencies
                 .Where(l => l.AcademicYear == termCode.ToString())
                 .OrderBy(l => l.CourseTitle)
                 .ThenBy(l => l.PaceOrder)
                 .ThenBy(l => l.SessionCompetencyOrder)
                 .ToListAsync();
+            return mapper.Map<List<LegacySessionCompetencyDto>>(comps);
         }
     }
 }

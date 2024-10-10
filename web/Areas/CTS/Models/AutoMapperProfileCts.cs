@@ -51,15 +51,16 @@ namespace Viper.Areas.CTS.Models
             CreateMap<Viper.Models.CTS.Session, SessionDto>()
                 .ForMember(dest => dest.CompetencyCount, opt => opt.MapFrom(src => src.Competencies.Count()));
             CreateMap<SessionCompetency, SessionCompetencyDto>()
+                /*
                 .ForMember(dest => dest.SessionName, opt => opt.MapFrom(src => src.Session.Title))
                 .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Session.Type))
                 .ForMember(dest => dest.TypeOrder, opt => opt.MapFrom(src => src.Session.TypeOrder))
                 .ForMember(dest => dest.PaceOrder, opt => opt.MapFrom(src => src.Session.PaceOrder))
                 .ForMember(dest => dest.MultiRole, opt => opt.MapFrom(src => src.Session.MultiRole))
+                */
                 .ForMember(dest => dest.CompetencyName, opt => opt.MapFrom(src => src.Competency.Name))
                 .ForMember(dest => dest.CompetencyNumber, opt => opt.MapFrom(src => src.Competency.Number))
                 .ForMember(dest => dest.CanLinkToStudent, opt => opt.MapFrom(src => src.Competency.CanLinkToStudent))
-                .ForMember(dest => dest.LevelName, opt => opt.MapFrom(src => src.Level.LevelName))
                 .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role != null ? src.Role.Name : null));
 
             //Legacy comps
@@ -67,6 +68,7 @@ namespace Viper.Areas.CTS.Models
                 .ForMember(dest => dest.Competencies, opt => opt.MapFrom(src =>
                         src.DvmCompetencyMapping.Select(d => d.Competency).ToList()
                     ));
+            CreateMap<LegacySessionCompetency, LegacySessionCompetencyDto>();
         }
     }
 }

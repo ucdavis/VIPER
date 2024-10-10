@@ -208,6 +208,8 @@ div.breadcrumbs {
 }
 
 /* Heading Styles */
+.q-dialog h2,
+.q-dialog text-h2,
 .q-page-container h2,
 .q-page-container .text-h2 {
     font-size: 1.4rem;
@@ -216,6 +218,8 @@ div.breadcrumbs {
     font-weight: bold;
 }
 
+.q-dialog h3,
+.q-dialog text-h3,
 .q-page-container h3,
 .q-page-container .text-h3 {
     font-size: 1.2rem;
@@ -224,7 +228,8 @@ div.breadcrumbs {
     font-weight: bold;
 }
 
-
+.q-dialog h4,
+.q-dialog text-h4,
 .q-page-container h4,
 .q-page-container .text-h4 {
     font-size: 1.1rem;
@@ -233,6 +238,8 @@ div.breadcrumbs {
     font-weight: bold;
 }
 
+.q-dialog h5,
+.q-dialog text-h5,
 .q-page-container h5,
 .q-page-container .text-h5 {
     font-size: 1rem;
@@ -241,6 +248,8 @@ div.breadcrumbs {
     font-weight: bold;
 }
 
+.q-dialog h6,
+.q-dialog text-h6,
 .q-page-container h6,
 .q-page-container .text-h6 {
     font-size: 1rem;
