@@ -49,7 +49,7 @@ namespace Viper.Areas.CTS.Models
             //course, session
             CreateMap<Viper.Models.CTS.Course, CourseDto>();
             CreateMap<Viper.Models.CTS.Session, SessionDto>()
-                .ForMember(dest => dest.CompetencyCount, opt => opt.MapFrom(src => src.Competencies.Count()));
+                .ForMember(dest => dest.CompetencyCount, opt => opt.MapFrom(src => src.Competencies.Select(c => c.CompetencyId).Distinct().Count()));
             CreateMap<SessionCompetency, SessionCompetencyDto>()
                 /*
                 .ForMember(dest => dest.SessionName, opt => opt.MapFrom(src => src.Session.Title))

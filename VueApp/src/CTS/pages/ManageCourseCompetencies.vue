@@ -42,7 +42,6 @@
 
     function getSessions() {
         if (selectedCourse.value.courseId) {
-            history.pushState(null, "", "?courseId=" + selectedCourse.value.courseId.toString())
             get(apiUrl + "cts/courses/" + selectedCourse.value.courseId + "/sessions?supportedSessionTypes=true")
                 .then(r => sessions.value = r.result)
             getCourseRoles()

@@ -98,15 +98,15 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("CompetencyId cannot be set for a new competency.");
             }
 
-            if (competency.Name.Length < 3 || competency.Number.Length < 1)
+            if (competency.Name.Length < 2 || competency.Number.Length < 1)
             {
                 return BadRequest("Name and Number are required.");
             }
 
-            var duplicates = await context.Competencies.Where(c => c.Name == competency.Name || c.Number == competency.Number).ToListAsync();
+            var duplicates = await context.Competencies.Where(c => c.Number == competency.Number).ToListAsync();
             if (duplicates.Count > 0)
             {
-                return BadRequest("A competency with this name or number exists already.");
+                return BadRequest("A competency with this number exists already.");
             }
 
             var comp = new Competency()
@@ -143,18 +143,18 @@ namespace Viper.Areas.CTS.Controllers
             {
                 return BadRequest("CompetencyId is required.");
             }
-            if (competency.Name.Length < 3 || competency.Number.Length < 1)
+            if (competency.Name.Length < 2 || competency.Number.Length < 1)
             {
                 return BadRequest("Name and Number are required.");
             }
 
             var duplicates = await context.Competencies
                 .Where(c => c.CompetencyId != competency.CompetencyId)
-                .Where(c => c.Name == competency.Name || c.Number == competency.Number)
+                .Where(c => c.Number == competency.Number)
                 .ToListAsync();
             if (duplicates.Count > 0)
             {
-                return BadRequest("A competency with this name or number exists already.");
+                return BadRequest("A competency with this number exists already.");
             }
 
             c.Name = competency.Name;
