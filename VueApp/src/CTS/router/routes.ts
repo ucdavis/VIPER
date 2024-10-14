@@ -19,101 +19,101 @@ const routes = [
     {
         path: '/CTS/MyAssessments',
         name: 'MyAssessments',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Students"] },
         component: () => import('@/CTS/pages/MyAssessments.vue'),
     },
     /* Assessments */
     {
         path: '/CTS/EPA',
-        meta: { layout: ViperLayoutSimple, breadcrumbs: ctsBreadcrumbs },
+        meta: { layout: ViperLayoutSimple, breadcrumbs: ctsBreadcrumbs, permissions: ["SVMSecure.CTS.Manage", "SVMSecure.CTS.AssessClinical"] },
         component: () => import('@/CTS/pages/AssessmentEpa.vue'),
     },
     {
         path: '/CTS/AssessmentList',
         name: 'AssessmentList',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage", "SVMSecure.CTS.StudentAssessments", "SVMSecure.CTS.AssessClinical"] },
         component: () => import('@/CTS/pages/AssessmentList.vue'),
     },
     {
         path: '/CTS/AssessmentEpaEdit',
         name: 'AssessmentEpaEdit',
-        meta: { layout: ViperLayoutSimple, breadcrumbs: ctsBreadcrumbs },
+        meta: { layout: ViperLayoutSimple, breadcrumbs: ctsBreadcrumbs, permissions: ["SVMSecure.CTS.Manage", "SVMSecure.CTS.AssessClinical"] },
         component: () => import('@/CTS/pages/AssessmentEpaEdit.vue'),
     },
     /* Course Competencies */
     {
         path: '/CTS/ManageCourseCompetencies',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/ManageCourseCompetencies.vue'),
     },
     {
         path: '/CTS/ManageLegacyCompetencyMapping',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/ManageLegacyCompetencyMapping.vue'),
     },
     {
         path: '/CTS/ManageSessionCompetencies',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/ManageSessionCompetencies.vue'),
     },
     /* Application Management */
     {
         path: '/CTS/ManageCompetencies',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/ManageCompetencies.vue'),
     },
     {
         path: '/CTS/ManageDomains',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/ManageDomains.vue'),
     },
     {
         path: '/CTS/ManageEPAs',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/ManageEpas.vue'),
     },
     {
         path: '/CTS/ManageMilestones',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/ManageMilestones.vue')
     },
     {
         path: '/CTS/ManageLevels',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/ManageLevels.vue'),
     },
     {
         path: '/CTS/ManageBundles',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/ManageBundles.vue'),
     },
     {
         path: '/CTS/ManageBundleCompetencies',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/ManageBundleCompetencies.vue'),
     },
     {
         path: '/CTS/ManageRoles',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/ManageRoles.vue'),
     },
     {
         path: '/CTS/Audit',
         name: 'Audit Log',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/AuditList.vue'),
     },
     {
         path: '/CTS/Test',
         name: 'Test Page',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/TestPage.vue'),
     },
     /* Reports */
     {
         path: '/CTS/AssessmentChart',
         name: 'AssessmentCharts',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/AssessmentChart.vue'),
     },
     {
