@@ -48,7 +48,7 @@ namespace Viper.Areas.CTS.Controllers
         {
             if (!ctsSecurityService.CheckStudentAssessmentViewAccess(studentUserId, enteredById))
             {
-                return Forbid();
+                return (ActionResult<List<StudentAssessment>>)ForbidApi();
             }
 
             var assessments = context.Encounters
@@ -202,7 +202,7 @@ namespace Viper.Areas.CTS.Controllers
             }
             if (!ctsSecurityService.CheckStudentAssessmentViewAccess(encounter.StudentUserId, encounter.EnteredBy))
             {
-                return Forbid();
+                return (ActionResult<StudentAssessment>)ForbidApi();
             }
             var sa = CreateStudentAssessment(encounter);
             sa.Editable = ctsSecurityService.CanEditStudentAssessment(sa.EnteredBy);

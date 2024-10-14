@@ -1,5 +1,3 @@
-import { computed } from 'vue'
-
 export type Domain = {
     domainId: number,
     name: string,
@@ -18,6 +16,43 @@ export type Competency = {
     domain: Domain | null,
     children: Competency[] | null,
     type: string
+}
+
+export type SessionCompetency = {
+    sessionCompetencyId: number,
+    order: number,
+    sessionId: number,
+    sessionName: string,
+    type: string | null,
+    typeOrder: number,
+    paceOrder: number,
+    multiRole: boolean | null,
+    competencyId: number,
+    competencyNumber: string,
+    competencyName: string,
+    canLinkToStudent: boolean,
+    roleId: number | null,
+    roleName: string | null,
+    levels: Level[],
+}
+
+export type SessionCompetencyAddUpdate = {
+    sessionCompetencyId: number | null,
+    sessionId: number,
+    competencyId: number | null,
+    order: number | null,
+    levelIds: number[],
+    roleId: number | null
+}
+
+export type LegacyComptency = {
+    dvmCompetencyId: number,
+    dvmCompetencyName: string,
+    dvmCompetencyParentId: number | null,
+    dvmCompetencyActive: boolean,
+    levels: Level[],
+    dvmRoleName: string | null,
+    competencies: Competency[],
 }
 
 export type Epa = {
@@ -51,6 +86,9 @@ export type Assessment = {
 
     epaId: number | null
     epaName: string | null
+
+    serviceId: number | null
+    serviceName: string | null
 }
 
 export type StudentEpaFormData = {
@@ -178,5 +216,36 @@ export type MilestoneLevel = {
 
 export type MilestoneLevelUpdate = {
     levelId: number,
+    description: string,
+}
+
+
+export type Course = {
+    courseId: number,
+    status: string,
+    title: string,
+    description: string | null,
+    academicYear: string,
+    crn: string | null,
+    courseNum: string,
+    competencyCount: number | null,
+}
+
+export type Session = {
+    sessionId: number,
+    type: string | null,
+    typeDescription: string | null,
+    title: string,
+    courseTitle: string,
+    courseId: number,
+    typeOrder: number | null,
+    paceOrder: number | null,
+    competencyCount: number | null,
+    multiRole: boolean,
+}
+
+export type Term = {
+    termCode: number,
+    academicYear: string,
     description: string,
 }

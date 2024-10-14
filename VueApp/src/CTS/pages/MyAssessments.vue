@@ -73,8 +73,8 @@
         return epaAssessments.value.filter(e => e.epaId == epaId)
     }
 
-    function getText(date: Date, enteredBy: string, levelName: string, comment: string | null) {
-        return formatDate(date.toString()) + ' ' + enteredBy + ' ' + levelName + '\n ' + (comment != null ? comment : "")
+    function getText(date: Date, enteredBy: string, levelName: string, comment: string | null, serviceName: string | null) {
+        return formatDate(date.toString()) + ' ' + enteredBy + ' ' + '\n' + serviceName + '\n' + levelName + '\n ' + (comment != null ? comment : "")
     }
 
     function toggleExpandAll() {
@@ -112,15 +112,20 @@
                             {{ epaAssessment.levelName }}
                         </div>
                     </div>
-                    <div class="row q-mt-md">
+                    <div class="row q-mt-xs">
                         <div class="col-12">
                             Entered
                             {{ formatDate(epaAssessment.encounterDate.toString()) }}
-                            by 
+                            by
                             {{ epaAssessment.enteredByName }}
                         </div>
                     </div>
-                    <div class="row q-mt-md">
+                    <div class="row q-mt-xs">
+                        <div class="col-12">
+                            {{ epaAssessment.serviceName }}
+                        </div>
+                    </div>
+                    <div class="row q-mt-xs">
                         <div class="col-12">
                             {{ epaAssessment.comment }}
                         </div>
@@ -130,7 +135,7 @@
         </q-dialog>
 
         <div class="row">
-            <div class="col col-md-11 col-lg-7 q-mr-sm">
+            <div class="col col-md-10 col-lg-7 q-mr-sm">
                 <h3>Entrustable Professional Activities</h3>
             </div>
             <div class="col-1">
@@ -141,8 +146,8 @@
             <div class="col col-md-4 col-lg-3 q-mr-sm">
                 {{ epa.name }}
             </div>
-            <div class="col col-md-7 col-lg-4">
-                <AssessmentBubble :maxValue="5" :value=a.levelValue :text="getText(a.encounterDate, a.enteredByName, a.levelName, a?.comment)" :id="a.encounterId"
+            <div class="col col-md-6 col-lg-4">
+                <AssessmentBubble :maxValue="5" :value=a.levelValue :text="getText(a.encounterDate, a.enteredByName, a.levelName, a?.comment, a?.serviceName)" :id="a.encounterId"
                                   @bubbleClick="handleAssessmentClick"
                                   v-for="a in getAssessmentsForEpa(epa.epaId)" :type="bubbleType"></AssessmentBubble>
             </div>
@@ -152,27 +157,25 @@
             <q-slide-transition>
                 <div class="col-12 q-mb-md" v-if="showDetails[index]" :key="'epadetails' + index">
                     <div v-for="a in getAssessmentsForEpa(epa.epaId)" class="row q-mb-sm">
-                        <div class="col-2 col-sm-1">
+                        <div class="col-2 col-sm-auto q-pr-sm">
                             <AssessmentBubble :maxValue="5" :value=a.levelValue></AssessmentBubble>
                         </div>
-                        <div class="col-10 col-sm-5 col-md-3 offset-md-0 col-lg-2">
+                        <div class="col-10 col-sm-5 col-md-3 col-lg-2">
                             {{ formatDate(a.encounterDate.toString()) }}
                             {{ a.enteredByName }}
                         </div>
                         <div class="col-10 offset-2 col-sm-5 offset-sm-1 offset-md-0 col-md-3 col-lg-2">
+                            {{ a.serviceName }}
+                        </div>
+                        <div class="col-10 offset-2 col-sm-5 offset-sm-1 offset-md-0 col-md-3 col-lg-2">
                             {{ a.levelName }}
                         </div>
-                        <div class="col-10 offset-2 offset-sm-1 offset-md-0 col-md-4 col-lg-3">
+                        <div class="col-10 offset-2 offset-sm-1 offset-md-0 col-md-4 col-lg-5">
                             {{ a.comment }}
                         </div>
                     </div>
                 </div>
             </q-slide-transition>
         </div>
-
-        <q-btn-toggle v-model="bubbleType" push toggle-color="primary" no-caps
-                      :options="[{value: 'bubble', 'label': 'Bubbles'}, {value: 'clock', label: 'Progress'}]">
-
-        </q-btn-toggle>
     </div>
 </template>

@@ -13,5 +13,7 @@ public class Session
     public string AcademicYear { get; set; } = null!;
     public int TypeOrder { get; set; }
     public int PaceOrder { get; set; }
+    public bool? MultiRole { get; set; }
 
+    public virtual IEnumerable<SessionCompetency> Competencies { get; set; } = new List<SessionCompetency>();
 }

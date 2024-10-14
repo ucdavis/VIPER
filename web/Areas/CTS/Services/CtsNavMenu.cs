@@ -41,6 +41,10 @@ namespace Viper.Areas.CTS.Services
 
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
             {
+                nav.Add(new NavMenuItem() { MenuItemText = "Courses", IsHeader = true });
+                nav.Add(new NavMenuItem() { MenuItemText = "Course Competencies", MenuItemURL = "ManageCourseCompetencies" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Legacy Competency Mapping", MenuItemURL = "ManageLegacyCompetencyMapping" });
+
                 nav.Add(new NavMenuItem() { MenuItemText = "Admin Functions", IsHeader = true });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Domains", MenuItemURL = "ManageDomains" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Competencies", MenuItemURL = "ManageCompetencies" });
@@ -51,8 +55,8 @@ namespace Viper.Areas.CTS.Services
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Roles", MenuItemURL = "ManageRoles" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Audit Log", MenuItemURL = "Audit" });
 
-                nav.Add(new NavMenuItem() { MenuItemText = "Reports", IsHeader = true });
-                nav.Add(new NavMenuItem() { MenuItemText = "Assessment Charts", MenuItemURL = "AssessmentChart" });
+                //nav.Add(new NavMenuItem() { MenuItemText = "Reports", IsHeader = true });
+                //nav.Add(new NavMenuItem() { MenuItemText = "Assessment Charts", MenuItemURL = "AssessmentChart" });
             }
 
             return new NavMenu("Competency Tracking System", nav);

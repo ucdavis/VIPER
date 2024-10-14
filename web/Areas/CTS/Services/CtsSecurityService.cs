@@ -37,7 +37,7 @@ namespace Viper.Areas.CTS.Services
                 return true;
             }
             if (userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), AssessClinicalPermission)
-                && enteredBy == userHelper.GetCurrentUser()?.AaudUserId)
+                && enteredBy != null && enteredBy == userHelper.GetCurrentUser()?.AaudUserId)
             {
                 return true;
             }

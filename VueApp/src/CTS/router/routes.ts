@@ -40,6 +40,22 @@ const routes = [
         meta: { layout: ViperLayoutSimple, breadcrumbs: ctsBreadcrumbs },
         component: () => import('@/CTS/pages/AssessmentEpaEdit.vue'),
     },
+    /* Course Competencies */
+    {
+        path: '/CTS/ManageCourseCompetencies',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/ManageCourseCompetencies.vue'),
+    },
+    {
+        path: '/CTS/ManageLegacyCompetencyMapping',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/ManageLegacyCompetencyMapping.vue'),
+    },
+    {
+        path: '/CTS/ManageSessionCompetencies',
+        meta: { layout: ViperLayout },
+        component: () => import('@/CTS/pages/ManageSessionCompetencies.vue'),
+    },
     /* Application Management */
     {
         path: '/CTS/ManageCompetencies',
