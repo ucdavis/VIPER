@@ -28,7 +28,7 @@ namespace Viper.Areas.CTS.Controllers
         {
             return await context.Competencies
                 .Include(c => c.Domain)
-                .OrderBy(c => c.Number)
+                .OrderBy(c => c.Order)
                 .Select(c => new CompetencyDto(c))
                 .ToListAsync();
         }
@@ -50,6 +50,7 @@ namespace Viper.Areas.CTS.Controllers
             var comps = await context.Competencies
                 .Include(c => c.Domain)
                 .Where(c => c.ParentId == competencyId)
+                .OrderBy(c => c.Order)
                 .Select(c => new CompetencyDto(c))
                 .ToListAsync();
             if (comps.Count == 0)
@@ -67,7 +68,7 @@ namespace Viper.Areas.CTS.Controllers
             var comps = await context.Competencies
                 .Include(c => c.Domain)
                 .OrderBy(c => c.Domain.Order)
-                .ThenBy(c => c.Number)
+                .ThenBy(c => c.Order)
                 .ToListAsync();
             var compHierarchy = new List<CompetencyHierarchyDto>();
             var allCompDtos = mapper.Map<List<CompetencyHierarchyDto>>(comps);
@@ -120,7 +121,7 @@ namespace Viper.Areas.CTS.Controllers
             };
             context.Competencies.Add(comp);
             await context.SaveChangesAsync();
-
+            await UpdateCompetencyOrders();
             return await GetComp(comp.CompetencyId);
         }
 
@@ -165,6 +166,7 @@ namespace Viper.Areas.CTS.Controllers
 
             context.Competencies.Update(c);
             await context.SaveChangesAsync();
+            await UpdateCompetencyOrders();
             return await GetComp(c.CompetencyId);
         }
 
@@ -186,7 +188,50 @@ namespace Viper.Areas.CTS.Controllers
             {
                 return BadRequest("Could not remove domain. It may be linked to other objects.");
             }
+            await UpdateCompetencyOrders();
             return new CompetencyDto(c);
+        }
+
+        private async Task UpdateCompetencyOrders()
+        {
+            var comps = await context.Competencies
+                .ToListAsync();
+
+            comps = comps.OrderBy(c =>
+            {
+                var numbers = c.Number.Split(".");
+                var retval = 0;
+                if (numbers.Length > 0 && int.TryParse(numbers[0], out int num1))
+                {
+                    retval += num1 * 1000000;
+                }
+                if (numbers.Length > 1 && int.TryParse(numbers[1], out int num2))
+                {
+                    retval += num2 * 10000;
+                }
+                if (numbers.Length > 2 && int.TryParse(numbers[2], out int num3))
+                {
+                    retval += num3 * 100;
+                }
+                if (numbers.Length > 3 && int.TryParse(numbers[3], out int num4))
+                {
+                    retval += num4;
+                }
+                return retval;
+            }).ToList();
+
+            int order = 1;
+            foreach (var comp in comps)
+            {
+                if (comp.Order != order)
+                {
+                    comp.Order = order;
+                    context.Update(comp);
+                }
+                order++;
+            }
+
+            await context.SaveChangesAsync();
         }
     }
 }

@@ -19,6 +19,8 @@ public partial class Competency
 
     public bool CanLinkToStudent { get; set; }
 
+    public int Order { get; set; }
+
     public virtual Domain Domain { get; set; } = null!;
 
     public virtual ICollection<Competency> Children { get; set; } = new List<Competency>();
