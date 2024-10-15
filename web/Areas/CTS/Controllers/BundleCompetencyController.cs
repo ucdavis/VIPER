@@ -12,7 +12,7 @@ using Web.Authorization;
 namespace Viper.Areas.CTS.Controllers
 {
     [Route("/api/cts/bundles/{bundleId}/competencies")]
-    [Permission(Allow = "SVMSecure")]
+    [Permission(Allow = "SVMSecure.CTS")]
     public class BundleCompetencyController : ApiController
     {
         private readonly IMapper mapper;

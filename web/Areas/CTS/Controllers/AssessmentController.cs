@@ -148,6 +148,7 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpGet("assessors")]
+        [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical")]
         public async Task<ActionResult<List<Assessor>>> GetAssessors(int? type, int? serviceId)
         {
             var encounters = context.Encounters.AsQueryable();

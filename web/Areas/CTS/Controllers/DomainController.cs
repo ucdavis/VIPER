@@ -11,7 +11,7 @@ using Web.Authorization;
 namespace Viper.Areas.CTS.Controllers
 {
 	[Route("/api/cts/domains")]
-    [Permission(Allow = "SVMSecure")]
+    [Permission(Allow = "SVMSecure.CTS")]
     public class DomainController : ApiController
 	{
 		private readonly VIPERContext context;

@@ -11,7 +11,7 @@ using Web.Authorization;
 namespace Viper.Areas.CTS.Controllers
 {
     [Route("/api/cts/bundles/")]
-    [Permission(Allow = "SVMSecure")]
+    [Permission(Allow = "SVMSecure.CTS")]
     public class BundleController : ApiController
     {
         private readonly IMapper mapper;

@@ -11,7 +11,7 @@ using AutoMapper;
 namespace Viper.Areas.CTS.Controllers
 {
     [Route("/api/cts/competencies/")]
-    [Permission(Allow = "SVMSecure")]
+    [Permission(Allow = "SVMSecure.CTS")]
     public class CompetencyController : ApiController
     {
         private readonly VIPERContext context;

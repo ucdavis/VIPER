@@ -8,7 +8,7 @@ using Web.Authorization;
 namespace Viper.Areas.CTS.Controllers
 {
     [Route("/api/cts/permissions/")]
-    [Permission(Allow = "SVMSecure")]
+    [Permission(Allow = "SVMSecure.CTS")]
     public class PermissionsController : ApiController
     {
         private readonly CtsSecurityService ctsSecurityService;
