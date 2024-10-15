@@ -1,8 +1,6 @@
-﻿using AngleSharp.Dom;
-using Ganss.Xss;
+﻿using Ganss.Xss;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Polly;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
@@ -11,7 +9,7 @@ using Web.Authorization;
 namespace Viper.Areas.CTS.Controllers
 {
     [Route("/api/cts/epas")]
-    [Permission(Allow = "SVMSecure")]
+    [Permission(Allow = "SVMSecure.CTS")]
     public class EpaController : ApiController
     {
         private readonly VIPERContext context;
@@ -116,6 +114,7 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpPut("{epaId}/services")]
+        [Permission(Allow = "SVMSecure.CTS.Manage")]
         public async Task<ActionResult> UpdateServices(int epaId, List<int> serviceIds)
         {
             var epa = await context.Epas

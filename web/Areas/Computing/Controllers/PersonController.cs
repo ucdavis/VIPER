@@ -43,6 +43,17 @@ namespace Viper.Areas.Computing.Controllers
                 .ToListAsync();
         }
 
+        [HttpGet("{personId}")]
+        public async Task<ActionResult<PersonSimple>> GetPerson(int personId)
+        {
+            var p = await context.People.FindAsync(personId);
+            if(p == null)
+            {
+                return NotFound();
+            }
+            return new PersonSimple(p);
+        }
+
         [HttpPost("biorenderStudents")]
         [Permission(Allow = "SVMSecure.CATS.BiorenderStudentLookup")]
         public async Task<ActionResult<List<BiorenderStudent>>> GetBiorenderStudentList(List<string> emails)

@@ -47,7 +47,7 @@ namespace Viper.Areas.Students.Controller
             {
                 includeAllClassYears = false;
             }
-            var students = await studentList.GetStudents(classLevel: classLevel, classYear: classYear, activeYearOnly: !includeAllClassYears);
+            var students = await studentList.GetStudents(classLevel: classLevel, classYear: classYear, activeYearOnly: !includeAllClassYears, currentYearsOnly: false);
             return students;
         }
 

@@ -27,8 +27,13 @@ export function useQuasarConfig() {
                 backgroundColor: "dark",
                 messageColor: "light",
                 boxClass: "bg-grey-2 text-grey-9"
-            }
-        }
+            },
+            animations: 'all',
+            extras: ['material-icons', 'material-symbols-outlined'],
+            framework: {
+                iconSet: 'material-symbols-outlined'
+            },
+        },
     }
 
     return { quasarConfig }

@@ -12,7 +12,7 @@ using Web.Authorization;
 namespace Viper.Areas.CTS.Controllers
 {
     [Route("/api/cts/levels")]
-    [Permission(Allow = "SVMSecure")]
+    [Permission(Allow = "SVMSecure.CTS")]
     public class LevelsController : ApiController
     {
         private readonly VIPERContext context;
@@ -22,12 +22,29 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Level>>> GetLevels(bool? epa = null, bool active = true)
+        public async Task<ActionResult<List<Level>>> GetLevels(bool? epa = null, bool? dops = null, bool? milestone = null,
+                bool? course = null, bool? clinical = null, bool active = true)
         {
             var q = context.Levels.AsQueryable();
             if (epa != null)
             {
                 q = q.Where(l => l.Epa == epa);
+            }
+            if (dops != null)
+            {
+                q = q.Where(l => l.Dops == dops);
+            }
+            if (milestone != null)
+            {
+                q = q.Where(l => l.Milestone == milestone);
+            }
+            if (course != null)
+            {
+                q = q.Where(l => l.Course == course);
+            }
+            if (clinical != null)
+            {
+                q = q.Where(l => l.Clinical == clinical);
             }
             q = q.Where(l => (active && l.Active) || (!active && !l.Active));
             return await q.OrderBy(l => l.Epa ? 1 : 0)
@@ -60,6 +77,10 @@ namespace Viper.Areas.CTS.Controllers
             if (!await CheckNameAndType(level))
             {
                 return BadRequest("Another level for the same type of assessment has the same text.");
+            }
+            if (!level.Dops && !level.Clinical && !level.Course && !level.Milestone && !level.Epa)
+            {
+                return BadRequest("Level must belong to a type.");
             }
 
             var l = new Level()
@@ -152,6 +173,22 @@ namespace Viper.Areas.CTS.Controllers
             if (level.Epa)
             {
                 levels = levels.Where(l => l.Epa);
+            }
+            if (level.Milestone)
+            {
+                levels = levels.Where(l => l.Milestone);
+            }
+            if (level.Course)
+            {
+                levels = levels.Where(l => l.Course);
+            }
+            if (level.Clinical)
+            {
+                levels = levels.Where(l => l.Clinical);
+            }
+            if (level.Dops)
+            {
+                levels = levels.Where(l => l.Dops);
             }
             levels = levels.OrderBy(l => l.Order);
 

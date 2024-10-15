@@ -34,5 +34,6 @@ namespace Viper.Models.VIPER
         public DateTime? Inactivated { get; set; }
 
         public AaudStudent? StudentInfo { get; set; }
+        public IEnumerable<AaudStudent>? StudentHistory { get; set; }
     }
 }

@@ -36,20 +36,27 @@ namespace Viper.Areas.CTS.Services
             //Assessments of the logged in user
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Students"))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "My Assessments", MenuItemURL = "MyAssessments" });
+                //nav.Add(new NavMenuItem() { MenuItemText = "My Assessments", MenuItemURL = "MyAssessments" });
             }
 
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
             {
+                nav.Add(new NavMenuItem() { MenuItemText = "Courses", IsHeader = true });
+                nav.Add(new NavMenuItem() { MenuItemText = "Course Competencies", MenuItemURL = "ManageCourseCompetencies" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Legacy Competency Mapping", MenuItemURL = "ManageLegacyCompetencyMapping" });
+
                 nav.Add(new NavMenuItem() { MenuItemText = "Admin Functions", IsHeader = true });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Domains", MenuItemURL = "ManageDomains" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Competencies", MenuItemURL = "ManageCompetencies" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Manage Bundles", MenuItemURL = "ManageBundles" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Levels", MenuItemURL = "ManageLevels" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage EPAs", MenuItemURL = "ManageEPAs" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Manage Milestones", MenuItemURL = "ManageMilestones" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Manage Roles", MenuItemURL = "ManageRoles" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Audit Log", MenuItemURL = "Audit" });
 
-                nav.Add(new NavMenuItem() { MenuItemText = "Reports", IsHeader = true });
-                nav.Add(new NavMenuItem() { MenuItemText = "Assessment Charts", MenuItemURL = "AssessmentChart" });
+                //nav.Add(new NavMenuItem() { MenuItemText = "Reports", IsHeader = true });
+                //nav.Add(new NavMenuItem() { MenuItemText = "Assessment Charts", MenuItemURL = "AssessmentChart" });
             }
 
             return new NavMenu("Competency Tracking System", nav);

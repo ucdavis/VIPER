@@ -16,6 +16,7 @@
     const assessmentTypes = [{ label: "EPA", value: "EPA" }]
     const paging = ref({ page: 1, sortBy: "enteredOn", descending: true, rowsPerPage: 25, rowsNumber: 100 }) as Ref<any>
     const loading = ref(false)
+    const canViewAll = ref(null) as Ref<boolean | null>
 
     const searchForm = ref({
         service: null as Service | null,
@@ -59,7 +60,15 @@
         await loadAssessments(1, paging.value.rowsPerPage, paging.value.sortBy, paging.value.descending)
     }
 
+    async function getCanViewAllAssessments() {
+        let result = await get(baseUrl + "permissions?access=ViewAllAssessments")
+        canViewAll.value = result.result
+    }
+
     async function loadAssessments(page: number, perPage: number, sortBy: string, descending: boolean) {
+        if (canViewAll.value == null) {
+            await getCanViewAllAssessments()
+        }
         const p = createUrlSearchParams({
             "serviceId": searchForm.value.service?.serviceId,
             "enteredById": searchForm.value.enteredBy?.personId,
@@ -67,6 +76,10 @@
             "dateFrom": searchForm.value.dateFrom,
             "dateTo": searchForm.value.dateTo,
         })
+
+        if (!canViewAll.value) {
+            p.set("enteredById", userStore.userInfo.userId != null ? userStore.userInfo.userId.toString() : "")
+        }
 
         switch (assessmentType.value) {
             case "EPA":
@@ -134,7 +147,7 @@
                     </template>
                 </q-select>
             </div>
-            <div class="col-12 col-md-6 col-lg-3">
+            <div class="col-12 col-md-6 col-lg-3" v-if="canViewAll">
                 <q-select outlined dense options-dense label="Entered By" v-model="searchForm.enteredBy" :options="assessors"
                           option-label="fullNameLastFirst" option-value="personId" clearable></q-select>
             </div>
@@ -186,7 +199,8 @@
         </template>
         <template v-slot:body-cell-studentName="props">
             <q-td :props="props">
-                <RouterLink :to="'MyAssessments?student=' + props.row.studentUserId">{{ props.row.studentName }}</RouterLink>
+                <RouterLink :to="'MyAssessments?student=' + props.row.studentUserId" v-if="canViewAll">{{ props.row.studentName }}</RouterLink>
+                <span v-else>{{ props.row.studentName }}</span>
             </q-td>
         </template>
         <template v-slot:body-cell-level="props">

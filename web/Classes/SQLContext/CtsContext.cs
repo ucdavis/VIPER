@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Viper.Models.CTS;
 
 namespace Viper.Classes.SQLContext;
@@ -14,6 +15,21 @@ public partial class VIPERContext : DbContext
     public virtual DbSet<Encounter> Encounters { get; set; }
     public virtual DbSet<EncounterInstructor> EncounterInstructors { get; set; } 
     public virtual DbSet<CtsAudit> CtsAudits { get; set; }
+    public virtual DbSet<Role> Roles { get; set; }
+    public virtual DbSet<Bundle> Bundles { get; set; }
+    public virtual DbSet<BundleCompetency> BundleCompetencies { get; set; }
+    public virtual DbSet<BundleCompetencyGroup> BundleCompetencyGroups { get; set; }
+    public virtual DbSet<BundleCompetencyLevel> BundleCompetencyLevels { get; set; }
+    public virtual DbSet<BundleRole> BundleRoles { get; set; }
+    public virtual DbSet<BundleService> BundleServices { get; set; }
+    public virtual DbSet<CompetencyOutcome> CompetencyOutcomes { get; set; }
+    public virtual DbSet<CourseCompetency> CourseCompetencies { get; set; }
+    public virtual DbSet<CourseRole> CourseRoles { get; set; }
+    public virtual DbSet<MilestoneLevel> MilestoneLevels { get; set; }
+    public virtual DbSet<Patient> Patients { get; set; }
+    public virtual DbSet<SessionCompetency> SessionCompetencies { get; set; }
+    public virtual DbSet<StudentCompetency> StudentCompetencies { get; set; }
+    public virtual DbSet<CompetencyMapping> CompetencyMappings { get; set; }
 
     /* Students */
     public virtual DbSet<DvmStudent> DvmStudent { get; set; }
@@ -28,6 +44,17 @@ public partial class VIPERContext : DbContext
 
     /* CREST */
     public virtual DbSet<CourseSessionOffering> CourseSessionOffering { get; set; }
+    public virtual DbSet<Course> Courses { get; set; }
+    public virtual DbSet<Session> Sessions { get; set; }
+    public virtual DbSet<MyCourse> MyCourses { get; set; }
+
+    /* Eval */
+    public virtual DbSet<Instance> Instances { get; set; }
+    public virtual DbSet<EvaluateesByInstance> EvaluateesByInstances { get; set; }
+
+    /* Legacy CTS */
+    public virtual DbSet<LegacyCompetency> LegacyCompetencies { get; set; }
+    public virtual DbSet<LegacySessionCompetency> LegacySessionCompetencies { get; set; }
 
     partial void OnModelCreatingCTS(ModelBuilder modelBuilder)
     {
@@ -36,6 +63,9 @@ public partial class VIPERContext : DbContext
             entity.ToTable("Competency", "cts");
 
             entity.Property(e => e.Description).IsUnicode(false);
+            entity.Property(e => e.Number)
+                .HasMaxLength(20)
+                .IsUnicode(false);
             entity.Property(e => e.Name)
                 .HasMaxLength(250)
                 .IsUnicode(false);
@@ -114,6 +144,249 @@ public partial class VIPERContext : DbContext
             entity.HasOne(e => e.Encounter).WithMany()
                 .HasForeignKey(e => e.EncounterId);
         });
+
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.ToTable("Role", "cts");
+
+            entity.Property(e => e.Name)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<Bundle>(entity =>
+        {
+            entity.ToTable("Bundle", "cts");
+
+            entity.Property(e => e.Name)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<BundleCompetency>(entity =>
+        {
+            entity.ToTable("BundleCompetency", "cts");
+
+            entity.HasOne(d => d.BundleCompetencyGroup).WithMany(p => p.BundleCompetencies)
+                .HasForeignKey(d => d.BundleCompetencyGroupId)
+                .HasConstraintName("FK_BundleCompetency_BundleCompetencyGroupId");
+
+            entity.HasOne(d => d.Bundle).WithMany(p => p.BundleCompetencies)
+                .HasForeignKey(d => d.BundleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_BundleCompetency_Bundle");
+
+            entity.HasOne(d => d.Role).WithMany()
+                .HasForeignKey(d => d.RoleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_BundleCompetency_Role")
+                .IsRequired(false);
+
+            entity.HasOne(d => d.Competency).WithMany(p => p.BundleCompetencies)
+                .HasForeignKey(d => d.CompetencyId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_BundleCompetency_Competency");
+        });
+
+        modelBuilder.Entity<BundleCompetencyGroup>(entity =>
+        {
+            entity.HasKey(e => e.BundleCompetencyGroupId).HasName("PK_BundleCompetencyGroupId");
+
+            entity.ToTable("BundleCompetencyGroup", "cts");
+
+            entity.Property(e => e.Name)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.Bundle).WithMany(p => p.BundleCompetencyGroups)
+                .HasForeignKey(d => d.BundleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_BundleCompetencyGroupId_Bundle");
+        });
+
+        modelBuilder.Entity<BundleCompetencyLevel>(entity =>
+        {
+            entity.ToTable("BundleCompetencyLevel", "cts");
+            entity.HasKey(e => e.BundleCompetencyLevelId);
+
+            entity.HasOne(d => d.BundleCompetency).WithMany(p => p.BundleCompetencyLevels)
+                .HasForeignKey(d => d.BundleCompetencyId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_BundleLevel_BundleCompetency");
+            entity.HasOne(d => d.Level).WithMany()
+                .HasForeignKey(d => d.LevelId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_BundleLevel_Level");
+        });
+
+        modelBuilder.Entity<BundleRole>(entity =>
+        {
+            entity.ToTable("BundleRole", "cts");
+
+            entity.HasOne(d => d.Bundle).WithMany(p => p.BundleRoles)
+                .HasForeignKey(d => d.BundleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_BundleRole_Bundle");
+            entity.HasOne(d => d.Role).WithMany(r => r.BundleRoles)
+                .HasForeignKey(d => d.RoleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_BundleRole_Role");
+        });
+
+        modelBuilder.Entity<BundleService>(entity =>
+        {
+            entity.ToTable("BundleService", "cts");
+
+            entity.HasOne(d => d.Bundle).WithMany(p => p.BundleServices)
+                .HasForeignKey(d => d.BundleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_BundleService_Bundle");
+            entity.HasOne(d => d.Service).WithMany()
+                .HasForeignKey(d => d.ServiceId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<CompetencyOutcome>(entity =>
+        {
+            entity.ToTable("CompetencyOutcome", "cts");
+        });
+
+        modelBuilder.Entity<CourseCompetency>(entity =>
+        {
+            entity.ToTable("CourseCompetency", "cts");
+            entity.HasOne(d => d.Course).WithMany()
+                .HasForeignKey(d => d.CourseId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<CourseRole>(entity =>
+        {
+            entity.ToTable("CourseRole", "cts");
+            entity.HasOne(d => d.Course).WithMany()
+                .HasForeignKey(d => d.CourseId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(d => d.Role).WithMany()
+                .HasForeignKey(d => d.RoleId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<MilestoneLevel>(entity =>
+        {
+            entity.ToTable("MilestoneLevel", "cts");
+
+            entity.Property(e => e.Description).IsUnicode(false);
+
+            entity.HasOne(d => d.Bundle).WithMany(p => p.MilestoneLevels)
+                .HasForeignKey(d => d.BundleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_MilestoneLevel_Bundle");
+            entity.HasOne(d => d.Level).WithMany()
+                    .HasForeignKey(d => d.LevelId)
+                    .OnDelete(DeleteBehavior.ClientSetNull)
+                    .HasConstraintName("FK_MilestoneLevel_MilestoneLevel");
+        });
+
+        modelBuilder.Entity<Patient>(entity =>
+        {
+            entity.ToTable("Patient", "cts");
+
+            entity.Property(e => e.PatientId).ValueGeneratedNever();
+            entity.Property(e => e.Gender)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.PatientName)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+            entity.Property(e => e.Species)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.HasOne(d => d.Encounter).WithOne(d => d.Patient)
+                .HasForeignKey<Encounter>(d => d.PatientId)
+                .IsRequired(false);
+
+        });
+
+        modelBuilder.Entity<SessionCompetency>(entity =>
+        {
+            entity.ToTable("SessionCompetency", "cts");
+            entity.HasKey(e => e.SessionCompetencyId);
+            entity.HasOne(d => d.Competency).WithMany()
+                .HasForeignKey(d => d.CompetencyId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_SessionCompetency_Competency");
+            entity.HasOne(d => d.Session).WithMany(s => s.Competencies)
+                .HasForeignKey(d => d.SessionId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(d => d.Level).WithMany()
+                .HasForeignKey(d => d.LevelId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_SessionCompetency_Level");
+            entity.HasOne(d => d.Role).WithMany()
+                .HasForeignKey(d => d.RoleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_SessionCompetency_Role")
+                .IsRequired(false);
+
+        });
+
+        modelBuilder.Entity<StudentCompetency>(entity =>
+        {
+            entity.ToTable("StudentCompetency", "cts");
+
+            entity.Property(e => e.Added).HasColumnType("datetime");
+            entity.Property(e => e.Updated).HasColumnType("datetime");
+            entity.Property(e => e.VerifiedTimestamp).HasColumnType("datetime");
+
+            entity.HasOne(d => d.BundleGroup).WithMany()
+                .HasForeignKey(d => d.BundleGroupId)
+                .HasConstraintName("FK_StudentCompetency_BundleCompetencyGroupId");
+
+            entity.HasOne(d => d.Bundle).WithMany()
+                .HasForeignKey(d => d.BundleId)
+                .HasConstraintName("FK_StudentCompetency_Bundle");
+
+            entity.HasOne(d => d.Person).WithMany()
+                .HasForeignKey(d => d.StudentUserId)
+                .HasConstraintName("FK_StudentCompetency_Student")
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(d => d.Competency).WithMany()
+                .HasForeignKey(d => d.CompetencyId)
+                .HasConstraintName("FK_StudentCompetency_Competency")
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(d => d.Level).WithMany()
+                .HasForeignKey(d => d.LevelId)
+                .HasConstraintName("FK_StudentCompetency_Level")
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(d => d.Encounter).WithMany()
+                .HasForeignKey(d => d.EncounterId)
+                .HasConstraintName("FK_StudentCompetency_Encounter")
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .IsRequired(false);
+            entity.HasOne(d => d.Course).WithMany()
+                .HasForeignKey(d => d.CourseId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .IsRequired(false);
+            entity.HasOne(d => d.Session).WithMany()
+                .HasForeignKey(d => d.SessionId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .IsRequired(false);
+            entity.HasOne(d => d.Verifier).WithMany()
+                .HasForeignKey(d => d.VerifiedBy)
+                .HasConstraintName("FK_StudentCompetency_VerifiedPerson")
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .IsRequired(false);
+        });
+
+        modelBuilder.Entity<CompetencyMapping>(entity =>
+        {
+            entity.ToTable("CompetencyMapping", schema: "cts");
+            entity.HasKey(e => e.CompetencyMappingId);
+            entity.HasOne(e => e.Competency).WithMany()
+                .HasForeignKey(e => e.CompetencyId);
+            entity.HasOne(e => e.LegacyCompetency).WithMany(e => e.DvmCompetencyMapping)
+                .HasForeignKey(e => e.DvmCompetencyId);
+        });
+
 
         /* "Exteral" entities */
         modelBuilder.Entity<DvmStudent>(entity =>
@@ -235,5 +508,74 @@ public partial class VIPERContext : DbContext
 			entity.Property(e => e.CanvasCourseId).IsRequired(false);
 			entity.Property(e => e.CanvasEventId).IsRequired(false);
 		});
+
+        modelBuilder.Entity<Course>(entity =>
+        {
+            entity.ToTable("vwCourse", schema: "cts");
+            entity.HasKey(e => e.CourseId);
+            entity.Property(e => e.Description).IsRequired(false);
+            entity.Property(e => e.Crn).IsRequired(false);
+        });
+
+        modelBuilder.Entity<Session>(entity =>
+        {
+            entity.ToTable("vwSession", schema: "cts");
+            entity.HasKey(e => e.SessionId);
+            entity.Property(e => e.Type).IsRequired(false);
+            entity.Property(e => e.TypeDescription).IsRequired(false);
+            entity.Property(e => e.Description).IsRequired(false);
+        });
+
+        //Legacy CTS Competencies and CREST session competencies
+        modelBuilder.Entity<LegacyCompetency>(entity =>
+        {
+            entity.ToTable("vwLegacyCompetencies", schema: "cts");
+            entity.HasKey(e => e.DvmCompetencyId);
+        });
+
+        modelBuilder.Entity<LegacySessionCompetency>(entity =>
+        {
+            entity.ToTable("vwLegacySessionCompetencies", schema: "cts");
+            entity.HasKey(e => new
+            {
+                e.SessionCompetencyId,
+                e.SessionId
+            });
+        });
+        
+        /*
+        modelBuilder.Entity<Outcome>(entity =>
+        {
+
+        });
+        */
+
+        modelBuilder.Entity<Instance>(entity =>
+        {
+            entity.HasKey(e => e.InstanceId);
+            entity.ToTable("vwInstances", schema: "eval");
+            entity.Property(e => e.InstanceMode).IsRequired(false);
+            entity.Property(e => e.InstanceDueDate).IsRequired(false);
+            entity.Property(e => e.InstanceStartWeek).IsRequired(false);
+            entity.Property(e => e.InstanceStartWeekId).IsRequired(false);
+        });
+
+
+        modelBuilder.Entity<EvaluateesByInstance>(entity =>
+        {
+            entity.HasKey(e => e.EvaluateeId);
+            entity.ToTable("vwEvaluateesByInstances", schema: "eval");
+        });
     }
+
+    /*
+     * Stored procedures
+     */
+    public virtual List<MyCourse> GetMyCourses(string academicYear, int userPidm)
+    {
+        //var academicYearParam = new SqlParameter("@academicYear", academicYear);
+        //var userPidmParam = new SqlParameter("@userPidm", userPidm);
+        return MyCourses.FromSql($"getMyCourses {academicYear} {userPidm}").ToList();
+    }
+
 }
