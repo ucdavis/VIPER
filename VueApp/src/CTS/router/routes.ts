@@ -6,13 +6,13 @@ const ctsBreadcrumbs = [{ url: "Home", name: "Return to CTS 2.0" }]
 const routes = [
     {
         path: '/CTS/',
-        meta: { layout: ViperLayout, allowUnAuth: true },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS"] },
         component: () => import('@/CTS/pages/CtsHome.vue'),
         name: "CtsHome"
     },
     {
         path: '/CTS/Home',
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS"] },
         component: () => import('@/CTS/pages/CtsHome.vue'),
     },
     /* Student pages */
