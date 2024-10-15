@@ -42,7 +42,7 @@ namespace Viper.Areas.CTS.Controllers
         {
             if (!clinicalScheduleSecurity.CheckStudentScheduleParams(mothraId, rotationId, serviceId, weekId, startDate, endDate))
             {
-                return Forbid();
+                return ForbidApi();
             }
             var schedule = await clinicalSchedule.GetStudentSchedule(classYear, mothraId, rotationId, serviceId, weekId, startDate, endDate);
             return schedule;
@@ -64,7 +64,7 @@ namespace Viper.Areas.CTS.Controllers
         {
             if (!clinicalScheduleSecurity.CheckInstructorScheduleParams(mothraId, rotationId, serviceId, weekId, startDate, endDate))
             {
-                return Forbid();
+                return ForbidApi();
             }
             var schedule = await clinicalSchedule.GetInstructorSchedule(classYear, mothraId, rotationId, serviceId, weekId, startDate, endDate, active);
             return schedule;
