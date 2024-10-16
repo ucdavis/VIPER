@@ -66,7 +66,7 @@
                     {{ milestoneLevel.levelOrder }}. {{ milestoneLevel.levelName }}
                 </div>
                 <div class="col-12 col-sm-6 col-lg-4">
-                    <q-input type="textarea" dense outlined label="Description" v-model="milestoneLevel.description"></q-input>
+                    <q-editor v-model="milestoneLevel.description" outlined label="Description"></q-editor>
                 </div>
             </div>
             <q-btn dense type="submit" label="submit" color="primary" class="q-px-sm"></q-btn>
