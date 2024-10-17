@@ -11,15 +11,10 @@ const routes = [
         name: 'CtsAuth',
     },
     {
-        path: '/CTS/Welcome',
-        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Students"] },
-        component: () => import('@/CTS/pages/CtsHome.vue'),
-        name: "CtsHome"
-    },
-    {
         path: '/CTS/Home',
         meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Students"] },
         component: () => import('@/CTS/pages/CtsHome.vue'),
+        name: "CtsHome"
     },
     /* Student pages */
     {
