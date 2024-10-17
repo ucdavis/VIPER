@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import type { Ref } from 'vue'
-    import type { Level } from '@/CTS/types'
+    import type { Level, MilestoneLevel } from '@/CTS/types'
     import { ref, defineProps, defineEmits, watch } from 'vue'
     import { useFetch } from '@/composables/ViperFetch'
 
@@ -15,6 +15,9 @@
         levelId: {
             type: Number
         },
+        milestoneLevels: {
+            type: Array<MilestoneLevel>
+        }
     })
     const emit = defineEmits(["levelChange"])
 
@@ -71,6 +74,11 @@
                    :class="selectedLevel.levelId == level.levelId ? 'selectedLevel q-py-sm' : 'q-py-sm'"
                    @click="selectedLevel = level">
             </q-btn>
+            <template v-if="milestoneLevels != undefined">
+                <div v-for="ml in milestoneLevels.filter(ml => ml.levelId == level.levelId)" class="q-px-sm">
+                    {{ ml.description }}
+                </div>
+            </template>
         </div>
     </div>
     <div class="q-mb-sm text-center lt-md">
@@ -87,6 +95,13 @@
                     {{level.order}}. {{level.levelName}}
                 </template>
             </q-btn>
+            <template v-if="milestoneLevels != undefined">
+                <div v-for="ml in milestoneLevels.filter(ml => ml.levelId == level.levelId)" 
+                     v-if="selectedLevel.levelId == level.levelId"
+                     class="q-px-sm q-mb-md">
+                    {{ ml.description }}
+                </div>
+            </template>
         </div>
     </div>
 </template>

@@ -51,6 +51,9 @@
             type: Boolean,
             default: false
         },
+        autoSelectStudent: {
+            type: Number
+        }
     })
 
     //use our fetch wrapper
@@ -166,6 +169,13 @@
                 break;
             default:
                 break;
+        }
+
+        if (props.autoSelectStudent != null && students.value != null) {
+            const std = students.value.find(s => s.personId == props.autoSelectStudent)
+            if (std != undefined) {
+                selectedStudent.value = std
+            }
         }
     }
 

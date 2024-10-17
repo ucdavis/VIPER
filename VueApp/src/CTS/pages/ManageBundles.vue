@@ -32,7 +32,7 @@
     const loading = ref(false)
 
     async function load() {
-        get(apiUrl + "cts/bundles").then(r => bundles.value = r.result)
+        get(apiUrl + "cts/bundles?milestone=false").then(r => bundles.value = r.result)
         get(apiUrl + "cts/roles").then(r => roles.value = r.result)
     }
 
