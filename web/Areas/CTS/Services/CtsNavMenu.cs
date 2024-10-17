@@ -25,6 +25,11 @@ namespace Viper.Areas.CTS.Services
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "EPA Assessment", MenuItemURL = "EPA" });
             }
+            if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.AssessStudent")
+                || userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
+            {
+                nav.Add(new NavMenuItem() { MenuItemText = "Competency Assessment (Wireframe)", MenuItemURL = "AssessmentCompetency" });
+            }
 
             //All assessments, or assessments the logged in userHelper has created
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage")
@@ -42,6 +47,7 @@ namespace Viper.Areas.CTS.Services
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "Courses", IsHeader = true });
+                nav.Add(new NavMenuItem() { MenuItemText = "Course Students (Wireframe)", MenuItemURL = "CourseStudents" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Course Competencies", MenuItemURL = "ManageCourseCompetencies" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Legacy Competency Mapping", MenuItemURL = "ManageLegacyCompetencyMapping" });
 

@@ -183,7 +183,7 @@
         </q-card>
     </q-dialog>
 
-    <div class="row">
+    <div class="row q-mb-lg">
         <div class="col">
             <h3>
                 Existing Competencies

@@ -30,6 +30,11 @@ const routes = [
         component: () => import('@/CTS/pages/AssessmentEpa.vue'),
     },
     {
+        path: '/CTS/AssessmentCompetency',
+        meta: { layout: ViperLayout, breadcrumbs: ctsBreadcrumbs, permissions: ["SVMSecure.CTS.Manage", "SVMSecure.CTS.AssessStudent"] },
+        component: () => import('@/CTS/pages/AssessmentCompetency.vue'),
+    },
+    {
         path: '/CTS/AssessmentList',
         name: 'AssessmentList',
         meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage", "SVMSecure.CTS.StudentAssessments", "SVMSecure.CTS.AssessClinical"] },
@@ -56,6 +61,11 @@ const routes = [
         path: '/CTS/ManageSessionCompetencies',
         meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/ManageSessionCompetencies.vue'),
+    },
+    {
+        path: '/CTS/CourseStudents',
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
+        component: () => import('@/CTS/pages/CourseStudents.vue'),
     },
     /* Application Management */
     {
