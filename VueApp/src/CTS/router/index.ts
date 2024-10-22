@@ -12,11 +12,14 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
     const { requireLogin } = useRequireLogin(to)
-    await requireLogin(true, "SVMSecure.CTS")
+    const loginResult = await requireLogin(true, "SVMSecure.CTS")
+    if (loginResult !== undefined && !loginResult) {
+        return false
+    }
     if (to.meta.permissions != undefined) {
         const hasPerm = checkHasOnePermission(to.meta.permissions as string[])
         if (!hasPerm) {
-            return { name: "CtsHome" }
+            return { name: "CtsAuth" }
         }
     }
 })

@@ -5,6 +5,7 @@
     const userStore = useUserStore()
     //https://" + HttpHelper.HttpContext?.Request.Host.Value 
     const onDev = import.meta.env.VITE_ENVIRONMENT == "DEVELOPMENT"
+    const viperHome = import.meta.env.VITE_VIPER_HOME
     const sessionRefreshUrl = (onDev ? "http://localhost/" : "/")
         + "public/timeout/seconds_until_timeout_v2.cfm?id="
         + userStore.userInfo.loginId
@@ -41,7 +42,7 @@
         catch { }
     }
     async function extendSession() {
-        fetch("/RefreshSession")
+        fetch(viperHome + "RefreshSession")
             .then(r => r.status == 200 ? r.json() : r)
             .then(r => {
                 try {

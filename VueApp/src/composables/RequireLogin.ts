@@ -13,21 +13,25 @@ export default function useRequireLogin(to: RouteLocationNormalized) {
         const router = useRouter()
         const allowUnAuth = to.matched.some(record => record.meta.allowUnAuth)
 
-        //note that this only checks authentication, not authorization. server side functions should validate authorization before returning data.
-        if (allowUnAuth || userStore.isLoggedIn) {
+        //get logged in user info
+        const { get } = useFetch()
+        const r = await get(baseUrl + "loggedInUser")
+
+        //if unauth'd access allowed and no logged in user, return true
+        if (allowUnAuth && (!r.success || !r.result.userId)) {
             return true;
         }
 
         //show spinner after 250ms
         const $q = useQuasar()
-        $q.loading.show({
-            message: "Logging in",
-            delay: 250 // ms
-        })
+        if ($q !== undefined) {
+            $q.loading.show({
+                message: "Logging in",
+                delay: 250 // ms
+            })
+        }
 
-        //get logged in user info
-        const { get } = useFetch()
-        const r = await get(baseUrl + "loggedInUser")
+        //if no logged in user, redirect to cas
         if (!r.success || !r.result.userId) {
             //if user has not authed, send to VIPER 2.0 login url with this app's home page as the return url
             //application base will be "" on dev and "/2" on prod and test
@@ -36,6 +40,7 @@ export default function useRequireLogin(to: RouteLocationNormalized) {
                 ? ""
                 : import.meta.env.VITE_VIPER_HOME.substring(0, import.meta.env.VITE_VIPER_HOME.length - 1))
             window.location.href = import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + applicationBase + to.fullPath
+            return false
         }
         else {
             //store the logged in user info
@@ -49,10 +54,13 @@ export default function useRequireLogin(to: RouteLocationNormalized) {
             }
 
         }
-        $q.loading.hide()
+        if ($q !== undefined) {
+            $q.loading.hide()
+        }
 
         if (userStore.isLoggedIn) {
             if (route.query.sendBackTo != undefined) {
+                console.log(route.query.sendBackTo)
                 const redirect = route.query.sendBackTo?.toString()
                 const paramString = redirect.split("?")[1]
                 const params = {} as any
