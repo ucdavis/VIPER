@@ -26,7 +26,7 @@ namespace Viper.Areas.CTS.Services
                 nav.Add(new NavMenuItem() { MenuItemText = "EPA Assessment", MenuItemURL = "EPA" });
             }
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.AssessStudent")
-                || userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
+                && userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "Competency Assessment (Wireframe)", MenuItemURL = "AssessmentCompetency" });
             }
