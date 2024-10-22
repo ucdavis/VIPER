@@ -23,7 +23,8 @@
     //assessment data
     const studentEpa = ref({}) as Ref<any>
     const success = ref(false)
-    const submitErrors = ref({}) as Ref<any>
+    const submitErrors = ref(false)
+    const commentValidationMessage = ref('')
 
     //urls
     const baseUrl = inject('apiURL') + "cts/"
@@ -45,18 +46,30 @@
         studentEpa.value.serviceId = serviceId.value
         studentEpa.value.levelId = levelId.value
 
-        const { post } = useFetch()
-        const r = await post(baseUrl + "assessments/epa", studentEpa.value)
-        if (!r.success) {
-            submitErrors.value = r.errors
+        commentValidationMessage.value = ''
+        submitErrors.value = false
+
+        if (studentEpa.value.comment == undefined || studentEpa.value.comment.length < 5) {
+            commentValidationMessage.value = 'Please describe what the student should keep doing and how they can improve performance.'
+            submitErrors.value = true
+        }
+        else if (studentEpa.value.levelId == undefined) {
+            submitErrors.value = true
         }
         else {
-            clearStudent.value = true
-            clearLevel.value = true
-            selectedStudentId.value = 0
-            studentEpa.value.levelId = ""
-            studentEpa.value.comment = ""
-            success.value = true
+            const { post } = useFetch()
+            const r = await post(baseUrl + "assessments/epa", studentEpa.value)
+            if (!r.success) {
+                submitErrors.value = true
+            }
+            else {
+                clearStudent.value = true
+                clearLevel.value = true
+                selectedStudentId.value = 0
+                studentEpa.value.levelId = ""
+                studentEpa.value.comment = ""
+                success.value = true
+            }
         }
     }
 
@@ -86,7 +99,7 @@
                 </div>
 
                 <!--Epa-->
-                <div class="col-12 col-md-6 col-lg-4">
+                <div class="col-12 col-md-6">
                     <q-select label="Select EPA" dense options-dense outlined v-model="epa"
                               option-label="name" option-value="epaId" :options="epas">
                     </q-select>
@@ -116,15 +129,15 @@
                 </div>
                 <!--Show form once student is selected-->
                 <q-form @submit="submitEpa" v-bind="studentEpa" v-show="selectedStudentId > 0">
-                    <div class="bg-red-5 text-white q-pa-sm rounded q-mb-md" v-if="submitErrors?.message?.length > 0">
-                        {{submitErrors.message}}
-                        Please make sure you have selected a service, EPA, student, and a level on the entrustment scale.
+                    <div class="bg-red-5 text-white q-pa-sm rounded q-mb-md" v-if="submitErrors">
+                        Please make sure you have selected a service, EPA, student, a level on the entrustment scale, and entered a comment.
                     </div>
                     <LevelSelect levelType="epa" 
                                  @levelChange="(selectedLevelId : number) => levelId = selectedLevelId"
                                  :clearLevel="clearLevel"/>
                     <q-input type="textarea" outlined dense v-model="studentEpa.comment" class="q-mb-md"
-                             label="Comments: What should the student keep doing? How can they improve performance?"></q-input>
+                             label="Comments: What should the student keep doing? How can they improve performance?"
+                             :error="commentValidationMessage != ''" :error-message="commentValidationMessage"></q-input>
                     <div class="column">
                         <q-btn no-caps
                                label="Submit EPA"
@@ -143,7 +156,8 @@
 <style scoped>
     h2.epa {
         font-weight: 400;
-        font-size: 2.0rem;
+        font-size: 1.3rem;
         margin-bottom: 4px;
+        line-height: normal;
     }
 </style>
