@@ -17,6 +17,7 @@ using NLog.Web;
 using Polly;
 using Polly.Extensions.Http;
 using Polly.Timeout;
+using Quartz;
 using System;
 using System.Net;
 using System.Security.Claims;
@@ -25,6 +26,8 @@ using Viper;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
+using Microsoft.Extensions.Hosting;
+using Viper.Areas.Jobs;
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
@@ -192,6 +195,13 @@ try
 
     // Add automapper
     builder.Services.AddAutoMapper(typeof(Program));
+
+    //Add Quartz and job rescheduling manager
+    builder.Services.AddQuartz(q => { });
+    builder.Services.AddQuartzHostedService(options => { });
+    builder.Services.AddSingleton<JobManager>()
+        .AddHostedService<JobManager>();
+    JobFactory.AddJobSingletons(builder.Services);
 
     var app = builder.Build();
 
