@@ -13,11 +13,11 @@ namespace Viper.Areas.CTS.Services
         private const string AssessClinicalPermission = "SVMSecure.CTS.AssessClinical";
 
 
-        public CtsSecurityService(RAPSContext rapsContext, VIPERContext viperContext)
+        public CtsSecurityService(RAPSContext rapsContext, VIPERContext viperContext, IUserHelper? userHelper = null)
         {
             this.rapsContext = rapsContext;
             this.viperContext = viperContext;
-            userHelper = new UserHelper();
+            this.userHelper = userHelper ?? new UserHelper();
         }
 
         /// <summary>
