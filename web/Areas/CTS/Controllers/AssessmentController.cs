@@ -19,13 +19,15 @@ namespace Viper.Areas.CTS.Controllers
         private readonly RAPSContext rapsContext;
         private readonly AuditService auditService;
         private readonly CtsSecurityService ctsSecurityService;
+        private readonly IUserHelper userHelper;
 
-        public AssessmentController(VIPERContext _context, RAPSContext rapsContext)
+        public AssessmentController(VIPERContext _context, RAPSContext rapsContext, CtsSecurityService? ctsSecurityService = null, IUserHelper? userHelper = null)
         {
             context = _context;
             this.rapsContext = rapsContext;
             auditService = new AuditService(context);
-            ctsSecurityService = new CtsSecurityService(rapsContext, _context);
+            this.ctsSecurityService = ctsSecurityService ?? new CtsSecurityService(rapsContext, _context);
+            this.userHelper = userHelper ?? new UserHelper();
         }
 
         /// <summary>
@@ -234,7 +236,7 @@ namespace Viper.Areas.CTS.Controllers
                 && !userHelper.HasPermission(rapsContext, user, "SVMSecure.Eval.ViewStudentClinResultsAll")
                 && !userHelper.HasPermission(rapsContext, user, "SVMSecure.CTS.Manage"))
             {
-                return Forbid();
+                return ForbidApi();
             }
 
             //get evaluatees for this eval that are on the rotation for at least one week the logged in user is on this rotation
@@ -278,7 +280,7 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Student not found");
             }
 
-            var personId = new UserHelper()?.GetCurrentUser()?.AaudUserId;
+            var personId = userHelper.GetCurrentUser()?.AaudUserId;
             if (personId == null)
             {
                 return Unauthorized(); //shouldn't happen
@@ -324,10 +326,10 @@ namespace Viper.Areas.CTS.Controllers
             //check the logged in user can edit
             if (!ctsSecurityService.CanEditStudentAssessment(encounter.EnteredBy))
             {
-                return Forbid();
+                return ForbidApi();
             }
 
-            var personId = new UserHelper()?.GetCurrentUser()?.AaudUserId;
+            var personId = userHelper.GetCurrentUser()?.AaudUserId;
             if (personId == null)
             {
                 return Unauthorized(); //shouldn't happen

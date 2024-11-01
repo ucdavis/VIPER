@@ -14,12 +14,13 @@ namespace Viper.Areas.RAPS.Services
 {
     public class RAPSSecurityService
     {
-		private readonly IUserHelper _userHelper = new UserHelper();
+        private readonly IUserHelper _userHelper;
 		private readonly RAPSContext _context;
 
-        public RAPSSecurityService(RAPSContext context)
+        public RAPSSecurityService(RAPSContext context, IUserHelper? userHelper = null)
         {
             _context = context;
+            _userHelper = userHelper ?? new UserHelper();
         }
 
         /// <summary>
@@ -200,14 +201,14 @@ namespace Viper.Areas.RAPS.Services
             switch (action)
             {
                 case "ViewRolePermissions":
+                    return _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.ViewRoles");
                 case "EditRoleMembership":
                     if (IsVMACSInstance(instance) && _userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.EditRoleMembership"))
                     {
                         return true;
                     }
                     List<int> controlledRoleIds = GetControlledRoleIds(User?.MothraId);
-                    return controlledRoleIds.Contains(Role.RoleId)
-                        || _userHelper.HasPermission(_context, User, "RAPS.EditRoleMembership");
+                    return controlledRoleIds.Contains(Role.RoleId);
                 default:
                     return false;
             }
