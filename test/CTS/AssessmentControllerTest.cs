@@ -143,7 +143,6 @@ namespace Viper.test.CTS
             facadeMock.Setup(f => f.BeginTransaction()).Returns(transMock.Object);
             context.SetupGet(d => d.Database).Returns(facadeMock.Object);
             
-
             var actrlAsFac = GetAssessmentController(SetupUsers.UserType.Faculty);
             var newEpa = new CreateUpdateStudentEpa()
             {
@@ -160,6 +159,9 @@ namespace Viper.test.CTS
 
             //assert
             Assert.NotNull(createResult.Value);
+
+            //cleanup
+            SetupAssessments.Encounters.RemoveAt(SetupAssessments.Encounters.FindIndex(e => e.EncounterId == 0));
         }
 
         [Fact]

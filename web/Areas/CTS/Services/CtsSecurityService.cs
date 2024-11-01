@@ -9,7 +9,7 @@ namespace Viper.Areas.CTS.Services
         public IUserHelper userHelper;
 
         private const string ManagerPermission = "SVMSecure.CTS.Manage";
-        private const string AssessmentsViewPermission = "SVMSecure.CTS.StudentAssessments";
+        private const string AssessmentsViewPermission = "SVMSecure.CTS.ViewAllStudentAssessments";
         private const string AssessClinicalPermission = "SVMSecure.CTS.AssessClinical";
 
 
@@ -31,17 +31,18 @@ namespace Viper.Areas.CTS.Services
         /// <returns></returns>
         public bool CheckStudentAssessmentViewAccess(int? studentId = null, int? enteredBy = null)
         {
-            if(userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), ManagerPermission) ||
-                userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), AssessmentsViewPermission))
+            var currentUser = userHelper.GetCurrentUser();
+            if (userHelper.HasPermission(rapsContext, currentUser, ManagerPermission) ||
+                userHelper.HasPermission(rapsContext, currentUser, AssessmentsViewPermission))
             {
                 return true;
             }
-            if (userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), AssessClinicalPermission)
-                && enteredBy != null && enteredBy == userHelper.GetCurrentUser()?.AaudUserId)
+            if (userHelper.HasPermission(rapsContext, currentUser, AssessClinicalPermission)
+                && enteredBy != null && enteredBy == currentUser?.AaudUserId)
             {
                 return true;
             }
-            if(studentId == userHelper.GetCurrentUser()?.AaudUserId)
+            if (studentId == currentUser?.AaudUserId)
             {
                 return true;
             }

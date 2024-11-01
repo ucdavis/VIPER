@@ -48,14 +48,17 @@ namespace Viper.test.CTS
 
             //act
             var facCanViewOwnAssessment = facCtsSec.CheckStudentAssessmentViewAccess(SetupUsers.studentUser1.AaudUserId, SetupUsers.facultyUser.AaudUserId);
+            var facCanViewOtherAssessments = facCtsSec.CheckStudentAssessmentViewAccess(SetupUsers.studentUser1.AaudUserId, SetupUsers.otherFacultyUser.AaudUserId);
             var managerCanViewAssessment = managerCtsSec.CheckStudentAssessmentViewAccess(SetupUsers.studentUser1.AaudUserId, SetupUsers.facultyUser.AaudUserId);
             var csTeamCanViewAssessment = csCtsSec.CheckStudentAssessmentViewAccess(SetupUsers.studentUser1.AaudUserId, SetupUsers.facultyUser.AaudUserId);
             var stdCanViewAssessment = stdCtsSec.CheckStudentAssessmentViewAccess(SetupUsers.studentUser2.AaudUserId, SetupUsers.facultyUser.AaudUserId);
 
             //assert
             Assert.True(facCanViewOwnAssessment, "Faculty cannot view own assessment.");
+            Assert.False(facCanViewOtherAssessments, "Faculty can view assessment entered by another faculty.");
             Assert.True(managerCanViewAssessment, "Manager cannot view assessment.");
-            Assert.True(csTeamCanViewAssessment, "CS Team cannot view assessment.");
+            //Might need clarification on this - should CS Team be allowed to view all assessments?
+            Assert.False(csTeamCanViewAssessment, "CS Team cannot view assessment.");
             Assert.False(stdCanViewAssessment, "Student can view other student's assessment.");
         }
 
@@ -77,7 +80,7 @@ namespace Viper.test.CTS
             var csCanEditOtherAssessment = csCtsSec.CanEditStudentAssessment(SetupUsers.facultyUser.AaudUserId);
 
             //assert
-            Assert.True(facCanEditOwnAssessment, "Faculty cannot editown assessment.");
+            Assert.True(facCanEditOwnAssessment, "Faculty cannot edit own assessment.");
             Assert.True(manCanEditOtherAssessment, "Manager cannot edit assessment.");
             Assert.False(facCanEditOtherAssessment, "Faculty can edit another faculty's assessment.");
             Assert.False(csCanEditOtherAssessment, "CS Team can edit faculty's assessment.");

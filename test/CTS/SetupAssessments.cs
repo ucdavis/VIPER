@@ -84,23 +84,6 @@ namespace Viper.test.CTS
                      };
                      Encounters.Add(e);
                  });
-            /*
-            var mockSet = new Mock<DbSet<Encounter>>();
-            mockSet.As<IEnumerable<Encounter>>()
-                .Setup(m => m.GetEnumerator())
-                .Returns(encounters.GetEnumerator());
-            //mockSet.Setup(m => m.FindAsync(RoleId))
-            //.ReturnsAsync(roles.Where(r => r.RoleId == RoleId).FirstOrDefault());
-
-            mockSet.As<IQueryable<Encounter>>().Setup(m => m.Provider).Returns(encounters.Provider);
-            mockSet.As<IQueryable<Encounter>>().Setup(m => m.Expression).Returns(encounters.Expression);
-            mockSet.As<IQueryable<Encounter>>().Setup(m => m.ElementType).Returns(encounters.ElementType);
-            mockSet.As<IQueryable<Encounter>>().Setup(m => m.GetEnumerator()).Returns(() => encounters.GetEnumerator());
-            //mockSet.As<IQueryable<Encounter>>().Setup(m => m.ToListAsync()).Returns(Task.FromResult(encounters.ToList()));
-
-            context.Setup(c => c.Encounters).Returns(mockSet.Object);
-            */
-
         }
     }
 }
