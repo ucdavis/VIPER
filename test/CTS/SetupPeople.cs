@@ -74,6 +74,13 @@ namespace Viper.test.CTS
                 LastName = SetupUsers.csTeamUser.DisplayLastName,
                 FullName = SetupUsers.csTeamUser.DisplayFirstName + " " + SetupUsers.csTeamUser.DisplayLastName,
             },
+            new()
+            {
+                PersonId = SetupUsers.chief.AaudUserId,
+                FirstName = SetupUsers.chief.DisplayFirstName,
+                LastName = SetupUsers.chief.DisplayLastName,
+                FullName = SetupUsers.chief.DisplayFirstName + " " + SetupUsers.csTeamUser.DisplayLastName,
+            },
         };
 
         public static IQueryable<Person> GetPeople()
@@ -85,21 +92,6 @@ namespace Viper.test.CTS
         {
             var mockSet = People.AsAsyncQueryable().BuildMockDbSet();
             context.Setup(c => c.People).Returns(mockSet.Object);
-
-            /*
-            var people = GetPeople();
-            var mockSet = new Mock<DbSet<Person>>();
-            mockSet.As<IEnumerable<Person>>()
-                .Setup(m => m.GetEnumerator())
-                .Returns(people.GetEnumerator());
-
-            mockSet.As<IQueryable<Person>>().Setup(m => m.Provider).Returns(people.Provider);
-            mockSet.As<IQueryable<Person>>().Setup(m => m.Expression).Returns(people.Expression);
-            mockSet.As<IQueryable<Person>>().Setup(m => m.ElementType).Returns(people.ElementType);
-            mockSet.As<IQueryable<Person>>().Setup(m => m.GetEnumerator()).Returns(() => people.GetEnumerator());
-
-            context.Setup(c => c.People).Returns(mockSet.Object);
-            */
         }
     }
 }

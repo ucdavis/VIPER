@@ -48,7 +48,7 @@ namespace Viper.Areas.CTS.Controllers
             int? epaId, DateOnly? dateFrom, DateOnly? dateTo, ApiPagination? pagination,
             string? sortBy = null, bool descending = false)
         {
-            if (!ctsSecurityService.CheckStudentAssessmentViewAccess(studentUserId, enteredById))
+            if (!ctsSecurityService.CheckStudentAssessmentViewAccess(studentUserId, enteredById, serviceId))
             {
                 return (ActionResult<List<StudentAssessment>>)ForbidApi();
             }
@@ -203,7 +203,7 @@ namespace Viper.Areas.CTS.Controllers
             {
                 return NotFound();
             }
-            if (!ctsSecurityService.CheckStudentAssessmentViewAccess(encounter.StudentUserId, encounter.EnteredBy))
+            if (!ctsSecurityService.CheckStudentAssessmentViewAccess(encounter.StudentUserId, encounter.EnteredBy, encounter.ServiceId))
             {
                 return (ActionResult<StudentAssessment>)ForbidApi();
             }
