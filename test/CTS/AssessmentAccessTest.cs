@@ -62,6 +62,24 @@ namespace Viper.test.CTS
             Assert.False(stdCanViewAssessment, "Student can view other student's assessment.");
         }
 
+        [Fact]
+        public void ChiefAccessTest()
+        {
+            //arrange
+            SetupServices.SetupServicesTable(context);
+            var chiefCtsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, SetupUsers.UserType.Chief);
+
+            //act
+            var chiefCanAccessAssessmentOnService = chiefCtsSec.CheckStudentAssessmentViewAccess(SetupUsers.studentUser1.AaudUserId,
+                SetupUsers.facultyUser.AaudUserId, SetupServices.ServiceChiefs[0].ServiceId);
+            var chiefCanAccessAssessmentOnOtherService = chiefCtsSec.CheckStudentAssessmentViewAccess(SetupUsers.studentUser1.AaudUserId, 
+                SetupUsers.facultyUser.AaudUserId, SetupServices.Services.Where(s => s.ServiceId != SetupServices.ServiceChiefs[0].ServiceId).First().ServiceId);
+
+            //assert
+            Assert.True(chiefCanAccessAssessmentOnService, "Chief cannot view assessment on their service.");
+            Assert.False(chiefCanAccessAssessmentOnOtherService, "Chief can view assessment on other service.");
+        }
+
         /// <summary>
         /// Test that an assessor can modify their own assessment, but only managers can modify another assessors.
         /// </summary>

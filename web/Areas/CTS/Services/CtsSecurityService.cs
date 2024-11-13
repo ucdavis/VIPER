@@ -29,19 +29,31 @@ namespace Viper.Areas.CTS.Services
         /// <param name="studentId"></param>
         /// <param name="enteredBy"></param>
         /// <returns></returns>
-        public bool CheckStudentAssessmentViewAccess(int? studentId = null, int? enteredBy = null)
+        public bool CheckStudentAssessmentViewAccess(int? studentId = null, int? enteredBy = null, int? serviceId = null)
         {
             var currentUser = userHelper.GetCurrentUser();
+            //managers and those who can view all assessments
             if (userHelper.HasPermission(rapsContext, currentUser, ManagerPermission) ||
                 userHelper.HasPermission(rapsContext, currentUser, AssessmentsViewPermission))
             {
                 return true;
             }
+            //assessors can view their own
             if (userHelper.HasPermission(rapsContext, currentUser, AssessClinicalPermission)
                 && enteredBy != null && enteredBy == currentUser?.AaudUserId)
             {
                 return true;
             }
+            //service chiefs can view any on their service
+            if (serviceId != null && currentUser != null && userHelper.HasPermission(rapsContext, currentUser, AssessClinicalPermission))
+            {
+                var myServices = viperContext.ServiceChiefs.Where(s => s.PersonId == currentUser.AaudUserId).Select(s => s.ServiceId).ToList();
+                if (myServices.Contains((int)serviceId))
+                {
+                    return true;
+                }
+            }
+            //students can view theirs
             if (studentId == currentUser?.AaudUserId)
             {
                 return true;

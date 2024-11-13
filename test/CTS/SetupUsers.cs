@@ -12,7 +12,8 @@ static internal class SetupUsers
         Manager,
         Faculty,
         CSTeam,
-        Student
+        Student,
+        Chief
     }
 
     public static readonly AaudUser studentUser1 = new()
@@ -57,6 +58,12 @@ static internal class SetupUsers
         DisplayFirstName = "Test",
         DisplayLastName = "CS Team"
     };
+    public static readonly AaudUser chief = new()
+    {
+        AaudUserId = 76543,
+        DisplayFirstName = "Test",
+        DisplayLastName = "Chief"
+    };
 
     public static CtsSecurityService GetCtsSecurityService(RAPSContext rapsContext, VIPERContext viperContext, UserType userType)
     {
@@ -77,13 +84,22 @@ static internal class SetupUsers
         var mockUser = new Mock<IUserHelper>();
         mockUser.As<IUserHelper>()
             .Setup(m => m.GetCurrentUser())
-            .Returns(userType switch { UserType.Faculty => facultyUser, UserType.Student => studentUser1, UserType.Manager => managerUser, UserType.CSTeam => csTeamUser, _ => null});
+            .Returns(userType switch
+            {
+                UserType.Faculty => facultyUser,
+                UserType.Student => studentUser1,
+                UserType.Manager => managerUser,
+                UserType.CSTeam => csTeamUser,
+                UserType.Chief => chief,
+                _ => null
+            });
         Func<string, bool> func = userType switch
         {
             UserType.Manager => EmulateManagerPermission,
             UserType.Faculty => EmulateFacultyPermission,
             UserType.Student => EmulateStudentPermission,
             UserType.CSTeam => EmulateCSTeamPermission,
+            UserType.Chief => EmulateChiefPermission,
             _ => throw new NotImplementedException(),
         };
         mockUser.As<IUserHelper>()
@@ -130,6 +146,12 @@ static internal class SetupUsers
     static bool EmulateClinicianPermission(string permission)
     {
         return permission == "SVMSecure.CTS.StudentAssessments" ? false : EmulateFacultyPermission(permission);
+    }
+
+    //Same as faculty
+    static bool EmulateChiefPermission(string permission)
+    {
+        return EmulateFacultyPermission(permission);
     }
 
     static bool EmulateCSTeamPermission(string permission)
