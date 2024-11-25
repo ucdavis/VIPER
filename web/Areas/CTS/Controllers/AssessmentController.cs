@@ -153,6 +153,12 @@ namespace Viper.Areas.CTS.Controllers
         [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical")]
         public async Task<ActionResult<List<Assessor>>> GetAssessors(int? type, int? serviceId)
         {
+            var personId = userHelper.GetCurrentUser()?.AaudUserId;
+            if (personId == null)
+            {
+                return ForbidApi();
+            }
+
             var encounters = context.Encounters.AsQueryable();
             if (type != null)
             {
@@ -161,6 +167,12 @@ namespace Viper.Areas.CTS.Controllers
             if (serviceId != null)
             {
                 encounters = encounters.Where(a => a.ServiceId == serviceId);
+            }
+            else if (!ctsSecurityService.CheckStudentAssessmentViewAccess())
+            {
+                //if they can't see all assessments, they can only see assessors on a service they are chief of
+                var serviceChiefServices = await context.ServiceChiefs.Where(c => c.PersonId == personId).Select(c => c.ServiceId).ToListAsync();
+                encounters = encounters.Where(a => a.ServiceId != null && serviceChiefServices.Contains((int)a.ServiceId));
             }
 
             var assessors = await encounters.Select(s => s.EnteredByPerson)

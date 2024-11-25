@@ -4,7 +4,7 @@
     import type { Ref } from 'vue'
     import { ref, inject } from 'vue'
     import { useFetch } from '@/composables/ViperFetch'
-    import type { QTableProps } from 'quasar'
+    import type { QBtnToggleProps, QTableProps } from 'quasar'
     import { useDateFunctions } from '@/composables/DateFunctions'
     import type { Student, Service, Person } from '@/CTS/types'
 
@@ -17,6 +17,8 @@
     const paging = ref({ page: 1, sortBy: "enteredOn", descending: true, rowsPerPage: 25, rowsNumber: 100 }) as Ref<any>
     const loading = ref(false)
     const canViewAll = ref(null) as Ref<boolean | null>
+    const mineOnly = ref(true)
+    const mineOnlyOptions = ref([{ label: 'My Assessments', value: true }, { label: 'My service', value: false }])
 
     const searchForm = ref({
         service: null as Service | null,
@@ -35,7 +37,7 @@
         { name: "enteredOn", label: "Entered On", field: "enteredOn", align: "left", sortable: true, format: formatDate }
     ]
     const filter = ref("")
-    const services = ref([])
+    const services = ref([]) as Ref<Service[]>
     const students = ref([]) as Ref<Student[]>
     const assessors = ref([]) as Ref<Person[]>
     
@@ -66,9 +68,6 @@
     }
 
     async function loadAssessments(page: number, perPage: number, sortBy: string, descending: boolean) {
-        if (canViewAll.value == null) {
-            await getCanViewAllAssessments()
-        }
         const p = createUrlSearchParams({
             "serviceId": searchForm.value.service?.serviceId,
             "enteredById": searchForm.value.enteredBy?.personId,
@@ -78,7 +77,12 @@
         })
 
         if (!canViewAll.value) {
-            p.set("enteredById", userStore.userInfo.userId != null ? userStore.userInfo.userId.toString() : "")
+            if (services.value.length == 0 || mineOnly.value) {
+                p.set("enteredById", userStore.userInfo.userId != null ? userStore.userInfo.userId.toString() : "")
+            }
+            else {
+                p.set("serviceId", services.value[0].serviceId.toString())
+            }
         }
 
         switch (assessmentType.value) {
@@ -97,7 +101,7 @@
 
         loading.value = true
         get(u.toString())
-            .then(({ result, pagination: resultPagination, success }) => {
+            .then(({ result, pagination: resultPagination }) => {
                 assessments.value = result
                 paging.value.rowsNumber = resultPagination?.totalRecords
             })
@@ -105,7 +109,9 @@
     }
 
     async function loadServices() {
-        const r = await get(baseUrl + "clinicalservices")
+        const r = canViewAll.value
+            ? await get(baseUrl + "clinicalservices")
+            : await get(baseUrl + "clinicalservices?chiefId=" + userStore.userInfo.userId)
         services.value = r.result
     }
     async function loadStudents() {
@@ -113,14 +119,20 @@
         students.value = r.result
     }
     async function loadAssessors() {
-        const r = await get(baseUrl + "assessments/assessors")
-        assessors.value = r.result
+        assessors.value = canViewAll.value 
+            ? (await get(baseUrl + "assessments/assessors")).result
+            : []
     }
 
-    loadAssessments(paging.value.page, paging.value.rowsPerPage, paging.value.sortBy, paging.value.descending)
-    loadServices()
-    loadStudents()
-    loadAssessors()
+    async function loadPageData() {
+        await getCanViewAllAssessments()
+        await loadServices()
+        loadAssessments(paging.value.page, paging.value.rowsPerPage, paging.value.sortBy, paging.value.descending)
+        loadStudents()
+        loadAssessors()
+    }
+
+    loadPageData()
 </script>
 
 <template>
@@ -128,11 +140,20 @@
 
     <q-form>
         <div class="row">
-            <div class="col-12 col-md-6 col-lg-3">
+            <div class="col-12 col-sm-5 col-lg-3 q-ma-xs">
+                <q-input outlined dense type="date" v-model="searchForm.dateFrom" label="Date from" clearable></q-input>
+            </div>
+            <div class="col-12 col-sm-5 col-lg-3 q-ma-xs">
+                <q-input outlined dense type="date" v-model="searchForm.dateTo" label="Date To" clearable></q-input>
+            </div>
+            <div class="col-12 col-sm-5 col-lg-3 q-ma-xs">
+                <q-select outlined dense options-dense label="Assessment Type" v-model="assessmentType" :options="assessmentTypes" emit-value clearable></q-select>
+            </div>
+            <div class="col-12 col-sm-5 col-lg-3 q-ma-xs" v-if="canViewAll">
                 <q-select outlined dense options-dense label="Service" v-model="searchForm.service" :options="services"
                           option-label="serviceName" option-value="serviceId" clearable></q-select>
             </div>
-            <div class="col-12 col-md-6 col-lg-3">
+            <div class="col-12 col-sm-5 col-lg-3 q-ma-xs">
                 <q-select outlined dense options-dense label="Student" v-model="searchForm.student" :options="students" clearable
                           option-value="personId">
                     <template v-slot:selected>
@@ -147,20 +168,14 @@
                     </template>
                 </q-select>
             </div>
-            <div class="col-12 col-md-6 col-lg-3" v-if="canViewAll">
+            <div class="col-12 col-sm-5 col-lg-3 q-ma-xs" v-if="canViewAll">
                 <q-select outlined dense options-dense label="Entered By" v-model="searchForm.enteredBy" :options="assessors"
                           option-label="fullNameLastFirst" option-value="personId" clearable></q-select>
             </div>
-        </div>
-        <div class="row">
-            <div class="col-12 col-md-6 col-lg-3">
-                <q-input outlined dense type="date" v-model="searchForm.dateFrom" label="Date from" clearable></q-input>
-            </div>
-            <div class="col-12 col-md-6 col-lg-3">
-                <q-input outlined dense type="date" v-model="searchForm.dateTo" label="Date To" clearable></q-input>
-            </div>
-            <div class="col-12 col-md-6 col-lg-3">
-                <q-select outlined dense options-dense label="Assessment Type" v-model="assessmentType" :options="assessmentTypes" emit-value clearable></q-select>
+            <div class="col-12 col-sm-5 col-lg-3 q-ma-xs" v-if="!canViewAll && services.length > 0">
+                <q-btn-toggle no-caps v-model="mineOnly" 
+                              :options="mineOnlyOptions"
+                              map-options emit-value></q-btn-toggle>
             </div>
         </div>
         <div class="row q-my-sm">
