@@ -26,7 +26,7 @@ namespace Viper.test.CTS
         {
             var ctsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, userType);
             
-            return new AssessmentController(context.Object, rapsContext.Object, ctsSec, SetupUsers.GetUserHelper(userType));
+            return new AssessmentController(context.Object, rapsContext.Object, ctsSec, SetupUsers.GetUserHelperForUserType(userType).Object);
         }
 
 
@@ -46,7 +46,7 @@ namespace Viper.test.CTS
             var studentViewOthersAssessments = await actrlAsStd.GetAssessments(null, SetupUsers.studentUser2.AaudUserId, null, null, null, null, null, null);
             var studentViewAllAssessments = await actrlAsStd.GetAssessments(null, null, null, null, null, null, null, null);
             var facCanViewOwnAssessments = await actrlAsFac.GetAssessments(null, null, SetupUsers.facultyUser.AaudUserId, null, null, null, null, null);
-            var chiefCanViewAllAssessments = await actrlAsFac.GetAssessments(null, null, null, null, null, null, null, null);
+            var chiefCanViewAllAssessments = await actrlAsChief.GetAssessments(null, null, null, SetupServices.ServiceChiefs[0].ServiceId, null, null, null, null);
 
             //assert
             Assert.NotNull(studentViewOwnAssessments.Value);
@@ -65,10 +65,8 @@ namespace Viper.test.CTS
             Assert.NotNull(facCanViewOwnAssessments.Value);
             Assert.NotEmpty(facCanViewOwnAssessments.Value);
 
-            Assert.Null(chiefCanViewAllAssessments.Value);
-            Assert.NotNull(chiefCanViewAllAssessments.Result);
-            var result3 = chiefCanViewAllAssessments.Result as ObjectResult;
-            Assert.Equal((int)HttpStatusCode.Forbidden, result3?.StatusCode);
+            Assert.NotNull(chiefCanViewAllAssessments.Value);
+            Assert.NotEmpty(chiefCanViewAllAssessments.Value);
         }
 
         [Fact]
@@ -103,15 +101,21 @@ namespace Viper.test.CTS
         {
             //arrange
             var actrlAsFac = GetAssessmentController(SetupUsers.UserType.Faculty);
+            var actrlAsChief = GetAssessmentController(SetupUsers.UserType.Chief);
             SetupAssessments.SetupEncountersTable(context);
             SetupPeople.SetupPersonTable(context);
+            SetupServices.SetupServicesTable(context);
 
             //act
             var facAssessors = await actrlAsFac.GetAssessors(null, null);
+            var chiefAssessors = await actrlAsChief.GetAssessors(null, null);
 
             //assert
             Assert.NotNull(facAssessors.Value);
-            Assert.NotEmpty(facAssessors.Value);
+            Assert.Empty(facAssessors.Value);
+
+            Assert.NotNull(chiefAssessors.Value);
+            Assert.NotEmpty(chiefAssessors.Value);
         }
 
         [Fact]
