@@ -26,7 +26,7 @@ namespace Viper.test.CTS
         {
             var ctsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, userType);
             
-            return new AssessmentController(context.Object, rapsContext.Object, ctsSec, SetupUsers.GetUserHelper(userType));
+            return new AssessmentController(context.Object, rapsContext.Object, ctsSec, SetupUsers.GetUserHelperForUserType(userType).Object);
         }
 
 
@@ -34,15 +34,19 @@ namespace Viper.test.CTS
         public async void GetAssessmentsCheckForbid()
         {
             //arrange
+            SetupAssessments.SetupEncountersTable(context);
+            SetupPeople.SetupPersonTable(context);
+            SetupServices.SetupServicesTable(context);
             var actrlAsStd = GetAssessmentController(SetupUsers.UserType.Student);
             var actrlAsFac = GetAssessmentController(SetupUsers.UserType.Faculty);
-            SetupAssessments.SetupEncountersTable(context);
+            var actrlAsChief = GetAssessmentController(SetupUsers.UserType.Chief);
 
             //act
             var studentViewOwnAssessments = await actrlAsStd.GetAssessments(null, SetupUsers.studentUser1.AaudUserId, null, null, null, null, null, null);
             var studentViewOthersAssessments = await actrlAsStd.GetAssessments(null, SetupUsers.studentUser2.AaudUserId, null, null, null, null, null, null);
             var studentViewAllAssessments = await actrlAsStd.GetAssessments(null, null, null, null, null, null, null, null);
             var facCanViewOwnAssessments = await actrlAsFac.GetAssessments(null, null, SetupUsers.facultyUser.AaudUserId, null, null, null, null, null);
+            var chiefCanViewAllAssessments = await actrlAsChief.GetAssessments(null, null, null, SetupServices.ServiceChiefs[0].ServiceId, null, null, null, null);
 
             //assert
             Assert.NotNull(studentViewOwnAssessments.Value);
@@ -60,19 +64,26 @@ namespace Viper.test.CTS
 
             Assert.NotNull(facCanViewOwnAssessments.Value);
             Assert.NotEmpty(facCanViewOwnAssessments.Value);
+
+            Assert.NotNull(chiefCanViewAllAssessments.Value);
+            Assert.NotEmpty(chiefCanViewAllAssessments.Value);
         }
 
         [Fact]
         public async void GetAssessmentsCheckData()
         {
             //arrange
+            SetupAssessments.SetupEncountersTable(context);
+            SetupPeople.SetupPersonTable(context);
+            SetupServices.SetupServicesTable(context);
             var actrlAsStd = GetAssessmentController(SetupUsers.UserType.Student);
             var actrlAsFac = GetAssessmentController(SetupUsers.UserType.Faculty);
-            SetupAssessments.SetupEncountersTable(context);
+            var actrlAsChief = GetAssessmentController(SetupUsers.UserType.Chief);
 
             //act
             var studentOwnAssessments = await actrlAsStd.GetAssessments(null, SetupUsers.studentUser1.AaudUserId, null, null, null, null, null, null);
             var facOwnAssesments = await actrlAsFac.GetAssessments(null, null, SetupUsers.facultyUser.AaudUserId, null, null, null, null, null);
+            var chiefAssessments = await actrlAsChief.GetAssessments(null, null, SetupUsers.facultyUser.AaudUserId, SetupServices.ServiceChiefs[0].ServiceId, null, null, null, null);
 
             //assert
             Assert.NotNull(studentOwnAssessments.Value);
@@ -80,6 +91,9 @@ namespace Viper.test.CTS
 
             Assert.NotNull(facOwnAssesments.Value);
             Assert.Equal(2, facOwnAssesments.Value.Count);
+
+            Assert.NotNull(chiefAssessments.Value);
+            Assert.Single(chiefAssessments.Value);
         }
 
         [Fact]
@@ -87,15 +101,21 @@ namespace Viper.test.CTS
         {
             //arrange
             var actrlAsFac = GetAssessmentController(SetupUsers.UserType.Faculty);
+            var actrlAsChief = GetAssessmentController(SetupUsers.UserType.Chief);
             SetupAssessments.SetupEncountersTable(context);
             SetupPeople.SetupPersonTable(context);
+            SetupServices.SetupServicesTable(context);
 
             //act
             var facAssessors = await actrlAsFac.GetAssessors(null, null);
+            var chiefAssessors = await actrlAsChief.GetAssessors(null, null);
 
             //assert
             Assert.NotNull(facAssessors.Value);
-            Assert.NotEmpty(facAssessors.Value);
+            Assert.Empty(facAssessors.Value);
+
+            Assert.NotNull(chiefAssessors.Value);
+            Assert.NotEmpty(chiefAssessors.Value);
         }
 
         [Fact]
@@ -104,12 +124,17 @@ namespace Viper.test.CTS
             //arrange
             SetupAssessments.SetupEncountersTable(context);
             SetupPeople.SetupPersonTable(context);
+            SetupServices.SetupServicesTable(context);
             var actrlAsFac = GetAssessmentController(SetupUsers.UserType.Faculty);
             var actrlAsStd = GetAssessmentController(SetupUsers.UserType.Student);
             var actrlAsMgr = GetAssessmentController(SetupUsers.UserType.Manager);
+            var actrlAsChief = GetAssessmentController(SetupUsers.UserType.Chief);
+
             var encounterIdExists = SetupAssessments.GetEncounters().First().EncounterId;
             var encounterIdOtherFac = SetupAssessments.GetEncounters().Where(e => e.EnteredBy != SetupUsers.facultyUser.AaudUserId).First().EncounterId;
             var encounterIdOtherStd = SetupAssessments.GetEncounters().Where(e => e.StudentUserId != SetupUsers.studentUser1.AaudUserId).First().EncounterId;
+            var encounterIdChief = SetupAssessments.GetEncounters().Where(e => e.ServiceId == SetupServices.ServiceChiefs[0].ServiceId).First().EncounterId;
+            var encounterIdNotChief = SetupAssessments.GetEncounters().Where(e => e.ServiceId != SetupServices.ServiceChiefs[0].ServiceId).First().EncounterId;
             var encounterIdNotExists = 99999;
 
             //act
@@ -118,14 +143,18 @@ namespace Viper.test.CTS
             var stdOwnAssessment = await actrlAsStd.GetStudentAssessment(encounterIdExists);
             var stdOtherAssessment = await actrlAsStd.GetStudentAssessment(encounterIdOtherStd);
             var mgrNotFoundAssessment = await actrlAsMgr.GetStudentAssessment(encounterIdNotExists);
+            var chiefOwnService = await actrlAsChief.GetStudentAssessment(encounterIdChief);
+            var chiefNotOwnService = await actrlAsChief.GetStudentAssessment(encounterIdNotChief);
 
             //assert
             Assert.NotNull(facOwnAssessment.Value);
-            //Assert.True(IsForbidResult(facOtherAssessment));
+            Assert.True(IsForbidResult(facOtherAssessment));
             Assert.NotNull(stdOwnAssessment.Value);
             Assert.True(IsForbidResult(stdOtherAssessment));
             Assert.True(IsNotFoundResult(mgrNotFoundAssessment));
             Assert.False(IsNotFoundResult(facOwnAssessment));
+            Assert.NotNull(chiefOwnService.Value);
+            Assert.True(IsForbidResult(chiefNotOwnService));
         }
 
         [Fact]

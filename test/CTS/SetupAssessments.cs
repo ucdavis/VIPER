@@ -16,13 +16,6 @@ namespace Viper.test.CTS
     {
         public static readonly List<Encounter> Encounters = new List<Encounter>()
         {
-            /*Include(e => e.Epa)
-                .Include(e => e.EnteredByPerson)
-                .Include(e => e.Student)
-                .Include(e => e.Service)
-                .Include(e => e.Offering)
-                .Include(e => e.Level)
-                .SingleOrDefaultAsync(e => e.EncounterId == encounterId);*/
             new Encounter()
             {
                 EncounterId = 1,
@@ -35,6 +28,7 @@ namespace Viper.test.CTS
                     MailId = "",
                 },
                 EnteredByPerson = SetupPeople.GetPeople().Where(p => p.PersonId == SetupUsers.facultyUser.AaudUserId).FirstOrDefault(),
+                ServiceId = 1,
             },
             new Encounter()
             {
@@ -48,6 +42,7 @@ namespace Viper.test.CTS
                     MailId = "",
                 },
                 EnteredByPerson = SetupPeople.GetPeople().Where(p => p.PersonId == SetupUsers.facultyUser.AaudUserId).FirstOrDefault(),
+                ServiceId = 2,
             },
             new Encounter()
             {
@@ -61,6 +56,7 @@ namespace Viper.test.CTS
                     MailId = "",
                 },
                 EnteredByPerson = SetupPeople.GetPeople().Where(p => p.PersonId == SetupUsers.otherFacultyUser.AaudUserId).FirstOrDefault(),
+                ServiceId = 3,
             },
         };
 

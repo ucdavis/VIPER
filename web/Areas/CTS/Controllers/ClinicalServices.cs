@@ -19,9 +19,15 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Service>>> GetServices()
+        public async Task<ActionResult<List<Service>>> GetServices(int? chiefId = null)
         {
-            return await context.Services.OrderBy(s => s.ServiceName).ToListAsync();
+            var servicesQ = context.Services.AsQueryable();
+            if(chiefId != null)
+            {
+                var serviceChiefs = await context.ServiceChiefs.Where(c => c.PersonId == chiefId).Select(c => c.ServiceId).ToListAsync();
+                servicesQ = servicesQ.Where(s => serviceChiefs.Contains(s.ServiceId));
+            }
+            return await servicesQ.OrderBy(s => s.ServiceName).ToListAsync();
         }
     }
 }
