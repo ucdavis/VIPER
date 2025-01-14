@@ -100,7 +100,10 @@
 </script>
 <template>
     <div v-if="loaded">
-        <h2>Assessments for <span v-if="showPersonName && person != null">{{ person.firstName }} {{ person.lastName }}</span></h2>
+        <h2>
+            <span v-if="showPersonName && person != null">Assessments for {{ person.firstName }} {{ person.lastName }}</span>
+            <span v-else>My Assessments</span>
+        </h2>
 
         <q-dialog v-model="showAssessmentDetail">
             <q-card style="width:700px; max-width: 80vw;">
