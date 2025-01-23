@@ -38,6 +38,7 @@ public partial class VIPERContext : DbContext
     public virtual DbSet<InstructorSchedule> InstructorSchedules { get; set; }
     public virtual DbSet<StudentSchedule> StudentSchedules { get; set; }
     public virtual DbSet<Rotation> Rotations { get; set; }
+    public virtual DbSet<ServiceChief> ServiceChiefs { get; set; }
     public virtual DbSet<Service> Services { get; set; }
     public virtual DbSet<WeekGradYear> WeekGradYears { get; set; }
     public virtual DbSet<Week> Weeks { get; set; }
@@ -447,6 +448,12 @@ public partial class VIPERContext : DbContext
             entity.HasOne(e => e.Service).WithMany(s => s.Rotations)
                .HasForeignKey(e => e.ServiceId)
                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<ServiceChief>(entity =>
+        {
+            entity.HasKey(e => e.ServiceChiefId);
+            entity.ToTable("vwServiceChiefs", schema: "cts");
         });
 
         modelBuilder.Entity<Service>(entity =>

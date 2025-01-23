@@ -19,13 +19,15 @@ namespace Viper.Areas.CTS.Controllers
         private readonly RAPSContext rapsContext;
         private readonly AuditService auditService;
         private readonly CtsSecurityService ctsSecurityService;
+        private readonly IUserHelper userHelper;
 
-        public AssessmentController(VIPERContext _context, RAPSContext rapsContext)
+        public AssessmentController(VIPERContext _context, RAPSContext rapsContext, CtsSecurityService? ctsSecurityService = null, IUserHelper? userHelper = null)
         {
             context = _context;
             this.rapsContext = rapsContext;
             auditService = new AuditService(context);
-            ctsSecurityService = new CtsSecurityService(rapsContext, _context);
+            this.ctsSecurityService = ctsSecurityService ?? new CtsSecurityService(rapsContext, _context);
+            this.userHelper = userHelper ?? new UserHelper();
         }
 
         /// <summary>
@@ -46,7 +48,7 @@ namespace Viper.Areas.CTS.Controllers
             int? epaId, DateOnly? dateFrom, DateOnly? dateTo, ApiPagination? pagination,
             string? sortBy = null, bool descending = false)
         {
-            if (!ctsSecurityService.CheckStudentAssessmentViewAccess(studentUserId, enteredById))
+            if (!ctsSecurityService.CheckStudentAssessmentViewAccess(studentUserId, enteredById, serviceId))
             {
                 return (ActionResult<List<StudentAssessment>>)ForbidApi();
             }
@@ -151,6 +153,12 @@ namespace Viper.Areas.CTS.Controllers
         [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical")]
         public async Task<ActionResult<List<Assessor>>> GetAssessors(int? type, int? serviceId)
         {
+            var personId = userHelper.GetCurrentUser()?.AaudUserId;
+            if (personId == null)
+            {
+                return ForbidApi();
+            }
+
             var encounters = context.Encounters.AsQueryable();
             if (type != null)
             {
@@ -159,6 +167,12 @@ namespace Viper.Areas.CTS.Controllers
             if (serviceId != null)
             {
                 encounters = encounters.Where(a => a.ServiceId == serviceId);
+            }
+            else if (!ctsSecurityService.CheckStudentAssessmentViewAccess())
+            {
+                //if they can't see all assessments, they can only see assessors on a service they are chief of
+                var serviceChiefServices = await context.ServiceChiefs.Where(c => c.PersonId == personId).Select(c => c.ServiceId).ToListAsync();
+                encounters = encounters.Where(a => a.ServiceId != null && serviceChiefServices.Contains((int)a.ServiceId));
             }
 
             var assessors = await encounters.Select(s => s.EnteredByPerson)
@@ -201,7 +215,7 @@ namespace Viper.Areas.CTS.Controllers
             {
                 return NotFound();
             }
-            if (!ctsSecurityService.CheckStudentAssessmentViewAccess(encounter.StudentUserId, encounter.EnteredBy))
+            if (!ctsSecurityService.CheckStudentAssessmentViewAccess(encounter.StudentUserId, encounter.EnteredBy, encounter.ServiceId))
             {
                 return (ActionResult<StudentAssessment>)ForbidApi();
             }
@@ -234,7 +248,7 @@ namespace Viper.Areas.CTS.Controllers
                 && !userHelper.HasPermission(rapsContext, user, "SVMSecure.Eval.ViewStudentClinResultsAll")
                 && !userHelper.HasPermission(rapsContext, user, "SVMSecure.CTS.Manage"))
             {
-                return Forbid();
+                return ForbidApi();
             }
 
             //get evaluatees for this eval that are on the rotation for at least one week the logged in user is on this rotation
@@ -278,7 +292,7 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Student not found");
             }
 
-            var personId = new UserHelper()?.GetCurrentUser()?.AaudUserId;
+            var personId = userHelper.GetCurrentUser()?.AaudUserId;
             if (personId == null)
             {
                 return Unauthorized(); //shouldn't happen
@@ -324,10 +338,10 @@ namespace Viper.Areas.CTS.Controllers
             //check the logged in user can edit
             if (!ctsSecurityService.CanEditStudentAssessment(encounter.EnteredBy))
             {
-                return Forbid();
+                return ForbidApi();
             }
 
-            var personId = new UserHelper()?.GetCurrentUser()?.AaudUserId;
+            var personId = userHelper.GetCurrentUser()?.AaudUserId;
             if (personId == null)
             {
                 return Unauthorized(); //shouldn't happen
