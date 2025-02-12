@@ -1,5 +1,5 @@
 <template>
-    <div class="row gt-sm items-stretch" id="mainLayoutHeaderSections">
+    <div class="row gt-sm items-stretch justify-middle q-mt-xs" id="mainLayoutHeaderSections">
         <template v-for="nav in topNav">
             <a :class="navClass + (nav.menuItemText == highlightedTopNav ? 'selectedTopNav' : '')"
                :href="nav.menuItemURL">
@@ -12,10 +12,10 @@
             </a>
             <hr class="q-separator q-separator--vertical q-separator--dark" aria-orientation="vertical" />
         </template>
-        <q-btn flat href="helpNav.menuItemURL" icon="help" class="q-px-md q-py-sm" v-cloak>
+        <q-btn flat href="helpNav.menuItemURL" icon="help" class="q-px-md text-primary" v-cloak>
             <q-tooltip>Help</q-tooltip>
         </q-btn>
-        <hr class="q-separator q-separator--vertical q-separator--dark" aria-orientation="vertical">
+        <!--<hr class="q-separator q-separator--vertical q-separator--dark" aria-orientation="vertical">-->
     </div>
 </template>
 
@@ -30,7 +30,7 @@
             return {
                 topNav: ref([]),
                 helpNav: ref(""),
-                navClass: ref("q-btn q-btn--flat q-btn--actionable q-hoverable q-px-md q-py-sm text-white navLink "),
+                navClass: ref("q-btn q-btn--flat q-btn--actionable q-btn--no-uppercase q-hoverable q-px-md text-primary text-weight-medium navLink "),
             }
         },
         methods: {

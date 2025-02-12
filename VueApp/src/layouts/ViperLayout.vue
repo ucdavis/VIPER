@@ -16,14 +16,21 @@
                     </a>
                 </div>
             </div>
-            <q-toolbar v-cloak>
+            <q-toolbar v-cloak class="items-end">
+                <img src="@/assets/UCDSVMLogo.png" height="50" />
+
+                <!--Mini navigation for small screens-->
                 <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
                     <MiniNav v-if="userStore.isLoggedIn"></MiniNav>
                 </q-btn>
                 <q-btn flat dense icon="list" class="q-mr-xs lt-md" @click="mainLeftDrawer = !mainLeftDrawer"></q-btn>
-                <q-btn flat dense label="Viper 2.0" class="lt-md" :href="viperHome"></q-btn>
+                <q-btn flat dense label="Viper 2.0" class="lt-md" :href="viperHome">
+                    <span v-if="environment == 'DEVELOPMENT'" class="mainLayoutViperMode">Dev</span>
+                    <span v-if="environment == 'TEST'" class="mainLayoutViperMode">Test</span>
+                </q-btn>
 
-                <q-btn flat dense no-caps icon="home" class="gt-sm text-white" :href="viperHome">
+                <!--For medium+ screens-->
+                <q-btn flat dense no-caps class="gt-sm text-white q-py-none q-ml-md self-end" :href="viperHome">
                     <span class="mainLayoutViper">VIPER 2.0</span>
                     <span v-if="environment == 'DEVELOPMENT'" class="mainLayoutViperMode">Development</span>
                     <span v-if="environment == 'TEST'" class="mainLayoutViperMode">Test</span>
@@ -38,16 +45,16 @@
                 <q-space></q-space>
 
                 <!--
-            @*Don't show the search until it does something*@
-            @if (HttpHelper.Environment?.EnvironmentName == "Development")
-            {
-            <q-input rounded dense standout dark v-model="searchText" label="Search" bg-color="white" label-color="black" class="q-pa-xs">
-                <template v-slot:append>
-                    <q-icon name="search" color="black"></q-icon>
-                </template>
-            </q-input>
-            }
-                -->
+                @*Don't show the search until it does something*@
+                @if (HttpHelper.Environment?.EnvironmentName == "Development")
+                {
+                <q-input rounded dense standout dark v-model="searchText" label="Search" bg-color="white" label-color="black" class="q-pa-xs">
+                    <template v-slot:append>
+                        <q-icon name="search" color="black"></q-icon>
+                    </template>
+                </q-input>
+                }
+                    -->
                 <ProfilePic></ProfilePic>
             </q-toolbar>
 
