@@ -49,7 +49,7 @@ namespace Viper.Areas.Jobs
 
         public async Task<IScheduler> ConfigureManager(IScheduler scheduler)
         {
-            // Configure Scheduler for Zookeeper
+            // Configure Scheduler for JobManager
             var jmTriggerTime = "*/10 * * * * ? *";
             logger.Info($"Configuring JobManagerJob with Trigger {jmTriggerTime}");
 

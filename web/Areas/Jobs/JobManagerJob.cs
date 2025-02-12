@@ -33,7 +33,7 @@ namespace Viper.Areas.Jobs
                 .Build();
         }
 
-        async Task rescheduleJob()
+        async Task RescheduleJob()
         {
             if (_workerScheduler != null)
             {
@@ -70,7 +70,7 @@ namespace Viper.Areas.Jobs
         {
             try
             {
-                var task = Task.Run(async () => await rescheduleJob());
+                var task = Task.Run(async () => await RescheduleJob());
                 task.Wait();
 
                 if (_workerScheduler != null && !_workerScheduler.IsStarted)
