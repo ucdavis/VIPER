@@ -60,9 +60,10 @@ namespace Viper.Controllers
                 }
                 else if (link[0].Length >= 2 && link[0].Substring(0, 2) == "~/")
                 {
-                    link[0] = root + link[0].Replace("~/", "");
+                    link[0] = root + link[0].Replace("~/", null);
                 }
             }
+            userLinks.Add(new string[2]{ root, "root"});
 
             return userLinks
                 .Select(l => new NavMenuItem()
