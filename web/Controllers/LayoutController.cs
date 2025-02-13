@@ -51,7 +51,7 @@ namespace Viper.Controllers
             var root = Url.Content("~/");
 
             //for local development in debugging mode, turn the absolute links to external localhost links to use port 80
-            //and turn the /2/ link into just /
+            //for ~/ (relative to Viper2 site root), use the root from the Url.Content line above to replace the literal "~/"
             foreach (var link in userLinks)
             {
                 if (HttpHelper.Environment?.EnvironmentName == "Development" && link[0].Substring(0, 1) == "/")
