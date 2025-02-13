@@ -69,6 +69,12 @@
                 studentEpa.value.levelId = ""
                 studentEpa.value.comment = ""
                 success.value = true
+
+                //set back to false so the next submission clears student and level
+                setTimeout(() => {
+                    clearStudent.value = false
+                    clearLevel.value = false                
+                }, 500)
             }
         }
     }

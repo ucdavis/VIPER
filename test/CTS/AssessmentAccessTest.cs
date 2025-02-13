@@ -92,16 +92,18 @@ namespace Viper.test.CTS
             var csCtsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, SetupUsers.UserType.CSTeam);
 
             //act
-            var facCanEditOwnAssessment = facCtsSec.CanEditStudentAssessment(SetupUsers.facultyUser.AaudUserId);
-            var facCanEditOtherAssessment = facCtsSec.CanEditStudentAssessment(SetupUsers.otherFacultyUser.AaudUserId);
-            var manCanEditOtherAssessment = managerCtsSec.CanEditStudentAssessment(SetupUsers.facultyUser.AaudUserId);
-            var csCanEditOtherAssessment = csCtsSec.CanEditStudentAssessment(SetupUsers.facultyUser.AaudUserId);
+            var facCanEditOwnAssessment = facCtsSec.CanEditStudentAssessment(SetupUsers.facultyUser.AaudUserId, DateTime.Now);
+            var facCanEditOtherAssessment = facCtsSec.CanEditStudentAssessment(SetupUsers.otherFacultyUser.AaudUserId, DateTime.Now);
+            var manCanEditOtherAssessment = managerCtsSec.CanEditStudentAssessment(SetupUsers.facultyUser.AaudUserId, DateTime.Now);
+            var csCanEditOtherAssessment = csCtsSec.CanEditStudentAssessment(SetupUsers.facultyUser.AaudUserId, DateTime.Now);
+            var canEditWhenDeadlinePassed = facCtsSec.CanEditStudentAssessment(SetupUsers.facultyUser.AaudUserId, DateTime.Now.AddHours(-49));
 
             //assert
             Assert.True(facCanEditOwnAssessment, "Faculty cannot edit own assessment.");
             Assert.True(manCanEditOtherAssessment, "Manager cannot edit assessment.");
             Assert.False(facCanEditOtherAssessment, "Faculty can edit another faculty's assessment.");
             Assert.False(csCanEditOtherAssessment, "CS Team can edit faculty's assessment.");
+            Assert.False(canEditWhenDeadlinePassed, "Faculty can edit when deadline for editing is passed.");
         }
     }
 }
