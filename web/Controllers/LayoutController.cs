@@ -63,7 +63,6 @@ namespace Viper.Controllers
                     link[0] = root + link[0].Replace("~/", null);
                 }
             }
-            userLinks.Add(new string[2]{ root, "root"});
 
             return userLinks
                 .Select(l => new NavMenuItem()
