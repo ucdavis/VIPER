@@ -4,7 +4,7 @@
             <a :class="navClass + (nav.menuItemText == highlightedTopNav ? 'selectedTopNav' : '')"
                :href="nav.menuItemURL">
                 <span class="q-focus-helper"></span>
-                <span class="q-btn__content">
+                <span class="q-btn__content" style="padding-top:2px;">
                     <span class="block">
                         {{ nav.menuItemText }}
                     </span>

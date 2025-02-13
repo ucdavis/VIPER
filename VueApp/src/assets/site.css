@@ -1,3 +1,8 @@
+@font-face {
+    font-family: Metropolis;
+    src: url('@/assets/fonts/Metropolis-Regular.woff2');
+}
+
 html {
     font-size: 14px;
     position: relative;
@@ -48,7 +53,7 @@ body {
 }
 
 .mainLayoutViper {
-    font-family: Proxima Nova;
+    font-family: Roboto;
     font-size: 1.6em !important;
     font-weight: normal;
     vertical-align: bottom;

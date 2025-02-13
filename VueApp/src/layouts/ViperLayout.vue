@@ -31,7 +31,7 @@
 
                 <!--For medium+ screens-->
                 <q-btn flat dense no-caps class="gt-sm text-white q-py-none q-ml-md self-end" :href="viperHome">
-                    <span class="mainLayoutViper">VIPER 2.0</span>
+                    <span class="mainLayoutViper text-bold">VIPER 2.0</span>
                     <span v-if="environment == 'DEVELOPMENT'" class="mainLayoutViperMode">Development</span>
                     <span v-if="environment == 'TEST'" class="mainLayoutViperMode">Test</span>
                 </q-btn>
