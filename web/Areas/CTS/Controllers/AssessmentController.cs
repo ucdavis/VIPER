@@ -338,7 +338,7 @@ namespace Viper.Areas.CTS.Controllers
             //check the logged in user can edit
             if (!ctsSecurityService.CanEditStudentAssessment(encounter.EnteredBy, encounter.EnteredOn))
             {
-                return ForbidApi();
+                return ForbidApi("This EPA cannot be edited at this time.");
             }
 
             var personId = userHelper.GetCurrentUser()?.AaudUserId;

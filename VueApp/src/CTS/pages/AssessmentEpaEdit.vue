@@ -128,7 +128,8 @@
                            padding="sm xl"
                            color="primary"
                            size="md"
-                           class="self-center"></q-btn>
+                           class="self-center"
+                           v-if="studentEpa.editable"></q-btn>
                 </div>
             </q-form>
 

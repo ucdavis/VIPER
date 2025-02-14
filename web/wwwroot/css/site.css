@@ -10,7 +10,7 @@ html {
     }
 
     #mainLayoutHeader {
-        min-height: 90px;
+        min-height: 86px;
     }
 
     #mainLeftDrawer {
@@ -48,11 +48,12 @@ body {
 }
 
 .mainLayoutViper {
-    font-family: Proxima Nova;
+    font-family: Roboto;
     font-size: 1.6em !important;
     font-weight: normal;
     vertical-align: bottom;
     margin-left: .6em;
+    padding-bottom: 1px;
 }
 
 .mainLayoutViperPlaceholder {
@@ -83,17 +84,20 @@ body {
 */
 
 #mainLayoutHeaderSections {
-    background-color: #1D4776;
-    min-height: 50px;
-    padding: 0 12px;
+    /*background-color: #1D4776;*/
+    background-color: #FFCD00;
+    min-height: 36px;
+    border-bottom: 1px solid silver;
+    /*padding: 0 12px;*/
 }
 
 #mainLayoutHeaderSections .selectedTopNav {
-    background-color: #4F7094;
+    /*background-color: #4F7094;*/
+    background-color: #FFE699;
 }
 
 #mainLayoutHeaderSections a.q-btn.navLink {
-    padding-top: 12px;
+    
 }
 
 /*Left Nav styles*/
@@ -102,7 +106,7 @@ body {
 }
 
 #leftNavMenu h2 {
-    font-size: 1.4rem;
+    font-size: 1.2rem;
     margin: 0;
     line-height: 1.5rem;
     padding: .2rem .5rem .1rem .5rem;
@@ -204,8 +208,8 @@ body {
 /* Heading Styles */
 .q-page-container h2,
 .q-page-container .text-h2 {
-    font-size: 1.4rem;
-    line-height: 1.4rem;
+    font-size: 1.2rem;
+    line-height: 1.2rem;
     margin: 0rem 0rem 1rem 0rem;
     font-weight: bold;
 }
