@@ -48,7 +48,8 @@
         watch: {
             showErrorMessage: function (v) {
                 this.showError = this.showErrorMessage
-                this.showLogin = this.status !== undefined && this.status != null
+                this.showLogin = this.status !== undefined && this.status != null &&
+                    (this.errorMessage == "Error: not logged in." || this.errorMessage == "Error: Access Denied.")
             }
         }
     })

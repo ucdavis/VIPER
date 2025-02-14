@@ -3,22 +3,22 @@
     List<string[]> tabLinks = (List<string[]>)(ViewData["tabLinks"] ?? new List<string[]>());
 }
 
-<div class="row gt-sm items-stretch" id="mainLayoutHeaderSections">
+<div class="row gt-sm items-stretch justify-middle q-mt-xs" id="mainLayoutHeaderSections">
     @foreach (string[] tabLink in tabLinks)
     {
         if (tabLink[0] == "https://ucdsvm.knowledgeowl.com/help")
         {
-            <q-btn flat href="@Url.Content(tabLink[0])" icon="help" class="q-px-md q-py-sm" v-cloak>
+            <q-btn flat href="@Url.Content(tabLink[0])" icon="help" class="q-px-md text-primary" v-cloak>
                 <q-tooltip>Help</q-tooltip>
             </q-btn>
             <hr class="q-separator q-separator--vertical q-separator--dark" aria-orientation="vertical">
         }
         else
         {
-            <a class="q-btn q-btn--flat q-btn--actionable q-hoverable q-px-md q-py-sm text-white navLink @(tabLink[1] == (string)(ViewData["SelectedTopNav"] ?? "") ? " selectedTopNav" : "")"
+            <a class="q-btn q-btn--flat q-btn--actionable q-btn--no-uppercase q-hoverable q-px-md text-primary text-weight-medium navLink @(tabLink[1] == (string)(ViewData["SelectedTopNav"] ?? "") ? " selectedTopNav" : "")"
                href="@Url.Content(tabLink[0])">
                 <span class="q-focus-helper"></span>
-                <span class="q-btn__content">
+                <span class="q-btn__content" style="padding-top:2px">
                     <span class="block">
                         @tabLink[1]
                     </span>

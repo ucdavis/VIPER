@@ -111,7 +111,7 @@ export function useFetch() {
             //catch errors, including those thrown by handleViperFetchError
             .catch(e => {
                 if (e?.status !== undefined) {
-                    errorHandler.handleAuthError(e.status)
+                    errorHandler.handleAuthError(e?.message, e.status)
                 }
                 else {
                     errorHandler.handleError(e)
@@ -138,16 +138,16 @@ export function useFetch() {
             let message = ""
             let isAuthError = false
             try {
+                try {
+                    result = await response.json()
+                }
+                catch (e) {
+                    result = response
+                }
                 if (response.status == 401 || response.status == 403) {
                     isAuthError = true
                 }
                 else {
-                    try {
-                        result = await response.json()
-                    }
-                    catch (e) {
-                        result = response
-                    }
                     if (result.errorMessage != null) {
                         message = result.errorMessage
                     }
@@ -166,7 +166,7 @@ export function useFetch() {
                 throw new ValidationError(message, result?.errors)
             }
             else {
-                throw new AuthError("Auth Error", response.status)
+                throw new AuthError(result.errorMessage ?? "Auth Error", response.status)
             }
         }
 
