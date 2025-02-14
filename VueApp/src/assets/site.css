@@ -1,3 +1,8 @@
+@font-face {
+    font-family: Metropolis;
+    src: url('@/assets/fonts/Metropolis-Regular.woff2');
+}
+
 html {
     font-size: 14px;
     position: relative;
@@ -10,7 +15,7 @@ html {
     }
 
     #mainLayoutHeader {
-        min-height: 90px;
+        min-height: 86px;
     }
 
     #mainLeftDrawer {
@@ -48,7 +53,7 @@ body {
 }
 
 .mainLayoutViper {
-    font-family: Proxima Nova;
+    font-family: Roboto;
     font-size: 1.6em !important;
     font-weight: normal;
     vertical-align: bottom;
@@ -89,17 +94,19 @@ div.breadcrumbs {
 }
 
 #mainLayoutHeaderSections {
-    background-color: #1D4776;
-    min-height: 50px;
-    padding: 0 12px;
+    /*background-color: #1D4776;*/
+    background-color: #FFCD00;
+    min-height: 36px;
+    /*padding: 0 12px;*/
 }
 
     #mainLayoutHeaderSections .selectedTopNav {
-        background-color: #4F7094;
+        /*background-color: #4F7094;*/
+        background-color: #FFE699;
     }
 
     #mainLayoutHeaderSections a.q-btn.navLink {
-        padding-top: 12px;
+        
     }
 
 /*Left Nav styles*/
