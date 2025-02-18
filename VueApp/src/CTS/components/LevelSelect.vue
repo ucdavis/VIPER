@@ -73,6 +73,11 @@
                    dense
                    :class="selectedLevel.levelId == level.levelId ? 'selectedLevel q-py-sm' : 'q-py-sm'"
                    @click="selectedLevel = level">
+                <q-tooltip v-if="props.levelType == 'epa'" class="text-dark bg-light-blue-3">
+                    <template v-slot:default>
+                        <span class="levelHover">{{ level.description }}</span>
+                    </template>
+                </q-tooltip>
             </q-btn>
             <template v-if="milestoneLevels != undefined">
                 <div v-for="ml in milestoneLevels.filter(ml => ml.levelId == level.levelId)" class="q-px-sm">
@@ -96,12 +101,23 @@
                 </template>
             </q-btn>
             <template v-if="milestoneLevels != undefined">
-                <div v-for="ml in milestoneLevels.filter(ml => ml.levelId == level.levelId)" 
+                <div v-for="ml in milestoneLevels.filter(ml => ml.levelId == level.levelId)"
                      v-if="selectedLevel.levelId == level.levelId"
                      class="q-px-sm q-mb-md">
                     {{ ml.description }}
                 </div>
             </template>
+            <q-tooltip v-if="props.levelType == 'epa'" class="text-dark bg-light-blue-3">
+                <template v-slot:default>
+                    <span class="levelHover">{{ level.description }}</span>
+                </template>
+            </q-tooltip>
+            <!--<template v-if="props.levelType == 'epa'">
+        <div v-if="selectedLevel.levelId == level.levelId"
+             class="q-px-sm q-mb-md">
+            {{ level.description }}
+        </div>
+    </template>-->
         </div>
     </div>
 </template>
@@ -115,8 +131,12 @@
         margin-bottom: .2rem;
     }
 
-        div.levelSelection button.selectedLevel {
-            background-color: rgb(30, 136, 229);
-            color: white;
-        }
+    div.levelSelection button.selectedLevel {
+        background-color: rgb(30, 136, 229);
+        color: white;
+    }
+
+    .levelHover {
+        font-size: .8rem;
+    }
 </style>

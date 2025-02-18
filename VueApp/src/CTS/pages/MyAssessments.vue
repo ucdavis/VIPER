@@ -74,7 +74,7 @@
     }
 
     function getText(date: Date, enteredBy: string, levelName: string, comment: string | null, serviceName: string | null) {
-        return formatDate(date.toString()) + ' ' + enteredBy + ' ' + '\n' + serviceName + '\n' + levelName + '\n ' + (comment != null ? comment : "")
+        return levelName + '\n' + (comment != null ? comment : "") + "\n" + formatDate(date.toString()) + ' ' + enteredBy + ' ' + '\n' + serviceName + '\n'
     }
 
     function toggleExpandAll() {
@@ -100,7 +100,10 @@
 </script>
 <template>
     <div v-if="loaded">
-        <h2>Assessments for <span v-if="showPersonName && person != null">{{ person.firstName }} {{ person.lastName }}</span></h2>
+        <h2>
+            <span v-if="showPersonName && person != null">Assessments for {{ person.firstName }} {{ person.lastName }}</span>
+            <span v-else>My Assessments</span>
+        </h2>
 
         <q-dialog v-model="showAssessmentDetail">
             <q-card style="width:700px; max-width: 80vw;">
@@ -108,13 +111,24 @@
                     <div class="text-h6">Assessment Details</div>
                     <div class="row">
                         <div class="col-12">
-                            <AssessmentBubble class="q-mr-md" :maxValue="5" :value=epaAssessment.levelValue></AssessmentBubble>
+                            <strong>EPA:</strong> {{ epaAssessment.epaName }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <strong>Rating:</strong> 
+                            <AssessmentBubble class="q-ml-sm" :maxValue="5" :value=epaAssessment.levelValue></AssessmentBubble>
                             {{ epaAssessment.levelName }}
                         </div>
                     </div>
                     <div class="row q-mt-xs">
                         <div class="col-12">
-                            Entered
+                            <strong>Comment:</strong> {{ epaAssessment.comment }}
+                        </div>
+                    </div>
+                    <div class="row q-mt-xs">
+                        <div class="col-12">
+                            <strong>Entered:</strong>
                             {{ formatDate(epaAssessment.encounterDate.toString()) }}
                             by
                             {{ epaAssessment.enteredByName }}
@@ -122,12 +136,7 @@
                     </div>
                     <div class="row q-mt-xs">
                         <div class="col-12">
-                            {{ epaAssessment.serviceName }}
-                        </div>
-                    </div>
-                    <div class="row q-mt-xs">
-                        <div class="col-12">
-                            {{ epaAssessment.comment }}
+                            <strong>Service:</strong> {{ epaAssessment.serviceName }}
                         </div>
                     </div>
                 </q-card-section>
@@ -152,7 +161,8 @@
                                   v-for="a in getAssessmentsForEpa(epa.epaId)" :type="bubbleType"></AssessmentBubble>
             </div>
             <div class="col-1">
-                <q-btn dense :icon="showDetails[index] ? 'expand_less' : 'expand_more'" @click="showDetails[index] = !showDetails[index]"></q-btn>
+                <q-btn dense :icon="showDetails[index] ? 'expand_less' : 'expand_more'" @click="showDetails[index] = !showDetails[index]"
+                       v-if="getAssessmentsForEpa(epa.epaId).length > 0"></q-btn>
             </div>
             <q-slide-transition>
                 <div class="col-12 q-mb-md" v-if="showDetails[index]" :key="'epadetails' + index">

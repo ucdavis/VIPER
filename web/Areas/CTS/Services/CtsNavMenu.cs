@@ -41,7 +41,7 @@ namespace Viper.Areas.CTS.Services
             //Assessments of the logged in user
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Students"))
             {
-                //nav.Add(new NavMenuItem() { MenuItemText = "My Assessments", MenuItemURL = "MyAssessments" });
+                nav.Add(new NavMenuItem() { MenuItemText = "My Assessments", MenuItemURL = "MyAssessments" });
             }
 
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))

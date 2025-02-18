@@ -67,5 +67,11 @@
     setBubbleAttrs()
 </script>
 <template>
-    <q-icon :name="bubbleIcon" size="sm" :class="'assessmentIcon ' + bubbleClass" :title="props?.text" @click="clickBubble"></q-icon>
+    <q-icon :name="bubbleIcon" size="sm" :class="'assessmentIcon cursor-pointer ' + bubbleClass" @click="clickBubble">
+        <q-tooltip style="white-space:pre-wrap;" class="text-body2">
+            <strong>Click to open details</strong>
+            <br />
+            {{ props.text }}
+        </q-tooltip>
+    </q-icon>
 </template>
