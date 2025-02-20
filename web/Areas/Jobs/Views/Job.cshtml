@@ -1,0 +1,106 @@
+﻿@using Quartz
+@using Viper.Areas.Jobs.Model
+@{
+    var jobTypes = ViewData["JobTypes"] as List<string> ?? new List<string>();
+    var job = ViewData["Job"] as JobInfo ?? null;
+}
+
+<a href="@Url.Content("~/Jobs")">Back to job list</a>
+<br />
+<br />
+<h2>@(job == null ? "Add" : "Edit") Job</h2>
+<form action="" method="post">
+    <input type="hidden" name="prevJobKey" value="@job?.JobKey" />
+    <input type="hidden" name="prevJobGroup" value="@job?.JobGroup" />
+    <div style="display:inline-block;width:450px;vertical-align:top;">
+        <div style="margin-bottom: 10px;">
+            <label>
+                Job Class
+                <br />
+                <select name="JobType">
+                    @foreach (var type in jobTypes)
+                    {
+                        @if (type == job?.JobClassName)
+                        {
+                            <option value="@type" selected="selected">@type</option>
+                        }
+                        else
+                        {
+                            <option value="@type">@type</option>
+                        }
+                    }
+                </select>
+            </label>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label>
+                Job Group:
+                <br />
+                <input type="text" name="JobGroup" size="20" value="@job?.JobGroup" />
+            </label>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label>
+                JobKey:
+                <br />
+                <input type="text" size="30" name="JobKey" value="@job?.JobKey" />
+            </label>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label>
+                Description:
+                <br />
+                <textarea rows="3" cols="40" name="JobDescription" value="@job?.JobDescription">@job?.JobDescription</textarea>
+            </label>
+        </div>
+        <div style="margin-bottom: 10px;">
+
+            <label>
+                Schedule (see <a href="http://www.cronmaker.com" target="_blank" rel="noopener">Cron Maker</a>)
+                <input type="text" name="CronExpression" size="15" value="@job?.CronExpression" />
+            </label>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label>
+                Timing Description
+                <br />
+                <textarea rows="3" cols="40" name="TimingDescription" value="@job?.TimingDescription">@job?.TimingDescription</textarea>
+            </label>
+        </div>
+    </div>
+    <div style="display:inline-block;width:450px;vertical-align:top;">
+        <div style="margin-bottom: 10px;">
+            <table cellspacing="0" cellpadding="1">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Key</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < int.Max(job?.Parameters?.Count ?? 0, 10); i++)
+                    {
+                        <tr>
+                            <td>@(i + 1).</td>
+                            <td>
+                                @{
+                                    var key = job?.Parameters != null && job.Parameters.Count > i ? job.Parameters.Keys.ElementAt(i) : "";
+                                    var val = job?.Parameters != null && job.Parameters.Count > i ? job.Parameters.Values.ElementAt(i) : "";
+                                }
+                                <input type="text" name="keys" value="@key" />
+                            </td>
+                            <td>
+                                <input type="text" name="values" value="@val" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <br />
+
+    <input type="submit" value="@(job == null ? "Add Job" : "Edit Job")" />
+</form>

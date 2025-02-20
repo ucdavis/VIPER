@@ -256,3 +256,8 @@ header .q-avatar {
     height: 40px !important;
     width: 31px !important;
 }
+
+/* Html table */
+table.htable tr th {
+    text-align: left;
+}
