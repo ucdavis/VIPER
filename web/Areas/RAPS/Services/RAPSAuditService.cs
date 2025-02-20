@@ -254,7 +254,7 @@ namespace Viper.Areas.RAPS.Services
             TblLog tblLog = new()
             {
                 ModTime = DateTime.Now,
-                ModBy = UserHelper.GetCurrentUser()?.LoginId,
+                ModBy = UserHelper.GetCurrentUser()?.LoginId ?? "__system",
                 RoleId = roleMember.RoleId,
                 MemberId = roleMember.MemberId,
                 Comment = comment
@@ -425,7 +425,7 @@ namespace Viper.Areas.RAPS.Services
                 Audit = actionType == AuditActionType.Create ? "AddMemberToOuGroup" : "DelMemberFromOuGroup",
                 Detail = detail + " group " + groupName + ".",
                 ModTime = DateTime.Now,
-                ModBy = UserHelper.GetCurrentUser()?.LoginId
+                ModBy = UserHelper.GetCurrentUser()?.LoginId ?? "__system"
             };
             _context.Add(tblLog);
         }

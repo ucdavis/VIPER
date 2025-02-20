@@ -17,13 +17,15 @@ using NLog.Web;
 using Polly;
 using Polly.Extensions.Http;
 using Polly.Timeout;
-using System;
+using Quartz;
 using System.Net;
 using System.Security.Claims;
 using System.Xml.Linq;
 using Viper;
+using Viper.Areas.Jobs.JobClasses;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Viper.Models.CTS;
 using Web.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -193,7 +195,31 @@ try
     // Add automapper
     builder.Services.AddAutoMapper(typeof(Program));
 
+    // Quartz setup
+    builder.Services.AddQuartz(q =>
+    {
+        q.Properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
+        q.UseDefaultThreadPool(x => x.MaxConcurrency = 5);
+        q.MisfireThreshold = TimeSpan.FromSeconds(5);
+        q.UsePersistentStore(storeOptions =>
+        {
+            storeOptions.UseProperties = true;
+            storeOptions.UseSqlServer(builder.Configuration.GetConnectionString("VIPER") ?? "");
+            storeOptions.UseSystemTextJsonSerializer();
+            storeOptions.PerformSchemaValidation = true;
+        });
+    });
+    builder.Services.AddQuartzHostedService(q =>
+    {
+        q.AwaitApplicationStarted = true;
+        q.WaitForJobsToComplete = true;
+    });
+   
     var app = builder.Build();
+
+    var scheduler = await app.Services
+        .GetRequiredService<ISchedulerFactory>()
+        .GetScheduler();
 
     // Add Content Security Policy
     app.UseCsp(csp =>

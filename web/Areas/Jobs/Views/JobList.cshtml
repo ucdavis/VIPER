@@ -1,0 +1,93 @@
+﻿@using Quartz
+@using Viper.Areas.Jobs.Model
+@{
+    var jobs = ViewData["JobsInfo"] as List<JobInfo> ?? new List<JobInfo>();
+    var jobGroups = ViewData["JobGroups"] as IReadOnlyCollection<string>;
+    var jobKeys = ViewData["JobKeys"] as IReadOnlyCollection<JobKey>;
+}
+
+<h2>Scheduler</h2>
+
+<a href="@Url.Content("~/Jobs/AddJob")">Add Job</a>
+<table cellspacing="0" cellpadding="3" border="0" class="htable">
+    <thead>
+        <tr style="background-color: #EEEEEE">
+            <th></th>
+            <th></th>
+            <th>Job</th>
+            <th>Status</th>
+            <th>Start</th>
+            <th>Next Run Time</th>
+            <th>Timing</th>
+            <th>Params</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var group in jobGroups ?? new List<string>())
+        {
+            <tr style="background-color: #EEEEEE">
+                <th colspan="9">@group</th>
+            </tr>
+            @foreach (var job in jobs.Where(x => x.JobGroup == group))
+            {
+                if (job != null)
+                {
+                    <tr valign="top">
+                        <td>
+                            <form action="@Url.Content("~/Jobs/EditJob")" method="get">
+                                <input type="hidden" name="JobGroup" value="@job.JobGroup" />
+                                <input type="hidden" name="JobKey" value="@job.JobKey" />
+                                <input type="submit" name="action" value="Edit" />
+                            </form>
+                        </td>
+                        <td>
+                            <form action="" method="post">
+                                <input type="hidden" name="JobGroup" value="@job.JobGroup" />
+                                <input type="hidden" name="JobKey" value="@job.JobKey" />
+                                <input type="submit" name="action" value="Run" style="margin-right:5px;" />
+                                @if (job.JobState?.ToString() == "Paused")
+                                {
+                                    <input type="submit" name="action" value="Resume" style="margin-right:5px;" />
+                                }
+                                else
+                                {
+                                    <input type="submit" name="action" value="Pause" style="margin-right:5px;" />
+                                }
+
+                                <input type="submit" name="action" value="Delete" style="margin-right:5px;" />
+                            </form>
+                        </td>
+                        <td>
+                            @job.JobKey
+                            <br />
+                            @job.JobDescription
+                        </td>
+                        <td>@job.JobState.ToString()</td>
+                        <td>
+                            @(job.JobStartTime.HasValue ? job.JobStartTime.Value.ToString("MM/dd/yyyy hh:mm tt") : "")
+                        </td>
+                        <td>
+                            @(job.NextRunTime.HasValue ? job.NextRunTime.Value.ToString("MM/dd/yyyy hh:mm tt") : "")
+                        </td>
+                        <td>
+                            @(job.TimingDescription ?? "")
+                        </td>
+                        <td>
+                            @if (job.Parameters != null && !job.Parameters.IsEmpty)
+                            {
+                                @foreach (var k in job.Parameters.Keys)
+                                {
+                                    <text>@k = </text>
+                                    @if (job.Parameters.TryGetString(k, out string? v))
+                                    {
+                                        <text>@v; </text>
+                                    }
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+        }
+    </tbody>
+</table>
