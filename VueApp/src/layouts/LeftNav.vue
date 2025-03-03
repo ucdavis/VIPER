@@ -13,15 +13,28 @@
                        @click="myMainLeftDrawer = false"></q-btn>
                 <h2 v-if="navHeader.length">{{ navHeader }}</h2>
                 <q-list dense separator>
-                    <q-item v-for="menuItem in menuItems"
-                            :clickable="menuItem.clickable"
-                            :v-ripple="menuItem.clickable"
-                            :to="menuItem.routeTo"
-                            :class="menuItem.displayClass">
-                        <q-item-section>
-                            <q-item-label lines="1">{{ menuItem.menuItemText }}</q-item-label>
-                        </q-item-section>
-                    </q-item>
+                    <template v-for="menuItem in menuItems">
+                        <q-item v-if="menuItem.routeTo != null"
+                                :clickable="menuItem.clickable"
+                                :v-ripple="menuItem.clickable"
+                                :to="menuItem.routeTo"
+                                :class="menuItem.displayClass">
+                            <q-item-section>
+                                <q-item-label lines="1">{{ menuItem.menuItemText }}</q-item-label>
+                            </q-item-section>
+                        </q-item>
+                        <q-item v-else
+                                :clickable="menuItem.clickable"
+                                :v-ripple="menuItem.clickable"
+                                :href="menuItem.menuItemUrl"
+                                target="_blank"
+                                :class="menuItem.displayClass">
+                            <q-item-section>
+                                <q-item-label lines="1">{{ menuItem.menuItemText }}</q-item-label>
+                            </q-item-section>
+                        </q-item>
+                    </template>
+                    
                 </q-list>
             </div>
         </template>
@@ -59,7 +72,7 @@
                 this.rawItems = r.result.menuItems
                 this.menuItems = r.result.menuItems.map((r: any) => ({
                     menuItemUrl: (r.menuItemURL.length > 4 && r.menuItemURL.substr(0, 4) == "http") ? r.menuItemURL : null,
-                    routeTo: (r.menuItemURL.length <= 4 || r.menuItemURL.substr(0, 4) != "http") ? r.menuItemURL : "test",
+                    routeTo: (r.menuItemURL.length <= 4 || r.menuItemURL.substr(0, 4) != "http") ? r.menuItemURL : null,
                     menuItemText: r.menuItemText,
                     clickable: r.menuItemURL.length > 0,
                     displayClass: (r.menuItemURL.length

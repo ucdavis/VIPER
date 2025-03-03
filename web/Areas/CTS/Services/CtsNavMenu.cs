@@ -24,7 +24,7 @@ namespace Viper.Areas.CTS.Services
                 || userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "EPA Assessment", MenuItemURL = "EPA" });
-                nav.Add(new NavMenuItem() { MenuItemText = "EPA Assessment", MenuItemURL = "https://ucdsvm.knowledgeowl.com/help/epa-assessments" });
+                nav.Add(new NavMenuItem() { MenuItemText = "EPA Assessment Help", MenuItemURL = "https://ucdsvm.knowledgeowl.com/help/epa-assessments" });
             }
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.AssessStudent")
                 && userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
