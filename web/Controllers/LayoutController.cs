@@ -48,16 +48,19 @@ namespace Viper.Controllers
             var user = userHelper.GetCurrentUser();
             var userLinks = links.Where(l => l[2] == "" || userHelper.HasPermission(_context, user, l[2]))
                 .ToList();
+            var root = Url.Content("~/");
 
             //for local development in debugging mode, turn the absolute links to external localhost links to use port 80
-            if (HttpHelper.Environment?.EnvironmentName == "Development")
+            //for ~/ (relative to Viper2 site root), use the root from the Url.Content line above to replace the literal "~/"
+            foreach (var link in userLinks)
             {
-                foreach (var link in userLinks)
+                if (HttpHelper.Environment?.EnvironmentName == "Development" && link[0].Substring(0, 1) == "/")
                 {
-                    if (link[0].Substring(0, 1) == "/")
-                    {
-                        link[0] = "http://localhost" + link[0];
-                    }
+                    link[0] = "http://localhost" + link[0];
+                }
+                else if (link[0].Length >= 2 && link[0].Substring(0, 2) == "~/")
+                {
+                    link[0] = root + link[0].Replace("~/", null);
                 }
             }
 

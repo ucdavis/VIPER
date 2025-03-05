@@ -24,6 +24,7 @@ namespace Viper.Areas.CTS.Services
                 || userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "EPA Assessment", MenuItemURL = "EPA" });
+                nav.Add(new NavMenuItem() { MenuItemText = "EPA Assessment Help", MenuItemURL = "https://ucdsvm.knowledgeowl.com/help/epa-assessments" });
             }
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.AssessStudent")
                 && userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))
@@ -41,7 +42,7 @@ namespace Viper.Areas.CTS.Services
             //Assessments of the logged in user
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Students"))
             {
-                //nav.Add(new NavMenuItem() { MenuItemText = "My Assessments", MenuItemURL = "MyAssessments" });
+                nav.Add(new NavMenuItem() { MenuItemText = "My Assessments", MenuItemURL = "MyAssessments" });
             }
 
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CTS.Manage"))

@@ -206,6 +206,7 @@
         <template v-slot:body-cell-action="props">
             <q-td :props="props">
                 <router-link :props="props"
+                             v-if="props.row.editable"
                              :to="{name: 'AssessmentEpaEdit', query: {assessmentId: props.row.encounterId}}"
                              v-slot:default="props">
                     <q-btn color="primary" square flat icon="edit" title="Edit EPA" />

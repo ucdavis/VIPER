@@ -20,7 +20,7 @@ const routes = [
     {
         path: '/CTS/MyAssessments',
         name: 'MyAssessments',
-        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Students"] },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Students","SVMSecure.CTS.Manage","SVMSecure.CTS.ViewAllStudentAssessments"] },
         component: () => import('@/CTS/pages/MyAssessments.vue'),
     },
     /* Assessments */

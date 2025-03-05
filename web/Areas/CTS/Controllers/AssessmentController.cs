@@ -42,7 +42,7 @@ namespace Viper.Areas.CTS.Controllers
         /// <param name="dateTo"></param>
         /// <returns></returns>
         [HttpGet]
-        [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical")]
+        [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical,SVMSecure.CTS.MyAssessments")]
         [ApiPagination(DefaultPerPage = 100, MaxPerPage = 100)]
         public async Task<ActionResult<List<StudentAssessment>>> GetAssessments(int? type, int? studentUserId, int? enteredById, int? serviceId,
             int? epaId, DateOnly? dateFrom, DateOnly? dateTo, ApiPagination? pagination,
@@ -142,7 +142,7 @@ namespace Viper.Areas.CTS.Controllers
             foreach (var a in assessmentsList)
             {
                 var sa = CreateStudentAssessment(a);
-                sa.Editable = ctsSecurityService.CanEditStudentAssessment(sa.EnteredBy);
+                sa.Editable = ctsSecurityService.CanEditStudentAssessment(sa.EnteredBy, sa.EnteredOn);
                 studentAssessments.Add(sa);
             }
 
@@ -200,7 +200,7 @@ namespace Viper.Areas.CTS.Controllers
         /// <param name="encounterId"></param>
         /// <returns></returns>
         [HttpGet("{encounterId}")]
-        [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical")]
+        [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical,SVMSecure.CTS.MyAssessments")]
         public async Task<ActionResult<StudentAssessment>> GetStudentAssessment(int encounterId)
         {
             var encounter = await context.Encounters
@@ -220,7 +220,7 @@ namespace Viper.Areas.CTS.Controllers
                 return (ActionResult<StudentAssessment>)ForbidApi();
             }
             var sa = CreateStudentAssessment(encounter);
-            sa.Editable = ctsSecurityService.CanEditStudentAssessment(sa.EnteredBy);
+            sa.Editable = ctsSecurityService.CanEditStudentAssessment(sa.EnteredBy, sa.EnteredOn);
             return sa;
         }
 
@@ -336,9 +336,9 @@ namespace Viper.Areas.CTS.Controllers
                 return NotFound();
             }
             //check the logged in user can edit
-            if (!ctsSecurityService.CanEditStudentAssessment(encounter.EnteredBy))
+            if (!ctsSecurityService.CanEditStudentAssessment(encounter.EnteredBy, encounter.EnteredOn))
             {
-                return ForbidApi();
+                return ForbidApi("This EPA cannot be edited at this time.");
             }
 
             var personId = userHelper.GetCurrentUser()?.AaudUserId;

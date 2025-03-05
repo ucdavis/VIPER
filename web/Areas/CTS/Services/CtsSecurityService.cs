@@ -12,6 +12,8 @@ namespace Viper.Areas.CTS.Services
         private const string AssessmentsViewPermission = "SVMSecure.CTS.ViewAllStudentAssessments";
         private const string AssessClinicalPermission = "SVMSecure.CTS.AssessClinical";
 
+        private const int MinutesToEditEPA = 48 * 60; //submitter can edit EPAs for 48 hours
+
 
         public CtsSecurityService(RAPSContext rapsContext, VIPERContext viperContext, IUserHelper? userHelper = null)
         {
@@ -62,10 +64,15 @@ namespace Viper.Areas.CTS.Services
             return false;
         }
 
-        public bool CanEditStudentAssessment(int enteredBy)
+        public bool CanEditStudentAssessment(int enteredBy, DateTime enteredDate)
         {
+            DateTime editCutoff = enteredDate.AddMinutes(MinutesToEditEPA);
             return userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), ManagerPermission)
-                || (userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), AssessClinicalPermission) && enteredBy == userHelper.GetCurrentUser()?.AaudUserId);
+                || (
+                        userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), AssessClinicalPermission) 
+                    &&  enteredBy == userHelper.GetCurrentUser()?.AaudUserId
+                    &&  DateTime.Compare(DateTime.Now, editCutoff) < 1
+                    );
         }
     }
 }

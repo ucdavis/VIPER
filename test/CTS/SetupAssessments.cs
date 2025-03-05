@@ -20,6 +20,7 @@ namespace Viper.test.CTS
             {
                 EncounterId = 1,
                 EnteredBy = SetupUsers.facultyUser.AaudUserId,
+                EnteredOn = DateTime.Now,
                 StudentUserId = SetupUsers.studentUser1.AaudUserId,
                 EncounterType = (int)EncounterCreationService.EncounterType.Epa,
                 Student = new Models.VIPER.Person()
@@ -34,6 +35,7 @@ namespace Viper.test.CTS
             {
                 EncounterId = 2,
                 EnteredBy = SetupUsers.facultyUser.AaudUserId,
+                EnteredOn = DateTime.Now,
                 StudentUserId = SetupUsers.studentUser1.AaudUserId,
                 EncounterType = (int)EncounterCreationService.EncounterType.Epa,
                 Student = new Models.VIPER.Person()
@@ -48,6 +50,7 @@ namespace Viper.test.CTS
             {
                 EncounterId = 3,
                 EnteredBy = SetupUsers.otherFacultyUser.AaudUserId,
+                EnteredOn = DateTime.Now,
                 StudentUserId = SetupUsers.studentUser2.AaudUserId,
                 EncounterType = (int)EncounterCreationService.EncounterType.Epa,
                 Student = new Models.VIPER.Person()
