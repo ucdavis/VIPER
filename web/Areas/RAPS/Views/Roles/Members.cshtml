@@ -1,4 +1,8 @@
-﻿<h2>Members of {{role.friendlyName}}</h2>
+﻿<h2>Members of {{ role.friendlyName }}</h2>
+
+<p>
+    {{ role.description }}
+</p>
 
 <q-toggle v-model="showViewMembers" label="Show members assigned via view"></q-toggle>
 
