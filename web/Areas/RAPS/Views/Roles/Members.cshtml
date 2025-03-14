@@ -52,8 +52,8 @@
                         </q-card-section>
 
                         <q-card-actions align="evenly">
-                            <q-btn no-caps :label="membersTable.editing ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary"></q-btn>
-                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="deleteMember(this)" color="red" v-if="membersTable.editing"></q-btn>
+                            <q-btn no-caps :label="membersTable.editing ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary" :disabled="disableMemberUpdate"></q-btn>
+                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="deleteMember(this)" color="red" v-if="membersTable.editing" :disabled="disableMemberUpdate"></q-btn>
                         </q-card-actions>
                     </q-form>
                 </q-card>
@@ -98,6 +98,7 @@
                     memberSearchResults: [],
                     updateVMACS: false,
                     showVMACSPush: false,
+                    disableMemberUpdate: false,
                     membersTable: new quasarTable({
                         keys: ["memberId"],
                         urlBase: "Roles",
@@ -182,18 +183,26 @@
                     }
                 },
                 deleteMember: async function () {
+                    this.disableMemberUpdate = true
                     var oldBase = this.membersTable.urlBase
                     this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
+
                     await this.membersTable.delete(this)
                     this.membersTable.urlBase = oldBase
                     this.pushMemberToVMACS()
+                    
+                    this.disableMemberUpdate = false
                 },
-                addUpdateMember: async function() {
+                addUpdateMember: async function () {
+                    this.disableMemberUpdate = true
                     var oldBase = this.membersTable.urlBase
                     this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
+
                     await this.membersTable.submit(this)
                     this.membersTable.urlBase = oldBase
                     this.pushMemberToVMACS()
+
+                    this.disableMemberUpdate = false
                 }
             },
             async mounted() {
