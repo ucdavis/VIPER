@@ -271,7 +271,10 @@ namespace Viper.Areas.RAPS.Controllers
                 }
             }
 
-            return null;
+            return new VmacsResponse()
+            {
+                Success = true
+            };
         }
 
         /// <summary>
