@@ -31,7 +31,7 @@ namespace Viper.Areas.RAPS.Controllers
         //GET: Members/12345678/Roles
         [HttpGet("Roles/{roleId}/Members")]
         [HttpGet("Members/{memberId}/Roles")]
-        public async Task<ActionResult<IEnumerable<TblRoleMember>>> GetTblRoleMembers(string instance, int? roleId, string? memberId, 
+        public async Task<ActionResult<IEnumerable<RoleMember>>> GetTblRoleMembers(string instance, int? roleId, string? memberId, 
                 int application=0, bool includeViewMembers=false)
         {
             if (_context.TblRoles == null)
@@ -67,7 +67,9 @@ namespace Viper.Areas.RAPS.Controllers
             }
             
             return (await roleMembers.ToListAsync())
-                .FindAll(rm => _securityService.RoleBelongsToInstance(instance, rm.Role));
+                .FindAll(rm => _securityService.RoleBelongsToInstance(instance, rm.Role))
+                .Select(rm => new RoleMember(rm))
+                .ToList();
         }
 
         //POST: Roles/5/Members
@@ -269,7 +271,10 @@ namespace Viper.Areas.RAPS.Controllers
                 }
             }
 
-            return null;
+            return new VmacsResponse()
+            {
+                Success = true
+            };
         }
 
         /// <summary>

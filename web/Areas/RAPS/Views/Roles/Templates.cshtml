@@ -64,17 +64,6 @@
                 <br />
                 <span style="font-size:.9em">{{props.row.description}}</span>
                 <br />
-                <div class="q-pl-md" style="font-size:.9em">
-                    <div v-for="roleTemplateRole in props.row.roleTemplateRoles" class="row" v-if="viewRoleTemplateId == props.row.roleTemplateId">
-                        <div class="col">
-                            <q-icon name="lock"></q-icon>
-                            {{roleTemplateRole.role.friendlyName}}
-                        </div>
-                        <div class="col">
-                            {{roleTemplateRole.role.description}}
-                        </div>
-                    </div>
-                </div>
             </q-td>
         </template>
         @if (ViewData.ContainsKey("canEditRoleTemplates") && (bool)(ViewData["canEditRoleTemplates"] ?? false))
@@ -82,6 +71,27 @@
             <template v-slot:body-cell-action="props">
                 <q-td :props="props">
                     <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs sm" @@click="templates.selectRow(props.row)"></q-btn>
+                </q-td>
+            </template>
+        }
+        else
+        {
+            <template v-slot:body-cell-roles="props">
+                <q-td :props="props">
+                    <div class="q-pl-md" style="font-size:.9em">
+                        <div v-for="roleTemplateRole in props.row.roles" class="row" v-if="viewRoleTemplateId == props.row.roleTemplateId">
+                            <div class="col">
+                                <q-icon name="lock"></q-icon>
+                                {{roleTemplateRole.friendlyName}}
+                            </div>
+                            <div class="col">
+                                {{roleTemplateRole.description}}
+                            </div>
+                        </div>
+                        <div v-else>
+                            {{ props.row.roles.length }} Roles
+                        </div>
+                    </div>
                 </q-td>
             </template>
         }
@@ -100,10 +110,11 @@
                         urlBase: "RoleTemplates",
                         columns: [
                             { name: "links", label: "", field: "", style: "width:75px;" },
-                            { name: "roletemplate", label: "Template", field: "", sortable: true, align: "left" }, 
+                            { name: "roletemplate", label: "Template", field: "", sortable: true, align: "left" },
+                            { name: "roles", label: "", align: "left" },
                             { name: "action", label: "", field: "" }
                         ],
-                        pagination: {rowsPerPage: 0},
+                        pagination: { rowsPerPage: 0 },
                         createBody: function (vueApp, data) {
                             return {
                                 roleTemplateId: data.roleTemplateId,
@@ -115,18 +126,17 @@
                 }
             },
             methods: {
-                toggleRoles: function(roleTemplateId) {
-                    this.viewRoleTemplateId = roleTemplateId
+                toggleRoles: function (roleTemplateId) {
+                    this.viewRoleTemplateId = (this.viewRoleTemplateId == roleTemplateId) ? 0 : roleTemplateId;
                 },
-                filterTemplates: function(rows, terms, cols, getCellValue) {
-                    return rows.reduce((result, row) => 
-                        {
-                            if (row.templateName.toLowerCase().indexOf(terms.toLowerCase()) != -1
-                                || row.description.toLowerCase().indexOf(terms.toLowerCase()) != -1) {
-                                result.push(row)
-                            }
-                            return result
-                        }, [])
+                filterTemplates: function (rows, terms, cols, getCellValue) {
+                    return rows.reduce((result, row) => {
+                        if (row.templateName.toLowerCase().indexOf(terms.toLowerCase()) != -1
+                            || row.description.toLowerCase().indexOf(terms.toLowerCase()) != -1) {
+                            result.push(row)
+                        }
+                        return result
+                    }, [])
                 }
             },
             async mounted() {
