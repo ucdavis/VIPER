@@ -103,7 +103,7 @@
                         urlBase: "Roles",
                         columns: [
                             { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
-                            { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
+                            { name: "member", label: "Member", field: "userName", align: "left", sortable: true },
                             { name: "loginid", label: "Login ID", field: "loginId", align: "left", sortable: true },
                             { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
@@ -117,9 +117,7 @@
                         onLoad: function (data) {
                             this.data = data.map(rm => ({
                                 ...rm,
-                                memberName: rm?.aaudUser?.displayLastName + ", " + rm?.aaudUser?.displayFirstName,
-                                active: rm?.aaudUser?.current == 1 ? "Y" : "N",
-                                loginId: rm?.aaudUser?.loginId,
+                                active: (rm?.active ?? false) ? "Y" : "N",
                                 lastModified: rm.modBy == null ? "" : (formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")")
                             }))
                         },
@@ -140,7 +138,7 @@
                                 startDate: formatDateForDateInput(object.startDate),
                                 endDate: formatDateForDateInput(object.endDate),
                                 member: {
-                                    label: object?.aaudUser?.displayLastName + ", " + object?.aaudUser?.displayFirstName,
+                                    label: object?.userName,
                                     value: object.memberId
                                 },
                                 memberId: object.memberId
@@ -183,12 +181,18 @@
                         Quasar.Loading.hide()
                     }
                 },
-                deleteMember: async function() {
+                deleteMember: async function () {
+                    var oldBase = this.membersTable.urlBase
+                    this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
                     await this.membersTable.delete(this)
+                    this.membersTable.urlBase = oldBase
                     this.pushMemberToVMACS()
                 },
                 addUpdateMember: async function() {
+                    var oldBase = this.membersTable.urlBase
+                    this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
                     await this.membersTable.submit(this)
+                    this.membersTable.urlBase = oldBase
                     this.pushMemberToVMACS()
                 }
             },
