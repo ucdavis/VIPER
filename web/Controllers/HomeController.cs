@@ -328,7 +328,10 @@ namespace Viper.Controllers
 
                 // uncomment this line temporarily if you ever have issues with users getting unexpected 403(Access Denied) errors in the logs
                 // uncommenting this line will log what CAS is sending. When the user in question logs in while trying to access our site
-                //HttpHelper.Logger.Log(NLog.LogLevel.Information, "CAS response: " + doc.ToString());
+                if (string.IsNullOrEmpty(validatedUserName))
+                {
+                    HttpHelper.Logger.Log(NLog.LogLevel.Warn, "No username. CAS response: " + doc.ToString());
+                }
 
                 if (!string.IsNullOrEmpty(validatedUserName))
                 {

@@ -32,7 +32,7 @@ namespace Viper.Areas.RAPS.Models
                     var v = attr[0];
                     switch (attr.Name)
                     {
-                        case "sAMAaccountName": SamAccountName = v.ToString(); break;
+                        case "sAMAccountName": SamAccountName = v.ToString(); break;
                         case "objectGUID": ObjectGuid = (byte[])v; break;
                         case "cn": Cn = v.ToString(); break;
                         case "canonicalName": CanonicalName = v.ToString(); break;
