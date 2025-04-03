@@ -9,8 +9,7 @@ namespace Viper.Classes.Utilities
     public class ActiveDirectoryService
     {
         //username for campus active directory servers (ou.ad3 and ad3)
-        //private const string _username = "CN=svc-accounts,OU=Service Accounts,OU=SVM-OU-LocalUsers,OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
-        private const string _username = "svc-accounts";
+        private const string _username = "svmadgrp";
 
         //Start OUs for ou.ad3 (old-style groups and service accounts) and ad3 (users and api managed groups)
         private const string _ouStart = "OU=SVM,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
@@ -214,7 +213,7 @@ namespace Viper.Classes.Utilities
         /// <param name="groupDn">The distinguised name of the group</param>
         public static void AddUserToGroup(string userDn, string groupDn)
         {
-            string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
+            string creds = HttpHelper.GetSetting<string>("Credentials", "svmadgrp") ?? "";
             try
             {
                 using PrincipalContext ad3Pc = new(ContextType.Domain, "ad3.ucdavis.edu", _username, creds);
@@ -240,7 +239,7 @@ namespace Viper.Classes.Utilities
         /// <param name="groupDn">The distinguised name of the group</param>
         public static void RemoveUserFromGroup(string userDn, string groupDn)
         {
-            string creds = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
+            string creds = HttpHelper.GetSetting<string>("Credentials", "svmadgrp") ?? "";
             try
             {
                 using PrincipalContext ad3Pc = new(ContextType.Domain, "ad3.ucdavis.edu", _username, creds);
@@ -287,8 +286,8 @@ namespace Viper.Classes.Utilities
             var props = objectType == ObjectType.Group
                 ? _groupProperties
                 : _personProperties;
-            var cred = HttpHelper.GetSetting<string>("Credentials", "UCDavisLDAP") ?? "";
-            using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential(_username, cred, "ou.ad3.ucdavis.edu"));
+            var cred = HttpHelper.GetSetting<string>("Credentials", "svmadgrp") ?? "";
+            using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential(_username, cred, "ad3.ucdavis.edu"));
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
             lc.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
