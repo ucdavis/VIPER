@@ -25,13 +25,15 @@ namespace Viper.Areas.RAPS.Controllers
     {
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
+        private readonly RAPSCacheService _rapsCacheService;
         public IUserHelper UserHelper;
 
-        public RoleTemplatesController(RAPSContext context)
+        public RoleTemplatesController(RAPSContext context, AAUDContext aaudContext)
         {
             _context = context;
             _securityService = new(context);
             UserHelper = new UserHelper();
+            _rapsCacheService = new RAPSCacheService(context, aaudContext, UserHelper);
         }
 
         // GET: RoleTemplates
@@ -50,7 +52,7 @@ namespace Viper.Areas.RAPS.Controllers
                 .ToListAsync();
 
             List<RoleTemplateSimplified> roleTemplates = new();
-            foreach(var rt in dbRoleTemplates)
+            foreach (var rt in dbRoleTemplates)
             {
                 roleTemplates.Add(new RoleTemplateSimplified(rt));
             }
@@ -91,13 +93,13 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             var preview = await GetRoleTemplateApplyPreview(roleTemplate, memberId);
-            if(preview == null)
+            if (preview == null)
             {
                 return NotFound();
             }
             return preview;
         }
-        
+
         // Post: RoleTemplates/5/Apply/12345678
         [HttpPost("{roleTemplateId}/Apply/{memberId}")]
         [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
@@ -115,31 +117,33 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             var preview = await GetRoleTemplateApplyPreview(roleTemplate, memberId);
-            if(preview == null)
+            if (preview == null)
             {
                 return NotFound();
             }
 
-            if(memberId.StartsWith("loginid:"))
+            if (memberId.StartsWith("loginid:"))
             {
                 var userIdLookup = _context.VwAaudUser
                     .Where(u => u.LoginId == memberId.Substring(memberId.IndexOf(":") + 1))
                     .FirstOrDefault();
-                if(userIdLookup == null)
+                if (userIdLookup == null)
                 {
                     return NotFound();
                 }
                 memberId = userIdLookup.MothraId;
             }
-            
+
             RoleMemberService roleMemberService = new(_context);
-            foreach(RoleApplyPreview role in preview.Roles)
+            foreach (RoleApplyPreview role in preview.Roles)
             {
-                if(!role.UserHasRole)
+                if (!role.UserHasRole)
                 {
                     await roleMemberService.AddMemberToRole(role.RoleId, memberId, null, null, string.Format("Added via role template {0}", roleTemplate.TemplateName));
                 }
             }
+
+            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
 
             return NoContent();
         }
@@ -173,7 +177,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return null;
             }
-            
+
             userRoles = await _context.TblRoleMembers
                 .Include(rm => rm.Role)
                 .Where(rm => rm.MemberId == user.MothraId)
@@ -229,7 +233,7 @@ namespace Viper.Areas.RAPS.Controllers
         public async Task<IActionResult> PutRoleTemplate(string instance, int roleTemplateId, RoleTemplateCreateUpdate roleTemplate)
         {
             RoleTemplate? rt = await _context.RoleTemplates.FindAsync(roleTemplateId);
-            if(rt == null)
+            if (rt == null)
             {
                 return NotFound();
             }
@@ -315,7 +319,7 @@ namespace Viper.Areas.RAPS.Controllers
                 Description = roleTemplate.Description ?? ""
             };
 
-            if(!_securityService.RoleTemplateBelongsToInstance(instance, rt))
+            if (!_securityService.RoleTemplateBelongsToInstance(instance, rt))
             {
                 return BadRequest();
             }
