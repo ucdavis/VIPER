@@ -10,6 +10,7 @@ using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 using Web.Authorization;
+using static Viper.Areas.RAPS.Models.RolePermissionComparison;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -19,23 +20,27 @@ namespace Viper.Areas.RAPS.Controllers
     public class RolePermissionsController : ApiController
     {
         private readonly RAPSContext _context;
+        private readonly AAUDContext _aaudContext;
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
+        private readonly RAPSCacheService _rapsCacheService;
 
-        public RolePermissionsController(RAPSContext context)
+        public RolePermissionsController(RAPSContext context, AAUDContext aaudContext)
         {
             _context = context;
             _securityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
+            _aaudContext = aaudContext;
+            _rapsCacheService = new RAPSCacheService(_context, _aaudContext);
         }
 
         private ActionResult? CheckRoleAndPermissionParams(string instance, int? roleId, int? permissionId)
         {
-            if(roleId == null && permissionId == null) 
-            { 
-                return BadRequest(); 
+            if (roleId == null && permissionId == null)
+            {
+                return BadRequest();
             }
-            if(roleId != null)
+            if (roleId != null)
             {
                 TblRole? tblRole = _securityService.GetRoleInInstance(instance, (int)roleId);
                 if (tblRole == null)
@@ -43,10 +48,10 @@ namespace Viper.Areas.RAPS.Controllers
                     return NotFound();
                 }
             }
-            else if(permissionId != null)
+            else if (permissionId != null)
             {
                 TblPermission? tblPermission = _securityService.GetPermissionInInstance(instance, (int)permissionId);
-                if(tblPermission == null)
+                if (tblPermission == null)
                 {
                     return NotFound();
                 }
@@ -66,13 +71,14 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
             ActionResult? errorResult = CheckRoleAndPermissionParams(instance, roleId, permissionId);
-            if(errorResult != null)
+            if (errorResult != null)
             {
                 return errorResult;
             }
-            if(roleId != null) {
+            if (roleId != null)
+            {
                 TblRole? role = _context.TblRoles.Find(roleId);
-                if(role == null)
+                if (role == null)
                 {
                     return NotFound();
                 }
@@ -81,11 +87,11 @@ namespace Viper.Areas.RAPS.Controllers
                     return Forbid();
                 }
             }
-            else if(permissionId != null && !_securityService.IsAllowedTo("ViewAllRoles", instance))
+            else if (permissionId != null && !_securityService.IsAllowedTo("ViewAllRoles", instance))
             {
                 return Forbid();
             }
-            
+
             List<TblRolePermission> tblRolePermissions = await _context.TblRolePermissions
                     .Include(rp => rp.Role)
                     .Include(rp => rp.Permission)
@@ -107,7 +113,7 @@ namespace Viper.Areas.RAPS.Controllers
         {
             TblRole? role1 = _securityService.GetRoleInInstance(instance, role1Id);
             TblRole? role2 = _securityService.GetRoleInInstance(instance, role2Id);
-            if(role1 == null || role2 == null)
+            if (role1 == null || role2 == null)
             {
                 return NotFound();
             }
@@ -158,7 +164,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             roleId = rolePermission.RoleId;
             permissionId = rolePermission.PermissionId;
-            
+
             TblRolePermission? tblRolePermissionExists = await _context.TblRolePermissions.FindAsync(roleId, permissionId);
             if (tblRolePermissionExists != null)
             {
@@ -173,6 +179,8 @@ namespace Viper.Areas.RAPS.Controllers
             _auditService.AuditRolePermissionChange(tblRolePermission, RAPSAuditService.AuditActionType.Create);
             _context.SaveChanges();
             transaction.Commit();
+
+            await ClearCacheForAllRoleMembers(rolePermission.RoleId);
 
             return CreatedAtAction("GetTblRole", new { roleId, permissionId, tblRolePermission.Access }, tblRolePermission);
         }
@@ -204,6 +212,8 @@ namespace Viper.Areas.RAPS.Controllers
             _auditService.AuditRolePermissionChange(tblRolePermission, RAPSAuditService.AuditActionType.Delete);
             await _context.SaveChangesAsync();
 
+            await ClearCacheForAllRoleMembers(roleId);
+
             return NoContent();
         }
 
@@ -214,6 +224,15 @@ namespace Viper.Areas.RAPS.Controllers
             tblRolePermission.Access = rolePermissionCreateUpdate.Access;
             tblRolePermission.ModTime = DateTime.Now;
             tblRolePermission.ModBy = new UserHelper().GetCurrentUser()?.LoginId;
+        }
+
+        private async Task ClearCacheForAllRoleMembers(int roleId)
+        {
+            var roleMembers = await _context.TblRoleMembers.Where(rm => rm.RoleId == roleId).ToListAsync();
+            foreach (var member in roleMembers)
+            {
+                _rapsCacheService.ClearCachedRolesAndPermissionsForUser(member.MemberId);
+            }
         }
     }
 }

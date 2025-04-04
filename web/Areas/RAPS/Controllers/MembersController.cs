@@ -4,6 +4,7 @@ using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
+using static Viper.Areas.RAPS.Models.RolePermissionComparison;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -16,12 +17,14 @@ namespace Viper.Areas.RAPS.Controllers
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
+        private readonly RAPSCacheService _rapsCacheService;
 
-        public MembersController(RAPSContext context)
+        public MembersController(RAPSContext context, AAUDContext aaudContext)
         {
             _context = context;
             _securityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
+            _rapsCacheService = new RAPSCacheService(_context, aaudContext);
         }
         // GET: <Members>
         [HttpGet]
@@ -212,6 +215,8 @@ namespace Viper.Areas.RAPS.Controllers
                 return ValidationProblem("At least one role or permission must be selected.");
             }
             await new CloneService(_context).Clone(instance, sourceMemberId, targetMemberId, objectsToClone);
+
+            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(targetMemberId);
             return NoContent();
         }
 

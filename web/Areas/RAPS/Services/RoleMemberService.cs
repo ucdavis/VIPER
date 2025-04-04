@@ -11,8 +11,8 @@ namespace Viper.Areas.RAPS.Services
     {
         private readonly RAPSContext _context;
         public IUserHelper UserHelper;
-        public RoleMemberService(RAPSContext context) 
-        { 
+        public RoleMemberService(RAPSContext context)
+        {
             _context = context;
             UserHelper = new UserHelper();
         }
