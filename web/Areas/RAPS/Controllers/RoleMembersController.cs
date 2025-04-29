@@ -19,27 +19,29 @@ namespace Viper.Areas.RAPS.Controllers
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
+        private readonly RAPSCacheService _rapsCacheService;
 
-        public RoleMembersController(RAPSContext context)
+        public RoleMembersController(RAPSContext context, AAUDContext aaudContext)
         {
             _context = context;
             _securityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
+            _rapsCacheService = new RAPSCacheService(_context, aaudContext);
         }
 
         //GET: Roles/5/Members
         //GET: Members/12345678/Roles
         [HttpGet("Roles/{roleId}/Members")]
         [HttpGet("Members/{memberId}/Roles")]
-        public async Task<ActionResult<IEnumerable<TblRoleMember>>> GetTblRoleMembers(string instance, int? roleId, string? memberId, 
-                int application=0, bool includeViewMembers=false)
+        public async Task<ActionResult<IEnumerable<RoleMember>>> GetTblRoleMembers(string instance, int? roleId, string? memberId,
+                int application = 0, bool includeViewMembers = false)
         {
             if (_context.TblRoles == null)
             {
                 return NotFound();
             }
             ActionResult? errorResult = CheckAccess(instance, roleId, memberId);
-            if(errorResult != null)
+            if (errorResult != null)
             {
                 return errorResult;
             }
@@ -65,9 +67,11 @@ namespace Viper.Areas.RAPS.Controllers
                     .Where(rm => application == (int)rm.Role.Application)
                     .OrderBy(rm => rm.Role.DisplayName ?? rm.Role.Role);
             }
-            
+
             return (await roleMembers.ToListAsync())
-                .FindAll(rm => _securityService.RoleBelongsToInstance(instance, rm.Role));
+                .FindAll(rm => _securityService.RoleBelongsToInstance(instance, rm.Role))
+                .Select(rm => new RoleMember(rm))
+                .ToList();
         }
 
         //POST: Roles/5/Members
@@ -85,20 +89,22 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return errorResult;
             }
-            if((roleId != null && roleMemberCreateUpdate.RoleId != roleId)
+            if ((roleId != null && roleMemberCreateUpdate.RoleId != roleId)
                 || (memberId != null && roleMemberCreateUpdate.MemberId != memberId))
             {
                 return BadRequest();
             }
 
             roleId = roleMemberCreateUpdate.RoleId;
-            memberId = roleMemberCreateUpdate.MemberId;            
+            memberId = roleMemberCreateUpdate.MemberId;
             string? result = await new RoleMemberService(_context)
                 .AddMemberToRole((int)roleId, memberId, roleMemberCreateUpdate.StartDate, roleMemberCreateUpdate.EndDate, roleMemberCreateUpdate.Comment);
-            if(result != null)
+            if (result != null)
             {
                 return BadRequest(result);
             }
+
+            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
 
             TblRoleMember? tblRoleMember = await _context.TblRoleMembers.FindAsync(roleId, memberId);
             return CreatedAtAction("GetTblRole", new { roleId, memberId }, tblRoleMember);
@@ -119,7 +125,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return errorResult;
             }
-            if (roleMemberCreateUpdate.RoleId != roleId ||roleMemberCreateUpdate.MemberId != memberId)
+            if (roleMemberCreateUpdate.RoleId != roleId || roleMemberCreateUpdate.MemberId != memberId)
             {
                 return BadRequest();
             }
@@ -134,6 +140,8 @@ namespace Viper.Areas.RAPS.Controllers
             _context.TblRoleMembers.Update(tblRoleMember);
             _auditService.AuditRoleMemberChange(tblRoleMember, RAPSAuditService.AuditActionType.Update, roleMemberCreateUpdate.Comment);
             await _context.SaveChangesAsync();
+
+            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
 
             return NoContent();
         }
@@ -158,10 +166,12 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            
+
             _context.TblRoleMembers.Remove(tblRoleMember);
             _auditService.AuditRoleMemberChange(tblRoleMember, RAPSAuditService.AuditActionType.Delete, comment);
             await _context.SaveChangesAsync();
+
+            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
 
             return NoContent();
         }
@@ -170,12 +180,12 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpPost("Roles/{roleId}/Members/VMACSExport")]
         public async Task<ActionResult<VmacsResponse?>> PushRoleToVMACS(string instance, int roleId)
         {
-            if(!RAPSSecurityService.IsVMACSInstance(instance))
+            if (!RAPSSecurityService.IsVMACSInstance(instance))
             {
                 return BadRequest();
             }
             var result = CheckAccess(instance, roleId, null);
-            if(result != null)
+            if (result != null)
             {
                 return result;
             }
@@ -192,7 +202,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return BadRequest();
             }
-            foreach(int roleId in roleIds)
+            foreach (int roleId in roleIds)
             {
                 var result = CheckAccess(instance, roleId, null);
                 if (result != null)
@@ -221,7 +231,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             var user = _context.VwAaudUser
                     .FirstOrDefault(u => u.MothraId == memberId);
-            if(user == null || string.IsNullOrEmpty(user.LoginId))
+            if (user == null || string.IsNullOrEmpty(user.LoginId))
             {
                 return NotFound();
             }
@@ -230,7 +240,7 @@ namespace Viper.Areas.RAPS.Controllers
             return Ok(GetVMACSExportStatus(messages));
         }
 
-        private static void UpdateTblRoleMemberWithDto(TblRoleMember tblRoleMember, RoleMemberCreateUpdate roleMemberCreateUpdate) 
+        private static void UpdateTblRoleMemberWithDto(TblRoleMember tblRoleMember, RoleMemberCreateUpdate roleMemberCreateUpdate)
         {
             tblRoleMember.StartDate = roleMemberCreateUpdate.StartDate?.ToDateTime(new TimeOnly(0, 0, 0));
             tblRoleMember.EndDate = roleMemberCreateUpdate.EndDate?.ToDateTime(new TimeOnly(0, 0, 0));
@@ -269,7 +279,10 @@ namespace Viper.Areas.RAPS.Controllers
                 }
             }
 
-            return null;
+            return new VmacsResponse()
+            {
+                Success = true
+            };
         }
 
         /// <summary>

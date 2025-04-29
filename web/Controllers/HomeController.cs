@@ -16,17 +16,17 @@ using Viper.Models.AAUD;
 using System.Collections;
 using System.Reflection;
 using Microsoft.AspNetCore.Http.Extensions;
-using Amazon.SimpleSystemsManagement;
-using Amazon.SimpleSystemsManagement.Model;
 using Viper.Areas.CMS.Data;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Viper.Classes.Utilities;
+using Viper.Classes.SQLContext;
 
 namespace Viper.Controllers
 {
     public class HomeController : AreaController
     {
-        private readonly Classes.SQLContext.AAUDContext _aAUDContext;
+        private readonly AAUDContext _aAUDContext;
+        private readonly RAPSContext _rapsContext;
         private readonly XNamespace _ns = "http://www.yale.edu/tp/cas";
         private const string _strTicket = "ticket";
         private readonly IHttpClientFactory _clientFactory;
@@ -34,11 +34,12 @@ namespace Viper.Controllers
         private readonly List<string> _casAttributesToCapture = new() { "authenticationDate", "credentialType" };
         public IUserHelper UserHelper;
 
-        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, Classes.SQLContext.AAUDContext aAUDContext)
+        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, AAUDContext aAUDContext, RAPSContext rapsContext)
         {
             this._clientFactory = clientFactory;
             this._settings = settingsOptions.Value;
             this._aAUDContext = aAUDContext;
+            this._rapsContext = rapsContext;
             this.UserHelper = new UserHelper();
         }
         /// <summary>
@@ -70,7 +71,7 @@ namespace Viper.Controllers
         private NavMenu Nav()
         {
             var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
-            if(menu != null)
+            if (menu != null)
             {
                 ConvertNavLinksForDevelopment(menu);
             }
@@ -94,7 +95,7 @@ namespace Viper.Controllers
                 returnURL = Request.Query["ReturnUrl"].ToString();
             }
 
-            if(returnURL.StartsWith("/api"))
+            if (returnURL.StartsWith("/api"))
             {
                 return Unauthorized();
             }
@@ -250,46 +251,21 @@ namespace Viper.Controllers
             return new RedirectResult(_settings.CasBaseUrl + "logout");
         }
 
-        /// <summary>
-        /// Testing the connection to AWS Secrets Manager
-        /// </summary>
-        /// <returns></returns>
         [Route("/[action]")]
         [SearchExclude]
-        public IActionResult AWSTest()
+        public IActionResult MyPermissions()
         {
-            try
+            var u = UserHelper.GetCurrentUser();
+            if (u != null)
             {
-                var request = new GetParameterRequest()
-                {
-                    Name = "/" + HttpHelper.Environment?.EnvironmentName + "/ConnectionStrings/TestSecret",
-                    WithDecryption = true
-                };
-
-                using var client = new AmazonSimpleSystemsManagementClient();
-                var response = client.GetParameterAsync(request);
-                ViewData["TestResult"] = ($"{request.Name} value is: {response.Result.Parameter.Value}");
+                ViewData["Permissions"] = UserHelper.GetAllPermissions(_rapsContext, u)
+                    .OrderBy(p => p.Permission)
+                    .ToList();
             }
-            catch (Exception ex)
-            {
-                ViewData["TestResult"] = ex.Message;
-            }
-
-            try
-            {
-                if (HttpHelper.Settings != null)
-                {
-                    var TestConnectionString = HttpHelper.Settings["ConnectionStrings:TestSecret"];
-                    ViewData["ConfigResult"] = TestConnectionString?.Trim();
-                }
-            }
-            catch (Exception ex)
-            {
-                ViewData["ConfigResult"] = ex.Message;
-            }
-
             return View();
         }
+
+
 
         /// <summary>
         /// Utility function for creating redirect URLs
@@ -297,7 +273,7 @@ namespace Viper.Controllers
         /// <param name="targetPath"></param>
         /// <returns>Compiled URL</returns>
         private static string BuildRedirectUri(string targetPath)
-        {          
+        {
             return HttpHelper.GetRootURL() + targetPath;
         }
 
@@ -328,7 +304,10 @@ namespace Viper.Controllers
 
                 // uncomment this line temporarily if you ever have issues with users getting unexpected 403(Access Denied) errors in the logs
                 // uncommenting this line will log what CAS is sending. When the user in question logs in while trying to access our site
-                //HttpHelper.Logger.Log(NLog.LogLevel.Information, "CAS response: " + doc.ToString());
+                if (string.IsNullOrEmpty(validatedUserName))
+                {
+                    HttpHelper.Logger.Log(NLog.LogLevel.Warn, "No username. CAS response: " + doc.ToString());
+                }
 
                 if (!string.IsNullOrEmpty(validatedUserName))
                 {
@@ -352,9 +331,10 @@ namespace Viper.Controllers
                     return new LocalRedirectResult(!String.IsNullOrWhiteSpace(returnUrl) ? returnUrl : "/");
                 }
             }
-            catch (TaskCanceledException ex) {// usually caused because the user aborts the page load (HttpContext.RequestAborted)
-				HttpHelper.Logger.Log(NLog.LogLevel.Info, "TaskCanceledException: " + ex.Message.ToString());
-			} 
+            catch (TaskCanceledException ex)
+            {// usually caused because the user aborts the page load (HttpContext.RequestAborted)
+                HttpHelper.Logger.Log(NLog.LogLevel.Info, "TaskCanceledException: " + ex.Message.ToString());
+            }
 
             return new ForbidResult();
         }

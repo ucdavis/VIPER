@@ -4,6 +4,7 @@ using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
+using static Viper.Areas.RAPS.Models.RolePermissionComparison;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -16,25 +17,35 @@ namespace Viper.Areas.RAPS.Controllers
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
+        private readonly RAPSCacheService _rapsCacheService;
 
-        public MembersController(RAPSContext context)
+        public MembersController(RAPSContext context, AAUDContext aaudContext)
         {
             _context = context;
             _securityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
+            _rapsCacheService = new RAPSCacheService(_context, aaudContext);
         }
         // GET: <Members>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<MemberSearchResult>>> Get(string search, string active = "active")
         {
-            var members = await _context.VwAaudUser
+            var memberQ = _context.VwAaudUser
                     .Include(u => u.TblRoleMembers)
                     .Include(u => u.TblMemberPermissions)
-                    .Where(u => (u.DisplayFirstName + " " + u.DisplayLastName).Contains(search)
-                        || (u.MailId != null && u.MailId.Contains(search))
-                        || (u.LoginId != null && u.LoginId.Contains(search))
-                        || (u.MothraId == search) 
-                    )
+                    .AsQueryable();
+            char[] delims = { ' ', ',', '-' };
+            foreach (var token in search.Split(delims))
+            {
+                memberQ = memberQ
+                    .Where(u => u.DisplayFirstName.StartsWith(token)
+                        || u.DisplayLastName.StartsWith(token)
+                        || (u.MailId != null && u.MailId.StartsWith(token))
+                        || (u.LoginId != null && u.LoginId.StartsWith(token))
+                        || (u.MothraId == token)
+                    );
+            }
+            var members = await memberQ
                     .Where(u => active == "all" || (active == "recent" && u.MostRecentTerm != null && u.MostRecentTerm >= DateTime.Now.Year * 100) || u.Current)
                     .OrderBy(u => u.DisplayLastName)
                     .ThenBy(u => u.DisplayFirstName)
@@ -62,7 +73,7 @@ namespace Viper.Areas.RAPS.Controllers
         public async Task<ActionResult<MemberSearchResult>> Get(string memberId)
         {
             var member = await _context.VwAaudUser.FirstOrDefaultAsync(u => u.MothraId == memberId);
-            if(member == null)
+            if (member == null)
             {
                 return NotFound();
             }
@@ -89,7 +100,7 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpGet("{memberId}/RSOP")]
         public async Task<ActionResult<List<PermissionResult>>> RSOP(string instance, string memberId)
         {
-            if(!_securityService.IsAllowedTo("RSOP", instance))
+            if (!_securityService.IsAllowedTo("RSOP", instance))
             {
                 return Forbid();
             }
@@ -114,22 +125,24 @@ namespace Viper.Areas.RAPS.Controllers
                 }).ToListAsync();
 
             var permsAssigned = await (from permission in _context.TblPermissions
-                join memberPermissions in _context.TblMemberPermissions
-                    on permission.PermissionId equals memberPermissions.PermissionId
-                where memberPermissions.MemberId == memberId
-                && (memberPermissions.StartDate == null || memberPermissions.StartDate <= DateTime.Today)
-                && (memberPermissions.EndDate == null || memberPermissions.EndDate >= DateTime.Today)
-                select new {
-                    permission.PermissionId,
-                    permission.Permission,
-                    memberPermissions.Access
-                }).ToListAsync();
+                                       join memberPermissions in _context.TblMemberPermissions
+                                           on permission.PermissionId equals memberPermissions.PermissionId
+                                       where memberPermissions.MemberId == memberId
+                                       && (memberPermissions.StartDate == null || memberPermissions.StartDate <= DateTime.Today)
+                                       && (memberPermissions.EndDate == null || memberPermissions.EndDate >= DateTime.Today)
+                                       select new
+                                       {
+                                           permission.PermissionId,
+                                           permission.Permission,
+                                           memberPermissions.Access
+                                       }).ToListAsync();
 
             Dictionary<int, PermissionResult> permissions = new();
             //add permissions that assigned via roles (could be deny or allow)
-            foreach(var p in permsViaRoles)
+            foreach (var p in permsViaRoles)
             {
-                if (permissions.TryGetValue(p.PermissionId, out PermissionResult? value)) {
+                if (permissions.TryGetValue(p.PermissionId, out PermissionResult? value))
+                {
                     var existingPerm = value;
                     //record deny if this role is denying access
                     if (existingPerm.Access && p.Access == 0)
@@ -169,7 +182,7 @@ namespace Viper.Areas.RAPS.Controllers
                 }
                 else
                 {
-                    permissions[p.PermissionId] = new PermissionResult() { PermissionId = p.PermissionId, PermissionName = p.Permission, Source = "Member Permission", Access = p.Access == 1};
+                    permissions[p.PermissionId] = new PermissionResult() { PermissionId = p.PermissionId, PermissionName = p.Permission, Source = "Member Permission", Access = p.Access == 1 };
                 }
             };
 
@@ -197,11 +210,13 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return Forbid();
             }
-            if(objectsToClone.RoleIds.Count == 0 && objectsToClone.PermissionIds.Count == 0)
+            if (objectsToClone.RoleIds.Count == 0 && objectsToClone.PermissionIds.Count == 0)
             {
                 return ValidationProblem("At least one role or permission must be selected.");
             }
             await new CloneService(_context).Clone(instance, sourceMemberId, targetMemberId, objectsToClone);
+
+            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(targetMemberId);
             return NoContent();
         }
 
@@ -209,7 +224,7 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpGet("{memberId}/History")]
         public async Task<ActionResult<List<AuditLog>>> GetHistory(string instance, string memberId, DateOnly startDate)
         {
-            if(!_securityService.IsAllowedTo("ViewHistory", instance))
+            if (!_securityService.IsAllowedTo("ViewHistory", instance))
             {
                 return Forbid();
             }

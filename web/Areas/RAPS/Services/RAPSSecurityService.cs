@@ -15,7 +15,7 @@ namespace Viper.Areas.RAPS.Services
     public class RAPSSecurityService
     {
         private readonly IUserHelper _userHelper;
-		private readonly RAPSContext _context;
+        private readonly RAPSContext _context;
 
         public RAPSSecurityService(RAPSContext context, IUserHelper? userHelper = null)
         {
@@ -30,7 +30,7 @@ namespace Viper.Areas.RAPS.Services
         /// <returns>true if the instance is valid, false otherwise</returns>
         static public bool IsValidInstance(string Instance)
         {
-            switch(Instance)
+            switch (Instance)
             {
                 // VIPER,VIPERForms,VMACS.VMTH,VMACS.VMLF,VMACS.UCVMCSD
                 case "VIPER": return true;
@@ -87,7 +87,7 @@ namespace Viper.Areas.RAPS.Services
         public bool RoleBelongsToInstance(string instance, TblRole role)
         {
             string roleName = role.Role.ToUpper();
-            if(instance.ToUpper() == "VIPER")
+            if (instance.ToUpper() == "VIPER")
             {
                 return !roleName.StartsWith("VMACS.") && !roleName.StartsWith("VIPERFORMS");
             }
@@ -119,11 +119,11 @@ namespace Viper.Areas.RAPS.Services
         public bool PermissionBelongsToInstance(string instance, TblPermission permission)
         {
             string permissionName = permission.Permission.ToUpper();
-            if(instance.ToUpper() == "VIPER")
+            if (instance.ToUpper() == "VIPER")
             {
                 return !permissionName.StartsWith("VMACS") && !permissionName.StartsWith("VIPERFORMS");
             }
-            if(instance.ToUpper().StartsWith("VMACS"))
+            if (instance.ToUpper().StartsWith("VMACS"))
             {
                 return permissionName.StartsWith("VMACS");
             }
@@ -157,11 +157,11 @@ namespace Viper.Areas.RAPS.Services
 
             //Check RAPS.Admin first. Many permission checks will require RAPS.Admin, or multiple factors, for example RAPS.ViewRoles only gives
             //access to view roles for VMACS instances
-            if(_userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.Admin"))
+            if (_userHelper.HasPermission(_context, _userHelper.GetCurrentUser(), "RAPS.Admin"))
             {
                 return true;
             }
-            
+
             return action switch
             {
                 //admin only
@@ -256,7 +256,7 @@ namespace Viper.Areas.RAPS.Services
         /// <returns>Viper if they can access Viper, VMACS.VMTH otherwise</returns>
         public string GetDefaultInstanceForUser()
         {
-            if(IsAllowedTo("AccessInstance", "VIPER"))
+            if (IsAllowedTo("AccessInstance", "VIPER"))
             {
                 return "VIPER";
             }

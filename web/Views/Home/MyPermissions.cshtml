@@ -1,0 +1,11 @@
+﻿@using Viper.Models.RAPS
+@*
+
+*@
+@{
+    List<TblPermission> permissions = (List<TblPermission>)(ViewData["Permissions"] ?? new List<TblPermission>());
+    foreach (var p in permissions)
+    {
+        <p style="margin:0">@p.Permission</p>        
+    }
+}
