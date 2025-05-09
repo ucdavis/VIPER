@@ -85,7 +85,7 @@
             methods: {
                 findUsers: async function () {
                     this.members.urlBase = "Members?search=" + this.userSearch + "&active=" + (this.includeInactive ? "all" : "active")
-                    if (this.userSearch.length >= 3) {
+                    if (this.userSearch.trim().length >= 2) {
                         this.members.load(this)
                     }
                 }

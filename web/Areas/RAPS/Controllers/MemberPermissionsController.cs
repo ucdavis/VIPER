@@ -24,14 +24,16 @@ namespace Viper.Areas.RAPS.Controllers
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
+        private readonly RAPSCacheService _rapsCacheService;
         public IUserHelper UserHelper;
 
-        public MemberPermissionsController(RAPSContext context)
+        public MemberPermissionsController(RAPSContext context, AAUDContext aaudContext)
         {
             _context = context;
             _securityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
             UserHelper = new UserHelper();
+            _rapsCacheService = new RAPSCacheService(context, aaudContext, UserHelper);
         }
 
         // GET: Members/12345678/Permissions
@@ -53,10 +55,10 @@ namespace Viper.Areas.RAPS.Controllers
                     .OrderBy(mp => mp.Permission.Permission)
                     .ToListAsync();
             }
-            else if(permissionId != null)
+            else if (permissionId != null)
             {
                 TblPermission? permission = _securityService.GetPermissionInInstance(instance, (int)permissionId);
-                return permission == null 
+                return permission == null
                     ? NotFound()
                     : await _context.TblMemberPermissions
                         .Include(mp => mp.Member)
@@ -76,7 +78,7 @@ namespace Viper.Areas.RAPS.Controllers
         [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
         public async Task<ActionResult<IEnumerable<MemberSearchResult>>> GetAllPermissionMembers(string instance, int? permissionId)
         {
-            if(!_securityService.IsAllowedTo("ViewAllPermissionMembers", instance))
+            if (!_securityService.IsAllowedTo("ViewAllPermissionMembers", instance))
             {
                 return Forbid();
             }
@@ -87,7 +89,7 @@ namespace Viper.Areas.RAPS.Controllers
             if (permissionId != null)
             {
                 TblPermission? permission = _securityService.GetPermissionInInstance(instance, (int)permissionId);
-                if(permission == null)
+                if (permission == null)
                 {
                     return NotFound();
                 }
@@ -124,18 +126,18 @@ namespace Viper.Areas.RAPS.Controllers
                 return await membersWithRoleGrantingPermission
                     .Union(membersGrantedPermission)
                     .Except(membersWithRoleDenyingPermission)
-                    .Except(membersDeniedPermission)    
+                    .Except(membersDeniedPermission)
                     .Select(aaud => new MemberSearchResult()
-                        {
-                            MemberId = aaud.MothraId,
-                            LoginId = aaud.LoginId,
-                            MailId = aaud.MailId,
-                            DisplayFirstName = aaud.DisplayFirstName,
-                            DisplayLastName = aaud.DisplayLastName,
-                            Current = aaud.Current
-                        })
+                    {
+                        MemberId = aaud.MothraId,
+                        LoginId = aaud.LoginId,
+                        MailId = aaud.MailId,
+                        DisplayFirstName = aaud.DisplayFirstName,
+                        DisplayLastName = aaud.DisplayLastName,
+                        Current = aaud.Current
+                    })
                     .OrderBy(result => result.DisplayLastName)
-                    .ThenBy(result => result.DisplayFirstName) 
+                    .ThenBy(result => result.DisplayFirstName)
                     .ThenBy(result => result.MemberId)
                     .ToListAsync();
             }
@@ -161,7 +163,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            
+
             var tblMemberPermission = await _context.TblMemberPermissions.FindAsync(memberId, permissionId);
             if (tblMemberPermission == null)
             {
@@ -195,7 +197,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             UpdateTblMemberPermission(tblMemberPermission, memberPermission);
             //_context.Entry(tblMemberPermission).State = EntityState.Modified;
-            
+
             try
             {
                 _context.TblMemberPermissions.Update(tblMemberPermission);
@@ -214,6 +216,8 @@ namespace Viper.Areas.RAPS.Controllers
                 }
             }
 
+            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
+
             return NoContent();
         }
 
@@ -228,7 +232,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return Problem("Entity set 'RAPSContext.TblMemberPermissions' is null.");
             }
-            if((permissionId != null && permissionId != memberPermission.PermissionId) 
+            if ((permissionId != null && permissionId != memberPermission.PermissionId)
                 || (memberId != null && memberId != memberPermission.MemberId))
             {
                 return NotFound();
@@ -272,6 +276,8 @@ namespace Viper.Areas.RAPS.Controllers
                 }
             }
 
+            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
+
             return CreatedAtAction("GetTblMemberPermission", new { memberId, permissionId }, tblMemberPermission);
         }
 
@@ -300,6 +306,8 @@ namespace Viper.Areas.RAPS.Controllers
             _auditService.AuditPermissionMemberChange(tblMemberPermission, RAPSAuditService.AuditActionType.Delete);
             await _context.SaveChangesAsync();
 
+            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
+
             return NoContent();
         }
 
@@ -315,7 +323,7 @@ namespace Viper.Areas.RAPS.Controllers
             dbMemberPermission.Access = inputMemberPermission.Access;
             dbMemberPermission.ModTime = DateTime.Now;
             dbMemberPermission.ModBy = new UserHelper().GetCurrentUser()?.LoginId;
-            if(dbMemberPermission.AddDate == null)
+            if (dbMemberPermission.AddDate == null)
             {
                 dbMemberPermission.AddDate = DateTime.Now;
             }
