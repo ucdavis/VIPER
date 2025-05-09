@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import { inject, ref } from 'vue'
+    import { inject, ref, watch } from 'vue'
     import type { Ref } from 'vue'
     import type { QTreeNode } from 'quasar'
     import { useFetch } from '@/composables/ViperFetch'
@@ -83,11 +83,23 @@
         })
     }
 
+    watch(
+        () => selectedComp.value.domainId,
+        (newVal, _) => {
+            if (selectedComp.value.number == null || selectedComp.value.number == "" || selectedComp.value.number.length == 2) {
+                const selectedDomain = domains.value.find((d) => d.domainId == newVal)
+                if (selectedDomain != null) {
+                    selectedComp.value.number = selectedDomain.order + "."
+                }
+            }
+        }
+    )
+
     load()
 </script>
 <template>
     <h2>Manage Competencies</h2>
-    <q-dialog v-model="showForm">
+    <q-dialog v-model="showForm" @hide="clearComp()">
         <q-card style="width:500px;max-width:80vw;" class="q-pa-sm">
             <q-form @submit="submitComp" v-model="selectedComp">
                 <div class="row">
