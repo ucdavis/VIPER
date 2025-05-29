@@ -102,7 +102,7 @@
 
     async function loadUsers() {
         const { get } = useFetch()
-        get(apiUrl + "people")
+        get(apiUrl + "people?active=true")
             .then(({ result }) => allUsers.value = result)
     }
 
