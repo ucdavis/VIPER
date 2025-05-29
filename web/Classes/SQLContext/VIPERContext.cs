@@ -1321,11 +1321,8 @@ public partial class VIPERContext : DbContext
             entity.ToTable("Person", "users");
             entity.HasKey("PersonId");
             entity.HasOne(e => e.StudentInfo).WithMany()
-                .HasForeignKey(e => new { e.StudentTerm, e.SpridenId });
-            entity.HasMany(e => e.StudentHistory)
-                .WithOne()
-                .HasForeignKey(e => e.SpridenId)
-                .HasPrincipalKey(e => e.SpridenId);
+                .HasForeignKey(e => new { e.StudentTerm, e.SpridenId })
+                .IsRequired(false);
         });
         OnModelCreatingCTS(modelBuilder);
         OnModelCreatingStudents(modelBuilder);
