@@ -166,11 +166,11 @@ try
         options.HttpsPort = 443;
     });
 
-
-    builder.Services.AddDbContext<AAUDContext>();
-    builder.Services.AddDbContext<CoursesContext>();
-    builder.Services.AddDbContext<RAPSContext>();
-    builder.Services.AddDbContext<VIPERContext>(opt =>
+builder.Services.AddDbContext<EquipmentLoanContext>();
+builder.Services.AddDbContext<KeysContext>();
+builder.Services.AddDbContext<PPSContext>();
+builder.Services.AddDbContext<IDCardsContext>();
+builder.Services.AddDbContext<VIPERContext>(opt =>
     {
         if (builder.Environment.EnvironmentName != "Production")
         {
@@ -178,8 +178,8 @@ try
         }
     });
 
-    // Add in a custom ClaimsTransformer that injects user ROLES
-    builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
+// Add in a custom ClaimsTransformer that injects user ROLES
+builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
 
     if (builder.Environment.IsDevelopment())
     {

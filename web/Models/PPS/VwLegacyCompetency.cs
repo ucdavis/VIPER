@@ -1,0 +1,15 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace Viper.Models.PPS;
+
+public partial class VwLegacyCompetency
+{
+    public int DvmCompetencyId { get; set; }
+
+    public string DvmCompetencyName { get; set; } = null!;
+
+    public int? DvmCompetencyParentId { get; set; }
+
+    public bool? DvmCompetencyActive { get; set; }
+}

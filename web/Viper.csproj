@@ -60,6 +60,10 @@
     <Folder Include="Areas\ClinicalScheduler\Models\" />
     <Folder Include="Areas\CMS\Views\" />
     <Folder Include="Areas\RAPS\Data\" />
+    <Folder Include="Models\Keys\" />
+    <Folder Include="Models\IDCards\" />
+    <Folder Include="Models\EquipmentLoan\" />
+    <Folder Include="Models\PPS\" />
     <Folder Include="wwwroot\js\vue\" />
   </ItemGroup>
 

@@ -17,6 +17,7 @@ public partial class VIPERContext : DbContext
 #pragma warning restore CS8618
 
     /* DBO */
+    public virtual DbSet<Keys> Keys { get; set; }
     public virtual DbSet<AppControl> AppControls { get; set; }
 
     public virtual DbSet<CasDbcache> CasDbcaches { get; set; }

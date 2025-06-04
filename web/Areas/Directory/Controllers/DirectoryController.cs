@@ -139,7 +139,7 @@ namespace Viper.Areas.Directory.Controllers
         }
 
         /// <summary>
-        /// Directory results
+        /// UserInfo page
         /// </summary>
         /// <param name="uid">User ID</param>
         /// <returns></returns>
@@ -148,6 +148,43 @@ namespace Viper.Areas.Directory.Controllers
         {
             // pull in the user based on uid
             return await Task.Run(() => View("~/Areas/Directory/Views/UserInfo.cshtml"));
+        }
+
+        /// <summary>
+        /// UserInfo Data
+        /// </summary>
+        /// <param name="mothraID">University ID</param>
+        /// <returns></returns>
+        [Route("/[area]/userinfo/{mothraID}/data")]
+        public async Task<ActionResult<IEnumerable<UserInfoResult>>> GetUserByMothraID(string mothraID)
+        {
+            List<UserInfoResult> results = new();
+            //List<LdapUserContact> ldap = LdapService.GetUsersContact(search);
+            var individuals = await _aaud.AaudUsers
+                    .Where(u => (u.MothraId != null && u.MothraId.Contains(mothraID))
+           )
+           .Where(u => u.Current != 0)
+           .OrderBy(u => u.DisplayLastName)
+           .ThenBy(u => u.DisplayFirstName)
+                    .ToListAsync();
+            AaudUser? currentUser = UserHelper.GetCurrentUser();
+            bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
+            /*
+            foreach (var l in ldap)
+            {
+                AaudUser? userInfo = individuals.Find(m => m.IamId == l.IamId);
+                results.Add(hasDetailPermission
+                    ? new IndividualSearchResultWithIDs(userInfo, l)
+                    : new UserInfoResult(userInfo, l));
+
+                var vmsearch = VMACSService.Search(results.Last().LoginId);
+                var vm = vmsearch.Result;
+                if (vm != null && vm.item != null && vm.item.Nextel != null) results.Last().Nextel = vm.item.Nextel[0];
+                if (vm != null && vm.item != null && vm.item.LDPager != null) results.Last().LDPager = vm.item.LDPager[0];
+                if (vm != null && vm.item != null && vm.item.Unit != null) results.Last().Department = vm.item.Unit[0];
+            };
+            */
+            return results;
         }
     }
 }
