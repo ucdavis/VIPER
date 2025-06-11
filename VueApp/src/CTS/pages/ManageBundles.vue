@@ -18,7 +18,7 @@
 
     //bundle table props
     const bundles = ref([]) as Ref<Bundle[]>
-    const paging = ref({ page: 1, sortBy: "enteredOn", descending: true, rowsPerPage: 25, rowsNumber: 100 }) as Ref<any>
+    const paging = ref({ page: 1, sortBy: "enteredOn", descending: true, rowsPerPage: 0 }) as Ref<any>
     const columns: QTableProps['columns'] = [
         { name: "action", label: "", field: "id", align: "left" },
         { name: "name", label: "Name", field: "name", align: "left", sortable: true },
