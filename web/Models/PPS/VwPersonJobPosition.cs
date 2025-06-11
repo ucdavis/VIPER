@@ -5,7 +5,7 @@ namespace Viper.Models.PPS;
 
 public partial class VwPersonJobPosition
 {
-    public string Emplid { get; set; } = null!;
+    public string? Emplid { get; set; }
 
     public string Name { get; set; } = null!;
 
@@ -69,33 +69,33 @@ public partial class VwPersonJobPosition
 
     public string? EmpFacultyFlg { get; set; }
 
-    public DateTime Effdt { get; set; }
+    public DateTime? Effdt { get; set; }
 
-    public int? EmplRcd { get; set; }
+    public decimal? EmplRcd { get; set; }
 
-    public int? Effseq { get; set; }
+    public decimal? Effseq { get; set; }
 
     public DateTime? ExpectedEndDate { get; set; }
 
-    public string UnionCd { get; set; } = null!;
+    public string? UnionCd { get; set; }
 
-    public string Deptid { get; set; } = null!;
+    public string? Deptid { get; set; }
 
-    public string Jobcode { get; set; } = null!;
+    public string? Jobcode { get; set; }
 
-    public string EmplStatus { get; set; } = null!;
+    public string? EmplStatus { get; set; }
 
-    public decimal AnnualRt { get; set; }
+    public decimal? AnnualRt { get; set; }
 
-    public decimal MonthlyRt { get; set; }
+    public decimal? MonthlyRt { get; set; }
 
-    public decimal HourlyRt { get; set; }
+    public decimal? HourlyRt { get; set; }
 
-    public decimal Fte { get; set; }
+    public decimal? Fte { get; set; }
 
     public string? Primaryindex { get; set; }
 
-    public string Action { get; set; } = null!;
+    public string? Action { get; set; }
 
     public DateTime? ActionDt { get; set; }
 
@@ -123,7 +123,7 @@ public partial class VwPersonJobPosition
 
     public string SubDivDesc { get; set; } = null!;
 
-    public string JobStatus { get; set; } = null!;
+    public string? JobStatus { get; set; }
 
     public string JobStatusDesc { get; set; } = null!;
 
@@ -159,5 +159,5 @@ public partial class VwPersonJobPosition
 
     public string JobStatus1 { get; set; } = null!;
 
-    public DateTime JobUpdateTimestamp { get; set; }
+    public DateTime? JobUpdateTimestamp { get; set; }
 }
