@@ -13,6 +13,8 @@
     <Folder Include="src\Computing\router\" />
     <Folder Include="src\CTS\assets\" />
     <Folder Include="src\CTS\types\" />
+    <Folder Include="src\ExampleApp\router\" />
+    <Folder Include="src\ExampleApp\pages\" />
     <Folder Include="src\js\" />
     <Folder Include="src\composables\" />
     <Folder Include="src\Students\types\" />

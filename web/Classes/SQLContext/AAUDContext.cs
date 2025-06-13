@@ -186,6 +186,8 @@ public partial class AAUDContext : DbContext
 
     public virtual DbSet<VwVmthStudentsForPerfectForm> VwVmthStudentsForPerfectForms { get; set; }
 
+    public virtual DbSet<ExampleComment> ExampleComments { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (HttpHelper.Settings != null)
@@ -1889,8 +1891,12 @@ public partial class AAUDContext : DbContext
         modelBuilder.Entity<FakePerson>(entity =>
         {
             entity
-                .HasNoKey()
-                .ToTable("FakePerson");
+                .ToTable("FakePerson")
+                .HasKey(e => e.PersonPKey);
+
+            entity.HasOne(e => e.FakeId)
+                .WithOne(e => e.FakePerson)
+                .HasForeignKey<FakeId>(e => e.IdsPKey);
 
             entity.Property(e => e.PersonClientid)
                 .HasMaxLength(9)
@@ -4443,6 +4449,17 @@ public partial class AAUDContext : DbContext
                 .HasMaxLength(50)
                 .IsUnicode(false)
                 .HasColumnName("User_WorkPhone2");
+        });
+
+        modelBuilder.Entity<ExampleComment>(entity =>
+        {
+            entity.HasKey(e => e.AaudUserId);
+            entity.ToTable("examplecomment");
+            entity.HasOne(e => e.AaudUser).WithOne(u => u.ExampleComment)
+                .HasForeignKey<AaudUser>(e => e.AaudUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_examplecomment_aaudUser")
+                .IsRequired(false);
         });
 
         OnModelCreatingPartial(modelBuilder);

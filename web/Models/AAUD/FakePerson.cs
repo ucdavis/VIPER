@@ -24,4 +24,6 @@ public partial class FakePerson
     public string? PersonDisplayMiddleName { get; set; }
 
     public string? PersonDisplayFullName { get; set; }
+
+    public virtual FakeId? FakeId { get; set; }
 }

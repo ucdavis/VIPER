@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.CMS.Data;
 using Viper.Areas.CTS.Services;
+using Viper.Areas.ExampleApp.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
@@ -84,6 +85,9 @@ namespace Viper.Controllers
                 {
                     case "cts":
                         menu = new CtsNavMenu(_context).Nav();
+                        break;
+                    case "example":
+                        menu = new ExampleAppNavMenu(_context).Nav();
                         break;
                 }
                 if (menu != null)

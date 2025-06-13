@@ -34,4 +34,6 @@ public partial class FakeId
     public string? IdsPpsId { get; set; }
 
     public string? IdsIamId { get; set; }
-}
+
+    public virtual FakePerson? FakePerson { get; set; }
+    }

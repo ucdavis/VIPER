@@ -70,4 +70,6 @@ public partial class AaudUser
     public bool? Ross { get; set; }
 
     public DateTime? Added { get; set; }
+
+    public ExampleComment? ExampleComment { get; set; }
 }
