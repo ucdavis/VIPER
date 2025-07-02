@@ -9,7 +9,7 @@ using Web.Authorization;
 namespace Viper.Areas.Computing.Controllers
 {
     [Route("/api/fakeusers/")]
-    [Permission(Allow = "SVMSecure")]
+    [Permission(Allow = "SVMSecure.CATS.FakeUser")]
     public class FakeUserController : ApiController
     {
         private readonly AAUDContext _aaudcontext;
@@ -27,6 +27,8 @@ namespace Viper.Areas.Computing.Controllers
                 .Include(u => u.FakeId)
                 .ToListAsync();
             return _mapper.Map<List<FakeUser>>(fakePeople);
-        }   
+        }
+
+
     }
 }

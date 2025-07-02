@@ -1827,7 +1827,7 @@ public partial class AAUDContext : DbContext
 
         modelBuilder.Entity<FakeId>(entity =>
         {
-            entity.HasNoKey();
+            entity.HasKey(e => e.IdsPKey);
 
             entity.Property(e => e.IdsClientid)
                 .HasMaxLength(9)

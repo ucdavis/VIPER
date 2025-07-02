@@ -13,7 +13,7 @@ const routes = [
     //note the permission check on this route
     {
         path: '/ExampleApp/FakeUsers',
-        meta: { layout: ViperLayout, permissions: ["SVMSecure.CATS.FakeUser"] },
+        meta: { layout: ViperLayout, allowUnAuth: false },
         component: () => import('@/ExampleApp/pages/FakeUsers.vue'),
         name: "AnotherPage"
     },
