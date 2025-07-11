@@ -1,8 +1,7 @@
 ﻿@using Viper.Classes.SQLContext;
-@model Viper.Models.AAUD.AaudUser;
+@model Viper.Areas.Directory.Models.UserInfoResult;
 @{
         RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
-        IUserHelper UserHelper = new UserHelper();
         ViewData["Title"] = "User Information";
 
 }
@@ -12,63 +11,71 @@
         <h2><a href="/default.cfm?page=directory">Directory Information</a></h2>
         <span class="photo"><img src="/userPhoto.cfm?mailID=#user.mailid#" width="87" height="111" border="0" /></span>
         <span class="photo2"><img src="/userPhoto.cfm?mailID=#user.mailid##altphoto#" width="87" height="111" border="0" /></span>
-        <h3>{{user.name}}</h3>
+        <h3>@Model.DisplayFullName</h3>
         <ul>
-            <li>#d.title#</li>
-            <li>#d.ou#</li>
-            <li>#d.email# (#d.emailhost#)</li>
-            <li><b>Login ID:</b> #d.loginID#</li>
-            <li><b>URI:</b> #d.labeleduri#</li>
-            <li><b>Phone:</b> #d.phone#<cfif showPhoneLink>&nbsp;<a href="tel:#d.phone#"><img src="images/phone.png" width="36" height="35" border="0" /></a></cfif></li>
-            <li><b>Mobile:</b> #d.mobile#<cfif showPhoneLink>&nbsp;<a href="tel:#d.mobile#"><img src="images/phone.png" width="36" height="35" border="0" /></a></cfif></li>
-            <li><b>Pager:</b> #d.ldPager#</li>
-            <li><b>Address:</b> #d.address#</li>
-            <li><b>Student ID:</b> #d.studentID#</li>
-            <li><b>Mothra ID:</b> #d.mothraID#</li>
-            <li><b>IAM ID:</b> #d.iamID#<br /><i>AAUD IAM ID mismatch: #user.iamID#</i></li>
-            <li><b>Employee ID:</b> #d.employeeID#</li>
-            <li><b>PIDM:</b> #d.pidm#</li>
-            <li><b>MIV ID:</b> #d.mivID#</li>
+            <li>@Model.Title</li>
+            <li>@Model.Department</li>
+            <li>@Model.Email (@Model.EmailHost)</li>
+            <li><b>Login ID:</b> @Model.LoginId</li>
+            <li><b>URI:</b> @Model.URI</li>
+            <li><b>Phone:</b> @Model.Phone</li>
+            <li><b>Mobile:</b> @Model.Mobile</li>
+            <li><b>Pager:</b> @Model.Pager</li>
+            <li><b>Address:</b> @Model.PostalAddress</li>
+            <li><b>Student ID:</b> @Model.StudentId</li>
+            <li><b>Mothra ID:</b> @Model.MothraId</li>
+            <li><b>IAM ID:</b> @Model.IamId<br /><i>AAUD IAM ID mismatch: #user.iamID#</i></li>
+            <li><b>Employee ID:</b> @Model.EmployeeId</li>
+            <li><b>PIDM:</b> @Model.Pidm</li>
+            <li><b>MIV ID:</b> @Model.MivId</li>
         </ul>
     </div>
     <!--- Employee -------------------------------------------------------------------------------------- --->
     <div class="employee">
         <h2><a href="/faculty/default.cfm?page=redirectToPublic&amp;mivID=#user.miv_id#" target="u">Employee Information</a></h2>
         <ul>
-            <li><b>Employee ID:</b> #user.employee_id#</li>
-            <li><b>Primary Title:</b> #user.emp_primary_title#</li>
-            <li><b>School Division:</b> #user.emp_school_division#</li>
-            <li><b>Status:</b> #user.emp_status#</li>
-            <li><b>Term:</b> #user.employee_term#</li>
-            <li><b>Home Department:</b> #user.emp_home_dept#</li>
-            <li><b>Effort Home Department:</b> #user.emp_effort_home_dept#</li>
-            <li><b>Teaching Home Department:</b> #user.emp_teaching_home_dept#</li>
-            <li><b>Teaching Percent Full-time:</b> #user.emp_teaching_percent_fulltime#</li>
+            <li><b>Employee ID:</b> @Model.EmployeeId</li>
+            <li><b>Primary Title:</b> @Model.EmployeePrimaryTitle</li>
+            <li><b>School Division:</b> @Model.EmployeeSchoolDivision</li>
+            <li><b>Status:</b> @Model.EmployeeStatus</li>
+            <li><b>Term:</b> @Model.EmployeeTerm</li>
+            <li><b>Home Department:</b> @Model.EmployeeHomeDepartment</li>
+            <li><b>Effort Home Department:</b> @Model.EmployeeEffortHomeDepartment</li>
+            <li><b>Teaching Home Department:</b> @Model.EmployeeTeachingHomeDepartment</li>
+            <li><b>Teaching Percent Full-time:</b> @Model.EmployeeTeachingPercentFulltime</li>
         </ul>
     </div>
     <!--- Student -------------------------------------------------------------------------------------- --->
     <div class="student">
         <h2><a href="/students/sis/default.cfm?Page=SelectStudent&amp;pidm=#user.pidm#" target="u">Student Information</a></h2>
         <ul>
-            <li><b>#st.d#:</b> #st.v#</li>
+            <li><b>Prior Name</b> @Model.StudentPriorName</li>
+            <li><b>Banner ID</b> @Model.StudentBannerId</li>
+            <li><b>Confidential?</b> @Model.StudentConfidential</li>
+            <li><b>Student Status</b> @Model.StudentStatus</li>
+            <li><b>Primary Major</b> @Model.StudentPrimaryMajor</li>
+            <li><b>All Majors</b> @Model.StudentAllMajors</li>
+            <li><b>Registration Status</b> @Model.StudentRegistrationStatus</li>
+            <li><b>Class Level</b> @Model.StudentClassLevel</li>
+            <li><b>Class Of</b> @Model.StudentClassOf</li>
         </ul>
     </div>
     <!--- IAM Information -------------------------------------------------------------------------------------- --->
     <div class="iam">
         <h2><a href="https://iam.ucdavis.edu" target="u">IAM Information</a></h2>
         <ul>
-            <li><b>IAM ID:</b> #iam.iamid#</li>
-            <li><b>PPS ID:</b> #iam.ppsid#</li>
-            <li><b>Full Name:</b> #iam.oFullname#</li>
-            <li><b>Employee?</b> #iam.isEmployee#</li>
-            <li><b>HS Employee?</b> #iam.isHSEmployee#</li>
-            <li><b>Faculty?</b> #iam.isFaculty#</li>
-            <li><b>Student?</b> #iam.isStudent#</li>
-            <li><b>Staff?</b> #iam.isStaff#</li>
-            <li><b>External?</b> #iam.isExternal#</li>
+            <li><b>IAM ID:</b> @Model.IamId</li>
+            <li><b>PPS ID:</b> @Model.PPSId</li>
+            <li><b>Full Name:</b> @Model.OFullName</li>
+            <li><b>Employee?</b> @Model.IsEmployee</li>
+            <li><b>HS Employee?</b> @Model.IsHSEmployee</li>
+            <li><b>Faculty?</b> @Model.IsFaculty</li>
+            <li><b>Student?</b> @Model.IsStudent</li>
+            <li><b>Staff?</b> @Model.IsStaff</li>
+            <li><b>External?</b> @Model.IsExternal</li>
         </ul>
         <ul>
-            <li><b>Title:</b> #associations.titleDisplayName# (#associations.titleCode#)</li>
+            <li><b>Title:</b> @Model.AssociationsTitle (@Model.AssociationsTitleCode)</li>
             <li><b>Department:</b> #associations.deptDisplayName# (#associations.deptCode#)</li>
             <li><b>Admin Department:</b> #associations.adminDeptDisplayName# (#associations.adminDeptAbbrev# #associations.adminDeptCode#)</li>
             <li><b>Appointment Department:</b> #associations.apptDeptDisplayName# (#associations.apptDeptAbbrev# #associations.apptDeptCode#)</li>
@@ -216,24 +223,3 @@
         </ul>
     </div>
 </article>
-
-@section Scripts {
-<script asp-add-nonce="true">
-    createVueApp({
-        data() {
-            return {
-                results: []
-            }
-        },
-        methods: {
-            getData: async function () {
-                this.results = [];
-                var urlBase = "@Url.Content("/[area]/userinfo/00000/data")";
-            }
-        },
-        mounted() {
-            this.getData();
-        },
-    })
-</script>
-}

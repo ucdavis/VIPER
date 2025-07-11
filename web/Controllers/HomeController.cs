@@ -36,11 +36,11 @@ namespace Viper.Controllers
 
         public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, AAUDContext aAUDContext, RAPSContext rapsContext)
         {
-            this._clientFactory = clientFactory;
-            this._settings = settingsOptions.Value;
-            this._aAUDContext = aAUDContext;
-            this._rapsContext = rapsContext;
-            this.UserHelper = new UserHelper();
+        this._clientFactory = clientFactory;
+        this._settings = settingsOptions.Value;
+        this._aAUDContext = aAUDContext;
+        this._rapsContext = rapsContext;
+        this.UserHelper = new UserHelper();
         }
         /// <summary>
         /// VIPER 2 home page
@@ -50,7 +50,7 @@ namespace Viper.Controllers
         [SearchName(FriendlyName = "Viper 2 Homepage")]
         public IActionResult Index()
         {
-            return View();
+        return View();
         }
 
         [Route("/[action]/")]
@@ -58,24 +58,24 @@ namespace Viper.Controllers
         [Permission(Allow = "SVMSecure")]
         public IActionResult Policy()
         {
-            return View();
+        return View();
         }
 
         public override async Task OnActionExecutionAsync(ActionExecutingContext context,
                                          ActionExecutionDelegate next)
         {
-            ViewData["ViperLeftNav"] = Nav();
-            await base.OnActionExecutionAsync(context, next);
+        ViewData["ViperLeftNav"] = Nav();
+        await base.OnActionExecutionAsync(context, next);
         }
 
         private NavMenu Nav()
         {
-            var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
-            if (menu != null)
-            {
-                ConvertNavLinksForDevelopment(menu);
-            }
-            return menu ?? new NavMenu("", new List<NavMenuItem>());
+        var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
+        if (menu != null)
+        {
+        ConvertNavLinksForDevelopment(menu);
+        }
+        return menu ?? new NavMenu("", new List<NavMenuItem>());
         }
 
         /// <summary>
@@ -86,31 +86,31 @@ namespace Viper.Controllers
         [SearchExclude]
         public IActionResult Login()
         {
-            Uri url = new(Request.GetDisplayUrl());
-            string baseURl = url.GetLeftPart(UriPartial.Authority);
-            string returnURL = HttpHelper.GetRootURL().Replace(baseURl, "");
+        Uri url = new(Request.GetDisplayUrl());
+        string baseURl = url.GetLeftPart(UriPartial.Authority);
+        string returnURL = HttpHelper.GetRootURL().Replace(baseURl, "");
 
-            if (!string.IsNullOrEmpty(Request.Query["ReturnUrl"]))
-            {
-                returnURL = Request.Query["ReturnUrl"].ToString();
-            }
+        if (!string.IsNullOrEmpty(Request.Query["ReturnUrl"]))
+        {
+        returnURL = Request.Query["ReturnUrl"].ToString();
+        }
 
-            if (returnURL.StartsWith("/api"))
-            {
-                return Unauthorized();
-            }
+        if (returnURL.StartsWith("/api"))
+        {
+        return Unauthorized();
+        }
 
-            var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnURL));
+        var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnURL));
 
-            return new RedirectResult(authorizationEndpoint);
+        return new RedirectResult(authorizationEndpoint);
         }
 
         [Route("/[action]")]
         [SearchExclude]
         public IActionResult RefreshSession()
         {
-            SessionTimeoutService.UpdateSessionTimeout();
-            return Ok(SessionTimeoutService.GetSessionTimeout());
+        SessionTimeoutService.UpdateSessionTimeout();
+        return Ok(SessionTimeoutService.GetSessionTimeout());
         }
 
         /// <summary>
@@ -121,7 +121,7 @@ namespace Viper.Controllers
         [SearchExclude]
         public async Task<IActionResult> CasLogin()
         {
-            return await AuthenticateCasLogin();
+        return await AuthenticateCasLogin();
         }
 
         //TODO - consider implementing IP restrictions on this method to only allow emulation from in school or on VPN locations
@@ -134,26 +134,26 @@ namespace Viper.Controllers
         [Permission(Allow = "SVMSecure.SU")]
         public IActionResult EmulateUser(string loginId)
         {
-            AaudUser? emulatedUser = UserHelper.GetByLoginId(_aAUDContext, loginId);
+        AaudUser? emulatedUser = UserHelper.GetByLoginId(_aAUDContext, loginId);
 
-            string? trueLoginId = UserHelper.GetCurrentUser()?.LoginId;
+        string? trueLoginId = UserHelper.GetCurrentUser()?.LoginId;
 
-            if (emulatedUser != null && trueLoginId != null)
-            {
-                var protector = HttpHelper.DataProtectionProvider?.CreateProtector("Viper.Emulation", trueLoginId);
+        if (emulatedUser != null && trueLoginId != null)
+        {
+        var protector = HttpHelper.DataProtectionProvider?.CreateProtector("Viper.Emulation", trueLoginId);
 
-                if (protector != null && emulatedUser.LoginId != null)
-                {
-                    string? encryptedEmulatedLoginId = protector?.Protect(emulatedUser.LoginId);
+        if (protector != null && emulatedUser.LoginId != null)
+        {
+        string? encryptedEmulatedLoginId = protector?.Protect(emulatedUser.LoginId);
 
-                    // set emulating cached item to expire after 30 minutes of inactivity
-                    HttpHelper.Cache?.Set(ClaimsTransformer.EmulationCacheNamePrefix + trueLoginId, encryptedEmulatedLoginId, (new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromMinutes(30))));
-                    return new RedirectResult("~/");
-                }
+        // set emulating cached item to expire after 30 minutes of inactivity
+        HttpHelper.Cache?.Set(ClaimsTransformer.EmulationCacheNamePrefix + trueLoginId, encryptedEmulatedLoginId, (new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromMinutes(30))));
+        return new RedirectResult("~/");
+        }
 
-            }
+        }
 
-            return new RedirectResult("~/Error");
+        return new RedirectResult("~/Error");
 
         }
 
@@ -163,15 +163,15 @@ namespace Viper.Controllers
         [Route("/[action]")]
         public IActionResult ClearEmulation()
         {
-            AaudUser? user = UserHelper.GetTrueCurrentUser();
-            string? trueLoginId = user?.LoginId;
+        AaudUser? user = UserHelper.GetTrueCurrentUser();
+        string? trueLoginId = user?.LoginId;
 
-            if (trueLoginId != null && HttpHelper.Cache != null)
-            {
-                HttpHelper.Cache.Remove(ClaimsTransformer.EmulationCacheNamePrefix + trueLoginId);
-            }
+        if (trueLoginId != null && HttpHelper.Cache != null)
+        {
+        HttpHelper.Cache.Remove(ClaimsTransformer.EmulationCacheNamePrefix + trueLoginId);
+        }
 
-            return new RedirectResult("~/");
+        return new RedirectResult("~/");
         }
 
         /// <summary>
@@ -181,19 +181,19 @@ namespace Viper.Controllers
         [Authorize(Roles = "VMDO SVM-IT", Policy = "2faAuthentication")]
         public IActionResult ClearCache()
         {
-            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
-            var entries = HttpHelper.Cache?.GetType().GetField("_entries", flags)?.GetValue(HttpHelper.Cache);
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var entries = HttpHelper.Cache?.GetType().GetField("_entries", flags)?.GetValue(HttpHelper.Cache);
 
-            if (entries is IDictionary cacheEntries)
-            {
-                foreach (string key in cacheEntries.Keys)
-                {
-                    HttpHelper.Cache?.Remove(key);
-                }
+        if (entries is IDictionary cacheEntries)
+        {
+        foreach (string key in cacheEntries.Keys)
+        {
+        HttpHelper.Cache?.Remove(key);
+        }
 
-            }
+        }
 
-            return new RedirectResult("~/");
+        return new RedirectResult("~/");
         }
 
         /// <summary>
@@ -204,7 +204,7 @@ namespace Viper.Controllers
         [SearchExclude]
         public IActionResult Error()
         {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
         /// <summary>
@@ -217,25 +217,25 @@ namespace Viper.Controllers
         [SearchExclude]
         public IActionResult Error(int? statusCode = null)
         {
-            ViewBag.errorMessage = HttpContext.Items["ErrorMessage"];
+        ViewBag.errorMessage = HttpContext.Items["ErrorMessage"];
 
-            if (statusCode.HasValue)
-            {
-                string? viewName;
-                switch (statusCode)
-                {
-                    case 403:
-                        Response.StatusCode = 403;
-                        viewName = statusCode.ToString();
-                        break;
-                    default:
-                        viewName = "StatusCode";
-                        break;
-                }
+        if (statusCode.HasValue)
+        {
+        string? viewName;
+        switch (statusCode)
+        {
+        case 403:
+        Response.StatusCode = 403;
+        viewName = statusCode.ToString();
+        break;
+        default:
+        viewName = "StatusCode";
+        break;
+        }
 
-                return View(viewName, (HttpStatusCode)statusCode.Value);
-            }
-            return View();
+        return View(viewName, (HttpStatusCode)statusCode.Value);
+        }
+        return View();
         }
 
         /// <summary>
@@ -246,23 +246,23 @@ namespace Viper.Controllers
         [SearchExclude]
         public async Task<IActionResult> Logout()
         {
-            UserHelper.ClearCachedRolesAndPermissions(UserHelper.GetCurrentUser());
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return new RedirectResult(_settings.CasBaseUrl + "logout");
+        UserHelper.ClearCachedRolesAndPermissions(UserHelper.GetCurrentUser());
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return new RedirectResult(_settings.CasBaseUrl + "logout");
         }
 
         [Route("/[action]")]
         [SearchExclude]
         public IActionResult MyPermissions()
         {
-            var u = UserHelper.GetCurrentUser();
-            if (u != null)
-            {
-                ViewData["Permissions"] = UserHelper.GetAllPermissions(_rapsContext, u)
-                    .OrderBy(p => p.Permission)
-                    .ToList();
-            }
-            return View();
+        var u = UserHelper.GetCurrentUser();
+        if (u != null)
+        {
+        ViewData["Permissions"] = UserHelper.GetAllPermissions(_rapsContext, u)
+            .OrderBy(p => p.Permission)
+            .ToList();
+        }
+        return View();
         }
 
 
@@ -274,7 +274,7 @@ namespace Viper.Controllers
         /// <returns>Compiled URL</returns>
         private static string BuildRedirectUri(string targetPath)
         {
-            return HttpHelper.GetRootURL() + targetPath;
+        return HttpHelper.GetRootURL() + targetPath;
         }
 
         /// <summary>
@@ -282,61 +282,61 @@ namespace Viper.Controllers
         /// </summary>
         private async Task<IActionResult> AuthenticateCasLogin()
         {
-            // get ticket & service
-            string? ticket = Request.Query[_strTicket];
-            string? returnUrl = Request.Query["ReturnUrl"];
-            string service = WebUtility.UrlEncode(BuildRedirectUri(Request.Path) + "?ReturnUrl=" + WebUtility.UrlEncode(returnUrl));
+        // get ticket & service
+        string? ticket = Request.Query[_strTicket];
+        string? returnUrl = Request.Query["ReturnUrl"];
+        string service = WebUtility.UrlEncode(BuildRedirectUri(Request.Path) + "?ReturnUrl=" + WebUtility.UrlEncode(returnUrl));
 
-            var client = _clientFactory.CreateClient("CAS");
+        var client = _clientFactory.CreateClient("CAS");
 
-            try
-            {
-                var response = await client.GetAsync(_settings.CasBaseUrl + "p3/serviceValidate?ticket=" + ticket + "&service=" + service, HttpContext.RequestAborted);
-                response.EnsureSuccessStatusCode();
+        try
+        {
+        var response = await client.GetAsync(_settings.CasBaseUrl + "p3/serviceValidate?ticket=" + ticket + "&service=" + service, HttpContext.RequestAborted);
+        response.EnsureSuccessStatusCode();
 
-                var responseBody = await response.Content.ReadAsStringAsync();
-                var doc = XDocument.Parse(responseBody);
+        var responseBody = await response.Content.ReadAsStringAsync();
+        var doc = XDocument.Parse(responseBody);
 
-                var serviceResponse = doc.Element(_ns + "serviceResponse");
-                var successNode = serviceResponse?.Element(_ns + "authenticationSuccess");
-                var userNode = successNode?.Element(_ns + "user");
-                var validatedUserName = userNode?.Value;
+        var serviceResponse = doc.Element(_ns + "serviceResponse");
+        var successNode = serviceResponse?.Element(_ns + "authenticationSuccess");
+        var userNode = successNode?.Element(_ns + "user");
+        var validatedUserName = userNode?.Value;
 
-                // uncomment this line temporarily if you ever have issues with users getting unexpected 403(Access Denied) errors in the logs
-                // uncommenting this line will log what CAS is sending. When the user in question logs in while trying to access our site
-                if (string.IsNullOrEmpty(validatedUserName))
-                {
-                    HttpHelper.Logger.Log(NLog.LogLevel.Warn, "No username. CAS response: " + doc.ToString());
-                }
+        // uncomment this line temporarily if you ever have issues with users getting unexpected 403(Access Denied) errors in the logs
+        // uncommenting this line will log what CAS is sending. When the user in question logs in while trying to access our site
+        if (string.IsNullOrEmpty(validatedUserName))
+        {
+        HttpHelper.Logger.Log(NLog.LogLevel.Warn, "No username. CAS response: " + doc.ToString());
+        }
 
-                if (!string.IsNullOrEmpty(validatedUserName))
-                {
-                    var claimsIdentity = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, validatedUserName), new Claim(ClaimTypes.NameIdentifier, validatedUserName), new Claim(ClaimTypes.AuthenticationMethod, "CAS") }, CookieAuthenticationDefaults.AuthenticationScheme);
+        if (!string.IsNullOrEmpty(validatedUserName))
+        {
+        var claimsIdentity = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, validatedUserName), new Claim(ClaimTypes.NameIdentifier, validatedUserName), new Claim(ClaimTypes.AuthenticationMethod, "CAS") }, CookieAuthenticationDefaults.AuthenticationScheme);
 
-                    XElement? attributesNode = successNode?.Element(_ns + "attributes");
-                    if (attributesNode != null)
-                    {
-                        foreach (string attributeName in _casAttributesToCapture)
-                        {
-                            foreach (var element in attributesNode.Elements(_ns + attributeName))
-                            {
-                                claimsIdentity.AddClaim(new Claim(element.Name.LocalName, element.Value));
-                            }
-                        }
-                    }
+        XElement? attributesNode = successNode?.Element(_ns + "attributes");
+        if (attributesNode != null)
+        {
+        foreach (string attributeName in _casAttributesToCapture)
+        {
+        foreach (var element in attributesNode.Elements(_ns + attributeName))
+        {
+        claimsIdentity.AddClaim(new Claim(element.Name.LocalName, element.Value));
+        }
+        }
+        }
 
-                    var user = new ClaimsPrincipal(claimsIdentity);
-                    await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, user);
+        var user = new ClaimsPrincipal(claimsIdentity);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, user);
 
-                    return new LocalRedirectResult(!String.IsNullOrWhiteSpace(returnUrl) ? returnUrl : "/");
-                }
-            }
-            catch (TaskCanceledException ex)
-            {// usually caused because the user aborts the page load (HttpContext.RequestAborted)
-                HttpHelper.Logger.Log(NLog.LogLevel.Info, "TaskCanceledException: " + ex.Message.ToString());
-            }
+        return new LocalRedirectResult(!String.IsNullOrWhiteSpace(returnUrl) ? returnUrl : "/");
+        }
+        }
+        catch (TaskCanceledException ex)
+        {// usually caused because the user aborts the page load (HttpContext.RequestAborted)
+        HttpHelper.Logger.Log(NLog.LogLevel.Info, "TaskCanceledException: " + ex.Message.ToString());
+        }
 
-            return new ForbidResult();
+        return new ForbidResult();
         }
     }
 }

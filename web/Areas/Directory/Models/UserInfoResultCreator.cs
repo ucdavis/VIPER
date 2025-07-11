@@ -60,9 +60,9 @@ namespace Viper.Areas.Directory.Models
             indiv.FutureEmployee = aaudUser.FutureEmployee;
             indiv.StudentTerm = aaudUser.StudentTerm;
             indiv.EmployeeTerm = aaudUser.EmployeeTerm;
-            indiv.PpsId = aaudUser.PpsId;
-            indiv.StudentPKey = aaudUser.StudentPKey;
-            indiv.EmployeePKey = aaudUser.EmployeePKey;
+            indiv.PPSId = aaudUser.PpsId;
+            indiv.StudentId = aaudUser.StudentPKey;
+            indiv.EmployeeId = aaudUser.EmployeePKey;
             indiv.Current = aaudUser.Current;
             indiv.Future = aaudUser.Future;
             indiv.IamId = aaudUser.IamId;
