@@ -58,7 +58,8 @@ const columns = [
         field: (row: CompetencyBundleAssociation) => row.name,
         sortable: true,
         // Responsive width with ellipsis for long names
-        style: 'min-width: 200px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'
+        style: 'min-width: 200px; max-width: 300px;',
+        classes: 'col-competency-name'
     },
     {
         name: 'bundles',
@@ -76,6 +77,14 @@ const columns = [
     }
 ]
 
+// Static table configuration
+const tableStaticProps = {
+    rowKey: 'competencyId',
+    flat: true,
+    bordered: true,
+    pagination: { rowsPerPage: 50 }
+}
+
 /**
  * Fetches competencies with their bundle associations from the API
  * Applies filters based on bundle type toggles (clinical, assessment, milestone)
@@ -87,10 +96,10 @@ async function loadCompetencies() {
     try {
         const params = new URLSearchParams()
         
-        // Add filter parameters only if they are not null
-        if (clinicalFilter.value !== null) params.append('clinical', clinicalFilter.value.toString())
-        if (assessmentFilter.value !== null) params.append('assessment', assessmentFilter.value.toString())
-        if (milestoneFilter.value !== null) params.append('milestone', milestoneFilter.value.toString())
+        // Add filter parameters only if true
+        if (clinicalFilter.value) params.append('clinical', 'true')
+        if (assessmentFilter.value) params.append('assessment', 'true')
+        if (milestoneFilter.value) params.append('milestone', 'true')
         
         const url = `${apiUrl}cts/competency-bundle-associations${params.toString() ? '?' + params.toString() : ''}`
         const response = await get(url)
@@ -174,23 +183,21 @@ onMounted(() => {
         </q-card>
 
         <q-card>
-            <q-table
-                :rows="competencies"
-                :columns="columns"
-                row-key="competencyId"
-                :loading="loading"
-                flat
-                bordered
-                :pagination="{ rowsPerPage: 50 }"
-                :grid="$q.screen.lt.sm"
-                :card-class="$q.screen.lt.sm ? 'bg-grey-1 text-grey-9' : ''"
-            >
+            <div class="table-wrapper">
+                <q-table
+                    v-bind="tableStaticProps"
+                    :rows="competencies"
+                    :columns="columns" 
+                    :loading="loading"
+                    :grid="$q.screen.lt.sm"
+                    :card-class="$q.screen.lt.sm ? 'bg-grey-1 text-grey-9' : ''"
+                >
                 <template v-slot:body-cell-bundles="props">
                     <q-td :props="props">
                         <div v-if="props.value.length === 0" class="text-grey-6">
                             None
                         </div>
-                        <div v-else class="row q-gutter-xs" style="flex-wrap: wrap;">
+                        <div v-else class="row q-gutter-xs bundle-chips">
                             <q-chip
                                 v-for="bundle in props.value"
                                 :key="bundle.bundleId"
@@ -275,7 +282,28 @@ onMounted(() => {
                         </q-card>
                     </div>
                 </template>
-            </q-table>
+                </q-table>
+            </div>
         </q-card>
     </div>
 </template>
+
+<style scoped>
+/* Table wrapper for horizontal scrolling on tablets */
+.table-wrapper {
+    overflow-x: auto;
+    width: 100%;
+}
+
+/* Competency name cell styling for text overflow */
+.col-competency-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Bundle chips wrapper */
+.bundle-chips {
+    flex-wrap: wrap;
+}
+</style>
