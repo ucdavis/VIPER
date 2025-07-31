@@ -65,55 +65,133 @@ const tableStaticProps = {
 }
 
 /**
- * Groups competencies by their parent
- * @param competencyList - List of competencies to group
+ * Groups competencies by their parent relationships and domains to create a hierarchical display.
+ * 
+ * This function handles complex parent-child relationships where competencies can be:
+ * - Pure parents (have children, no parent)
+ * - Pure children (have parent, no children) 
+ * - Both parent and child (have both parent and children)
+ * - Standalone (neither parent nor child in the current result set)
+ * 
+ * Grouping Strategy:
+ * 1. When a parent competency exists in the result set:
+ *    - Use the parent's domain name as the group header (e.g., "Clinical Reasoning and Decision Making")
+ *    - Both parent and all its children appear under this domain group
+ * 
+ * 2. When a parent competency does NOT exist in the result set:
+ *    - Create a "parent-only group" using the parent's name as header (e.g., "2.1 Performs procedures...")
+ *    - Only the children appear in this group
+ *    - Exception: Children that are also parents themselves are excluded to avoid duplicates
+ * 
+ * 3. Standalone parents (no children in result set):
+ *    - Grouped by their domain name or "Standalone Competencies"
+ * 
+ * @param competencyList - Flat list of competencies with parent-child relationships
+ * @returns Map of group headers to arrays of competencies, sorted by competency number
  */
 function groupCompetenciesByParent(competencyList: CompetencyBundleAssociation[]) {
     const grouped = new Map<string, CompetencyBundleAssociation[]>()
     
-    // First, separate parent and child competencies
-    const parentCompetencies = competencyList.filter(c => c.parentId === null)
-    const childCompetencies = competencyList.filter(c => c.parentId !== null)
+    // STEP 1: Separate competencies by their role in the hierarchy
+    const parentCompetencies = competencyList.filter(c => c.parentId === null)  // Top-level competencies
+    const childCompetencies = competencyList.filter(c => c.parentId !== null)   // Have a parent reference
     
-    // Create a map of all competencies by ID for quick lookup
+    // STEP 2: Create lookup structures for efficient processing
     const competencyMap = new Map<number, CompetencyBundleAssociation>()
     competencyList.forEach(c => competencyMap.set(c.competencyId, c))
     
-    // Group children by their parent
+    // STEP 3: Identify which parents have children in the current result set
+    // This determines whether to use domain grouping or parent-only grouping
+    const parentsWithChildren = new Set<number>()
     childCompetencies.forEach(child => {
         if (child.parentId && competencyMap.has(child.parentId)) {
-            // Parent exists in the result set
+            parentsWithChildren.add(child.parentId)
+        }
+    })
+    
+    // STEP 4: Track processed competencies to prevent duplicates
+    const processedCompetencies = new Set<number>()
+    
+    // STEP 5: Process children and group them appropriately
+    childCompetencies.forEach(child => {
+        if (child.parentId && competencyMap.has(child.parentId)) {
+            // CASE A: Parent exists in the result set - use domain grouping
             const parent = competencyMap.get(child.parentId)!
-            const parentKey = `${parent.number} ${parent.name}`
+            const parentKey = parent.domainName || `Competencies (${parent.number})`
+            
+            // Ensure parent is added to the domain group
             if (!grouped.has(parentKey)) {
                 grouped.set(parentKey, [parent])
+                processedCompetencies.add(parent.competencyId)
+            } else {
+                // Group exists, ensure this parent is included (multiple parents can share a domain)
+                const group = grouped.get(parentKey)!
+                if (!group.some(c => c.competencyId === parent.competencyId)) {
+                    group.push(parent)
+                    processedCompetencies.add(parent.competencyId)
+                }
             }
-            if (!grouped.get(parentKey)!.includes(child)) {
-                grouped.get(parentKey)!.push(child)
-            }
+            
+            // Add the child to the same domain group
+            grouped.get(parentKey)!.push(child)
+            processedCompetencies.add(child.competencyId)
+            
         } else if (child.parentNumber && child.parentName) {
-            // Parent not in result set, but we have parent info
-            const parentKey = `${child.parentNumber} ${child.parentName}`
+            // CASE B: Parent does NOT exist in result set - create parent-only group
+            // Exception: Skip children that are also parents to avoid duplicates
+            if (!parentsWithChildren.has(child.competencyId)) {
+                const parentKey = `${child.parentNumber} ${child.parentName}`
+                if (!grouped.has(parentKey)) {
+                    grouped.set(parentKey, [])
+                }
+                grouped.get(parentKey)!.push(child)
+                processedCompetencies.add(child.competencyId)
+            }
+            // Note: Children that are also parents will be handled in their domain groups
+        }
+    })
+    
+    // STEP 6: Handle standalone parent competencies
+    // These are parents that have no children in the current result set and haven't been processed yet
+    parentCompetencies.forEach(parent => {
+        if (!parentsWithChildren.has(parent.competencyId) && !processedCompetencies.has(parent.competencyId)) {
+            const parentKey = parent.domainName || 'Standalone Competencies'
             if (!grouped.has(parentKey)) {
                 grouped.set(parentKey, [])
             }
-            grouped.get(parentKey)!.push(child)
+            grouped.get(parentKey)!.push(parent)
+            processedCompetencies.add(parent.competencyId)
         }
     })
     
-    // Add standalone parent competencies (no children in result set)
-    parentCompetencies.forEach(parent => {
-        const parentKey = `${parent.number} ${parent.name}`
-        if (!grouped.has(parentKey)) {
-            grouped.set(parentKey, [parent])
-        }
-    })
-    
-    // Sort groups by key (competency number)
+    // STEP 7: Sort groups by the first competency number in each group
+    // This ensures logical ordering (1.x before 2.x before 6.x, etc.)
     const sortedGrouped = new Map([...grouped.entries()].sort((a, b) => {
-        const aNum = a[0].split(' ')[0]
-        const bNum = b[0].split(' ')[0]
-        return aNum.localeCompare(bNum, undefined, { numeric: true })
+        const getFirstCompetencyNumber = (competencies: CompetencyBundleAssociation[]) => {
+            if (competencies.length === 0) return null
+            
+            // Find the competency with the smallest number (numerically)
+            const numbers = competencies
+                .map(c => c.number)
+                .filter(num => num && /^\d+(\.\d+)*$/.test(num))
+                .sort((x, y) => x.localeCompare(y, undefined, { numeric: true }))
+            
+            return numbers.length > 0 ? numbers[0] : null
+        }
+        
+        const aFirstNumber = getFirstCompetencyNumber(a[1])
+        const bFirstNumber = getFirstCompetencyNumber(b[1])
+        
+        if (aFirstNumber && bFirstNumber) {
+            // Both groups have numbered competencies - sort by first number
+            return aFirstNumber.localeCompare(bFirstNumber, undefined, { numeric: true })
+        } else if (!aFirstNumber && !bFirstNumber) {
+            // Neither group has numbered competencies - sort alphabetically by group name
+            return a[0].localeCompare(b[0])
+        } else {
+            // Mixed: put numbered groups before non-numbered groups
+            return aFirstNumber ? -1 : 1
+        }
     }))
     
     return sortedGrouped
