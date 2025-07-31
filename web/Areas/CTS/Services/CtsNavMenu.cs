@@ -55,6 +55,7 @@ namespace Viper.Areas.CTS.Services
                 nav.Add(new NavMenuItem() { MenuItemText = "Admin Functions", IsHeader = true });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Domains", MenuItemURL = "ManageDomains" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Competencies", MenuItemURL = "ManageCompetencies" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Competencies Bundle Report", MenuItemURL = "CompetenciesBundleReport" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Bundles", MenuItemURL = "ManageBundles" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Levels", MenuItemURL = "ManageLevels" });
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage EPAs", MenuItemURL = "ManageEPAs" });
