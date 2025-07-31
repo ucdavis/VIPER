@@ -51,6 +51,8 @@ namespace Viper.Areas.CTS.Models
                         Assessment = bc.Bundle.Assessment,
                         Milestone = bc.Bundle.Milestone
                     })
+                    // Group by BundleId to remove duplicates - a competency can be associated 
+                    // with the same bundle multiple times through different roles/groups
                     .GroupBy(b => b.BundleId)
                     .Select(g => g.First())
                     .ToList();

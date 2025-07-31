@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Viper.Classes.SQLContext;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
+using Viper.Models.CTS;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -39,56 +40,58 @@ namespace Viper.Areas.CTS.Controllers
             bool? assessment = null, 
             bool? milestone = null)
         {
-            // Fetch all competencies with their domains and bundle associations
-            var allCompetencies = await context.Competencies
+            // Build query with includes
+            var query = context.Competencies
                 .Include(c => c.Domain)
                 .Include(c => c.BundleCompetencies)
                     .ThenInclude(bc => bc.Bundle)
                 .OrderBy(c => c.Order)
-                .ToListAsync();
+                .AsQueryable();
 
-            var result = new List<CompetencyBundleAssociationDto>();
-
-            // Process each competency to determine if it should be included based on filters
-            foreach (var competency in allCompetencies)
+            // Apply database-side filtering to avoid loading unnecessary data
+            if (!clinical.HasValue && !assessment.HasValue && !milestone.HasValue)
             {
-                var dto = new CompetencyBundleAssociationDto(competency);
+                // No filters provided, fetch only unbundled competencies
+                query = ApplyUnbundledFilter(query);
+            }
+            else
+            {
+                // Check if any filter is set to true
+                bool hasActiveFilters = clinical == true || assessment == true || milestone == true;
                 
-                bool includeCompetency;
-
-                // When no filters are provided, show only unbundled competencies
-                if (!clinical.HasValue && !assessment.HasValue && !milestone.HasValue)
+                if (hasActiveFilters)
                 {
-                    includeCompetency = dto.Bundles.Count == 0;
+                    // Include competencies that have bundles matching active filters (OR logic)
+                    query = query.Where(c => c.BundleCompetencies.Any(bc => 
+                        (clinical == true && bc.Bundle.Clinical) ||
+                        (assessment == true && bc.Bundle.Assessment) ||
+                        (milestone == true && bc.Bundle.Milestone)
+                    ));
                 }
                 else
                 {
-                    // Check if any filter is set to true
-                    bool anyFilterActive = clinical == true || assessment == true || milestone == true;
-                    
-                    if (anyFilterActive)
-                    {
-                        // Include competencies that have bundles matching active filters
-                        includeCompetency = dto.Bundles.Any(b => 
-                            (clinical == true && b.Clinical) ||
-                            (assessment == true && b.Assessment) ||
-                            (milestone == true && b.Milestone)
-                        );
-                    }
-                    else
-                    {
-                        // All filters are false, show unbundled competencies
-                        includeCompetency = dto.Bundles.Count == 0;
-                    }
-                }
-
-                if (includeCompetency)
-                {
-                    result.Add(dto);
+                    // All filters are false, show unbundled competencies
+                    query = ApplyUnbundledFilter(query);
                 }
             }
 
+            // Execute the query and map results to DTOs
+            var filteredCompetencies = await query.ToListAsync();
+            var result = filteredCompetencies
+                .Select(c => new CompetencyBundleAssociationDto(c))
+                .ToList();
+
             return result;
+        }
+
+        /// <summary>
+        /// Applies filter to return only competencies that are not associated with any bundles
+        /// </summary>
+        /// <param name="query">The competency query to filter</param>
+        /// <returns>Filtered query showing only unbundled competencies</returns>
+        private static IQueryable<Competency> ApplyUnbundledFilter(IQueryable<Competency> query)
+        {
+            return query.Where(c => !c.BundleCompetencies.Any());
         }
     }
 }
