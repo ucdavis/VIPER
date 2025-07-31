@@ -16,6 +16,8 @@ namespace Viper.Areas.CTS.Models
         public bool CanLinkToStudent { get; set; }
         public string? DomainName { get; set; }
         public int? DomainOrder { get; set; }
+        public string? ParentNumber { get; set; }
+        public string? ParentName { get; set; }
         public List<BundleInfoDto> Bundles { get; set; } = new List<BundleInfoDto>();
 
         public CompetencyBundleAssociationDto()
@@ -37,7 +39,9 @@ namespace Viper.Areas.CTS.Models
             CanLinkToStudent = c.CanLinkToStudent;
             DomainName = c.Domain?.Name;
             DomainOrder = c.Domain?.Order;
-            
+            ParentNumber = c.Parent?.Number;
+            ParentName = c.Parent?.Name;
+
             // Map associated bundles, filtering out any null references
             if (c.BundleCompetencies != null)
             {

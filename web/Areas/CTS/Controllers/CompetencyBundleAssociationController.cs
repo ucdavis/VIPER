@@ -12,7 +12,7 @@ namespace Viper.Areas.CTS.Controllers
     /// Controller for managing competency bundle associations
     /// Provides filtering capabilities for identifying unbundled competencies
     /// </summary>
-    [Route("/api/cts/competency-bundle-associations")]
+    [Route("/api/cts/competencies/bundle-associations")]
     [Permission(Allow = "SVMSecure.CTS.Manage")]
     public class CompetencyBundleAssociationController : ApiController
     {
@@ -36,13 +36,14 @@ namespace Viper.Areas.CTS.Controllers
         /// </remarks>
         [HttpGet]
         public async Task<ActionResult<List<CompetencyBundleAssociationDto>>> GetCompetencyBundleAssociations(
-            bool? clinical = null, 
-            bool? assessment = null, 
+            bool? clinical = null,
+            bool? assessment = null,
             bool? milestone = null)
         {
             // Build query with includes
             var query = context.Competencies
                 .Include(c => c.Domain)
+                .Include(c => c.Parent)
                 .Include(c => c.BundleCompetencies)
                     .ThenInclude(bc => bc.Bundle)
                 .OrderBy(c => c.Order)
@@ -58,11 +59,11 @@ namespace Viper.Areas.CTS.Controllers
             {
                 // Check if any filter is set to true
                 bool hasActiveFilters = clinical == true || assessment == true || milestone == true;
-                
+
                 if (hasActiveFilters)
                 {
                     // Include competencies that have bundles matching active filters (OR logic)
-                    query = query.Where(c => c.BundleCompetencies.Any(bc => 
+                    query = query.Where(c => c.BundleCompetencies.Any(bc =>
                         (clinical == true && bc.Bundle.Clinical) ||
                         (assessment == true && bc.Bundle.Assessment) ||
                         (milestone == true && bc.Bundle.Milestone)

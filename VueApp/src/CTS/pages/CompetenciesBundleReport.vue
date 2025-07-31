@@ -1,28 +1,7 @@
 <script setup lang="ts">
 import { inject, ref, onMounted } from 'vue'
 import { useFetch } from '@/composables/ViperFetch'
-
-// Type definitions for bundle and competency data structures
-interface Bundle {
-    bundleId: number
-    name: string
-    clinical: boolean
-    assessment: boolean
-    milestone: boolean
-}
-
-interface CompetencyBundleAssociation {
-    competencyId: number
-    domainId: number
-    parentId: number | null
-    number: string
-    name: string
-    description: string | null
-    canLinkToStudent: boolean
-    domainName: string | null
-    domainOrder: number | null
-    bundles: Bundle[]
-}
+import type { Bundle, CompetencyBundleAssociation } from '../types'
 
 // API setup
 const { get } = useFetch()
@@ -30,6 +9,7 @@ const apiUrl = inject('apiURL') as string
 
 // Component state
 const competencies = ref<CompetencyBundleAssociation[]>([])
+const groupedCompetencies = ref<Map<string, CompetencyBundleAssociation[]>>(new Map())
 const loading = ref(false)
 const error = ref('')
 
@@ -44,11 +24,11 @@ const columns = [
     {
         name: 'number',
         required: true,
-        label: 'Number',
+        label: '#',
         align: 'left' as const,
         field: (row: CompetencyBundleAssociation) => row.number,
         sortable: true,
-        style: 'width: 80px;'
+        style: 'width: 10%; min-width: 60px;'
     },
     {
         name: 'name',
@@ -57,23 +37,22 @@ const columns = [
         align: 'left' as const,
         field: (row: CompetencyBundleAssociation) => row.name,
         sortable: true,
-        // Responsive width with ellipsis for long names
-        style: 'min-width: 200px; max-width: 300px;',
-        classes: 'col-competency-name'
+        style: 'width: 45%; min-width: 200px;',
+        classes: 'competency-name-column'
     },
     {
         name: 'bundles',
         label: 'Associated Bundles',
         align: 'left' as const,
         field: (row: CompetencyBundleAssociation) => row.bundles,
-        style: 'min-width: 150px;'
+        style: 'width: 30%; min-width: 150px;'
     },
     {
         name: 'flags',
         label: 'Bundle Flags',
         align: 'center' as const,
         field: (row: CompetencyBundleAssociation) => row.bundles,
-        style: 'min-width: 120px;'
+        style: 'width: 15%; min-width: 100px;'
     }
 ]
 
@@ -83,6 +62,139 @@ const tableStaticProps = {
     flat: true,
     bordered: true,
     pagination: { rowsPerPage: 50 }
+}
+
+/**
+ * Groups competencies by their parent relationships and domains to create a hierarchical display.
+ * 
+ * This function handles complex parent-child relationships where competencies can be:
+ * - Pure parents (have children, no parent)
+ * - Pure children (have parent, no children) 
+ * - Both parent and child (have both parent and children)
+ * - Standalone (neither parent nor child in the current result set)
+ * 
+ * Grouping Strategy:
+ * 1. When a parent competency exists in the result set:
+ *    - Use the parent's domain name as the group header (e.g., "Clinical Reasoning and Decision Making")
+ *    - Both parent and all its children appear under this domain group
+ * 
+ * 2. When a parent competency does NOT exist in the result set:
+ *    - Create a "parent-only group" using the parent's name as header (e.g., "2.1 Performs procedures...")
+ *    - Only the children appear in this group
+ *    - Exception: Children that are also parents themselves are excluded to avoid duplicates
+ * 
+ * 3. Standalone parents (no children in result set):
+ *    - Grouped by their domain name or "Standalone Competencies"
+ * 
+ * @param competencyList - Flat list of competencies with parent-child relationships
+ * @returns Map of group headers to arrays of competencies, sorted by competency number
+ */
+function groupCompetenciesByParent(competencyList: CompetencyBundleAssociation[]) {
+    const grouped = new Map<string, CompetencyBundleAssociation[]>()
+    
+    // STEP 1: Separate competencies by their role in the hierarchy
+    const parentCompetencies = competencyList.filter(c => c.parentId === null)  // Top-level competencies
+    const childCompetencies = competencyList.filter(c => c.parentId !== null)   // Have a parent reference
+    
+    // STEP 2: Create lookup structures for efficient processing
+    const competencyMap = new Map<number, CompetencyBundleAssociation>()
+    competencyList.forEach(c => competencyMap.set(c.competencyId, c))
+    
+    // STEP 3: Identify which parents have children in the current result set
+    // This determines whether to use domain grouping or parent-only grouping
+    const parentsWithChildren = new Set<number>()
+    childCompetencies.forEach(child => {
+        if (child.parentId && competencyMap.has(child.parentId)) {
+            parentsWithChildren.add(child.parentId)
+        }
+    })
+    
+    // STEP 4: Track processed competencies to prevent duplicates
+    const processedCompetencies = new Set<number>()
+    
+    // STEP 5: Process children and group them appropriately
+    childCompetencies.forEach(child => {
+        if (child.parentId && competencyMap.has(child.parentId)) {
+            // CASE A: Parent exists in the result set - use domain grouping
+            const parent = competencyMap.get(child.parentId)!
+            const parentKey = parent.domainName || `Competencies (${parent.number})`
+            
+            // Ensure parent is added to the domain group
+            if (!grouped.has(parentKey)) {
+                grouped.set(parentKey, [parent])
+                processedCompetencies.add(parent.competencyId)
+            } else {
+                // Group exists, ensure this parent is included (multiple parents can share a domain)
+                const group = grouped.get(parentKey)!
+                if (!group.some(c => c.competencyId === parent.competencyId)) {
+                    group.push(parent)
+                    processedCompetencies.add(parent.competencyId)
+                }
+            }
+            
+            // Add the child to the same domain group
+            grouped.get(parentKey)!.push(child)
+            processedCompetencies.add(child.competencyId)
+            
+        } else if (child.parentNumber && child.parentName) {
+            // CASE B: Parent does NOT exist in result set - create parent-only group
+            // Exception: Skip children that are also parents to avoid duplicates
+            if (!parentsWithChildren.has(child.competencyId)) {
+                const parentKey = `${child.parentNumber} ${child.parentName}`
+                if (!grouped.has(parentKey)) {
+                    grouped.set(parentKey, [])
+                }
+                grouped.get(parentKey)!.push(child)
+                processedCompetencies.add(child.competencyId)
+            }
+            // Note: Children that are also parents will be handled in their domain groups
+        }
+    })
+    
+    // STEP 6: Handle standalone parent competencies
+    // These are parents that have no children in the current result set and haven't been processed yet
+    parentCompetencies.forEach(parent => {
+        if (!parentsWithChildren.has(parent.competencyId) && !processedCompetencies.has(parent.competencyId)) {
+            const parentKey = parent.domainName || 'Standalone Competencies'
+            if (!grouped.has(parentKey)) {
+                grouped.set(parentKey, [])
+            }
+            grouped.get(parentKey)!.push(parent)
+            processedCompetencies.add(parent.competencyId)
+        }
+    })
+    
+    // STEP 7: Sort groups by the first competency number in each group
+    // This ensures logical ordering (1.x before 2.x before 6.x, etc.)
+    const sortedGrouped = new Map([...grouped.entries()].sort((a, b) => {
+        const getFirstCompetencyNumber = (competencies: CompetencyBundleAssociation[]) => {
+            if (competencies.length === 0) return null
+            
+            // Find the competency with the smallest number (numerically)
+            const numbers = competencies
+                .map(c => c.number)
+                .filter(num => num && /^\d+(\.\d+)*$/.test(num))
+                .sort((x, y) => x.localeCompare(y, undefined, { numeric: true }))
+            
+            return numbers.length > 0 ? numbers[0] : null
+        }
+        
+        const aFirstNumber = getFirstCompetencyNumber(a[1])
+        const bFirstNumber = getFirstCompetencyNumber(b[1])
+        
+        if (aFirstNumber && bFirstNumber) {
+            // Both groups have numbered competencies - sort by first number
+            return aFirstNumber.localeCompare(bFirstNumber, undefined, { numeric: true })
+        } else if (!aFirstNumber && !bFirstNumber) {
+            // Neither group has numbered competencies - sort alphabetically by group name
+            return a[0].localeCompare(b[0])
+        } else {
+            // Mixed: put numbered groups before non-numbered groups
+            return aFirstNumber ? -1 : 1
+        }
+    }))
+    
+    return sortedGrouped
 }
 
 /**
@@ -101,11 +213,12 @@ async function loadCompetencies() {
         if (assessmentFilter.value) params.append('assessment', 'true')
         if (milestoneFilter.value) params.append('milestone', 'true')
         
-        const url = `${apiUrl}cts/competency-bundle-associations${params.toString() ? '?' + params.toString() : ''}`
+        const url = `${apiUrl}cts/competencies/bundle-associations${params.toString() ? '?' + params.toString() : ''}`
         const response = await get(url)
         
         if (response.success) {
             competencies.value = response.result
+            groupedCompetencies.value = groupCompetenciesByParent(response.result)
         } else {
             error.value = 'Failed to load competencies'
         }
@@ -183,15 +296,31 @@ onMounted(() => {
         </q-card>
 
         <q-card>
-            <div class="table-wrapper">
-                <q-table
-                    v-bind="tableStaticProps"
-                    :rows="competencies"
-                    :columns="columns" 
-                    :loading="loading"
-                    :grid="$q.screen.lt.sm"
-                    :card-class="$q.screen.lt.sm ? 'bg-grey-1 text-grey-9' : ''"
-                >
+            <div class="table-wrapper" v-if="!loading">
+                <template v-for="[parentKey, children] in groupedCompetencies" :key="parentKey">
+                    <div class="parent-section q-pa-md">
+                        <div class="parent-header text-h6 text-primary q-mb-md">
+                            <q-icon name="folder" class="q-mr-sm" />
+                            {{ parentKey }}
+                        </div>
+                        <q-table
+                            v-bind="tableStaticProps"
+                            :rows="children"
+                            :columns="columns" 
+                            :grid="$q.screen.lt.sm"
+                            :card-class="$q.screen.lt.sm ? 'bg-grey-1 text-grey-9' : ''"
+                            class="child-table"
+                        >
+                <template v-slot:body-cell-name="props">
+                    <q-td :props="props">
+                        <div class="col-competency-name">
+                            <q-tooltip v-if="props.value && props.value.length > 40" anchor="top middle" self="bottom middle">
+                                {{ props.value }}
+                            </q-tooltip>
+                            {{ props.value }}
+                        </div>
+                    </q-td>
+                </template>
                 <template v-slot:body-cell-bundles="props">
                     <q-td :props="props">
                         <div v-if="props.value.length === 0" class="text-grey-6">
@@ -282,7 +411,18 @@ onMounted(() => {
                         </q-card>
                     </div>
                 </template>
-                </q-table>
+                        </q-table>
+                    </div>
+                </template>
+                <div v-if="groupedCompetencies.size === 0" class="full-width row flex-center text-grey q-gutter-sm q-pa-xl">
+                    <q-icon size="2em" name="warning" />
+                    <span>
+                        {{ error ? error : 'No competencies found matching the selected criteria' }}
+                    </span>
+                </div>
+            </div>
+            <div v-else class="row flex-center q-pa-xl">
+                <q-spinner color="primary" size="3em" />
             </div>
         </q-card>
     </div>
@@ -295,15 +435,78 @@ onMounted(() => {
     width: 100%;
 }
 
+/* Parent section styling */
+.parent-section {
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.parent-section:last-child {
+    border-bottom: none;
+}
+
+.parent-header {
+    background-color: #f5f5f5;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+
+/* Child table styling */
+.child-table {
+    box-shadow: none;
+    background-color: transparent;
+}
+
+.child-table :deep(.q-table__top) {
+    display: none;
+}
+
+.child-table :deep(.q-table__bottom) {
+    display: none;
+}
+
+/* Force table layout for proper column width control */
+:deep(.q-table__table) {
+    table-layout: fixed;
+    width: 100%;
+}
+
 /* Competency name cell styling for text overflow */
 .col-competency-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* Apply overflow to competency name column cells */
+.competency-name-column {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
+/* Ensure name column respects its width and truncates */
+:deep(.q-table td:nth-child(2)) {
+    overflow: hidden;
+    max-width: 0; /* This forces the cell to respect table-layout: fixed */
+}
+
+/* Allow wrapping for bundle columns that need it */
+:deep(.q-table td:nth-child(3)),
+:deep(.q-table td:nth-child(4)) {
+    white-space: normal;
+    word-break: break-word;
+}
+
 /* Bundle chips wrapper */
 .bundle-chips {
     flex-wrap: wrap;
+}
+
+/* Indentation for child competencies */
+.child-table :deep(tbody tr td:nth-child(2)) {
+    padding-left: 32px;
 }
 </style>
