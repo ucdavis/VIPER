@@ -102,6 +102,10 @@ export default defineConfig(({ mode }) => {
                     target,
                     secure: false,
                 },
+                '^/ClinicalScheduler': {
+                    target,
+                    secure: false
+                },
                 "^/Students": {
                     target,
                     secure: false,

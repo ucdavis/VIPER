@@ -1,0 +1,59 @@
+/* Clinical Scheduler specific styles */
+
+.clinical-scheduler-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Week grid styles - preparing for future use */
+.week-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.week-cell {
+    border: 1px solid #ddd;
+    padding: 10px;
+    min-height: 100px;
+    background-color: #f9f9f9;
+}
+
+.week-header {
+    font-weight: bold;
+    text-align: center;
+    background-color: #e0e0e0;
+    padding: 5px;
+}
+
+/* Selector styles */
+.selector-section {
+    background-color: #f5f5f5;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+/* Future clinician list styles */
+.clinician-item {
+    display: inline-flex;
+    align-items: center;
+    margin: 2px;
+    padding: 2px 8px;
+    background-color: #e3f2fd;
+    border-radius: 3px;
+    font-size: 14px;
+}
+
+.clinician-remove {
+    margin-left: 5px;
+    cursor: pointer;
+    color: #d32f2f;
+}
+
+.primary-star {
+    margin-right: 5px;
+    color: #ffc107;
+    cursor: pointer;
+}
