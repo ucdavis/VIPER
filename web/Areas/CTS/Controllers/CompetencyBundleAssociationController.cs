@@ -46,14 +46,13 @@ namespace Viper.Areas.CTS.Controllers
                 .Include(c => c.Parent)
                 .Include(c => c.BundleCompetencies)
                     .ThenInclude(bc => bc.Bundle)
-                .OrderBy(c => c.Order)
-                .AsQueryable();
+                .AsNoTracking();
 
             // Apply database-side filtering to avoid loading unnecessary data
             if (!clinical.HasValue && !assessment.HasValue && !milestone.HasValue)
             {
                 // No filters provided, fetch only unbundled competencies
-                query = ApplyUnbundledFilter(query);
+                query = ApplyUnbundledFilter(query).OrderBy(c => c.Order);
             }
             else
             {
@@ -67,12 +66,12 @@ namespace Viper.Areas.CTS.Controllers
                         (clinical == true && bc.Bundle.Clinical) ||
                         (assessment == true && bc.Bundle.Assessment) ||
                         (milestone == true && bc.Bundle.Milestone)
-                    ));
+                    )).OrderBy(c => c.Order);
                 }
                 else
                 {
                     // All filters are false, show unbundled competencies
-                    query = ApplyUnbundledFilter(query);
+                    query = ApplyUnbundledFilter(query).OrderBy(c => c.Order);
                 }
             }
 

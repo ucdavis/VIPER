@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, ref, onMounted } from 'vue'
+import { inject, ref, onMounted, computed } from 'vue'
 import { useFetch } from '@/composables/ViperFetch'
 import type { Bundle, CompetencyBundleAssociation } from '../types'
 
@@ -9,7 +9,7 @@ const apiUrl = inject('apiURL') as string
 
 // Component state
 const competencies = ref<CompetencyBundleAssociation[]>([])
-const groupedCompetencies = ref<Map<string, CompetencyBundleAssociation[]>>(new Map())
+const processedCompetencies = ref<CompetencyBundleAssociation[]>([])
 const loading = ref(false)
 const error = ref('')
 
@@ -65,58 +65,28 @@ const tableStaticProps = {
 }
 
 /**
- * Groups competencies by their parent
- * @param competencyList - List of competencies to group
+ * Processes competencies to add parent context for grandchildren
+ * @param competencyList - List of competencies to process
  */
-function groupCompetenciesByParent(competencyList: CompetencyBundleAssociation[]) {
-    const grouped = new Map<string, CompetencyBundleAssociation[]>()
-    
-    // First, separate parent and child competencies
-    const parentCompetencies = competencyList.filter(c => c.parentId === null)
-    const childCompetencies = competencyList.filter(c => c.parentId !== null)
-    
-    // Create a map of all competencies by ID for quick lookup
-    const competencyMap = new Map<number, CompetencyBundleAssociation>()
-    competencyList.forEach(c => competencyMap.set(c.competencyId, c))
-    
-    // Group children by their parent
-    childCompetencies.forEach(child => {
-        if (child.parentId && competencyMap.has(child.parentId)) {
-            // Parent exists in the result set
-            const parent = competencyMap.get(child.parentId)!
-            const parentKey = `${parent.number} ${parent.name}`
-            if (!grouped.has(parentKey)) {
-                grouped.set(parentKey, [parent])
+function processCompetencies(competencyList: CompetencyBundleAssociation[]): CompetencyBundleAssociation[] {
+    return competencyList.map(competency => {
+        // Check if this is a grandchild competency (pattern: x.x.x.x)
+        const numberParts = competency.number.split('.')
+        const isGrandchild = numberParts.length >= 4
+        
+        if (isGrandchild && competency.parentNumber && competency.parentName) {
+            // Create a copy with modified name that includes parent context
+            return {
+                ...competency,
+                name: `${competency.parentName} > ${competency.name}`
             }
-            if (!grouped.get(parentKey)!.includes(child)) {
-                grouped.get(parentKey)!.push(child)
-            }
-        } else if (child.parentNumber && child.parentName) {
-            // Parent not in result set, but we have parent info
-            const parentKey = `${child.parentNumber} ${child.parentName}`
-            if (!grouped.has(parentKey)) {
-                grouped.set(parentKey, [])
-            }
-            grouped.get(parentKey)!.push(child)
         }
+        
+        return competency
+    }).sort((a, b) => {
+        // Sort by competency number using natural ordering
+        return a.number.localeCompare(b.number, undefined, { numeric: true })
     })
-    
-    // Add standalone parent competencies (no children in result set)
-    parentCompetencies.forEach(parent => {
-        const parentKey = `${parent.number} ${parent.name}`
-        if (!grouped.has(parentKey)) {
-            grouped.set(parentKey, [parent])
-        }
-    })
-    
-    // Sort groups by key (competency number)
-    const sortedGrouped = new Map([...grouped.entries()].sort((a, b) => {
-        const aNum = a[0].split(' ')[0]
-        const bNum = b[0].split(' ')[0]
-        return aNum.localeCompare(bNum, undefined, { numeric: true })
-    }))
-    
-    return sortedGrouped
 }
 
 /**
@@ -140,7 +110,7 @@ async function loadCompetencies() {
         
         if (response.success) {
             competencies.value = response.result
-            groupedCompetencies.value = groupCompetenciesByParent(response.result)
+            processedCompetencies.value = processCompetencies(response.result)
         } else {
             error.value = 'Failed to load competencies'
         }
@@ -166,6 +136,19 @@ function getBundleFlags(bundles: Bundle[]): string[] {
     })
     return Array.from(flags)
 }
+
+/**
+ * Computed property for filter status display
+ */
+const filterStatus = computed(() => {
+    const hasFilters = clinicalFilter.value || assessmentFilter.value || milestoneFilter.value
+    return {
+        color: hasFilters ? 'info' : 'warning',
+        message: hasFilters 
+            ? 'Showing competencies with selected flags'
+            : 'Showing competencies not in any bundle'
+    }
+})
 
 // Load competencies when component is mounted
 onMounted(() => {
@@ -206,11 +189,8 @@ onMounted(() => {
                         @update:model-value="loadCompetencies"
                     />
                     <div class="col-auto q-ml-md">
-                        <q-chip v-if="!clinicalFilter && !assessmentFilter && !milestoneFilter" color="warning">
-                            Showing competencies not in any bundle
-                        </q-chip>
-                        <q-chip v-else color="info">
-                            Showing competencies with selected flags
+                        <q-chip :color="filterStatus.color">
+                            {{ filterStatus.message }}
                         </q-chip>
                     </div>
                 </div>
@@ -219,124 +199,116 @@ onMounted(() => {
 
         <q-card>
             <div class="table-wrapper" v-if="!loading">
-                <template v-for="[parentKey, children] in groupedCompetencies" :key="parentKey">
-                    <div class="parent-section q-pa-md">
-                        <div class="parent-header text-h6 text-primary q-mb-md">
-                            <q-icon name="folder" class="q-mr-sm" />
-                            {{ parentKey }}
-                        </div>
-                        <q-table
-                            v-bind="tableStaticProps"
-                            :rows="children"
-                            :columns="columns" 
-                            :grid="$q.screen.lt.sm"
-                            :card-class="$q.screen.lt.sm ? 'bg-grey-1 text-grey-9' : ''"
-                            class="child-table"
-                        >
-                <template v-slot:body-cell-name="props">
-                    <q-td :props="props">
-                        <div class="col-competency-name">
-                            <q-tooltip v-if="props.value && props.value.length > 40" anchor="top middle" self="bottom middle">
+                <q-table
+                    v-bind="tableStaticProps"
+                    :rows="processedCompetencies"
+                    :columns="columns" 
+                    :grid="$q.screen.lt.sm"
+                    :card-class="$q.screen.lt.sm ? 'bg-grey-1 text-grey-9' : ''"
+                    class="competencies-table"
+                >
+                    <template v-slot:body-cell-name="props">
+                        <q-td :props="props">
+                            <div class="col-competency-name">
+                                <q-tooltip v-if="props.value && props.value.length > 40" anchor="top middle" self="bottom middle">
+                                    {{ props.value }}
+                                </q-tooltip>
                                 {{ props.value }}
-                            </q-tooltip>
-                            {{ props.value }}
+                            </div>
+                        </q-td>
+                    </template>
+                    <template v-slot:body-cell-bundles="props">
+                        <q-td :props="props">
+                            <div v-if="props.value.length === 0" class="text-grey-6">
+                                None
+                            </div>
+                            <div v-else class="row q-gutter-xs bundle-chips">
+                                <q-chip
+                                    v-for="bundle in props.value"
+                                    :key="bundle.bundleId"
+                                    color="info"
+                                    text-color="white"
+                                    size="sm"
+                                    dense
+                                    class="q-ma-xs"
+                                >
+                                    {{ bundle.name }}
+                                </q-chip>
+                            </div>
+                        </q-td>
+                    </template>
+                    
+                    <template v-slot:body-cell-flags="props">
+                        <q-td :props="props">
+                            <div class="row q-gutter-xs justify-center">
+                                <q-chip
+                                    v-for="flag in getBundleFlags(props.value)"
+                                    :key="flag"
+                                    size="sm"
+                                    :color="flag === 'Clinical' ? 'teal' : flag === 'Assessment' ? 'orange' : 'purple'"
+                                    text-color="white"
+                                    dense
+                                >
+                                    {{ flag }}
+                                </q-chip>
+                            </div>
+                        </q-td>
+                    </template>
+                    
+                    <template v-slot:no-data>
+                        <div class="full-width row flex-center text-grey q-gutter-sm">
+                            <q-icon size="2em" name="warning" />
+                            <span>
+                                {{ error ? error : 'No competencies found matching the selected criteria' }}
+                            </span>
                         </div>
-                    </q-td>
-                </template>
-                <template v-slot:body-cell-bundles="props">
-                    <q-td :props="props">
-                        <div v-if="props.value.length === 0" class="text-grey-6">
-                            None
+                    </template>
+                    
+                    <template v-slot:item="props">
+                        <div class="q-pa-xs col-xs-12 col-sm-6 col-md-4">
+                            <q-card>
+                                <q-card-section>
+                                    <div class="text-h6">{{ props.row.number }} {{ props.row.name }}</div>
+                                </q-card-section>
+                                <q-separator />
+                                <q-card-section>
+                                    <div class="text-subtitle2 q-mb-xs">Associated Bundles:</div>
+                                    <div v-if="props.row.bundles.length === 0" class="text-grey-6">
+                                        None
+                                    </div>
+                                    <div v-else class="row q-gutter-xs">
+                                        <q-chip
+                                            v-for="bundle in props.row.bundles"
+                                            :key="bundle.bundleId"
+                                            color="info"
+                                            text-color="white"
+                                            size="sm"
+                                            dense
+                                        >
+                                            {{ bundle.name }}
+                                        </q-chip>
+                                    </div>
+                                </q-card-section>
+                                <q-card-section v-if="getBundleFlags(props.row.bundles).length > 0">
+                                    <div class="text-subtitle2 q-mb-xs">Flags:</div>
+                                    <div class="row q-gutter-xs">
+                                        <q-chip
+                                            v-for="flag in getBundleFlags(props.row.bundles)"
+                                            :key="flag"
+                                            size="sm"
+                                            :color="flag === 'Clinical' ? 'teal' : flag === 'Assessment' ? 'orange' : 'purple'"
+                                            text-color="white"
+                                            dense
+                                        >
+                                            {{ flag }}
+                                        </q-chip>
+                                    </div>
+                                </q-card-section>
+                            </q-card>
                         </div>
-                        <div v-else class="row q-gutter-xs bundle-chips">
-                            <q-chip
-                                v-for="bundle in props.value"
-                                :key="bundle.bundleId"
-                                color="info"
-                                text-color="white"
-                                size="sm"
-                                dense
-                                class="q-ma-xs"
-                            >
-                                {{ bundle.name }}
-                            </q-chip>
-                        </div>
-                    </q-td>
-                </template>
-                
-                <template v-slot:body-cell-flags="props">
-                    <q-td :props="props">
-                        <div class="row q-gutter-xs justify-center">
-                            <q-chip
-                                v-for="flag in getBundleFlags(props.value)"
-                                :key="flag"
-                                size="sm"
-                                :color="flag === 'Clinical' ? 'teal' : flag === 'Assessment' ? 'orange' : 'purple'"
-                                text-color="white"
-                                dense
-                            >
-                                {{ flag }}
-                            </q-chip>
-                        </div>
-                    </q-td>
-                </template>
-                
-                <template v-slot:no-data>
-                    <div class="full-width row flex-center text-grey q-gutter-sm">
-                        <q-icon size="2em" name="warning" />
-                        <span>
-                            {{ error ? error : 'No competencies found matching the selected criteria' }}
-                        </span>
-                    </div>
-                </template>
-                
-                <template v-slot:item="props">
-                    <div class="q-pa-xs col-xs-12 col-sm-6 col-md-4">
-                        <q-card>
-                            <q-card-section>
-                                <div class="text-h6">{{ props.row.number }} {{ props.row.name }}</div>
-                            </q-card-section>
-                            <q-separator />
-                            <q-card-section>
-                                <div class="text-subtitle2 q-mb-xs">Associated Bundles:</div>
-                                <div v-if="props.row.bundles.length === 0" class="text-grey-6">
-                                    None
-                                </div>
-                                <div v-else class="row q-gutter-xs">
-                                    <q-chip
-                                        v-for="bundle in props.row.bundles"
-                                        :key="bundle.bundleId"
-                                        color="info"
-                                        text-color="white"
-                                        size="sm"
-                                        dense
-                                    >
-                                        {{ bundle.name }}
-                                    </q-chip>
-                                </div>
-                            </q-card-section>
-                            <q-card-section v-if="getBundleFlags(props.row.bundles).length > 0">
-                                <div class="text-subtitle2 q-mb-xs">Flags:</div>
-                                <div class="row q-gutter-xs">
-                                    <q-chip
-                                        v-for="flag in getBundleFlags(props.row.bundles)"
-                                        :key="flag"
-                                        size="sm"
-                                        :color="flag === 'Clinical' ? 'teal' : flag === 'Assessment' ? 'orange' : 'purple'"
-                                        text-color="white"
-                                        dense
-                                    >
-                                        {{ flag }}
-                                    </q-chip>
-                                </div>
-                            </q-card-section>
-                        </q-card>
-                    </div>
-                </template>
-                        </q-table>
-                    </div>
-                </template>
-                <div v-if="groupedCompetencies.size === 0" class="full-width row flex-center text-grey q-gutter-sm q-pa-xl">
+                    </template>
+                </q-table>
+                <div v-if="processedCompetencies.length === 0" class="full-width row flex-center text-grey q-gutter-sm q-pa-xl">
                     <q-icon size="2em" name="warning" />
                     <span>
                         {{ error ? error : 'No competencies found matching the selected criteria' }}
@@ -357,34 +329,9 @@ onMounted(() => {
     width: 100%;
 }
 
-/* Parent section styling */
-.parent-section {
-    border-bottom: 1px solid #e0e0e0;
-}
-
-.parent-section:last-child {
-    border-bottom: none;
-}
-
-.parent-header {
-    background-color: #f5f5f5;
-    padding: 12px;
-    border-radius: 4px;
-    margin-bottom: 16px;
-}
-
-/* Child table styling */
-.child-table {
+/* Competencies table styling */
+.competencies-table {
     box-shadow: none;
-    background-color: transparent;
-}
-
-.child-table :deep(.q-table__top) {
-    display: none;
-}
-
-.child-table :deep(.q-table__bottom) {
-    display: none;
 }
 
 /* Force table layout for proper column width control */
@@ -393,25 +340,26 @@ onMounted(() => {
     width: 100%;
 }
 
-/* Competency name cell styling for text overflow */
+/* Competency name cell styling for text wrapping */
 .col-competency-name {
     display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.4;
     max-width: 100%;
 }
 
-/* Apply overflow to competency name column cells */
+/* Apply wrapping to competency name column cells */
 .competency-name-column {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
 }
 
-/* Ensure name column respects its width and truncates */
+/* Ensure name column respects its width and allows wrapping */
 :deep(.q-table td:nth-child(2)) {
-    overflow: hidden;
+    white-space: normal;
+    word-break: break-word;
+    vertical-align: top;
     max-width: 0; /* This forces the cell to respect table-layout: fixed */
 }
 
@@ -425,10 +373,5 @@ onMounted(() => {
 /* Bundle chips wrapper */
 .bundle-chips {
     flex-wrap: wrap;
-}
-
-/* Indentation for child competencies */
-.child-table :deep(tbody tr td:nth-child(2)) {
-    padding-left: 32px;
 }
 </style>
