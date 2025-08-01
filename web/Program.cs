@@ -36,7 +36,7 @@ if (string.Equals(aspNetEnv, "Development", StringComparison.OrdinalIgnoreCase)
 }
 
 // Centralized SPA application names to avoid duplication
-string[] VueAppNames = { "CTS", "Computing", "Students" };
+string[] VueAppNames = { "ClinicalScheduler", "CTS", "Computing", "Students" };
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
@@ -183,6 +183,13 @@ try
     builder.Services.AddDbContext<CoursesContext>();
     builder.Services.AddDbContext<RAPSContext>();
     builder.Services.AddDbContext<VIPERContext>(opt =>
+    {
+        if (builder.Environment.EnvironmentName != "Production")
+        {
+            opt.EnableDetailedErrors(true);
+        }
+    });
+    builder.Services.AddDbContext<ClinicalSchedulerContext>(opt =>
     {
         if (builder.Environment.EnvironmentName != "Production")
         {
