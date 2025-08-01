@@ -1,11 +1,8 @@
-﻿using System.Runtime.Serialization;
-
 namespace Viper.Classes
 {
     /// <summary>
     /// RecordNotFoundException is thrown when a record is not found in the data source
     /// </summary>
-    [Serializable]
     public class RecordNotFoundException : Exception
     {
         /// <summary>
@@ -26,11 +23,5 @@ namespace Viper.Classes
         /// <param name="innerException">The inner exception reference</param>
         public RecordNotFoundException(string message, Exception innerException) : base("Record not found: " + message, innerException) { }
 
-        /// <summary>
-        /// Initializes a new instance of the Exception class with serialized data
-        /// </summary>
-        /// <param name="info">The SerializationInfo that holds the serialized object data about the exception being thrown</param>
-        /// <param name="context">The StreamingContext that contains contextual information about the source or destination</param>
-        protected RecordNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context) { }
     }
 }
