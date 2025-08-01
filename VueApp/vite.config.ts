@@ -6,8 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import child_process from 'child_process';
 import { env } from 'process';
-import { quasar, transformAssetUrls } from '@quasar/vite-plugin'
-import vue from '@vitejs/plugin-vue'
+import { quasar } from '@quasar/vite-plugin'
 
 import { resolve } from 'node:path'
 const baseFolder =
@@ -80,6 +79,7 @@ export default defineConfig(({ mode }) => ({
                 cts: resolve(__dirname, 'src/cts/index.html'),
                 computing: resolve(__dirname, 'src/computing/index.html'),
                 students: resolve(__dirname, 'src/students/index.html'),
+                clinicalscheduler: resolve(__dirname, 'src/clinicalscheduler/index.html'),
             }
         }
     },

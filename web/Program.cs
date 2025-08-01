@@ -177,6 +177,13 @@ try
             opt.EnableDetailedErrors(true);
         }
     });
+    builder.Services.AddDbContext<ClinicalSchedulerContext>(opt =>
+    {
+        if (builder.Environment.EnvironmentName != "Production")
+        {
+            opt.EnableDetailedErrors(true);
+        }
+    });
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
@@ -258,7 +265,8 @@ try
     RewriteOptions rewriteOptions = new RewriteOptions()
                 .AddRewrite(@"(?i)^CTS", "/vue/src/cts/index.html", true)
                 .AddRewrite(@"(?i)^Computing", "/vue/src/computing/index.html", true)
-                .AddRewrite(@"(?i)^Students", "/vue/src/students/index.html", true);
+                .AddRewrite(@"(?i)^Students", "/vue/src/students/index.html", true)
+                .AddRewrite(@"(?i)^ClinicalScheduler", "/vue/src/clinicalscheduler/index.html", true);
     app.UseRewriter(rewriteOptions);
 
     //for the vue src files, use directories in the url but serve index.html
