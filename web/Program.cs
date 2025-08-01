@@ -27,7 +27,7 @@ using Web;
 using Web.Authorization;
 
 // Centralized SPA application names to avoid duplication
-string[] VueAppNames = { "CTS", "Computing", "Students" };
+string[] VueAppNames = { "ClinicalScheduler", "CTS", "Computing", "Students" };
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
@@ -174,6 +174,13 @@ try
     builder.Services.AddDbContext<CoursesContext>();
     builder.Services.AddDbContext<RAPSContext>();
     builder.Services.AddDbContext<VIPERContext>(opt =>
+    {
+        if (builder.Environment.EnvironmentName != "Production")
+        {
+            opt.EnableDetailedErrors(true);
+        }
+    });
+    builder.Services.AddDbContext<ClinicalSchedulerContext>(opt =>
     {
         if (builder.Environment.EnvironmentName != "Production")
         {
@@ -375,7 +382,7 @@ try
                 Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
             RequestPath = "/2/vue"
         });
-        
+
         // Serve other static files
         app.UseStaticFiles();
     }
@@ -388,7 +395,7 @@ try
                 Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
             RequestPath = "/2/vue"
         });
-        
+
         app.UseStaticFiles();
     }
 
