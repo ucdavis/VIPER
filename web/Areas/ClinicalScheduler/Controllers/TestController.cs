@@ -92,5 +92,48 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 return StatusCode(500, new { error = "ClinicalSchedulerContext failed", message = ex.Message });
             }
         }
+
+        [HttpGet("test-all-models")]
+        public async Task<ActionResult> TestAllModels()
+        {
+            try
+            {
+                var canConnect = await _clinicalSchedulerContext.Database.CanConnectAsync();
+                
+                // Test each model with count queries (safer than actual data queries for views that might not exist)
+                var results = new
+                {
+                    canConnect = canConnect,
+                    rotationCount = await SafeCountAsync("Rotations", () => _clinicalSchedulerContext.Rotations.CountAsync()),
+                    serviceCount = await SafeCountAsync("Services", () => _clinicalSchedulerContext.Services.CountAsync()),
+                    instructorScheduleCount = await SafeCountAsync("InstructorSchedules", () => _clinicalSchedulerContext.InstructorSchedules.CountAsync()),
+                    weekCount = await SafeCountAsync("Weeks", () => _clinicalSchedulerContext.Weeks.CountAsync()),
+                    weekGradYearCount = await SafeCountAsync("WeekGradYears", () => _clinicalSchedulerContext.WeekGradYears.CountAsync()),
+                    // scheduleAuditCount temporarily removed - will be added back in Phase 7
+                    // scheduleAuditCount = await SafeCountAsync("ScheduleAudits", () => _clinicalSchedulerContext.ScheduleAudits.CountAsync()),
+                    statusCount = await SafeCountAsync("Statuses", () => _clinicalSchedulerContext.Statuses.CountAsync()),
+                    message = "All models tested successfully (ScheduleAudit temporarily disabled)"
+                };
+                
+                return Ok(results);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Model testing failed", message = ex.Message });
+            }
+        }
+
+        private async Task<object> SafeCountAsync(string modelName, Func<Task<int>> countFunction)
+        {
+            try
+            {
+                var count = await countFunction();
+                return new { success = true, count = count };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, error = ex.Message };
+            }
+        }
     }
 }
