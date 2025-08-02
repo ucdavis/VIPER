@@ -10,155 +10,394 @@
 
         <h2>
             Clinician Schedule for
-            <select class="title-dropdown" v-model="selectedRotation">
-                <option>Internal Medicine A</option>
-                <option>Internal Medicine B</option>
-                <option>Small Animal Anesthesia</option>
-                <option>Anatomic Pathology</option>
+            <select 
+                v-model="selectedRotationId" 
+                @change="onRotationChange"
+                class="title-dropdown"
+                :disabled="isLoading"
+            >
+                <option value="">
+                    {{ isLoading ? 'Loading rotations...' : 'Select a rotation' }}
+                </option>
+                <optgroup 
+                    v-for="service in groupedRotations" 
+                    :key="service.serviceId"
+                    :label="service.serviceName"
+                >
+                    <option 
+                        v-for="rotation in service.rotations" 
+                        :key="rotation.rotId"
+                        :value="rotation.rotId"
+                    >
+                        {{ getRotationAbbreviation(rotation) }}
+                    </option>
+                </optgroup>
             </select>
         </h2>
+        
+        <!-- Error display for rotation loading -->
+        <div v-if="error" class="error-message">
+            {{ error }}
+            <button @click="loadRotations" :disabled="isLoading">Retry</button>
+        </div>
 
-        <!-- Instructions -->
-        <div class="instructions">
+        <!-- Instructions (only show when rotation is selected) -->
+        <div v-if="selectedRotation" class="instructions">
             <p>This list of clinicians should be contain any clinician scheduled for the rotation in the current or previous year.</p>
-            <p>Click on a clinician to select them, and then click on any week to schedule them.</p>
+            <p>The user can click on a clinician to select them, and then click on any week to schedule them.</p>
         </div>
 
-        <!-- Clinician selector section -->
-        <div class="clinician-selector-section">
+        <!-- Clinician selector section (only show when rotation is selected) -->
+        <div v-if="selectedRotation" class="clinician-selector-section">
             <div class="clinician-buttons">
-                <button class="clinician-btn" :class="{ selected: selectedClinician === 'Ad, Yael' }" @click="selectClinician('Ad, Yael')">Ad, Yael</button>
-                <button class="clinician-btn" :class="{ selected: selectedClinician === 'Dear, Jonathan' }" @click="selectClinician('Dear, Jonathan')">Dear, Jonathan</button>
-                <button class="clinician-btn" :class="{ selected: selectedClinician === 'Hulsebosch, Sean' }" @click="selectClinician('Hulsebosch, Sean')">Hulsebosch, Sean</button>
-                <button class="clinician-btn" :class="{ selected: selectedClinician === 'Marsilio, Sina' }" @click="selectClinician('Marsilio, Sina')">Marsilio, Sina</button>
-                <button class="clinician-btn" :class="{ selected: selectedClinician === 'Palm, Carrie' }" @click="selectClinician('Palm, Carrie')">Palm, Carrie</button>
+                <button 
+                    v-for="clinician in availableClinicians" 
+                    :key="clinician" 
+                    class="clinician-btn" 
+                    :class="{ selected: selectedClinician === clinician }" 
+                    @click="selectClinician(clinician)"
+                >
+                    {{ clinician }}
+                </button>
+                <select class="add-clinician-dropdown">
+                    <option>Add Clinician</option>
+                    <option>Choi, April</option>
+                    <option>Chromik, Melissa</option>
+                    <option>Keil, Tessa</option>
+                    <option>Lui, Clinson</option>
+                </select>
             </div>
-            <select class="clinician-dropdown">
-                <option>Add Clinician</option>
-                <option>Choi, April</option>
-                <option>Chromik, Melissa</option>
-                <option>Keil, Tessa</option>
-                <option>Lui, Clinson</option>
-            </select>
         </div>
 
-        <!-- Note about stars and X -->
-        <div class="action-notes">
-            <p>X removes the clinician from the schedule. Star marks them as primary (and unmarks the current primary, if any).</p>
-        </div>
 
-        <!-- Season headers -->
-        <h3>Spring 2025</h3>
-
-        <!-- Week grid -->
-        <div class="week-grid">
-            <div class="week-cell">
-                <div class="week-header">Week 1<br>4/14/25</div>
-                <div class="clinician-list">
-                    <div class="clinician-item">
-                        <span class="remove-btn">✖</span>
-                        <span>Ad, Yael</span>
-                        <span class="primary-star">☆</span>
+        <!-- Season headers and week grids -->
+        <div v-if="selectedRotation">
+            <h3>Spring 2025</h3>
+            <div class="week-grid">
+                <div v-for="week in springWeeks" :key="week.weekId" 
+                     class="week-cell" 
+                     :class="{ 'requires-primary': requiresPrimaryEvaluator(week) }"
+                     @click="scheduleClinicianToWeek(week)">
+                    <div class="week-header">
+                        <span v-if="requiresPrimaryEvaluator(week)" class="alert-icon" title="Primary evaluator required for this week">⚠️</span>
+                        Week {{ week.weekNumber }}<br>
+                        {{ formatDate(week.dateStart) }}
+                    </div>
+                    <div class="rotation-list">
+                        <div v-for="assignment in getWeekAssignments(week.weekId)" :key="assignment.id" class="rotation-item">
+                            <span v-if="!assignment.isPrimary" class="remove-btn" title="Remove this clinician from the schedule." @click.stop="removeAssignment()">✖</span>
+                            <span v-else class="remove-btn-disabled" title="Cannot remove primary clinician. Make another clinician primary first.">✖</span>
+                            <span>{{ assignment.clinicianName }}</span>
+                            <span class="primary-star" 
+                                  :class="{ filled: assignment.isPrimary }"
+                                  :title="assignment.isPrimary ? 'Primary evaluator. To transfer primary status, click the star on another clinician.' : 'Click to make this clinician the primary evaluator.'"
+                                  @click.stop="togglePrimary()">{{ assignment.isPrimary ? '★' : '☆' }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="week-cell">
-                <div class="week-header">Week 2<br>4/14/25</div>
-                <div class="clinician-list">
-                    <div class="clinician-item">
-                        <span class="remove-btn">✖</span>
-                        <span>Ad, Yael</span>
-                        <span class="primary-star">☆</span>
+            <h3>Summer 2025</h3>
+            <div class="week-grid">
+                <div v-for="week in summerWeeks" :key="week.weekId" 
+                     class="week-cell" 
+                     :class="{ 'requires-primary': requiresPrimaryEvaluator(week) }"
+                     @click="scheduleClinicianToWeek(week)">
+                    <div class="week-header">
+                        <span v-if="requiresPrimaryEvaluator(week)" class="alert-icon" title="Primary evaluator required for this week">⚠️</span>
+                        Week {{ week.weekNumber }}<br>
+                        {{ formatDate(week.dateStart) }}
                     </div>
-                </div>
-            </div>
-
-            <div class="week-cell">
-                <div class="week-header">Week 3<br>4/14/25</div>
-                <div class="clinician-list">
-                    <div class="clinician-item">
-                        <span class="remove-btn">✖</span>
-                        <span>Ad, Yael</span>
-                        <span class="primary-star">☆</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="week-cell">
-                <div class="week-header">Week 4<br>4/14/25</div>
-                <div class="clinician-list">
-                    <div class="clinician-item">
-                        <span class="remove-btn">✖</span>
-                        <span>Ad, Yael</span>
-                        <span class="primary-star">☆</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="week-cell">
-                <div class="week-header">Week 5<br>4/14/25</div>
-                <div class="clinician-list">
-                    <div class="clinician-item">
-                        <span class="remove-btn">✖</span>
-                        <span>Ad, Yael</span>
-                        <span class="primary-star">☆</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="week-cell">
-                <div class="week-header">Week 6<br>4/14/25</div>
-                <div class="clinician-list">
-                    <div class="clinician-item">
-                        <span class="remove-btn">✖</span>
-                        <span>Ad, Yael</span>
-                        <span class="primary-star">☆</span>
+                    <div class="rotation-list">
+                        <div v-for="assignment in getWeekAssignments(week.weekId)" :key="assignment.id" class="rotation-item">
+                            <span v-if="!assignment.isPrimary" class="remove-btn" title="Remove this clinician from the schedule." @click.stop="removeAssignment()">✖</span>
+                            <span v-else class="remove-btn-disabled" title="Cannot remove primary clinician. Make another clinician primary first.">✖</span>
+                            <span>{{ assignment.clinicianName }}</span>
+                            <span class="primary-star" 
+                                  :class="{ filled: assignment.isPrimary }"
+                                  :title="assignment.isPrimary ? 'Primary evaluator. To transfer primary status, click the star on another clinician.' : 'Click to make this clinician the primary evaluator.'"
+                                  @click.stop="togglePrimary()">{{ assignment.isPrimary ? '★' : '☆' }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Summer Season -->
-        <h3>Summer 2025</h3>
-        <div class="week-grid single-week">
-            <div class="week-cell">
-                <div class="week-header">Week 7<br>4/14/25</div>
-                <div class="clinician-list">
-                    <div class="clinician-item">
-                        <span class="remove-btn">✖</span>
-                        <span>Ad, Yael</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="schedule-note">
-            Schedule continues similar to https://
-            secure-test.vetmed.ucdavis.edu/clinicialscheduler/scheduler/
-            default.cfm?mothraID=01654831&amp;page=clinician&lt;O
+        <!-- Legend -->
+        <div v-if="selectedRotation" class="legend">
+            <h4>Legend</h4>
+            <ul>
+                <li><span class="icon-demo remove-icon">✖</span> removes the clinician from the schedule</li>
+                <li>Primary clinicians (<span class="icon-demo primary-icon">★</span>) cannot be removed until another clinician is made primary first</li>
+                <li><span class="icon-demo primary-icon">★</span> marks them as primary (and unmarks the current primary, if any)</li>
+                <li><span class="icon-demo alert-icon">⚠️</span> indicates weeks that require a primary evaluator</li>
+            </ul>
         </div>
     </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, ref } from 'vue'
+<script setup lang="ts">
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { RotationService, type RotationWithService, type RotationScheduleData, type WeekItem } from '../services/RotationService'
 
-export default defineComponent({
-    name: 'RotationScheduleView',
-    setup() {
-        const selectedRotation = ref('Internal Medicine A')
-        const selectedClinician = ref('Hulsebosch, Sean')
+// Router
+const route = useRoute()
+const router = useRouter()
 
-        const selectClinician = (clinician: string) => {
-            selectedClinician.value = clinician
+// Reactive data
+const selectedRotationId = ref<number | string>('')
+const selectedRotation = ref<RotationWithService | null>(null)
+const selectedClinician = ref<string | null>(null)
+const rotations = ref<RotationWithService[]>([])
+const isLoading = ref(false)
+const error = ref<string | null>(null)
+
+// Real data from database
+const scheduleData = ref<RotationScheduleData | null>(null)
+const isLoadingSchedule = ref(false)
+const scheduleError = ref<string | null>(null)
+const currentYear = ref(new Date().getFullYear())
+
+// Available clinicians from schedule data
+const availableClinicians = computed(() => {
+    if (!scheduleData.value) return []
+    
+    const clinicians = new Set<string>()
+    scheduleData.value.instructorSchedules.forEach(schedule => {
+        clinicians.add(schedule.fullName)
+    })
+    
+    return Array.from(clinicians).sort()
+})
+
+// Week data grouped by season
+const springWeeks = computed(() => {
+    if (!scheduleData.value) return []
+    
+    return scheduleData.value.weeks
+        .filter(week => {
+            const date = new Date(week.dateStart)
+            const month = date.getMonth()
+            // Spring: March (2) through June (5)
+            return month >= 2 && month <= 5
+        })
+        .sort((a, b) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime())
+})
+
+const summerWeeks = computed(() => {
+    if (!scheduleData.value) return []
+    
+    return scheduleData.value.weeks
+        .filter(week => {
+            const date = new Date(week.dateStart)
+            const month = date.getMonth()
+            // Summer: July (6) through August (7)
+            return month >= 6 && month <= 7
+        })
+        .sort((a, b) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime())
+})
+
+// Computed
+const groupedRotations = computed(() => {
+    const groups: Record<number, { serviceId: number, serviceName: string, rotations: RotationWithService[] }> = {}
+    
+    rotations.value.forEach(rotation => {
+        if (rotation.service) {
+            const serviceId = rotation.service.serviceId
+            if (!groups[serviceId]) {
+                groups[serviceId] = {
+                    serviceId,
+                    serviceName: rotation.service.serviceName,
+                    rotations: []
+                }
+            }
+            groups[serviceId].rotations.push(rotation)
         }
+    })
 
-        return {
-            selectedRotation,
-            selectedClinician,
-            selectClinician
+    // Sort rotations within each service
+    Object.values(groups).forEach(group => {
+        group.rotations.sort((a, b) => a.name.localeCompare(b.name))
+    })
+
+    // Return sorted by service name
+    return Object.values(groups).sort((a, b) => a.serviceName.localeCompare(b.serviceName))
+})
+
+// Methods
+async function loadRotations() {
+    isLoading.value = true
+    error.value = null
+
+    try {
+        const result = await RotationService.getRotations({ includeService: true })
+        
+        if (result.success) {
+            rotations.value = result.result
+        } else {
+            error.value = result.errors.join(', ') || 'Failed to load rotations'
         }
+    } catch (err) {
+        error.value = 'An unexpected error occurred while loading rotations'
+        console.error('Error loading rotations:', err)
+    } finally {
+        isLoading.value = false
+    }
+}
+
+function getRotationAbbreviation(rotation: RotationWithService): string {
+    // Use abbreviation from database, fallback to rotation name if not available
+    return rotation.abbreviation || rotation.name
+}
+
+async function onRotationChange() {
+    const rotationId = selectedRotationId.value ? Number(selectedRotationId.value) : null
+    selectedRotation.value = rotations.value.find(r => r.rotId === rotationId) || null
+    selectedClinician.value = null // Reset clinician selection when rotation changes
+    
+    // Update URL with selected rotation
+    await updateUrl()
+    
+    if (selectedRotation.value) {
+        console.log('Selected rotation:', selectedRotation.value)
+        await loadScheduleData(selectedRotation.value.rotId)
+    } else {
+        scheduleData.value = null
+    }
+}
+
+async function updateUrl() {
+    const query: Record<string, string> = {}
+    
+    if (selectedRotationId.value) {
+        query.rotationId = selectedRotationId.value.toString()
+    }
+    
+    // Update URL without triggering a page reload
+    await router.replace({ 
+        path: route.path, 
+        query: Object.keys(query).length > 0 ? query : undefined 
+    })
+}
+
+function initializeFromUrl() {
+    // Get rotation ID from URL parameters
+    const rotationIdParam = route.query.rotationId
+    if (rotationIdParam && typeof rotationIdParam === 'string') {
+        selectedRotationId.value = rotationIdParam
+    }
+}
+
+async function loadScheduleData(rotationId: number) {
+    isLoadingSchedule.value = true
+    scheduleError.value = null
+
+    try {
+        const result = await RotationService.getRotationSchedule(rotationId, { year: currentYear.value })
+        
+        if (result.success) {
+            scheduleData.value = result.result
+            console.log('Loaded schedule data:', scheduleData.value)
+        } else {
+            scheduleError.value = result.errors.join(', ') || 'Failed to load schedule data'
+        }
+    } catch (err) {
+        scheduleError.value = 'An unexpected error occurred while loading schedule data'
+        console.error('Error loading schedule data:', err)
+    } finally {
+        isLoadingSchedule.value = false
+    }
+}
+
+function selectClinician(clinician: string) {
+    selectedClinician.value = selectedClinician.value === clinician ? null : clinician
+}
+
+function getWeekAssignments(weekId: number) {
+    if (!scheduleData.value) return []
+    
+    return scheduleData.value.instructorSchedules.filter(schedule => 
+        schedule.week.weekId === weekId
+    ).map(schedule => ({
+        id: schedule.instructorScheduleId,
+        clinicianName: schedule.fullName,
+        isPrimary: schedule.evaluator,
+        mothraId: schedule.mothraId
+    }))
+}
+
+function scheduleClinicianToWeek(week: WeekItem) {
+    if (!selectedClinician.value) {
+        alert('Please select a clinician first')
+        return
+    }
+    
+    // Check if clinician is already scheduled for this week
+    const existingAssignment = getWeekAssignments(week.weekId).find(
+        assignment => assignment.clinicianName === selectedClinician.value
+    )
+    
+    if (existingAssignment) {
+        alert('Clinician is already scheduled for this week')
+        return
+    }
+    
+    // In Phase 7, we'll implement the actual API call to add assignments
+    alert('Adding/editing schedules will be implemented in Phase 7 (Edit Functionality)')
+}
+
+function removeAssignment() {
+    // In Phase 7, we'll implement the actual API call to remove assignments
+    alert('Removing schedule assignments will be implemented in Phase 7 (Edit Functionality)')
+}
+
+function togglePrimary() {
+    // In Phase 7, we'll implement the actual API call to toggle primary status
+    alert('Changing primary evaluator status will be implemented in Phase 7 (Edit Functionality)')
+}
+
+function formatDate(date: string | Date | undefined): string {
+    if (!date) return 'N/A'
+    const d = typeof date === 'string' ? new Date(date) : date
+    if (isNaN(d.getTime())) return 'Invalid Date'
+    return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' })
+}
+
+function requiresPrimaryEvaluator(week: WeekItem): boolean {
+    // Use business rule from backend to determine if primary evaluator is required
+    if (!week.requiresPrimaryEvaluator) return false
+    
+    // Check if there's already a primary evaluator assigned
+    const assignments = getWeekAssignments(week.weekId)
+    const hasPrimaryEvaluator = assignments.some(assignment => assignment.isPrimary)
+    
+    // Return true if backend says it's required but none is assigned
+    return !hasPrimaryEvaluator
+}
+
+// Watch for URL changes (browser back/forward)
+watch(() => route.query.rotationId, (newRotationId) => {
+    if (newRotationId !== selectedRotationId.value?.toString()) {
+        selectedRotationId.value = newRotationId ? newRotationId.toString() : ''
+        // Trigger rotation change if rotations are already loaded
+        if (rotations.value.length > 0) {
+            onRotationChange()
+        }
+    }
+})
+
+// Lifecycle
+onMounted(async () => {
+    // Initialize from URL first
+    initializeFromUrl()
+    
+    // Load rotations
+    await loadRotations()
+    
+    // If we have a rotation ID from URL, trigger the selection after rotations are loaded
+    if (selectedRotationId.value && rotations.value.length > 0) {
+        await onRotationChange()
     }
 })
 </script>
@@ -214,6 +453,24 @@ h2 {
     background-color: #fff;
 }
 
+.error-message {
+    color: #d32f2f;
+    background-color: #ffebee;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.error-message button {
+    margin-left: 10px;
+    padding: 4px 8px;
+    background-color: #d32f2f;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
 .instructions {
     background-color: #f5f5f5;
     padding: 10px;
@@ -256,20 +513,50 @@ h2 {
     border-color: #4CAF50;
 }
 
-.clinician-dropdown {
+.add-clinician-dropdown {
     padding: 5px;
     min-width: 150px;
     vertical-align: middle;
 }
 
-.action-notes {
+.legend {
     font-size: 12px;
     color: #666;
-    margin-bottom: 15px;
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
 }
 
-.action-notes p {
-    margin: 3px 0;
+.legend h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: #333;
+    font-weight: bold;
+}
+
+.legend ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.legend li {
+    margin: 5px 0;
+}
+
+.icon-demo {
+    font-weight: bold;
+    font-size: 14px;
+    padding: 1px 2px;
+}
+
+.remove-icon {
+    color: #ff0000;
+}
+
+.primary-icon {
+    color: #ffd700;
 }
 
 h3 {
@@ -281,7 +568,7 @@ h3 {
 
 .week-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 10px;
     margin-bottom: 20px;
 }
@@ -307,21 +594,17 @@ h3 {
     border-bottom: 1px solid #ccc;
 }
 
-.clinician-list {
+.rotation-list {
     padding: 5px;
 }
 
-.clinician-item {
+.rotation-item {
     display: flex;
     align-items: center;
     padding: 3px 5px;
     margin: 2px 0;
     font-size: 13px;
     border: 1px solid transparent;
-}
-
-.clinician-item.highlight-green {
-    background-color: #90EE90;
 }
 
 .remove-btn {
@@ -332,21 +615,127 @@ h3 {
     font-size: 12px;
 }
 
+.remove-btn-disabled {
+    color: #ccc;
+    font-weight: bold;
+    margin-right: 5px;
+    cursor: not-allowed;
+    font-size: 12px;
+}
+
 .primary-star {
     margin-left: auto;
     color: #000;
     font-size: 16px;
+    cursor: pointer;
 }
 
-.week-grid.single-week {
-    grid-template-columns: 1fr 5fr;
-    max-width: 300px;
+.primary-star.filled {
+    color: #ffd700;
 }
 
-.schedule-note {
-    margin-top: 20px;
-    font-size: 11px;
-    color: #999;
-    font-style: italic;
+.requires-primary {
+    border-color: #ff4444 !important;
+    border-width: 2px !important;
+    background-color: #fff5f5;
 }
+
+.requires-primary .week-header {
+    background-color: #ffebeb;
+}
+
+.alert-icon {
+    color: #ff4444;
+    font-weight: bold;
+    font-size: 14px;
+    margin-right: 5px;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .clinical-scheduler-container {
+        padding: 10px;
+    }
+    
+    h2 {
+        font-size: 18px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .title-dropdown {
+        font-size: 16px;
+        min-width: 200px;
+        max-width: 100%;
+    }
+    
+    .week-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 8px;
+    }
+    
+    .week-cell {
+        min-height: 100px;
+    }
+    
+    .week-header {
+        padding: 3px;
+        font-size: 11px;
+    }
+    
+    .clinician-buttons {
+        flex-wrap: wrap;
+    }
+    
+    .clinician-btn {
+        font-size: 12px;
+        padding: 4px 8px;
+        margin: 1px;
+    }
+    
+    .add-clinician-dropdown {
+        width: 100%;
+        margin-top: 5px;
+    }
+    
+    .rotation-item {
+        font-size: 12px;
+        padding: 2px 3px;
+    }
+    
+    .instructions, .action-notes {
+        font-size: 12px;
+        padding: 8px;
+        margin-bottom: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .week-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+    
+    .week-cell {
+        min-height: 80px;
+    }
+    
+    h2 {
+        font-size: 16px;
+    }
+    
+    .title-dropdown {
+        font-size: 14px;
+    }
+    
+    .rotation-item {
+        font-size: 11px;
+    }
+    
+    .clinician-btn {
+        font-size: 11px;
+        padding: 3px 6px;
+    }
+}
+
 </style>
