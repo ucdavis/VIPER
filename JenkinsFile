@@ -1,7 +1,7 @@
 @Library('AdminAppsSharedLibrary') _
 def copyOperations = [
 	[
-		source: ".\\web\\bin\\Release\\net7.0\\publish",
+		source: ".\\web\\bin\\Release\\net8.0\\publish",
 		testDestination: "%vipertestnet%",
 		prodDestination: "%viperprodnet%",
 		includeFiles: "*.*",
@@ -93,7 +93,7 @@ pipeline {
 				}
 
 				//Archive the artifacts - in this case, all files - so that the restore job can re-deploy them.
-				archiveArtifacts artifacts: 'web/bin/Release/net7.0/publish/**/*', fingerprint: true, onlyIfSuccessful: true
+				archiveArtifacts artifacts: 'web/bin/Release/net8.0/publish/**/*', fingerprint: true, onlyIfSuccessful: true
 			}
 		}
 }
