@@ -10,5 +10,10 @@ module.exports = {
   ],
   parserOptions: {
     ecmaVersion: 'latest'
+  },
+  rules: {
+    // Disable multi-word component names rule for area-based architecture
+    // Components like "Computing", "Students" represent functional areas
+    'vue/multi-word-component-names': 'off'
   }
 }

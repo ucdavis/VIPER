@@ -123,7 +123,8 @@
             LeftNav,
             MainNav,
             MiniNav,
-            ProfilePic
+            ProfilePic,
+            SessionTimeout
         },
         data() {
             return {
