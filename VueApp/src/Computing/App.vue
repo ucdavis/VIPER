@@ -1,7 +1,7 @@
 <template>
     <main>
         <component :is="$route.meta.layout || 'div'"
-                   nav="viper-cats" navarea="false" highlightedTopNav="Computing">
+                   nav="viper-cats" :navarea="false" highlightedTopNav="Computing">
         </component>
     </main>
     <GenericError></GenericError>

@@ -6,8 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import child_process from 'child_process';
 import { env } from 'process';
-import { quasar, transformAssetUrls } from '@quasar/vite-plugin'
-import vue from '@vitejs/plugin-vue'
+import { quasar } from '@quasar/vite-plugin'
 
 import { resolve } from 'node:path'
 const baseFolder =
@@ -62,12 +61,28 @@ export default defineConfig(({ mode }) => ({
             '^/CTS': {
                 target,
                 secure: false
+            },
+            '^/Computing': {
+                target,
+                secure: false
+            },
+            '^/Students': {
+                target,
+                secure: false
+            },
+            '^/api': {
+                target,
+                secure: false
             }
         },
         port: 5173,
         https: {
             key: fs.readFileSync(keyFilePath),
             cert: fs.readFileSync(certFilePath),
+        },
+        hmr: {
+            overlay: false,
+            port: 24678  // Use a different port for HMR WebSocket to avoid proxy conflicts
         }
     },
     build: {

@@ -5,9 +5,36 @@ import { useUserStore } from '@/store/UserStore'
 import { useRouter, useRoute } from 'vue-router'
 import type { RouteLocationNormalized } from 'vue-router'
 
+// Helper function to validate internal redirect paths (prevent open redirect attacks)
+function isValidInternalPath(path: string): boolean {
+    if (!path || typeof path !== 'string') return false
+
+    // Reject absolute URLs, path traversal, and encoded bypasses
+    const encodedSlashRegex = /%2f|%2F/;
+    const encodedDotRegex = /%2e|%2E/;
+    if (
+        /^(https?:)?\/\//.test(path) ||
+        path.includes('../') ||
+        encodedSlashRegex.test(path) ||
+        encodedDotRegex.test(path)
+    ) {
+        return false;
+    }
+
+    // SECURITY NOTE: This approach mitigates open redirect attacks by restricting
+    // redirects to known internal paths.
+    // Ensure all valid internal routes used by your app are included in allowedPrefixes.
+    // Update this array if new internal route prefixes are added to the application.
+    const allowedPrefixes = ['/', '/2/', '/vue/'];
+    return allowedPrefixes.some(prefix => path.startsWith(prefix));
+}
+
 export default function useRequireLogin(to: RouteLocationNormalized) {
-    async function requireLogin(loadPermissions: boolean | null = null, permissionPrefix: string | null = null) {
-        const baseUrl = inject('apiURL')
+    // Get Quasar instance at the composable level (in proper Vue context)
+    const $q = useQuasar()
+
+    async function requireLogin(loadPermissions: boolean | null = null, permissionPrefix: string | null = null): Promise<boolean> {
+        const baseUrl = inject('apiURL') as string
         const userStore = useUserStore()
         const route = useRoute()
         const router = useRouter()
@@ -23,7 +50,6 @@ export default function useRequireLogin(to: RouteLocationNormalized) {
         }
 
         //show spinner after 250ms
-        const $q = useQuasar()
         if ($q !== undefined) {
             $q.loading.show({
                 message: "Logging in",
@@ -36,10 +62,26 @@ export default function useRequireLogin(to: RouteLocationNormalized) {
             //if user has not authed, send to VIPER 2.0 login url with this app's home page as the return url
             //application base will be "" on dev and "/2" on prod and test
             //to.fullPath will be e.g. /area/page and on test and prod we need /2/area/page as the return url
-            const applicationBase = (import.meta.env.VITE_VIPER_HOME.length == 1
+            const viperHome = import.meta.env.VITE_VIPER_HOME ?? '/'
+            const applicationBase = (viperHome.length == 1
                 ? ""
-                : import.meta.env.VITE_VIPER_HOME.substring(0, import.meta.env.VITE_VIPER_HOME.length - 1))
-            window.location.href = import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + applicationBase + to.fullPath
+                : viperHome.substring(0, viperHome.length - 1))
+
+            // Hide loading spinner before redirect to prevent flash
+            if ($q !== undefined) {
+                $q.loading.hide()
+            }
+
+            const fullReturnPath = applicationBase + to.fullPath
+            // Validate return URL to prevent open redirect attacks
+            if (isValidInternalPath(fullReturnPath)) {
+                const returnUrl = encodeURIComponent(fullReturnPath)
+                window.location.href = viperHome + "login?ReturnUrl=" + returnUrl
+            } else {
+                // Fallback to safe home path if validation fails
+                const returnUrl = encodeURIComponent(applicationBase + '/')
+                window.location.href = viperHome + "login?ReturnUrl=" + returnUrl
+            }
             return false
         }
         else {
@@ -60,19 +102,29 @@ export default function useRequireLogin(to: RouteLocationNormalized) {
 
         if (userStore.isLoggedIn) {
             if (route.query.sendBackTo != undefined) {
-                console.log(route.query.sendBackTo)
                 const redirect = route.query.sendBackTo?.toString()
-                const paramString = redirect.split("?")[1]
-                const params = {} as any
-                if (paramString) {
-                    const queryString = new URLSearchParams(paramString)
-                    queryString.forEach((val: string, key: string) => {
-                        params[key] = val
-                    })
+                if (redirect) {
+                    // Development debugging (remove in production)
+                    if (import.meta.env.DEV) {
+                        console.log('Processing sendBackTo redirect:', redirect)
+                    }
+                    const redirectPath = redirect.split("?")[0]
+                    // Only redirect if it's a safe internal path
+                    if (isValidInternalPath(redirectPath)) {
+                        const paramString = redirect.split("?")[1]
+                        const params: Record<string, string> = {}
+                        if (paramString) {
+                            const queryString = new URLSearchParams(paramString)
+                            queryString.forEach((val: string, key: string) => {
+                                params[key] = val
+                            })
+                        }
+                        router.push({ path: redirectPath, query: params ?? null })
+                    }
                 }
-                router.push({ path: redirect.split("?")[0], query: params ?? null })
             }
         }
+        return true
     }
 
     return { requireLogin }
