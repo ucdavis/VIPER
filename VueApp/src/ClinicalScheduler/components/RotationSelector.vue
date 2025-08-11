@@ -1,66 +1,63 @@
 <template>
-  <div class="rotation-selector">
-    <label for="rotation-select" class="form-label">Select Rotation:</label>
-    <div class="position-relative">
-      <select 
-        id="rotation-select"
-        v-model="selectedRotationId" 
-        @change="onRotationChange"
-        class="form-select"
-        :disabled="isLoading"
-      >
-        <option value="">
-          {{ isLoading ? 'Loading rotations...' : 'Select a rotation' }}
-        </option>
-        <optgroup 
-          v-for="service in groupedRotations" 
-          :key="service.serviceId"
-          :label="service.serviceName"
+    <div class="rotation-selector">
+        <q-select
+            v-model="selectedRotation"
+            :options="filteredRotations"
+            :loading="isLoading"
+            :error="!!error"
+            :error-message="error || undefined"
+            placeholder="Search for a rotation..."
+            emit-value
+            map-options
+            use-input
+            fill-input
+            hide-selected
+            clearable
+            :input-debounce="300"
+            @filter="onFilter"
+            @update:model-value="onRotationChange"
+            option-label="name"
+            option-value="rotId"
         >
-          <option 
-            v-for="rotation in service.rotations" 
-            :key="rotation.rotId"
-            :value="rotation.rotId"
-          >
-            {{ rotation.name }} ({{ rotation.abbreviation }})
-          </option>
-        </optgroup>
-      </select>
-      
-      <!-- Loading spinner -->
-      <div v-if="isLoading" class="position-absolute top-50 end-0 translate-middle-y me-3">
-        <div class="spinner-border spinner-border-sm text-primary" role="status">
-          <span class="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    </div>
+            <template v-slot:prepend>
+                <q-icon name="search" />
+            </template>
+            
+            <template v-slot:no-option>
+                <q-item>
+                    <q-item-section class="text-grey">
+                        {{ searchQuery ? 'No rotations found' : 'Loading rotations...' }}
+                    </q-item-section>
+                </q-item>
+            </template>
 
-    <!-- Error display -->
-    <div v-if="error" class="alert alert-warning mt-2" role="alert">
-      <i class="bi bi-exclamation-triangle"></i>
-      {{ error }}
-      <button 
-        @click="loadRotations" 
-        class="btn btn-sm btn-outline-warning ms-2"
-        :disabled="isLoading"
-      >
-        Retry
-      </button>
-    </div>
+            <template v-slot:option="scope">
+                <q-item v-bind="scope.itemProps">
+                    <q-item-section>
+                        <q-item-label>{{ getRotationDisplayName(scope.opt) }}</q-item-label>
+                    </q-item-section>
+                </q-item>
+            </template>
 
-    <!-- Selected rotation info -->
-    <div v-if="selectedRotation" class="mt-2">
-      <div class="card card-body bg-light">
-        <h6 class="card-title mb-1">{{ selectedRotation.name }}</h6>
-        <div class="text-muted small">
-          <div>Service: {{ selectedRotation.service?.serviceName }}</div>
-          <div v-if="selectedRotation.subjectCode || selectedRotation.courseNumber">
-            Course: {{ selectedRotation.subjectCode }} {{ selectedRotation.courseNumber }}
-          </div>
-        </div>
-      </div>
+            <template v-slot:selected-item="scope">
+                <span v-if="scope.opt">{{ getRotationDisplayName(scope.opt) }}</span>
+            </template>
+
+            <template v-slot:error>
+                <div class="q-field__bottom text-negative">
+                    {{ error }}
+                    <q-btn
+                        flat
+                        dense
+                        size="sm"
+                        label="Retry"
+                        @click="loadRotations"
+                        class="q-ml-sm"
+                    />
+                </div>
+            </template>
+        </q-select>
     </div>
-  </div>
 </template>
 
 <script setup lang="ts">
@@ -71,11 +68,15 @@ import { RotationService, type RotationWithService } from '../services/RotationS
 interface Props {
   modelValue?: number | null
   serviceFilter?: number | null
+  year?: number | null
+  onlyWithScheduledWeeks?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: null,
-  serviceFilter: null
+  serviceFilter: null,
+  year: null,
+  onlyWithScheduledWeeks: false
 })
 
 // Emits
@@ -88,40 +89,20 @@ const emit = defineEmits<Emits>()
 
 // Reactive data
 const rotations = ref<RotationWithService[]>([])
+const filteredRotations = ref<RotationWithService[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
-const selectedRotationId = ref<number | string>(props.modelValue || '')
+const searchQuery = ref('')
 
 // Computed
-const groupedRotations = computed(() => {
-  const groups: Record<number, { serviceId: number, serviceName: string, rotations: RotationWithService[] }> = {}
-  
-  rotations.value.forEach(rotation => {
-    if (rotation.service) {
-      const serviceId = rotation.service.serviceId
-      if (!groups[serviceId]) {
-        groups[serviceId] = {
-          serviceId,
-          serviceName: rotation.service.serviceName,
-          rotations: []
-        }
-      }
-      groups[serviceId].rotations.push(rotation)
+const selectedRotation = computed({
+    get: () => {
+        if (!props.modelValue) return null
+        return rotations.value.find(r => r.rotId === props.modelValue) || null
+    },
+    set: (value) => {
+        emit('update:modelValue', value?.rotId || null)
     }
-  })
-
-  // Sort rotations within each service
-  Object.values(groups).forEach(group => {
-    group.rotations.sort((a, b) => a.name.localeCompare(b.name))
-  })
-
-  // Return sorted by service name
-  return Object.values(groups).sort((a, b) => a.serviceName.localeCompare(b.serviceName))
-})
-
-const selectedRotation = computed(() => {
-  if (!selectedRotationId.value) return null
-  return rotations.value.find(r => r.rotId === Number(selectedRotationId.value)) || null
 })
 
 // Methods
@@ -130,13 +111,25 @@ async function loadRotations() {
   error.value = null
 
   try {
-    const result = await RotationService.getRotations({ 
-      serviceId: props.serviceFilter || undefined, 
-      includeService: true 
-    })
+    let result
+    
+    if (props.onlyWithScheduledWeeks) {
+      // Use the new API that only returns rotations with scheduled weeks
+      result = await RotationService.getRotationsWithScheduledWeeks({ 
+        year: props.year || undefined,
+        includeService: true 
+      })
+    } else {
+      // Use the original API that returns all rotations
+      result = await RotationService.getRotations({ 
+        serviceId: props.serviceFilter || undefined, 
+        includeService: true 
+      })
+    }
     
     if (result.success) {
       rotations.value = result.result
+      filteredRotations.value = result.result
     } else {
       error.value = result.errors.join(', ') || 'Failed to load rotations'
     }
@@ -148,42 +141,58 @@ async function loadRotations() {
   }
 }
 
-function onRotationChange() {
-  const rotationId = selectedRotationId.value ? Number(selectedRotationId.value) : null
-  emit('update:modelValue', rotationId)
-  emit('rotationSelected', selectedRotation.value)
+function getRotationDisplayName(rotation: RotationWithService): string {
+  // Remove everything after and including the first parenthesis
+  const beforeParenthesis = rotation.name.split('(')[0].trim()
+  return beforeParenthesis || rotation.name
+}
+
+function filterRotations(items: RotationWithService[], searchTerm: string): RotationWithService[] {
+    const search = searchTerm.toLowerCase()
+    return items.filter(rotation => 
+        getRotationDisplayName(rotation).toLowerCase().includes(search) ||
+        rotation.abbreviation?.toLowerCase().includes(search) ||
+        rotation.service?.serviceName?.toLowerCase().includes(search)
+    )
+}
+
+function onFilter(val: string, update: (fn: () => void) => void) {
+    searchQuery.value = val
+    update(() => {
+        filteredRotations.value = val === '' 
+            ? rotations.value 
+            : filterRotations(rotations.value, val)
+    })
+}
+
+function onRotationChange(rotationId: number | null) {
+    const rotation = rotations.value.find(r => r.rotId === rotationId) || null
+    emit('rotationSelected', rotation)
 }
 
 // Watchers
-watch(() => props.modelValue, (newValue) => {
-  selectedRotationId.value = newValue || ''
+watch(() => props.serviceFilter, () => {
+    loadRotations()
 })
 
-watch(() => props.serviceFilter, () => {
-  loadRotations()
+watch(() => props.year, () => {
+    if (props.onlyWithScheduledWeeks) {
+        loadRotations()
+    }
+})
+
+watch(() => props.onlyWithScheduledWeeks, () => {
+    loadRotations()
 })
 
 // Lifecycle
 onMounted(() => {
-  loadRotations()
+    loadRotations()
 })
 </script>
 
 <style scoped>
 .rotation-selector {
-  max-width: 500px;
-}
-
-.spinner-border-sm {
-  width: 1rem;
-  height: 1rem;
-}
-
-.card-body {
-  padding: 0.75rem;
-}
-
-.bi {
-  margin-right: 0.25rem;
+    max-width: 400px;
 }
 </style>
