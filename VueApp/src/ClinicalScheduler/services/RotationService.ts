@@ -96,7 +96,7 @@ export class RotationService {
     static async getRotations(options?: { serviceId?: number; includeService?: boolean }): Promise<ApiResult<RotationWithService[]>> {
         try {
             const { serviceId, includeService = true } = options || {}
-            
+
             const params: Record<string, any> = { includeService }
             if (serviceId !== undefined) {
                 params.serviceId = serviceId
@@ -106,6 +106,30 @@ export class RotationService {
             return await get(url)
         } catch (error) {
             console.error('Error fetching rotations:', error)
+            return {
+                result: [],
+                success: false,
+                errors: [error instanceof Error ? error.message : 'Unknown error occurred']
+            }
+        }
+    }
+
+    /**
+     * Get rotations that have scheduled weeks for a specific year
+     */
+    static async getRotationsWithScheduledWeeks(options?: { year?: number; includeService?: boolean }): Promise<ApiResult<RotationWithService[]>> {
+        try {
+            const { year, includeService = true } = options || {}
+
+            const params: Record<string, any> = { includeService }
+            if (year !== undefined) {
+                params.year = year
+            }
+
+            const url = this.buildUrl(`${this.BASE_URL}/with-scheduled-weeks`, params)
+            return await get(url)
+        } catch (error) {
+            console.error('Error fetching rotations with scheduled weeks:', error)
             return {
                 result: [],
                 success: false,
@@ -159,7 +183,7 @@ export class RotationService {
     static async getRotationSchedule(rotationId: number, options?: { year?: number }): Promise<ApiResult<RotationScheduleData>> {
         try {
             const { year } = options || {}
-            
+
             const params: Record<string, any> = {}
             if (year !== undefined) {
                 params.year = year

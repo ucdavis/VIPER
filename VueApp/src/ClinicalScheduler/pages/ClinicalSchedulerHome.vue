@@ -21,7 +21,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 export default defineComponent({
@@ -36,6 +36,11 @@ export default defineComponent({
         const navigateToClinicianView = () => {
             router.push('/ClinicalScheduler/clinician')
         }
+
+        onMounted(() => {
+            // Set page title
+            document.title = 'VIPER - Clinical Scheduler'
+        })
 
         return {
             navigateToRotationView,

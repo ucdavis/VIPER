@@ -19,10 +19,22 @@ const routes = [
         name: "RotationSchedule"
     },
     {
+        path: '/ClinicalScheduler/rotation/:rotationId',
+        meta: { layout: ViperLayout },
+        component: () => import('@/ClinicalScheduler/pages/RotationScheduleView.vue'),
+        name: "RotationScheduleWithId"
+    },
+    {
         path: '/ClinicalScheduler/clinician',
         meta: { layout: ViperLayout },
         component: () => import('@/ClinicalScheduler/pages/ClinicianScheduleView.vue'),
         name: "ClinicianSchedule"
+    },
+    {
+        path: '/ClinicalScheduler/clinician/:mothraId',
+        meta: { layout: ViperLayout },
+        component: () => import('@/ClinicalScheduler/pages/ClinicianScheduleView.vue'),
+        name: "ClinicianScheduleWithId"
     }
 ]
 
