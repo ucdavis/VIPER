@@ -70,7 +70,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 if (includeService)
                 {
                     rotations = await query
-                        .OrderBy(r => r.Service.ServiceName)
+                        .OrderBy(r => r.Service.ServiceName ?? r.Name)
                         .ThenBy(r => r.Name)
                         .Select(r => new RotationDto
                         {
@@ -115,7 +115,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 return StatusCode(500, new
                 {
                     error = "Failed to retrieve rotations",
-                    message = ex.Message
+                    details = ex.Message
                 });
             }
         }
@@ -126,9 +126,15 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <param name="id">Rotation ID</param>
         /// <param name="includeService">Include service details (default: true)</param>
         /// <returns>Single rotation</returns>
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<ActionResult<object>> GetRotation(int id, bool includeService = true)
         {
+            if (id <= 0)
+            {
+                _logger.LogWarning("Invalid rotation ID requested: {RotationId}", id);
+                return BadRequest(new { error = "Rotation ID must be a positive integer", rotationId = id });
+            }
+
             try
             {
                 _logger.LogInformation("Getting rotation with ID: {RotationId}, IncludeService: {IncludeService}", id, includeService);
@@ -174,7 +180,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 return StatusCode(500, new
                 {
                     error = "Failed to retrieve rotation",
-                    message = ex.Message,
+                    details = ex.Message,
                     rotationId = id
                 });
             }
@@ -186,9 +192,15 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <param name="id">Rotation ID</param>
         /// <param name="year">Year to filter by (optional, defaults to current year)</param>
         /// <returns>Instructor schedules for the rotation</returns>
-        [HttpGet("{id}/schedule")]
+        [HttpGet("{id:int}/schedule")]
         public async Task<ActionResult<object>> GetRotationSchedule(int id, int? year = null)
         {
+            if (id <= 0)
+            {
+                _logger.LogWarning("Invalid rotation ID requested for schedule: {RotationId}", id);
+                return BadRequest(new { error = "Rotation ID must be a positive integer", rotationId = id });
+            }
+
             try
             {
                 var targetYear = year ?? DateTime.Now.Year;
@@ -310,8 +322,93 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 return StatusCode(500, new
                 {
                     error = "Failed to retrieve rotation schedule",
-                    message = ex.Message,
+                    details = ex.Message,
                     rotationId = id
+                });
+            }
+        }
+
+        /// <summary>
+        /// Get rotations that have scheduled weeks for a specific year
+        /// </summary>
+        /// <param name="year">Year to filter by (optional, defaults to current year)</param>
+        /// <param name="includeService">Include service details (default: true)</param>
+        /// <returns>List of rotations with scheduled weeks</returns>
+        [HttpGet("with-scheduled-weeks")]
+        public async Task<ActionResult<IEnumerable<RotationDto>>> GetRotationsWithScheduledWeeks([FromQuery] int? year = null, [FromQuery] bool includeService = true)
+        {
+            try
+            {
+                var targetYear = year ?? DateTime.Now.Year;
+                _logger.LogInformation("Getting rotations with scheduled weeks for year {Year}, IncludeService: {IncludeService}", targetYear, includeService);
+
+                // Get rotations that have instructor schedules for the specified year
+                var query = _context.Rotations.AsQueryable();
+
+                if (includeService)
+                {
+                    query = query.Include(r => r.Service);
+                }
+
+                // Filter to only rotations that have scheduled weeks in the target year
+                List<RotationDto> rotationsWithSchedules;
+                
+                if (includeService)
+                {
+                    rotationsWithSchedules = await query
+                        .Where(r => _context.InstructorSchedules.Any(i => 
+                            i.RotationId == r.RotId && 
+                            i.DateStart.Year == targetYear))
+                        .OrderBy(r => r.Service.ServiceName ?? r.Name)
+                        .ThenBy(r => r.Name)
+                        .Select(r => new RotationDto
+                        {
+                            RotId = r.RotId,
+                            Name = r.Name,
+                            Abbreviation = r.Abbreviation,
+                            SubjectCode = r.SubjectCode,
+                            CourseNumber = r.CourseNumber,
+                            ServiceId = r.ServiceId,
+                            Service = new ServiceDto
+                            {
+                                ServiceId = r.Service.ServiceId,
+                                ServiceName = r.Service.ServiceName,
+                                ShortName = r.Service.ShortName
+                            }
+                        })
+                        .ToListAsync();
+                }
+                else
+                {
+                    rotationsWithSchedules = await query
+                        .Where(r => _context.InstructorSchedules.Any(i => 
+                            i.RotationId == r.RotId && 
+                            i.DateStart.Year == targetYear))
+                        .OrderBy(r => r.Name)
+                        .Select(r => new RotationDto
+                        {
+                            RotId = r.RotId,
+                            Name = r.Name,
+                            Abbreviation = r.Abbreviation,
+                            SubjectCode = r.SubjectCode,
+                            CourseNumber = r.CourseNumber,
+                            ServiceId = r.ServiceId,
+                            Service = null
+                        })
+                        .ToListAsync();
+                }
+
+                _logger.LogInformation("Retrieved {Count} rotations with scheduled weeks for year {Year}", rotationsWithSchedules.Count, targetYear);
+                return Ok(rotationsWithSchedules);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving rotations with scheduled weeks for year {Year}", year);
+                return StatusCode(500, new
+                {
+                    error = "Failed to retrieve rotations with scheduled weeks",
+                    details = ex.Message,
+                    year = year
                 });
             }
         }
@@ -359,7 +456,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 return StatusCode(500, new
                 {
                     error = "Failed to retrieve rotation summary",
-                    message = ex.Message
+                    details = ex.Message
                 });
             }
         }

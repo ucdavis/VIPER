@@ -10,155 +10,480 @@
 
         <h2>
             Schedule for
-            <select class="title-dropdown" v-model="selectedClinician">
-                <option>Ad, Yael</option>
-                <option>Choi, April</option>
-                <option>Chromik, Melissa</option>
-                <option>Dear, Jonathan</option>
-                <option>Hulsebosch, Sean</option>
+            <ClinicianSelector
+                v-model="selectedClinician"
+                :year="currentYear"
+                :includeAllAffiliates="includeAllAffiliates"
+                @update:includeAllAffiliates="includeAllAffiliates = $event"
+                @change="onClinicianChange"
+                :isPastYear="isPastYear"
+                class="ms-3"
+                style="min-width: 400px;"
+            />
+            <select
+                v-model="currentYear"
+                @change="onYearChange"
+                class="year-selector ms-3"
+            >
+                <option v-for="year in availableYears" :key="year" :value="year">
+                    {{ year }}
+                </option>
             </select>
         </h2>
 
+        <!-- Read-only notice for past years -->
+        <div v-if="isPastYear" class="read-only-alert">
+            <strong>📖 Read-Only Mode:</strong> You are viewing historical schedule data for {{ currentYear }}. Past schedules cannot be edited.
+        </div>
+
         <!-- Instructions -->
-        <div class="instructions">
-            <p>This list of rotations should be contain any rotations this clinician is scheduled for in the current or previous year.</p>
-            <p>Click on a rotation to select it and then click on any week to schedule the clinician.</p>
+        <div v-if="selectedClinician" class="instructions">
+            <p>This list of rotations should contain any rotations this clinician is scheduled for in the current or previous year.</p>
+            <p v-if="!isPastYear">Click on a rotation to select it and then click on any week to schedule the clinician.</p>
+            <p v-else>This is a read-only view of the {{ currentYear }} schedule.</p>
         </div>
 
-        <!-- Rotation selector section -->
-        <div class="rotation-selector-section">
-            <div class="rotation-buttons">
-                <button class="rotation-btn" :class="{ selected: selectedRotation === 'Internal Medicine A' }" @click="selectRotation('Internal Medicine A')">Internal Medicine A</button>
-                <button class="rotation-btn" :class="{ selected: selectedRotation === 'Internal Medicine B' }" @click="selectRotation('Internal Medicine B')">Internal Medicine B</button>
-                <button class="rotation-btn" :class="{ selected: selectedRotation === 'Small Animal Anesthesia' }" @click="selectRotation('Small Animal Anesthesia')">Small Animal Anesthesia</button>
-                <button class="rotation-btn" :class="{ selected: selectedRotation === 'Surgery' }" @click="selectRotation('Surgery')">Surgery</button>
-                <button class="rotation-btn" :class="{ selected: selectedRotation === 'Emergency' }" @click="selectRotation('Emergency')">Emergency</button>
+        <!-- Loading state -->
+        <div v-if="loadingSchedule" class="text-center my-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading schedule...</span>
             </div>
-            <select class="rotation-dropdown">
-                <option>Add Rotation</option>
-                <option>Pathology</option>
-                <option>Radiology</option>
-                <option>Cardiology</option>
-                <option>Dermatology</option>
-            </select>
+            <p class="mt-2">Loading schedule...</p>
         </div>
 
-        <!-- Note about stars and X -->
-        <div class="action-notes">
-            <p>X removes the rotation from the schedule. Star marks them as primary (and unmarks the current primary, if any).</p>
+        <!-- Error state -->
+        <div v-else-if="scheduleError" class="alert alert-danger" role="alert">
+            <strong>Error:</strong> {{ scheduleError }}
         </div>
 
-        <!-- Season headers -->
-        <h3>Spring 2025</h3>
+        <!-- No clinician selected -->
+        <div v-else-if="!selectedClinician" class="alert alert-info" role="alert">
+            Please select a clinician to view their schedule.
+        </div>
 
-        <!-- Week grid -->
-        <div class="week-grid">
-            <div class="week-cell">
-                <div class="week-header">Week 1<br>4/14/25</div>
-                <div class="rotation-list">
-                    <div class="rotation-item">
-                        <span class="remove-btn">✖</span>
-                        <span>SAMedA</span>
-                        <span class="primary-star">☆</span>
+        <!-- Schedule display -->
+        <div v-else-if="clinicianSchedule">
+            <!-- Rotation selector section -->
+            <div class="rotation-selector-section">
+                <div class="rotation-buttons">
+                    <button
+                        v-for="rotation in clinicianRotations"
+                        :key="rotation.rotId"
+                        class="rotation-btn"
+                        :class="{ selected: selectedRotation?.rotId === rotation.rotId }"
+                        @click="selectRotation(rotation)"
+                    >
+                        {{ rotation.rotationName }}
+                    </button>
+                </div>
+                <q-select
+                    v-model="selectedNewRotationObj"
+                    :options="filteredRotations"
+                    :loading="false"
+                    :error="false"
+                    placeholder="Add Rotation"
+                    emit-value
+                    map-options
+                    use-input
+                    fill-input
+                    hide-selected
+                    clearable
+                    :input-debounce="300"
+                    @filter="onFilterRotations"
+                    @update:model-value="onAddRotationSelected"
+                    option-label="displayText"
+                    option-value="rotId"
+                    class="rotation-dropdown"
+                    style="min-width: 200px;"
+                >
+                    <template v-slot:prepend>
+                        <q-icon name="add_circle" />
+                    </template>
+
+                    <template v-slot:no-option>
+                        <q-item>
+                            <q-item-section class="text-grey">
+                                {{ rotationSearchQuery ? 'No available rotations' : 'Loading rotations...' }}
+                            </q-item-section>
+                        </q-item>
+                    </template>
+
+                    <template v-slot:option="scope">
+                        <q-item v-bind="scope.itemProps">
+                            <q-item-section>
+                                <q-item-label>{{ scope.opt.rotationName }}</q-item-label>
+                            </q-item-section>
+                        </q-item>
+                    </template>
+
+                    <template v-slot:selected-item="scope">
+                        <span v-if="scope.opt">{{ scope.opt.rotationName }} ({{ scope.opt.serviceName }})</span>
+                    </template>
+                </q-select>
+            </div>
+
+            <!-- Schedule by semester -->
+            <div v-for="semester in schedulesBySemester" :key="semester.semester">
+                <h3>{{ semester.semester }}</h3>
+
+                <!-- Week grid -->
+                <div class="week-grid">
+                    <div
+                        v-for="week in semester.weeks"
+                        :key="week.weekId"
+                        class="week-cell"
+                        @click="onWeekClick(week)"
+                    >
+                        <div class="week-header">
+                            Week {{ week.weekNumber }}<br>
+                            {{ formatDate(week.dateStart) }}
+                        </div>
+                        <div class="rotation-list">
+                            <div v-if="week.rotation" class="rotation-item">
+                                <span v-if="!isPastYear" class="remove-btn" @click.stop="removeRotation()">✖</span>
+                                <span>{{ week.rotation.abbreviation }}</span>
+                                <span v-if="!isPastYear"
+                                      class="primary-star"
+                                      :class="{ filled: week.isPrimaryEvaluator }"
+                                      :title="week.isPrimaryEvaluator ? 'Primary evaluator. To transfer primary status, click the star on another clinician.' : 'Click to make this clinician the primary evaluator.'"
+                                      @click.stop="togglePrimary()">{{ week.isPrimaryEvaluator ? '★' : '☆' }}</span>
+                                <span v-else-if="week.isPrimaryEvaluator"
+                                      class="primary-star filled"
+                                      title="Primary evaluator">★</span>
+                            </div>
+                            <div v-else-if="!isPastYear" class="empty-week">
+                                <span class="add-rotation-hint">Click to add rotation</span>
+                            </div>
+                            <div v-else class="empty-week">
+                                <span class="no-assignment">No assignment</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="week-cell">
-                <div class="week-header">Week 2<br>4/14/25</div>
-                <div class="rotation-list">
-                    <div class="rotation-item">
-                        <span class="remove-btn">✖</span>
-                        <span>SAMedA</span>
-                        <span class="primary-star">☆</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="week-cell">
-                <div class="week-header">Week 3<br>4/14/25</div>
-                <div class="rotation-list">
-                    <div class="rotation-item">
-                        <span class="remove-btn">✖</span>
-                        <span>SAMedB</span>
-                        <span class="primary-star">★</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="week-cell">
-                <div class="week-header">Week 4<br>4/14/25</div>
-                <div class="rotation-list">
-                    <div class="rotation-item">
-                        <span class="remove-btn">✖</span>
-                        <span>SAMedB</span>
-                        <span class="primary-star">★</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="week-cell">
-                <div class="week-header">Week 5<br>4/14/25</div>
-                <div class="rotation-list">
-                    <div class="rotation-item">
-                        <span class="remove-btn">✖</span>
-                        <span>SAMedA</span>
-                        <span class="primary-star">☆</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="week-cell">
-                <div class="week-header">Week 6<br>4/14/25</div>
-                <div class="rotation-list">
-                    <div class="rotation-item">
-                        <span class="remove-btn">✖</span>
-                        <span>SAMedA</span>
-                        <span class="primary-star">☆</span>
-                    </div>
-                </div>
+            <!-- Helper message for clinicians with no assignments -->
+            <div v-if="hasNoAssignments" class="no-assignments-help">
+                <strong>💡 {{ selectedClinician?.fullName || 'This clinician' }} has no rotation assignments for {{ currentYear }}.</strong>
+                <span v-if="!isPastYear">Click on any week below to assign a rotation, or use the "Add Rotation" dropdown above.</span>
+                <span v-else>This is historical data showing no assignments were made.</span>
             </div>
         </div>
 
-        <!-- Summer Season -->
-        <h3>Summer 2025</h3>
-        <div class="week-grid single-week">
-            <div class="week-cell">
-                <div class="week-header">Week 7<br>4/14/25</div>
-                <div class="rotation-list">
-                    <!-- Empty week -->
-                </div>
-            </div>
-        </div>
-
-        <div class="schedule-note">
-            Schedule continues similar to https://
-            secure-test.vetmed.ucdavis.edu/clinicialscheduler/scheduler/
-            default.cfm?mothraID=01654831&amp;page=clinicianRO
+        <!-- Legend -->
+        <div v-if="selectedClinician && schedulesBySemester.length > 0" class="legend">
+            <h4>Legend</h4>
+            <ul>
+                <li><span class="icon-demo remove-icon">✖</span> removes the rotation from the schedule</li>
+                <li><span class="icon-demo primary-icon">★</span> makes them the primary evaluator (replacing the current one, if there is one)</li>
+                <li>Primary evaluators (<span class="icon-demo primary-icon">★</span>) are responsible for student evaluations</li>
+            </ul>
         </div>
     </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, ref } from 'vue'
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import ClinicianSelector from '../components/ClinicianSelector.vue'
+import { ClinicianService, type Clinician, type ClinicianScheduleData } from '../services/ClinicianService'
+import { RotationService, type RotationWithService } from '../services/RotationService'
 
-export default defineComponent({
-    name: 'ClinicianScheduleView',
-    setup() {
-        const selectedClinician = ref('Ad, Yael')
-        const selectedRotation = ref('Internal Medicine A')
-        const selectedNewRotation = ref('')
+const route = useRoute()
+const router = useRouter()
 
-        const selectRotation = (rotation: string) => {
-            selectedRotation.value = rotation
+const selectedClinician = ref<Clinician | null>(null)
+const clinicianSchedule = ref<ClinicianScheduleData | null>(null)
+const clinicianRotations = ref<any[]>([])
+const selectedRotation = ref<any | null>(null)
+const selectedNewRotationObj = ref<any | null>(null)
+const loadingSchedule = ref(false)
+const scheduleError = ref<string | null>(null)
+const allRotations = ref<RotationWithService[]>([])
+const currentYear = ref(new Date().getFullYear())
+const filteredRotations = ref<any[]>([])
+const rotationSearchQuery = ref('')
+const includeAllAffiliates = ref(false)
+
+// Computed properties for year selection
+const availableYears = computed(() => {
+    const thisYear = new Date().getFullYear()
+    const years = []
+    // Show current year plus 5 years back
+    for (let i = 0; i <= 5; i++) {
+        years.push(thisYear - i)
+    }
+    return years
+})
+
+const isPastYear = computed(() => {
+    return currentYear.value < new Date().getFullYear()
+})
+
+// Use schedule data directly from API (no transformation needed)
+const schedulesBySemester = computed(() => {
+    if (!clinicianSchedule.value || !clinicianSchedule.value.schedulesBySemester) return []
+    return clinicianSchedule.value.schedulesBySemester
+})
+
+// Computed property for available rotations (filtered to exclude already assigned ones)
+const availableRotations = computed(() => {
+    if (!allRotations.value || !clinicianRotations.value) return []
+
+    // Get list of rotation IDs already assigned to this clinician
+    const assignedRotationIds = new Set(clinicianRotations.value.map((r: any) => r.rotId))
+
+    // Filter out rotations already assigned
+    return allRotations.value
+        .filter((rotation: RotationWithService) => !assignedRotationIds.has(rotation.rotId))
+        .map((rotation: RotationWithService) => ({
+            rotId: rotation.rotId,
+            rotationName: rotation.name,
+            abbreviation: rotation.abbreviation,
+            serviceName: rotation.service?.serviceName || 'Unknown Service'
+        }))
+        .sort((a, b) => a.rotationName.localeCompare(b.rotationName))
+})
+
+// Check if clinician has no rotation assignments
+const hasNoAssignments = computed(() => {
+    if (!schedulesBySemester.value || schedulesBySemester.value.length === 0) return false
+
+    // Check if all weeks have no rotation assignments
+    return schedulesBySemester.value.every(semester =>
+        semester.weeks.every(week => !week.rotation)
+    )
+})
+
+const fetchAllRotations = async () => {
+    try {
+        const result = await RotationService.getRotations({ includeService: true })
+        if (result.success) {
+            allRotations.value = result.result
+        } else {
+            // Failed to fetch rotations - handle gracefully
+        }
+    } catch (error) {
+        // Error fetching rotations - handle gracefully
+    }
+}
+
+const fetchClinicianSchedule = async (mothraId: string) => {
+    loadingSchedule.value = true
+    scheduleError.value = null
+    clinicianSchedule.value = null
+    clinicianRotations.value = []
+
+    try {
+        // Fetch schedule
+        const result = await ClinicianService.getClinicianSchedule(mothraId, { year: currentYear.value })
+        if (result.success) {
+            clinicianSchedule.value = result.result
+
+            // Extract unique rotations from schedule
+            const rotationMap = new Map<number, any>()
+            if (result.result.schedulesBySemester) {
+                result.result.schedulesBySemester.forEach(semester => {
+                    semester.weeks.forEach(week => {
+                        if (week.rotation && !rotationMap.has(week.rotation.rotationId)) {
+                            rotationMap.set(week.rotation.rotationId, {
+                                rotId: week.rotation.rotationId,
+                                rotationName: week.rotation.rotationName,
+                                abbreviation: week.rotation.abbreviation,
+                                serviceName: week.rotation.serviceName
+                            })
+                        }
+                    })
+                })
+            }
+
+            clinicianRotations.value = Array.from(rotationMap.values())
+                .sort((a, b) => a.rotationName.localeCompare(b.rotationName))
+
+            // Don't auto-select any rotation - let user choose
+            selectedRotation.value = null
+        } else {
+            scheduleError.value = result.errors.join(', ') || 'Failed to load schedule'
+        }
+    } catch (error) {
+        scheduleError.value = error instanceof Error ? error.message : 'Failed to load schedule'
+        // Error loading clinician schedule
+    } finally {
+        loadingSchedule.value = false
+    }
+}
+
+const onClinicianChange = (clinician: Clinician | null) => {
+    if (clinician) {
+        // Update URL to include the clinician ID and year if not current
+        const query: any = {}
+        if (currentYear.value !== new Date().getFullYear()) {
+            query.year = currentYear.value
+        }
+        router.push({
+            name: 'ClinicianScheduleWithId',
+            params: { mothraId: encodeURIComponent(clinician.mothraId) },
+            query
+        })
+        fetchClinicianSchedule(clinician.mothraId)
+    } else {
+        // Navigate back to base clinician route
+        router.push({ name: 'ClinicianSchedule' })
+        clinicianSchedule.value = null
+        clinicianRotations.value = []
+        selectedRotation.value = null
+    }
+}
+
+const onYearChange = () => {
+    // Update URL with new year
+    if (selectedClinician.value) {
+        onClinicianChange(selectedClinician.value)
+    } else {
+        const query: any = {}
+        if (currentYear.value !== new Date().getFullYear()) {
+            query.year = currentYear.value
+        }
+        router.push({ query })
+    }
+}
+
+// Initialize from URL parameters
+const initializeFromUrl = () => {
+    // Get year from URL parameters
+    const yearParam = route.query.year
+    if (yearParam && typeof yearParam === 'string') {
+        currentYear.value = Number(yearParam)
+    }
+}
+
+// Load clinician from URL parameter if present
+const loadClinicianFromUrl = async () => {
+    const mothraId = route.params.mothraId as string
+    if (mothraId) {
+        const decodedMothraId = decodeURIComponent(mothraId)
+        try {
+            // First, try to find the clinician in our clinician list to get the correct name
+            const cliniciansResult = await ClinicianService.getClinicians({ year: currentYear.value })
+            if (cliniciansResult.success) {
+                let clinician = cliniciansResult.result.find(c => c.mothraId === decodedMothraId)
+
+                if (clinician) {
+                    // Found in the clinician list - use this (it has the correct name)
+                    selectedClinician.value = clinician
+                } else {
+                    // Not found in list, but let's load the schedule and create a clinician from that
+                    await fetchClinicianSchedule(decodedMothraId)
+                    if (clinicianSchedule.value && clinicianSchedule.value.clinician) {
+                        // Create a proper Clinician object with the correct structure
+                        selectedClinician.value = {
+                            mothraId: clinicianSchedule.value.clinician.mothraId,
+                            firstName: clinicianSchedule.value.clinician.firstName,
+                            lastName: clinicianSchedule.value.clinician.lastName,
+                            fullName: clinicianSchedule.value.clinician.fullName,
+                            role: clinicianSchedule.value.clinician.role
+                        }
+                    }
+                    return // Schedule already loaded
+                }
+            }
+
+            // Load the schedule for the selected clinician
+            await fetchClinicianSchedule(decodedMothraId)
+        } catch (error) {
+            // If the clinician ID in URL is invalid, redirect to base route
+            router.push({ name: 'ClinicianSchedule' })
+        }
+    }
+}
+
+const selectRotation = (rotation: any) => {
+    selectedRotation.value = rotation
+}
+
+const onWeekClick = (week: any) => {
+    if (isPastYear.value) return // No editing for past years
+
+    if (week.rotation) {
+        // Week has a rotation - functionality to be implemented
+        // Future: toggle selection or show options
+    } else {
+        // Empty week - functionality to be implemented
+        // Future: open a rotation picker
+    }
+}
+
+const removeRotation = () => {
+    if (isPastYear.value) return
+    // Future: remove the rotation assignment - week parameter will be added when implemented
+}
+
+const togglePrimary = () => {
+    if (isPastYear.value) return
+    // Future: toggle primary evaluator status - week parameter will be added when implemented
+}
+
+const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear().toString().slice(-2)}`
+}
+
+const onAddRotationSelected = (rotId: number | null) => {
+    if (rotId) {
+        const rotation = availableRotations.value.find(r => r.rotId === rotId)
+        if (rotation) {
+            // Future: add the rotation to the clinician's schedule
         }
 
-        return {
-            selectedClinician,
-            selectedRotation,
-            selectedNewRotation,
-            selectRotation
-        }
+        // Reset dropdown
+        selectedNewRotationObj.value = null
+    }
+}
+
+const filterRotations = (rotations: any[], searchTerm: string) => {
+    if (!searchTerm) return rotations
+    const search = searchTerm.toLowerCase()
+    return rotations.filter(rotation =>
+        rotation.rotationName.toLowerCase().includes(search) ||
+        rotation.serviceName.toLowerCase().includes(search)
+    )
+}
+
+const onFilterRotations = (val: string, update: (fn: () => void) => void) => {
+    rotationSearchQuery.value = val
+    update(() => {
+        filteredRotations.value = val === ''
+            ? availableRotations.value.map(r => ({ ...r, displayText: `${r.rotationName} (${r.serviceName})` }))
+            : filterRotations(availableRotations.value.map(r => ({ ...r, displayText: `${r.rotationName} (${r.serviceName})` })), val)
+    })
+}
+
+// Watchers
+watch(availableRotations, (newRotations) => {
+    filteredRotations.value = newRotations.map(r => ({ ...r, displayText: `${r.rotationName} (${r.serviceName})` }))
+}, { immediate: true })
+
+// Load clinician from URL on component mount
+onMounted(() => {
+    // Set page title
+    document.title = 'VIPER - Schedule by Clinician'
+
+    // Initialize year from URL first
+    initializeFromUrl()
+    fetchAllRotations()
+    loadClinicianFromUrl()
+})
+
+// Watch for route changes to handle direct navigation
+watch(() => route.params.mothraId, (newMothraId) => {
+    if (newMothraId) {
+        loadClinicianFromUrl()
+    } else {
+        // Clear selection if no mothraId in URL
+        selectedClinician.value = null
+        clinicianSchedule.value = null
+        clinicianRotations.value = []
+        selectedRotation.value = null
     }
 })
 </script>
@@ -205,15 +530,6 @@ h2 {
     gap: 10px;
 }
 
-.title-dropdown {
-    font-size: 18px;
-    font-weight: bold;
-    color: #8B0000;
-    border: 1px solid #ccc;
-    padding: 2px 5px;
-    background-color: #fff;
-}
-
 .instructions {
     background-color: #f5f5f5;
     padding: 10px;
@@ -224,7 +540,6 @@ h2 {
 .instructions p {
     margin: 5px 0;
 }
-
 
 .rotation-selector-section {
     margin-bottom: 20px;
@@ -333,11 +648,11 @@ h3 {
     margin-left: auto;
     color: #000;
     font-size: 16px;
+    cursor: pointer;
 }
 
-.week-grid.single-week {
-    grid-template-columns: 1fr 5fr;
-    max-width: 300px;
+.primary-star.filled {
+    color: #ffd700;
 }
 
 .schedule-note {
@@ -345,5 +660,165 @@ h3 {
     font-size: 11px;
     color: #999;
     font-style: italic;
+}
+
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Clinician selection styles */
+
+/* Legend styles */
+.legend {
+    margin-top: 30px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+}
+
+.legend h4 {
+    color: #333;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.legend ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.legend li {
+    margin-bottom: 8px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+}
+
+.icon-demo {
+    display: inline-block;
+    margin-right: 8px;
+    font-size: 14px;
+    width: 16px;
+    text-align: center;
+}
+
+.icon-demo.remove-icon {
+    color: #ff0000;
+    font-weight: bold;
+}
+
+.icon-demo.primary-icon {
+    color: #ffd700;
+    font-size: 16px;
+}
+
+.year-selector {
+    font-size: 16px;
+    font-weight: bold;
+    color: #8B0000;
+    border: 1px solid #ccc;
+    padding: 4px 8px;
+    background-color: #fff;
+    border-radius: 4px;
+}
+
+.read-only-alert {
+    background-color: #e3f2fd;
+    border: 1px solid #2196f3;
+    color: #1565c0;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.read-only-alert strong {
+    font-weight: 600;
+}
+
+.no-schedule-message {
+    text-align: center;
+    padding: 40px 20px;
+    background-color: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.no-schedule-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.no-schedule-message h4 {
+    color: #495057;
+    margin-bottom: 12px;
+    font-size: 18px;
+}
+
+.no-schedule-message p {
+    color: #6c757d;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.no-schedule-message .suggestion {
+    background-color: #e8f5e8;
+    padding: 12px;
+    border-radius: 4px;
+    border-left: 4px solid #28a745;
+    margin: 16px 0;
+    color: #155724;
+}
+
+.no-schedule-message .historical-note {
+    font-style: italic;
+    color: #868e96;
+}
+
+.no-assignments-help {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+    padding: 12px;
+    border-radius: 4px;
+    margin: 16px 0;
+    font-size: 14px;
+    text-align: center;
+}
+
+.no-assignments-help strong {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.empty-week {
+    padding: 8px 5px;
+    text-align: center;
+    font-size: 12px;
+    min-height: 20px;
+}
+
+.add-rotation-hint {
+    color: #6c757d;
+    font-style: italic;
+    cursor: pointer;
+}
+
+.add-rotation-hint:hover {
+    color: #495057;
+    text-decoration: underline;
+}
+
+.no-assignment {
+    color: #adb5bd;
+    font-style: italic;
+}
+
+.week-cell:hover .add-rotation-hint {
+    color: #007bff;
 }
 </style>
