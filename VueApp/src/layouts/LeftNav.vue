@@ -13,7 +13,7 @@
                        @click="myMainLeftDrawer = false"></q-btn>
                 <h2 v-if="navHeader.length">{{ navHeader }}</h2>
                 <q-list dense separator>
-                    <template v-for="menuItem in menuItems">
+                    <template v-for="(menuItem, index) in menuItems" :key="index">
                         <q-item v-if="menuItem.routeTo != null"
                                 :clickable="menuItem.clickable"
                                 :v-ripple="menuItem.clickable"
@@ -46,10 +46,6 @@
     import { useFetch } from '@/composables/ViperFetch'
     export default defineComponent({
         name: "LeftNav",
-        setup(props) {
-
-
-        },
         props: {
             nav: String,
             navarea: Boolean,
@@ -70,15 +66,30 @@
                 const r = await get(u.toString())
                 this.navHeader = r.result.menuHeaderText
                 this.rawItems = r.result.menuItems
-                this.menuItems = r.result.menuItems.map((r: any) => ({
-                    menuItemUrl: (r.menuItemURL.length > 4 && r.menuItemURL.substr(0, 4) == "http") ? r.menuItemURL : null,
-                    routeTo: (r.menuItemURL.length <= 4 || r.menuItemURL.substr(0, 4) != "http") ? r.menuItemURL : null,
-                    menuItemText: r.menuItemText,
-                    clickable: r.menuItemURL.length > 0,
-                    displayClass: (r.menuItemURL.length
-                        ? "leftNavLink"
-                        : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText == "" ? " leftNavSpacer" : ""))
-                }))
+                this.menuItems = r.result.menuItems.map((r: any) => {
+                    const isExternalUrl = r.menuItemURL.length > 4 && r.menuItemURL.substr(0, 4) == "http";
+                    const isRelativeUrl = r.menuItemURL.length > 0 && !isExternalUrl && !r.menuItemURL.startsWith('/');
+                    
+                    let routeToUrl = null;
+                    if (!isExternalUrl && r.menuItemURL.length > 0) {
+                        if (isRelativeUrl && this.navarea && this.nav) {
+                            // For area-based navigation, prefix relative URLs with the area path
+                            routeToUrl = `/${this.nav.toUpperCase()}/${r.menuItemURL}`;
+                        } else {
+                            routeToUrl = r.menuItemURL;
+                        }
+                    }
+                    
+                    return {
+                        menuItemUrl: isExternalUrl ? r.menuItemURL : null,
+                        routeTo: routeToUrl,
+                        menuItemText: r.menuItemText,
+                        clickable: r.menuItemURL.length > 0,
+                        displayClass: (r.menuItemURL.length
+                            ? "leftNavLink"
+                            : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText == "" ? " leftNavSpacer" : ""))
+                    };
+                })
             },
             emitLeftDrawerChange() {
                 this.$emit('drawer-change', this.myMainLeftDrawer)

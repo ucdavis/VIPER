@@ -10,13 +10,14 @@
     "dev:frontend-build": "cd VueApp && npm install && npm run watch",
     "fix:backend": "cd web && dotnet format",
     "fix:frontend": "cd VueApp && npm run lint:fix",
-    "fix:staged": "lint-staged --config .lint-staged-fix.json",
+    "fix:staged": "lint-staged --config .lint-staged-fix.json --no-stash",
     "lint": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"npm run lint:frontend\" \"npm run lint:backend\"",
     "lint:backend": "cd web && dotnet format --verify-no-changes",
     "lint:frontend": "cd VueApp && npm run lint && npm run type-check",
     "lint:staged": "lint-staged",
     "prepare": "husky",
-    "test:backend": "cd test && dotnet test"
+    "test:backend": "cd test && dotnet test",
+    "test:frontend": "cd VueApp && npm run test:run"
   },
   "devDependencies": {
     "concurrently": "^9.0.1",
@@ -27,8 +28,8 @@
     "VueApp/**/*.{vue,js,jsx,ts,tsx}": [
       "node scripts/lint-staged-vue.js"
     ],
-    "web/**/*.cs": [
-      "dotnet format web --verify-no-changes --include"
+    "{web,test}/**/*.cs": [
+      "node scripts/lint-staged-dotnet.js"
     ]
   }
 }

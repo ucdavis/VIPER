@@ -1,7 +1,7 @@
 <template>
     <main>
         <component :is="$route.meta.layout || 'div'"
-                   nav="cts" :navarea="true" highlightedTopNav="Curriculum"
+                   nav="cts" navarea="true" highlightedTopNav="Curriculum"
                    :breadcrumbs="$route.meta?.breadcrumbs">
         </component>
     </main>

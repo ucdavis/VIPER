@@ -4,6 +4,9 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
+// Platform-specific constants
+const IS_WINDOWS = process.platform === 'win32';
+
 // Check if --fix flag is present
 const fixFlag = process.argv.includes('--fix');
 
@@ -24,7 +27,7 @@ function sanitizeFilePath(filePath) {
 
   // On Windows, lint-staged may pass paths like C:/path/to/file
   // Convert these to proper Windows format first
-  if (process.platform === 'win32' && /^[A-Za-z]:\//.test(filePath)) {
+  if (IS_WINDOWS && /^[A-Za-z]:\//.test(filePath)) {
     normalizedPath = filePath.replace(/\//g, path.sep);
   }
 
@@ -47,6 +50,21 @@ function sanitizeFilePath(filePath) {
     throw new Error(`File type not allowed: ${filePath}`);
   }
 
+  // Check file size to prevent DoS attacks (limit to 5MB)
+  const MAX_FILE_SIZE_MB = 5;
+  const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+  try {
+    const stats = require('fs').statSync(resolvedPath);
+    if (stats.size > MAX_FILE_SIZE_BYTES) {
+      throw new Error(`File too large (${Math.round(stats.size / 1024 / 1024)}MB > ${MAX_FILE_SIZE_MB}MB): ${filePath}`);
+    }
+  } catch (fsError) {
+    if (fsError.code === 'ENOENT') {
+      throw new Error(`File not found: ${filePath}`);
+    }
+    throw fsError;
+  }
+
   // Return relative path for eslint (relative to VueApp directory)
   // Use forward slashes for ESLint compatibility across platforms
   const relativePath = path.relative(vueAppDir, resolvedPath).replace(/\\/g, '/');
@@ -58,7 +76,7 @@ const files = rawFiles.map(sanitizeFilePath);
 
 // Helper function to run a command
 function runCommand(command, args, description) {
-  const useShell = process.platform === 'win32';
+  const useShell = IS_WINDOWS;
 
   console.log(`Running ${description}...`);
 

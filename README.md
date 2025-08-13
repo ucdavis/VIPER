@@ -170,7 +170,3 @@ The hook will:
 - Run ESLint and TypeScript checks on staged Vue/TypeScript files (uses Node.js script for Windows compatibility)
 - Only run on files you've actually changed
 - Block commits if issues are found (bypass with `git commit --no-verify` if needed)
-
-## License
-
-See [LICENSE](LICENSE) for details.

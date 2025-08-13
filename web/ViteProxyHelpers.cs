@@ -7,10 +7,21 @@ namespace Web;
 /// </summary>
 internal static partial class ViteProxyHelpers
 {
-    // Generated regex for built asset files with Vite hashes (used to skip proxying built assets)
-    // Matches files in assets directory with Vite-style hashes: letters, numbers, hyphens, underscores
-    [GeneratedRegex(@"/2/vue/assets/.*-[A-Za-z0-9_-]{6,}\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$", RegexOptions.IgnoreCase)]
-    private static partial Regex AssetHashRegex();
+    // Base path for Vite assets - make configurable for maintainability
+    private const string ViteAssetsBasePath = "/2/vue/assets/";
+
+    // Regex patterns for better maintainability and testability
+    private const string AssetHashPattern = @".*-[A-Za-z0-9_-]{6,}\.";
+    private const string SupportedAssetExtensions = @"(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)";
+    private const string VueAppRoutePattern = @"^/({0})(/.*)?$";
+    private const string VueAppAssetPattern = @"^/({0})/.*\.(js|ts|css|map|vue|json)$|^/({0})\.(js|ts|css|map|vue|json)$";
+    private const string DevAssetExtensions = @"(js|ts|css|map|vue|json)";
+
+    // Regex for built asset files with Vite hashes (used to skip proxying built assets)
+    private static readonly Regex AssetHashRegex = new Regex(
+        $@"{Regex.Escape(ViteAssetsBasePath)}{AssetHashPattern}{SupportedAssetExtensions}$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled
+    );
 
     // Cached compiled regexes - initialized once at startup
     private static Regex? _vueAppRouteRegex;
@@ -24,9 +35,9 @@ internal static partial class ViteProxyHelpers
         if (_vueAppRouteRegex == null)
         {
             var vueAppsPattern = string.Join("|", vueAppNames);
-            _vueAppRouteRegex = new Regex($@"^/({vueAppsPattern})(/.*)?$",
+            _vueAppRouteRegex = new Regex(string.Format(VueAppRoutePattern, vueAppsPattern),
                 RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            _vueAppAssetRegex = new Regex($@"^/({vueAppsPattern})/.*\.(js|ts|css|map|vue|json)$|^/({vueAppsPattern})\.(js|ts|css|map|vue|json)$",
+            _vueAppAssetRegex = new Regex(string.Format(VueAppAssetPattern, vueAppsPattern),
                 RegexOptions.Compiled | RegexOptions.IgnoreCase);
         }
     }
@@ -39,7 +50,7 @@ internal static partial class ViteProxyHelpers
         var path = context.Request.Path;
 
         // Skip proxying built asset files with hashes - serve as static files
-        if (path.HasValue && AssetHashRegex().IsMatch(path.Value))
+        if (path.HasValue && AssetHashRegex.IsMatch(path.Value))
         {
             return false;
         }
@@ -203,8 +214,9 @@ internal static partial class ViteProxyHelpers
     {
         // Log the proxy failure with structured logging
         var targetUrl = BuildViteUrl(context.Request.Path, context.Request.QueryString, vueAppNames);
+        var safeMethod = context.Request.Method.Replace("\r", "").Replace("\n", "");
         logger.LogWarning(ex, "Vite proxy failed for {Method} {RequestPath} -> {TargetUrl}",
-            context.Request.Method,
+            safeMethod,
             context.Request.Path + context.Request.QueryString,
             targetUrl);
 
@@ -253,7 +265,8 @@ internal static partial class ViteProxyHelpers
             }
             catch (Exception fileEx)
             {
-                logger.LogWarning(fileEx, "Failed to serve static file fallback for {Path}", context.Request.Path);
+                var safePath = context.Request.Path.ToString().Replace("\r", "").Replace("\n", "");
+                logger.LogWarning(fileEx, "Failed to serve static file fallback for {Path}", safePath);
             }
 
             context.Response.StatusCode = 502;

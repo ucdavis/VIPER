@@ -5,28 +5,31 @@ import { useUserStore } from '@/store/UserStore'
 import { useRouter, useRoute } from 'vue-router'
 import type { RouteLocationNormalized } from 'vue-router'
 
+// Module-level regex constants to avoid recreation on each function call
+const ABSOLUTE_URL_REGEX = /^(https?:)?\/\//;
+const ENCODED_SLASH_REGEX = /%2f/i;
+const ENCODED_DOT_REGEX = /%2e/i;
+const ALLOWED_INTERNAL_PREFIXES = ['/', '/2/', '/vue/'];
+
 // Helper function to validate internal redirect paths (prevent open redirect attacks)
 function isValidInternalPath(path: string): boolean {
     if (!path || typeof path !== 'string') return false
 
     // Reject absolute URLs, path traversal, and encoded bypasses
-    const encodedSlashRegex = /%2f|%2F/;
-    const encodedDotRegex = /%2e|%2E/;
     if (
-        /^(https?:)?\/\//.test(path) ||
+        ABSOLUTE_URL_REGEX.test(path) ||
         path.includes('../') ||
-        encodedSlashRegex.test(path) ||
-        encodedDotRegex.test(path)
+        ENCODED_SLASH_REGEX.test(path) ||
+        ENCODED_DOT_REGEX.test(path)
     ) {
         return false;
     }
 
     // SECURITY NOTE: This approach mitigates open redirect attacks by restricting
     // redirects to known internal paths.
-    // Ensure all valid internal routes used by your app are included in allowedPrefixes.
+    // Ensure all valid internal routes used by your app are included in ALLOWED_INTERNAL_PREFIXES.
     // Update this array if new internal route prefixes are added to the application.
-    const allowedPrefixes = ['/', '/2/', '/vue/'];
-    return allowedPrefixes.some(prefix => path.startsWith(prefix));
+    return ALLOWED_INTERNAL_PREFIXES.some(prefix => path.startsWith(prefix));
 }
 
 export default function useRequireLogin(to: RouteLocationNormalized) {
