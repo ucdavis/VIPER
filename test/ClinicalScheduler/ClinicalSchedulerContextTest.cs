@@ -31,7 +31,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Act & Assert - Should not throw exceptions about missing primary keys
             using var context = new ClinicalSchedulerContext(options);
-            
+
             // This will trigger model building and should not throw the CourseSessionOffering error
             var model = context.Model;
             Assert.NotNull(model);
@@ -54,7 +54,6 @@ namespace Viper.test.ClinicalScheduler
             Assert.NotNull(context.WeekGradYears);
             // ScheduleAudits temporarily removed - will be added back in Phase 7
             // Assert.NotNull(context.ScheduleAudits);
-            Assert.NotNull(context.Statuses);
         }
 
         [Fact]
@@ -65,11 +64,11 @@ namespace Viper.test.ClinicalScheduler
 
             // Act & Assert - Should not throw exceptions when querying
             using var context = new ClinicalSchedulerContext(options);
-            
+
             // This should work without throwing CourseSessionOffering errors
             var query = context.Rotations.Include(r => r.Service);
             Assert.NotNull(query);
-            
+
             // Execute the query (will be empty in in-memory database but should not error)
             var rotations = query.ToList();
             Assert.NotNull(rotations);
@@ -87,14 +86,14 @@ namespace Viper.test.ClinicalScheduler
 
             // Assert - Verify that Encounters and Epas navigation properties are ignored
             Assert.NotNull(serviceEntityType);
-            
+
             var encountersNavigation = serviceEntityType.FindNavigation("Encounters");
             var epasNavigation = serviceEntityType.FindNavigation("Epas");
-            
+
             // These should be null because we ignored them in the configuration
             Assert.Null(encountersNavigation);
             Assert.Null(epasNavigation);
-            
+
             // But Rotations navigation should still exist
             var rotationsNavigation = serviceEntityType.FindNavigation("Rotations");
             Assert.NotNull(rotationsNavigation);

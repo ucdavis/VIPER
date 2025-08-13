@@ -23,7 +23,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         {
             //check required arguments: at least date or student
             //for future, add student + grad year or rotation + grad year?
-            if (date == null && mothraId == null )
+            if (date == null && mothraId == null)
             {
                 return ValidationProblem("Date or student mothra id is required");
             }

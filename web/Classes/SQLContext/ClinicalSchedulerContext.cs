@@ -1,7 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Viper.Classes;
 using Viper.Models.CTS;
-using Viper.Models.VIPER;
 
 namespace Viper.Classes.SQLContext;
 
@@ -18,7 +16,9 @@ public class ClinicalSchedulerContext : DbContext
     public virtual DbSet<WeekGradYear> WeekGradYears { get; set; }
     // ScheduleAudit temporarily removed - will be added back in Phase 7 (Edit Functionality - Backend)
     // public virtual DbSet<ScheduleAudit> ScheduleAudits { get; set; }
-    public virtual DbSet<Status> Statuses { get; set; }
+    // Status and VWeek are accessed via raw SQL queries from ClinicalScheduler database
+    // public virtual DbSet<Models.ClinicalScheduler.Status> Statuses { get; set; }
+    // public virtual DbSet<Models.ClinicalScheduler.VWeek> VWeeks { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -111,11 +111,7 @@ public class ClinicalSchedulerContext : DbContext
         //        .OnDelete(DeleteBehavior.SetNull);
         // });
 
-        modelBuilder.Entity<Status>(entity =>
-        {
-            entity.HasKey(e => e.StatusId);
-            entity.ToTable("Status", schema: "cts");
-            entity.Property(e => e.Description).IsRequired(false);
-        });
+        // Status and VWeek tables are accessed via raw SQL queries from ClinicalScheduler database
+        // Entity Framework configurations removed since we query cross-database
     }
 }

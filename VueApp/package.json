@@ -20,7 +20,9 @@
         "build-dev": "run-p type-check \"build-only-dev {@}\" --",
         "build-only-dev": "vite build --mode development",
         "build-test": "run-p type-check \"build-only-test {@}\" --",
-        "build-only-test": "vite build --mode test"
+        "build-only-test": "vite build --mode test",
+        "test": "vitest",
+        "test:run": "vitest run"
     },
     "dependencies": {
         "@quasar/extras": "^1.16.12",
@@ -55,6 +57,7 @@
         "typescript": "^5.9.2",
         "vite": "^6.3.5",
         "vite-plugin-vue-inspector": "^5.3.2",
+        "vitest": "^2.0.0",
         "vue-tsc": "^3.0.6"
     },
     "volta": {

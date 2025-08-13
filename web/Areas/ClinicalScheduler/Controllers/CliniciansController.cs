@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Models.CTS;
-using Viper.Models.AAUD;
+using Viper.Areas.ClinicalScheduler.Services;
 using Web.Authorization;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
@@ -12,17 +12,19 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
     [ApiController]
     [Area("ClinicalScheduler")]
     [Permission(Allow = "SVMSecure.ClnSched")]
-    public class CliniciansController : ApiController
+    public class CliniciansController : BaseClinicalSchedulerController
     {
         private readonly ClinicalSchedulerContext _context;
         private readonly AAUDContext _aaudContext;
-        private readonly ILogger<CliniciansController> _logger;
+        private readonly WeekService _weekService;
 
-        public CliniciansController(ClinicalSchedulerContext context, AAUDContext aaudContext, ILogger<CliniciansController> logger)
+        public CliniciansController(ClinicalSchedulerContext context, AAUDContext aaudContext, ILogger<CliniciansController> logger,
+            AcademicYearService academicYearService, WeekService weekService, IMemoryCache cache)
+            : base(academicYearService, cache, logger)
         {
             _context = context;
             _aaudContext = aaudContext;
-            _logger = logger;
+            _weekService = weekService;
         }
 
         /// <summary>
@@ -32,6 +34,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <param name="includeAllAffiliates">If true, includes all affiliates instead of just active clinicians</param>
         /// <returns>List of clinicians with their basic info</returns>
         [HttpGet]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetClinicians([FromQuery] int? year = null, [FromQuery] bool includeAllAffiliates = false)
         {
             try
@@ -150,7 +154,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching clinicians");
-                return StatusCode(500, new { error = "An error occurred while fetching clinicians", details = ex.Message });
+                return StatusCode(500, new { error = "An error occurred while fetching clinicians" });
             }
         }
 
@@ -287,7 +291,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error comparing counts");
-                return StatusCode(500, new { error = "An error occurred while comparing counts", details = ex.Message });
+                return StatusCode(500, new { error = "An error occurred while comparing counts" });
             }
         }
 
@@ -298,27 +302,62 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <param name="year">The grad year to filter by (optional)</param>
         /// <returns>Schedule information for the clinician grouped by semester</returns>
         [HttpGet("{mothraId}/schedule")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetClinicianSchedule(string mothraId, [FromQuery] int? year = null)
         {
             try
             {
-                _logger.LogInformation("Fetching schedule for clinician {MothraId}, year: {Year}", mothraId, year);
+                // Use academic year logic instead of calendar year
+                var targetYear = await GetTargetYearAsync(year);
+                _logger.LogInformation("Fetching schedule for clinician {MothraId}, academic year: {Year}", mothraId, targetYear);
 
-                // Build base query
-                var query = _context.InstructorSchedules
-                    .Include(i => i.Week)
-                    .Include(i => i.Rotation)
-                    .Include(i => i.Service)
-                    .Where(i => i.MothraId == mothraId);
+                // Get weeks for the academic year using vWeek view (contains correct week numbers)
+                var vWeeks = await _weekService.GetWeeksAsync(targetYear, includeExtendedRotation: true);
 
-                // Apply year filter if provided
-                if (year.HasValue)
+                if (!vWeeks.Any())
                 {
-                    query = query.Where(i => i.Week.WeekGradYears.Any(wgy => wgy.GradYear == year.Value));
+                    _logger.LogWarning("No weeks found for academic year {Year}", targetYear);
+                    // Still try to get clinician info from AAUD context
+                    var clinicianFromAaud = await _aaudContext.VwVmthClinicians
+                        .Where(c => c.IdsMothraid == mothraId)
+                        .Select(c => new
+                        {
+                            mothraId = mothraId,
+                            fullName = !string.IsNullOrWhiteSpace(c.FullName)
+                                ? c.FullName
+                                : !string.IsNullOrWhiteSpace(c.PersonDisplayFirstName) || !string.IsNullOrWhiteSpace(c.PersonDisplayLastName)
+                                    ? $"{c.PersonDisplayFirstName ?? ""} {c.PersonDisplayLastName ?? ""}".Trim()
+                                    : $"Clinician {mothraId}",
+                            firstName = c.PersonDisplayFirstName ?? "",
+                            lastName = c.PersonDisplayLastName ?? "",
+                            role = (string?)null
+                        })
+                        .FirstOrDefaultAsync();
+
+                    return Ok(new
+                    {
+                        clinician = clinicianFromAaud ?? new
+                        {
+                            mothraId = mothraId,
+                            fullName = $"Clinician {mothraId}",
+                            firstName = "",
+                            lastName = "",
+                            role = (string?)null
+                        },
+                        academicYear = targetYear,
+                        schedulesBySemester = new List<object>()
+                    });
                 }
 
-                // Get the instructor schedules
-                var schedules = await query
+                // Get instructor schedules for this clinician using academic year filtering
+                // Filter by weeks that belong to the target academic year
+                var weekIds = vWeeks.Select(w => w.WeekId).ToList();
+
+                var schedules = await _context.InstructorSchedules
+                    .Include(i => i.Rotation)
+                    .Include(i => i.Service)
+                    .Where(i => i.MothraId == mothraId && weekIds.Contains(i.WeekId))
                     .OrderBy(i => i.DateStart)
                     .ToListAsync();
 
@@ -376,65 +415,61 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     };
                 }
 
-                // Group schedules by semester (based on week term code)
+                // Group schedules by semester (based on week term code) using vWeek data
                 List<object> groupedSchedules;
 
                 if (schedules.Any())
                 {
-                    // Get all weeks for the actual years present in the schedule data
-                    var scheduleYears = schedules.Select(s => s.DateStart.Year).Distinct().ToList();
-                    var yearWeeks = await _context.Weeks
-                        .Where(w => scheduleYears.Contains(w.DateStart.Year))
-                        .OrderBy(w => w.DateStart)
-                        .Select(w => new { w.WeekId, w.DateStart })
-                        .ToListAsync();
-
-                    // Create week number mapping by year
-                    var weekNumberMap = new Dictionary<int, int>();
-                    foreach (var yearGroup in yearWeeks.GroupBy(w => w.DateStart.Year))
-                    {
-                        var weeksInYear = yearGroup.OrderBy(w => w.DateStart).ToList();
-                        for (int i = 0; i < weeksInYear.Count; i++)
-                        {
-                            weekNumberMap[weeksInYear[i].WeekId] = i + 1;
-                        }
-                    }
-
                     // Pre-calculate semester names to avoid repeated calls during grouping
                     var semesterLookup = new Dictionary<int, string>();
                     foreach (var schedule in schedules)
                     {
-                        if (!semesterLookup.ContainsKey(schedule.Week.TermCode))
+                        // Get term code from vWeek data
+                        var vWeek = vWeeks.FirstOrDefault(w => w.WeekId == schedule.WeekId);
+                        if (vWeek != null && !semesterLookup.ContainsKey(vWeek.TermCode))
                         {
-                            var semesterName = TermCodes.GetSemesterName(schedule.Week.TermCode);
+                            var semesterName = TermCodes.GetSemesterName(vWeek.TermCode);
                             var normalizedSemester = semesterName.StartsWith("Invalid Term Code") || semesterName.StartsWith("Unknown Term")
                                 ? "Unknown Semester"
                                 : semesterName;
-                            semesterLookup[schedule.Week.TermCode] = normalizedSemester;
+                            semesterLookup[vWeek.TermCode] = normalizedSemester;
                         }
                     }
 
-                    // Clinician has schedules - group them by pre-calculated semester
+                    // Group schedules by semester using vWeek data for proper week numbers
                     groupedSchedules = schedules
-                        .GroupBy(s => semesterLookup[s.Week.TermCode])
+                        .Select(s =>
+                        {
+                            var vWeek = vWeeks.FirstOrDefault(w => w.WeekId == s.WeekId);
+                            return new
+                            {
+                                Schedule = s,
+                                VWeek = vWeek,
+                                Semester = vWeek != null && semesterLookup.ContainsKey(vWeek.TermCode)
+                                    ? semesterLookup[vWeek.TermCode]
+                                    : "Unknown Semester"
+                            };
+                        })
+                        .Where(item => item.VWeek != null)
+                        .GroupBy(item => item.Semester)
                         .Select(g => new
                         {
                             semester = g.Key,
-                            weeks = g.Select(s => new
+                            weeks = g.Select(item => new
                             {
-                                weekId = s.WeekId,
-                                weekNumber = weekNumberMap.ContainsKey(s.WeekId) ? weekNumberMap[s.WeekId] : 0,
-                                dateStart = s.DateStart,
-                                dateEnd = s.DateEnd,
+                                weekId = item.Schedule.WeekId,
+                                weekNumber = item.VWeek!.WeekNum, // Use proper academic week number from vWeek
+                                dateStart = item.Schedule.DateStart,
+                                dateEnd = item.Schedule.DateEnd,
                                 rotation = new
                                 {
-                                    rotationId = s.RotationId,
-                                    rotationName = s.RotationName,
-                                    abbreviation = s.Abbreviation,
-                                    serviceId = s.ServiceId,
-                                    serviceName = s.ServiceName
+                                    rotationId = item.Schedule.RotationId,
+                                    rotationName = item.Schedule.RotationName,
+                                    abbreviation = item.Schedule.Abbreviation,
+                                    serviceId = item.Schedule.ServiceId,
+                                    serviceName = item.Schedule.ServiceName
                                 },
-                                isPrimaryEvaluator = s.Evaluator
+                                isPrimaryEvaluator = item.Schedule.Evaluator
                             }).OrderBy(w => w.dateStart).ToList()
                         })
                         .OrderBy(g => TermCodes.GetSemesterOrder(g.semester))
@@ -443,38 +478,28 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 }
                 else
                 {
-                    // No schedules - create empty schedule with all weeks for the year
-                    var targetYear = year ?? DateTime.Now.Year;
-
-                    // Get all weeks for the year and calculate week numbers like RotationsController
-                    var yearWeeks = await _context.Weeks
-                        .Where(w => w.DateStart.Year == targetYear)
-                        .OrderBy(w => w.DateStart)
-                        .Select(w => new { w.WeekId, w.DateStart, w.DateEnd, w.TermCode })
-                        .ToListAsync();
-
-                    // Calculate week numbers in memory (avoids N+1 queries and WeekGradYear dependency)
-                    var allWeeks = yearWeeks
-                        .Select((w, index) => new
-                        {
-                            weekId = w.WeekId,
-                            weekNumber = index + 1, // Week numbers start from 1
-                            dateStart = w.DateStart,
-                            dateEnd = w.DateEnd,
-                            termCode = w.TermCode,
-                            rotation = (object?)null, // No rotation assigned
-                            isPrimaryEvaluator = false
-                        })
-                        .ToList();
-
+                    // No schedules - create empty schedule with all weeks for the academic year
                     // Pre-calculate semester names for all weeks to avoid repeated calls
-                    var weeksWithSemester = allWeeks.Select(w =>
+                    var weeksWithSemester = vWeeks.Select(w =>
                     {
-                        var semesterName = TermCodes.GetSemesterName(w.termCode);
+                        var semesterName = TermCodes.GetSemesterName(w.TermCode);
                         var normalizedSemester = semesterName.StartsWith("Invalid Term Code") || semesterName.StartsWith("Unknown Term")
                             ? "Unknown Semester"
                             : semesterName;
-                        return new { Week = w, Semester = normalizedSemester };
+                        return new
+                        {
+                            Week = new
+                            {
+                                weekId = w.WeekId,
+                                weekNumber = w.WeekNum, // Use proper academic week number from vWeek
+                                dateStart = w.DateStart,
+                                dateEnd = w.DateEnd,
+                                termCode = w.TermCode,
+                                rotation = (object?)null, // No rotation assigned
+                                isPrimaryEvaluator = false
+                            },
+                            Semester = normalizedSemester
+                        };
                     }).ToList();
 
                     // Group weeks by pre-calculated semester
@@ -493,16 +518,18 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 var result = new
                 {
                     clinician = clinicianInfo,
+                    academicYear = targetYear, // Returns the academic year from database settings
                     schedulesBySemester = groupedSchedules
                 };
 
-                _logger.LogInformation("Found {ScheduleCount} schedule entries for clinician {MothraId}", schedules.Count, mothraId);
+                _logger.LogInformation("Found {ScheduleCount} schedule entries for clinician {MothraId} (academic year {Year})",
+                    schedules.Count, mothraId, targetYear);
                 return Ok(result);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error fetching schedule for clinician {mothraId}");
-                return StatusCode(500, new { error = "An error occurred while fetching the clinician schedule", details = ex.Message });
+                return StatusCode(500, new { error = "An error occurred while fetching the clinician schedule" });
             }
         }
 
@@ -512,6 +539,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <param name="mothraId">The MothraId of the clinician</param>
         /// <returns>List of unique rotations for the clinician</returns>
         [HttpGet("{mothraId}/rotations")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetClinicianRotations(string mothraId)
         {
             try
@@ -539,7 +568,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error fetching rotations for clinician {mothraId}");
-                return StatusCode(500, new { error = "An error occurred while fetching clinician rotations", details = ex.Message });
+                return StatusCode(500, new { error = "An error occurred while fetching clinician rotations" });
             }
         }
 
@@ -652,8 +681,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error analyzing clinician data");
-                return StatusCode(500, new { error = "An error occurred during data analysis", details = ex.Message });
+                return StatusCode(500, new { error = "An error occurred during data analysis" });
             }
         }
+
+
     }
 }

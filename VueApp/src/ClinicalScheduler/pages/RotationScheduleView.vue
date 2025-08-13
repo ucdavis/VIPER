@@ -10,7 +10,7 @@
 
         <h2>
             Clinician Schedule for
-            <RotationSelector 
+            <RotationSelector
                 v-model="selectedRotationId"
                 :year="currentYear"
                 :only-with-scheduled-weeks="true"
@@ -18,18 +18,14 @@
                 class="d-inline-block ms-2"
                 style="min-width: 300px;"
             />
-            <select 
-                v-model="currentYear" 
-                @change="onYearChange"
-                class="year-selector ms-3"
-            >
-                <option v-for="year in availableYears" :key="year" :value="year">
-                    {{ year }}
-                </option>
-            </select>
+            <YearSelector
+                v-model="currentYear"
+                @yearChanged="onYearChange"
+                class="ms-3"
+            />
         </h2>
 
-        
+
         <!-- Error display for rotation loading -->
         <div v-if="error" class="error-message">
             {{ error }}
@@ -51,11 +47,11 @@
         <!-- Clinician selector section (only show when rotation is selected) -->
         <div v-if="selectedRotation" class="clinician-selector-section">
             <div class="clinician-buttons">
-                <button 
-                    v-for="clinician in availableClinicians" 
-                    :key="clinician" 
-                    class="clinician-btn" 
-                    :class="{ selected: selectedClinician === clinician }" 
+                <button
+                    v-for="clinician in availableClinicians"
+                    :key="clinician"
+                    class="clinician-btn"
+                    :class="{ selected: selectedClinician === clinician }"
                     @click="selectClinician(clinician)"
                 >
                     {{ clinician }}
@@ -76,77 +72,41 @@
 
         <!-- Season headers and week grids -->
         <div v-if="selectedRotation">
-            <h3>Spring 2025</h3>
-            <div class="week-grid">
-                <div v-for="week in springWeeks" :key="week.weekId" 
-                     class="week-cell" 
-                     :class="{ 'requires-primary': requiresPrimaryEvaluator(week) }"
-                     @click="scheduleClinicianToWeek(week)">
-                    <div class="week-header">
-                        <span v-if="requiresPrimaryEvaluator(week)" class="alert-icon" title="Primary evaluator required for this week">⚠️</span>
-                        Week {{ week.weekNumber }}<br>
-                        {{ formatDate(week.dateStart) }}
-                    </div>
-                    <div class="rotation-list">
-                        <div v-for="assignment in getWeekAssignments(week.weekId)" :key="assignment.id" class="rotation-item">
-                            <!-- Remove button - only show for current year -->
-                            <span v-if="!isPastYear && !assignment.isPrimary" 
-                                  class="remove-btn" 
-                                  title="Remove this clinician from the schedule." 
-                                  @click.stop="removeAssignment()">✖</span>
-                            <span v-else-if="!isPastYear" 
-                                  class="remove-btn-disabled" 
-                                  title="Cannot remove primary clinician. Make another clinician primary first.">✖</span>
-                            
-                            <span>{{ assignment.clinicianName }}</span>
-                            
-                            <!-- Primary star - for past years, only show filled stars without click handler -->
-                            <span v-if="isPastYear && assignment.isPrimary"
-                                  class="primary-star filled"
-                                  title="Primary evaluator">★</span>
-                            <span v-else-if="!isPastYear"
-                                  class="primary-star" 
-                                  :class="{ filled: assignment.isPrimary }"
-                                  :title="assignment.isPrimary ? 'Primary evaluator. To transfer primary status, click the star on another clinician.' : 'Click to make this clinician the primary evaluator.'"
-                                  @click.stop="togglePrimary()">{{ assignment.isPrimary ? '★' : '☆' }}</span>
+            <div v-for="season in weeksBySeason" :key="season.name">
+                <h3>{{ season.displayName }}</h3>
+                <div class="week-grid">
+                    <div v-for="week in season.weeks" :key="week.weekId"
+                         class="week-cell"
+                         :class="{ 'requires-primary': requiresPrimaryEvaluator(week) }"
+                         @click="scheduleClinicianToWeek(week)">
+                        <div class="week-header">
+                            <span v-if="requiresPrimaryEvaluator(week)" class="alert-icon" title="Primary evaluator required for this week">⚠️</span>
+                            Week {{ week.weekNumber }}<br>
+                            {{ formatDate(week.dateStart) }}
                         </div>
-                    </div>
-                </div>
-            </div>
+                        <div class="rotation-list">
+                            <div v-for="assignment in getWeekAssignments(week.weekId)" :key="assignment.id" class="rotation-item">
+                                <!-- Remove button - only show for current year -->
+                                <span v-if="!isPastYear && !assignment.isPrimary"
+                                      class="remove-btn"
+                                      title="Remove this clinician from the schedule."
+                                      @click.stop="removeAssignment()">✖</span>
+                                <span v-else-if="!isPastYear"
+                                      class="remove-btn-disabled"
+                                      title="Cannot remove primary clinician. Make another clinician primary first.">✖</span>
 
-            <h3>Summer 2025</h3>
-            <div class="week-grid">
-                <div v-for="week in summerWeeks" :key="week.weekId" 
-                     class="week-cell" 
-                     :class="{ 'requires-primary': requiresPrimaryEvaluator(week) }"
-                     @click="scheduleClinicianToWeek(week)">
-                    <div class="week-header">
-                        <span v-if="requiresPrimaryEvaluator(week)" class="alert-icon" title="Primary evaluator required for this week">⚠️</span>
-                        Week {{ week.weekNumber }}<br>
-                        {{ formatDate(week.dateStart) }}
-                    </div>
-                    <div class="rotation-list">
-                        <div v-for="assignment in getWeekAssignments(week.weekId)" :key="assignment.id" class="rotation-item">
-                            <!-- Remove button - only show for current year -->
-                            <span v-if="!isPastYear && !assignment.isPrimary" 
-                                  class="remove-btn" 
-                                  title="Remove this clinician from the schedule." 
-                                  @click.stop="removeAssignment()">✖</span>
-                            <span v-else-if="!isPastYear" 
-                                  class="remove-btn-disabled" 
-                                  title="Cannot remove primary clinician. Make another clinician primary first.">✖</span>
-                            
-                            <span>{{ assignment.clinicianName }}</span>
-                            
-                            <!-- Primary star - for past years, only show filled stars without click handler -->
-                            <span v-if="isPastYear && assignment.isPrimary"
-                                  class="primary-star filled"
-                                  title="Primary evaluator">★</span>
-                            <span v-else-if="!isPastYear"
-                                  class="primary-star" 
-                                  :class="{ filled: assignment.isPrimary }"
-                                  :title="assignment.isPrimary ? 'Primary evaluator. To transfer primary status, click the star on another clinician.' : 'Click to make this clinician the primary evaluator.'"
-                                  @click.stop="togglePrimary()">{{ assignment.isPrimary ? '★' : '☆' }}</span>
+                                <span>{{ assignment.clinicianName }}</span>
+
+                                <!-- Primary star - for past years, only show filled stars without click handler -->
+                                <span v-if="isPastYear && assignment.isPrimary"
+                                      class="primary-star filled"
+                                      title="Primary evaluator">★</span>
+                                <span v-else-if="!isPastYear"
+                                      class="primary-star"
+                                      :class="{ filled: assignment.isPrimary }"
+                                      :title="assignment.isPrimary ? 'Primary evaluator. To transfer primary status, click the star on another clinician.' : 'Click to make this clinician the primary evaluator.'"
+                                      @click.stop="togglePrimary()">{{ assignment.isPrimary ? '★' : '☆' }}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -154,15 +114,7 @@
         </div>
 
         <!-- Legend -->
-        <div v-if="selectedRotation" class="legend">
-            <h4>Legend</h4>
-            <ul>
-                <li><span class="icon-demo remove-icon">✖</span> removes the clinician from the schedule</li>
-                <li>Primary clinicians (<span class="icon-demo primary-icon">★</span>) cannot be removed until another clinician is made primary first</li>
-                <li><span class="icon-demo primary-icon">★</span> marks them as primary (and unmarks the current primary, if any)</li>
-                <li><span class="icon-demo alert-icon">⚠️</span> indicates weeks that require a primary evaluator</li>
-            </ul>
-        </div>
+        <ScheduleLegend v-if="selectedRotation" :show-warning="true" />
     </div>
 </template>
 
@@ -173,6 +125,8 @@ import { RotationService, type RotationWithService, type RotationScheduleData, t
 import type { Clinician } from '../services/ClinicianService'
 import RotationSelector from '../components/RotationSelector.vue'
 import ClinicianSelector from '../components/ClinicianSelector.vue'
+import YearSelector from '../components/YearSelector.vue'
+import ScheduleLegend from '../components/ScheduleLegend.vue'
 
 // Router
 const route = useRoute()
@@ -190,24 +144,16 @@ const error = ref<string | null>(null)
 const scheduleData = ref<RotationScheduleData | null>(null)
 const isLoadingSchedule = ref(false)
 const scheduleError = ref<string | null>(null)
-const currentYear = ref(new Date().getFullYear())
+// YearSelector will initialize with academic year
+const currentYear = ref<number | null>(null)
 
 // Clinician data for the dropdown
 const includeAllAffiliates = ref(false)
 
-// Computed properties for year selection
-const availableYears = computed(() => {
-    const thisYear = new Date().getFullYear()
-    const years = []
-    // Show current year plus 5 years back
-    for (let i = 0; i <= 5; i++) {
-        years.push(thisYear - i)
-    }
-    return years
-})
+// Year selection is now handled by YearSelector component
 
 const isPastYear = computed(() => {
-    return currentYear.value < new Date().getFullYear()
+    return currentYear.value !== null && currentYear.value < new Date().getFullYear()
 })
 
 
@@ -216,40 +162,71 @@ const isPastYear = computed(() => {
 // Available clinicians from schedule data
 const availableClinicians = computed(() => {
     if (!scheduleData.value) return []
-    
+
     const clinicians = new Set<string>()
     scheduleData.value.instructorSchedules.forEach(schedule => {
         clinicians.add(schedule.fullName)
     })
-    
+
     return Array.from(clinicians).sort()
 })
 
-// Week data grouped by season
-const springWeeks = computed(() => {
+// Week data grouped by academic season using actual calendar dates
+const weeksBySeason = computed(() => {
     if (!scheduleData.value) return []
-    
-    return scheduleData.value.weeks
-        .filter(week => {
-            const date = new Date(week.dateStart)
-            const month = date.getMonth()
-            // Spring: March (2) through June (5)
-            return month >= 2 && month <= 5
-        })
-        .sort((a, b) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime())
-})
 
-const summerWeeks = computed(() => {
-    if (!scheduleData.value) return []
-    
-    return scheduleData.value.weeks
-        .filter(week => {
-            const date = new Date(week.dateStart)
-            const month = date.getMonth()
-            // Summer: July (6) through August (7)
-            return month >= 6 && month <= 7
+    // Define academic seasons with their months (no year offsets - use actual calendar dates)
+    const seasons = [
+        { name: 'fall', displayName: 'Fall', months: [8, 9, 10, 11] }, // Sept-Dec
+        { name: 'winter', displayName: 'Winter', months: [0, 1] }, // Jan-Feb
+        { name: 'spring', displayName: 'Spring', months: [2, 3, 4, 5] }, // Mar-Jun
+        { name: 'summer', displayName: 'Summer', months: [6, 7] } // Jul-Aug
+    ]
+
+    // Group weeks by both season and year to handle multi-year academic periods
+    const seasonYearGroups = new Map()
+
+    scheduleData.value.weeks.forEach(week => {
+        const date = new Date(week.dateStart)
+        const month = date.getMonth()
+        const year = date.getFullYear()
+
+        // Find which season this week belongs to
+        const season = seasons.find(s => s.months.includes(month))
+        if (season) {
+            const key = `${season.name}-${year}`
+            if (!seasonYearGroups.has(key)) {
+                seasonYearGroups.set(key, {
+                    season: season,
+                    year: year,
+                    weeks: []
+                })
+            }
+            seasonYearGroups.get(key).weeks.push(week)
+        }
+    })
+
+    // Convert to result array
+    const result = []
+    for (const [, group] of seasonYearGroups) {
+        // Sort weeks within each season-year group
+        group.weeks.sort((a: any, b: any) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime())
+
+        result.push({
+            name: `${group.season.name}-${group.year}`,
+            displayName: `${group.season.displayName} ${group.year}`,
+            weeks: group.weeks,
+            seasonName: group.season.name,
+            year: group.year
         })
-        .sort((a, b) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime())
+    }
+
+    // Sort by chronological order based on actual calendar dates
+    return result.sort((a: any, b: any) => {
+        const firstDateA = new Date(a.weeks[0].dateStart)
+        const firstDateB = new Date(b.weeks[0].dateStart)
+        return firstDateA.getTime() - firstDateB.getTime()
+    })
 })
 
 
@@ -266,7 +243,7 @@ async function loadRotations() {
 
     try {
         const result = await RotationService.getRotations({ includeService: true })
-        
+
         if (result.success) {
             rotations.value = result.result
         } else {
@@ -285,10 +262,10 @@ function onRotationSelected(rotation: RotationWithService | null) {
     selectedRotation.value = rotation
     selectedRotationId.value = rotation ? rotation.rotId : null // Update rotation ID for URL
     selectedClinician.value = null // Reset clinician selection when rotation changes
-    
+
     // Update URL with selected rotation
     updateUrl()
-    
+
     if (selectedRotation.value) {
         console.log('Selected rotation:', selectedRotation.value)
         loadScheduleData(selectedRotation.value.rotId)
@@ -306,20 +283,20 @@ async function onRotationChange() {
 async function updateUrl() {
     if (selectedRotationId.value) {
         const query: Record<string, string> = {}
-        
-        if (currentYear.value !== new Date().getFullYear()) {
+
+        if (currentYear.value !== null && currentYear.value !== new Date().getFullYear()) {
             query.year = currentYear.value.toString()
         }
-        
+
         // Update URL with path parameter for rotation ID
-        await router.replace({ 
+        await router.replace({
             name: 'RotationScheduleWithId',
             params: { rotationId: selectedRotationId.value?.toString() ?? '' },
-            query: Object.keys(query).length > 0 ? query : undefined 
+            query: Object.keys(query).length > 0 ? query : undefined
         })
     } else {
         // No rotation selected, go back to base route
-        await router.replace({ 
+        await router.replace({
             name: 'RotationSchedule'
         })
     }
@@ -331,7 +308,7 @@ function initializeFromUrl() {
     if (rotationIdParam && typeof rotationIdParam === 'string') {
         selectedRotationId.value = Number(rotationIdParam)
     }
-    
+
     // Get year from URL query parameters
     const yearParam = route.query.year
     if (yearParam && typeof yearParam === 'string') {
@@ -342,9 +319,9 @@ function initializeFromUrl() {
 async function onYearChange() {
     // Update URL
     await updateUrl()
-    
+
     // ClinicianSelector will automatically reload for the new year
-    
+
     // Reload schedule data if a rotation is selected
     if (selectedRotation.value) {
         await loadScheduleData(selectedRotation.value.rotId)
@@ -356,8 +333,8 @@ async function loadScheduleData(rotationId: number) {
     scheduleError.value = null
 
     try {
-        const result = await RotationService.getRotationSchedule(rotationId, { year: currentYear.value })
-        
+        const result = await RotationService.getRotationSchedule(rotationId, { year: currentYear.value ?? undefined })
+
         if (result.success) {
             scheduleData.value = result.result
             console.log('Loaded schedule data:', scheduleData.value)
@@ -387,8 +364,8 @@ function onAddClinicianSelected(clinician: Clinician | null) {
 
 function getWeekAssignments(weekId: number) {
     if (!scheduleData.value) return []
-    
-    return scheduleData.value.instructorSchedules.filter(schedule => 
+
+    return scheduleData.value.instructorSchedules.filter(schedule =>
         schedule.week.weekId === weekId
     ).map(schedule => ({
         id: schedule.instructorScheduleId,
@@ -403,17 +380,17 @@ function scheduleClinicianToWeek(week: WeekItem) {
         alert('Please select a clinician first')
         return
     }
-    
+
     // Check if clinician is already scheduled for this week
     const existingAssignment = getWeekAssignments(week.weekId).find(
         assignment => assignment.clinicianName === selectedClinician.value
     )
-    
+
     if (existingAssignment) {
         alert('Clinician is already scheduled for this week')
         return
     }
-    
+
     // In Phase 7, we'll implement the actual API call to add assignments
     alert('Adding/editing schedules will be implemented in Phase 7 (Edit Functionality)')
 }
@@ -438,11 +415,11 @@ function formatDate(date: string | Date | undefined): string {
 function requiresPrimaryEvaluator(week: WeekItem): boolean {
     // Use business rule from backend to determine if primary evaluator is required
     if (!week.requiresPrimaryEvaluator) return false
-    
+
     // Check if there's already a primary evaluator assigned
     const assignments = getWeekAssignments(week.weekId)
     const hasPrimaryEvaluator = assignments.some(assignment => assignment.isPrimary)
-    
+
     // Return true if backend says it's required but none is assigned
     return !hasPrimaryEvaluator
 }
@@ -462,13 +439,13 @@ watch(() => route.params.rotationId, (newRotationId) => {
 onMounted(async () => {
     // Set page title
     document.title = 'VIPER - Schedule by Rotation'
-    
-    // Initialize from URL first
+
+    // Initialize from URL (this will override YearSelector's default if year param exists)
     initializeFromUrl()
-    
+
     // Load rotations (ClinicianSelector will handle loading clinicians)
     await loadRotations()
-    
+
     // If we have a rotation ID from URL, trigger the selection after rotations are loaded
     if (selectedRotationId.value && rotations.value.length > 0) {
         await onRotationChange()
@@ -527,15 +504,6 @@ h2 {
     background-color: #fff;
 }
 
-.year-selector {
-    font-size: 16px;
-    font-weight: bold;
-    color: #8B0000;
-    border: 1px solid #ccc;
-    padding: 4px 8px;
-    background-color: #fff;
-    border-radius: 4px;
-}
 
 .error-message {
     color: #d32f2f;
@@ -755,54 +723,54 @@ h3 {
     .clinical-scheduler-container {
         padding: 10px;
     }
-    
+
     h2 {
         font-size: 18px;
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
     }
-    
+
     .title-dropdown {
         font-size: 16px;
         min-width: 200px;
         max-width: 100%;
     }
-    
+
     .week-grid {
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
         gap: 8px;
     }
-    
+
     .week-cell {
         min-height: 100px;
     }
-    
+
     .week-header {
         padding: 3px;
         font-size: 11px;
     }
-    
+
     .clinician-buttons {
         flex-wrap: wrap;
     }
-    
+
     .clinician-btn {
         font-size: 12px;
         padding: 4px 8px;
         margin: 1px;
     }
-    
+
     .add-clinician-dropdown {
         width: 100%;
         margin-top: 5px;
     }
-    
+
     .rotation-item {
         font-size: 12px;
         padding: 2px 3px;
     }
-    
+
     .instructions, .action-notes {
         font-size: 12px;
         padding: 8px;
@@ -814,23 +782,23 @@ h3 {
     .week-grid {
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     }
-    
+
     .week-cell {
         min-height: 80px;
     }
-    
+
     h2 {
         font-size: 16px;
     }
-    
+
     .title-dropdown {
         font-size: 14px;
     }
-    
+
     .rotation-item {
         font-size: 11px;
     }
-    
+
     .clinician-btn {
         font-size: 11px;
         padding: 3px 6px;
