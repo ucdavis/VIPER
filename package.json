@@ -8,8 +8,8 @@
     "scripts": {
         "dev:backend": "npm run mailpit:start && cd web && cross-env DOTNET_USE_COMPILER_SERVER=1 dotnet watch run --launch-profile https",
         "dev:browser": "node scripts/launch-open-browser.js",
-        "dev:frontend": "cd VueApp && npm install && npm run dev",
-        "dev:frontend-build": "cd VueApp && npm install && npm run build",
+        "dev:frontend": "cd VueApp && npm install --legacy-peer-deps && npm run dev",
+        "dev:frontend-build": "cd VueApp && npm install --legacy-peer-deps && npm run build",
         "dev:fullstack": "concurrently --names \"BACKEND,FRONTEND,BROWSER\" --prefix-colors \"blue,green,yellow\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:browser\"",
         "dev:stop": "node scripts/stop-dev-services.js",
         "mailpit:start": "node scripts/manage-mailpit.js start",

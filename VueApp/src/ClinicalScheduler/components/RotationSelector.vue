@@ -13,6 +13,7 @@
             fill-input
             hide-selected
             clearable
+            dense
             :input-debounce="300"
             @filter="onFilter"
             @update:model-value="onRotationChange"

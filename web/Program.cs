@@ -189,13 +189,11 @@ try
             opt.EnableDetailedErrors(true);
         }
     });
-    builder.Services.AddDbContext<ClinicalSchedulerContext>(opt =>
-    {
-        if (builder.Environment.EnvironmentName != "Production")
-        {
-            opt.EnableDetailedErrors(true);
-        }
-    });
+    builder.Services.AddDbContext<ClinicalSchedulerContext>();
+
+    // Clinical Scheduler services - use standard dependency injection like other services
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.AcademicYearService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.WeekService>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
