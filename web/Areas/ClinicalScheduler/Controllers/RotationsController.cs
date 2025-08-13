@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Viper.Classes;
+using Microsoft.Extensions.Caching.Memory;
 using Viper.Classes.SQLContext;
-using Viper.Models.CTS;
+using Viper.Areas.ClinicalScheduler.Services;
 using Web.Authorization;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
@@ -26,17 +25,21 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         public int ServiceId { get; set; }
         public ServiceDto? Service { get; set; }
     }
+
     [Route("api/clinicalscheduler/rotations")]
     [Permission(Allow = "SVMSecure.ClnSched")]
-    public class RotationsController : ApiController
+    public class RotationsController : BaseClinicalSchedulerController
     {
         private readonly ClinicalSchedulerContext _context;
-        private readonly ILogger<RotationsController> _logger;
+        private readonly WeekService _weekService;
 
-        public RotationsController(ClinicalSchedulerContext context, ILogger<RotationsController> logger)
+        public RotationsController(ClinicalSchedulerContext context,
+            AcademicYearService academicYearService, WeekService weekService,
+            IMemoryCache cache, ILogger<RotationsController> logger)
+            : base(academicYearService, cache, logger)
         {
             _context = context;
-            _logger = logger;
+            _weekService = weekService;
         }
 
         /// <summary>
@@ -46,6 +49,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <param name="includeService">Include service details (default: true)</param>
         /// <returns>List of rotations</returns>
         [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<RotationDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<IEnumerable<RotationDto>>> GetRotations(int? serviceId = null, bool includeService = true)
         {
             try
@@ -66,7 +71,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 // Get rotations with optional service data using DTOs for type safety
                 List<RotationDto> rotations;
-                
+
                 if (includeService)
                 {
                     rotations = await query
@@ -114,8 +119,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogError(ex, "Error retrieving rotations. ServiceId: {ServiceId}", serviceId);
                 return StatusCode(500, new
                 {
-                    error = "Failed to retrieve rotations",
-                    details = ex.Message
+                    error = "Failed to retrieve rotations"
                 });
             }
         }
@@ -127,6 +131,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <param name="includeService">Include service details (default: true)</param>
         /// <returns>Single rotation</returns>
         [HttpGet("{id:int}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> GetRotation(int id, bool includeService = true)
         {
             if (id <= 0)
@@ -180,7 +188,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 return StatusCode(500, new
                 {
                     error = "Failed to retrieve rotation",
-                    details = ex.Message,
                     rotationId = id
                 });
             }
@@ -193,6 +200,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <param name="year">Year to filter by (optional, defaults to current year)</param>
         /// <returns>Instructor schedules for the rotation</returns>
         [HttpGet("{id:int}/schedule")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> GetRotationSchedule(int id, int? year = null)
         {
             if (id <= 0)
@@ -203,8 +214,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
             try
             {
-                var targetYear = year ?? DateTime.Now.Year;
-                _logger.LogInformation("Getting schedule for rotation {RotationId} for year {Year}", id, targetYear);
+                // Use academic year logic instead of calendar year
+                var targetYear = await GetTargetYearAsync(year);
+                _logger.LogInformation("Getting schedule for rotation {RotationId} for academic year {Year}", id, targetYear);
 
                 // Get rotation info first
                 var rotation = await _context.Rotations
@@ -216,13 +228,49 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     return NotFound(new { error = "Rotation not found", rotationId = id });
                 }
 
-                // Get instructor schedules for this rotation
-                var instructorSchedules = await _context.InstructorSchedules
-                    .Include(i => i.Week)
-                    .Where(i => i.RotationId == id && i.DateStart.Year == targetYear)
-                    .OrderBy(i => i.Week.DateStart)
+                // Get weeks for the academic year using vWeek view (contains correct week numbers)
+                var vWeeks = await _weekService.GetWeeksAsync(targetYear, includeExtendedRotation: true);
+
+                if (!vWeeks.Any())
+                {
+                    _logger.LogWarning("No weeks found for academic year {Year}", targetYear);
+                    return Ok(new
+                    {
+                        Rotation = new
+                        {
+                            rotation.RotId,
+                            rotation.Name,
+                            rotation.Abbreviation,
+                            Service = new
+                            {
+                                rotation.Service.ServiceId,
+                                rotation.Service.ServiceName,
+                                rotation.Service.ShortName
+                            }
+                        },
+                        AcademicYear = targetYear,
+                        Weeks = new List<object>(),
+                        InstructorSchedules = new List<object>()
+                    });
+                }
+
+                // Get instructor schedules for this rotation using academic year filtering
+                // Filter by weeks that belong to the target academic year
+                var weekIds = vWeeks.Select(w => w.WeekId).ToList();
+
+                // First get the base instructor schedule data from Entity Framework
+                var baseInstructorSchedules = await _context.InstructorSchedules
+                    .Where(i => i.RotationId == id && weekIds.Contains(i.WeekId))
+                    .OrderBy(i => i.DateStart)
                     .ThenBy(i => i.LastName)
                     .ThenBy(i => i.FirstName)
+                    .ToListAsync();
+
+                // Create a dictionary for fast vWeek lookups
+                var vWeekDict = vWeeks.ToDictionary(w => w.WeekId, w => w);
+
+                // Now combine the data in memory
+                var instructorSchedules = baseInstructorSchedules
                     .Select(i => new
                     {
                         i.InstructorScheduleId,
@@ -233,69 +281,38 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         i.Evaluator,
                         i.DateStart,
                         i.DateEnd,
+                        i.WeekId,
+                        // Get week number from vWeek data
+                        WeekNumber = vWeekDict.ContainsKey(i.WeekId) ? vWeekDict[i.WeekId].WeekNum : 0,
                         Week = new
                         {
-                            i.Week.WeekId,
-                            i.Week.DateStart,
-                            i.Week.DateEnd,
-                            i.Week.TermCode
+                            WeekId = i.WeekId,
+                            DateStart = i.DateStart,
+                            DateEnd = i.DateEnd,
+                            TermCode = vWeekDict.ContainsKey(i.WeekId) ? vWeekDict[i.WeekId].TermCode : 0
                         }
                     })
-                    .ToListAsync();
+                    .ToList();
 
-                // Get weeks for this rotation with efficient week number calculation
-                var weekIds = instructorSchedules.Select(i => i.Week.WeekId).Distinct().ToList();
-                
-                // NOTE: Two different reviewers suggested contradictory approaches:
-                // 1. First reviewer: Avoid N+1 queries by calculating in memory
-                // 2. Second reviewer: Avoid loading all year weeks, use database calculation
-                // 
-                // This implementation uses the in-memory approach because:
-                // - Academic years typically have ~52 weeks (small dataset)
-                // - Eliminates N+1 query problem completely
-                // - Simple and maintainable
-                // 
-                // For very large datasets, consider using raw SQL with ROW_NUMBER() window function
-                
-                // Get all weeks for the target year to calculate week numbers efficiently
-                var yearWeeks = await _context.Weeks
-                    .Where(w => w.DateStart.Year == targetYear)
-                    .OrderBy(w => w.DateStart)
-                    .Select(w => new { w.WeekId, w.DateStart })
-                    .ToListAsync();
-
-                // Calculate week numbers in memory (avoids N+1 queries)
-                var weekNumberMap = yearWeeks
-                    .Select((w, index) => new { w.WeekId, WeekNumber = index + 1 })
-                    .ToDictionary(w => w.WeekId, w => w.WeekNumber);
-
-                // Get the specific weeks we need
-                var weeksData = await _context.Weeks
+                // Build weeks data using the vWeek view data (contains correct week numbers)
+                var weeks = vWeeks
                     .Where(w => weekIds.Contains(w.WeekId))
-                    .OrderBy(w => w.DateStart)
                     .Select(w => new
                     {
                         w.WeekId,
                         w.DateStart,
                         w.DateEnd,
-                        w.TermCode
+                        w.TermCode,
+                        WeekNumber = w.WeekNum, // Use the pre-calculated academic week number from database view
+                        w.ExtendedRotation,
+                        w.ForcedVacation,
+                        RequiresPrimaryEvaluator = EvaluationPolicyService.RequiresPrimaryEvaluator(w.WeekNum)
                     })
-                    .ToListAsync();
+                    .OrderBy(w => w.WeekNumber)
+                    .ToList();
 
-                // Combine with week numbers and business rules
-                var weeks = weeksData.Select(w => new
-                {
-                    w.WeekId,
-                    w.DateStart,
-                    w.DateEnd,
-                    w.TermCode,
-                    WeekNumber = weekNumberMap.ContainsKey(w.WeekId) ? weekNumberMap[w.WeekId] : 0,
-                    // Business rule: Even-numbered weeks require primary evaluators
-                    RequiresPrimaryEvaluator = weekNumberMap.ContainsKey(w.WeekId) && weekNumberMap[w.WeekId] % 2 == 0
-                }).ToList();
-
-                _logger.LogInformation("Retrieved {InstructorCount} instructor assignments across {WeekCount} weeks for rotation {RotationName}",
-                    instructorSchedules.Count, weeks.Count, rotation.Name);
+                _logger.LogInformation("Retrieved {InstructorCount} instructor assignments across {WeekCount} weeks for rotation {RotationName} (academic year {Year})",
+                    instructorSchedules.Count, weeks.Count, rotation.Name, targetYear);
 
                 return Ok(new
                 {
@@ -311,7 +328,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                             rotation.Service.ShortName
                         }
                     },
-                    Year = targetYear,
+                    AcademicYear = targetYear, // Returns the academic year from database settings
                     Weeks = weeks,
                     InstructorSchedules = instructorSchedules
                 });
@@ -322,7 +339,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 return StatusCode(500, new
                 {
                     error = "Failed to retrieve rotation schedule",
-                    details = ex.Message,
                     rotationId = id
                 });
             }
@@ -335,6 +351,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <param name="includeService">Include service details (default: true)</param>
         /// <returns>List of rotations with scheduled weeks</returns>
         [HttpGet("with-scheduled-weeks")]
+        [ProducesResponseType(typeof(IEnumerable<RotationDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<IEnumerable<RotationDto>>> GetRotationsWithScheduledWeeks([FromQuery] int? year = null, [FromQuery] bool includeService = true)
         {
             try
@@ -352,12 +370,12 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 // Filter to only rotations that have scheduled weeks in the target year
                 List<RotationDto> rotationsWithSchedules;
-                
+
                 if (includeService)
                 {
                     rotationsWithSchedules = await query
-                        .Where(r => _context.InstructorSchedules.Any(i => 
-                            i.RotationId == r.RotId && 
+                        .Where(r => _context.InstructorSchedules.Any(i =>
+                            i.RotationId == r.RotId &&
                             i.DateStart.Year == targetYear))
                         .OrderBy(r => r.Service.ServiceName ?? r.Name)
                         .ThenBy(r => r.Name)
@@ -381,8 +399,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 else
                 {
                     rotationsWithSchedules = await query
-                        .Where(r => _context.InstructorSchedules.Any(i => 
-                            i.RotationId == r.RotId && 
+                        .Where(r => _context.InstructorSchedules.Any(i =>
+                            i.RotationId == r.RotId &&
                             i.DateStart.Year == targetYear))
                         .OrderBy(r => r.Name)
                         .Select(r => new RotationDto
@@ -407,7 +425,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 return StatusCode(500, new
                 {
                     error = "Failed to retrieve rotations with scheduled weeks",
-                    details = ex.Message,
                     year = year
                 });
             }
@@ -418,6 +435,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// </summary>
         /// <returns>Service rotation summary</returns>
         [HttpGet("summary")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> GetRotationSummary()
         {
             try
@@ -455,8 +474,41 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogError(ex, "Error retrieving rotation summary");
                 return StatusCode(500, new
                 {
-                    error = "Failed to retrieve rotation summary",
-                    details = ex.Message
+                    error = "Failed to retrieve rotation summary"
+                });
+            }
+        }
+
+
+        /// <summary>
+        /// Get available graduation years for the clinical scheduler
+        /// </summary>
+        /// <param name="publishedOnly">If true, only return years where PublishSchedule is true</param>
+        /// <returns>Available graduation years with current year highlighted</returns>
+        [HttpGet("years")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(object), StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<object>> GetAvailableYears([FromQuery] bool publishedOnly = false)
+        {
+            try
+            {
+                _logger.LogInformation("Getting available years, publishedOnly: {PublishedOnly}", publishedOnly);
+
+                var currentGradYear = await GetCurrentGradYearAsync();
+                var availableGradYears = await _academicYearService.GetAvailableGradYearsAsync(publishedOnly);
+
+                return Ok(new
+                {
+                    CurrentGradYear = currentGradYear,
+                    AvailableGradYears = availableGradYears
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving available years");
+                return StatusCode(500, new
+                {
+                    error = "Failed to retrieve available years"
                 });
             }
         }

@@ -20,15 +20,11 @@
                 class="ms-3"
                 style="min-width: 400px;"
             />
-            <select
+            <YearSelector
                 v-model="currentYear"
-                @change="onYearChange"
-                class="year-selector ms-3"
-            >
-                <option v-for="year in availableYears" :key="year" :value="year">
-                    {{ year }}
-                </option>
-            </select>
+                @yearChanged="onYearChange"
+                class="ms-3"
+            />
         </h2>
 
         <!-- Read-only notice for past years -->
@@ -171,14 +167,7 @@
         </div>
 
         <!-- Legend -->
-        <div v-if="selectedClinician && schedulesBySemester.length > 0" class="legend">
-            <h4>Legend</h4>
-            <ul>
-                <li><span class="icon-demo remove-icon">✖</span> removes the rotation from the schedule</li>
-                <li><span class="icon-demo primary-icon">★</span> makes them the primary evaluator (replacing the current one, if there is one)</li>
-                <li>Primary evaluators (<span class="icon-demo primary-icon">★</span>) are responsible for student evaluations</li>
-            </ul>
-        </div>
+        <ScheduleLegend v-if="selectedClinician && schedulesBySemester.length > 0" />
     </div>
 </template>
 
@@ -186,6 +175,8 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ClinicianSelector from '../components/ClinicianSelector.vue'
+import YearSelector from '../components/YearSelector.vue'
+import ScheduleLegend from '../components/ScheduleLegend.vue'
 import { ClinicianService, type Clinician, type ClinicianScheduleData } from '../services/ClinicianService'
 import { RotationService, type RotationWithService } from '../services/RotationService'
 
@@ -200,24 +191,15 @@ const selectedNewRotationObj = ref<any | null>(null)
 const loadingSchedule = ref(false)
 const scheduleError = ref<string | null>(null)
 const allRotations = ref<RotationWithService[]>([])
-const currentYear = ref(new Date().getFullYear())
+const currentYear = ref<number | null>(null) // YearSelector will initialize with academic year
 const filteredRotations = ref<any[]>([])
 const rotationSearchQuery = ref('')
 const includeAllAffiliates = ref(false)
 
-// Computed properties for year selection
-const availableYears = computed(() => {
-    const thisYear = new Date().getFullYear()
-    const years = []
-    // Show current year plus 5 years back
-    for (let i = 0; i <= 5; i++) {
-        years.push(thisYear - i)
-    }
-    return years
-})
+// Year selection is now handled by YearSelector component
 
 const isPastYear = computed(() => {
-    return currentYear.value < new Date().getFullYear()
+    return currentYear.value !== null && currentYear.value < new Date().getFullYear()
 })
 
 // Use schedule data directly from API (no transformation needed)
@@ -276,7 +258,7 @@ const fetchClinicianSchedule = async (mothraId: string) => {
 
     try {
         // Fetch schedule
-        const result = await ClinicianService.getClinicianSchedule(mothraId, { year: currentYear.value })
+        const result = await ClinicianService.getClinicianSchedule(mothraId, { year: currentYear.value ?? undefined })
         if (result.success) {
             clinicianSchedule.value = result.result
 
@@ -317,7 +299,7 @@ const onClinicianChange = (clinician: Clinician | null) => {
     if (clinician) {
         // Update URL to include the clinician ID and year if not current
         const query: any = {}
-        if (currentYear.value !== new Date().getFullYear()) {
+        if (currentYear.value !== null && currentYear.value !== new Date().getFullYear()) {
             query.year = currentYear.value
         }
         router.push({
@@ -341,16 +323,16 @@ const onYearChange = () => {
         onClinicianChange(selectedClinician.value)
     } else {
         const query: any = {}
-        if (currentYear.value !== new Date().getFullYear()) {
+        if (currentYear.value !== null && currentYear.value !== new Date().getFullYear()) {
             query.year = currentYear.value
         }
         router.push({ query })
     }
 }
 
-// Initialize from URL parameters
+// Initialize from URL parameters  
 const initializeFromUrl = () => {
-    // Get year from URL parameters
+    // Get year from URL parameters - this overrides YearSelector's default
     const yearParam = route.query.year
     if (yearParam && typeof yearParam === 'string') {
         currentYear.value = Number(yearParam)
@@ -364,7 +346,7 @@ const loadClinicianFromUrl = async () => {
         const decodedMothraId = decodeURIComponent(mothraId)
         try {
             // First, try to find the clinician in our clinician list to get the correct name
-            const cliniciansResult = await ClinicianService.getClinicians({ year: currentYear.value })
+            const cliniciansResult = await ClinicianService.getClinicians({ year: currentYear.value ?? undefined })
             if (cliniciansResult.success) {
                 let clinician = cliniciansResult.result.find(c => c.mothraId === decodedMothraId)
 
@@ -468,8 +450,9 @@ onMounted(() => {
     // Set page title
     document.title = 'VIPER - Schedule by Clinician'
 
-    // Initialize year from URL first
+    // Initialize from URL (this will override YearSelector's default if year param exists)
     initializeFromUrl()
+    
     fetchAllRotations()
     loadClinicianFromUrl()
 })
@@ -715,15 +698,6 @@ h3 {
     font-size: 16px;
 }
 
-.year-selector {
-    font-size: 16px;
-    font-weight: bold;
-    color: #8B0000;
-    border: 1px solid #ccc;
-    padding: 4px 8px;
-    background-color: #fff;
-    border-radius: 4px;
-}
 
 .read-only-alert {
     background-color: #e3f2fd;
