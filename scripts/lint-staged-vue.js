@@ -50,19 +50,24 @@ function sanitizeFilePath(filePath) {
     throw new Error(`File type not allowed: ${filePath}`);
   }
 
+  // If the file was removed between staging and lint run, treat as non-existent.
+  if (!fs.existsSync(resolvedPath)) {
+    return null;
+  }
+
   // Check file size to prevent DoS attacks (limit to 5MB)
   const MAX_FILE_SIZE_MB = 5;
   const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+  let stats;
   try {
-    const stats = require('fs').statSync(resolvedPath);
-    if (stats.size > MAX_FILE_SIZE_BYTES) {
-      throw new Error(`File too large (${Math.round(stats.size / 1024 / 1024)}MB > ${MAX_FILE_SIZE_MB}MB): ${filePath}`);
-    }
-  } catch (fsError) {
-    if (fsError.code === 'ENOENT') {
-      throw new Error(`File not found: ${filePath}`);
-    }
-    throw fsError;
+    stats = fs.statSync(resolvedPath);
+  } catch (err) {
+    // Treat unexpected stat failures as non-existent to avoid blocking commits.
+    return null;
+  }
+  
+  if (stats.size > MAX_FILE_SIZE_BYTES) {
+    throw new Error(`File too large (${Math.round(stats.size / 1024 / 1024)}MB > ${MAX_FILE_SIZE_MB}MB): ${filePath}`);
   }
 
   // Return relative path for eslint (relative to VueApp directory)
@@ -71,8 +76,8 @@ function sanitizeFilePath(filePath) {
   return relativePath;
 }
 
-// Sanitize all file paths
-const files = rawFiles.map(sanitizeFilePath);
+// Sanitize all file paths and filter out null results (missing files)
+const files = rawFiles.map(sanitizeFilePath).filter(file => file !== null);
 
 // Helper function to run a command
 function runCommand(command, args, description) {

@@ -101,5 +101,6 @@ export default defineConfig(({ mode }) => ({
     define: {
         __VUE_PROD_DEVTOOLS__: mode !== 'production'
     },
+    assetsInclude: ['**/*.html'],
     base: '/2/vue/'
 }))

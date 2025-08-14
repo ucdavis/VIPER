@@ -1,10 +1,34 @@
+using System.Net;
 using System.Text.RegularExpressions;
 
 namespace Web;
 
 /// <summary>
-/// Helper methods for proxying requests to Vite development server
+/// Helper methods for proxying requests to the Vite development server.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <b>Security considerations:</b>
+/// <list type="bullet">
+///   <item>
+///     <description>
+///       Path validation is performed using regular expressions to ensure that only requests for valid Vue app routes and assets are proxied to the Vite development server.
+///       Requests for built asset files with Vite hashes (e.g., <c>main-abc123.js</c>) are excluded from proxying and are instead served as static files.
+///     </description>
+///   </item>
+///   <item>
+///     <description>
+///       The helper methods are designed to prevent proxying of arbitrary or potentially malicious paths by strictly matching allowed patterns.
+///     </description>
+///   </item>
+///   <item>
+///     <description>
+///       Proxy error handling should be implemented by the caller to ensure that errors from the Vite server do not expose sensitive information to clients.
+///     </description>
+///   </item>
+/// </list>
+/// </para>
+/// </remarks>
 internal static partial class ViteProxyHelpers
 {
     // Base path for Vite assets - make configurable for maintainability
@@ -26,19 +50,38 @@ internal static partial class ViteProxyHelpers
     // Cached compiled regexes - initialized once at startup
     private static Regex? _vueAppRouteRegex;
     private static Regex? _vueAppAssetRegex;
+    // Lock for safe one-time initialization
+    private static readonly object _regexInitLock = new();
 
     /// <summary>
     /// Initializes compiled regexes for the Vue app patterns
     /// </summary>
     private static void InitializeRegexes(string[] vueAppNames)
     {
-        if (_vueAppRouteRegex == null)
+        if (_vueAppRouteRegex != null) return;
+        lock (_regexInitLock)
         {
-            var vueAppsPattern = string.Join("|", vueAppNames);
-            _vueAppRouteRegex = new Regex(string.Format(VueAppRoutePattern, vueAppsPattern),
-                RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            _vueAppAssetRegex = new Regex(string.Format(VueAppAssetPattern, vueAppsPattern),
-                RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            if (_vueAppRouteRegex == null)
+            {
+                // Escape app names to avoid regex injection and build a safe alternation list.
+                var escaped = vueAppNames.Select(Regex.Escape);
+                var vueAppsPattern = string.Join("|", escaped);
+
+                // If no app names, create regexes that never match
+                if (string.IsNullOrEmpty(vueAppsPattern))
+                {
+                    // @"(?!)" is a negative lookahead that never matches any input; used here to ensure no routes/assets match when no app names are provided.
+                    _vueAppRouteRegex = new Regex(@"(?!)", RegexOptions.Compiled);
+                    _vueAppAssetRegex = new Regex(@"(?!)", RegexOptions.Compiled);
+                }
+                else
+                {
+                    _vueAppRouteRegex = new Regex(string.Format(VueAppRoutePattern, vueAppsPattern),
+                        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                    _vueAppAssetRegex = new Regex(string.Format(VueAppAssetPattern, vueAppsPattern),
+                        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                }
+            }
         }
     }
 
@@ -58,6 +101,12 @@ internal static partial class ViteProxyHelpers
         // Proxy if path starts with /vue or /2/vue (Vite base paths)
         if (path.StartsWithSegments("/vue") || path.StartsWithSegments("/2/vue"))
             return true;
+
+        // If no Vue app names are provided, don't proxy app-specific routes
+        if (vueAppNames == null || vueAppNames.Length == 0)
+        {
+            return false;
+        }
 
         // Proxy if path is a Vue app route (e.g., /CTS, /Computing) or Vue app asset file
         if (path.HasValue)
@@ -89,40 +138,68 @@ internal static partial class ViteProxyHelpers
         var pathValue = path.Value;
         // Get Vite server URL from environment variable or use default
         var viteBase = Environment.GetEnvironmentVariable("VITE_SERVER_URL") ?? "https://localhost:5173";
-
-        // Pass HTML files to Vite with full path (matches base: '/2/vue/')
-        if (path.StartsWithSegments("/2/vue") && pathValue.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+        // Validate viteBase to avoid misconfiguration / SSRF risk from malformed or unexpected values.
+        // Reject URIs containing userinfo (credentials) and require http/https.
+        if (!Uri.TryCreate(viteBase, UriKind.Absolute, out var viteBaseUri) ||
+            (viteBaseUri.Scheme != Uri.UriSchemeHttp && viteBaseUri.Scheme != Uri.UriSchemeHttps) ||
+            !string.IsNullOrEmpty(viteBaseUri.UserInfo))
         {
-            return viteBase + pathValue + queryString;
+            // fall back to safe default
+            viteBaseUri = new Uri("https://localhost:5173");
         }
 
-        // Already has /vue or /2/vue prefix - pass through as-is
-        if (path.StartsWithSegments("/vue") || path.StartsWithSegments("/2/vue"))
+        // Ensure pathValue is not an absolute URL and normalize it to a relative path
+        var safePath = pathValue ?? string.Empty;
+        if (Uri.TryCreate(safePath, UriKind.Absolute, out var _))
         {
-            return viteBase + pathValue + queryString;
+            // If an absolute URI was provided, treat as not allowed and fallback
+            safePath = "/";
         }
 
-        // Check if it's a root-level entry file (e.g., /cts.ts)
-        var fileName = Path.GetFileName(pathValue);
-        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(pathValue);
+        // Use the validated Uri to combine base + relative path safely to avoid malformed URLs / SSRF
+        var baseUri = viteBaseUri;
+        if (safePath.StartsWith("/2/vue") && safePath.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+        {
+            var combinedUri = new Uri(baseUri, safePath);
+            return combinedUri.ToString() + queryString;
+        }
+
+        if (safePath.StartsWith("/vue") || safePath.StartsWith("/2/vue"))
+        {
+            var combinedUri = new Uri(baseUri, safePath);
+            return combinedUri.ToString() + queryString;
+        }
+
+        // Pre-compute values to avoid repeated string operations
+        var fileName = Path.GetFileName(safePath);
+        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(safePath);
+        var fileExtension = Path.GetExtension(safePath);
+        var hasExtension = !string.IsNullOrEmpty(fileExtension);
 
         foreach (var appName in vueAppNames)
         {
-            // Vue app route: /CTS -> /2/vue/src/CTS/index.html (for Vite dev server)
-            if (string.Equals(pathValue, $"/{appName}", StringComparison.OrdinalIgnoreCase) ||
-                pathValue?.StartsWith($"/{appName}/", StringComparison.OrdinalIgnoreCase) == true)
+            var appRoute = $"/{appName}";
+            var appRoutePrefix = $"/{appName}/";
+
+            // Check for root-level entry file first: /cts.ts -> /2/vue/src/CTS/cts.ts
+            if (hasExtension && string.Equals(fileNameWithoutExt, appName, StringComparison.OrdinalIgnoreCase))
             {
-                return $"{viteBase}/2/vue/src/{appName}/index.html{queryString}";
+                var combinedUri = new Uri(baseUri, $"/2/vue/src/{appName}/{fileName}");
+                return combinedUri.ToString() + queryString;
             }
-            else if (string.Equals(fileNameWithoutExt, appName, StringComparison.OrdinalIgnoreCase))
+
+            // Vue app routes (exact match or sub-routes without extensions): /CTS or /CTS/dashboard -> index.html
+            if (string.Equals(safePath, appRoute, StringComparison.OrdinalIgnoreCase) ||
+                (safePath.StartsWith(appRoutePrefix, StringComparison.OrdinalIgnoreCase) && !hasExtension))
             {
-                // Root-level entry file: /cts.ts -> /2/vue/src/CTS/cts.ts
-                return $"{viteBase}/2/vue/src/{appName}/{fileName}{queryString}";
+                var combinedUri = new Uri(baseUri, $"/2/vue/src/{appName}/index.html");
+                return combinedUri.ToString() + queryString;
             }
         }
 
         // Fallback - shouldn't normally reach here
-        return $"{viteBase}/2/vue/src{pathValue}{queryString}";
+        var fallbackUri = new Uri(baseUri, $"/2/vue/src{safePath}");
+        return fallbackUri.ToString() + queryString;
     }
 
     /// <summary>
@@ -152,14 +229,19 @@ internal static partial class ViteProxyHelpers
             }
         }
 
-        // Copy non-content request headers, excluding problematic ones
+        // Copy non-content request headers, excluding hop-by-hop and other problematic headers
+        var requestHeaderSkip = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "connection", "transfer-encoding", "keep-alive", "upgrade",
+            "proxy-connection", "host", "te"
+        };
+
         foreach (var header in context.Request.Headers)
         {
-            // Skip HTTP/2 pseudo-headers, connection-specific headers, and content headers (already handled above)
+            // Skip HTTP/2 pseudo-headers, content headers (already handled above), and hop-by-hop headers
             if (!header.Key.StartsWith(":") &&
                 !header.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(header.Key, "host", StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(header.Key, "connection", StringComparison.OrdinalIgnoreCase))
+                !requestHeaderSkip.Contains(header.Key))
             {
                 requestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
             }
@@ -196,9 +278,10 @@ internal static partial class ViteProxyHelpers
                     catch (Exception headerEx)
                     {
                         // Use structured logging for header errors
+                        var safeHeaderKey = WebUtility.HtmlEncode(header.Key);
                         context.RequestServices.GetRequiredService<ILoggerFactory>()
                             .CreateLogger("ViteProxyHelpers")
-                            .LogWarning(headerEx, "Failed to set header '{HeaderKey}' in proxy response.", header.Key);
+                            .LogWarning(headerEx, "Failed to set header '{HeaderKey}' in proxy response.", safeHeaderKey);
                     }
                 }
             }
@@ -214,11 +297,13 @@ internal static partial class ViteProxyHelpers
     {
         // Log the proxy failure with structured logging
         var targetUrl = BuildViteUrl(context.Request.Path, context.Request.QueryString, vueAppNames);
-        var safeMethod = context.Request.Method.Replace("\r", "").Replace("\n", "");
+        var safeMethod = WebUtility.HtmlEncode(context.Request.Method);
+        var safeRequestPath = WebUtility.HtmlEncode((context.Request.Path + context.Request.QueryString).ToString());
+        var safeTargetUrl = WebUtility.HtmlEncode(targetUrl);
         logger.LogWarning(ex, "Vite proxy failed for {Method} {RequestPath} -> {TargetUrl}",
             safeMethod,
-            context.Request.Path + context.Request.QueryString,
-            targetUrl);
+            safeRequestPath,
+            safeTargetUrl);
 
         if (!context.Response.HasStarted)
         {
@@ -255,11 +340,22 @@ internal static partial class ViteProxyHelpers
                 var physicalPath = Path.Combine(context.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath,
                     staticPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
 
-                if (File.Exists(physicalPath))
+                // Prevent directory traversal: ensure the resolved physical path is within WebRootPath
+                var webRoot = context.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
+                var resolvedPhysical = Path.GetFullPath(physicalPath);
+                var resolvedWebRoot = Path.GetFullPath(webRoot);
+
+                if (!resolvedPhysical.StartsWith(resolvedWebRoot, StringComparison.OrdinalIgnoreCase))
                 {
-                    var contentType = GetContentType(Path.GetExtension(physicalPath));
-                    context.Response.ContentType = contentType;
-                    await context.Response.SendFileAsync(physicalPath);
+                    // Do not serve files outside the web root
+                    logger.LogWarning("Attempt to access file outside web root: {Path}", resolvedPhysical);
+                }
+                else if (File.Exists(resolvedPhysical))
+                {
+                    var contentType = GetContentType(Path.GetExtension(resolvedPhysical));
+                    // Set content type if not already started
+                    context.Response.ContentType = contentType ?? "application/octet-stream";
+                    await context.Response.SendFileAsync(resolvedPhysical);
                     return;
                 }
             }

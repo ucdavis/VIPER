@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Viper.test" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Areas\CTS\Views\css\**" />
     <Content Remove="Areas\CTS\Views\css\**" />
     <EmbeddedResource Remove="Areas\CTS\Views\css\**" />

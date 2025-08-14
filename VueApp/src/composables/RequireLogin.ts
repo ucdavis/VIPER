@@ -107,10 +107,6 @@ export default function useRequireLogin(to: RouteLocationNormalized) {
             if (route.query.sendBackTo != undefined) {
                 const redirect = route.query.sendBackTo?.toString()
                 if (redirect) {
-                    // Development debugging (remove in production)
-                    if (import.meta.env.DEV) {
-                        console.log('Processing sendBackTo redirect:', redirect)
-                    }
                     const redirectPath = redirect.split("?")[0]
                     // Only redirect if it's a safe internal path
                     if (isValidInternalPath(redirectPath)) {
