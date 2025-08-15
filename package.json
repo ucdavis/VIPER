@@ -1,0 +1,23 @@
+{
+  "name": "viper2",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev:backend": "cd web && dotnet watch run --launch-profile https",
+    "dev:frontend": "cd VueApp && npm install && npm run dev",
+    "dev:frontend-build": "cd VueApp && npm install && npm run watch",
+    "lint:precommit": "lint-staged",
+    "lint:staged": "cross-env LINT_BLOCK_ON_WARNINGS=true lint-staged",
+    "prepare": "husky",
+    "test:backend": "cd test && dotnet test",
+    "test:frontend": "cd VueApp && npm run test:run"
+  },
+  "devDependencies": {
+    "cross-env": "^10.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2"
+  },
+  "volta": {
+    "node": "20.6.1"
+  }
+}

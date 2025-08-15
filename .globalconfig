@@ -1,0 +1,39 @@
+# Global analyzer configuration for SonarAnalyzer and .NET analyzers
+is_global = true
+
+# =============================================================================
+# SECURITY RULES - TREAT AS ERRORS (BLOCK BUILD)
+# =============================================================================
+# Security vulnerabilities should always block builds to prevent deployment
+# of unsafe code. These rules catch common security issues like injection
+# attacks, improper cryptography, and authentication bypasses.
+
+# .NET Security analyzer category - covers SQL injection, XSS, CSRF, etc.
+dotnet_analyzer_diagnostic.category-security.severity = error
+
+# SonarAnalyzer Security rules (S2xxx-S6xxx range contains many security rules)
+# Path traversal vulnerabilities
+dotnet_diagnostic.S2083.severity = error
+# XPath injection vulnerabilities
+dotnet_diagnostic.S2091.severity = error
+# Cookie security issues
+dotnet_diagnostic.S2092.severity = error
+# Weak cryptographic algorithms
+dotnet_diagnostic.S4426.severity = error
+# Insecure random number generation
+dotnet_diagnostic.S2245.severity = error
+# CSRF protection issues
+dotnet_diagnostic.S5131.severity = error
+# SQL injection vulnerabilities
+dotnet_diagnostic.S3649.severity = error
+
+# =============================================================================
+# SUPPRESSED NON-SECURITY RULES
+# =============================================================================
+# These are code quality/style rules that don't impact security or functionality
+
+# S101: Class naming conventions
+dotnet_diagnostic.S101.severity = none
+
+# S1135: TODO comments (used for future work tracking)
+dotnet_diagnostic.S1135.severity = none
