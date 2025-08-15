@@ -5,8 +5,20 @@ Clinical, curriculum, and student management application for UC Davis School of 
 ## Prerequisites
 
 - [.NET 7 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/7.0)
-- [Node.js v18+](https://nodejs.org/) (v20 recommended)
+- [Volta](https://volta.sh/) - Node.js version manager
 - [Visual Studio 2022](https://visualstudio.microsoft.com/) or [VS Code](https://code.visualstudio.com/)
+
+### Node.js Setup with Volta (Recommended)
+
+This project uses Node.js v20.6.1. We recommend using [Volta](https://volta.sh/) to manage Node.js versions:
+
+**Install Volta on Windows:**
+```sh
+winget install Volta.Volta
+
+# After installation, restart your terminal and install Node.js 20.6.1
+volta install node@20.6.1
+```
 
 ## Quick Start
 

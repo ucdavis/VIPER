@@ -282,7 +282,7 @@ internal static partial class ViteProxyHelpers
                 {
                     try
                     {
-                        context.Response.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
+                        context.Response.Headers[header.Key] = header.Value.ToArray();
                     }
                     catch (Exception headerEx)
                     {
