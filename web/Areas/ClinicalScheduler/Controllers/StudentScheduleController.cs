@@ -11,9 +11,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
     [Permission(Allow = "SVMSecure.ClnSched.ViewStdSchedules")]
     public class StudentScheduleController : ApiController
     {
-        private readonly VIPERContext _context;
+        private readonly ClinicalSchedulerContext _context;
 
-        public StudentScheduleController(VIPERContext context)
+        public StudentScheduleController(ClinicalSchedulerContext context)
         {
             _context = context;
         }

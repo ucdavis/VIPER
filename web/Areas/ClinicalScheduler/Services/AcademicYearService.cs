@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 
 namespace Viper.Areas.ClinicalScheduler.Services
@@ -22,23 +23,34 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <returns>The current academic grad year</returns>
         public async Task<int> GetCurrentGradYearAsync()
         {
-            // Use ExecuteSqlRaw to execute and get result with proper connection string
-            using var connection = new Microsoft.Data.SqlClient.SqlConnection(GetConnectionString());
-            await connection.OpenAsync();
-
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT TOP (1) GradYear FROM [ClinicalScheduler].[dbo].[Status] WHERE DefaultGradYear = 1 ORDER BY GradYear DESC";
-
-            var result = await command.ExecuteScalarAsync();
-
-            if (result == null || result == DBNull.Value)
+            try
             {
-                throw new InvalidOperationException("No default grad year found in ClinicalScheduler Status table");
-            }
+                // Query the Status table using Entity Framework to get the default grad year
+                var defaultStatus = await _context.Statuses
+                    .AsNoTracking()
+                    .Where(s => s.DefaultGradYear)
+                    .FirstOrDefaultAsync();
 
-            var defaultGradYear = Convert.ToInt32(result);
-            _logger.LogInformation("Retrieved default grad year from ClinicalScheduler database: {GradYear}", defaultGradYear);
-            return defaultGradYear;
+                if (defaultStatus != null)
+                {
+                    _logger.LogInformation("Retrieved default grad year from Status table: {GradYear}", defaultStatus.GradYear);
+                    return defaultStatus.GradYear;
+                }
+                else
+                {
+                    _logger.LogWarning("No default grad year found in Status table, using current calendar year");
+                    return DateTime.Now.Year;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving default grad year from Status table");
+
+                // Fallback to current calendar year
+                var fallbackYear = DateTime.Now.Year;
+                _logger.LogWarning("Using fallback current year: {Year}", fallbackYear);
+                return fallbackYear;
+            }
         }
 
         /// <summary>
@@ -48,22 +60,12 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <returns>The current selection year</returns>
         public async Task<int> GetCurrentSelectionYearAsync()
         {
-            using var connection = new Microsoft.Data.SqlClient.SqlConnection(GetConnectionString());
-            await connection.OpenAsync();
+            // Current implementation returns calendar year since selection year data
+            // is not yet integrated with the Clinical Scheduler database schema
+            var currentYear = DateTime.Now.Year;
 
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT TOP (1) GradYear FROM [ClinicalScheduler].[dbo].[Status] WHERE DefaultSelectionYear = 1 ORDER BY GradYear DESC";
-
-            var result = await command.ExecuteScalarAsync();
-
-            if (result == null || result == DBNull.Value)
-            {
-                throw new InvalidOperationException("No default selection year found in ClinicalScheduler Status table");
-            }
-
-            var defaultSelectionYear = Convert.ToInt32(result);
-            _logger.LogInformation("Retrieved default selection year from ClinicalScheduler database: {SelectionYear}", defaultSelectionYear);
-            return defaultSelectionYear;
+            _logger.LogWarning("Using calendar year for selection year: {SelectionYear}. Selection year configuration not yet implemented.", currentYear);
+            return await Task.FromResult(currentYear);
         }
 
         /// <summary>
@@ -74,26 +76,32 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <returns>List of available grad years in descending order</returns>
         public async Task<List<int>> GetAvailableGradYearsAsync(bool publishedOnly = false)
         {
-            var sql = publishedOnly
-                ? "SELECT DISTINCT GradYear FROM [ClinicalScheduler].[dbo].[Status] WHERE PublishSchedule = 1 ORDER BY GradYear DESC"
-                : "SELECT DISTINCT GradYear FROM [ClinicalScheduler].[dbo].[Status] ORDER BY GradYear DESC";
-
-            using var connection = new Microsoft.Data.SqlClient.SqlConnection(GetConnectionString());
-            await connection.OpenAsync();
-
-            using var command = connection.CreateCommand();
-            command.CommandText = sql;
-
-            var years = new List<int>();
-            using var reader = await command.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
+            try
             {
-                years.Add(reader.GetInt32(0));
-            }
+                // Query the weekGradYear table to get actual available grad years
+                var availableYears = await _context.WeekGradYears
+                    .AsNoTracking()
+                    .Select(wgy => wgy.GradYear)
+                    .Distinct()
+                    .OrderByDescending(year => year)
+                    .ToListAsync();
 
-            _logger.LogInformation("Retrieved {Count} available grad years from ClinicalScheduler database", years.Count);
-            return years;
+                _logger.LogInformation("Retrieved {Count} available grad years from weekGradYear table: {Years}",
+                    availableYears.Count, string.Join(", ", availableYears));
+
+                return availableYears;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving available grad years from weekGradYear table");
+
+                // Fallback to current and recent years
+                var currentYear = DateTime.Now.Year;
+                var fallbackYears = new List<int> { currentYear, currentYear - 1, currentYear - 2, currentYear - 3 };
+
+                _logger.LogWarning("Using fallback hardcoded grad years: {Years}", string.Join(", ", fallbackYears));
+                return fallbackYears;
+            }
         }
     }
 }

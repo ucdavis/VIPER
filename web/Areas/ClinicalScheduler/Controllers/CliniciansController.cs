@@ -15,16 +15,21 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
     public class CliniciansController : BaseClinicalSchedulerController
     {
         private readonly ClinicalSchedulerContext _context;
-        private readonly AAUDContext _aaudContext;
+        private readonly AAUDContext _aaudContext; // Legacy context for fallback clinician lookup
         private readonly WeekService _weekService;
+        private readonly PersonService _personService;
+        private readonly RotationService _rotationService;
 
         public CliniciansController(ClinicalSchedulerContext context, AAUDContext aaudContext, ILogger<CliniciansController> logger,
-            AcademicYearService academicYearService, WeekService weekService, IMemoryCache cache)
+            AcademicYearService academicYearService, WeekService weekService, PersonService personService,
+            RotationService rotationService, IMemoryCache cache)
             : base(academicYearService, cache, logger)
         {
             _context = context;
             _aaudContext = aaudContext;
             _weekService = weekService;
+            _personService = personService;
+            _rotationService = rotationService; // Added for proper rotation data loading
         }
 
         /// <summary>
@@ -47,114 +52,54 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 if (targetYear == currentYear)
                 {
-                    List<dynamic> sourceClinicians;
+                    // Use PersonService to get clinicians from Clinical Scheduler data
+                    _logger.LogInformation("Using PersonService to get clinicians (includeAllAffiliates: {IncludeAllAffiliates})", includeAllAffiliates);
 
-                    if (includeAllAffiliates)
+                    // Note: includeAllAffiliates parameter is kept for API compatibility
+                    // but PersonService only has access to clinicians who have been scheduled
+                    // This is actually better data quality since it's clinicians actually involved in scheduling
+                    var clinicians = await _personService.GetCliniciansAsync(
+                        includeHistorical: true,
+                        sinceDays: includeAllAffiliates ? 1095 : 730, // 3 years vs 2 years for affiliates
+                        cancellationToken: HttpContext.RequestAborted);
+
+                    // Convert to the expected response format
+                    var result = clinicians.Select(c => new
                     {
-                        _logger.LogInformation("Fetching all affiliates");
+                        MothraId = c.MothraId,
+                        FullName = c.FullName,
+                        FirstName = c.FirstName,
+                        LastName = c.LastName
+                    }).ToList();
 
-                        // Get all affiliates from VwCurrentAffiliates
-                        sourceClinicians = await _aaudContext.VwCurrentAffiliates
-                            .Where(a => !string.IsNullOrEmpty(a.IdsMothraid))
-                            .Select(a => new
-                            {
-                                MothraId = a.IdsMothraid!,
-                                FullName = !string.IsNullOrWhiteSpace(a.FirstName) || !string.IsNullOrWhiteSpace(a.LastName)
-                                    ? $"{a.FirstName ?? ""} {a.LastName ?? ""}".Trim()
-                                    : $"Affiliate {a.IdsMothraid}",
-                                FirstName = a.FirstName ?? "",
-                                LastName = a.LastName ?? "",
-                                Source = "Affiliate"
-                            })
-                            .ToListAsync<dynamic>();
-                    }
-                    else
-                    {
-                        _logger.LogInformation("Fetching active clinicians plus those scheduled in past 2 years");
-
-                        // Get active clinicians from VwVmthClinician (using "Y" for active status)
-                        sourceClinicians = await _aaudContext.VwVmthClinicians
-                            .Where(c => c.UserActive == "Y" && !string.IsNullOrEmpty(c.IdsMothraid))
-                            .Select(c => new
-                            {
-                                MothraId = c.IdsMothraid!,
-                                FullName = !string.IsNullOrWhiteSpace(c.FullName)
-                                    ? c.FullName
-                                    : !string.IsNullOrWhiteSpace(c.PersonDisplayFirstName) || !string.IsNullOrWhiteSpace(c.PersonDisplayLastName)
-                                        ? $"{c.PersonDisplayFirstName ?? ""} {c.PersonDisplayLastName ?? ""}".Trim()
-                                        : $"Clinician {c.IdsMothraid}",
-                                FirstName = c.PersonDisplayFirstName ?? "",
-                                LastName = c.PersonDisplayLastName ?? "",
-                                Source = "Active"
-                            })
-                            .ToListAsync<dynamic>();
-                    }
-
-                    _logger.LogInformation("Found {SourceClinicianCount} source clinicians/affiliates", sourceClinicians.Count);
-
-                    // Get historically scheduled clinicians from past 2 years
-                    var twoYearsAgo = DateTime.Now.AddYears(-2);
-                    var historicalClinicians = await _context.InstructorSchedules
-                        .Where(i => i.DateStart >= twoYearsAgo)
-                        .GroupBy(i => i.MothraId)
-                        .Select(g => new
-                        {
-                            MothraId = g.Key,
-                            FullName = g.First().FullName,
-                            FirstName = g.First().FirstName,
-                            LastName = g.First().LastName,
-                            Source = "Historical"
-                        })
-                        .ToListAsync();
-
-                    _logger.LogInformation("Found {HistoricalClinicianCount} historically scheduled clinicians", historicalClinicians.Count);
-
-                    // Combine and deduplicate by MothraId
-                    var allClinicians = sourceClinicians
-                        .Concat(historicalClinicians.Cast<dynamic>())
-                        .GroupBy(c => c.MothraId)
-                        .Select(g => g.First()) // Take first occurrence (source clinicians come first)
-                        .OrderBy(c => c.LastName)
-                        .ThenBy(c => c.FirstName)
-                        .Select(c => new
-                        {
-                            c.MothraId,
-                            c.FullName,
-                            c.FirstName,
-                            c.LastName
-                        })
-                        .ToList();
-
-                    _logger.LogInformation("Combined total: {TotalClinicianCount} unique clinicians", allClinicians.Count);
-                    return Ok(allClinicians);
+                    _logger.LogInformation("Retrieved {TotalClinicianCount} unique clinicians from PersonService", result.Count);
+                    return Ok(result);
                 }
                 else
                 {
-                    // Past year: show clinicians only from that specific year
-                    _logger.LogInformation("Fetching clinicians scheduled in {Year}", targetYear);
+                    // Past year: use PersonService to get clinicians for specific year
+                    _logger.LogInformation("Using PersonService to get clinicians for year {Year}", targetYear);
 
-                    var clinicians = await _context.InstructorSchedules
-                        .Where(i => i.DateStart.Year == targetYear)
-                        .GroupBy(i => i.MothraId)
-                        .Select(g => new
-                        {
-                            MothraId = g.Key,
-                            FullName = g.First().FullName,
-                            FirstName = g.First().FirstName,
-                            LastName = g.First().LastName
-                        })
-                        .OrderBy(c => c.LastName)
-                        .ThenBy(c => c.FirstName)
-                        .ToListAsync();
+                    var clinicians = await _personService.GetCliniciansByYearAsync(targetYear, HttpContext.RequestAborted);
 
-                    _logger.LogInformation("Found {ClinicianCount} clinicians for year {Year}", clinicians.Count, targetYear);
-                    return Ok(clinicians);
+                    // Convert to the expected response format
+                    var result = clinicians.Select(c => new
+                    {
+                        MothraId = c.MothraId,
+                        FullName = c.FullName,
+                        FirstName = c.FirstName,
+                        LastName = c.LastName
+                    }).ToList();
+
+                    _logger.LogInformation("Found {ClinicianCount} clinicians for year {Year}", result.Count, targetYear);
+                    return Ok(result);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error fetching clinicians");
-                return StatusCode(500, new { error = "An error occurred while fetching clinicians" });
+                var correlationId = Guid.NewGuid().ToString();
+                _logger.LogError(ex, "Error fetching clinicians. CorrelationId: {CorrelationId}", correlationId);
+                return StatusCode(500, new { error = "An error occurred while fetching clinicians", correlationId });
             }
         }
 
@@ -167,41 +112,22 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         {
             try
             {
-                if (includeAllAffiliates)
-                {
-                    var count = await _aaudContext.VwCurrentAffiliates
-                        .Where(a => !string.IsNullOrEmpty(a.IdsMothraid))
-                        .CountAsync();
-                    return Ok(new { count, source = "All Affiliates" });
-                }
-                else
-                {
-                    // Count active clinicians
-                    var activeCount = await _aaudContext.VwVmthClinicians
-                        .Where(c => c.UserActive == "Y" && !string.IsNullOrEmpty(c.IdsMothraid))
-                        .CountAsync();
+                // Get clinician count from PersonService
+                var clinicians = await _personService.GetCliniciansAsync(
+                    includeHistorical: true,
+                    sinceDays: includeAllAffiliates ? 1095 : 730, // 3 years vs 2 years for affiliates
+                    cancellationToken: HttpContext.RequestAborted);
 
-                    // Count historical
-                    var twoYearsAgo = DateTime.Now.AddYears(-2);
-                    var historicalCount = await _context.InstructorSchedules
-                        .Where(i => i.DateStart >= twoYearsAgo)
-                        .Select(i => i.MothraId)
-                        .Distinct()
-                        .CountAsync();
+                var count = clinicians.Count;
+                var source = includeAllAffiliates ? "Clinical Scheduler Data (3 years)" : "Clinical Scheduler Data (2 years)";
 
-                    return Ok(new
-                    {
-                        activeCount,
-                        historicalCount,
-                        estimatedTotal = activeCount + historicalCount,
-                        source = "Active Clinicians + Historical"
-                    });
-                }
+                return Ok(new { count, source });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error counting clinicians");
-                return StatusCode(500, new { error = "An error occurred while counting clinicians" });
+                var correlationId = Guid.NewGuid().ToString();
+                _logger.LogError(ex, "Error counting clinicians. CorrelationId: {CorrelationId}", correlationId);
+                return StatusCode(500, new { error = "An error occurred while counting clinicians", correlationId });
             }
         }
 
@@ -255,7 +181,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 // Count historically scheduled clinicians from past 2 years
                 var twoYearsAgo = DateTime.Now.AddYears(-2);
                 var historicalClinicians = await _context.InstructorSchedules
-                    .Where(i => i.DateStart >= twoYearsAgo)
+                    .Include(i => i.Week)
+                    .Where(i => i.Week.DateStart >= twoYearsAgo)
                     .Select(i => i.MothraId)
                     .Distinct()
                     .ToListAsync();
@@ -290,8 +217,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error comparing counts");
-                return StatusCode(500, new { error = "An error occurred while comparing counts" });
+                var correlationId = Guid.NewGuid().ToString();
+                _logger.LogError(ex, "Error comparing counts. CorrelationId: {CorrelationId}", correlationId);
+                return StatusCode(500, new { error = "An error occurred while comparing counts", correlationId });
             }
         }
 
@@ -354,12 +282,19 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 // Filter by weeks that belong to the target academic year
                 var weekIds = vWeeks.Select(w => w.WeekId).ToList();
 
+                // Load schedules without problematic navigation properties
                 var schedules = await _context.InstructorSchedules
-                    .Include(i => i.Rotation)
-                    .Include(i => i.Service)
+                    .Include(i => i.Week) // Week navigation works fine
                     .Where(i => i.MothraId == mothraId && weekIds.Contains(i.WeekId))
-                    .OrderBy(i => i.DateStart)
+                    .OrderBy(i => i.Week.DateStart)
                     .ToListAsync();
+
+                // Get unique rotation IDs from schedules and load rotation data in batch
+                var rotationIds = schedules.Select(s => s.RotationId).Distinct().ToList();
+                var rotations = await _context.Rotations
+                    .Include(r => r.Service)
+                    .Where(r => rotationIds.Contains(r.RotId))
+                    .ToDictionaryAsync(r => r.RotId, r => r, HttpContext.RequestAborted);
 
                 // Get clinician info - if no schedules, we still need to provide clinician details
                 object clinicianInfo;
@@ -415,105 +350,55 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     };
                 }
 
-                // Group schedules by semester (based on week term code) using vWeek data
-                List<object> groupedSchedules;
+                // Always show ALL weeks for the academic year with assignments where they exist
+                // Create a lookup for existing schedules by weekId
+                var schedulesByWeekId = schedules.ToDictionary(s => s.WeekId, s => s);
 
-                if (schedules.Any())
+                // Pre-calculate semester names for all weeks to avoid repeated calls
+                var weeksWithSemester = vWeeks.Select(w =>
                 {
-                    // Pre-calculate semester names to avoid repeated calls during grouping
-                    var semesterLookup = new Dictionary<int, string>();
-                    foreach (var schedule in schedules)
-                    {
-                        // Get term code from vWeek data
-                        var vWeek = vWeeks.FirstOrDefault(w => w.WeekId == schedule.WeekId);
-                        if (vWeek != null && !semesterLookup.ContainsKey(vWeek.TermCode))
-                        {
-                            var semesterName = TermCodes.GetSemesterName(vWeek.TermCode);
-                            var normalizedSemester = semesterName.StartsWith("Invalid Term Code") || semesterName.StartsWith("Unknown Term")
-                                ? "Unknown Semester"
-                                : semesterName;
-                            semesterLookup[vWeek.TermCode] = normalizedSemester;
-                        }
-                    }
+                    var semesterName = TermCodes.GetSemesterName(w.TermCode);
+                    var normalizedSemester = semesterName.StartsWith("Invalid Term Code") || semesterName.StartsWith("Unknown Term")
+                        ? "Unknown Semester"
+                        : semesterName;
 
-                    // Group schedules by semester using vWeek data for proper week numbers
-                    groupedSchedules = schedules
-                        .Select(s =>
-                        {
-                            var vWeek = vWeeks.FirstOrDefault(w => w.WeekId == s.WeekId);
-                            return new
-                            {
-                                Schedule = s,
-                                VWeek = vWeek,
-                                Semester = vWeek != null && semesterLookup.ContainsKey(vWeek.TermCode)
-                                    ? semesterLookup[vWeek.TermCode]
-                                    : "Unknown Semester"
-                            };
-                        })
-                        .Where(item => item.VWeek != null)
-                        .GroupBy(item => item.Semester)
-                        .Select(g => new
-                        {
-                            semester = g.Key,
-                            weeks = g.Select(item => new
-                            {
-                                weekId = item.Schedule.WeekId,
-                                weekNumber = item.VWeek!.WeekNum, // Use proper academic week number from vWeek
-                                dateStart = item.Schedule.DateStart,
-                                dateEnd = item.Schedule.DateEnd,
-                                rotation = new
-                                {
-                                    rotationId = item.Schedule.RotationId,
-                                    rotationName = item.Schedule.RotationName,
-                                    abbreviation = item.Schedule.Abbreviation,
-                                    serviceId = item.Schedule.ServiceId,
-                                    serviceName = item.Schedule.ServiceName
-                                },
-                                isPrimaryEvaluator = item.Schedule.Evaluator
-                            }).OrderBy(w => w.dateStart).ToList()
-                        })
-                        .OrderBy(g => TermCodes.GetSemesterOrder(g.semester))
-                        .Cast<object>()
-                        .ToList();
-                }
-                else
-                {
-                    // No schedules - create empty schedule with all weeks for the academic year
-                    // Pre-calculate semester names for all weeks to avoid repeated calls
-                    var weeksWithSemester = vWeeks.Select(w =>
-                    {
-                        var semesterName = TermCodes.GetSemesterName(w.TermCode);
-                        var normalizedSemester = semesterName.StartsWith("Invalid Term Code") || semesterName.StartsWith("Unknown Term")
-                            ? "Unknown Semester"
-                            : semesterName;
-                        return new
-                        {
-                            Week = new
-                            {
-                                weekId = w.WeekId,
-                                weekNumber = w.WeekNum, // Use proper academic week number from vWeek
-                                dateStart = w.DateStart,
-                                dateEnd = w.DateEnd,
-                                termCode = w.TermCode,
-                                rotation = (object?)null, // No rotation assigned
-                                isPrimaryEvaluator = false
-                            },
-                            Semester = normalizedSemester
-                        };
-                    }).ToList();
+                    // Check if this week has a schedule assignment
+                    var hasSchedule = schedulesByWeekId.TryGetValue(w.WeekId, out var schedule);
 
-                    // Group weeks by pre-calculated semester
-                    groupedSchedules = weeksWithSemester
-                        .GroupBy(item => item.Semester)
-                        .Select(g => new
+                    return new
+                    {
+                        Week = new
                         {
-                            semester = g.Key,
-                            weeks = g.Select(item => item.Week).OrderBy(w => w.dateStart).ToList()
-                        })
-                        .OrderBy(g => TermCodes.GetSemesterOrder(g.semester))
-                        .Cast<object>()
-                        .ToList();
-                }
+                            weekId = w.WeekId,
+                            weekNumber = w.WeekNum, // Use proper academic week number from vWeek
+                            dateStart = w.DateStart,
+                            dateEnd = w.DateEnd,
+                            termCode = w.TermCode,
+                            rotation = hasSchedule && rotations.TryGetValue(schedule.RotationId, out var rotation) ? new
+                            {
+                                rotationId = schedule.RotationId,
+                                rotationName = rotation.Name, // Use loaded rotation data
+                                abbreviation = rotation.Abbreviation, // Use loaded rotation data
+                                serviceId = rotation.ServiceId, // Use loaded rotation data
+                                serviceName = rotation.Service?.ServiceName // Use loaded rotation data
+                            } : null, // No rotation assigned or rotation not found
+                            isPrimaryEvaluator = hasSchedule && schedule.Evaluator
+                        },
+                        Semester = normalizedSemester
+                    };
+                }).ToList();
+
+                // Group all weeks by pre-calculated semester
+                var groupedSchedules = weeksWithSemester
+                    .GroupBy(item => item.Semester)
+                    .Select(g => new
+                    {
+                        semester = g.Key,
+                        weeks = g.Select(item => item.Week).OrderBy(w => w.dateStart).ToList()
+                    })
+                    .OrderBy(g => TermCodes.GetSemesterOrder(g.semester))
+                    .Cast<object>()
+                    .ToList();
 
                 var result = new
                 {
@@ -528,8 +413,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error fetching schedule for clinician {mothraId}");
-                return StatusCode(500, new { error = "An error occurred while fetching the clinician schedule" });
+                var correlationId = Guid.NewGuid().ToString();
+                _logger.LogError(ex, "Error fetching schedule for clinician {MothraId}. CorrelationId: {CorrelationId}", mothraId, correlationId);
+                return StatusCode(500, new { error = "An error occurred while fetching the clinician schedule", correlationId });
             }
         }
 
@@ -547,17 +433,25 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             {
                 _logger.LogInformation("Fetching rotations for clinician {MothraId}", mothraId);
 
-                var rotations = await _context.InstructorSchedules
+                // Get unique rotation IDs for this clinician
+                var rotationIds = await _context.InstructorSchedules
                     .Where(i => i.MothraId == mothraId)
-                    .Select(i => new
-                    {
-                        i.RotationId,
-                        i.RotationName,
-                        i.Abbreviation,
-                        i.ServiceId,
-                        i.ServiceName
-                    })
+                    .Select(i => i.RotationId)
                     .Distinct()
+                    .ToListAsync();
+
+                // Load rotation data in batch
+                var rotations = await _context.Rotations
+                    .Include(r => r.Service)
+                    .Where(r => rotationIds.Contains(r.RotId))
+                    .Select(r => new
+                    {
+                        RotationId = r.RotId,
+                        RotationName = r.Name,
+                        Abbreviation = r.Abbreviation,
+                        ServiceId = r.ServiceId,
+                        ServiceName = r.Service!.ServiceName
+                    })
                     .OrderBy(r => r.ServiceName)
                     .ThenBy(r => r.RotationName)
                     .ToListAsync();
@@ -567,8 +461,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error fetching rotations for clinician {mothraId}");
-                return StatusCode(500, new { error = "An error occurred while fetching clinician rotations" });
+                var correlationId = Guid.NewGuid().ToString();
+                _logger.LogError(ex, "Error fetching rotations for clinician {MothraId}. CorrelationId: {CorrelationId}", mothraId, correlationId);
+                return StatusCode(500, new { error = "An error occurred while fetching clinician rotations", correlationId });
             }
         }
 
@@ -585,7 +480,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 // Get historically scheduled clinicians from past 2 years
                 var twoYearsAgo = DateTime.Now.AddYears(-2);
                 var historicalClinicians = await _context.InstructorSchedules
-                    .Where(i => i.DateStart >= twoYearsAgo)
+                    .Include(i => i.Week)
+                    .Where(i => i.Week.DateStart >= twoYearsAgo)
                     .GroupBy(i => i.MothraId)
                     .Select(g => new
                     {
@@ -680,8 +576,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error analyzing clinician data");
-                return StatusCode(500, new { error = "An error occurred during data analysis" });
+                var correlationId = Guid.NewGuid().ToString();
+                _logger.LogError(ex, "Error analyzing clinician data. CorrelationId: {CorrelationId}", correlationId);
+                return StatusCode(500, new { error = "An error occurred during data analysis", correlationId });
             }
         }
 

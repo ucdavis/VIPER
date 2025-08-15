@@ -16,19 +16,21 @@ describe('AcademicYearService', () => {
 
   describe('getAcademicYearData', () => {
     it('should correctly parse response from /rotations/years endpoint', async () => {
-      // Arrange: Mock the expected backend response
+      // Arrange: Mock the expected backend response with correct ViperFetch structure
       const mockBackendResponse = {
-        CurrentGradYear: 2026,
-        AvailableGradYears: [2026, 2025, 2024, 2023, 2022, 2021],
-        DefaultYear: 2026
+        result: {
+          currentGradYear: 2026,
+          availableGradYears: [2026, 2025, 2024, 2023, 2022, 2021],
+          defaultYear: 2026
+        }
       }
       mockGet.mockResolvedValueOnce(mockBackendResponse)
 
       // Act: Call the service method
       const result = await AcademicYearService.getAcademicYearData()
 
-      // Assert: Verify the API was called correctly
-      expect(mockGet).toHaveBeenCalledWith('/api/clinicalscheduler/rotations/years')
+      // Assert: Verify the API was called correctly (with cache busting parameter)
+      expect(mockGet).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/clinicalscheduler\/rotations\/years\?_t=\d+$/))
       expect(mockGet).toHaveBeenCalledTimes(1)
 
       // Assert: Verify response is parsed correctly
@@ -66,10 +68,12 @@ describe('AcademicYearService', () => {
     })
 
     it('should handle missing properties in backend response', async () => {
-      // Arrange: Mock incomplete backend response
+      // Arrange: Mock incomplete backend response with correct ViperFetch structure
       const incompleteResponse = {
-        CurrentGradYear: undefined,
-        AvailableGradYears: null
+        result: {
+          currentGradYear: undefined,
+          availableGradYears: null
+        }
       }
       mockGet.mockResolvedValueOnce(incompleteResponse)
 
@@ -86,10 +90,13 @@ describe('AcademicYearService', () => {
 
   describe('getCurrentAcademicYear', () => {
     it('should return current academic year from successful API response', async () => {
-      // Arrange
+      // Arrange: Use current year to avoid time-based test failures
+      const currentYear = new Date().getFullYear()
       const mockResponse = {
-        CurrentGradYear: 2026,
-        AvailableGradYears: [2026, 2025, 2024]
+        result: {
+          currentGradYear: currentYear,
+          availableGradYears: [currentYear, currentYear - 1, currentYear - 2]
+        }
       }
       mockGet.mockResolvedValueOnce(mockResponse)
 
@@ -97,7 +104,7 @@ describe('AcademicYearService', () => {
       const result = await AcademicYearService.getCurrentAcademicYear()
 
       // Assert
-      expect(result).toBe(2026)
+      expect(result).toBe(currentYear)
     })
 
     it('should fallback to current calendar year when API fails', async () => {
@@ -118,10 +125,12 @@ describe('AcademicYearService', () => {
     })
 
     it('should fallback to current calendar year when response has undefined currentGradYear', async () => {
-      // Arrange
+      // Arrange: Use correct ViperFetch structure
       const mockResponse = {
-        CurrentGradYear: undefined,
-        AvailableGradYears: []
+        result: {
+          currentGradYear: undefined,
+          availableGradYears: []
+        }
       }
       mockGet.mockResolvedValueOnce(mockResponse)
 
@@ -135,10 +144,14 @@ describe('AcademicYearService', () => {
 
   describe('getAvailableYears', () => {
     it('should return available years from successful API response', async () => {
-      // Arrange
+      // Arrange: Use current year to avoid time-based test failures
+      const currentYear = new Date().getFullYear()
+      const expectedYears = [currentYear, currentYear - 1, currentYear - 2, currentYear - 3, currentYear - 4, currentYear - 5]
       const mockResponse = {
-        CurrentGradYear: 2026,
-        AvailableGradYears: [2026, 2025, 2024, 2023, 2022, 2021]
+        result: {
+          currentGradYear: currentYear,
+          availableGradYears: expectedYears
+        }
       }
       mockGet.mockResolvedValueOnce(mockResponse)
 
@@ -146,7 +159,7 @@ describe('AcademicYearService', () => {
       const result = await AcademicYearService.getAvailableYears()
 
       // Assert
-      expect(result).toEqual([2026, 2025, 2024, 2023, 2022, 2021])
+      expect(result).toEqual(expectedYears)
     })
 
     it('should return fallback years when API fails', async () => {
@@ -169,10 +182,12 @@ describe('AcademicYearService', () => {
     })
 
     it('should return fallback years when availableGradYears is empty', async () => {
-      // Arrange
+      // Arrange: Use correct ViperFetch structure
       const mockResponse = {
-        CurrentGradYear: 2026,
-        AvailableGradYears: []
+        result: {
+          currentGradYear: new Date().getFullYear(),
+          availableGradYears: []
+        }
       }
       mockGet.mockResolvedValueOnce(mockResponse)
 
@@ -186,10 +201,12 @@ describe('AcademicYearService', () => {
     })
 
     it('should return fallback years when availableGradYears is not an array', async () => {
-      // Arrange
+      // Arrange: Use correct ViperFetch structure
       const mockResponse = {
-        CurrentGradYear: 2026,
-        AvailableGradYears: null
+        result: {
+          currentGradYear: new Date().getFullYear(),
+          availableGradYears: null
+        }
       }
       mockGet.mockResolvedValueOnce(mockResponse)
 
@@ -205,18 +222,20 @@ describe('AcademicYearService', () => {
 
   describe('API endpoint regression test', () => {
     it('should call the correct stable endpoint and not debug endpoints', async () => {
-      // Arrange
+      // Arrange: Use correct ViperFetch structure
       const mockResponse = {
-        CurrentGradYear: 2026,
-        AvailableGradYears: [2026, 2025]
+        result: {
+          currentGradYear: new Date().getFullYear(),
+          availableGradYears: [new Date().getFullYear(), new Date().getFullYear() - 1]
+        }
       }
       mockGet.mockResolvedValueOnce(mockResponse)
 
       // Act
       await AcademicYearService.getAcademicYearData()
 
-      // Assert: Verify it's calling the stable rotations/years endpoint
-      expect(mockGet).toHaveBeenCalledWith('/api/clinicalscheduler/rotations/years')
+      // Assert: Verify it's calling the stable rotations/years endpoint with cache busting
+      expect(mockGet).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/clinicalscheduler\/rotations\/years\?_t=\d+$/))
 
       // Assert: Verify it's NOT calling any debug endpoints
       expect(mockGet).not.toHaveBeenCalledWith(expect.stringContaining('debug'))

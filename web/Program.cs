@@ -194,6 +194,8 @@ try
     // Clinical Scheduler services - use standard dependency injection like other services
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.AcademicYearService>();
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.WeekService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.PersonService>();   // Phase 2.1
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.RotationService>(); // Phase 2.2
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
