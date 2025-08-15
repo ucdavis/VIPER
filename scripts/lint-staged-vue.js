@@ -27,7 +27,7 @@ function sanitizeFilePath(filePath) {
 
   // On Windows, lint-staged may pass paths like C:/path/to/file
   // Convert these to proper Windows format first
-  if (IS_WINDOWS && /^[A-Za-z]:\//.test(filePath)) {
+  if (IS_WINDOWS && /^[A-Za-z]:[\\/]/.test(filePath)) {
     normalizedPath = filePath.replace(/\//g, path.sep);
   }
 
@@ -38,8 +38,9 @@ function sanitizeFilePath(filePath) {
   const resolvedPath = path.resolve(normalizedPath);
   const vueAppAbsPath = path.resolve(vueAppDir);
 
-  // Ensure file is within VueApp directory (which is within project)
-  if (!resolvedPath.startsWith(vueAppAbsPath)) {
+  // Ensure file is within VueApp directory using path.relative (more secure than startsWith)
+  const relativeToVueApp = path.relative(vueAppAbsPath, resolvedPath);
+  if (relativeToVueApp.startsWith('..') || path.isAbsolute(relativeToVueApp)) {
     throw new Error(`File outside VueApp directory: ${filePath}`);
   }
 
@@ -72,52 +73,144 @@ function sanitizeFilePath(filePath) {
 
   // Return relative path for eslint (relative to VueApp directory)
   // Use forward slashes for ESLint compatibility across platforms
-  const relativePath = path.relative(vueAppDir, resolvedPath).replace(/\\/g, '/');
+  const relativePath = path.posix.normalize(path.relative(vueAppDir, resolvedPath));
   return relativePath;
 }
 
 // Sanitize all file paths and filter out null results (missing files)
 const files = rawFiles.map(sanitizeFilePath).filter(file => file !== null);
 
-// Helper function to run a command
+// Helper function to run a command and capture output
 function runCommand(command, args, description) {
-  const useShell = IS_WINDOWS;
-
   console.log(`Running ${description}...`);
 
+  // On Windows, npx needs shell to work properly
+  const useShell = IS_WINDOWS;
+  
   const result = spawnSync('npx', [command, ...args], {
-    stdio: 'inherit',
+    stdio: ['inherit', 'pipe', 'pipe'],
     cwd: vueAppDir,
-    shell: useShell
+    shell: useShell,
+    encoding: 'utf8'
   });
 
   if (result.error) {
     console.error(`Failed to run ${description}:`, result.error);
-    return false;
+    return { success: false, stdout: '', stderr: '' };
   }
 
-  if (result.status !== 0) {
-    console.error(`${description} failed with exit code ${result.status}`);
-    return false;
-  }
+  return {
+    success: result.status === 0,
+    stdout: result.stdout || '',
+    stderr: result.stderr || '',
+    status: result.status
+  };
+}
 
-  console.log(`${description} passed.`);
-  return true;
+// Function to analyze ESLint output and separate security vs quality issues
+function analyzeESLintOutput(stdout, stderr) {
+  const securityErrors = [];
+  const qualityIssues = [];
+  
+  // Parse JSON output from ESLint
+  let eslintResults = [];
+  try {
+    if (stdout.trim()) {
+      eslintResults = JSON.parse(stdout);
+    }
+  } catch (error) {
+    // Fallback to stderr if stdout parsing fails
+    try {
+      if (stderr.trim()) {
+        eslintResults = JSON.parse(stderr);
+      }
+    } catch (fallbackError) {
+      console.warn('Failed to parse ESLint JSON output, continuing with empty results');
+      return { securityErrors, qualityIssues, output: stdout + stderr };
+    }
+  }
+  
+  // Process each file's results
+  eslintResults.forEach(fileResult => {
+    fileResult.messages.forEach(message => {
+      const issue = {
+        file: fileResult.filePath,
+        line: message.line,
+        col: message.column,
+        level: message.severity === 2 ? 'error' : 'warning',
+        message: message.message,
+        rule: message.ruleId || 'unknown'
+      };
+      
+      // Separate security rules from quality issues
+      // Security rules start with 'security/' or are Vue security rules
+      const isSecurityRule = issue.rule.startsWith('security/') || 
+                           issue.rule === 'vue/no-v-html' ||
+                           issue.rule === 'vue/no-v-text-v-html-on-component';
+      
+      if (isSecurityRule) {
+        securityErrors.push(issue);
+      } else {
+        qualityIssues.push(issue);
+      }
+    });
+  });
+  
+  return { securityErrors, qualityIssues, output: stdout + stderr };
 }
 
 try {
-  let success = true;
+  let hasSecurityErrors = false;
+  let hasTypeErrors = false;
+  
+  // Check if we should block on warnings (for lint:staged vs lint:precommit)
+  const blockOnWarnings = process.env.LINT_BLOCK_ON_WARNINGS === 'true';
 
-  // 1. Run ESLint
+  // 1. Run ESLint (without --max-warnings to get all output)
   const eslintArgs = [
     ...(fixFlag ? ['--fix'] : []),
     '--ignore-path', '.gitignore',
-    '--max-warnings', '0', // Treat warnings as errors
+    '--format', 'json', // Use JSON format for reliable parsing
     ...files
   ];
 
-  if (!runCommand('eslint', eslintArgs, 'ESLint')) {
-    success = false;
+  console.log(`🔍 Running ESLint security and quality checks on ${files.length} Vue/JS/TS files...`);
+  const eslintResult = runCommand('eslint', eslintArgs, 'ESLint');
+  
+  // Check if ESLint command had a fatal error (only if exit code > 1)
+  if (eslintResult.status > 1) {
+    // Exit codes 0 = no issues, 1 = linting errors found, >1 = fatal error
+    console.error('\n❌ ESLint command failed:');
+    if (eslintResult.stdout) console.error(eslintResult.stdout);
+    if (eslintResult.stderr) console.error(eslintResult.stderr);
+    console.error('\n🛑 COMMIT BLOCKED - ESLint execution failed');
+    process.exit(1);
+  }
+  
+  // Analyze ESLint output for security vs quality issues
+  const { securityErrors, qualityIssues, output } = analyzeESLintOutput(
+    eslintResult.stdout, 
+    eslintResult.stderr
+  );
+
+  // Display results with clear separation
+  if (securityErrors.length > 0) {
+    console.log(`\n🚨 CRITICAL ERRORS (${securityErrors.length}) - MUST FIX:`);
+    securityErrors.forEach(issue => {
+      console.log(`  ${issue.file}:${issue.line}:${issue.col} - ${issue.rule}: ${issue.message}`);
+    });
+    hasSecurityErrors = true;
+  }
+
+  if (qualityIssues.length > 0) {
+    console.log(`\n⚠️  CODE QUALITY WARNINGS (${qualityIssues.length}):`);
+    qualityIssues.forEach(issue => {
+      console.log(`  ${issue.file}:${issue.line}:${issue.col} - ${issue.rule}: ${issue.message}`);
+    });
+  }
+
+  if (securityErrors.length === 0 && qualityIssues.length === 0) {
+    console.log('✅ No ESLint issues found in staged Vue/JS/TS files');
   }
 
   // 2. Run TypeScript type checking on the files using tsc-files
@@ -131,13 +224,44 @@ try {
     // Use tsc-files for type checking only the staged files
     const tscArgs = ['--noEmit', ...absoluteTsFiles];
 
-    if (!runCommand('tsc-files', tscArgs, 'TypeScript type checking')) {
-      success = false;
+    console.log('\n🔍 Running TypeScript type checking...');
+    const tscResult = runCommand('tsc-files', tscArgs, 'TypeScript type checking');
+    
+    if (!tscResult.success) {
+      console.log('\n❌ TypeScript type checking failed:');
+      console.log(tscResult.stdout);
+      console.log(tscResult.stderr);
+      hasTypeErrors = true;
+    } else {
+      console.log('✅ TypeScript type checking passed');
     }
   }
 
-  if (!success) {
+  // Summary for developer visibility 
+  const totalIssues = securityErrors.length + qualityIssues.length;
+  const criticalCount = securityErrors.length;
+  const warningCount = qualityIssues.length;
+  
+  console.log(`\n📊 Vue/JS/TS Summary: ${totalIssues} total issues (${criticalCount} critical errors, ${warningCount} warnings)`);
+
+  // Determine what should block the commit
+  const shouldBlock = hasSecurityErrors || hasTypeErrors || (blockOnWarnings && qualityIssues.length > 0);
+
+  if (shouldBlock) {
+    if (hasSecurityErrors || hasTypeErrors) {
+      console.log('\n🛑 COMMIT BLOCKED due to CRITICAL ERRORS.');
+      console.log('🔒 Security and type errors MUST be fixed before committing.');
+    }
+    if (blockOnWarnings && qualityIssues.length > 0 && !hasSecurityErrors && !hasTypeErrors) {
+      console.log('\n⚠️  LINTING STOPPED due to code quality warnings.');
+      console.log('💡 These warnings would not block commits in normal mode. Fix warnings above or use lint:precommit to ignore warnings.');
+    }
     process.exit(1);
+  } else if (qualityIssues.length > 0) {
+    console.log('\n✅ COMMIT ALLOWED - Only warnings detected (non-blocking).');
+    console.log('💡 Run `npm run lint:staged` to see and fix all warnings.');
+  } else {
+    console.log('\n✅ All Vue/JS/TS checks passed!');
   }
 
 } catch (error) {

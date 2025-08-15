@@ -1,8 +1,17 @@
 {
   "VueApp/**/*.{vue,js,jsx,ts,tsx}": [
-    "node scripts/lint-staged-vue.js"
+    "node scripts/lint-staged-vue.js --fix"
+  ],
+  "web/**/*.cshtml": [
+    "node scripts/lint-staged-cshtml.js --fix"
+  ],
+  "web/**/*.cs": [
+    "node scripts/lint-staged-dotnet.js --fix"
+  ],
+  "test/**/*.cs": [  
+    "node scripts/lint-staged-dotnet.js --fix"
   ],
   "{web,test}/**/*.cs": [
-    "node scripts/lint-staged-dotnet.js"
+    "node scripts/lint-staged-sonar.js"
   ]
 }

@@ -3,33 +3,18 @@
   "version": "2.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:backend": "cd web && dotnet watch run --launch-profile https",
-    "dev:build-mode": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"npm run dev:frontend-build\" \"npm run dev:backend\"",
     "dev:frontend": "cd VueApp && npm install && npm run dev",
     "dev:frontend-build": "cd VueApp && npm install && npm run watch",
-    "fix:backend": "cd web && dotnet format",
-    "fix:frontend": "cd VueApp && npm run lint:fix",
-    "fix:staged": "lint-staged --config .lint-staged-fix.json --no-stash",
-    "lint": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"npm run lint:frontend\" \"npm run lint:backend\"",
-    "lint:backend": "cd web && dotnet format --verify-no-changes",
-    "lint:frontend": "cd VueApp && npm run lint && npm run type-check",
-    "lint:staged": "lint-staged",
+    "lint:precommit": "lint-staged",
+    "lint:staged": "cross-env LINT_BLOCK_ON_WARNINGS=true lint-staged",
     "prepare": "husky",
     "test:backend": "cd test && dotnet test",
     "test:frontend": "cd VueApp && npm run test:run"
   },
   "devDependencies": {
-    "concurrently": "^9.0.1",
+    "cross-env": "^10.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.2"
-  },
-  "lint-staged": {
-    "VueApp/**/*.{vue,js,jsx,ts,tsx}": [
-      "node scripts/lint-staged-vue.js"
-    ],
-    "{web,test}/**/*.cs": [
-      "node scripts/lint-staged-dotnet.js"
-    ]
   }
 }

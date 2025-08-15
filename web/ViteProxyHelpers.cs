@@ -39,7 +39,6 @@ internal static partial class ViteProxyHelpers
     private const string SupportedAssetExtensions = @"(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)";
     private const string VueAppRoutePattern = @"^/({0})(/.*)?$";
     private const string VueAppAssetPattern = @"^/({0})/.*\.(js|ts|css|map|vue|json)$|^/({0})\.(js|ts|css|map|vue|json)$";
-    private const string DevAssetExtensions = @"(js|ts|css|map|vue|json)";
 
     // Regex for built asset files with Vite hashes (used to skip proxying built assets)
     private static readonly Regex AssetHashRegex = new Regex(
@@ -219,9 +218,19 @@ internal static partial class ViteProxyHelpers
                 requestMessage.Content = new StreamContent(context.Request.Body);
 
                 // Copy content-specific headers to Content.Headers after creating StreamContent
+                // Exclude headers that should be handled automatically by HttpClient
+                var forbiddenContentHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "Content-Length",
+                    "Content-Type",
+                    "Content-Encoding",
+                    "Content-Disposition",
+                    "Content-Range"
+                };
                 foreach (var header in context.Request.Headers)
                 {
-                    if (header.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase))
+                    if (header.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
+                        !forbiddenContentHeaders.Contains(header.Key))
                     {
                         requestMessage.Content.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
                     }
@@ -239,7 +248,7 @@ internal static partial class ViteProxyHelpers
         foreach (var header in context.Request.Headers)
         {
             // Skip HTTP/2 pseudo-headers, content headers (already handled above), and hop-by-hop headers
-            if (!header.Key.StartsWith(":") &&
+            if (!header.Key.StartsWith(':') &&
                 !header.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
                 !requestHeaderSkip.Contains(header.Key))
             {
@@ -273,7 +282,7 @@ internal static partial class ViteProxyHelpers
                 {
                     try
                     {
-                        context.Response.Headers[header.Key] = header.Value.ToArray();
+                        context.Response.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
                     }
                     catch (Exception headerEx)
                     {
