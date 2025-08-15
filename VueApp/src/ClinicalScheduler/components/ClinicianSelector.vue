@@ -103,6 +103,7 @@ const emit = defineEmits<{
     'update:modelValue': [value: Clinician | null]
     'change': [value: Clinician | null]
     'update:includeAllAffiliates': [value: boolean]
+    'cliniciansLoaded': [clinicians: Clinician[]]
 }>()
 
 // Reactive data
@@ -134,6 +135,8 @@ const fetchClinicians = async () => {
         if (result.success) {
             clinicians.value = result.result
             filteredClinicians.value = result.result
+            // Emit event to notify parent that clinicians are loaded
+            emit('cliniciansLoaded', result.result)
         } else {
             error.value = result.errors.join(', ') || 'Failed to load clinicians'
         }
@@ -174,11 +177,12 @@ const onAffiliatesToggle = (value: boolean) => {
 }
 
 // Watchers
-watch(() => props.year, () => {
+watch(() => props.includeAllAffiliates, () => {
     fetchClinicians()
 })
 
-watch(() => props.includeAllAffiliates, () => {
+// Watch for year changes and refetch clinicians
+watch(() => props.year, () => {
     fetchClinicians()
 })
 

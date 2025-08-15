@@ -38,11 +38,16 @@ namespace Viper.test.ClinicalScheduler
         [Fact]
         public void RotationsController_CanBeCreated()
         {
-            // Arrange & Act
+            // Arrange
+            var mockRotationLogger = new Mock<ILogger<RotationService>>();
+            var rotationService = new RotationService(mockRotationLogger.Object, _context);
+
+            // Act
             var controller = new RotationsController(
                 _context,
                 _academicYearService,
                 _weekService,
+                rotationService,
                 _mockCache.Object,
                 _mockLogger.Object);
 
@@ -53,11 +58,16 @@ namespace Viper.test.ClinicalScheduler
         [Fact]
         public void RotationsController_HasRequiredDependencies()
         {
-            // Arrange & Act
+            // Arrange
+            var mockRotationLogger = new Mock<ILogger<RotationService>>();
+            var rotationService = new RotationService(mockRotationLogger.Object, _context);
+
+            // Act
             var controller = new RotationsController(
                 _context,
                 _academicYearService,
                 _weekService,
+                rotationService,
                 _mockCache.Object,
                 _mockLogger.Object);
 
@@ -177,10 +187,14 @@ namespace Viper.test.ClinicalScheduler
         public void RotationsController_AcceptsValidServiceIds(int serviceId)
         {
             // Arrange
+            var mockRotationLogger = new Mock<ILogger<RotationService>>();
+            var rotationService = new RotationService(mockRotationLogger.Object, _context);
+
             _ = new RotationsController(
                 _context,
                 _academicYearService,
                 _weekService,
+                rotationService,
                 _mockCache.Object,
                 _mockLogger.Object);
 
@@ -195,10 +209,14 @@ namespace Viper.test.ClinicalScheduler
         public void RotationsController_AcceptsValidYears(int year)
         {
             // Arrange
+            var mockRotationLogger = new Mock<ILogger<RotationService>>();
+            var rotationService = new RotationService(mockRotationLogger.Object, _context);
+
             _ = new RotationsController(
                 _context,
                 _academicYearService,
                 _weekService,
+                rotationService,
                 _mockCache.Object,
                 _mockLogger.Object);
 
