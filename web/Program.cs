@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Rewrite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
 using Newtonsoft.Json;
@@ -27,7 +26,7 @@ using Web;
 using Web.Authorization;
 
 // Centralized SPA application names to avoid duplication
-string[] VueAppNames = { "CTS", "Computing", "Students" };
+string[] VueAppNames = { "ClinicalScheduler", "CTS", "Computing", "Students" };
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
@@ -180,6 +179,13 @@ try
             opt.EnableDetailedErrors(true);
         }
     });
+    builder.Services.AddDbContext<ClinicalSchedulerContext>();
+
+    // Clinical Scheduler services - use standard dependency injection like other services
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.AcademicYearService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.WeekService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.PersonService>();   // Phase 2.1
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.RotationService>(); // Phase 2.2
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
@@ -375,7 +381,7 @@ try
                 Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
             RequestPath = "/2/vue"
         });
-        
+
         // Serve other static files
         app.UseStaticFiles();
     }
@@ -388,7 +394,7 @@ try
                 Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
             RequestPath = "/2/vue"
         });
-        
+
         app.UseStaticFiles();
     }
 

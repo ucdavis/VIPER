@@ -62,6 +62,10 @@ export default defineConfig(({ mode }) => ({
                 target,
                 secure: false
             },
+            '^/ClinicalScheduler': {
+                target,
+                secure: false
+            },
             '^/Computing': {
                 target,
                 secure: false
@@ -95,6 +99,7 @@ export default defineConfig(({ mode }) => ({
                 cts: resolve(__dirname, 'src/cts/index.html'),
                 computing: resolve(__dirname, 'src/computing/index.html'),
                 students: resolve(__dirname, 'src/students/index.html'),
+                clinicalscheduler: resolve(__dirname, 'src/clinicalscheduler/index.html'),
             }
         }
     },

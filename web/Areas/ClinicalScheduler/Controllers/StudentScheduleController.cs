@@ -11,9 +11,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
     [Permission(Allow = "SVMSecure.ClnSched.ViewStdSchedules")]
     public class StudentScheduleController : ApiController
     {
-        private readonly VIPERContext _context;
+        private readonly ClinicalSchedulerContext _context;
 
-        public StudentScheduleController(VIPERContext context)
+        public StudentScheduleController(ClinicalSchedulerContext context)
         {
             _context = context;
         }
@@ -23,7 +23,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         {
             //check required arguments: at least date or student
             //for future, add student + grad year or rotation + grad year?
-            if (date == null && mothraId == null )
+            if (date == null && mothraId == null)
             {
                 return ValidationProblem("Date or student mothra id is required");
             }
