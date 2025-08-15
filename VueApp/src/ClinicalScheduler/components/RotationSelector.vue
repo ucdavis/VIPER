@@ -71,13 +71,15 @@ interface Props {
   serviceFilter?: number | null
   year?: number | null
   onlyWithScheduledWeeks?: boolean
+  excludeRotationNames?: string[]  // For filtering out already assigned rotations
 }
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: null,
   serviceFilter: null,
   year: null,
-  onlyWithScheduledWeeks: false
+  onlyWithScheduledWeeks: false,
+  excludeRotationNames: () => []
 })
 
 // Emits
@@ -129,8 +131,26 @@ async function loadRotations() {
     }
     
     if (result.success) {
-      rotations.value = result.result
-      filteredRotations.value = result.result
+      // Deduplicate by rotation name and filter out excluded names
+      const uniqueRotations = new Map<string, RotationWithService>()
+      
+      result.result.forEach(rotation => {
+        const rotationName = getRotationDisplayName(rotation)
+        // Skip if this rotation name is in the exclusion list
+        if (props.excludeRotationNames && props.excludeRotationNames.includes(rotationName)) {
+          return
+        }
+        // Keep only the first occurrence of each rotation name
+        if (!uniqueRotations.has(rotationName)) {
+          uniqueRotations.set(rotationName, rotation)
+        }
+      })
+      
+      const deduplicatedRotations = Array.from(uniqueRotations.values())
+        .sort((a, b) => getRotationDisplayName(a).localeCompare(getRotationDisplayName(b)))
+      
+      rotations.value = deduplicatedRotations
+      filteredRotations.value = deduplicatedRotations
     } else {
       error.value = result.errors.join(', ') || 'Failed to load rotations'
     }

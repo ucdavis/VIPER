@@ -16,9 +16,9 @@
                 :includeAllAffiliates="includeAllAffiliates"
                 @update:includeAllAffiliates="includeAllAffiliates = $event"
                 @change="onClinicianChange"
+                @cliniciansLoaded="handleClinicianSelectorReady"
                 :isPastYear="isPastYear"
-                class="ms-3"
-                style="min-width: 400px;"
+                class="ms-3 clinician-selector"
             />
             <YearSelector
                 v-model="currentYear"
@@ -72,50 +72,15 @@
                         {{ rotation.rotationName }}
                     </button>
                 </div>
-                <q-select
-                    v-model="selectedNewRotationObj"
-                    :options="filteredRotations"
-                    :loading="false"
-                    :error="false"
-                    placeholder="Add Rotation"
-                    emit-value
-                    map-options
-                    use-input
-                    fill-input
-                    hide-selected
-                    clearable
-                    :input-debounce="300"
-                    @filter="onFilterRotations"
-                    @update:model-value="onAddRotationSelected"
-                    option-label="displayText"
-                    option-value="rotId"
-                    class="rotation-dropdown"
-                    style="min-width: 200px;"
-                >
-                    <template v-slot:prepend>
-                        <q-icon name="add_circle" />
-                    </template>
-
-                    <template v-slot:no-option>
-                        <q-item>
-                            <q-item-section class="text-grey">
-                                {{ rotationSearchQuery ? 'No available rotations' : 'Loading rotations...' }}
-                            </q-item-section>
-                        </q-item>
-                    </template>
-
-                    <template v-slot:option="scope">
-                        <q-item v-bind="scope.itemProps">
-                            <q-item-section>
-                                <q-item-label>{{ scope.opt.rotationName }}</q-item-label>
-                            </q-item-section>
-                        </q-item>
-                    </template>
-
-                    <template v-slot:selected-item="scope">
-                        <span v-if="scope.opt">{{ scope.opt.rotationName }} ({{ scope.opt.serviceName }})</span>
-                    </template>
-                </q-select>
+                <div class="add-rotation-wrapper">
+                    <q-icon name="add_circle" class="add-rotation-icon" />
+                    <RotationSelector
+                        v-model="selectedNewRotationId"
+                        :excludeRotationNames="assignedRotationNames"
+                        @rotationSelected="onAddRotationSelected"
+                        class="rotation-dropdown rotation-selector-dropdown"
+                    />
+                </div>
             </div>
 
             <!-- Schedule by semester -->
@@ -137,7 +102,7 @@
                         <div class="rotation-list">
                             <div v-if="week.rotation" class="rotation-item">
                                 <span v-if="!isPastYear" class="remove-btn" @click.stop="removeRotation()">✖</span>
-                                <span>{{ week.rotation.abbreviation }}</span>
+                                <span>{{ week.rotation.rotationName }}</span>
                                 <span v-if="!isPastYear"
                                       class="primary-star"
                                       :class="{ filled: week.isPrimaryEvaluator }"
@@ -177,8 +142,43 @@ import { useRoute, useRouter } from 'vue-router'
 import ClinicianSelector from '../components/ClinicianSelector.vue'
 import YearSelector from '../components/YearSelector.vue'
 import ScheduleLegend from '../components/ScheduleLegend.vue'
+import RotationSelector from '../components/RotationSelector.vue'
 import { ClinicianService, type Clinician, type ClinicianScheduleData } from '../services/ClinicianService'
-import { RotationService, type RotationWithService } from '../services/RotationService'
+
+
+// Academic calendar constants
+const ACADEMIC_SEASONS = [
+    { name: 'fall', displayName: 'Fall', months: [8, 9, 10, 11] }, // September-December
+    { name: 'winter', displayName: 'Winter', months: [0, 1] }, // January-February  
+    { name: 'spring', displayName: 'Spring', months: [2, 3, 4, 5] }, // March-June
+    { name: 'summer', displayName: 'Summer', months: [6, 7] } // July-August
+] as const
+
+// Type definitions for better type safety
+interface WeekData {
+    weekId: number
+    weekNumber: number
+    dateStart: string
+    dateEnd: string
+    rotation?: {
+        rotationId: number
+        rotationName: string
+        abbreviation: string
+        serviceName?: string
+    }
+    isPrimaryEvaluator: boolean
+}
+
+interface SemesterData {
+    semester: string
+    weeks: WeekData[]
+}
+
+interface SeasonYearGroup {
+    season: typeof ACADEMIC_SEASONS[number]
+    year: number
+    weeks: WeekData[]
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -187,44 +187,82 @@ const selectedClinician = ref<Clinician | null>(null)
 const clinicianSchedule = ref<ClinicianScheduleData | null>(null)
 const clinicianRotations = ref<any[]>([])
 const selectedRotation = ref<any | null>(null)
-const selectedNewRotationObj = ref<any | null>(null)
+const selectedNewRotationId = ref<number | null>(null)
 const loadingSchedule = ref(false)
 const scheduleError = ref<string | null>(null)
-const allRotations = ref<RotationWithService[]>([])
 const currentYear = ref<number | null>(null) // YearSelector will initialize with academic year
-const filteredRotations = ref<any[]>([])
-const rotationSearchQuery = ref('')
+// RotationSelector component handles rotation filtering and search
 const includeAllAffiliates = ref(false)
 
-// Year selection is now handled by YearSelector component
 
 const isPastYear = computed(() => {
     return currentYear.value !== null && currentYear.value < new Date().getFullYear()
 })
 
-// Use schedule data directly from API (no transformation needed)
+// Group weeks by academic season using actual calendar dates (same logic as RotationScheduleView)
 const schedulesBySemester = computed(() => {
     if (!clinicianSchedule.value || !clinicianSchedule.value.schedulesBySemester) return []
-    return clinicianSchedule.value.schedulesBySemester
+
+    // Extract all weeks from all semesters with proper typing
+    const allWeeks: WeekData[] = []
+    clinicianSchedule.value.schedulesBySemester.forEach((semester: SemesterData) => {
+        semester.weeks.forEach((week: WeekData) => {
+            allWeeks.push(week)
+        })
+    })
+
+    if (allWeeks.length === 0) return []
+
+    // Group weeks by both season and year to handle multi-year academic periods
+    const seasonYearGroups = new Map<string, SeasonYearGroup>()
+
+    allWeeks.forEach(week => {
+        const date = new Date(week.dateStart)
+        const month = date.getMonth()
+        const year = date.getFullYear()
+
+        // Find which season this week belongs to
+        const season = ACADEMIC_SEASONS.find(s => s.months.includes(month))
+        if (season) {
+            const key = `${season.name}-${year}`
+            if (!seasonYearGroups.has(key)) {
+                seasonYearGroups.set(key, {
+                    season: season,
+                    year: year,
+                    weeks: []
+                })
+            }
+            seasonYearGroups.get(key).weeks.push(week)
+        }
+    })
+
+    // Convert to result array
+    const result = []
+    for (const [, group] of seasonYearGroups) {
+        // Sort weeks within each season-year group by date
+        group.weeks.sort((a: any, b: any) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime())
+
+        result.push({
+            semester: `${group.season.displayName} ${group.year}`,
+            weeks: group.weeks
+        })
+    }
+
+    // Sort by chronological order based on actual calendar dates
+    return result.sort((a: any, b: any) => {
+        const firstDateA = new Date(a.weeks[0].dateStart)
+        const firstDateB = new Date(b.weeks[0].dateStart)
+        return firstDateA.getTime() - firstDateB.getTime()
+    })
 })
 
-// Computed property for available rotations (filtered to exclude already assigned ones)
-const availableRotations = computed(() => {
-    if (!allRotations.value || !clinicianRotations.value) return []
-
-    // Get list of rotation IDs already assigned to this clinician
-    const assignedRotationIds = new Set(clinicianRotations.value.map((r: any) => r.rotId))
-
-    // Filter out rotations already assigned
-    return allRotations.value
-        .filter((rotation: RotationWithService) => !assignedRotationIds.has(rotation.rotId))
-        .map((rotation: RotationWithService) => ({
-            rotId: rotation.rotId,
-            rotationName: rotation.name,
-            abbreviation: rotation.abbreviation,
-            serviceName: rotation.service?.serviceName || 'Unknown Service'
-        }))
-        .sort((a, b) => a.rotationName.localeCompare(b.rotationName))
+// Computed property for rotation names already assigned to this clinician
+const assignedRotationNames = computed(() => {
+    if (!clinicianRotations.value) return []
+    
+    return clinicianRotations.value
+        .map((r: any) => r.rotationName)
+        .filter((name: string) => name) // Filter out any null/undefined names
 })
 
 // Check if clinician has no rotation assignments
@@ -237,18 +275,6 @@ const hasNoAssignments = computed(() => {
     )
 })
 
-const fetchAllRotations = async () => {
-    try {
-        const result = await RotationService.getRotations({ includeService: true })
-        if (result.success) {
-            allRotations.value = result.result
-        } else {
-            // Failed to fetch rotations - handle gracefully
-        }
-    } catch (error) {
-        // Error fetching rotations - handle gracefully
-    }
-}
 
 const fetchClinicianSchedule = async (mothraId: string) => {
     loadingSchedule.value = true
@@ -280,7 +306,7 @@ const fetchClinicianSchedule = async (mothraId: string) => {
             }
 
             clinicianRotations.value = Array.from(rotationMap.values())
-                .sort((a, b) => a.rotationName.localeCompare(b.rotationName))
+                .sort((a, b) => (a.rotationName || '').localeCompare(b.rotationName || ''))
 
             // Don't auto-select any rotation - let user choose
             selectedRotation.value = null
@@ -289,7 +315,7 @@ const fetchClinicianSchedule = async (mothraId: string) => {
         }
     } catch (error) {
         scheduleError.value = error instanceof Error ? error.message : 'Failed to load schedule'
-        // Error loading clinician schedule
+        console.error('Error loading clinician schedule:', error)
     } finally {
         loadingSchedule.value = false
     }
@@ -320,8 +346,19 @@ const onClinicianChange = (clinician: Clinician | null) => {
 const onYearChange = () => {
     // Update URL with new year
     if (selectedClinician.value) {
-        onClinicianChange(selectedClinician.value)
+        // When clinician is selected, update URL and refetch their schedule for the new year
+        const query: any = {}
+        if (currentYear.value !== null && currentYear.value !== new Date().getFullYear()) {
+            query.year = currentYear.value
+        }
+        router.push({
+            name: 'ClinicianScheduleWithId',
+            params: { mothraId: encodeURIComponent(selectedClinician.value.mothraId) },
+            query
+        })
+        fetchClinicianSchedule(selectedClinician.value.mothraId)
     } else {
+        // No clinician selected, just update the year in URL
         const query: any = {}
         if (currentYear.value !== null && currentYear.value !== new Date().getFullYear()) {
             query.year = currentYear.value
@@ -330,7 +367,7 @@ const onYearChange = () => {
     }
 }
 
-// Initialize from URL parameters  
+// Initialize from URL parameters
 const initializeFromUrl = () => {
     // Get year from URL parameters - this overrides YearSelector's default
     const yearParam = route.query.year
@@ -339,42 +376,46 @@ const initializeFromUrl = () => {
     }
 }
 
+// Store the mothraId from URL for initialization
+const urlMothraId = ref<string | null>(null)
+
 // Load clinician from URL parameter if present
 const loadClinicianFromUrl = async () => {
     const mothraId = route.params.mothraId as string
     if (mothraId) {
         const decodedMothraId = decodeURIComponent(mothraId)
+        urlMothraId.value = decodedMothraId
+        
+        // Load the schedule immediately to show data
         try {
-            // First, try to find the clinician in our clinician list to get the correct name
-            const cliniciansResult = await ClinicianService.getClinicians({ year: currentYear.value ?? undefined })
-            if (cliniciansResult.success) {
-                let clinician = cliniciansResult.result.find(c => c.mothraId === decodedMothraId)
-
-                if (clinician) {
-                    // Found in the clinician list - use this (it has the correct name)
-                    selectedClinician.value = clinician
-                } else {
-                    // Not found in list, but let's load the schedule and create a clinician from that
-                    await fetchClinicianSchedule(decodedMothraId)
-                    if (clinicianSchedule.value && clinicianSchedule.value.clinician) {
-                        // Create a proper Clinician object with the correct structure
-                        selectedClinician.value = {
-                            mothraId: clinicianSchedule.value.clinician.mothraId,
-                            firstName: clinicianSchedule.value.clinician.firstName,
-                            lastName: clinicianSchedule.value.clinician.lastName,
-                            fullName: clinicianSchedule.value.clinician.fullName,
-                            role: clinicianSchedule.value.clinician.role
-                        }
-                    }
-                    return // Schedule already loaded
+            await fetchClinicianSchedule(decodedMothraId)
+            
+            // If we have schedule data but no selectedClinician, create one from schedule data
+            if (clinicianSchedule.value && clinicianSchedule.value.clinician && !selectedClinician.value) {
+                selectedClinician.value = {
+                    mothraId: clinicianSchedule.value.clinician.mothraId,
+                    firstName: clinicianSchedule.value.clinician.firstName,
+                    lastName: clinicianSchedule.value.clinician.lastName,
+                    fullName: clinicianSchedule.value.clinician.fullName,
+                    role: clinicianSchedule.value.clinician.role
                 }
             }
-
-            // Load the schedule for the selected clinician
-            await fetchClinicianSchedule(decodedMothraId)
         } catch (error) {
-            // If the clinician ID in URL is invalid, redirect to base route
-            router.push({ name: 'ClinicianSchedule' })
+            console.error('Error loading clinician schedule from URL:', error)
+            // Don't redirect immediately - the ClinicianSelector might still be able to find the clinician
+        }
+    }
+}
+
+// Handle when ClinicianSelector has loaded its clinicians and we have a URL mothraId
+const handleClinicianSelectorReady = (clinicians: Clinician[]) => {
+    if (urlMothraId.value && !selectedClinician.value) {
+        // Try to find the clinician in the loaded list
+        const clinician = clinicians.find(c => c.mothraId === urlMothraId.value)
+        if (clinician) {
+            selectedClinician.value = clinician
+            // Clear the URL mothraId since we found the clinician
+            urlMothraId.value = null
         }
     }
 }
@@ -387,22 +428,20 @@ const onWeekClick = (week: any) => {
     if (isPastYear.value) return // No editing for past years
 
     if (week.rotation) {
-        // Week has a rotation - functionality to be implemented
-        // Future: toggle selection or show options
+        // Week has rotation - functionality for editing will be added here
     } else {
-        // Empty week - functionality to be implemented
-        // Future: open a rotation picker
+        // Empty week - rotation assignment functionality will be added here
     }
 }
 
 const removeRotation = () => {
     if (isPastYear.value) return
-    // Future: remove the rotation assignment - week parameter will be added when implemented
+    // Remove rotation assignment functionality will be implemented here
 }
 
 const togglePrimary = () => {
     if (isPastYear.value) return
-    // Future: toggle primary evaluator status - week parameter will be added when implemented
+    // Toggle primary evaluator functionality will be implemented here
 }
 
 const formatDate = (dateString: string) => {
@@ -410,40 +449,18 @@ const formatDate = (dateString: string) => {
     return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear().toString().slice(-2)}`
 }
 
-const onAddRotationSelected = (rotId: number | null) => {
-    if (rotId) {
-        const rotation = availableRotations.value.find(r => r.rotId === rotId)
-        if (rotation) {
-            // Future: add the rotation to the clinician's schedule
-        }
-
-        // Reset dropdown
-        selectedNewRotationObj.value = null
+const onAddRotationSelected = (rotation: any) => {
+    if (rotation) {
+        // Rotation assignment functionality will be implemented here
+        console.log('Selected rotation to add:', rotation)
     }
+
+    // Reset dropdown
+    selectedNewRotationId.value = null
 }
 
-const filterRotations = (rotations: any[], searchTerm: string) => {
-    if (!searchTerm) return rotations
-    const search = searchTerm.toLowerCase()
-    return rotations.filter(rotation =>
-        rotation.rotationName.toLowerCase().includes(search) ||
-        rotation.serviceName.toLowerCase().includes(search)
-    )
-}
-
-const onFilterRotations = (val: string, update: (fn: () => void) => void) => {
-    rotationSearchQuery.value = val
-    update(() => {
-        filteredRotations.value = val === ''
-            ? availableRotations.value.map(r => ({ ...r, displayText: `${r.rotationName} (${r.serviceName})` }))
-            : filterRotations(availableRotations.value.map(r => ({ ...r, displayText: `${r.rotationName} (${r.serviceName})` })), val)
-    })
-}
 
 // Watchers
-watch(availableRotations, (newRotations) => {
-    filteredRotations.value = newRotations.map(r => ({ ...r, displayText: `${r.rotationName} (${r.serviceName})` }))
-}, { immediate: true })
 
 // Load clinician from URL on component mount
 onMounted(() => {
@@ -452,8 +469,7 @@ onMounted(() => {
 
     // Initialize from URL (this will override YearSelector's default if year param exists)
     initializeFromUrl()
-    
-    fetchAllRotations()
+
     loadClinicianFromUrl()
 })
 
@@ -561,6 +577,17 @@ h2 {
     vertical-align: middle;
 }
 
+.add-rotation-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.add-rotation-icon {
+    color: #1976d2;
+    font-size: 20px;
+}
+
 .action-notes {
     font-size: 12px;
     color: #666;
@@ -651,6 +678,13 @@ h3 {
 }
 
 /* Clinician selection styles */
+.clinician-selector {
+    min-width: 400px;
+}
+
+.rotation-selector-dropdown {
+    min-width: 200px;
+}
 
 /* Legend styles */
 .legend {

@@ -11,9 +11,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
     [Permission(Allow = "SVMSecure.ClnSched.ViewClnSchedules")]
     public class InstructorScheduleController : ApiController
     {
-        private readonly VIPERContext _context;
+        private readonly ClinicalSchedulerContext _context;
 
-        public InstructorScheduleController(VIPERContext context)
+        public InstructorScheduleController(ClinicalSchedulerContext context)
         {
             _context = context;
         }
@@ -26,17 +26,17 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 return ValidationProblem("Date or clinician mothra id is required");
             }
             var sched = _context.InstructorSchedules.AsQueryable();
-            if(date != null)
+            if (date != null)
             {
-				var dt = date.Value.ToDateTime(TimeOnly.MinValue);
-				sched = sched.Where(s => s.DateEnd >= dt)
+                var dt = date.Value.ToDateTime(TimeOnly.MinValue);
+                sched = sched.Where(s => s.DateEnd >= dt)
                     .Where(s => s.DateStart <= dt);
             }
-            if(mothraId != null)
+            if (mothraId != null)
             {
                 sched = sched.Where(s => s.MothraId == mothraId);
             }
-            if(rotationId != null)
+            if (rotationId != null)
             {
                 sched = sched.Where(s => s.RotationId == rotationId);
             }
