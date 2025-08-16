@@ -186,8 +186,10 @@ public class ClinicalSchedulerContext : DbContext
         {
             entity.HasKey(e => e.GradYear);
             entity.ToTable("Status", schema: "dbo");
-            entity.Property(e => e.SAStreamCrn).IsRequired(false);
-            entity.Property(e => e.LAStreamCrn).IsRequired(false);
+
+            // Map Entity Framework property names to actual database column names
+            entity.Property(e => e.SAStreamCrn).HasColumnName("SAStreamCRN");
+            entity.Property(e => e.LAStreamCrn).HasColumnName("LAStreamCRN");
         });
 
         // VWeek table is accessed through WeekGradYear + Week entities for better type safety
