@@ -184,5 +184,14 @@ namespace Viper
                 ? default
                 : Settings.GetSection(section).GetValue<T>(setting);
         }
+
+        /// <summary>
+        /// Gets the VueApp base path for built assets
+        /// </summary>
+        /// <returns>The configured VueApp base path (e.g., "/2/vue")</returns>
+        public static string GetVueAppBasePath()
+        {
+            return GetSetting<string>("VueApp", "BasePath") ?? "/2/vue";
+        }
     }
 }

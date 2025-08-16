@@ -18,7 +18,7 @@
             <link rel="stylesheet" href="~/css/site-@(HttpHelper.Environment?.EnvironmentName).css" asp-append-version="true" />
         </text>
     }
-    <link href="~/lib/quasar/dist/quasar.prod.css" rel="stylesheet" type="text/css">
+    <link href="~@(HttpHelper.GetVueAppBasePath())/shared.css" rel="stylesheet" type="text/css">
 
     @RenderSection("Styles", required: false)
 </head>

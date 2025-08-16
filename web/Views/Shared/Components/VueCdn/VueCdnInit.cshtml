@@ -1,6 +1,5 @@
 ﻿@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
-<script src="~/lib/vue/vue.global.prod.js"></script>
-<script src="~/lib/quasar/dist/quasar.umd.prod.js"></script>
+<script type="module" src="~@(HttpHelper.GetVueAppBasePath())/shared.js"></script>
 <script asp-add-nonce="true">
     // set global JS object with the CSRF token.
     var csrfToken = "@Xsrf.GetAndStoreTokens(Context).RequestToken";

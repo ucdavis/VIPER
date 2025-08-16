@@ -75,6 +75,21 @@ export default defineConfig(({ mode }) => ({
                 cts: resolve(__dirname, 'src/cts/index.html'),
                 computing: resolve(__dirname, 'src/computing/index.html'),
                 students: resolve(__dirname, 'src/students/index.html'),
+                shared: resolve(__dirname, 'src/shared/index.html'),
+            },
+            output: {
+                entryFileNames: (chunkInfo) => {
+                    // Use stable filename for shared bundle so Razor views can reference it
+                    return chunkInfo.name === 'shared' ? 'shared.js' : '[name].[hash].js'
+                },
+                assetFileNames: (assetInfo) => {
+                    // Use stable filename for shared CSS (Quasar styles)
+                    if (assetInfo.name?.includes('quasar') || 
+                        (assetInfo.source && assetInfo.source.toString().includes('quasar'))) {
+                        return 'shared.css'
+                    }
+                    return '[name].[hash][extname]'
+                }
             }
         }
     },
