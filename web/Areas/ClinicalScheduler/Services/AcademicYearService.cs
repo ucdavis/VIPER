@@ -25,7 +25,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         {
             try
             {
-                // Query the Status table using Entity Framework to get the default grad year
+                // Get the default grad year from the Status table
                 var defaultStatus = await _context.Statuses
                     .AsNoTracking()
                     .Where(s => s.DefaultGradYear)
@@ -33,7 +33,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 if (defaultStatus != null)
                 {
-                    _logger.LogInformation("Retrieved default grad year from Status table: {GradYear}", defaultStatus.GradYear);
+                    _logger.LogInformation("Retrieved current grad year from Status table: {GradYear}", defaultStatus.GradYear);
                     return defaultStatus.GradYear;
                 }
                 else
@@ -44,7 +44,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving default grad year from Status table");
+                _logger.LogError(ex, "Error retrieving current grad year from Status table");
 
                 // Fallback to current calendar year
                 var fallbackYear = DateTime.Now.Year;
@@ -78,22 +78,27 @@ namespace Viper.Areas.ClinicalScheduler.Services
         {
             try
             {
-                // Query the weekGradYear table to get actual available grad years
-                var availableYears = await _context.WeekGradYears
-                    .AsNoTracking()
-                    .Select(wgy => wgy.GradYear)
-                    .Distinct()
+                // Query the Status table to get configured grad years
+                var query = _context.Statuses.AsNoTracking();
+
+                if (publishedOnly)
+                {
+                    query = query.Where(s => s.PublishSchedule);
+                }
+
+                var availableYears = await query
+                    .Select(s => s.GradYear)
                     .OrderByDescending(year => year)
                     .ToListAsync();
 
-                _logger.LogInformation("Retrieved {Count} available grad years from weekGradYear table: {Years}",
+                _logger.LogInformation("Retrieved {Count} available grad years from Status table: {Years}",
                     availableYears.Count, string.Join(", ", availableYears));
 
                 return availableYears;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving available grad years from weekGradYear table");
+                _logger.LogError(ex, "Error retrieving available grad years from Status table");
 
                 // Fallback to current and recent years
                 var currentYear = DateTime.Now.Year;
