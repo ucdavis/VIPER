@@ -4,12 +4,12 @@
   "libraries": [
     {
       "provider": "cdnjs",
-      "library": "vue@3.3.11",
+      "library": "vue@3.5.10",
       "destination": "wwwroot/lib/vue/"
     },
     {
       "provider": "jsdelivr",
-      "library": "quasar@2.14.1",
+      "library": "quasar@2.18.2",
       "destination": "wwwroot/lib/quasar/",
       "files": [
         "dist/api/AddressbarColor.json",
@@ -366,8 +366,6 @@
         "dist/transforms/api-list.json",
         "dist/transforms/auto-import.json",
         "dist/transforms/import-map.json",
-        "dist/transforms/import-transformation.js",
-        "dist/transforms/import-transformation.min.js",
         "dist/transforms/loader-asset-urls.json",
         "dist/vetur/quasar-attributes.json",
         "dist/vetur/quasar-tags.json",
@@ -380,13 +378,7 @@
         "dist/quasar.addon.rtl.min.css",
         "dist/quasar.addon.rtl.prod.css",
         "dist/quasar.addon.rtl.prod.min.css",
-        "dist/quasar.cjs.prod.js",
-        "dist/quasar.cjs.prod.min.js",
         "dist/quasar.css",
-        "dist/quasar.esm.js",
-        "dist/quasar.esm.min.js",
-        "dist/quasar.esm.prod.js",
-        "dist/quasar.esm.prod.min.js",
         "dist/quasar.min.css",
         "dist/quasar.prod.css",
         "dist/quasar.prod.min.css",

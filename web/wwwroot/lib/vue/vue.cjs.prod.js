@@ -1,3 +1,8 @@
+/**
+* vue v3.5.10
+* (c) 2018-present Yuxi (Evan) You and Vue contributors
+* @license MIT
+**/
 'use strict';
 
 Object.defineProperty(exports, '__esModule', { value: true });
@@ -19,15 +24,7 @@ function _interopNamespaceDefault(e) {
 
 var runtimeDom__namespace = /*#__PURE__*/_interopNamespaceDefault(runtimeDom);
 
-const compileCache = /* @__PURE__ */ new WeakMap();
-function getCache(options) {
-  let c = compileCache.get(options != null ? options : shared.EMPTY_OBJ);
-  if (!c) {
-    c = /* @__PURE__ */ Object.create(null);
-    compileCache.set(options != null ? options : shared.EMPTY_OBJ, c);
-  }
-  return c;
-}
+const compileCache = /* @__PURE__ */ Object.create(null);
 function compileToFunction(template, options) {
   if (!shared.isString(template)) {
     if (template.nodeType) {
@@ -36,9 +33,8 @@ function compileToFunction(template, options) {
       return shared.NOOP;
     }
   }
-  const key = template;
-  const cache = getCache(options);
-  const cached = cache[key];
+  const key = shared.genCacheKey(template, options);
+  const cached = compileCache[key];
   if (cached) {
     return cached;
   }
@@ -60,7 +56,7 @@ function compileToFunction(template, options) {
   const { code } = compilerDom.compile(template, opts);
   const render = new Function("Vue", code)(runtimeDom__namespace);
   render._rc = true;
-  return cache[key] = render;
+  return compileCache[key] = render;
 }
 runtimeDom.registerRuntimeCompiler(compileToFunction);
 
