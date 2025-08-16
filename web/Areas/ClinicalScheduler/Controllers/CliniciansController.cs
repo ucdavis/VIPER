@@ -243,6 +243,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 // Get weeks for the academic year using vWeek view (contains correct week numbers)
                 var vWeeks = await _weekService.GetWeeksAsync(targetYear, includeExtendedRotation: true);
 
+                _logger.LogInformation("Retrieved {WeekCount} weeks for year {Year}, unique WeekIds: {UniqueCount}",
+                    vWeeks.Count, targetYear, vWeeks.Select(w => w.WeekId).Distinct().Count());
+
                 if (!vWeeks.Any())
                 {
                     _logger.LogWarning("No weeks found for academic year {Year}", targetYear);
@@ -279,10 +282,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 }
 
                 // Get instructor schedules for this clinician using academic year filtering
-                // Filter by weeks that belong to the target academic year
-                var weekIds = vWeeks.Select(w => w.WeekId).ToList();
+                // Filter by weeks that belong to the target academic year (ensure unique week IDs)
+                var weekIds = vWeeks.Select(w => w.WeekId).Distinct().ToList();
 
-                // Load schedules without problematic navigation properties
+                // Load schedules filtered by both mothraId and the specific weeks for this grad year
                 var schedules = await _context.InstructorSchedules
                     .Include(i => i.Week) // Week navigation works fine
                     .Where(i => i.MothraId == mothraId && weekIds.Contains(i.WeekId))
@@ -351,8 +354,47 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 }
 
                 // Always show ALL weeks for the academic year with assignments where they exist
-                // Create a lookup for existing schedules by weekId
-                var schedulesByWeekId = schedules.ToDictionary(s => s.WeekId, s => s);
+                // Create a lookup for existing schedules by weekId (should be unique now after grad year filtering)
+                _logger.LogInformation("Retrieved {ScheduleCount} schedules for clinician {MothraId}", schedules.Count, mothraId);
+
+                // Debug: Check for duplicate WeekIds in schedules
+                var weekIdCounts = schedules.GroupBy(s => s.WeekId).Where(g => g.Count() > 1).ToList();
+                if (weekIdCounts.Any())
+                {
+                    _logger.LogWarning("Found duplicate WeekIds in schedules for clinician {MothraId}: {DuplicateWeekIds}",
+                        mothraId, string.Join(", ", weekIdCounts.Select(g => $"WeekId {g.Key} appears {g.Count()} times")));
+
+                    // Log detailed info about duplicates
+                    foreach (var group in weekIdCounts)
+                    {
+                        var duplicateSchedules = group.ToList();
+                        _logger.LogWarning("Duplicate WeekId {WeekId} schedules: {ScheduleDetails}",
+                            group.Key,
+                            string.Join(" | ", duplicateSchedules.Select(s => $"ScheduleId={s.InstructorScheduleId}, RotationId={s.RotationId}, WeekStart={s.Week?.DateStart:yyyy-MM-dd}")));
+                    }
+                }
+
+                Dictionary<int, Models.CTS.InstructorSchedule> schedulesByWeekId;
+                try
+                {
+                    schedulesByWeekId = schedules.ToDictionary(s => s.WeekId, s => s);
+                }
+                catch (ArgumentException ex) when (ex.Message.Contains("An item with the same key has already been added"))
+                {
+                    _logger.LogError(ex, "Duplicate key error when creating schedules dictionary for clinician {MothraId}. " +
+                        "Total schedules: {ScheduleCount}, Unique WeekIds in vWeeks: {UniqueWeekCount}, " +
+                        "WeekIds from schedules: {ScheduleWeekIds}",
+                        mothraId, schedules.Count, vWeeks.Select(w => w.WeekId).Distinct().Count(),
+                        string.Join(", ", schedules.Select(s => s.WeekId).OrderBy(id => id)));
+
+                    // Create dictionary using GroupBy to handle duplicates - take the first schedule for each WeekId
+                    schedulesByWeekId = schedules
+                        .GroupBy(s => s.WeekId)
+                        .ToDictionary(g => g.Key, g => g.First());
+
+                    _logger.LogInformation("Created schedules dictionary with GroupBy fallback. Dictionary size: {DictionarySize}",
+                        schedulesByWeekId.Count);
+                }
 
                 // Pre-calculate semester names for all weeks to avoid repeated calls
                 var weeksWithSemester = vWeeks.Select(w =>
