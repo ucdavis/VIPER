@@ -1,80 +1,83 @@
 <template>
-    <div class="clinician-selector-with-toggle">
-        <q-select
-            v-model="selectedClinician"
-            :options="filteredClinicians"
-            :loading="loading"
-            :error="!!error"
-            :error-message="error || undefined"
-            placeholder="Search for a clinician..."
-            emit-value
-            map-options
-            use-input
-            fill-input
-            hide-selected
-            clearable
+  <div class="clinician-selector-with-toggle">
+    <q-select
+      v-model="selectedClinician"
+      :options="filteredClinicians"
+      :loading="loading"
+      :error="!!error"
+      :error-message="error || undefined"
+      placeholder="Search for a clinician..."
+      emit-value
+      map-options
+      use-input
+      fill-input
+      hide-selected
+      clearable
+      dense
+      :input-debounce="300"
+      @filter="onFilter"
+      @update:model-value="onClinicianChange"
+      option-label="fullName"
+      option-value="mothraId"
+    >
+      <template #prepend>
+        <q-icon name="search" />
+      </template>
+
+      <template #no-option>
+        <q-item>
+          <q-item-section class="text-grey">
+            {{ searchQuery ? 'No clinicians found' : 'Loading clinicians...' }}
+          </q-item-section>
+        </q-item>
+      </template>
+
+      <template #option="scope">
+        <q-item v-bind="scope.itemProps">
+          <q-item-section>
+            <q-item-label>{{ scope.opt.fullName }}</q-item-label>
+          </q-item-section>
+        </q-item>
+      </template>
+
+      <template #selected-item="scope">
+        <span v-if="scope.opt">{{ scope.opt.fullName }}</span>
+      </template>
+
+      <template #error>
+        <div class="q-field__bottom text-negative">
+          {{ error }}
+          <q-btn
+            flat
             dense
-            :input-debounce="300"
-            @filter="onFilter"
-            @update:model-value="onClinicianChange"
-            option-label="fullName"
-            option-value="mothraId"
-        >
-            <template v-slot:prepend>
-                <q-icon name="search" />
-            </template>
-
-            <template v-slot:no-option>
-                <q-item>
-                    <q-item-section class="text-grey">
-                        {{ searchQuery ? 'No clinicians found' : 'Loading clinicians...' }}
-                    </q-item-section>
-                </q-item>
-            </template>
-
-            <template v-slot:option="scope">
-                <q-item v-bind="scope.itemProps">
-                    <q-item-section>
-                        <q-item-label>{{ scope.opt.fullName }}</q-item-label>
-                    </q-item-section>
-                </q-item>
-            </template>
-
-            <template v-slot:selected-item="scope">
-                <span v-if="scope.opt">{{ scope.opt.fullName }}</span>
-            </template>
-
-            <template v-slot:error>
-                <div class="q-field__bottom text-negative">
-                    {{ error }}
-                    <q-btn
-                        flat
-                        dense
-                        size="sm"
-                        label="Retry"
-                        @click="fetchClinicians"
-                        class="q-ml-sm"
-                    />
-                </div>
-            </template>
-        </q-select>
-
-        <!-- Include All Affiliates Toggle -->
-        <div v-if="showAffiliatesToggle" class="affiliates-toggle-inline">
-            <q-checkbox
-                :model-value="includeAllAffiliates"
-                @update:model-value="onAffiliatesToggle"
-                :label="affiliatesToggleLabel"
-                :disable="isPastYear"
-                color="primary"
-                size="xs"
-                dense
-            />
-            <q-tooltip v-if="isPastYear">
-                This option is only available for the current year
-            </q-tooltip>
+            size="sm"
+            label="Retry"
+            @click="fetchClinicians"
+            class="q-ml-sm"
+          />
         </div>
+      </template>
+    </q-select>
+
+    <!-- Include All Affiliates Toggle -->
+    <div
+      v-if="showAffiliatesToggle"
+      class="affiliates-toggle-inline"
+    >
+      <q-checkbox
+        :model-value="includeAllAffiliates"
+        @update:model-value="onAffiliatesToggle"
+        :label="affiliatesToggleLabel"
+        :disable="isPastYear"
+        color="primary"
+        size="xs"
+        dense
+      />
+      <q-tooltip v-if="isPastYear">
+        This option is only available for the current year
+      </q-tooltip>
     </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -102,8 +105,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
     'update:modelValue': [value: Clinician | null]
     'change': [value: Clinician | null]
-    'update:includeAllAffiliates': [value: boolean]
-    'cliniciansLoaded': [clinicians: Clinician[]]
+    'update:include-all-affiliates': [value: boolean]
+    'clinicians-loaded': [clinicians: Clinician[]]
 }>()
 
 // Reactive data
@@ -136,7 +139,7 @@ const fetchClinicians = async () => {
             clinicians.value = result.result
             filteredClinicians.value = result.result
             // Emit event to notify parent that clinicians are loaded
-            emit('cliniciansLoaded', result.result)
+            emit('clinicians-loaded', result.result)
         } else {
             error.value = result.errors.join(', ') || 'Failed to load clinicians'
         }
@@ -173,7 +176,7 @@ const onClinicianChange = (mothraId: string | null) => {
 }
 
 const onAffiliatesToggle = (value: boolean) => {
-    emit('update:includeAllAffiliates', value)
+    emit('update:include-all-affiliates', value)
 }
 
 // Watchers

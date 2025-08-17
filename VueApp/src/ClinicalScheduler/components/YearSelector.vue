@@ -1,32 +1,32 @@
 <template>
-    <q-select
-        v-model="internalValue"
-        :options="yearOptions"
-        :loading="isLoading"
-        :error="!!error"
-        :error-message="error || undefined"
-        :placeholder="isLoading ? 'Loading years...' : 'Select year...'"
-        emit-value
-        map-options
-        dense
-        option-label="label"
-        option-value="value"
-        class="year-selector"
-        :disable="isLoading && yearOptions.length === 0"
-    >
-        <template v-slot:no-option>
-            <q-item>
-                <q-item-section class="text-grey">
-                    {{ isLoading ? 'Loading years...' : (error ? 'Failed to load years' : 'No years available') }}
-                </q-item-section>
-            </q-item>
-        </template>
-    </q-select>
+  <q-select
+    v-model="internalValue"
+    :options="yearOptions"
+    :loading="isLoading"
+    :error="!!error"
+    :error-message="error || undefined"
+    :placeholder="isLoading ? 'Loading years...' : 'Select year...'"
+    emit-value
+    map-options
+    dense
+    option-label="label"
+    option-value="value"
+    class="year-selector"
+    :disable="isLoading && yearOptions.length === 0"
+  >
+    <template #no-option>
+      <q-item>
+        <q-item-section class="text-grey">
+          {{ isLoading ? 'Loading years...' : (error ? 'Failed to load years' : 'No years available') }}
+        </q-item-section>
+      </q-item>
+    </template>
+  </q-select>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { AcademicYearService } from '../services/AcademicYearService'
+import { GradYearService } from '../services/GradYearService'
 
 interface Props {
     modelValue: number | null
@@ -34,7 +34,7 @@ interface Props {
 
 interface Emits {
     (e: 'update:modelValue', value: number): void
-    (e: 'yearChanged', value: number): void
+    (e: 'year-changed', value: number): void
 }
 
 const props = defineProps<Props>()
@@ -51,7 +51,7 @@ const internalValue = computed({
     set: (value: number | null) => {
         if (value !== null) {
             emit('update:modelValue', value)
-            emit('yearChanged', value)
+            emit('year-changed', value)
         }
     }
 })
@@ -64,25 +64,25 @@ const yearOptions = computed(() =>
     }))
 )
 
-// Initialize component with academic year and available years
+// Initialize component with grad year and available years
 const initializeYearSelector = async () => {
     isLoading.value = true
     error.value = null
 
     try {
-        // Load both current academic year and available years
-        const [currentAcademicYear, availableYearsList] = await Promise.all([
-            AcademicYearService.getCurrentAcademicYear(),
-            AcademicYearService.getAvailableYears()
+        // Load both current grad year and available years
+        const [currentGradYear, availableYearsList] = await Promise.all([
+            GradYearService.getCurrentGradYear(),
+            GradYearService.getAvailableYears()
         ])
 
         availableYears.value = availableYearsList
 
-        // Initialize with current academic year if parent hasn't set a value (null)
+        // Initialize with current grad year if parent hasn't set a value (null)
         if (props.modelValue === null) {
-            // Parent wants us to initialize - set to academic year
-            emit('update:modelValue', currentAcademicYear)
-            emit('yearChanged', currentAcademicYear)
+            // Parent wants us to initialize - set to grad year
+            emit('update:modelValue', currentGradYear)
+            emit('year-changed', currentGradYear)
         }
     } catch (err) {
         console.error('Failed to load year data:', err)
@@ -116,7 +116,7 @@ onMounted(async () => {
 
 /* Override Quasar styles to match project theme */
 .year-selector :deep(.q-field__control) {
-    color: #8B0000;
+    color: var(--ucdavis-blue-100); /* UC Davis Aggie Blue */
 }
 
 .year-selector :deep(.q-field__native) {

@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
-using Viper.Models.CTS;
+using Viper.Models.ClinicalScheduler;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -33,10 +33,10 @@ namespace Viper.test.ClinicalScheduler
             // Create test weeks
             var testWeeks = new[]
             {
-                new Week { WeekId = 1, DateStart = DateTime.Now.AddDays(-365), DateEnd = DateTime.Now.AddDays(-358), TermCode = 202401 },
-                new Week { WeekId = 2, DateStart = DateTime.Now.AddDays(-30), DateEnd = DateTime.Now.AddDays(-23), TermCode = 202501 },
-                new Week { WeekId = 3, DateStart = DateTime.Now.AddDays(-800), DateEnd = DateTime.Now.AddDays(-793), TermCode = 202301 }
-            };
+        new Week { WeekId = 1, DateStart = DateTime.UtcNow.AddDays(-365), DateEnd = DateTime.UtcNow.AddDays(-358), TermCode = 202401 },
+        new Week { WeekId = 2, DateStart = DateTime.UtcNow.AddDays(-30), DateEnd = DateTime.UtcNow.AddDays(-23), TermCode = 202501 },
+        new Week { WeekId = 3, DateStart = DateTime.UtcNow.AddDays(-800), DateEnd = DateTime.UtcNow.AddDays(-793), TermCode = 202301 }
+    };
 
             _context.Weeks.AddRange(testWeeks);
             _context.SaveChanges(); // Save weeks before adding schedules
@@ -46,35 +46,39 @@ namespace Viper.test.ClinicalScheduler
             // For tests, since these are ignored by EF, the PersonService test won't work with real data
             var testSchedules = new[]
             {
-                new InstructorSchedule
-                {
-                    WeekId = 1,
-                    MothraId = "12345",
-                    RotationId = 1,
-                    Evaluator = true
-                },
-                new InstructorSchedule
-                {
-                    WeekId = 2,
-                    MothraId = "12345",
-                    RotationId = 2,
-                    Evaluator = false
-                },
-                new InstructorSchedule
-                {
-                    WeekId = 2,
-                    MothraId = "67890",
-                    RotationId = 1,
-                    Evaluator = true
-                },
-                new InstructorSchedule
-                {
-                    WeekId = 3,
-                    MothraId = "99999",
-                    RotationId = 1,
-                    Evaluator = false
-                }
-            };
+        new InstructorSchedule
+        {
+            InstructorScheduleId = 1,
+            WeekId = 1,
+            MothraId = "12345",
+            RotationId = 1,
+            Evaluator = true
+        },
+        new InstructorSchedule
+        {
+            InstructorScheduleId = 2,
+            WeekId = 2,
+            MothraId = "12345",
+            RotationId = 2,
+            Evaluator = false
+        },
+        new InstructorSchedule
+        {
+            InstructorScheduleId = 3,
+            WeekId = 2,
+            MothraId = "67890",
+            RotationId = 1,
+            Evaluator = true
+        },
+        new InstructorSchedule
+        {
+            InstructorScheduleId = 4,
+            WeekId = 3,
+            MothraId = "99999",
+            RotationId = 1,
+            Evaluator = false
+        }
+    };
 
             _context.InstructorSchedules.AddRange(testSchedules);
             _context.SaveChanges(); // Save schedules before adding persons
@@ -82,23 +86,23 @@ namespace Viper.test.ClinicalScheduler
             // Create test persons (for year-specific queries)
             var testPersons = new[]
             {
-                new Viper.Models.ClinicalScheduler.Person
-                {
-                    IdsMothraId = "12345",
-                    PersonDisplayFullName = "John Smith",
-                    PersonDisplayFirstName = "John",
-                    PersonDisplayLastName = "Smith",
-                    IdsMailId = "jsmith@example.com"
-                },
-                new Viper.Models.ClinicalScheduler.Person
-                {
-                    IdsMothraId = "67890",
-                    PersonDisplayFullName = "Jane Doe",
-                    PersonDisplayFirstName = "Jane",
-                    PersonDisplayLastName = "Doe",
-                    IdsMailId = "jdoe@example.com"
-                }
-            };
+        new Viper.Models.ClinicalScheduler.Person
+        {
+            IdsMothraId = "12345",
+            PersonDisplayFullName = "John Smith",
+            PersonDisplayFirstName = "John",
+            PersonDisplayLastName = "Smith",
+            IdsMailId = "jsmith@example.com"
+        },
+        new Viper.Models.ClinicalScheduler.Person
+        {
+            IdsMothraId = "67890",
+            PersonDisplayFullName = "Jane Doe",
+            PersonDisplayFirstName = "Jane",
+            PersonDisplayLastName = "Doe",
+            IdsMailId = "jdoe@example.com"
+        }
+    };
 
             _context.Persons.AddRange(testPersons);
             _context.SaveChanges();
@@ -147,7 +151,6 @@ namespace Viper.test.ClinicalScheduler
             // With includeHistorical: false, it uses a more limited range
             // The exact results depend on the current date vs test data dates
             // Just verify the method doesn't crash and returns a collection
-            Assert.True(result.Count >= 0); // May be empty due to date filtering
         }
 
         [Fact]
@@ -272,7 +275,7 @@ namespace Viper.test.ClinicalScheduler
             Assert.NotNull(result);
             Assert.True(result.Count > 0);
 
-            var firstClinician = result.First();
+            var firstClinician = result[0];
             dynamic clinician = firstClinician;
 
             // Verify core properties exist (some may be null due to EF in-memory limitations)
@@ -303,7 +306,16 @@ namespace Viper.test.ClinicalScheduler
 
         public void Dispose()
         {
-            _context.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _context?.Dispose();
+            }
         }
     }
 }

@@ -1,69 +1,72 @@
 <template>
-    <div class="rotation-selector">
-        <q-select
-            v-model="selectedRotation"
-            :options="filteredRotations"
-            :loading="isLoading"
-            :error="!!error"
-            :error-message="error || undefined"
-            placeholder="Search for a rotation..."
-            emit-value
-            map-options
-            use-input
-            fill-input
-            hide-selected
-            clearable
-            dense
-            :input-debounce="300"
-            @filter="onFilter"
-            @update:model-value="onRotationChange"
-            option-label="name"
-            option-value="rotId"
-        >
-            <template v-slot:prepend>
-                <q-icon name="search" />
-            </template>
+  <div class="rotation-selector">
+    <q-select
+      v-model="selectedRotation"
+      :options="filteredRotations"
+      :loading="isLoading"
+      :error="!!error"
+      :error-message="error || undefined"
+      placeholder="Search for a rotation..."
+      emit-value
+      map-options
+      use-input
+      fill-input
+      hide-selected
+      clearable
+      dense
+      :input-debounce="INPUT_DEBOUNCE_MS"
+      @filter="onFilter"
+      @update:model-value="onRotationChange"
+      option-label="name"
+      option-value="rotId"
+    >
+      <template #prepend>
+        <q-icon name="search" />
+      </template>
             
-            <template v-slot:no-option>
-                <q-item>
-                    <q-item-section class="text-grey">
-                        {{ searchQuery ? 'No rotations found' : 'Loading rotations...' }}
-                    </q-item-section>
-                </q-item>
-            </template>
+      <template #no-option>
+        <q-item>
+          <q-item-section class="text-grey">
+            {{ searchQuery ? 'No rotations found' : 'Loading rotations...' }}
+          </q-item-section>
+        </q-item>
+      </template>
 
-            <template v-slot:option="scope">
-                <q-item v-bind="scope.itemProps">
-                    <q-item-section>
-                        <q-item-label>{{ getRotationDisplayName(scope.opt) }}</q-item-label>
-                    </q-item-section>
-                </q-item>
-            </template>
+      <template #option="scope">
+        <q-item v-bind="scope.itemProps">
+          <q-item-section>
+            <q-item-label>{{ getRotationDisplayName(scope.opt) }}</q-item-label>
+          </q-item-section>
+        </q-item>
+      </template>
 
-            <template v-slot:selected-item="scope">
-                <span v-if="scope.opt">{{ getRotationDisplayName(scope.opt) }}</span>
-            </template>
+      <template #selected-item="scope">
+        <span v-if="scope.opt">{{ getRotationDisplayName(scope.opt) }}</span>
+      </template>
 
-            <template v-slot:error>
-                <div class="q-field__bottom text-negative">
-                    {{ error }}
-                    <q-btn
-                        flat
-                        dense
-                        size="sm"
-                        label="Retry"
-                        @click="loadRotations"
-                        class="q-ml-sm"
-                    />
-                </div>
-            </template>
-        </q-select>
-    </div>
+      <template #error>
+        <div class="q-field__bottom text-negative">
+          {{ error }}
+          <q-btn
+            flat
+            dense
+            size="sm"
+            label="Retry"
+            @click="loadRotations"
+            class="q-ml-sm"
+          />
+        </div>
+      </template>
+    </q-select>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { RotationService, type RotationWithService } from '../services/RotationService'
+
+// Constants
+const INPUT_DEBOUNCE_MS = 300
 
 // Props
 interface Props {
@@ -85,7 +88,7 @@ const props = withDefaults(defineProps<Props>(), {
 // Emits
 interface Emits {
   (e: 'update:modelValue', value: number | null): void
-  (e: 'rotationSelected', rotation: RotationWithService | null): void
+  (e: 'rotation-selected', rotation: RotationWithService | null): void
 }
 
 const emit = defineEmits<Emits>()
@@ -188,7 +191,7 @@ function onFilter(val: string, update: (fn: () => void) => void) {
 
 function onRotationChange(rotationId: number | null) {
     const rotation = rotations.value.find(r => r.rotId === rotationId) || null
-    emit('rotationSelected', rotation)
+    emit('rotation-selected', rotation)
 }
 
 // Watchers
