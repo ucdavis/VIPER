@@ -412,7 +412,7 @@ try
     // Setup the memory cache so we can use it via a simple static method
     HttpHelper.Configure(app.Services.GetService<IMemoryCache>(), app.Services.GetService<IConfiguration>(), app.Environment, app.Services.GetService<IHttpContextAccessor>(), app.Services.GetService<IAuthorizationService>(), app.Services.GetService<IDataProtectionProvider>());
 
-    await app.RunAsync();
+    app.Run();
 }
 catch (Exception exception)
 {
