@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
-using Viper.Models.CTS;
+using Viper.Models.ClinicalScheduler;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -8,7 +8,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
     /// Service for handling rotation and service data from Clinical Scheduler context
     /// Provides centralized access to rotation data with proper Entity Framework patterns
     /// </summary>
-    public class RotationService : BaseClinicalSchedulerService
+    public class RotationService : BaseClinicalSchedulerService, IRotationService
     {
         private readonly ILogger<RotationService> _logger;
 
@@ -59,7 +59,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving rotations from Clinical Scheduler");
-                throw;
+                throw new InvalidOperationException("Failed to retrieve rotations from Clinical Scheduler database", ex);
             }
         }
 
@@ -96,7 +96,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving rotation by ID: {RotationId}", rotationId);
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve rotation with ID {rotationId}", ex);
             }
         }
 
@@ -139,7 +139,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 _logger.LogError(ex, "Error retrieving rotations by course - CourseNumber: {CourseNumber}, SubjectCode: {SubjectCode}",
                     courseNumber, subjectCode);
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve rotations for course {subjectCode} {courseNumber}", ex);
             }
         }
 
@@ -168,7 +168,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving rotations by service ID: {ServiceId}", serviceId);
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve rotations for service ID {serviceId}", ex);
             }
         }
 
@@ -194,7 +194,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving services from Clinical Scheduler");
-                throw;
+                throw new InvalidOperationException("Failed to retrieve services from Clinical Scheduler database", ex);
             }
         }
 
@@ -229,7 +229,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving service by ID: {ServiceId}", serviceId);
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve service with ID {serviceId}", ex);
             }
         }
 
@@ -268,8 +268,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 var schedules = await query
                     .OrderBy(i => i.Week.DateStart)
-                    .ThenBy(i => i.LastName)
-                    .ThenBy(i => i.FirstName)
+                    .ThenBy(i => i.MothraId) // Order by MothraId instead of person name for now
                     .ToListAsync(cancellationToken);
 
                 _logger.LogInformation("Retrieved {Count} instructor schedules for rotation ID: {RotationId}",
@@ -280,7 +279,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving instructor schedules for rotation ID: {RotationId}", rotationId);
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve instructor schedules for rotation ID {rotationId}", ex);
             }
         }
     }

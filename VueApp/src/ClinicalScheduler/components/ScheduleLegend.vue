@@ -1,36 +1,73 @@
 <template>
-    <div class="schedule-legend">
-        <q-card flat bordered>
-            <q-card-section>
-                <div class="row items-center q-mb-sm">
-                    <q-icon name="info" size="sm" color="primary" class="q-mr-sm" />
-                    <div class="text-subtitle1 text-weight-medium">Quick Guide</div>
-                </div>
+  <div class="schedule-legend">
+    <q-card
+      flat
+      bordered
+    >
+      <q-card-section>
+        <div class="row items-center q-mb-sm">
+          <q-icon
+            name="info"
+            size="sm"
+            color="primary"
+            class="q-mr-sm"
+          />
+          <div class="text-subtitle1 text-weight-medium">
+            Quick Guide
+          </div>
+        </div>
                 
-                <div class="legend-items">
-                    <div class="legend-item">
-                        <span class="legend-icon remove-icon">✖</span>
-                        <span class="legend-text">Remove from schedule</span>
-                    </div>
+        <div class="legend-items">
+          <div class="legend-item">
+            <q-icon
+              name="close"
+              size="sm"
+              color="negative"
+              class="legend-icon"
+              aria-hidden="true"
+            />
+            <span class="legend-text">Remove from schedule</span>
+          </div>
                     
-                    <div class="legend-item">
-                        <span class="legend-icon primary-icon">☆</span>
-                        <span class="legend-text">Makes them the primary evaluator (replacing the current one, if there is one)</span>
-                    </div>
+          <div class="legend-item">
+            <q-icon
+              name="star_outline"
+              size="sm"
+              color="grey-8"
+              class="legend-icon"
+              aria-hidden="true"
+            />
+            <span class="legend-text">Makes them the primary evaluator (replacing the current one, if there is one)</span>
+          </div>
                     
-                    <div class="legend-item">
-                        <span class="legend-icon primary-indicator">★</span>
-                        <span class="legend-text">Current primary evaluator</span>
-                    </div>
+          <div class="legend-item">
+            <q-icon
+              name="star"
+              size="sm"
+              color="amber"
+              class="legend-icon"
+              aria-hidden="true"
+            />
+            <span class="legend-text">Current primary evaluator</span>
+          </div>
                     
-                    <div v-if="showWarning" class="legend-item">
-                        <span class="legend-icon alert-icon">⚠️</span>
-                        <span class="legend-text">Needs primary evaluator</span>
-                    </div>
-                </div>
-            </q-card-section>
-        </q-card>
-    </div>
+          <div
+            v-if="showWarning"
+            class="legend-item"
+          >
+            <q-icon
+              name="warning"
+              size="sm"
+              color="orange"
+              class="legend-icon"
+              aria-hidden="true"
+            />
+            <span class="legend-text">Needs primary evaluator</span>
+          </div>
+        </div>
+      </q-card-section>
+    </q-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -60,37 +97,11 @@ withDefaults(defineProps<Props>(), {
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    color: #555;
+    color: var(--ucdavis-black-50);
 }
 
 .legend-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    font-weight: bold;
     flex-shrink: 0;
-}
-
-.legend-icon.remove-icon {
-    color: #dc3545;
-    font-size: 16px;
-}
-
-.legend-icon.primary-icon {
-    color: #333;  /* Dark outline star for action */
-    font-size: 20px;
-    font-weight: normal;
-}
-
-.legend-icon.primary-indicator {
-    color: #ffc107;  /* Filled gold star for current primary */
-    font-size: 18px;
-}
-
-.legend-icon.alert-icon {
-    font-size: 18px;
 }
 
 .legend-text {

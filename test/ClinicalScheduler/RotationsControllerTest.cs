@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.ClinicalScheduler.Controllers;
@@ -13,8 +12,7 @@ namespace Viper.test.ClinicalScheduler
     {
         private readonly ClinicalSchedulerContext _context;
         private readonly Mock<ILogger<RotationsController>> _mockLogger;
-        private readonly Mock<IMemoryCache> _mockCache;
-        private readonly AcademicYearService _academicYearService;
+        private readonly GradYearService _gradYearService;
         private readonly WeekService _weekService;
 
         public RotationsControllerTest()
@@ -26,12 +24,11 @@ namespace Viper.test.ClinicalScheduler
             _context = new ClinicalSchedulerContext(options);
 
             _mockLogger = new Mock<ILogger<RotationsController>>();
-            _mockCache = new Mock<IMemoryCache>();
 
             // Create real service instances for testing
-            var mockAcademicYearLogger = new Mock<ILogger<AcademicYearService>>();
+            var mockGradYearLogger = new Mock<ILogger<GradYearService>>();
             var mockWeekLogger = new Mock<ILogger<WeekService>>();
-            _academicYearService = new AcademicYearService(mockAcademicYearLogger.Object, _context);
+            _gradYearService = new GradYearService(mockGradYearLogger.Object, _context);
             _weekService = new WeekService(mockWeekLogger.Object, _context);
         }
 
@@ -45,37 +42,13 @@ namespace Viper.test.ClinicalScheduler
             // Act
             var controller = new RotationsController(
                 _context,
-                _academicYearService,
+                _gradYearService,
                 _weekService,
                 rotationService,
-                _mockCache.Object,
                 _mockLogger.Object);
 
             // Assert
             Assert.NotNull(controller);
-        }
-
-        [Fact]
-        public void RotationsController_HasRequiredDependencies()
-        {
-            // Arrange
-            var mockRotationLogger = new Mock<ILogger<RotationService>>();
-            var rotationService = new RotationService(mockRotationLogger.Object, _context);
-
-            // Act
-            var controller = new RotationsController(
-                _context,
-                _academicYearService,
-                _weekService,
-                rotationService,
-                _mockCache.Object,
-                _mockLogger.Object);
-
-            // Assert
-            Assert.NotNull(controller);
-
-            // Verify dependencies were passed correctly - logger shouldn't be called during construction
-            // Note: Cannot verify logger usage without specific method calls
         }
 
         [Fact]
@@ -192,10 +165,9 @@ namespace Viper.test.ClinicalScheduler
 
             _ = new RotationsController(
                 _context,
-                _academicYearService,
+                _gradYearService,
                 _weekService,
                 rotationService,
-                _mockCache.Object,
                 _mockLogger.Object);
 
             // Act & Assert
@@ -214,10 +186,9 @@ namespace Viper.test.ClinicalScheduler
 
             _ = new RotationsController(
                 _context,
-                _academicYearService,
+                _gradYearService,
                 _weekService,
                 rotationService,
-                _mockCache.Object,
                 _mockLogger.Object);
 
             // Act & Assert

@@ -1,121 +1,216 @@
 <template>
-    <div class="clinical-scheduler-container">
-        <div class="navigation-bar">
-            <router-link to="/ClinicalScheduler/" class="nav-link">Home</router-link>
-            <span class="nav-divider">|</span>
-            <span class="nav-link active">Schedule by Rotation</span>
-            <span class="nav-divider">|</span>
-            <router-link to="/ClinicalScheduler/clinician" class="nav-link">Schedule by Clinician</router-link>
-        </div>
-
-        <h2>
-            Clinician Schedule for
-            <RotationSelector
-                v-model="selectedRotationId"
-                :year="currentYear"
-                :only-with-scheduled-weeks="true"
-                @rotationSelected="onRotationSelected"
-                class="d-inline-block ms-2"
-                style="min-width: 300px;"
-            />
-            <YearSelector
-                v-model="currentYear"
-                @yearChanged="onYearChange"
-                class="ms-3"
-            />
-        </h2>
-
-
-        <!-- Error display for rotation loading -->
-        <div v-if="error" class="error-message">
-            {{ error }}
-            <button @click="loadRotations" :disabled="isLoading">Retry</button>
-        </div>
-
-        <!-- Read-only notice for past years -->
-        <div v-if="isPastYear" class="read-only-alert">
-            <strong>📖 Read-Only Mode:</strong> You are viewing historical schedule data for {{ currentYear }}. Past schedules cannot be edited.
-        </div>
-
-        <!-- Instructions (only show when rotation is selected) -->
-        <div v-if="selectedRotation" class="instructions">
-            <p>This list of clinicians should be contain any clinician scheduled for the rotation in the current or previous year.</p>
-            <p v-if="!isPastYear">The user can click on a clinician to select them, and then click on any week to schedule them.</p>
-            <p v-else>This is a read-only view of the {{ currentYear }} schedule.</p>
-        </div>
-
-        <!-- Clinician selector section (only show when rotation is selected) -->
-        <div v-if="selectedRotation" class="clinician-selector-section">
-            <div class="clinician-buttons">
-                <button
-                    v-for="clinician in availableClinicians"
-                    :key="clinician"
-                    class="clinician-btn"
-                    :class="{ selected: selectedClinician === clinician }"
-                    @click="selectClinician(clinician)"
-                >
-                    {{ clinician }}
-                </button>
-                <ClinicianSelector
-                    v-if="!isPastYear"
-                    :modelValue="null"
-                    :year="currentYear"
-                    :includeAllAffiliates="includeAllAffiliates"
-                    @update:includeAllAffiliates="includeAllAffiliates = $event"
-                    @change="onAddClinicianSelected"
-                    :affiliatesToggleLabel="'Include all affiliates'"
-                    style="min-width: 200px;"
-                />
-            </div>
-        </div>
-
-
-        <!-- Season headers and week grids -->
-        <div v-if="selectedRotation">
-            <div v-for="season in weeksBySeason" :key="season.name">
-                <h3>{{ season.displayName }}</h3>
-                <div class="week-grid">
-                    <div v-for="week in season.weeks" :key="week.weekId"
-                         class="week-cell"
-                         :class="{ 'requires-primary': requiresPrimaryEvaluator(week) }"
-                         @click="scheduleClinicianToWeek(week)">
-                        <div class="week-header">
-                            <span v-if="requiresPrimaryEvaluator(week)" class="alert-icon" title="Primary evaluator required for this week">⚠️</span>
-                            Week {{ week.weekNumber }}<br>
-                            {{ formatDate(week.dateStart) }}
-                        </div>
-                        <div class="rotation-list">
-                            <div v-for="assignment in getWeekAssignments(week.weekId)" :key="assignment.id" class="rotation-item">
-                                <!-- Remove button - only show for current year -->
-                                <span v-if="!isPastYear && !assignment.isPrimary"
-                                      class="remove-btn"
-                                      title="Remove this clinician from the schedule."
-                                      @click.stop="removeAssignment()">✖</span>
-                                <span v-else-if="!isPastYear"
-                                      class="remove-btn-disabled"
-                                      title="Cannot remove primary clinician. Make another clinician primary first.">✖</span>
-
-                                <span>{{ assignment.clinicianName }}</span>
-
-                                <!-- Primary star - for past years, only show filled stars without click handler -->
-                                <span v-if="isPastYear && assignment.isPrimary"
-                                      class="primary-star filled"
-                                      title="Primary evaluator">★</span>
-                                <span v-else-if="!isPastYear"
-                                      class="primary-star"
-                                      :class="{ filled: assignment.isPrimary }"
-                                      :title="assignment.isPrimary ? 'Primary evaluator. To transfer primary status, click the star on another clinician.' : 'Click to make this clinician the primary evaluator.'"
-                                      @click.stop="togglePrimary()">{{ assignment.isPrimary ? '★' : '☆' }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Legend -->
-        <ScheduleLegend v-if="selectedRotation" :show-warning="true" />
+  <div class="clinical-scheduler-container q-pa-md q-pa-lg-gt-xs">
+    <div class="navigation-bar q-mb-md">
+      <router-link
+        to="/ClinicalScheduler/"
+        class="nav-link"
+      >
+        Home
+      </router-link>
+      <span class="nav-divider">|</span>
+      <span class="nav-link active">Schedule by Rotation</span>
+      <span class="nav-divider">|</span>
+      <router-link
+        to="/ClinicalScheduler/clinician"
+        class="nav-link"
+      >
+        Schedule by Clinician
+      </router-link>
     </div>
+
+    <h2>
+      Clinician Schedule for
+      <RotationSelector
+        v-model="selectedRotationId"
+        :year="currentYear"
+        :only-with-scheduled-weeks="true"
+        @rotation-selected="onRotationSelected"
+        class="d-inline-block ms-2"
+        style="min-width: 300px;"
+      />
+      <YearSelector
+        v-model="currentYear"
+        @year-changed="onYearChange"
+        class="ms-3"
+      />
+    </h2>
+
+
+    <!-- Error display for rotation loading -->
+    <q-banner
+      v-if="error"
+      class="text-white bg-negative q-mb-md"
+      rounded
+    >
+      <template #avatar>
+        <q-icon name="error" />
+      </template>
+      {{ error }}
+      <template #action>
+        <q-btn
+          flat
+          color="white"
+          label="Retry"
+          :loading="isLoading"
+          @click="loadRotations"
+        />
+      </template>
+    </q-banner>
+
+    <!-- Read-only notice for past years -->
+    <q-banner
+      v-if="isPastYear"
+      class="text-dark bg-info q-mb-md"
+      rounded
+    >
+      <template #avatar>
+        <q-icon name="book" />
+      </template>
+      <strong>Read-Only Mode:</strong> You are viewing historical schedule data for {{ currentYear }}. Past schedules cannot be edited.
+    </q-banner>
+
+    <!-- Instructions (only show when rotation is selected and not past year) -->
+    <div
+      v-if="selectedRotation && !isPastYear"
+      class="instructions"
+    >
+      <p>This list of clinicians should be contain any clinician scheduled for the rotation in the current or previous year.</p>
+      <p>
+        The user can click on a clinician to select them, and then click on any week to schedule them.
+      </p>
+    </div>
+
+    <!-- Clinician selector section (only show when rotation is selected and not past year) -->
+    <div
+      v-if="selectedRotation && !isPastYear"
+      class="clinician-selector-section"
+    >
+      <div class="clinician-buttons">
+        <button
+          v-for="clinician in availableClinicians"
+          :key="clinician"
+          class="clinician-btn"
+          :class="{ selected: selectedClinician === clinician }"
+          @click="selectClinician(clinician)"
+        >
+          {{ clinician }}
+        </button>
+      </div>
+      <ClinicianSelector
+        v-if="!isPastYear"
+        :model-value="null"
+        :year="currentYear"
+        :include-all-affiliates="includeAllAffiliates"
+        @update:include-all-affiliates="includeAllAffiliates = $event"
+        @change="onAddClinicianSelected"
+        :affiliates-toggle-label="'Include all affiliates'"
+        style="min-width: 200px;"
+      />
+    </div>
+
+
+    <!-- No weeks scheduled message -->
+    <q-banner
+      v-if="selectedRotation && weeksBySeason.length === 0 && !isLoadingSchedule"
+      class="text-dark bg-amber-2 q-mb-md"
+      rounded
+    >
+      <template #avatar>
+        <q-icon name="info" />
+      </template>
+      <strong>{{ selectedRotation.name }} has no weeks scheduled for {{ currentYear }}.</strong>
+    </q-banner>
+
+    <!-- Season headers and week grids -->
+    <div v-if="selectedRotation && weeksBySeason.length > 0">
+      <div
+        v-for="season in weeksBySeason"
+        :key="season.name"
+      >
+        <h3>{{ season.displayName }}</h3>
+        <div class="row q-gutter-md q-mb-lg">
+          <div
+            v-for="week in season.weeks"
+            :key="week.weekId"
+            class="col-xs-12 col-sm-6 col-md-4 col-lg-3 week-cell"
+            :class="{ 'requires-primary': requiresPrimaryEvaluator(week) }"
+            @click="scheduleClinicianToWeek(week)"
+          >
+            <div class="week-header">
+              <q-icon
+                v-if="requiresPrimaryEvaluator(week)" 
+                name="warning" 
+                size="xs" 
+                color="orange" 
+                class="alert-icon" 
+                title="Primary evaluator required for this week"
+              />
+              Week {{ week.weekNumber }}<br>
+              {{ formatDate(week.dateStart) }}
+            </div>
+            <div class="rotation-list">
+              <div
+                v-for="assignment in getWeekAssignments(week.weekId)"
+                :key="assignment.id"
+                class="rotation-item"
+              >
+                <!-- Remove button - only show for current year -->
+                <q-icon
+                  v-if="!isPastYear && !assignment.isPrimary"
+                  name="close"
+                  size="xs"
+                  color="negative"
+                  class="remove-btn"
+                  title="Remove this clinician from the schedule."
+                  aria-label="Remove clinician from schedule"
+                  @click.stop="removeAssignment()"
+                />
+                <q-icon
+                  v-else-if="!isPastYear"
+                  name="close"
+                  size="xs"
+                  color="grey-4"
+                  class="remove-btn-disabled"
+                  title="Cannot remove primary clinician. Make another clinician primary first."
+                  aria-label="Cannot remove primary clinician"
+                />
+
+                <span>{{ assignment.clinicianName }}</span>
+
+                <!-- Primary star - for past years, only show filled stars without click handler -->
+                <q-icon
+                  v-if="isPastYear && assignment.isPrimary"
+                  name="star"
+                  size="xs"
+                  color="amber"
+                  class="primary-star filled"
+                  title="Primary evaluator"
+                  aria-label="Primary evaluator"
+                />
+                <q-icon
+                  v-else-if="!isPastYear"
+                  :name="assignment.isPrimary ? 'star' : 'star_outline'"
+                  size="xs"
+                  :color="assignment.isPrimary ? 'amber' : 'grey-8'"
+                  class="primary-star"
+                  :class="{ filled: assignment.isPrimary }"
+                  :title="assignment.isPrimary ? 'Primary evaluator. To transfer primary status, click the star on another clinician.' : 'Click to make this clinician the primary evaluator.'"
+                  :aria-label="assignment.isPrimary ? 'Primary evaluator - click to transfer to another clinician' : 'Click to make this clinician the primary evaluator'"
+                  @click.stop="togglePrimary()"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <ScheduleLegend
+      v-if="selectedRotation && weeksBySeason.length > 0"
+      :show-warning="true"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -144,7 +239,7 @@ const error = ref<string | null>(null)
 const scheduleData = ref<RotationScheduleData | null>(null)
 const isLoadingSchedule = ref(false)
 const scheduleError = ref<string | null>(null)
-// YearSelector will initialize with academic year
+// YearSelector will initialize with grad year
 const currentYear = ref<number | null>(null)
 
 // Clinician data for the dropdown
@@ -161,72 +256,31 @@ const isPastYear = computed(() => {
 
 // Available clinicians from schedule data
 const availableClinicians = computed(() => {
-    if (!scheduleData.value) return []
+    if (!scheduleData.value || !scheduleData.value.schedulesBySemester) return []
 
     const clinicians = new Set<string>()
-    scheduleData.value.instructorSchedules.forEach(schedule => {
-        clinicians.add(schedule.fullName)
+    scheduleData.value.schedulesBySemester.forEach(semester => {
+        semester.weeks.forEach(week => {
+            week.instructorSchedules.forEach(schedule => {
+                clinicians.add(schedule.fullName)
+            })
+        })
     })
 
     return Array.from(clinicians).sort()
 })
 
-// Week data grouped by academic season using actual calendar dates
+// Use the semester data directly from the backend API
+// The backend already groups weeks by semester using TermCodeService.GetTermCodeDescription()
 const weeksBySeason = computed(() => {
-    if (!scheduleData.value) return []
+    if (!scheduleData.value || !scheduleData.value.schedulesBySemester) return []
 
-    // Define academic seasons with their months (no year offsets - use actual calendar dates)
-    const seasons = [
-        { name: 'fall', displayName: 'Fall', months: [8, 9, 10, 11] }, // Sept-Dec
-        { name: 'winter', displayName: 'Winter', months: [0, 1] }, // Jan-Feb
-        { name: 'spring', displayName: 'Spring', months: [2, 3, 4, 5] }, // Mar-Jun
-        { name: 'summer', displayName: 'Summer', months: [6, 7] } // Jul-Aug
-    ]
-
-    // Group weeks by both season and year to handle multi-year academic periods
-    const seasonYearGroups = new Map()
-
-    scheduleData.value.weeks.forEach(week => {
-        const date = new Date(week.dateStart)
-        const month = date.getMonth()
-        const year = date.getFullYear()
-
-        // Find which season this week belongs to
-        const season = seasons.find(s => s.months.includes(month))
-        if (season) {
-            const key = `${season.name}-${year}`
-            if (!seasonYearGroups.has(key)) {
-                seasonYearGroups.set(key, {
-                    season: season,
-                    year: year,
-                    weeks: []
-                })
-            }
-            seasonYearGroups.get(key).weeks.push(week)
-        }
-    })
-
-    // Convert to result array
-    const result = []
-    for (const [, group] of seasonYearGroups) {
-        // Sort weeks within each season-year group
-        group.weeks.sort((a: any, b: any) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime())
-
-        result.push({
-            name: `${group.season.name}-${group.year}`,
-            displayName: `${group.season.displayName} ${group.year}`,
-            weeks: group.weeks,
-            seasonName: group.season.name,
-            year: group.year
-        })
-    }
-
-    // Sort by chronological order based on actual calendar dates
-    return result.sort((a: any, b: any) => {
-        const firstDateA = new Date(a.weeks[0].dateStart)
-        const firstDateB = new Date(b.weeks[0].dateStart)
-        return firstDateA.getTime() - firstDateB.getTime()
-    })
+    // Transform backend semester structure to match frontend expectations
+    return scheduleData.value.schedulesBySemester.map(semester => ({
+        name: semester.semester.toLowerCase().replace(/\s+/g, '-'), // Convert "Spring Semester 2024" to "spring-semester-2024"
+        displayName: semester.semester, // Use exact semester name from TermCodeService
+        weeks: semester.weeks
+    }))
 })
 
 
@@ -284,7 +338,7 @@ async function updateUrl() {
     if (selectedRotationId.value) {
         const query: Record<string, string> = {}
 
-        if (currentYear.value !== null && currentYear.value !== new Date().getFullYear()) {
+        if (currentYear.value !== null) {
             query.year = currentYear.value.toString()
         }
 
@@ -363,16 +417,22 @@ function onAddClinicianSelected(clinician: Clinician | null) {
 // ClinicianSelector component handles filtering internally
 
 function getWeekAssignments(weekId: number) {
-    if (!scheduleData.value) return []
+    if (!scheduleData.value || !scheduleData.value.schedulesBySemester) return []
 
-    return scheduleData.value.instructorSchedules.filter(schedule =>
-        schedule.week.weekId === weekId
-    ).map(schedule => ({
-        id: schedule.instructorScheduleId,
-        clinicianName: schedule.fullName,
-        isPrimary: schedule.evaluator,
-        mothraId: schedule.mothraId
-    }))
+    // Find the week in the nested semester structure
+    for (const semester of scheduleData.value.schedulesBySemester) {
+        const week = semester.weeks.find(w => w.weekId === weekId)
+        if (week && week.instructorSchedules) {
+            return week.instructorSchedules.map(schedule => ({
+                id: schedule.instructorScheduleId,
+                clinicianName: schedule.fullName,
+                isPrimary: schedule.isPrimaryEvaluator,
+                mothraId: schedule.mothraId
+            }))
+        }
+    }
+
+    return []
 }
 
 function scheduleClinicianToWeek(week: WeekItem) {
@@ -454,15 +514,18 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Import shared schedule styles */
+@import '../assets/schedule-shared.css';
+
+/* Override shared styles for RotationScheduleView specific styling */
 .clinical-scheduler-container {
     padding: 20px;
     font-family: Arial, sans-serif;
 }
 
 .navigation-bar {
-    margin-bottom: 20px;
     padding: 10px;
-    background-color: #f0f0f0;
+    background-color: var(--ucdavis-black-10);
     border-radius: 5px;
 }
 
@@ -478,16 +541,16 @@ onMounted(async () => {
 
 .nav-link.active {
     font-weight: bold;
-    color: #8B0000;
+    color: var(--ucdavis-blue-100);
 }
 
 .nav-divider {
     margin: 0 10px;
-    color: #999;
+    color: var(--ucdavis-black-40);
 }
 
 h2 {
-    color: #8B0000;
+    color: var(--ucdavis-blue-100);
     font-size: 20px;
     margin-bottom: 15px;
     display: flex;
@@ -498,44 +561,14 @@ h2 {
 .title-dropdown {
     font-size: 18px;
     font-weight: bold;
-    color: #8B0000;
-    border: 1px solid #ccc;
+    color: var(--ucdavis-blue-100);
+    border: 1px solid var(--ucdavis-black-20);
     padding: 2px 5px;
     background-color: #fff;
 }
 
 
-.error-message {
-    color: #d32f2f;
-    background-color: #ffebee;
-    padding: 10px;
-    border-radius: 4px;
-    margin-bottom: 15px;
-}
-
-.error-message button {
-    margin-left: 10px;
-    padding: 4px 8px;
-    background-color: #d32f2f;
-    color: white;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
-}
-
-.read-only-alert {
-    background-color: #e3f2fd;
-    border: 1px solid #2196f3;
-    color: #1565c0;
-    padding: 12px;
-    border-radius: 4px;
-    margin-bottom: 15px;
-    font-size: 14px;
-}
-
-.read-only-alert strong {
-    font-weight: 600;
-}
+/* Removed custom alert styles - now using Quasar QBanner components */
 
 .instructions {
     background-color: #f5f5f5;
@@ -564,7 +597,7 @@ h2 {
     padding: 5px 10px;
     margin: 2px;
     background-color: #fff;
-    border: 1px solid #ccc;
+    border: 1px solid var(--ucdavis-black-20);
     cursor: pointer;
     font-size: 13px;
 }
@@ -588,7 +621,7 @@ h2 {
 
 .legend {
     font-size: 12px;
-    color: #666;
+    color: var(--ucdavis-black-60);
     margin-top: 20px;
     padding: 15px;
     background-color: #f9f9f9;
@@ -599,7 +632,7 @@ h2 {
 .legend h4 {
     margin: 0 0 10px 0;
     font-size: 14px;
-    color: #333;
+    color: var(--ucdavis-black-80);
     font-weight: bold;
 }
 
@@ -627,21 +660,16 @@ h2 {
 }
 
 h3 {
-    color: #333;
+    color: var(--ucdavis-black-80);
     font-size: 16px;
     margin-top: 20px;
     margin-bottom: 10px;
 }
 
-.week-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 10px;
-    margin-bottom: 20px;
-}
+/* Week grid now uses Quasar row/col system - no custom CSS needed */
 
 .week-cell {
-    border: 1px solid #ccc;
+    border: 1px solid var(--ucdavis-black-20);
     min-height: 120px;
     background-color: #fff;
     cursor: pointer;
@@ -658,7 +686,7 @@ h3 {
     font-weight: bold;
     font-size: 12px;
     text-align: center;
-    border-bottom: 1px solid #ccc;
+    border-bottom: 1px solid var(--ucdavis-black-20);
 }
 
 .rotation-list {
@@ -683,7 +711,7 @@ h3 {
 }
 
 .remove-btn-disabled {
-    color: #ccc;
+    color: var(--ucdavis-black-20);
     font-weight: bold;
     margin-right: 5px;
     cursor: not-allowed;
@@ -737,10 +765,7 @@ h3 {
         max-width: 100%;
     }
 
-    .week-grid {
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 8px;
-    }
+    /* Week grid responsive handled by Quasar col-xs/sm/md/lg classes */
 
     .week-cell {
         min-height: 100px;
@@ -779,9 +804,7 @@ h3 {
 }
 
 @media (max-width: 480px) {
-    .week-grid {
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    }
+    /* Week grid mobile responsive handled by Quasar responsive columns */
 
     .week-cell {
         min-height: 80px;

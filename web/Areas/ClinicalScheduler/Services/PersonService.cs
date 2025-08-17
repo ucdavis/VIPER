@@ -31,8 +31,22 @@ namespace Viper.Areas.ClinicalScheduler.Services
     /// Service for handling person and clinician data from Clinical Scheduler context
     /// Replaces direct AAUD context access by using person data available in Clinical Scheduler views
     /// </summary>
-    public class PersonService : BaseClinicalSchedulerService
+    public class PersonService : BaseClinicalSchedulerService, IPersonService
     {
+        #region Constants
+
+        /// <summary>
+        /// Default number of days to look back for historical clinician data (2 years)
+        /// </summary>
+        private const int DEFAULT_HISTORICAL_LOOKBACK_DAYS = 730;
+
+        /// <summary>
+        /// Number of days to look back for recent/active clinicians only (30 days)
+        /// </summary>
+        private const int RECENT_CLINICIANS_LOOKBACK_DAYS = 30;
+
+        #endregion
+
         private readonly ILogger<PersonService> _logger;
 
         public PersonService(ILogger<PersonService> logger, ClinicalSchedulerContext context) : base(context)
@@ -48,11 +62,11 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="sinceDays">Number of days back to look for historical data (default: 730 days / ~2 years)</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of unique clinicians with their basic info</returns>
-        public async Task<List<ClinicianSummary>> GetCliniciansAsync(bool includeHistorical = true, int sinceDays = 730, CancellationToken cancellationToken = default)
+        public async Task<List<ClinicianSummary>> GetCliniciansAsync(bool includeHistorical = true, int sinceDays = DEFAULT_HISTORICAL_LOOKBACK_DAYS, CancellationToken cancellationToken = default)
         {
             try
             {
-                var cutoffDate = includeHistorical ? DateTime.Now.AddDays(-sinceDays) : DateTime.Now.AddDays(-30);
+                var cutoffDate = includeHistorical ? DateTime.Now.AddDays(-sinceDays) : DateTime.Now.AddDays(-RECENT_CLINICIANS_LOOKBACK_DAYS);
 
                 _logger.LogInformation("Getting clinicians from Clinical Scheduler InstructorSchedule view (includeHistorical: {IncludeHistorical}, cutoffDate: {CutoffDate})",
                     includeHistorical, cutoffDate.ToString("yyyy-MM-dd"));
@@ -61,26 +75,32 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // This contains all person data we need without accessing AAUD
                 // Split into two steps to avoid complex LINQ translation issues
 
-                // Step 1: Get all instructor schedules with weeks (simpler query)
+                // Step 1: Get all instructor schedules with weeks and person data
                 var instructorSchedules = await _context.InstructorSchedules
                     .AsNoTracking()
                     .Include(i => i.Week)
+                    .Include(i => i.Person)
                     .Where(i => i.Week.DateStart >= cutoffDate && !string.IsNullOrEmpty(i.MothraId))
                     .ToListAsync(cancellationToken);
 
                 // Step 2: Group and process in memory (client-side)
                 var clinicians = instructorSchedules
                     .GroupBy(i => i.MothraId)
-                    .Select(g => new ClinicianSummary
+                    .Select(g =>
                     {
-                        MothraId = g.Key,
-                        FullName = g.First().FullName,
-                        FirstName = g.First().FirstName,
-                        LastName = g.First().LastName,
-                        MiddleName = g.First().MiddleName,
-                        MailId = g.First().MailId,
-                        Source = "InstructorSchedule",
-                        LastScheduled = g.Max(x => x.Week.DateEnd)
+                        var first = g.First();
+                        var person = first.Person;
+                        return new ClinicianSummary
+                        {
+                            MothraId = g.Key,
+                            FullName = person?.PersonDisplayFullName ?? "Unknown",
+                            FirstName = person?.PersonDisplayFirstName ?? "Unknown",
+                            LastName = person?.PersonDisplayLastName ?? "Unknown",
+                            MiddleName = "", // Person model doesn't have middle name display field
+                            MailId = person?.IdsMailId ?? "",
+                            Source = "InstructorSchedule",
+                            LastScheduled = g.Max(x => x.Week.DateEnd)
+                        };
                     })
                     .OrderBy(c => c.LastName)
                     .ThenBy(c => c.FirstName)
@@ -92,7 +112,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving clinicians from Clinical Scheduler context");
-                throw;
+                throw new InvalidOperationException("Failed to retrieve clinicians from Clinical Scheduler database", ex);
             }
         }
 
@@ -119,22 +139,28 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 var instructorSchedules = await _context.InstructorSchedules
                     .AsNoTracking()
                     .Include(i => i.Week)
+                    .Include(i => i.Person)
                     .Where(i => i.MothraId == mothraId)
                     .ToListAsync(cancellationToken);
 
                 var person = instructorSchedules
                     .GroupBy(i => i.MothraId)
-                    .Select(g => new PersonSummary
+                    .Select(g =>
                     {
-                        MothraId = g.Key,
-                        FullName = g.First().FullName,
-                        FirstName = g.First().FirstName,
-                        LastName = g.First().LastName,
-                        MiddleName = g.First().MiddleName,
-                        MailId = g.First().MailId,
-                        Source = "InstructorSchedule",
-                        LastScheduled = g.Max(x => x.Week.DateEnd),
-                        TotalSchedules = g.Count()
+                        var first = g.First();
+                        var personData = first.Person;
+                        return new PersonSummary
+                        {
+                            MothraId = g.Key,
+                            FullName = personData?.PersonDisplayFullName ?? "Unknown",
+                            FirstName = personData?.PersonDisplayFirstName ?? "Unknown",
+                            LastName = personData?.PersonDisplayLastName ?? "Unknown",
+                            MiddleName = "", // Person model doesn't have middle name display field
+                            MailId = personData?.IdsMailId ?? "",
+                            Source = "InstructorSchedule",
+                            LastScheduled = g.Max(x => x.Week.DateEnd),
+                            TotalSchedules = g.Count()
+                        };
                     })
                     .FirstOrDefault();
 
@@ -153,7 +179,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving person data for MothraId: {MothraId}", mothraId);
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve person data for MothraId {mothraId}", ex);
             }
         }
 
@@ -216,7 +242,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving clinicians for year: {Year}", year);
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve clinicians for grad year {year}. Check database connectivity and view permissions.", ex);
             }
         }
 
@@ -246,7 +272,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving unique MothraIds");
-                throw;
+                throw new InvalidOperationException("Failed to retrieve unique MothraIds from database", ex);
             }
         }
     }
