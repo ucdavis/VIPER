@@ -5,7 +5,7 @@ namespace Viper.test.ClinicalScheduler
 {
     public class ClinicalSchedulerContextTest
     {
-        private DbContextOptions<ClinicalSchedulerContext> GetInMemoryDbOptions()
+        private static DbContextOptions<ClinicalSchedulerContext> GetInMemoryDbOptions()
         {
             return new DbContextOptionsBuilder<ClinicalSchedulerContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
@@ -52,8 +52,7 @@ namespace Viper.test.ClinicalScheduler
             Assert.NotNull(context.InstructorSchedules);
             Assert.NotNull(context.Weeks);
             Assert.NotNull(context.WeekGradYears);
-            // ScheduleAudits temporarily removed - will be added back in Phase 7
-            // Assert.NotNull(context.ScheduleAudits);
+            // ScheduleAudits will be added in Phase 7
         }
 
         [Fact]
@@ -82,7 +81,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Act
             using var context = new ClinicalSchedulerContext(options);
-            var serviceEntityType = context.Model.FindEntityType(typeof(Viper.Models.CTS.Service));
+            var serviceEntityType = context.Model.FindEntityType(typeof(Viper.Models.ClinicalScheduler.Service));
 
             // Assert - Verify that Encounters and Epas navigation properties are ignored
             Assert.NotNull(serviceEntityType);

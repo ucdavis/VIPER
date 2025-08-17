@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { AcademicYearService } from '../AcademicYearService'
+import { GradYearService } from '../GradYearService'
 
 const mockGet = vi.fn()
 
@@ -9,12 +9,12 @@ vi.mock('../../../composables/ViperFetch', () => ({
   })
 }))
 
-describe('AcademicYearService', () => {
+describe('GradYearService', () => {
   beforeEach(() => {
     mockGet.mockClear()
   })
 
-  describe('getAcademicYearData', () => {
+  describe('getGradYearData', () => {
     it('should correctly parse response from /rotations/years endpoint', async () => {
       // Arrange: Mock the expected backend response with correct ViperFetch structure
       const mockBackendResponse = {
@@ -27,7 +27,7 @@ describe('AcademicYearService', () => {
       mockGet.mockResolvedValueOnce(mockBackendResponse)
 
       // Act: Call the service method
-      const result = await AcademicYearService.getAcademicYearData()
+      const result = await GradYearService.getGradYearData()
 
       // Assert: Verify the API was called correctly (with cache busting parameter)
       expect(mockGet).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/clinicalscheduler\/rotations\/years\?_t=\d+$/))
@@ -49,10 +49,10 @@ describe('AcademicYearService', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       // Act: Call the service method
-      const result = await AcademicYearService.getAcademicYearData()
+      const result = await GradYearService.getGradYearData()
 
       // Assert: Verify error handling
-      expect(consoleSpy).toHaveBeenCalledWith('Error fetching academic year data:', mockError)
+      expect(consoleSpy).toHaveBeenCalledWith('Error fetching grad year data:', mockError)
 
       // Assert: Verify fallback data structure
       expect(result).toEqual({
@@ -78,7 +78,7 @@ describe('AcademicYearService', () => {
       mockGet.mockResolvedValueOnce(incompleteResponse)
 
       // Act: Call the service method
-      const result = await AcademicYearService.getAcademicYearData()
+      const result = await GradYearService.getGradYearData()
 
       // Assert: Verify handling of undefined/null values
       expect(result).toEqual({
@@ -88,8 +88,8 @@ describe('AcademicYearService', () => {
     })
   })
 
-  describe('getCurrentAcademicYear', () => {
-    it('should return current academic year from successful API response', async () => {
+  describe('getCurrentGradYear', () => {
+    it('should return current grad year from successful API response', async () => {
       // Arrange: Use current year to avoid time-based test failures
       const currentYear = new Date().getFullYear()
       const mockResponse = {
@@ -101,7 +101,7 @@ describe('AcademicYearService', () => {
       mockGet.mockResolvedValueOnce(mockResponse)
 
       // Act
-      const result = await AcademicYearService.getCurrentAcademicYear()
+      const result = await GradYearService.getCurrentGradYear()
 
       // Assert
       expect(result).toBe(currentYear)
@@ -115,7 +115,7 @@ describe('AcademicYearService', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       // Act
-      const result = await AcademicYearService.getCurrentAcademicYear()
+      const result = await GradYearService.getCurrentGradYear()
 
       // Assert
       expect(result).toBe(new Date().getFullYear())
@@ -135,7 +135,7 @@ describe('AcademicYearService', () => {
       mockGet.mockResolvedValueOnce(mockResponse)
 
       // Act
-      const result = await AcademicYearService.getCurrentAcademicYear()
+      const result = await GradYearService.getCurrentGradYear()
 
       // Assert
       expect(result).toBe(new Date().getFullYear())
@@ -156,7 +156,7 @@ describe('AcademicYearService', () => {
       mockGet.mockResolvedValueOnce(mockResponse)
 
       // Act
-      const result = await AcademicYearService.getAvailableYears()
+      const result = await GradYearService.getAvailableYears()
 
       // Assert
       expect(result).toEqual(expectedYears)
@@ -170,7 +170,7 @@ describe('AcademicYearService', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       // Act
-      const result = await AcademicYearService.getAvailableYears()
+      const result = await GradYearService.getAvailableYears()
 
       // Assert: Verify fallback generates 6 years starting from current year
       const currentYear = new Date().getFullYear()
@@ -192,7 +192,7 @@ describe('AcademicYearService', () => {
       mockGet.mockResolvedValueOnce(mockResponse)
 
       // Act
-      const result = await AcademicYearService.getAvailableYears()
+      const result = await GradYearService.getAvailableYears()
 
       // Assert
       const currentYear = new Date().getFullYear()
@@ -211,7 +211,7 @@ describe('AcademicYearService', () => {
       mockGet.mockResolvedValueOnce(mockResponse)
 
       // Act
-      const result = await AcademicYearService.getAvailableYears()
+      const result = await GradYearService.getAvailableYears()
 
       // Assert
       const currentYear = new Date().getFullYear()
@@ -232,7 +232,7 @@ describe('AcademicYearService', () => {
       mockGet.mockResolvedValueOnce(mockResponse)
 
       // Act
-      await AcademicYearService.getAcademicYearData()
+      await GradYearService.getGradYearData()
 
       // Assert: Verify it's calling the stable rotations/years endpoint with cache busting
       expect(mockGet).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/clinicalscheduler\/rotations\/years\?_t=\d+$/))

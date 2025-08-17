@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Models.CTS;
+using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
@@ -28,16 +28,19 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 return ValidationProblem("Date or student mothra id is required");
             }
 
-            var sched = _context.StudentSchedules.AsQueryable();
+            var sched = _context.StudentSchedules
+                .Include(s => s.Week)
+                .AsQueryable();
             if (date != null)
             {
                 var dt = date.Value.ToDateTime(TimeOnly.MinValue);
-                sched = sched.Where(s => s.DateEnd >= dt)
-                    .Where(s => s.DateStart <= dt);
+                sched = sched.Where(s => s.Week.DateEnd >= dt)
+                    .Where(s => s.Week.DateStart <= dt);
             }
             if (mothraId != null)
             {
-                sched = sched.Where(s => s.MothraId == mothraId);
+                // StudentSchedule uses MailId, not MothraId
+                sched = sched.Where(s => s.MailId == mothraId);
             }
             if (rotationId != null)
             {
@@ -45,7 +48,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
 
             return await sched
-                .OrderBy(s => s.FullName)
+                .OrderBy(s => s.LastName)
+                .ThenBy(s => s.FirstName)
                 .ToListAsync();
         }
     }

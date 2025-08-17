@@ -55,6 +55,33 @@ export interface WeekItem {
     requiresPrimaryEvaluator: boolean
 }
 
+export interface ScheduleItem {
+    instructorScheduleId: number
+    firstName: string
+    lastName: string
+    fullName: string
+    mothraId: string
+    evaluator: boolean
+    isPrimaryEvaluator: boolean
+}
+
+export interface WeekWithSchedules {
+    weekId: number
+    weekNumber: number
+    dateStart: string
+    dateEnd: string
+    termCode: number
+    extendedRotation: boolean
+    forcedVacation: boolean
+    requiresPrimaryEvaluator: boolean
+    instructorSchedules: ScheduleItem[]
+}
+
+export interface SemesterSchedule {
+    semester: string
+    weeks: WeekWithSchedules[]
+}
+
 export interface RotationScheduleData {
     rotation: {
         rotId: number
@@ -66,9 +93,8 @@ export interface RotationScheduleData {
             shortName: string
         }
     } | null
-    year: number
-    weeks: WeekItem[]
-    instructorSchedules: InstructorScheduleItem[]
+    gradYear: number
+    schedulesBySemester: SemesterSchedule[]
 }
 
 export class RotationService {
@@ -78,15 +104,15 @@ export class RotationService {
      * Build URL with query parameters
      */
     private static buildUrl(baseUrl: string, params: Record<string, any> = {}): string {
-        const queryString = new URLSearchParams(
-            Object.entries(params).reduce((acc, [key, value]) => {
-                if (value !== undefined && value !== null) {
-                    acc[key] = value.toString()
-                }
-                return acc
-            }, {} as Record<string, string>)
-        ).toString()
-
+        const validParams: Record<string, string> = {}
+        
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && typeof key === 'string' && key.length > 0) {
+                Object.assign(validParams, { [key]: value.toString() })
+            }
+        })
+        
+        const queryString = new URLSearchParams(validParams).toString()
         return queryString ? `${baseUrl}?${queryString}` : baseUrl
     }
 
@@ -196,9 +222,8 @@ export class RotationService {
             return {
                 result: {
                     rotation: null,
-                    year: 0,
-                    weeks: [],
-                    instructorSchedules: []
+                    gradYear: 0,
+                    schedulesBySemester: []
                 },
                 success: false,
                 errors: [error instanceof Error ? error.message : 'Unknown error occurred']

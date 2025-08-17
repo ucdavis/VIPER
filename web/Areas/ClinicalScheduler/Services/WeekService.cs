@@ -5,10 +5,10 @@ using Viper.Models.ClinicalScheduler;
 namespace Viper.Areas.ClinicalScheduler.Services
 {
     /// <summary>
-    /// Service for handling week data using the vWeek view which contains academic year and week number calculations
-    /// Provides access to properly calculated week numbers and academic year associations
+    /// Service for handling week data using the vWeek view which contains grad year and week number calculations
+    /// Provides access to properly calculated week numbers and grad year associations
     /// </summary>
-    public class WeekService : BaseClinicalSchedulerService
+    public class WeekService : BaseClinicalSchedulerService, IWeekService
     {
         private readonly ILogger<WeekService> _logger;
 
@@ -31,6 +31,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 var query = _context.WeekGradYears
                     .AsNoTracking()
+                    .Include(wgy => wgy.Week)
                     .Where(wgy => wgy.GradYear == gradYear);
 
                 if (!includeExtendedRotation)
@@ -63,13 +64,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving weeks for grad year {GradYear}", gradYear);
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve weeks for graduation year {gradYear}", ex);
             }
         }
 
         /// <summary>
         /// Gets a specific week by ID using Entity Framework entities
-        /// Returns week data with academic year and week number information
+        /// Returns week data with grad year and week number information
         /// </summary>
         /// <param name="weekId">The week ID</param>
         /// <param name="gradYear">Optional grad year filter</param>
@@ -81,6 +82,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 var query = _context.WeekGradYears
                     .AsNoTracking()
+                    .Include(wgy => wgy.Week)
                     .Where(wgy => wgy.WeekId == weekId);
 
                 if (gradYear.HasValue)
@@ -118,7 +120,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving week {WeekId} for grad year {GradYear}", weekId, gradYear);
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve week {weekId} for graduation year {gradYear}", ex);
             }
         }
 
@@ -137,6 +139,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 var today = DateTime.Today;
                 var query = _context.WeekGradYears
                     .AsNoTracking()
+                    .Include(wgy => wgy.Week)
                     .Where(wgy => wgy.Week.DateStart <= today && wgy.Week.DateEnd >= today);
 
                 if (gradYear.HasValue)
@@ -173,7 +176,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving current week for grad year {GradYear}", gradYear);
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve current week for graduation year {gradYear}", ex);
             }
         }
 
@@ -191,6 +194,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 var query = _context.WeekGradYears
                     .AsNoTracking()
+                    .Include(wgy => wgy.Week)
                     .AsQueryable();
 
                 if (startDate.HasValue)
@@ -231,7 +235,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 _logger.LogError(ex, "Error retrieving weeks for date range {StartDate} to {EndDate}",
                     startDate?.ToString("yyyy-MM-dd") ?? "none", endDate?.ToString("yyyy-MM-dd") ?? "none");
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve weeks for date range {startDate?.ToString("yyyy-MM-dd") ?? "none"} to {endDate?.ToString("yyyy-MM-dd") ?? "none"}", ex);
             }
         }
     }

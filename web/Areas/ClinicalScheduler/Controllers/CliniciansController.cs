@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
-using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Areas.Curriculum.Services;
 using Web.Authorization;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
@@ -14,22 +13,33 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
     [Permission(Allow = "SVMSecure.ClnSched")]
     public class CliniciansController : BaseClinicalSchedulerController
     {
+        #region Constants
+
+        /// <summary>
+        /// Number of days to look back for active clinicians (2 years)
+        /// </summary>
+        private const int ACTIVE_CLINICIANS_LOOKBACK_DAYS = 730;
+
+        /// <summary>
+        /// Number of days to look back for all affiliates including historical (3 years)
+        /// </summary>
+        private const int ALL_AFFILIATES_LOOKBACK_DAYS = 1095;
+
+        #endregion
+
         private readonly ClinicalSchedulerContext _context;
         private readonly AAUDContext _aaudContext; // Legacy context for fallback clinician lookup
-        private readonly WeekService _weekService;
-        private readonly PersonService _personService;
-        private readonly RotationService _rotationService;
+        private readonly IWeekService _weekService;
+        private readonly IPersonService _personService;
 
         public CliniciansController(ClinicalSchedulerContext context, AAUDContext aaudContext, ILogger<CliniciansController> logger,
-            AcademicYearService academicYearService, WeekService weekService, PersonService personService,
-            RotationService rotationService, IMemoryCache cache)
-            : base(academicYearService, cache, logger)
+            IGradYearService gradYearService, IWeekService weekService, IPersonService personService)
+            : base(gradYearService, logger)
         {
             _context = context;
             _aaudContext = aaudContext;
             _weekService = weekService;
             _personService = personService;
-            _rotationService = rotationService; // Added for proper rotation data loading
         }
 
         /// <summary>
@@ -45,23 +55,20 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         {
             try
             {
-                var currentYear = DateTime.Now.Year;
-                var targetYear = year ?? currentYear;
+                var currentGradYear = await GetCurrentGradYearAsync();
+                var targetYear = year ?? currentGradYear;
 
                 _logger.LogInformation("GetClinicians endpoint called with year: {Year}, includeAllAffiliates: {IncludeAllAffiliates}", targetYear, includeAllAffiliates);
 
-                if (targetYear == currentYear)
+                if (targetYear >= currentGradYear)
                 {
-                    // Use PersonService to get clinicians from Clinical Scheduler data
-                    _logger.LogInformation("Using PersonService to get clinicians (includeAllAffiliates: {IncludeAllAffiliates})", includeAllAffiliates);
+                    // Current or future year: use PersonService to get clinicians from Clinical Scheduler data
+                    _logger.LogInformation("Using PersonService to get clinicians for current/future year {Year} (includeAllAffiliates: {IncludeAllAffiliates})", targetYear, includeAllAffiliates);
 
                     // Note: includeAllAffiliates parameter is kept for API compatibility
                     // but PersonService only has access to clinicians who have been scheduled
                     // This is actually better data quality since it's clinicians actually involved in scheduling
-                    var clinicians = await _personService.GetCliniciansAsync(
-                        includeHistorical: true,
-                        sinceDays: includeAllAffiliates ? 1095 : 730, // 3 years vs 2 years for affiliates
-                        cancellationToken: HttpContext.RequestAborted);
+                    var clinicians = await GetAllCliniciansAsync(includeAllAffiliates);
 
                     // Convert to the expected response format
                     var result = clinicians.Select(c => new
@@ -78,7 +85,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 else
                 {
                     // Past year: use PersonService to get clinicians for specific year
-                    _logger.LogInformation("Using PersonService to get clinicians for year {Year}", targetYear);
+                    _logger.LogInformation("Using PersonService to get clinicians for past year {Year}", targetYear);
 
                     var clinicians = await _personService.GetCliniciansByYearAsync(targetYear, HttpContext.RequestAborted);
 
@@ -97,9 +104,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
             catch (Exception ex)
             {
-                var correlationId = Guid.NewGuid().ToString();
-                _logger.LogError(ex, "Error fetching clinicians. CorrelationId: {CorrelationId}", correlationId);
-                return StatusCode(500, new { error = "An error occurred while fetching clinicians", correlationId });
+                return HandleException(ex, "An error occurred while fetching clinicians");
             }
         }
 
@@ -113,10 +118,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             try
             {
                 // Get clinician count from PersonService
-                var clinicians = await _personService.GetCliniciansAsync(
-                    includeHistorical: true,
-                    sinceDays: includeAllAffiliates ? 1095 : 730, // 3 years vs 2 years for affiliates
-                    cancellationToken: HttpContext.RequestAborted);
+                var clinicians = await GetAllCliniciansAsync(includeAllAffiliates);
 
                 var count = clinicians.Count;
                 var source = includeAllAffiliates ? "Clinical Scheduler Data (3 years)" : "Clinical Scheduler Data (2 years)";
@@ -125,9 +127,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
             catch (Exception ex)
             {
-                var correlationId = Guid.NewGuid().ToString();
-                _logger.LogError(ex, "Error counting clinicians. CorrelationId: {CorrelationId}", correlationId);
-                return StatusCode(500, new { error = "An error occurred while counting clinicians", correlationId });
+                return HandleException(ex, "An error occurred while counting clinicians");
             }
         }
 
@@ -217,9 +217,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
             catch (Exception ex)
             {
-                var correlationId = Guid.NewGuid().ToString();
-                _logger.LogError(ex, "Error comparing counts. CorrelationId: {CorrelationId}", correlationId);
-                return StatusCode(500, new { error = "An error occurred while comparing counts", correlationId });
+                return HandleException(ex, "An error occurred while comparing counts");
             }
         }
 
@@ -234,13 +232,14 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetClinicianSchedule(string mothraId, [FromQuery] int? year = null)
         {
+            var correlationId = HttpContext.TraceIdentifier ?? Guid.NewGuid().ToString();
             try
             {
-                // Use academic year logic instead of calendar year
+                // Use grad year logic instead of calendar year
                 var targetYear = await GetTargetYearAsync(year);
-                _logger.LogInformation("Fetching schedule for clinician {MothraId}, academic year: {Year}", mothraId, targetYear);
+                _logger.LogInformation("Fetching schedule for clinician {MothraId}, grad year: {Year}", mothraId, targetYear);
 
-                // Get weeks for the academic year using vWeek view (contains correct week numbers)
+                // Get weeks for the grad year using vWeek view (contains correct week numbers)
                 var vWeeks = await _weekService.GetWeeksAsync(targetYear, includeExtendedRotation: true);
 
                 _logger.LogInformation("Retrieved {WeekCount} weeks for year {Year}, unique WeekIds: {UniqueCount}",
@@ -248,56 +247,35 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 if (!vWeeks.Any())
                 {
-                    _logger.LogWarning("No weeks found for academic year {Year}", targetYear);
-                    // Still try to get clinician info from AAUD context
-                    var clinicianFromAaud = await _aaudContext.VwVmthClinicians
-                        .Where(c => c.IdsMothraid == mothraId)
-                        .Select(c => new
-                        {
-                            mothraId = mothraId,
-                            fullName = !string.IsNullOrWhiteSpace(c.FullName)
-                                ? c.FullName
-                                : !string.IsNullOrWhiteSpace(c.PersonDisplayFirstName) || !string.IsNullOrWhiteSpace(c.PersonDisplayLastName)
-                                    ? $"{c.PersonDisplayFirstName ?? ""} {c.PersonDisplayLastName ?? ""}".Trim()
-                                    : $"Clinician {mothraId}",
-                            firstName = c.PersonDisplayFirstName ?? "",
-                            lastName = c.PersonDisplayLastName ?? "",
-                            role = (string?)null
-                        })
-                        .FirstOrDefaultAsync();
+                    _logger.LogWarning("No weeks found for grad year {Year}", targetYear);
+
+                    // Use PersonService to get clinician info (consistent with GetClinicians endpoint)
+                    var clinicianResult = await BuildClinicianInfoAsync(mothraId);
 
                     return Ok(new
                     {
-                        clinician = clinicianFromAaud ?? new
-                        {
-                            mothraId = mothraId,
-                            fullName = $"Clinician {mothraId}",
-                            firstName = "",
-                            lastName = "",
-                            role = (string?)null
-                        },
-                        academicYear = targetYear,
+                        clinician = clinicianResult,
+                        gradYear = targetYear,
                         schedulesBySemester = new List<object>()
                     });
                 }
 
-                // Get instructor schedules for this clinician using academic year filtering
-                // Filter by weeks that belong to the target academic year (ensure unique week IDs)
+                // Get instructor schedules for this clinician using grad year filtering
+                // Filter by weeks that belong to the target grad year (ensure unique week IDs)
                 var weekIds = vWeeks.Select(w => w.WeekId).Distinct().ToList();
 
                 // Load schedules filtered by both mothraId and the specific weeks for this grad year
                 var schedules = await _context.InstructorSchedules
+                    .AsNoTracking()
                     .Include(i => i.Week) // Week navigation works fine
+                    .Include(i => i.Person) // Person navigation for name data
                     .Where(i => i.MothraId == mothraId && weekIds.Contains(i.WeekId))
                     .OrderBy(i => i.Week.DateStart)
                     .ToListAsync();
 
                 // Get unique rotation IDs from schedules and load rotation data in batch
                 var rotationIds = schedules.Select(s => s.RotationId).Distinct().ToList();
-                var rotations = await _context.Rotations
-                    .Include(r => r.Service)
-                    .Where(r => rotationIds.Contains(r.RotId))
-                    .ToDictionaryAsync(r => r.RotId, r => r, HttpContext.RequestAborted);
+                var rotations = await LoadRotationsByIdsAsync(rotationIds);
 
                 // Get clinician info - if no schedules, we still need to provide clinician details
                 object clinicianInfo;
@@ -306,30 +284,17 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 {
                     _logger.LogInformation("No schedules found for clinician {MothraId} - returning empty schedule", mothraId);
 
-                    // Try to get clinician info from AAUD context for cases where they have no schedules
-                    var clinicianFromAaud = await _aaudContext.VwVmthClinicians
-                        .Where(c => c.IdsMothraid == mothraId)
-                        .Select(c => new
-                        {
-                            mothraId = mothraId,
-                            fullName = !string.IsNullOrWhiteSpace(c.FullName)
-                                ? c.FullName
-                                : !string.IsNullOrWhiteSpace(c.PersonDisplayFirstName) || !string.IsNullOrWhiteSpace(c.PersonDisplayLastName)
-                                    ? $"{c.PersonDisplayFirstName ?? ""} {c.PersonDisplayLastName ?? ""}".Trim()
-                                    : $"Clinician {mothraId}",
-                            firstName = c.PersonDisplayFirstName ?? "",
-                            lastName = c.PersonDisplayLastName ?? "",
-                            role = (string?)null
-                        })
-                        .FirstOrDefaultAsync();
-
-                    if (clinicianFromAaud != null)
+                    // Use PersonService to get clinician info (same data source as GetClinicians endpoint)
+                    clinicianInfo = await BuildClinicianInfoAsync(mothraId);
+                }
+                else
+                {
+                    // Get clinician info from first schedule record, but use PersonService as primary source
+                    var firstSchedule = schedules.FirstOrDefault();
+                    if (firstSchedule == null)
                     {
-                        clinicianInfo = clinicianFromAaud;
-                    }
-                    else
-                    {
-                        // Fallback if clinician not found in AAUD either
+                        // Defensive fallback - this shouldn't happen given the Any() check above
+                        _logger.LogWarning("Unexpected: No schedules found for clinician {MothraId} for year {Year} after confirming schedules exist. CorrelationId: {CorrelationId}", mothraId, targetYear, correlationId);
                         clinicianInfo = new
                         {
                             mothraId = mothraId,
@@ -339,21 +304,31 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                             role = (string?)null
                         };
                     }
-                }
-                else
-                {
-                    // Get clinician info from first schedule record
-                    clinicianInfo = new
+                    else
                     {
-                        mothraId = mothraId,
-                        fullName = schedules.First().FullName,
-                        firstName = schedules.First().FirstName,
-                        lastName = schedules.First().LastName,
-                        role = schedules.First().Role
-                    };
+                        // Try PersonService first for consistent name data
+                        var clinicianFromPersonService = await GetClinicianByMothraIdAsync(mothraId);
+
+                        if (clinicianFromPersonService != null)
+                        {
+                            clinicianInfo = BuildClinicianInfoFromPersonService(clinicianFromPersonService, mothraId, firstSchedule.Role);
+                        }
+                        else
+                        {
+                            // Fallback to schedule Person data
+                            clinicianInfo = new
+                            {
+                                mothraId = mothraId,
+                                fullName = firstSchedule.Person?.PersonDisplayFullName ?? "Unknown",
+                                firstName = firstSchedule.Person?.PersonDisplayFirstName ?? "Unknown",
+                                lastName = firstSchedule.Person?.PersonDisplayLastName ?? "Unknown",
+                                role = firstSchedule.Role
+                            };
+                        }
+                    }
                 }
 
-                // Always show ALL weeks for the academic year with assignments where they exist
+                // Always show ALL weeks for the grad year with assignments where they exist
                 // Create a lookup for existing schedules by weekId (should be unique now after grad year filtering)
                 _logger.LogInformation("Retrieved {ScheduleCount} schedules for clinician {MothraId}", schedules.Count, mothraId);
 
@@ -374,7 +349,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     }
                 }
 
-                Dictionary<int, Models.CTS.InstructorSchedule> schedulesByWeekId;
+                Dictionary<int, Models.ClinicalScheduler.InstructorSchedule> schedulesByWeekId;
                 try
                 {
                     schedulesByWeekId = schedules.ToDictionary(s => s.WeekId, s => s);
@@ -396,11 +371,15 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         schedulesByWeekId.Count);
                 }
 
-                // Pre-calculate semester names for all weeks to avoid repeated calls
-                var weeksWithSemester = vWeeks.Select(w =>
+                // Deduplicate weeks and pre-calculate semester names for all weeks to avoid repeated calls
+                var deduplicatedWeeks = vWeeks
+                    .DistinctBy(w => w.WeekId)
+                    .ToList();
+
+                var weeksWithSemester = deduplicatedWeeks.Select(w =>
                 {
-                    var semesterName = TermCodes.GetSemesterName(w.TermCode);
-                    var normalizedSemester = semesterName.StartsWith("Invalid Term Code") || semesterName.StartsWith("Unknown Term")
+                    var semesterName = TermCodeService.GetTermCodeDescription(w.TermCode);
+                    var normalizedSemester = semesterName.StartsWith("Unknown Term")
                         ? "Unknown Semester"
                         : semesterName;
 
@@ -438,26 +417,24 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         semester = g.Key,
                         weeks = g.Select(item => item.Week).OrderBy(w => w.dateStart).ToList()
                     })
-                    .OrderBy(g => TermCodes.GetSemesterOrder(g.semester))
+                    .OrderBy(g => g.weeks.Any() ? g.weeks.Min(w => w.dateStart) : DateTime.MaxValue)
                     .Cast<object>()
                     .ToList();
 
                 var result = new
                 {
                     clinician = clinicianInfo,
-                    academicYear = targetYear, // Returns the academic year from database settings
+                    gradYear = targetYear, // Returns the grad year from database settings
                     schedulesBySemester = groupedSchedules
                 };
 
-                _logger.LogInformation("Found {ScheduleCount} schedule entries for clinician {MothraId} (academic year {Year})",
+                _logger.LogInformation("Found {ScheduleCount} schedule entries for clinician {MothraId} (grad year {Year})",
                     schedules.Count, mothraId, targetYear);
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                var correlationId = Guid.NewGuid().ToString();
-                _logger.LogError(ex, "Error fetching schedule for clinician {MothraId}. CorrelationId: {CorrelationId}", mothraId, correlationId);
-                return StatusCode(500, new { error = "An error occurred while fetching the clinician schedule", correlationId });
+                return HandleException(ex, "An error occurred while fetching the clinician schedule", "MothraId", mothraId);
             }
         }
 
@@ -483,9 +460,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     .ToListAsync();
 
                 // Load rotation data in batch
-                var rotations = await _context.Rotations
-                    .Include(r => r.Service)
-                    .Where(r => rotationIds.Contains(r.RotId))
+                var rotationData = await LoadRotationsByIdsAsync(rotationIds);
+                var rotations = rotationData.Values
                     .Select(r => new
                     {
                         RotationId = r.RotId,
@@ -496,134 +472,156 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     })
                     .OrderBy(r => r.ServiceName)
                     .ThenBy(r => r.RotationName)
-                    .ToListAsync();
+                    .ToList();
 
                 _logger.LogInformation("Found {RotationCount} unique rotations for clinician {MothraId}", rotations.Count, mothraId);
                 return Ok(rotations);
             }
             catch (Exception ex)
             {
-                var correlationId = Guid.NewGuid().ToString();
-                _logger.LogError(ex, "Error fetching rotations for clinician {MothraId}. CorrelationId: {CorrelationId}", mothraId, correlationId);
-                return StatusCode(500, new { error = "An error occurred while fetching clinician rotations", correlationId });
+                return HandleException(ex, "An error occurred while fetching clinician rotations", "MothraId", mothraId);
             }
         }
 
         /// <summary>
-        /// Sanity check endpoint to analyze overlap between scheduled clinicians and VwVmthClinician
+        /// Helper method to get all clinicians using PersonService with standard parameters
         /// </summary>
-        [HttpGet("data-analysis")]
-        public async Task<IActionResult> AnalyzeClinicianData()
+        /// <param name="includeAllAffiliates">Whether to include all affiliates (3 year lookback) or just active (2 year lookback)</param>
+        /// <returns>List of clinicians from PersonService</returns>
+        private async Task<List<ClinicianSummary>> GetAllCliniciansAsync(bool includeAllAffiliates = false)
         {
-            try
-            {
-                _logger.LogInformation("Starting clinician data analysis");
-
-                // Get historically scheduled clinicians from past 2 years
-                var twoYearsAgo = DateTime.Now.AddYears(-2);
-                var historicalClinicians = await _context.InstructorSchedules
-                    .Include(i => i.Week)
-                    .Where(i => i.Week.DateStart >= twoYearsAgo)
-                    .GroupBy(i => i.MothraId)
-                    .Select(g => new
-                    {
-                        MothraId = g.Key,
-                        FullName = g.First().FullName,
-                        FirstName = g.First().FirstName,
-                        LastName = g.First().LastName,
-                        ScheduleCount = g.Count(),
-                        FirstScheduled = g.Min(x => x.DateStart),
-                        LastScheduled = g.Max(x => x.DateStart)
-                    })
-                    .ToListAsync();
-
-                // Get all clinicians from VwVmthClinician (both active and inactive)
-                var vmthClinicians = await _aaudContext.VwVmthClinicians
-                    .Where(c => !string.IsNullOrEmpty(c.IdsMothraid))
-                    .Select(c => new
-                    {
-                        MothraId = c.IdsMothraid!,
-                        FullName = c.FullName ?? $"{c.PersonDisplayFirstName} {c.PersonDisplayLastName}".Trim(),
-                        FirstName = c.PersonDisplayFirstName ?? "",
-                        LastName = c.PersonDisplayLastName ?? "",
-                        UserActive = c.UserActive,
-                        UserStatus = c.UserStatus,
-                        UserDeactivateDate = c.UserDeactivateDate
-                    })
-                    .ToListAsync();
-
-                // Get active clinicians only
-                var activeClinicians = vmthClinicians.Where(c => c.UserActive == "Y").ToList();
-
-                // Analysis
-                var historicalMothraIds = historicalClinicians.Select(c => c.MothraId).ToHashSet();
-                var vmthMothraIds = vmthClinicians.Select(c => c.MothraId).ToHashSet();
-                var activeMothraIds = activeClinicians.Select(c => c.MothraId).ToHashSet();
-
-                // Find overlaps and gaps
-                var scheduledButNotInVmth = historicalClinicians
-                    .Where(h => !vmthMothraIds.Contains(h.MothraId))
-                    .ToList();
-
-                var scheduledButNotActive = historicalClinicians
-                    .Where(h => vmthMothraIds.Contains(h.MothraId) && !activeMothraIds.Contains(h.MothraId))
-                    .Select(h => new
-                    {
-                        h.MothraId,
-                        h.FullName,
-                        h.ScheduleCount,
-                        h.LastScheduled,
-                        VmthStatus = vmthClinicians.First(v => v.MothraId == h.MothraId)
-                    })
-                    .ToList();
-
-                var activeButNeverScheduled = activeClinicians
-                    .Where(a => !historicalMothraIds.Contains(a.MothraId))
-                    .ToList();
-
-                var perfectOverlap = historicalClinicians
-                    .Where(h => activeMothraIds.Contains(h.MothraId))
-                    .ToList();
-
-                var result = new
-                {
-                    Summary = new
-                    {
-                        HistoricallyScheduledCount = historicalClinicians.Count,
-                        TotalVmthCliniciansCount = vmthClinicians.Count,
-                        ActiveVmthCliniciansCount = activeClinicians.Count,
-                        PerfectOverlapCount = perfectOverlap.Count,
-                        ScheduledButNotInVmthCount = scheduledButNotInVmth.Count,
-                        ScheduledButNotActiveCount = scheduledButNotActive.Count,
-                        ActiveButNeverScheduledCount = activeButNeverScheduled.Count
-                    },
-                    Details = new
-                    {
-                        ScheduledButNotInVmth = scheduledButNotInVmth.Take(10), // Sample of problematic cases
-                        ScheduledButNotActive = scheduledButNotActive.Take(10),
-                        ActiveButNeverScheduled = activeButNeverScheduled.Take(10),
-                        PerfectOverlap = perfectOverlap.Take(5) // Sample of good cases
-                    },
-                    DateRange = new
-                    {
-                        AnalysisDate = DateTime.Now,
-                        HistoricalDataFrom = twoYearsAgo,
-                        HistoricalDataTo = DateTime.Now
-                    }
-                };
-
-                _logger.LogInformation("Analysis complete - Historical: {HistoricalCount}, Active VMTH: {ActiveCount}, Perfect overlap: {OverlapCount}", historicalClinicians.Count, activeClinicians.Count, perfectOverlap.Count);
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                var correlationId = Guid.NewGuid().ToString();
-                _logger.LogError(ex, "Error analyzing clinician data. CorrelationId: {CorrelationId}", correlationId);
-                return StatusCode(500, new { error = "An error occurred during data analysis", correlationId });
-            }
+            return await _personService.GetCliniciansAsync(
+                includeHistorical: true,
+                sinceDays: includeAllAffiliates ? ALL_AFFILIATES_LOOKBACK_DAYS : ACTIVE_CLINICIANS_LOOKBACK_DAYS,
+                cancellationToken: HttpContext.RequestAborted);
         }
 
+        /// <summary>
+        /// Helper method to find a specific clinician by MothraId from PersonService
+        /// </summary>
+        /// <param name="mothraId">The MothraId to search for</param>
+        /// <returns>Clinician info or null if not found</returns>
+        private async Task<ClinicianSummary?> GetClinicianByMothraIdAsync(string mothraId)
+        {
+            var clinicians = await GetAllCliniciansAsync(includeAllAffiliates: true);
+            return clinicians.FirstOrDefault(c => c.MothraId == mothraId);
+        }
 
+        /// <summary>
+        /// Helper method to load rotations by rotation IDs with service information
+        /// </summary>
+        /// <param name="rotationIds">List of rotation IDs to load</param>
+        /// <returns>Dictionary mapping rotation ID to rotation entity</returns>
+        private async Task<Dictionary<int, Models.ClinicalScheduler.Rotation>> LoadRotationsByIdsAsync(List<int> rotationIds)
+        {
+            return await _context.Rotations
+                .AsNoTracking()
+                .Include(r => r.Service)
+                .Where(r => rotationIds.Contains(r.RotId))
+                .ToDictionaryAsync(r => r.RotId, r => r, HttpContext.RequestAborted);
+        }
+
+        /// <summary>
+        /// Helper method to build clinician info object from PersonService data
+        /// </summary>
+        /// <param name="clinician">Clinician data from PersonService</param>
+        /// <param name="mothraId">MothraId for fallback</param>
+        /// <param name="role">Optional role to include</param>
+        /// <returns>Standardized clinician info object</returns>
+        private object BuildClinicianInfoFromPersonService(ClinicianSummary clinician, string mothraId, string? role = null)
+        {
+            return new
+            {
+                mothraId = mothraId,
+                fullName = clinician.FullName,
+                firstName = clinician.FirstName,
+                lastName = clinician.LastName,
+                role = role
+            };
+        }
+
+        /// <summary>
+        /// Helper method to build clinician info object, trying PersonService first, then AAUD fallback
+        /// </summary>
+        /// <param name="mothraId">The MothraId to lookup</param>
+        /// <param name="role">Optional role to include</param>
+        /// <returns>Clinician info object</returns>
+        private async Task<object> BuildClinicianInfoAsync(string mothraId, string? role = null)
+        {
+            // Try PersonService first
+            var clinicianFromPersonService = await GetClinicianByMothraIdAsync(mothraId);
+            if (clinicianFromPersonService != null)
+            {
+                return BuildClinicianInfoFromPersonService(clinicianFromPersonService, mothraId, role);
+            }
+
+            // Fallback to AAUD context
+            var clinicianFromAaud = await GetClinicianFromAaudAsync(mothraId, role);
+            return clinicianFromAaud ?? CreateDefaultClinicianInfo(mothraId, role);
+        }
+
+        /// <summary>
+        /// Helper method to get clinician info from AAUD context as fallback
+        /// </summary>
+        /// <param name="mothraId">The MothraId to look up</param>
+        /// <param name="role">Optional role to include in the result</param>
+        /// <returns>Clinician info object or null if not found</returns>
+        private async Task<object?> GetClinicianFromAaudAsync(string mothraId, string? role = null)
+        {
+            var clinicianFromAaud = await _aaudContext.VwVmthClinicians
+                .Where(c => c.IdsMothraid == mothraId)
+                .Select(c => new
+                {
+                    mothraId = mothraId,
+                    fullName = ResolveClinicianName(c.FullName, c.PersonDisplayFirstName, c.PersonDisplayLastName, mothraId),
+                    firstName = c.PersonDisplayFirstName ?? "",
+                    lastName = c.PersonDisplayLastName ?? "",
+                    role = role
+                })
+                .FirstOrDefaultAsync();
+
+            return clinicianFromAaud;
+        }
+
+        /// <summary>
+        /// Helper method to create a default clinician info object when no data is found
+        /// </summary>
+        /// <param name="mothraId">The MothraId for the default clinician</param>
+        /// <param name="role">Optional role to include</param>
+        /// <returns>Default clinician info object</returns>
+        private static object CreateDefaultClinicianInfo(string mothraId, string? role = null)
+        {
+            return new
+            {
+                mothraId = mothraId,
+                fullName = $"Clinician {mothraId}",
+                firstName = "",
+                lastName = "",
+                role = role
+            };
+        }
+
+        /// <summary>
+        /// Helper method to resolve clinician full name with fallbacks
+        /// </summary>
+        /// <param name="fullName">Primary full name from data source</param>
+        /// <param name="firstName">First name to use as fallback</param>
+        /// <param name="lastName">Last name to use as fallback</param>
+        /// <param name="mothraId">MothraId to use as final fallback</param>
+        /// <returns>Resolved full name</returns>
+        private static string ResolveClinicianName(string? fullName, string? firstName, string? lastName, string mothraId)
+        {
+            if (!string.IsNullOrWhiteSpace(fullName))
+            {
+                return fullName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(firstName) || !string.IsNullOrWhiteSpace(lastName))
+            {
+                return $"{firstName ?? ""} {lastName ?? ""}".Trim();
+            }
+
+            return $"Clinician {mothraId}";
+        }
     }
 }

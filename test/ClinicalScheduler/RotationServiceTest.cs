@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
-using Viper.Models.CTS;
+using Viper.Models.ClinicalScheduler;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -81,14 +81,10 @@ namespace Viper.test.ClinicalScheduler
                 {
                     new InstructorSchedule
                     {
+                        InstructorScheduleId = 1,
                         WeekId = 1,
                         MothraId = "12345",
-                        FullName = "Test Instructor",
-                        FirstName = "Test",
-                        LastName = "Instructor",
                         RotationId = 101,
-                        DateStart = DateTime.Now.AddDays(-30),
-                        DateEnd = DateTime.Now.AddDays(-23),
                         Evaluator = true
                     }
                 };
@@ -351,7 +347,16 @@ namespace Viper.test.ClinicalScheduler
 
         public void Dispose()
         {
-            _context.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _context?.Dispose();
+            }
         }
     }
 }

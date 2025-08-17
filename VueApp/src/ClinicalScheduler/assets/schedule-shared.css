@@ -1,0 +1,141 @@
+/* Shared styles for Clinical Scheduler schedule views */
+
+.clinical-scheduler-container {
+    font-family: Arial, sans-serif;
+}
+
+/* Week cells */
+.week-cell {
+    border: 1px solid var(--ucdavis-black-20);
+    min-height: 120px;
+    background-color: #ffffff;
+    cursor: pointer;
+    position: relative;
+}
+
+.week-cell:hover {
+    background-color: var(--ucdavis-black-10);
+}
+
+.week-header {
+    background-color: var(--ucdavis-black-10);
+    padding: 5px;
+    font-weight: bold;
+    font-size: 12px;
+    text-align: center;
+    border-bottom: 1px solid var(--ucdavis-black-20);
+}
+
+/* Rotation items and controls */
+.rotation-list {
+    padding: 5px;
+}
+
+.rotation-item {
+    display: flex;
+    align-items: center;
+    padding: 3px 5px;
+    margin: 2px 0;
+    font-size: 13px;
+    border: 1px solid transparent;
+}
+
+.remove-btn {
+    color: var(--q-negative);
+    font-weight: bold;
+    margin-right: 5px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.remove-btn-disabled {
+    color: var(--ucdavis-black-10);
+    font-weight: bold;
+    margin-right: 5px;
+    cursor: not-allowed;
+    font-size: 12px;
+}
+
+.primary-star {
+    margin-left: auto;
+    color: var(--ucdavis-black-100);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.primary-star.filled {
+    color: var(--ucdavis-gold-100);
+}
+
+/* Week status indicators */
+.requires-primary {
+    border-color: var(--q-warning);
+    border-width: 2px;
+    background-color: var(--q-amber-1);
+}
+
+.requires-primary .week-header {
+    background-color: var(--q-amber-2);
+}
+
+.alert-icon {
+    color: var(--q-warning);
+    font-weight: bold;
+    font-size: 14px;
+    margin-right: 5px;
+}
+
+/* Empty week states */
+.empty-week {
+    padding: 8px 5px;
+    text-align: center;
+    font-size: 12px;
+    min-height: 20px;
+}
+
+.add-rotation-hint {
+    color: var(--ucdavis-black-60);
+    font-style: italic;
+    cursor: pointer;
+}
+
+.add-rotation-hint:hover {
+    color: var(--ucdavis-black-70);
+    text-decoration: underline;
+}
+
+.no-assignment {
+    color: var(--ucdavis-black-30);
+    font-style: italic;
+}
+
+.week-cell:hover .add-rotation-hint {
+    color: var(--ucdavis-blue-100);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .week-cell {
+        min-height: 100px;
+    }
+
+    .week-header {
+        padding: 3px;
+        font-size: 11px;
+    }
+
+    .rotation-item {
+        font-size: 12px;
+        padding: 2px 3px;
+    }
+}
+
+@media (max-width: 480px) {
+    .week-cell {
+        min-height: 80px;
+    }
+
+    .rotation-item {
+        font-size: 11px;
+    }
+}

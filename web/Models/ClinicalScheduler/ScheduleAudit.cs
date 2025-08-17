@@ -1,6 +1,4 @@
-using Viper.Models.VIPER;
-
-namespace Viper.Models.CTS
+namespace Viper.Models.ClinicalScheduler
 {
     public class ScheduleAudit
     {

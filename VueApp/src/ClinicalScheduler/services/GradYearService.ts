@@ -1,18 +1,18 @@
-// Academic Year Service for Clinical Scheduler
+// Grad Year Service for Clinical Scheduler
 import { useFetch } from '../../composables/ViperFetch'
 
-export interface AcademicYearData {
+export interface GradYearData {
     currentGradYear: number
     availableGradYears: number[]
 }
 
-export class AcademicYearService {
+export class GradYearService {
     private static readonly YEARS_URL = '/api/clinicalscheduler/rotations/years'
 
     /**
-     * Gets the current academic year and available years from the backend
+     * Gets the current grad year and available years from the backend
      */
-    static async getAcademicYearData(): Promise<AcademicYearData> {
+    static async getGradYearData(): Promise<GradYearData> {
         const { get } = useFetch()
         try {
             // Add cache busting parameter to force fresh data
@@ -26,7 +26,7 @@ export class AcademicYearService {
             }
             return result
         } catch (error) {
-            console.error('Error fetching academic year data:', error)
+            console.error('Error fetching grad year data:', error)
             return {
                 currentGradYear: new Date().getFullYear(),
                 availableGradYears: []
@@ -35,18 +35,18 @@ export class AcademicYearService {
     }
 
     /**
-     * Gets just the current academic year
+     * Gets just the current grad year
      */
-    static async getCurrentAcademicYear(): Promise<number> {
-        const result = await this.getAcademicYearData()
+    static async getCurrentGradYear(): Promise<number> {
+        const result = await this.getGradYearData()
         return result.currentGradYear ?? new Date().getFullYear()
     }
 
     /**
-     * Gets available academic years for dropdowns
+     * Gets available grad years for dropdowns
      */
     static async getAvailableYears(): Promise<number[]> {
-        const result = await this.getAcademicYearData()
+        const result = await this.getGradYearData()
         if (Array.isArray(result.availableGradYears) && result.availableGradYears.length > 0) {
             return result.availableGradYears
         }

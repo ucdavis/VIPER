@@ -6,14 +6,14 @@ using Viper.Classes.SQLContext;
 
 namespace Viper.test.ClinicalScheduler
 {
-    public class AcademicYearServiceTest
+    public class GradYearServiceTest
     {
-        private readonly Mock<ILogger<AcademicYearService>> _mockLogger;
+        private readonly Mock<ILogger<GradYearService>> _mockLogger;
         private readonly ClinicalSchedulerContext _context;
 
-        public AcademicYearServiceTest()
+        public GradYearServiceTest()
         {
-            _mockLogger = new Mock<ILogger<AcademicYearService>>();
+            _mockLogger = new Mock<ILogger<GradYearService>>();
 
             // Use in-memory database for testing
             var options = new DbContextOptionsBuilder<ClinicalSchedulerContext>()
@@ -23,34 +23,20 @@ namespace Viper.test.ClinicalScheduler
         }
 
         [Fact]
-        public void AcademicYearService_CanBeCreated()
+        public void GradYearService_CanBeCreated()
         {
             // Arrange & Act
-            var service = new AcademicYearService(_mockLogger.Object, _context);
+            var service = new GradYearService(_mockLogger.Object, _context);
 
             // Assert
             Assert.NotNull(service);
         }
 
         [Fact]
-        public void AcademicYearService_HasRequiredDependencies()
-        {
-            // Arrange & Act
-            var service = new AcademicYearService(_mockLogger.Object, _context);
-
-            // Assert
-            // Service should be created successfully with required dependencies
-            Assert.NotNull(service);
-
-            // Verify logger was passed correctly - logger shouldn't be called during construction
-            // Note: Cannot verify logger usage without specific method calls
-        }
-
-        [Fact]
-        public void AcademicYearService_HasCorrectPublicMethods()
+        public void GradYearService_HasCorrectPublicMethods()
         {
             // Arrange
-            var serviceType = typeof(AcademicYearService);
+            var serviceType = typeof(GradYearService);
 
             // Act
             var methods = serviceType.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
@@ -68,22 +54,13 @@ namespace Viper.test.ClinicalScheduler
         [InlineData(2026)]
         [InlineData(2025)]
         [InlineData(2024)]
-        public void AcademicYearService_ValidYears_ShouldBeAccepted(int year)
+        public void GradYearService_ValidYears_ShouldBeAccepted(int year)
         {
             // Arrange
-            _ = new AcademicYearService(_mockLogger.Object, _context);
+            _ = new GradYearService(_mockLogger.Object, _context);
 
             // Act & Assert
             Assert.True(year >= 2010 && year <= 2030); // Reasonable year range
-        }
-
-        [Fact]
-        public void AcademicYearService_Constructor_AcceptsValidParameters()
-        {
-            // Arrange & Act & Assert
-            // Service should be created successfully with valid parameters
-            var service = new AcademicYearService(_mockLogger.Object, _context);
-            Assert.NotNull(service);
         }
     }
 }
