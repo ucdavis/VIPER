@@ -10,7 +10,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
     [Route("api/[area]/[controller]")]
     [ApiController]
     [Area("ClinicalScheduler")]
-    [Permission(Allow = "SVMSecure.ClnSched")]
+    [Permission(Allow = ClinicalSchedulePermissions.Manage)]
     public class CliniciansController : BaseClinicalSchedulerController
     {
         #region Constants
@@ -108,118 +108,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
         }
 
-        /// <summary>
-        /// Get a count of clinicians with different filters
-        /// </summary>
-        /// <returns>Count of clinicians</returns>
-        [HttpGet("count")]
-        public async Task<IActionResult> GetCliniciansCount([FromQuery] bool includeAllAffiliates = false)
-        {
-            try
-            {
-                // Get clinician count from PersonService
-                var clinicians = await GetAllCliniciansAsync(includeAllAffiliates);
-
-                var count = clinicians.Count;
-                var source = includeAllAffiliates ? "Clinical Scheduler Data (3 years)" : "Clinical Scheduler Data (2 years)";
-
-                return Ok(new { count, source });
-            }
-            catch (Exception ex)
-            {
-                return HandleException(ex, "An error occurred while counting clinicians");
-            }
-        }
-
-        /// <summary>
-        /// Compare counts between current clinicians and all affiliates
-        /// </summary>
-        /// <returns>Comparison of clinician vs affiliate counts</returns>
-        [HttpGet("compare-counts")]
-        public async Task<IActionResult> CompareCounts()
-        {
-            try
-            {
-                // First check total count without any filters
-                var totalVwVmthClinicians = await _aaudContext.VwVmthClinicians.CountAsync();
-
-                // Count with just MothraId filter
-                var withMothraIdCount = await _aaudContext.VwVmthClinicians
-                    .Where(c => !string.IsNullOrEmpty(c.IdsMothraid))
-                    .CountAsync();
-
-                // Check what UserActive values exist
-                var userActiveValues = await _aaudContext.VwVmthClinicians
-                    .Select(c => c.UserActive)
-                    .Distinct()
-                    .ToListAsync();
-
-                // Count active clinicians from VwVmthClinician
-                var activeClinicianCount = await _aaudContext.VwVmthClinicians
-                    .Where(c => c.UserActive == "Y" && !string.IsNullOrEmpty(c.IdsMothraid))
-                    .CountAsync();
-
-                // Get unique MothraIds from active clinicians
-                var activeClinicians = await _aaudContext.VwVmthClinicians
-                    .Where(c => c.UserActive == "Y" && !string.IsNullOrEmpty(c.IdsMothraid))
-                    .Select(c => c.IdsMothraid)
-                    .Distinct()
-                    .ToListAsync();
-
-                // Count all affiliates from VwCurrentAffiliates
-                var allAffiliatesCount = await _aaudContext.VwCurrentAffiliates
-                    .Where(a => !string.IsNullOrEmpty(a.IdsMothraid))
-                    .CountAsync();
-
-                // Get unique MothraIds from all affiliates
-                var allAffiliates = await _aaudContext.VwCurrentAffiliates
-                    .Where(a => !string.IsNullOrEmpty(a.IdsMothraid))
-                    .Select(a => a.IdsMothraid)
-                    .Distinct()
-                    .ToListAsync();
-
-                // Count historically scheduled clinicians from past 2 years
-                var twoYearsAgo = DateTime.Now.AddYears(-2);
-                var historicalClinicians = await _context.InstructorSchedules
-                    .Include(i => i.Week)
-                    .Where(i => i.Week.DateStart >= twoYearsAgo)
-                    .Select(i => i.MothraId)
-                    .Distinct()
-                    .ToListAsync();
-
-                // Calculate the difference
-                var cliniciansNotInAffiliates = activeClinicians.Except(allAffiliates).ToList();
-                var affiliatesNotInClinicians = allAffiliates.Except(activeClinicians).ToList();
-
-                // Combined current approach (active + historical)
-                var currentApproachTotal = activeClinicians
-                    .Union(historicalClinicians)
-                    .Distinct()
-                    .Count();
-
-                return Ok(new
-                {
-                    TotalVwVmthClinicians = totalVwVmthClinicians,
-                    VwVmthCliniciansWithMothraId = withMothraIdCount,
-                    UserActiveValues = userActiveValues,
-                    ActiveCliniciansCount = activeClinicianCount,
-                    UniqueActiveCliniciansCount = activeClinicians.Count,
-                    AllAffiliatesCount = allAffiliatesCount,
-                    UniqueAffiliatesCount = allAffiliates.Count,
-                    HistoricalCliniciansCount = historicalClinicians.Count,
-                    CurrentApproachTotal = currentApproachTotal,
-                    AdditionalPeopleIfUsingAffiliates = allAffiliates.Count - currentApproachTotal,
-                    CliniciansNotInAffiliates = cliniciansNotInAffiliates.Count,
-                    AffiliatesNotInClinicians = affiliatesNotInClinicians.Count,
-                    SampleCliniciansNotInAffiliates = cliniciansNotInAffiliates.Take(5).ToList(),
-                    SampleAffiliatesNotInClinicians = affiliatesNotInClinicians.Take(5).ToList()
-                });
-            }
-            catch (Exception ex)
-            {
-                return HandleException(ex, "An error occurred while comparing counts");
-            }
-        }
 
         /// <summary>
         /// Get the schedule for a specific clinician
@@ -233,6 +121,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         public async Task<IActionResult> GetClinicianSchedule(string mothraId, [FromQuery] int? year = null)
         {
             var correlationId = HttpContext.TraceIdentifier ?? Guid.NewGuid().ToString();
+
             try
             {
                 // Use grad year logic instead of calendar year

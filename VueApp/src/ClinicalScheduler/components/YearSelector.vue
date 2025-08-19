@@ -40,12 +40,10 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-// Reactive state
 const availableYears = ref<number[]>([])
 const isLoading = ref(true) // Start with loading state to show skeleton
 const error = ref<string | null>(null)
 
-// Internal value for v-model binding with QSelect
 const internalValue = computed({
     get: () => props.modelValue,
     set: (value: number | null) => {
@@ -56,7 +54,6 @@ const internalValue = computed({
     }
 })
 
-// Transform years into QSelect options format
 const yearOptions = computed(() =>
     availableYears.value.map(year => ({
         label: year.toString(),
@@ -64,7 +61,6 @@ const yearOptions = computed(() =>
     }))
 )
 
-// Initialize component with grad year and available years
 const initializeYearSelector = async () => {
     isLoading.value = true
     error.value = null
@@ -78,9 +74,7 @@ const initializeYearSelector = async () => {
 
         availableYears.value = availableYearsList
 
-        // Initialize with current grad year if parent hasn't set a value (null)
         if (props.modelValue === null) {
-            // Parent wants us to initialize - set to grad year
             emit('update:modelValue', currentGradYear)
             emit('year-changed', currentGradYear)
         }
@@ -96,13 +90,11 @@ const initializeYearSelector = async () => {
         }
         availableYears.value = years
         
-        // Don't change the parent's year value on error - keep their preference
     } finally {
         isLoading.value = false
     }
 }
 
-// Initialize component
 onMounted(async () => {
     await initializeYearSelector()
 })
@@ -114,7 +106,6 @@ onMounted(async () => {
     font-weight: bold;
 }
 
-/* Override Quasar styles to match project theme */
 .year-selector :deep(.q-field__control) {
     color: var(--ucdavis-blue-100); /* UC Davis Aggie Blue */
 }

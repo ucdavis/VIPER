@@ -13,7 +13,8 @@
         //this is the service id that will be used to show the students on a service option type
         //if not provided, service studentOptionsType button will not be shown
         serviceId: {
-            type: Number
+            type: Number,
+            default: null
         },
         //pass in clear student to force clear the selected student (for example, if some change to the parent has made the selection invalid)
         clearStudent: {
@@ -22,7 +23,8 @@
         //the class years to show, or "all" to show all class years, or "active" to show class years with active students
         //if not provided, class year select will not be shown
         classYears: {
-            type: Array as PropType<string[]>
+            type: Array as PropType<string[]>,
+            default: () => []
         },
         //defines the behavior for the all students button. "active", "inactive", "all", or "hide".
         //defaults to active. if set to hide, the all button will not be shown.
@@ -36,11 +38,13 @@
         },
         //class levels to show, V1 to V4. if not provided, class level buttons will not be shown
         classLevel: {
-            type: Array as PropType<string[]>
+            type: Array as PropType<string[]>,
+            default: () => []
         },
         //if class levels are defined, this is the term that will be used to look up class level
         termCode: {
-            type: Number
+            type: Number,
+            default: null
         },
         //display options outlined and borderless
         outlined: {
@@ -52,22 +56,23 @@
             default: false
         },
         autoSelectStudent: {
-            type: Number
+            type: Number,
+            default: null
         }
     })
 
     //use our fetch wrapper
     const { get } = useFetch()
-    const baseUrl = import.meta.env.VITE_API_URL + "cts/"
     const studentsUrl = import.meta.env.VITE_API_URL + "students/"
+    const ctsUrl = import.meta.env.VITE_API_URL + "cts/"
     //TODO: get photos from localhost or test
     const photoBaseUrl = "https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid="
 
     //contains the students currently being shown in the select list
     const students = ref(null) as Ref<Student[] | null>
     //contains the students that are shown when all students is selected.
-    //if allStudents is "all" and statusToggle is true, contains both inactive and active students
-    const allStudents = ref([]) as Ref<Student[]>
+    //if allStudents prop is "all" and statusToggle is true, contains both inactive and active students
+    const allStudentsData = ref([]) as Ref<Student[]>
     //keep track of the students on the service, as well as the service id the students were loaded for
     const studentsOnService = ref([]) as Ref<Student[]>
     const studentsLoadedForServiceId = ref(0)
@@ -82,12 +87,10 @@
     const studentOptionsType = ref(props.selectedFilter)
     const studentOptions = ref([]) as Ref<{ label: string, value: string }[]>
     const loading = ref(false)
-    const borderless = ref(props.borderless)
-    const outlined = ref(props.outlined)
 
     //we will emit an event named 'studentChange' when the selected student is changed
     const emit = defineEmits(['studentChange'])
-    const handleStudentChange = (event: any) => {
+    const handleStudentChange = () => {
         emit('studentChange', selectedStudent.value?.personId ?? 0)
     }
 
@@ -182,23 +185,23 @@
     //get 'all' students - may include active, inactive, or both depending on props
     async function getAllStudents() {
         //cache allStudents - only load once
-        if (allStudents.value.length == 0) {
+        if (allStudentsData.value.length == 0) {
             let u = studentsUrl + "dvm"
             if (props.allStudents == "inactive" || props.allStudents == "all") {
                 u += "?includeAllClassYears=true"
             }
             loading.value = true
             const r = await get(u)
-            allStudents.value = r.result
+            allStudentsData.value = r.result
             loading.value = false
         }
         switch (studentOptionsType.value) {
             case "Active":
-                return allStudents.value.filter(s => s.currentClassYear && s.active)
+                return allStudentsData.value.filter(s => s.currentClassYear && s.active)
             case "Inactive":
-                return allStudents.value.filter(s => !s.currentClassYear || !s.active)
+                return allStudentsData.value.filter(s => !s.currentClassYear || !s.active)
             default:
-                return allStudents.value
+                return allStudentsData.value
         }
     }
 
@@ -207,7 +210,7 @@
         if (props.serviceId && props.serviceId != studentsLoadedForServiceId.value) {
             var d = new Date().toJSON().split("T")[0]
             loading.value = true
-            const r = await get(baseUrl + "clinicalschedule/student?serviceId=" + props.serviceId + "&startDate=" + d + "&endDate=" + d)
+            const r = await get(ctsUrl + `clinicalschedule/student?serviceId=${props.serviceId}&startDate=${d}&endDate=${d}`)
             studentsOnService.value = r.result
             studentsLoadedForServiceId.value = props.serviceId
             loading.value = false
@@ -231,7 +234,7 @@
     }
 
     //filter students - start with whatever student population is currently selected and then filter on name
-    function studentSearch(val: string, update: any, abort: any) {
+    function studentSearch(val: string, update: any) {
         if (students == null) {
             getStudents()
         }
@@ -254,8 +257,8 @@
         getStudents()
 
     })
-    watch(selectedStudent, (e) => {
-        handleStudentChange(e)
+    watch(selectedStudent, () => {
+        handleStudentChange()
     })
 
     setupFilterOptions()
@@ -263,34 +266,52 @@
 </script>
 
 <template>
-    <div class="row items-center">
-        <div class="col-auto">
-            <!--:outlined="selectedStudent == null" :borderless="selectedStudent != null" -->
-            <q-select dense options-dense clearable
-                      label="Student"
-                      v-model="selectedStudent"
-                      :options="students ?? []" option-label="lastName" option-value="personId"
-                      class="q-mr-md items-center"
-                      :loading="loading"
-                      :stack-label="false"
-                      :outlined="props.outlined"
-                      :borderless="props.borderless"
-                      use-input input-debounce="300" @filter="studentSearch">
-                <template v-slot:selected>
-                    {{ selectedStudent?.lastName }}{{ selectedStudent?.lastName?.length ? ',' : '' }} {{selectedStudent?.firstName}}
-                </template>
-                <template v-slot:after>
-                    <q-avatar v-show="selectedStudent?.mailId" rounded class="fit">
-                        <q-img :src="photoBaseUrl + selectedStudent?.mailId +'&altphoto=1'"
-                               class="smallPhoto rounded-borders" loading="eager" :no-spinner="true"></q-img>
-                    </q-avatar>
-                </template>
-                <template v-slot:no-option>
-                    <div class="q-pa-sm">No students found matching the filter</div>
-                </template>
-                <template v-slot:option="std">
-                    <q-item v-bind="std.itemProps">
-                        <!--
+  <div class="row items-center">
+    <div class="col-auto">
+      <!--:outlined="selectedStudent == null" :borderless="selectedStudent != null" -->
+      <q-select
+        dense
+        options-dense
+        clearable
+        label="Student"
+        v-model="selectedStudent"
+        :options="students ?? []"
+        option-label="lastName"
+        option-value="personId"
+        class="q-mr-md items-center"
+        :loading="loading"
+        :stack-label="false"
+        :outlined="props.outlined"
+        :borderless="props.borderless"
+        use-input
+        input-debounce="300"
+        @filter="studentSearch"
+      >
+        <template #selected>
+          {{ selectedStudent?.lastName }}{{ selectedStudent?.lastName?.length ? ',' : '' }} {{ selectedStudent?.firstName }}
+        </template>
+        <template #after>
+          <q-avatar
+            v-show="selectedStudent?.mailId"
+            rounded
+            class="fit"
+          >
+            <q-img
+              :src="photoBaseUrl + selectedStudent?.mailId +'&altphoto=1'"
+              class="smallPhoto rounded-borders"
+              loading="eager"
+              :no-spinner="true"
+            />
+          </q-avatar>
+        </template>
+        <template #no-option>
+          <div class="q-pa-sm">
+            No students found matching the filter
+          </div>
+        </template>
+        <template #option="std">
+          <q-item v-bind="std.itemProps">
+            <!--
                         <q-item-section avatar>
                             <q-avatar rounded>
                                 <q-img :src="photoBaseUrl + std.opt.mailId +'&altphoto=1'"
@@ -298,29 +319,56 @@
                             </q-avatar>
                         </q-item-section>
                         -->
-                        <q-item-section>
-                            <q-item-label>{{std.opt.lastName}}, {{std.opt.firstName}}</q-item-label>
-                        </q-item-section>
-                    </q-item>
-                </template>
-            </q-select>
-        </div>
-        <div class="col-auto">
-            <q-btn-toggle v-model="studentOptionsType" push toggle-color="primary" toggle-text-color="white" no-caps
-                          :options="studentOptions">
-                <template v-slot:class-of>
-                    <div class="row items-center no-wrap" v-if="studentOptionsType == 'Class of'">
-                        <!--v-if="studentOptionsType == 'Class of'"-->
-                        <q-select v-model="selectedClassYear" dense options-dense right
-                                  :options="classYearOptions" emit-value class="q-ml-sm q-py-none" input-class="q-py-none"
-                                  label-color="white" color="white" dark>
-                            <template v-if="selectedClassYear" v-slot:append>
-                                <q-icon name="cancel" @click.stop.prevent="selectedClassYear = null" class="cursor-pointer" size="sm" />
-                            </template>
-                        </q-select>
-                    </div>
-                </template>
-            </q-btn-toggle>
-        </div>
+            <q-item-section>
+              <q-item-label>{{ std.opt.lastName }}, {{ std.opt.firstName }}</q-item-label>
+            </q-item-section>
+          </q-item>
+        </template>
+      </q-select>
     </div>
+    <div class="col-auto">
+      <q-btn-toggle
+        v-model="studentOptionsType"
+        push
+        toggle-color="primary"
+        toggle-text-color="white"
+        no-caps
+        :options="studentOptions"
+      >
+        <template #class-of>
+          <div
+            class="row items-center no-wrap"
+            v-if="studentOptionsType == 'Class of'"
+          >
+            <!--v-if="studentOptionsType == 'Class of'"-->
+            <q-select
+              v-model="selectedClassYear"
+              dense
+              options-dense
+              right
+              :options="classYearOptions"
+              emit-value
+              class="q-ml-sm q-py-none"
+              input-class="q-py-none"
+              label-color="white"
+              color="white"
+              dark
+            >
+              <template
+                v-if="selectedClassYear"
+                #append
+              >
+                <q-icon
+                  name="cancel"
+                  @click.stop.prevent="selectedClassYear = null"
+                  class="cursor-pointer"
+                  size="sm"
+                />
+              </template>
+            </q-select>
+          </div>
+        </template>
+      </q-btn-toggle>
+    </div>
+  </div>
 </template>

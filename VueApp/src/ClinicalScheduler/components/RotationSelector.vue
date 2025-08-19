@@ -134,26 +134,16 @@ async function loadRotations() {
     }
     
     if (result.success) {
-      // Deduplicate by rotation name and filter out excluded names
-      const uniqueRotations = new Map<string, RotationWithService>()
-      
-      result.result.forEach(rotation => {
-        const rotationName = getRotationDisplayName(rotation)
-        // Skip if this rotation name is in the exclusion list
-        if (props.excludeRotationNames && props.excludeRotationNames.includes(rotationName)) {
-          return
-        }
-        // Keep only the first occurrence of each rotation name
-        if (!uniqueRotations.has(rotationName)) {
-          uniqueRotations.set(rotationName, rotation)
-        }
-      })
-      
-      const deduplicatedRotations = Array.from(uniqueRotations.values())
+      // Filter out excluded rotation names
+      const filteredResult = result.result
+        .filter(rotation => {
+          const rotationName = getRotationDisplayName(rotation)
+          return !props.excludeRotationNames || !props.excludeRotationNames.includes(rotationName)
+        })
         .sort((a, b) => getRotationDisplayName(a).localeCompare(getRotationDisplayName(b)))
       
-      rotations.value = deduplicatedRotations
-      filteredRotations.value = deduplicatedRotations
+      rotations.value = filteredResult
+      filteredRotations.value = filteredResult
     } else {
       error.value = result.errors.join(', ') || 'Failed to load rotations'
     }

@@ -27,7 +27,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
     }
 
     [Route("api/clinicalscheduler/rotations")]
-    [Permission(Allow = "SVMSecure.ClnSched")]
+    [Permission(Allow = ClinicalSchedulePermissions.Manage)]
     public class RotationsController : BaseClinicalSchedulerController
     {
         private readonly ClinicalSchedulerContext _context;
@@ -43,6 +43,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             _weekService = weekService;
             _rotationService = rotationService;
         }
+
 
 
 
@@ -164,7 +165,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<object>> GetRotationSchedule(int id, int? year = null)
+        public async Task<ActionResult<object>> GetRotationSchedule(int id, [FromQuery] int? year = null)
         {
             if (!ModelState.IsValid)
             {
@@ -179,7 +180,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
             try
             {
-                // Use grad year logic instead of calendar year
                 var targetYear = await GetTargetYearAsync(year);
                 _logger.LogInformation("Getting schedule for rotation {RotationId} for grad year {Year}", id, targetYear);
 
@@ -191,7 +191,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     return NotFound(new { error = "Rotation not found", rotationId = id });
                 }
 
-                // Get weeks for the grad year using vWeek view (contains correct week numbers)
+                // Get weeks for the target year using vWeek view (contains correct week numbers)
                 var vWeeks = await _weekService.GetWeeksAsync(targetYear, includeExtendedRotation: true);
 
                 if (!vWeeks.Any())
@@ -200,7 +200,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     return Ok(new
                     {
                         Rotation = BuildSimpleRotationResponse(rotation),
-                        GradYear = targetYear,
+                        AcademicYear = targetYear,
                         SchedulesBySemester = new List<object>()
                     });
                 }
@@ -209,11 +209,24 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 // Filter by weeks that belong to the target grad year
                 var weekIds = vWeeks.Select(w => w.WeekId).ToList();
 
-                // DistinctBy InstructorScheduleId approach like ColdFusion SELECT DISTINCT
+                // Get schedules for the selected year (for the week grid)
                 var allInstructorSchedules = await _context.InstructorSchedules
                     .AsNoTracking()
                     .Include(i => i.Week)
                     .Where(i => i.RotationId == id && weekIds.Contains(i.WeekId))
+                    .ToListAsync();
+
+                // Get clinicians from current and previous year for the "Recent Clinicians" list
+                var previousYear = targetYear - 1;
+                var previousYearWeeks = await _weekService.GetWeeksAsync(previousYear, includeExtendedRotation: true);
+                var allYearWeekIds = weekIds.Concat(previousYearWeeks.Select(w => w.WeekId)).ToList();
+
+                var recentClinicians = await _context.InstructorSchedules
+                    .AsNoTracking()
+                    .Include(i => i.Week)
+                    .Where(i => i.RotationId == id && allYearWeekIds.Contains(i.WeekId))
+                    .Select(i => new { i.MothraId, i.Week.DateStart })
+                    .Distinct()
                     .ToListAsync();
 
                 var baseInstructorSchedules = allInstructorSchedules
@@ -224,11 +237,16 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 _logger.LogInformation("Retrieved {AllCount} total, {DistinctCount} after DistinctBy(InstructorScheduleId)", allInstructorSchedules.Count, baseInstructorSchedules.Count);
 
-                // Get unique MothraIds and fetch person data
+                // Get unique MothraIds for schedules (selected year) and fetch person data
                 var uniqueMothraIds = baseInstructorSchedules.Select(i => i.MothraId).Distinct().ToList();
+
+                // Get unique MothraIds for recent clinicians (current + previous year) and fetch person data
+                var recentClinicianMothraIds = recentClinicians.Select(c => c.MothraId).Distinct().ToList();
+                var allMothraIds = uniqueMothraIds.Concat(recentClinicianMothraIds).Distinct().ToList();
+
                 var personData = await _context.Persons
                     .AsNoTracking()
-                    .Where(p => uniqueMothraIds.Contains(p.IdsMothraId))
+                    .Where(p => allMothraIds.Contains(p.IdsMothraId))
                     .ToDictionaryAsync(p => p.IdsMothraId, p => p);
 
                 // Deduplicate weeks and pre-calculate semester names for all weeks
@@ -288,14 +306,25 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     .Cast<object>()
                     .ToList();
 
-                _logger.LogInformation("Retrieved schedule for rotation {RotationName} (grad year {Year}) grouped into {SemesterCount} semesters",
-                    rotation.Name, targetYear, groupedSchedules.Count);
+                // Build recent clinicians list with names
+                var recentCliniciansList = recentClinicianMothraIds
+                    .Select(mothraId => new
+                    {
+                        mothraId = mothraId,
+                        fullName = personData.ContainsKey(mothraId) ? personData[mothraId].PersonDisplayFullName : $"Clinician {mothraId}"
+                    })
+                    .OrderBy(c => c.fullName)
+                    .ToList();
+
+                _logger.LogInformation("Retrieved schedule for rotation {RotationName} (grad year {Year}) grouped into {SemesterCount} semesters, {RecentClinicianCount} recent clinicians",
+                    rotation.Name, targetYear, groupedSchedules.Count, recentCliniciansList.Count);
 
                 return Ok(new
                 {
-                    Rotation = BuildSimpleRotationResponse(rotation),
-                    AcademicYear = targetYear,
-                    SchedulesBySemester = groupedSchedules
+                    rotation = BuildSimpleRotationResponse(rotation),
+                    gradYear = targetYear,
+                    schedulesBySemester = groupedSchedules,
+                    recentClinicians = recentCliniciansList
                 });
             }
             catch (Exception ex)

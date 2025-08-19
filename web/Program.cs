@@ -184,11 +184,13 @@ try
     });
     builder.Services.AddDbContext<ClinicalSchedulerContext>();
 
-    // Clinical Scheduler services - use interface-based dependency injection following SOLID principles
+    // Clinical Scheduler services
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IGradYearService, Viper.Areas.ClinicalScheduler.Services.GradYearService>();
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IWeekService, Viper.Areas.ClinicalScheduler.Services.WeekService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IPersonService, Viper.Areas.ClinicalScheduler.Services.PersonService>();   // Phase 2.1
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IRotationService, Viper.Areas.ClinicalScheduler.Services.RotationService>(); // Phase 2.2
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IPersonService, Viper.Areas.ClinicalScheduler.Services.PersonService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IRotationService, Viper.Areas.ClinicalScheduler.Services.RotationService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IClinicalScheduleSecurityService, Viper.Areas.ClinicalScheduler.Services.ClinicalScheduleSecurityService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IClinicalScheduleService, Viper.Areas.ClinicalScheduler.Services.ClinicalScheduleService>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
@@ -372,7 +374,7 @@ try
     });
 
     // Static file serving configuration
-    // Serve built Vue files - in development proxy middleware runs first, 
+    // Serve built Vue files - in development proxy middleware runs first,
     // in production these files are served directly
     app.UseStaticFiles(new StaticFileOptions
     {
@@ -412,7 +414,9 @@ try
     // Setup the memory cache so we can use it via a simple static method
     HttpHelper.Configure(app.Services.GetService<IMemoryCache>(), app.Services.GetService<IConfiguration>(), app.Environment, app.Services.GetService<IHttpContextAccessor>(), app.Services.GetService<IAuthorizationService>(), app.Services.GetService<IDataProtectionProvider>());
 
+#pragma warning disable S6966 // app.Run() is appropriate for main entry point, not app.RunAsync()
     app.Run();
+#pragma warning restore S6966
 }
 catch (Exception exception)
 {
@@ -463,6 +467,7 @@ void SetAwsCredentials(Logger logger)
         }
         catch (Exception ex)
         {
+            logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
             logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
         }
     }
