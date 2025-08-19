@@ -129,7 +129,7 @@
                         body: JSON.stringify(this.epaServices),
                         headers: { "Content-Type": "application/json" }
                     })
-                    
+
                     //reload
                     this.getEpas()
                 },
@@ -146,7 +146,6 @@
                 getServices: async function () {
                     viperFetch(this, "clinicalservices")
                         .then(data => this.services = data.map(d => ({ label: d.serviceName, value: d.serviceId })))
-                    //var scheduledServices = viperFetch(this, "clinicalschedule/instructor?mothraId=" + this.userId)
                 }
             },
             mounted: async function () {

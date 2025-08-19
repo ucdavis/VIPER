@@ -63,7 +63,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Assert
             Assert.NotNull(permissionAttribute);
-            Assert.Equal("SVMSecure.ClnSched", permissionAttribute.Allow);
+            Assert.Equal(ClinicalSchedulePermissions.Manage, permissionAttribute.Allow);
         }
 
         [Fact]

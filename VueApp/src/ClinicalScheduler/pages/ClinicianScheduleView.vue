@@ -1,152 +1,134 @@
 <template>
-  <div class="clinical-scheduler-container q-pa-md q-pa-lg-gt-xs">
-    <div class="navigation-bar q-mb-md">
-      <router-link
-        to="/ClinicalScheduler/"
-        class="nav-link"
-      >
-        Home
-      </router-link>
-      <span class="nav-divider">|</span>
-      <router-link
-        to="/ClinicalScheduler/rotation"
-        class="nav-link"
-      >
-        Schedule by Rotation
-      </router-link>
-      <span class="nav-divider">|</span>
-      <span class="nav-link active">Schedule by Clinician</span>
-    </div>
+  <div class="clinical-scheduler-container">
+    <SchedulerNavigation />
 
-    <h2>
-      Schedule for
-      <ClinicianSelector
-        v-model="selectedClinician"
-        :year="currentYear"
-        :include-all-affiliates="includeAllAffiliates"
-        @update:include-all-affiliates="includeAllAffiliates = $event"
-        @change="onClinicianChange"
-        @clinicians-loaded="handleClinicianSelectorReady"
-        :is-past-year="isPastYear"
-        class="ms-3 clinician-selector"
-      />
-      <YearSelector
-        v-model="currentYear"
-        @year-changed="onYearChange"
-        class="ms-3"
-      />
-    </h2>
+    <div class="row items-center q-mb-md">
+      <h2 class="col-auto q-pr-sm">
+        Schedule Rotations for
+      </h2>
+      <div class="col-auto">
+        <ClinicianSelector
+          v-model="selectedClinician"
+          :year="currentYear"
+          :include-all-affiliates="includeAllAffiliates"
+          @update:include-all-affiliates="includeAllAffiliates = $event"
+          @change="onClinicianChange"
+          @clinicians-loaded="handleClinicianSelectorReady"
+          :is-past-year="isPastYear"
+          style="min-width: 300px;"
+        />
+      </div>
+      <div class="col-auto">
+        <YearSelector
+          v-model="currentYear"
+          @year-changed="onYearChange"
+          style="min-width: 120px;"
+        />
+      </div>
+    </div>
 
     <!-- Helper message for clinicians with no assignments - moved to top -->
-    <q-banner
+    <ScheduleBanner
       v-if="selectedClinician && hasNoAssignments"
-      class="text-dark bg-amber-2 q-mb-md"
-      rounded
-    >
-      <template #avatar>
-        <q-icon name="info" />
-      </template>
-      <strong>{{ selectedClinician?.fullName || 'This clinician' }} has no rotation assignments for {{ currentYear }}.</strong>
-    </q-banner>
+      type="no-entries"
+      :custom-message="`${selectedClinician?.fullName || 'This clinician'} has no rotation assignments for ${currentYear}.`"
+    />
 
     <!-- Read-only notice for past years -->
-    <q-banner
+    <ScheduleBanner
       v-if="isPastYear"
-      class="text-dark bg-info q-mb-md"
-      rounded
-    >
-      <template #avatar>
-        <q-icon name="book" />
-      </template>
-      <strong>Read-Only Mode:</strong> You are viewing historical schedule data for {{ currentYear }}. Past schedules cannot be edited.
-    </q-banner>
+      type="read-only"
+    />
 
     <!-- Instructions (only show when clinician is selected and not past year) -->
-    <div
+    <ScheduleBanner
       v-if="selectedClinician && !isPastYear"
-      class="instructions"
-    >
-      <p>This list of rotations should contain any rotations this clinician is scheduled for in the current or previous year.</p>
-      <p>
-        Click on a rotation to select it and then click on any week to schedule the clinician.
-      </p>
-    </div>
+      type="instructions"
+      custom-message="This list of rotations should contain any rotations this clinician is scheduled for in the current or previous year. Click on a rotation to select it and then click on any week to schedule the clinician."
+    />
 
     <!-- Loading state -->
     <div
       v-if="loadingSchedule"
-      class="text-center my-5"
+      class="text-center q-my-lg"
     >
-      <div
-        class="spinner-border text-primary"
-        role="status"
-      >
-        <span class="visually-hidden">Loading schedule...</span>
-      </div>
-      <p class="mt-2">
+      <q-spinner-dots
+        size="3rem"
+        color="primary"
+      />
+      <div class="q-mt-md text-body1">
         Loading schedule...
-      </p>
+      </div>
     </div>
 
     <!-- Error state -->
-    <q-banner
+    <ScheduleBanner
       v-else-if="scheduleError"
-      class="text-white bg-negative q-mb-md"
-      rounded
-    >
-      <template #avatar>
-        <q-icon name="error" />
-      </template>
-      <strong>Error:</strong> {{ scheduleError }}
-    </q-banner>
+      type="error"
+      :error-message="scheduleError"
+    />
 
     <!-- No clinician selected -->
-    <q-banner
+    <ScheduleBanner
       v-else-if="!selectedClinician"
-      class="text-dark bg-blue-grey-2 q-mb-md"
-      rounded
-    >
-      <template #avatar>
-        <q-icon name="person_search" />
-      </template>
-      Please select a clinician to view their schedule.
-    </q-banner>
+      type="info"
+      custom-message="Please select a clinician to view their schedule."
+    />
 
     <!-- Schedule display -->
     <div v-else-if="clinicianSchedule">
       <!-- Rotation selector section (only show when not past year) -->
-      <div
+      <q-card
         v-if="!isPastYear"
-        class="rotation-selector-section"
+        class="q-mb-lg"
+        flat
+        bordered
       >
-        <div class="rotation-buttons">
-          <button
-            v-for="rotation in clinicianRotations"
-            :key="rotation.rotId"
-            class="rotation-btn"
-            :class="{ selected: selectedRotation?.rotId === rotation.rotId }"
-            @click="selectRotation(rotation)"
-          >
-            {{ rotation.rotationName }}
-          </button>
-        </div>
-        <div
-          v-if="!isPastYear"
-          class="add-rotation-wrapper"
-        >
-          <q-icon
-            name="add_circle"
-            class="add-rotation-icon"
-            aria-label="Add new rotation"
-          />
-          <RotationSelector
-            v-model="selectedNewRotationId"
-            :exclude-rotation-names="assignedRotationNames"
-            @rotation-selected="onAddRotationSelected"
-            class="rotation-dropdown rotation-selector-dropdown"
-          />
-        </div>
-      </div>
+        <q-card-section>
+          <div class="row items-center q-gutter-md">
+            <div class="col-auto">
+              <div class="text-subtitle2 q-mb-sm">
+                Available Rotations:
+              </div>
+              <div class="q-gutter-xs">
+                <q-btn
+                  v-for="rotation in clinicianRotations"
+                  :key="rotation.rotId"
+                  :color="selectedRotation?.rotId === rotation.rotId ? 'positive' : 'grey-4'"
+                  :text-color="selectedRotation?.rotId === rotation.rotId ? 'white' : 'dark'"
+                  :outline="selectedRotation?.rotId === rotation.rotId"
+                  size="sm"
+                  @click="selectRotation(rotation)"
+                >
+                  {{ rotation.rotationName }}
+                </q-btn>
+              </div>
+            </div>
+
+            <q-separator vertical />
+
+            <div class="col-auto">
+              <div class="text-subtitle2 q-mb-sm">
+                Add New Rotation:
+              </div>
+              <div class="row items-center q-gutter-sm">
+                <q-icon
+                  name="add_circle"
+                  color="primary"
+                  size="md"
+                  aria-label="Add new rotation"
+                />
+                <RotationSelector
+                  v-model="selectedNewRotationId"
+                  :exclude-rotation-names="assignedRotationNames"
+                  @rotation-selected="onAddRotationSelected"
+                  style="min-width: 200px"
+                />
+              </div>
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
 
       <!-- Schedule by semester -->
       <div
@@ -157,65 +139,70 @@
 
         <!-- Week grid -->
         <div class="row q-gutter-md q-mb-lg">
-          <div
+          <WeekScheduleCard
             v-for="week in semester.weeks"
             :key="week.weekId"
-            class="col-xs-12 col-sm-6 col-md-4 col-lg-2 week-cell"
-            @click="onWeekClick(week)"
+            :week="week"
+            :is-past-year="isPastYear"
+            :additional-classes="''"
+            @click="onWeekClick"
           >
-            <div class="week-header">
-              Week {{ week.weekNumber }}<br>
-              {{ formatDate(week.dateStart) }}
-            </div>
-            <div class="rotation-list">
+            <template #assignments="{ week: weekItem }">
               <div
-                v-if="week.rotation"
-                class="rotation-item"
+                v-if="weekItem.rotation"
+                class="rotation-assignment"
               >
-                <q-icon
-                  v-if="!isPastYear"
-                  name="close"
-                  size="xs"
-                  color="negative"
-                  class="remove-btn"
-                  aria-label="Remove rotation from schedule"
-                  @click.stop="removeRotation()"
-                />
-                <span>{{ week.rotation.rotationName }}</span>
-                <q-icon
-                  v-if="!isPastYear"
-                  :name="week.isPrimaryEvaluator ? 'star' : 'star_outline'"
-                  size="xs"
-                  :color="week.isPrimaryEvaluator ? 'amber' : 'grey-8'"
-                  class="primary-star"
-                  :class="{ filled: week.isPrimaryEvaluator }"
-                  :title="week.isPrimaryEvaluator ? 'Primary evaluator. To transfer primary status, click the star on another clinician.' : 'Click to make this clinician the primary evaluator.'"
-                  :aria-label="week.isPrimaryEvaluator ? 'Primary evaluator - click to transfer to another clinician' : 'Click to make this clinician the primary evaluator'"
-                  @click.stop="togglePrimary()"
-                />
-                <q-icon
-                  v-else-if="week.isPrimaryEvaluator"
-                  name="star"
-                  size="xs"
-                  color="amber"
-                  class="primary-star filled"
-                  title="Primary evaluator"
-                />
+                <div class="row items-center q-gutter-xs">
+                  <q-icon
+                    v-if="!isPastYear"
+                    name="close"
+                    size="xs"
+                    color="negative"
+                    class="cursor-pointer"
+                    aria-label="Remove rotation from schedule"
+                    @click.stop="removeRotation()"
+                  />
+                  <span class="col text-body2">{{ weekItem.rotation.rotationName }}</span>
+                  <q-icon
+                    v-if="!isPastYear"
+                    :name="weekItem.isPrimaryEvaluator ? 'star' : 'star_outline'"
+                    size="xs"
+                    :color="weekItem.isPrimaryEvaluator ? 'amber' : 'grey-5'"
+                    class="cursor-pointer"
+                    :title="weekItem.isPrimaryEvaluator ? 'Primary evaluator. To transfer primary status, click the star on another clinician.' : 'Click to make this clinician the primary evaluator.'"
+                    :aria-label="weekItem.isPrimaryEvaluator ? 'Primary evaluator - click to transfer to another clinician' : 'Click to make this clinician the primary evaluator'"
+                    @click.stop="togglePrimary()"
+                  />
+                  <q-icon
+                    v-else-if="weekItem.isPrimaryEvaluator"
+                    name="star"
+                    size="xs"
+                    color="amber"
+                    title="Primary evaluator"
+                    aria-label="Primary evaluator"
+                  />
+                </div>
               </div>
-              <div
-                v-else-if="!isPastYear"
-                class="empty-week"
-              >
-                <span class="add-rotation-hint">Click to add rotation</span>
-              </div>
+
               <div
                 v-else
-                class="empty-week"
+                class="text-center q-py-sm"
               >
-                <span class="no-assignment">No assignment</span>
+                <div
+                  v-if="!isPastYear"
+                  class="text-grey-6 text-caption cursor-pointer"
+                >
+                  Click to add rotation
+                </div>
+                <div
+                  v-else
+                  class="text-grey-5 text-caption"
+                >
+                  No assignment
+                </div>
               </div>
-            </div>
-          </div>
+            </template>
+          </WeekScheduleCard>
         </div>
       </div>
     </div>
@@ -232,7 +219,13 @@ import ClinicianSelector from '../components/ClinicianSelector.vue'
 import YearSelector from '../components/YearSelector.vue'
 import ScheduleLegend from '../components/ScheduleLegend.vue'
 import RotationSelector from '../components/RotationSelector.vue'
+import SchedulerNavigation from '../components/SchedulerNavigation.vue'
+import WeekScheduleCard, { type WeekItem } from '../components/WeekScheduleCard.vue'
 import { ClinicianService, type Clinician, type ClinicianScheduleData } from '../services/ClinicianService'
+
+
+
+import ScheduleBanner from '../components/ScheduleBanner.vue'
 
 
 
@@ -268,6 +261,7 @@ const schedulesBySemester = computed(() => {
 const assignedRotationNames = computed(() => {
     if (!clinicianRotations.value) return []
 
+
     return clinicianRotations.value
         .map((r: any) => r.rotationName)
         .filter((name: string) => name) // Filter out any null/undefined names
@@ -277,9 +271,9 @@ const assignedRotationNames = computed(() => {
 const hasNoAssignments = computed(() => {
     // Don't show "no assignments" message while still loading
     if (loadingSchedule.value) return false
-    
+
     if (!schedulesBySemester.value) return false
-    
+
     // If no semesters/weeks at all, that means no assignments
     if (schedulesBySemester.value.length === 0) return true
 
@@ -400,9 +394,11 @@ const loadClinicianFromUrl = async () => {
         const decodedMothraId = decodeURIComponent(mothraId)
         urlMothraId.value = decodedMothraId
 
+
         // Load the schedule immediately to show data
         try {
             await fetchClinicianSchedule(decodedMothraId)
+
 
             // If we have schedule data but no selectedClinician, create one from schedule data
             if (clinicianSchedule.value && clinicianSchedule.value.clinician && !selectedClinician.value) {
@@ -438,7 +434,7 @@ const selectRotation = (rotation: any) => {
     selectedRotation.value = rotation
 }
 
-const onWeekClick = (week: any) => {
+const onWeekClick = (week: WeekItem) => {
     if (isPastYear.value) return // No editing for past years
 
     if (week.rotation) {
@@ -458,10 +454,6 @@ const togglePrimary = () => {
     // Toggle primary evaluator functionality will be implemented here
 }
 
-const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear().toString().slice(-2)}`
-}
 
 const onAddRotationSelected = (rotation: any) => {
     if (rotation) {
@@ -504,314 +496,4 @@ watch(() => route.params.mothraId, (newMothraId) => {
 <style scoped>
 /* Import shared schedule styles */
 @import '../assets/schedule-shared.css';
-
-/* Override shared styles for ClinicianScheduleView specific styling */
-.clinical-scheduler-container {
-    padding: 20px;
-    font-family: Arial, sans-serif;
-}
-
-.navigation-bar {
-    padding: 10px;
-    background-color: var(--ucdavis-black-10);
-    border-radius: 5px;
-}
-
-.nav-link {
-    color: #0066cc;
-    text-decoration: none;
-    padding: 5px 10px;
-}
-
-.nav-link:hover {
-    text-decoration: underline;
-}
-
-.nav-link.active {
-    font-weight: bold;
-    color: var(--ucdavis-blue-100);
-}
-
-.nav-divider {
-    margin: 0 10px;
-    color: var(--ucdavis-black-40);
-}
-
-h2 {
-    color: var(--ucdavis-blue-100);
-    font-size: 20px;
-    margin-bottom: 15px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.instructions {
-    background-color: #f5f5f5;
-    padding: 10px;
-    margin-bottom: 15px;
-    font-size: 13px;
-}
-
-.instructions p {
-    margin: 5px 0;
-}
-
-.rotation-selector-section {
-    margin-bottom: 20px;
-    padding: 15px;
-    background-color: #f9f9f9;
-    border: 1px solid #ddd;
-}
-
-.rotation-buttons {
-    display: inline-block;
-    margin-right: 20px;
-}
-
-.rotation-btn {
-    padding: 5px 10px;
-    margin: 2px;
-    background-color: #fff;
-    border: 1px solid var(--ucdavis-black-20);
-    cursor: pointer;
-    font-size: 13px;
-}
-
-.rotation-btn:hover {
-    background-color: #e0e0e0;
-}
-
-.rotation-btn.selected {
-    background-color: #4CAF50;
-    color: white;
-    border-color: #4CAF50;
-}
-
-.rotation-dropdown {
-    padding: 5px;
-    min-width: 150px;
-    vertical-align: middle;
-}
-
-.add-rotation-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.add-rotation-icon {
-    color: #1976d2;
-    font-size: 20px;
-}
-
-.action-notes {
-    font-size: 12px;
-    color: var(--ucdavis-black-60);
-    margin-bottom: 15px;
-}
-
-.action-notes p {
-    margin: 3px 0;
-}
-
-h3 {
-    color: var(--ucdavis-black-80);
-    font-size: 16px;
-    margin-top: 20px;
-    margin-bottom: 10px;
-}
-
-/* Week grid now uses Quasar row/col system - no custom CSS needed */
-
-.week-cell {
-    border: 1px solid var(--ucdavis-black-20);
-    min-height: 120px;
-    background-color: #fff;
-    cursor: pointer;
-    position: relative;
-}
-
-.week-cell:hover {
-    background-color: #f9f9f9;
-}
-
-.week-header {
-    background-color: #e0e0e0;
-    padding: 5px;
-    font-weight: bold;
-    font-size: 12px;
-    text-align: center;
-    border-bottom: 1px solid var(--ucdavis-black-20);
-}
-
-.rotation-list {
-    padding: 5px;
-}
-
-.rotation-item {
-    display: flex;
-    align-items: center;
-    padding: 3px 5px;
-    margin: 2px 0;
-    font-size: 13px;
-    border: 1px solid transparent;
-}
-
-.remove-btn {
-    color: #ff0000;
-    font-weight: bold;
-    margin-right: 5px;
-    cursor: pointer;
-    font-size: 12px;
-}
-
-.primary-star {
-    margin-left: auto;
-    color: #000;
-    font-size: 16px;
-    cursor: pointer;
-}
-
-.primary-star.filled {
-    color: #ffd700;
-}
-
-.schedule-note {
-    margin-top: 20px;
-    font-size: 11px;
-    color: var(--ucdavis-black-40);
-    font-style: italic;
-}
-
-.spinner-border {
-    width: 3rem;
-    height: 3rem;
-}
-
-/* Clinician selection styles */
-.clinician-selector {
-    min-width: 400px;
-}
-
-.rotation-selector-dropdown {
-    min-width: 200px;
-}
-
-/* Legend styles */
-.legend {
-    margin-top: 30px;
-    padding: 15px;
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 5px;
-}
-
-.legend h4 {
-    color: var(--ucdavis-black-80);
-    font-size: 16px;
-    margin-bottom: 10px;
-}
-
-.legend ul {
-    list-style: none;
-    padding-left: 0;
-    margin: 0;
-}
-
-.legend li {
-    margin-bottom: 8px;
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-}
-
-.icon-demo {
-    display: inline-block;
-    margin-right: 8px;
-    font-size: 14px;
-    width: 16px;
-    text-align: center;
-}
-
-.icon-demo.remove-icon {
-    color: #ff0000;
-    font-weight: bold;
-}
-
-.icon-demo.primary-icon {
-    color: #ffd700;
-    font-size: 16px;
-}
-
-
-/* Removed custom alert styles - now using Quasar QBanner components */
-
-.no-schedule-message {
-    text-align: center;
-    padding: 40px 20px;
-    background-color: #f8f9fa;
-    border: 2px dashed #dee2e6;
-    border-radius: 8px;
-    margin: 20px 0;
-}
-
-.no-schedule-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-}
-
-.no-schedule-message h4 {
-    color: #495057;
-    margin-bottom: 12px;
-    font-size: 18px;
-}
-
-.no-schedule-message p {
-    color: #6c757d;
-    margin-bottom: 8px;
-    font-size: 14px;
-}
-
-.no-schedule-message .suggestion {
-    background-color: #e8f5e8;
-    padding: 12px;
-    border-radius: 4px;
-    border-left: 4px solid #28a745;
-    margin: 16px 0;
-    color: #155724;
-}
-
-.no-schedule-message .historical-note {
-    font-style: italic;
-    color: #868e96;
-}
-
-
-.empty-week {
-    padding: 8px 5px;
-    text-align: center;
-    font-size: 12px;
-    min-height: 20px;
-}
-
-.add-rotation-hint {
-    color: #6c757d;
-    font-style: italic;
-    cursor: pointer;
-}
-
-.add-rotation-hint:hover {
-    color: #495057;
-    text-decoration: underline;
-}
-
-.no-assignment {
-    color: #adb5bd;
-    font-style: italic;
-}
-
-.week-cell:hover .add-rotation-hint {
-    color: #007bff;
-}
 </style>

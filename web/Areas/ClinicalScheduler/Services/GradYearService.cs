@@ -71,29 +71,29 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
         /// <summary>
         /// Calculates the current graduation year based on UC Davis School of Veterinary Medicine calendar
-        /// 
+        ///
         /// UC Davis Veterinary School uses a semester system:
-        /// 
+        ///
         /// Years 1-3: Two semesters per year
-        /// - Fall semester: starts in August  
+        /// - Fall semester: starts in August
         /// - Spring semester: ends in late May
-        /// 
+        ///
         /// Year 4: Three semesters (year-round clinical training)
         /// - Summer semester: begins in June/July
         /// - Fall semester: continues from August
         /// - Spring semester: ends with graduation in late May
-        /// 
+        ///
         /// This Clinical Scheduler is primarily for Year 4 students doing clinical rotations
         /// under clinician supervision. The grad year represents when students will graduate.
-        /// 
+        ///
         /// Calculation logic:
         /// - August-December: Students are in grad year that graduates next May
         /// - January-July: Students are in grad year that graduates this May
-        /// 
+        ///
         /// Examples:
         /// - August 2024: grad year is 2025 (will graduate May 2025)
         /// - January 2025: grad year is 2025 (will graduate May 2025)
-        /// 
+        ///
         /// Note: Year 4 summer semester starts before August, but this calculation
         /// focuses on the graduation year rather than semester transitions.
         /// </summary>
