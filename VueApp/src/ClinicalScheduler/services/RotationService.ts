@@ -82,6 +82,11 @@ export interface SemesterSchedule {
     weeks: WeekWithSchedules[]
 }
 
+export interface RecentClinician {
+    mothraId: string
+    fullName: string
+}
+
 export interface RotationScheduleData {
     rotation: {
         rotId: number
@@ -95,6 +100,7 @@ export interface RotationScheduleData {
     } | null
     gradYear: number
     schedulesBySemester: SemesterSchedule[]
+    recentClinicians?: RecentClinician[]
 }
 
 export class RotationService {
