@@ -1,76 +1,31 @@
 #!/usr/bin/env node
 
-const { spawnSync } = require('child_process');
 const path = require('path');
-const fs = require('fs');
+const { 
+  parseArguments, 
+  sanitizeFilePath, 
+  runCommand, 
+  createSummaryReporter,
+  shouldBlockOnWarnings
+} = require('./lib/lint-staged-common');
+const { 
+  categorizeRule 
+} = require('./lib/critical-rules');
 
-// Platform-specific constants
-const IS_WINDOWS = process.platform === 'win32';
-
-// Check if --fix flag is present
-const fixFlag = process.argv.includes('--fix');
-
-// Get the files passed by lint-staged (excluding --fix if present)
-const rawFiles = process.argv.slice(2).filter(arg => arg !== '--fix');
+// Parse command line arguments
+const { fixFlag, rawFiles } = parseArguments();
 
 if (rawFiles.length === 0) {
   process.exit(0);
 }
 
-// VueApp directory path (where ESLint config is located)
-const vueAppDir = path.join(__dirname, '..', 'VueApp');
+// Project root directory path
+const projectRoot = path.join(__dirname, '..');
 
-// Sanitize and validate file paths
-function sanitizeFilePath(filePath) {
-  // Handle Windows paths passed by lint-staged
-  let normalizedPath = filePath;
-
-  if (IS_WINDOWS && /^[A-Za-z]:[\\/]/.test(filePath)) {
-    normalizedPath = filePath.replace(/\//g, path.sep);
-  }
-
-  // Normalize the path
-  normalizedPath = path.normalize(normalizedPath);
-
-  // Resolve to absolute path
-  const resolvedPath = path.resolve(normalizedPath);
-  const projectRoot = path.resolve(__dirname, '..');
-
-  // Ensure file is within project directory using path.relative (more secure than startsWith)
-  const relativePath = path.relative(projectRoot, resolvedPath);
-  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
-    throw new Error(`File outside project directory: ${filePath}`);
-  }
-
-  // Ensure it's a .cshtml file
-  if (!resolvedPath.toLowerCase().endsWith('.cshtml')) {
-    throw new Error(`File is not a .cshtml file: ${filePath}`);
-  }
-
-  // Check if file exists
-  if (!fs.existsSync(resolvedPath)) {
-    return null;
-  }
-
-  // Check file size to prevent DoS attacks (limit to 5MB)
-  const MAX_FILE_SIZE_MB = 5;
-  const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-  let stats;
-  try {
-    stats = fs.statSync(resolvedPath);
-  } catch (err) {
-    return null;
-  }
-  
-  if (stats.size > MAX_FILE_SIZE_BYTES) {
-    throw new Error(`File too large (${Math.round(stats.size / 1024 / 1024)}MB > ${MAX_FILE_SIZE_MB}MB): ${filePath}`);
-  }
-
-  return resolvedPath;
-}
-
-// Sanitize all file paths and filter out null results
-const files = rawFiles.map(sanitizeFilePath).filter(file => file !== null);
+// Sanitize all file paths and filter out null results (missing files)
+const files = rawFiles
+  .map(filePath => sanitizeFilePath(filePath, projectRoot, ['.cshtml']))
+  .filter(file => file !== null);
 
 // Function to analyze ESLint output and separate security vs quality issues
 function analyzeESLintOutput(stdout, stderr) {
@@ -107,13 +62,10 @@ function analyzeESLintOutput(stdout, stderr) {
         rule: message.ruleId || 'unknown'
       };
       
-      // Only treat actual security-related rules as security issues
-      // Don't use severity level since many non-security rules can be errors
-      const isSecurityRule = issue.rule.startsWith('security/') || 
-                           issue.rule === 'vue/no-v-html' ||
-                           issue.rule === 'vue/no-v-text-v-html-on-component';
+      // Categorize issues using shared rule definitions
+      const category = categorizeRule(issue.rule);
       
-      if (isSecurityRule) {
+      if (category === 'critical-security') {
         securityErrors.push(issue);
       } else {
         qualityIssues.push(issue);
@@ -125,20 +77,19 @@ function analyzeESLintOutput(stdout, stderr) {
 }
 
 try {
-  let hasSecurityErrors = false;
+  // Create summary reporter for CSHTML linting
+  const reporter = createSummaryReporter('CSHTML');
   
   // Check if we should block on warnings (for lint:staged vs lint:precommit)
-  const blockOnWarnings = process.env.LINT_BLOCK_ON_WARNINGS === 'true';
+  const blockOnWarnings = shouldBlockOnWarnings();
 
   if (files.length === 0) {
     console.log('✅ No .cshtml files to check');
     process.exit(0);
   }
 
-  // Run ESLint on .cshtml files using VueApp's config
+  // Run ESLint on .cshtml files using root config
   const eslintArgs = [
-    'eslint',
-    '--config', path.join(vueAppDir, '.eslintrc.cjs'),
     ...(fixFlag ? ['--fix'] : []),
     '--format', 'json',
     ...files
@@ -146,18 +97,7 @@ try {
 
   console.log(`🔍 Running ESLint security and quality checks on ${files.length} .cshtml files...`);
   
-  // On Windows, npx needs shell to work properly  
-  const eslintResult = spawnSync('npx', eslintArgs, {
-    stdio: 'pipe',
-    cwd: vueAppDir,
-    shell: IS_WINDOWS,
-    encoding: 'utf8'
-  });
-
-  if (eslintResult.error) {
-    console.error('Failed to run ESLint on .cshtml files:', eslintResult.error);
-    process.exit(1);
-  }
+  const eslintResult = runCommand('eslint', eslintArgs, 'ESLint (CSHTML)', projectRoot);
   
   // Check if ESLint command had a fatal error (only if no JSON output produced)  
   if (eslintResult.status !== 0 && eslintResult.status !== 1) {
@@ -181,10 +121,9 @@ try {
     securityErrors.forEach(issue => {
       console.log(`  ${issue.file}:${issue.line}:${issue.col} - ${issue.rule}: ${issue.message}`);
     });
-    hasSecurityErrors = true;
   }
 
-  if (qualityIssues.length > 0) {
+  if (blockOnWarnings && qualityIssues.length > 0) {
     console.log(`\n⚠️  CODE QUALITY ISSUES (${qualityIssues.length}):`);
     qualityIssues.forEach(issue => {
       console.log(`  ${issue.file}:${issue.line}:${issue.col} - ${issue.rule}: ${issue.message}`);
@@ -193,31 +132,24 @@ try {
 
   if (securityErrors.length === 0 && qualityIssues.length === 0) {
     console.log('✅ No ESLint issues found in staged .cshtml files');
+  } else if (!blockOnWarnings && securityErrors.length === 0) {
+    console.log('✅ No critical CSHTML violations found');
   }
 
-  // Summary for developer visibility
-  const totalIssues = securityErrors.length + qualityIssues.length;
-  console.log(`\n📊 .cshtml Summary: ${totalIssues} total issues (${securityErrors.length} security, ${qualityIssues.length} quality)`);
-
-  // Determine what should block the commit
-  const shouldBlock = hasSecurityErrors || (blockOnWarnings && qualityIssues.length > 0);
-
-  if (shouldBlock) {
-    if (hasSecurityErrors) {
-      console.log('\n🛑 COMMIT BLOCKED due to security errors in .cshtml files.');
-      console.log('🔒 Security errors MUST be fixed before committing.');
-    }
-    if (blockOnWarnings && qualityIssues.length > 0 && !hasSecurityErrors) {
-      console.log('\n⚠️  LINTING STOPPED due to code quality issues in .cshtml files.');
-      console.log('💡 These issues would not block commits in normal mode. Fix issues above or use lint:precommit to ignore warnings.');
-    }
-    process.exit(1);
-  } else if (qualityIssues.length > 0) {
-    console.log('\n✅ COMMIT ALLOWED - Only code quality issues detected in .cshtml files (non-blocking).');
-    console.log('💡 Run `npm run lint:staged` to see and fix all warnings.');
-  } else {
-    console.log('\n✅ All .cshtml checks passed!');
+  // Use shared summary reporter - adjust counts based on what we're showing
+  const totalIssues = securityErrors.length + (blockOnWarnings ? qualityIssues.length : 0);
+  const criticalCount = securityErrors.length;
+  const warningCount = blockOnWarnings ? qualityIssues.length : 0;
+  
+  if (totalIssues > 0 || blockOnWarnings) {
+    reporter.logSummary(totalIssues, criticalCount, warningCount);
   }
+
+  // Use shared reporter for standard handling
+  const hasBlockingIssues = securityErrors.length > 0;
+  const hasWarnings = qualityIssues.length > 0;
+  
+  reporter.handleCommitDecision(hasBlockingIssues, hasWarnings, 'SECURITY ERRORS');
 
 } catch (error) {
   console.error('Unexpected error:', error);

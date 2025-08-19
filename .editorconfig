@@ -1,4 +1,39 @@
-﻿[*.cs]
+# EditorConfig is awesome: https://EditorConfig.org
+root = true
+
+# All files
+[*]
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# JavaScript, TypeScript, Vue files - matches Prettier config
+[*.{js,ts,jsx,tsx,vue}]
+indent_style = space
+indent_size = 4
+end_of_line = auto
+max_line_length = 120
+
+# JSON files
+[*.{json,jsonc}]
+indent_style = space
+indent_size = 4
+end_of_line = auto
+
+# CSS, SCSS, Less files
+[*.{css,scss,less}]
+indent_style = space
+indent_size = 4
+end_of_line = auto
+
+# HTML files
+[*.{html,cshtml}]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+
+# C# files
+[*.cs]
 
 # IDE0005: Unnecessary using directive
 dotnet_diagnostic.IDE0005.severity = error

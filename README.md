@@ -127,6 +127,20 @@ VIPER2 features a sophisticated development setup with hot reload for both front
   - `vite-watch.js` - Debounced build script for development
 - `test/` - Unit tests
 
+## IDE Setup
+
+### Prettier Formatting (Automatic code formatting)
+
+**VS Code:**
+1. Install "Prettier - Code formatter" extension
+2. Configuration is automatic (uses `.prettierrc.json` and `.editorconfig`)
+
+**Visual Studio:**
+1. Install "Prettier - Code formatter" extension
+2. Configuration is automatic (uses `.prettierrc.json` and `.editorconfig`)
+
+Files auto-format on save with consistent 4-space indentation and project style.
+
 ## Common Commands
 
 ### Code Quality

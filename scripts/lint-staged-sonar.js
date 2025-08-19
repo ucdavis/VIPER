@@ -2,46 +2,13 @@
 
 const { execFileSync } = require('child_process');
 const path = require('path');
-const fs = require('fs');
-
-// Platform-specific constants
-const IS_WINDOWS = process.platform === 'win32';
-
-// Security-related rule detection
-function isSecurityRelatedRule(ruleId) {
-  // CA-series rules are Microsoft security analyzers
-  if (ruleId.startsWith('CA')) {
-    return true;
-  }
-  
-  // SonarAnalyzer security rules (S2xxx-S6xxx range contains many security rules)
-  const securityRules = [
-    'S2083', // Path traversal
-    'S2091', // XPath injection  
-    'S2092', // Cookie security
-    'S2245', // Insecure random
-    'S3649', // SQL injection
-    'S4426', // Weak crypto
-    'S5131', // CSRF protection
-    'S2068', // Hardcoded credentials
-    'S2612', // File permissions
-    'S4423', // Weak SSL/TLS
-    'S4507', // Debugging enabled
-    'S5042', // Zip slip
-    'S5122', // CORS policy
-    'S5131', // CSRF
-    'S5144', // Server certificates
-    'S5443', // Operating system command injection
-    'S5659', // JWT signature verification
-    'S5693', // XML validation
-    'S5738', // Hash algorithm
-    'S5766', // Deserialization
-    'S5856'  // Regex injection
-  ];
-  
-  return securityRules.includes(ruleId);
-}
-
+const { 
+  createSummaryReporter,
+  shouldBlockOnWarnings
+} = require('./lib/lint-staged-common');
+const { 
+  isDotNetSecurityRule 
+} = require('./lib/critical-rules');
 
 // Get staged files from lint-staged
 const stagedFiles = process.argv.slice(2);
@@ -143,11 +110,10 @@ function filterSonarWarnings(output, stagedFiles, projectName) {
           severity: severity
         };
 
-        // Categorize as security vs quality based on rule patterns
-        const isSecurityRule = isSecurityRelatedRule(ruleId);
+        // Use shared security rule categorization
+        const isSecurityRule = isDotNetSecurityRule(ruleId);
         
         // Security rules should always be treated as errors (blocking)
-        // CA-series rules (Microsoft analyzers) and specific S-series security rules
         if (isSecurityRule || severity === 'error') {
           sonarErrors.push(issue);
         } else {
@@ -171,8 +137,10 @@ function filterSonarWarnings(output, stagedFiles, projectName) {
       });
     }
 
-    // Show warnings (code quality issues)
-    if (sonarWarnings.length > 0) {
+    // Show warnings (code quality issues) - only when blocking on warnings is enabled
+    const blockOnWarnings = shouldBlockOnWarnings();
+    
+    if (blockOnWarnings && sonarWarnings.length > 0) {
       console.log(`\n⚠️  CODE QUALITY WARNINGS (${sonarWarnings.length}):`);
       sonarWarnings.forEach(issue => {
         console.log(`  ${issue.file}:${issue.line}:${issue.col} - ${issue.rule}: ${issue.message}`);
@@ -189,11 +157,11 @@ function filterSonarWarnings(output, stagedFiles, projectName) {
 }
 
 try {
+  // Create shared summary reporter
+  const reporter = createSummaryReporter('SonarAnalyzer');
+
   let totalSecurityErrors = 0;
   let totalWarnings = 0;
-  
-  // Check if we should block on warnings (for lint:staged vs lint:precommit)
-  const blockOnWarnings = process.env.LINT_BLOCK_ON_WARNINGS === 'true';
 
   // Run for each project that has staged files
   if (webFiles.length > 0) {
@@ -207,29 +175,25 @@ try {
     totalWarnings += testResult.warnings;
   }
 
-  // Summary for developer visibility
+  // Use shared summary reporting
   const totalIssues = totalSecurityErrors + totalWarnings;
-  console.log(`\n📊 SonarAnalyzer Summary: ${totalIssues} total issues (${totalSecurityErrors} security errors, ${totalWarnings} warnings)`);
+  reporter.logSummary(totalIssues, totalSecurityErrors, totalWarnings);
 
-  // Determine what should block the commit
-  const shouldBlock = totalSecurityErrors > 0 || (blockOnWarnings && totalWarnings > 0);
-
-  if (shouldBlock) {
-    if (totalSecurityErrors > 0) {
-      console.error('\n🛑 COMMIT BLOCKED due to SECURITY ERRORS.');
-      console.error('🔒 Security errors MUST be fixed before committing.');
-    }
-    if (blockOnWarnings && totalWarnings > 0 && totalSecurityErrors === 0) {
-      console.log('\n⚠️  LINTING STOPPED due to code quality warnings.');
-      console.log('💡 These warnings would not block commits in normal mode. Fix warnings above or use lint:precommit to ignore warnings.');
-    }
+  // Handle security errors first  
+  if (totalSecurityErrors > 0) {
+    console.error('\n🛑 COMMIT BLOCKED due to SECURITY ERRORS.');
+    console.error('🔒 Security errors MUST be fixed before committing.');
     process.exit(1);
-  } else if (totalWarnings > 0) {
-    console.log('\n✅ COMMIT ALLOWED - Only warnings detected (non-blocking).');
-    console.log('💡 Run `npm run lint:staged` to see and fix all warnings.');
-  } else {
+  }
+
+  // Use shared reporter for warning handling
+  reporter.handleCommitDecision(false, totalWarnings > 0);
+
+  // If we get here with no issues, show success
+  if (totalIssues === 0) {
     console.log('\n✅ All staged files pass SonarAnalyzer checks');
   }
+
 } catch (error) {
   console.error('SonarAnalyzer check failed:', error.message);
   process.exit(1);
