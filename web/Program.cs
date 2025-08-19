@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Rewrite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
 using Newtonsoft.Json;
@@ -27,7 +26,7 @@ using Web;
 using Web.Authorization;
 
 // Centralized SPA application names to avoid duplication
-string[] VueAppNames = { "CTS", "Computing", "Students" };
+string[] VueAppNames = { "ClinicalScheduler", "CTS", "Computing", "Students" };
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
@@ -55,13 +54,6 @@ try
         {
             Region = RegionEndpoint.USWest1
         };
-        /*
-        if(builder.Environment.EnvironmentName == "Test")
-        {
-            awsOptions.ProfilesLocation = builder.Configuration.GetValue<string>("AWS:ProfilesLocation");
-            awsOptions.Profile = builder.Configuration.GetValue<string>("AWS:Profile");
-        }
-        */
         builder.Configuration
             .AddSystemsManager("/" + builder.Environment.EnvironmentName, awsOptions)
             .AddSystemsManager("/Shared", awsOptions);
@@ -180,6 +172,15 @@ try
             opt.EnableDetailedErrors(true);
         }
     });
+    builder.Services.AddDbContext<ClinicalSchedulerContext>();
+
+    // Clinical Scheduler services
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IGradYearService, Viper.Areas.ClinicalScheduler.Services.GradYearService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IWeekService, Viper.Areas.ClinicalScheduler.Services.WeekService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IPersonService, Viper.Areas.ClinicalScheduler.Services.PersonService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IRotationService, Viper.Areas.ClinicalScheduler.Services.RotationService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IClinicalScheduleSecurityService, Viper.Areas.ClinicalScheduler.Services.ClinicalScheduleSecurityService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IClinicalScheduleService, Viper.Areas.ClinicalScheduler.Services.ClinicalScheduleService>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
@@ -205,7 +206,9 @@ try
         })
         .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
         {
+#pragma warning disable S4830 // Disable SSL validation for development to allow self-signed certificates
             ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+#pragma warning restore S4830
         });
     }
 
@@ -365,32 +368,17 @@ try
     });
 
     // Static file serving configuration
-    if (app.Environment.IsDevelopment())
+    // Serve built Vue files - in development proxy middleware runs first,
+    // in production these files are served directly
+    app.UseStaticFiles(new StaticFileOptions
     {
-        // In development: Proxy middleware runs first, then static files as fallback
-        // Serve built Vue files for hashed assets that proxy doesn't intercept
-        app.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = new PhysicalFileProvider(
-                Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
-            RequestPath = "/2/vue"
-        });
-        
-        // Serve other static files
-        app.UseStaticFiles();
-    }
-    else
-    {
-        // In production, serve built Vue files directly
-        app.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = new PhysicalFileProvider(
-                Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
-            RequestPath = "/2/vue"
-        });
-        
-        app.UseStaticFiles();
-    }
+        FileProvider = new PhysicalFileProvider(
+            Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
+        RequestPath = "/2/vue"
+    });
+
+    // Serve other static files
+    app.UseStaticFiles();
 
     // Add sitemap middleware after static file handling
     app.UseSitemapMiddleware();
@@ -414,21 +402,21 @@ try
             name: "default",
             pattern: "{controller=Home}/{action=Index}").RequireAuthorization();
 
-        // DefaultPolicy not applied, as authorization not required
-        //endpoints.MapHealthChecks("/public");
     });
 #pragma warning restore ASP0014
 
     // Setup the memory cache so we can use it via a simple static method
     HttpHelper.Configure(app.Services.GetService<IMemoryCache>(), app.Services.GetService<IConfiguration>(), app.Environment, app.Services.GetService<IHttpContextAccessor>(), app.Services.GetService<IAuthorizationService>(), app.Services.GetService<IDataProtectionProvider>());
 
+#pragma warning disable S6966 // app.Run() is appropriate for main entry point, not app.RunAsync()
     app.Run();
+#pragma warning restore S6966
 }
 catch (Exception exception)
 {
     // NLog: catch setup errors
     logger.Fatal(exception, "Stopped program because of exception");
-    throw;
+    throw new InvalidOperationException("Application startup failed. See logs for details.", exception);
 }
 finally
 {
@@ -471,9 +459,10 @@ void SetAwsCredentials(Logger logger)
         {
             File.Delete(awsCredentialsFilePath);
         }
-        catch
+        catch (Exception ex)
         {
-            logger.Error($"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
+            logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
+            logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
         }
     }
     else

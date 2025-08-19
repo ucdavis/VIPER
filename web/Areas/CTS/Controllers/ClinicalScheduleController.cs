@@ -1,8 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.CTS.Models;
-using Viper.Areas.CTS.Services;
+using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes;
-using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
 using Web.Authorization;
 
@@ -14,15 +13,15 @@ namespace Viper.Areas.CTS.Controllers
     /// </summary>
     [Route("/api/cts/clinicalschedule/")]
     //most people have this. each function will have more complex permission checking.
-    [Permission(Allow = "SVMSecure.ClnSched")]
+    [Permission(Allow = ClinicalSchedulePermissions.Base)]
     public class ClinicalScheduleController : ApiController
     {
-        private readonly ClinicalScheduleService clinicalSchedule;
-        private readonly ClinicalScheduleSecurityService clinicalScheduleSecurity;
-        public ClinicalScheduleController(VIPERContext context, RAPSContext rapsContext)
+        private readonly IClinicalScheduleService clinicalSchedule;
+        private readonly IClinicalScheduleSecurityService clinicalScheduleSecurity;
+        public ClinicalScheduleController(IClinicalScheduleService scheduleService, IClinicalScheduleSecurityService securityService)
         {
-            clinicalSchedule = new(context, rapsContext);
-            clinicalScheduleSecurity = new(rapsContext);
+            clinicalSchedule = scheduleService;
+            clinicalScheduleSecurity = securityService;
         }
 
         /// <summary>
