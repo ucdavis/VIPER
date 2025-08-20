@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Rewrite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
 using Newtonsoft.Json;
@@ -25,6 +24,16 @@ using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web;
 using Web.Authorization;
+
+// Load .env.local for local development only (multiple-instance support)
+// Avoid loading in production - guard by ASPNETCORE_ENVIRONMENT.
+var envPath = Path.Combine(Directory.GetCurrentDirectory(), "../.env.local");
+var aspNetEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+if (string.Equals(aspNetEnv, "Development", StringComparison.OrdinalIgnoreCase)
+    && File.Exists(envPath))
+{
+    DotNetEnv.Env.Load(envPath);
+}
 
 // Centralized SPA application names to avoid duplication
 string[] VueAppNames = { "CTS", "Computing", "Students" };
@@ -375,7 +384,7 @@ try
                 Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
             RequestPath = "/2/vue"
         });
-        
+
         // Serve other static files
         app.UseStaticFiles();
     }
@@ -388,7 +397,7 @@ try
                 Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
             RequestPath = "/2/vue"
         });
-        
+
         app.UseStaticFiles();
     }
 

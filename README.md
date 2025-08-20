@@ -62,9 +62,36 @@ npm run dev:frontend-build
 - **Best for**: Testing production builds, debugging static file serving, or CI/CD validation
 
 #### Individual Services
-- `npm run dev:frontend` - Start only Vite dev server (https://localhost:5173)
+- `npm run dev:frontend` - Start only Vite dev server
 - `npm run dev:frontend-build` - Build and watch Vue files (outputs to wwwroot)
 - `npm run dev:backend` - Start only .NET backend (https://localhost:7157)
+
+### Running Multiple Instances
+
+To run multiple instances of the application simultaneously on the same computer:
+
+1. **Copy the environment template:**
+   ```bash
+   # Unix/Linux/macOS or Git Bash on Windows
+   cp .env.local.example .env.local
+   
+   # Windows PowerShell/Command Prompt
+   Copy-Item .env.local.example .env.local
+   ```
+
+2. **Configure ports for the second instance:**
+   Edit `.env.local` and uncomment one of the instance blocks:
+   ```env
+   # Instance 2
+   VITE_PORT=5174
+   VITE_HMR_PORT=24679
+   ASPNETCORE_HTTPS_PORT=7158
+   ASPNETCORE_URLS=https://localhost:7158;http://localhost:5001
+   VITE_SERVER_URL=https://localhost:5174
+   ```
+
+3. **Start the second instance:**
+   Use the commands you would normally use to start the frontend and backend and use one of the urls defined in ASPNETCORE_URLS to access the new instance.
 
 ## Development Architecture
 

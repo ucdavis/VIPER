@@ -479,3 +479,6 @@ web/wwwroot/vue/
 
 #Credentials
 awscredentials.xml
+
+# Local environment variables for multiple instances
+.env.local
