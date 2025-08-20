@@ -83,9 +83,11 @@
             </div>
           </div>
 
-          <div class="col-auto">
-            <div class="row items-start q-gutter-sm">
-              <div class="text-subtitle2 q-mt-md">
+          <div class="col-auto q-mt-xl">
+            <div class="row items-start q-gutter-sm q-pb-lg">
+              <div
+                class="text-subtitle2 q-mt-xs"
+              >
                 Add New Clinician:
               </div>
               <ClinicianSelector
@@ -95,7 +97,7 @@
                 @update:include-all-affiliates="includeAllAffiliates = $event"
                 @change="onAddClinicianSelected"
                 :affiliates-toggle-label="'Include all affiliates'"
-                style="min-width: 200px; align-self: flex-start;"
+                class="q-mt-none"
               />
             </div>
           </div>
@@ -507,4 +509,7 @@ onMounted(async () => {
 <style scoped>
 /* Import shared schedule styles */
 @import '../assets/schedule-shared.css';
+
+
+
 </style>

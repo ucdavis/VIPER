@@ -7,30 +7,32 @@
     align="left"
     no-caps
   >
-    <q-tab
+    <q-route-tab
       name="home"
       label="Home"
-      @click="navigateTo('/ClinicalScheduler/')"
+      to="/ClinicalScheduler/"
+      exact
     />
-    <q-tab
+    <q-route-tab
       name="rotation"
       label="Schedule by Rotation"
-      @click="navigateTo('/ClinicalScheduler/rotation')"
+      to="/ClinicalScheduler/rotation"
+      exact
     />
-    <q-tab
+    <q-route-tab
       name="clinician"
       label="Schedule by Clinician"
-      @click="navigateTo('/ClinicalScheduler/clinician')"
+      to="/ClinicalScheduler/clinician"
+      exact
     />
   </q-tabs>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const router = useRouter()
 
 // Determine current tab based on route
 const currentTab = computed(() => {
@@ -44,8 +46,4 @@ const currentTab = computed(() => {
   }
   return 'home'
 })
-
-const navigateTo = (path: string) => {
-  router.push(path)
-}
 </script>
