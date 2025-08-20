@@ -62,7 +62,7 @@
     <!-- Include All Affiliates Toggle -->
     <div
       v-if="showAffiliatesToggle"
-      class="affiliates-toggle-inline"
+      class="affiliates-toggle-under-field"
     >
       <q-checkbox
         :model-value="includeAllAffiliates"
@@ -198,13 +198,20 @@ onMounted(() => {
 <style scoped>
 .clinician-selector-with-toggle {
     max-width: 400px;
+    position: relative;
+    margin-top: -20px;
 }
 
-.affiliates-toggle-inline {
+.affiliates-toggle-under-field {
+    position: absolute;
+    top: 100%;
+    left: 0;
     margin-top: 2px;
-    margin-left: 0px;
+    margin-left: 12px;
     padding: 2px 4px;
     font-size: 12px;
+    z-index: 1;
+    background: white;
 }
 
 /* Reduce spacing around separators in the dropdown menu */
