@@ -74,7 +74,7 @@ To run multiple instances of the application simultaneously on the same computer
    ```bash
    # Unix/Linux/macOS or Git Bash on Windows
    cp .env.local.example .env.local
-   
+
    # Windows PowerShell/Command Prompt
    Copy-Item .env.local.example .env.local
    ```
@@ -167,6 +167,22 @@ VIPER2 features a sophisticated development setup with hot reload for both front
 2. Configuration is automatic (uses `.prettierrc.json` and `.editorconfig`)
 
 Files auto-format on save with consistent 4-space indentation and project style.
+
+### Vue Inspector (Click-to-Open Components)
+
+Vue Inspector is enabled in development mode and allows you to click Vue components in the browser to open them directly in your IDE.
+
+**How to Use:**
+1. Start development mode: `npm run dev`
+2. Press `Ctrl+Shift` to toggle the inspector overlay
+3. Click any Vue component in the browser to open it in your editor
+
+**Editor Configuration:**
+- **VS Code (Default)**: Works automatically
+- **Visual Studio**: Set `VITE_EDITOR=visual-studio` in your `.env.local` file
+- **Other Editors**: Set `VITE_EDITOR` to your editor command (e.g., `webstorm`, `sublime`)
+
+The inspector only works in development mode and is automatically disabled in production builds.
 
 ## Common Commands
 
