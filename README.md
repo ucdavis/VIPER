@@ -33,17 +33,19 @@ Place `awscredentials.xml` in the `web` folder. The app will configure AWS crede
 ### 3. Start Application
 
 #### Option 1: Full Development (Recommended)
-Start both frontend and backend with hot reload enabled:
+Start both frontend and backend with hot reload enabled, plus Chrome in debug mode:
 
 ```sh
-npm run dev
+npm run dev:fullstack
 ```
 
 - **Frontend**: Vue.js with Vite dev server (https://localhost:5173) + Hot Module Replacement (HMR)
 - **Backend**: ASP.NET Core with dotnet watch (https://localhost:7157) + hot reload
+- **Browser**: Chrome launches automatically in debug mode on port 9222
 - **Proxy**: Backend automatically proxies Vue asset requests to Vite for seamless development
 - **Access**: https://localhost:7157 (all apps work through the backend)
-- **Best for**: Active development with instant updates
+- **Debugging**: Chrome can be attached to from VS Code for frontend debugging
+- **Best for**: Active development with instant updates and debugging capabilities
 
 #### Option 2: Static File Development
 For testing production-like behavior or when Vite dev server isn't needed:
@@ -120,23 +122,7 @@ VIPER2 features a sophisticated development setup with hot reload for both front
 - **Backend**: `dotnet-watch.json` configures optimal file watching patterns
 - **Concurrent**: Both systems can run simultaneously without conflicts
 
-### Development Modes Explained
-
-**Option 1: Full Development (`npm run dev`)**
-- Vite dev server handles all Vue asset requests with HMR
-- TypeScript files compiled on-demand by Vite
-- Instant updates for Vue components, CSS, and TypeScript
-- Backend proxies asset requests to Vite automatically
-- Best development experience with hot module replacement
-
-**Option 2: Static File Development**
-- Vue files pre-built into static assets in `wwwroot/vue/`
-- Backend serves files like production (no proxy to Vite)
-- Useful for testing production builds or CI/CD validation
-- Requires manual rebuild (`npm run dev:frontend-build`) when Vue files change
-- More similar to production environment
-
-**Path Configuration**
+### Path Configuration
 - All Vue applications use `/2/vue/` as the base path
 - Development and production use identical URL structure
 - Vite configuration: `base: '/2/vue/'`
@@ -173,7 +159,7 @@ Files auto-format on save with consistent 4-space indentation and project style.
 Vue Inspector is enabled in development mode and allows you to click Vue components in the browser to open them directly in your IDE.
 
 **How to Use:**
-1. Start development mode: `npm run dev`
+1. Start development mode: `npm run dev:fullstack`
 2. Press `Ctrl+Shift` to toggle the inspector overlay
 3. Click any Vue component in the browser to open it in your editor
 
@@ -184,17 +170,32 @@ Vue Inspector is enabled in development mode and allows you to click Vue compone
 
 The inspector only works in development mode and is automatically disabled in production builds.
 
+## Debugging
+
+### VS Code Debugging Support
+
+The project includes VS Code launch configurations for debugging both frontend and backend code:
+
+**Frontend Debugging (Chrome):**
+1. Start the application with Chrome debugging: `npm run dev:fullstack`
+2. In VS Code, go to Run and Debug (Ctrl+Shift+D)
+3. Select "Attach to Chrome" and press F5
+4. Chrome will launch automatically in debug mode, and VS Code will attach to it
+5. Set breakpoints in your TypeScript/Vue files and debug in VS Code
+
+**Backend Debugging (.NET):**
+1. Use "`Attach to .NET Core`" configuration to attach to a running VIPER process
+2. Use "`.NET Tests (Debug)`" to debug unit tests
+3. The debugger will automatically find and attach to the running VIPER backend
+4. **Note**: "Attach to .NET Core" may fail on the first attempt due to timing - simply try again and it will work
+
 ## Common Commands
 
 ### Code Quality
 
-- `npm run lint` - Check code style for both frontend and backend
-- `npm run lint:frontend` - Check all frontend code style and types
-- `npm run lint:backend` - Check all backend code style
+- `npm run lint` - Check code style for specified files or directories
 - `npm run lint:staged` - Run pre-commit checks manually
-- `npm run fix:frontend` - Auto-fix all frontend issues
-- `npm run fix:backend` - Auto-fix all backend issues
-- `npm run fix:staged` - Auto-fix only staged files
+- `npm run lint:precommit` - Run lint-staged (used by pre-commit hooks)
 
 ## Troubleshooting
 
@@ -203,7 +204,7 @@ The inspector only works in development mode and is automatically disabled in pr
 **Frontend not updating**:
 - Ensure Vite dev server is running (you should see "vite connected" in browser console)
 - Check that you're accessing https://localhost:7157 (not the Vite server directly)
-- Try refreshing the browser or restarting `npm run dev`
+- Try refreshing the browser or restarting `npm run dev:fullstack`
 - Verify Vite server URL matches configuration (default: https://localhost:5173)
 
 **Backend not restarting**:
@@ -220,7 +221,7 @@ The inspector only works in development mode and is automatically disabled in pr
 ### Certificate Issues
 
 **Certificate errors**:
-- Vue dev server: Delete certs in `%APPDATA%/ASP.NET/https`, run `npm run dev` again
+- Vue dev server: Delete certs in `%APPDATA%/ASP.NET/https`, run `npm run dev:fullstack` again
 - .NET HTTPS: Run `dotnet dev-certs https --clean` then `dotnet dev-certs https --trust`
 
 **Database errors**: Ensure `awscredentials.xml` is in `web` folder when doing initial application startup.

@@ -1,7 +1,14 @@
 {
   "recommendations": [
+    // Essential Vue.js Development
     "Vue.volar",
+    
+    // Essential Linting & Formatting
     "dbaeumer.vscode-eslint",
-    "esbenp.prettier-vscode"
+    "esbenp.prettier-vscode",
+    "stylelint.vscode-stylelint",
+    
+    // Essential .NET Development (lightweight option)
+    "ms-dotnettools.csharp"
   ]
 }

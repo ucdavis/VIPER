@@ -2,10 +2,15 @@
   "name": "viper2",
   "version": "2.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev:backend": "cd web && dotnet watch run --launch-profile https",
     "dev:frontend": "cd VueApp && npm install && npm run dev",
     "dev:frontend-build": "cd VueApp && npm install && npm run build",
+    "dev:fullstack": "concurrently --names \"BACKEND,FRONTEND,BROWSER\" --prefix-colors \"blue,green,yellow\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:browser\"",
+    "dev:browser": "node scripts/launch-open-browser.js",
     "lint": "node scripts/lint-any.js",
     "lint:precommit": "lint-staged",
     "lint:staged": "cross-env LINT_BLOCK_ON_WARNINGS=true lint-staged",
@@ -15,6 +20,7 @@
   },
   "devDependencies": {
     "@double-great/stylelint-a11y": "^3.0.4",
+    "concurrently": "^9.0.1",
     "cross-env": "^10.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-html": "^8.1.3",
