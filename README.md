@@ -4,7 +4,7 @@ Clinical, curriculum, and student management application for UC Davis School of 
 
 ## Prerequisites
 
-- [.NET 7 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/7.0)
+- [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
 - [Volta](https://volta.sh/) - Node.js version manager
 - [Visual Studio 2022](https://visualstudio.microsoft.com/) or [VS Code](https://code.visualstudio.com/)
 
@@ -240,3 +240,27 @@ The hook will:
 - Run ESLint and TypeScript checks on staged Vue/TypeScript files (uses Node.js script for Windows compatibility)
 - Only run on files you've actually changed
 - Block commits if issues are found (bypass with `git commit --no-verify` if needed)
+
+## Email Testing with Mailpit
+
+Mailpit captures emails sent by the application during development without sending real emails.
+
+### How to Run
+
+Mailpit starts automatically:
+```bash
+npm run dev:backend        # Starts backend + Mailpit
+npm run dev:fullstack      # Starts full stack + Mailpit
+```
+
+Manual control:
+```bash
+npm run mailpit:start      # Start Mailpit
+npm run mailpit:stop       # Stop Mailpit  
+npm run mailpit:status     # Check status and send test email
+```
+
+### How to View Emails
+
+- **Web Interface**: http://localhost:8025 (primary method)
+- **If Mailpit is unavailable**: Email sending will be skipped in Development (check console logs for warnings). Use `npm run mailpit:status` to verify Mailpit is running and send a test email.

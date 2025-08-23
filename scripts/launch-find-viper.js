@@ -1,39 +1,13 @@
 const { execSync, spawnSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+const { getDevServerEnv } = require('./lib/script-utils');
 
-// Windows-only script for finding Viper.exe process by port
+// Cross-platform script for finding Viper.exe process by port
 
-// Function to parse .env.local file
-function loadEnvLocal() {
-    const envPath = path.join(__dirname, '..', '.env.local');
-    const env = {};
-    
-    if (fs.existsSync(envPath)) {
-        const envContent = fs.readFileSync(envPath, 'utf8');
-        const lines = envContent.split(/\r?\n/);
-        
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
-                const [key, ...valueParts] = trimmed.split('=');
-                env[key.trim()] = valueParts.join('=').trim();
-            }
-        }
-    }
-    
-    return env;
-}
-
-// Get the HTTPS port from .env.local or use default
+// Get the HTTPS port from environment or use default
 function getHttpsPort() {
-    const env = loadEnvLocal();
-    const port = env.ASPNETCORE_HTTPS_PORT || '7157'; // Default port
-    // Basic validation: only digits allowed
-    if (!/^\d+$/.test(port)) {
-        throw new Error('Invalid ASPNETCORE_HTTPS_PORT value');
-    }
-    return port;
+    const env = getDevServerEnv();
+    const port = env.ASPNETCORE_HTTPS_PORT || 7157; // Default port
+    return port.toString();
 }
 
 // Find process ID listening on the specified port

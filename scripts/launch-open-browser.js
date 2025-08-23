@@ -1,43 +1,15 @@
 const { spawn } = require('child_process');
-const path = require('path');
 const fs = require('fs');
+const { getDevServerEnv, openBrowser } = require('./lib/script-utils');
 
-// Windows-only script for launching browser with debugging
+// Cross-platform script for launching browser with debugging
 
-// Function to parse .env.local file
-function loadEnvLocal() {
-    const envPath = path.join(__dirname, '..', '.env.local');
-    const env = {};
-    
-    if (fs.existsSync(envPath)) {
-        const envContent = fs.readFileSync(envPath, 'utf8');
-        const lines = envContent.split(/\r?\n/);
-        
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
-                const [key, ...valueParts] = trimmed.split('=');
-                env[key.trim()] = valueParts.join('=').trim();
-            }
-        }
-    }
-    
-    return env;
-}
-
-// Get backend port from .env.local or use default
+// Get backend port from environment or use default
 function getBackendPort() {
-    const env = loadEnvLocal();
+    const env = getDevServerEnv();
     
-    if (env.ASPNETCORE_HTTPS_PORT) {
-        if (!/^\d+$/.test(env.ASPNETCORE_HTTPS_PORT)) {
-            throw new Error('Invalid ASPNETCORE_HTTPS_PORT in .env.local');
-        }
-        return env.ASPNETCORE_HTTPS_PORT;
-    }
-    
-    // Default from launchSettings.json
-    return '7157';
+    // Use ASPNETCORE_HTTPS_PORT from env, with fallback to legacy default
+    return env.ASPNETCORE_HTTPS_PORT || 7157;
 }
 
 // Wait for backend to be ready then open browser
@@ -127,14 +99,12 @@ async function waitForBackendAndOpenBrowser() {
             }
             
             if (!chromeFound) {
-                // Fallback to default browser
-                const fallback = spawn('cmd', ['/c', 'start', url], { detached: true });
-                if (typeof fallback.unref === 'function') fallback.unref();
+                // Fallback to default browser (cross-platform)
+                await openBrowser(url);
             }
         } catch (error) {
-            // Fallback to default browser
-            const fallback = spawn('cmd', ['/c', 'start', url], { detached: true });
-            if (typeof fallback.unref === 'function') fallback.unref();
+            // Fallback to default browser (cross-platform)
+            await openBrowser(url);
         }
     } else {
         console.log(`Backend failed to start on port ${port} after ${maxRetries} retries`);
