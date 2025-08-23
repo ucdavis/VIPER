@@ -17,13 +17,11 @@
       name="rotation"
       label="Schedule by Rotation"
       to="/ClinicalScheduler/rotation"
-      exact
     />
     <q-route-tab
       name="clinician"
       label="Schedule by Clinician"
       to="/ClinicalScheduler/clinician"
-      exact
     />
   </q-tabs>
 </template>

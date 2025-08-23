@@ -75,20 +75,19 @@ export interface ClinicianRotationSummary {
 }
 
 export class ClinicianService {
-    private static readonly BASE_URL = '/api/clinicalscheduler/clinicians'
+    private static readonly BASE_URL = import.meta.env.VITE_API_URL + 'clinicalscheduler/clinicians'
 
     /**
      * Build URL with query parameters
      */
     private static buildUrl(baseUrl: string, params: Record<string, any> = {}): string {
-        const queryString = new URLSearchParams(
-            Object.entries(params).reduce((acc, [key, value]) => {
-                if (value !== undefined && value !== null) {
-                    acc[key] = value.toString()
-                }
-                return acc
-            }, {} as Record<string, string>)
-        ).toString()
+        const paramMap = new Map<string, string>()
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                paramMap.set(key, value.toString())
+            }
+        })
+        const queryString = new URLSearchParams(Array.from(paramMap)).toString()
 
         return queryString ? `${baseUrl}?${queryString}` : baseUrl
     }

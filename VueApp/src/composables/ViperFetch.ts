@@ -41,35 +41,35 @@ export function useFetch() {
 
     async function get(url: string = "", options: any = {}): Promise<Result> {
         options.method = "GET"
-        addHeader(options, "Content-Type", "application / json")
+        addHeader(options, "Content-Type", "application/json")
         return await fetchWrapper(url, options)
     }
 
     async function post(url: string = "", body: any = {}, options: any = {}): Promise<Result> {
         options.method = "POST"
         options.body = JSON.stringify(body)
-        addHeader(options, "Content-Type", "application / json")
+        addHeader(options, "Content-Type", "application/json")
         return await fetchWrapper(url, options)
     }
 
     async function put(url: string = "", body: any = {}, options: any = {}): Promise<Result> {
         options.method = "PUT"
         options.body = JSON.stringify(body)
-        addHeader(options, "Content-Type", "application / json")
+        addHeader(options, "Content-Type", "application/json")
         return await fetchWrapper(url, options)
     }
 
     async function del(url: string = "", options: any = {}): Promise<Result> {
         options.method = "DELETE"
-        addHeader(options, "Content-Type", "application / json")
+        addHeader(options, "Content-Type", "application/json")
         return await fetchWrapper(url, options)
     }
 
     function createUrlSearchParams(obj: UrlParams): URLSearchParams {
         const params = new URLSearchParams
-        for (const key in obj) {
-            const value = obj[key]
-            if (value != null) {
+        // Use Object.entries for safe iteration
+        for (const [key, value] of Object.entries(obj)) {
+            if (value != null && typeof key === 'string') {
                 params.append(key, value.toString())
             }
         }
@@ -80,8 +80,14 @@ export function useFetch() {
         if (options.headers === undefined) {
             options.headers = {}
         }
-        if (options.headers[headerName] === undefined) {
-            options.headers[headerName] = headerValue
+        // Safe property access with validation
+        if (typeof headerName === 'string' && !Object.prototype.hasOwnProperty.call(options.headers, headerName)) {
+            Object.defineProperty(options.headers, headerName, {
+                value: headerValue,
+                enumerable: true,
+                writable: true,
+                configurable: true
+            })
         }
     }
 

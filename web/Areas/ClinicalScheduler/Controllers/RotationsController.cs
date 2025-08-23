@@ -3,7 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.Curriculum.Services;
+using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
+using Person = Viper.Models.ClinicalScheduler.Person;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
 {
@@ -13,6 +15,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         public int ServiceId { get; set; }
         public string ServiceName { get; set; } = string.Empty;
         public string ShortName { get; set; } = string.Empty;
+        public string? ScheduleEditPermission { get; set; }
+        public bool? UserCanEdit { get; set; }
     }
 
     public class RotationDto
@@ -191,141 +195,52 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     return NotFound(new { error = "Rotation not found", rotationId = id });
                 }
 
-                // Get weeks for the target year using vWeek view (contains correct week numbers)
-                var vWeeks = await _weekService.GetWeeksAsync(targetYear, includeExtendedRotation: true);
+                // Get weeks for the target year
+                var vWeeks = await GetWeeksForRotationAsync(targetYear, includeExtendedRotation: true);
 
                 if (!vWeeks.Any())
                 {
                     _logger.LogWarning("No weeks found for grad year {Year}", targetYear);
-                    return Ok(new
-                    {
-                        Rotation = BuildSimpleRotationResponse(rotation),
-                        AcademicYear = targetYear,
-                        SchedulesBySemester = new List<object>()
-                    });
+                    return Ok(BuildEmptyScheduleResponse(rotation, targetYear));
                 }
 
-                // Get instructor schedules for this rotation using grad year filtering
-                // Filter by weeks that belong to the target grad year
+                // Get all necessary data
                 var weekIds = vWeeks.Select(w => w.WeekId).ToList();
+                var allInstructorSchedules = await GetInstructorSchedulesForWeeksAsync(id, weekIds);
+                var recentCliniciansData = await GetRecentCliniciansAsync(id, targetYear, targetYear - 1);
 
-                // Get schedules for the selected year (for the week grid)
-                var allInstructorSchedules = await _context.InstructorSchedules
-                    .AsNoTracking()
-                    .Include(i => i.Week)
-                    .Where(i => i.RotationId == id && weekIds.Contains(i.WeekId))
-                    .ToListAsync();
-
-                // Get clinicians from current and previous year for the "Recent Clinicians" list
-                var previousYear = targetYear - 1;
-                var previousYearWeeks = await _weekService.GetWeeksAsync(previousYear, includeExtendedRotation: true);
-                var allYearWeekIds = weekIds.Concat(previousYearWeeks.Select(w => w.WeekId)).ToList();
-
-                var recentClinicians = await _context.InstructorSchedules
-                    .AsNoTracking()
-                    .Include(i => i.Week)
-                    .Where(i => i.RotationId == id && allYearWeekIds.Contains(i.WeekId))
-                    .Select(i => new { i.MothraId, i.Week.DateStart })
-                    .Distinct()
-                    .ToListAsync();
-
+                // Process and deduplicate data
                 var baseInstructorSchedules = allInstructorSchedules
                     .DistinctBy(i => i.InstructorScheduleId)
                     .OrderBy(i => i.Week.DateStart)
                     .ThenBy(i => i.MothraId)
                     .ToList();
 
-                _logger.LogInformation("Retrieved {AllCount} total, {DistinctCount} after DistinctBy(InstructorScheduleId)", allInstructorSchedules.Count, baseInstructorSchedules.Count);
+                _logger.LogInformation("Retrieved {AllCount} total, {DistinctCount} after DistinctBy(InstructorScheduleId)",
+                    allInstructorSchedules.Count, baseInstructorSchedules.Count);
 
-                // Get unique MothraIds for schedules (selected year) and fetch person data
-                var uniqueMothraIds = baseInstructorSchedules.Select(i => i.MothraId).Distinct().ToList();
+                // Get person data for all involved clinicians
+                var uniqueMothraIds = baseInstructorSchedules.Select(i => i.MothraId).Distinct();
+                var recentClinicianMothraIds = recentCliniciansData.Select(c => c.MothraId).Distinct();
+                var allMothraIds = uniqueMothraIds.Concat(recentClinicianMothraIds);
+                var personData = await GetPersonDataBatchAsync(allMothraIds);
 
-                // Get unique MothraIds for recent clinicians (current + previous year) and fetch person data
-                var recentClinicianMothraIds = recentClinicians.Select(c => c.MothraId).Distinct().ToList();
-                var allMothraIds = uniqueMothraIds.Concat(recentClinicianMothraIds).Distinct().ToList();
-
-                var personData = await _context.Persons
-                    .AsNoTracking()
-                    .Where(p => allMothraIds.Contains(p.IdsMothraId))
-                    .ToDictionaryAsync(p => p.IdsMothraId, p => p);
-
-                // Deduplicate weeks and pre-calculate semester names for all weeks
-                var deduplicatedWeeks = vWeeks
-                    .DistinctBy(w => w.WeekId)
-                    .ToList();
-
-                var weeksWithSemester = deduplicatedWeeks.Select(w =>
+                // Build week schedules with semester information
+                var deduplicatedWeeks = vWeeks.DistinctBy(w => w.WeekId).ToList();
+                var weeksWithSemester = deduplicatedWeeks.Select(w => new
                 {
-                    var semesterName = TermCodeService.GetTermCodeDescription(w.TermCode);
-                    var normalizedSemester = semesterName.StartsWith("Unknown Term")
-                        ? "Unknown Semester"
-                        : semesterName;
+                    Week = BuildWeekScheduleItem(w, baseInstructorSchedules, personData, deduplicatedWeeks),
+                    Semester = NormalizeSemesterName(w.TermCode)
+                });
 
-                    // Find schedules for this week
-                    var weekSchedules = baseInstructorSchedules
-                        .Where(s => s.WeekId == w.WeekId)
-                        .Select(i => new
-                        {
-                            instructorScheduleId = i.InstructorScheduleId,
-                            firstName = personData.ContainsKey(i.MothraId) ? personData[i.MothraId].PersonDisplayFirstName : "Unknown",
-                            lastName = personData.ContainsKey(i.MothraId) ? personData[i.MothraId].PersonDisplayLastName : "Unknown",
-                            fullName = personData.ContainsKey(i.MothraId) ? personData[i.MothraId].PersonDisplayFullName : $"Person {i.MothraId}",
-                            mothraId = i.MothraId,
-                            evaluator = i.Evaluator,
-                            isPrimaryEvaluator = i.Evaluator
-                        })
-                        .ToList();
-
-                    return new
-                    {
-                        Week = new
-                        {
-                            weekId = w.WeekId,
-                            weekNumber = w.WeekNum,
-                            dateStart = w.DateStart,
-                            dateEnd = w.DateEnd,
-                            termCode = w.TermCode,
-                            extendedRotation = w.ExtendedRotation,
-                            forcedVacation = w.ForcedVacation,
-                            requiresPrimaryEvaluator = EvaluationPolicyService.RequiresPrimaryEvaluator(w.WeekNum, deduplicatedWeeks),
-                            instructorSchedules = weekSchedules
-                        },
-                        Semester = normalizedSemester
-                    };
-                }).ToList();
-
-                // Group all weeks by pre-calculated semester
-                var groupedSchedules = weeksWithSemester
-                    .GroupBy(item => item.Semester)
-                    .Select(g => new
-                    {
-                        semester = g.Key,
-                        weeks = g.Select(item => item.Week).OrderBy(w => w.dateStart).ToList()
-                    })
-                    .OrderBy(g => g.weeks.Any() ? g.weeks.Min(w => w.dateStart) : DateTime.MaxValue)
-                    .Cast<object>()
-                    .ToList();
-
-                // Build recent clinicians list with names
-                var recentCliniciansList = recentClinicianMothraIds
-                    .Select(mothraId => new
-                    {
-                        mothraId = mothraId,
-                        fullName = personData.ContainsKey(mothraId) ? personData[mothraId].PersonDisplayFullName : $"Clinician {mothraId}"
-                    })
-                    .OrderBy(c => c.fullName)
-                    .ToList();
+                // Group schedules by semester and build recent clinicians list
+                var groupedSchedules = GroupSchedulesBySemester(weeksWithSemester);
+                var recentCliniciansList = BuildRecentCliniciansList(recentClinicianMothraIds, personData);
 
                 _logger.LogInformation("Retrieved schedule for rotation {RotationName} (grad year {Year}) grouped into {SemesterCount} semesters, {RecentClinicianCount} recent clinicians",
                     rotation.Name, targetYear, groupedSchedules.Count, recentCliniciansList.Count);
 
-                return Ok(new
-                {
-                    rotation = BuildSimpleRotationResponse(rotation),
-                    gradYear = targetYear,
-                    schedulesBySemester = groupedSchedules,
-                    recentClinicians = recentCliniciansList
-                });
+                return Ok(BuildRotationScheduleResponse(rotation, targetYear, groupedSchedules, recentCliniciansList));
             }
             catch (Exception ex)
             {
@@ -495,6 +410,182 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 } : null
             };
         }
+
+        #region Helper Methods for GetRotationSchedule
+
+        /// <summary>
+        /// Gets weeks for a rotation filtered by year
+        /// </summary>
+        private async Task<List<VWeek>> GetWeeksForRotationAsync(int year, bool includeExtendedRotation = true)
+        {
+            return await _weekService.GetWeeksAsync(year, includeExtendedRotation);
+        }
+
+        /// <summary>
+        /// Gets instructor schedules for specific weeks and rotation
+        /// </summary>
+        private async Task<List<InstructorSchedule>> GetInstructorSchedulesForWeeksAsync(int rotationId, IEnumerable<int> weekIds)
+        {
+            return await _context.InstructorSchedules
+                .AsNoTracking()
+                .Include(i => i.Week)
+                .Where(i => i.RotationId == rotationId && weekIds.Contains(i.WeekId))
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// Gets recent clinicians data for a rotation from current and previous year
+        /// </summary>
+        private async Task<List<RecentClinicianData>> GetRecentCliniciansAsync(int rotationId, int currentYear, int previousYear)
+        {
+            var currentYearWeeks = await _weekService.GetWeeksAsync(currentYear, includeExtendedRotation: true);
+            var previousYearWeeks = await _weekService.GetWeeksAsync(previousYear, includeExtendedRotation: true);
+            var allYearWeekIds = currentYearWeeks.Select(w => w.WeekId)
+                .Concat(previousYearWeeks.Select(w => w.WeekId))
+                .ToList();
+
+            var recentClinicians = await _context.InstructorSchedules
+                .AsNoTracking()
+                .Include(i => i.Week)
+                .Where(i => i.RotationId == rotationId && allYearWeekIds.Contains(i.WeekId))
+                .Select(i => new { i.MothraId, i.Week.DateStart })
+                .Distinct()
+                .ToListAsync();
+
+            return recentClinicians.Select(c => new RecentClinicianData
+            {
+                MothraId = c.MothraId,
+                DateStart = c.DateStart
+            }).ToList();
+        }
+
+        /// <summary>
+        /// Gets person data in batch for multiple MothraIds
+        /// </summary>
+        private async Task<Dictionary<string, Person>> GetPersonDataBatchAsync(IEnumerable<string> mothraIds)
+        {
+            var distinctMothraIds = mothraIds.Distinct().ToList();
+            return await _context.Persons
+                .AsNoTracking()
+                .Where(p => distinctMothraIds.Contains(p.IdsMothraId))
+                .ToDictionaryAsync(p => p.IdsMothraId, p => p);
+        }
+
+        /// <summary>
+        /// Data structure for recent clinician information
+        /// </summary>
+        private sealed class RecentClinicianData
+        {
+            public string MothraId { get; set; } = string.Empty;
+            public DateTime DateStart { get; set; }
+        }
+
+
+        /// <summary>
+        /// Normalizes semester name from term code
+        /// </summary>
+        private string NormalizeSemesterName(int termCode)
+        {
+            var semesterName = TermCodeService.GetTermCodeDescription(termCode);
+            return semesterName.StartsWith("Unknown Term") ? "Unknown Semester" : semesterName;
+        }
+
+        /// <summary>
+        /// Builds a week schedule item with instructor information
+        /// </summary>
+        private object BuildWeekScheduleItem(VWeek week, IEnumerable<InstructorSchedule> allSchedules, Dictionary<string, Person> personData, List<VWeek> allWeeks)
+        {
+            var weekSchedules = allSchedules
+                .Where(s => s.WeekId == week.WeekId)
+                .Select(i => new
+                {
+                    instructorScheduleId = i.InstructorScheduleId,
+                    firstName = personData.ContainsKey(i.MothraId) ? personData[i.MothraId].PersonDisplayFirstName : "Unknown",
+                    lastName = personData.ContainsKey(i.MothraId) ? personData[i.MothraId].PersonDisplayLastName : "Unknown",
+                    fullName = personData.ContainsKey(i.MothraId) ? personData[i.MothraId].PersonDisplayFullName : $"Person {i.MothraId}",
+                    mothraId = i.MothraId,
+                    evaluator = i.Evaluator,
+                    isPrimaryEvaluator = i.Evaluator
+                })
+                .ToList();
+
+            return new
+            {
+                weekId = week.WeekId,
+                weekNumber = week.WeekNum,
+                dateStart = week.DateStart,
+                dateEnd = week.DateEnd,
+                termCode = week.TermCode,
+                extendedRotation = week.ExtendedRotation,
+                forcedVacation = week.ForcedVacation,
+                requiresPrimaryEvaluator = EvaluationPolicyService.RequiresPrimaryEvaluator(week.WeekNum, allWeeks),
+                instructorSchedules = weekSchedules
+            };
+        }
+
+        /// <summary>
+        /// Groups week schedules by semester
+        /// </summary>
+        private List<object> GroupSchedulesBySemester(IEnumerable<dynamic> weekSchedules)
+        {
+            return weekSchedules
+                .GroupBy(item => (string)item.Semester)
+                .Select(g => new
+                {
+                    semester = g.Key,
+                    weeks = g.Select(item => item.Week).OrderBy(w => w.dateStart).ToList()
+                })
+                .OrderBy(g => g.weeks.Any() ? g.weeks.First().dateStart : DateTime.MaxValue)
+                .Cast<object>()
+                .ToList();
+        }
+
+        /// <summary>
+        /// Builds recent clinicians list with full names
+        /// </summary>
+        private List<object> BuildRecentCliniciansList(IEnumerable<string> mothraIds, Dictionary<string, Person> personData)
+        {
+            return mothraIds
+                .Distinct()
+                .Select(mothraId => new
+                {
+                    mothraId = mothraId,
+                    fullName = personData.ContainsKey(mothraId) ? personData[mothraId].PersonDisplayFullName : $"Clinician {mothraId}"
+                })
+                .OrderBy(c => c.fullName)
+                .Cast<object>()
+                .ToList();
+        }
+
+        /// <summary>
+        /// Builds the complete rotation schedule response
+        /// </summary>
+        private object BuildRotationScheduleResponse(Viper.Models.ClinicalScheduler.Rotation rotation, int gradYear,
+            List<object> schedulesBySemester, List<object> recentClinicians)
+        {
+            return new
+            {
+                rotation = BuildSimpleRotationResponse(rotation),
+                gradYear = gradYear,
+                schedulesBySemester = schedulesBySemester,
+                recentClinicians = recentClinicians
+            };
+        }
+
+        /// <summary>
+        /// Builds an empty rotation schedule response when no weeks are found
+        /// </summary>
+        private object BuildEmptyScheduleResponse(Viper.Models.ClinicalScheduler.Rotation rotation, int academicYear)
+        {
+            return new
+            {
+                Rotation = BuildSimpleRotationResponse(rotation),
+                AcademicYear = academicYear,
+                SchedulesBySemester = new List<object>()
+            };
+        }
+
+        #endregion
 
         /// <summary>
         /// Builds a simplified rotation response object for schedule contexts

@@ -104,7 +104,7 @@ export interface RotationScheduleData {
 }
 
 export class RotationService {
-    private static readonly BASE_URL = '/api/clinicalscheduler/rotations'
+    private static readonly BASE_URL = import.meta.env.VITE_API_URL + 'clinicalscheduler/rotations'
 
     /**
      * Build URL with query parameters
