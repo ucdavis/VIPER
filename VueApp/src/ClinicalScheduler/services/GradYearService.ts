@@ -7,7 +7,7 @@ export interface GradYearData {
 }
 
 export class GradYearService {
-    private static readonly YEARS_URL = '/api/clinicalscheduler/rotations/years'
+    private static readonly YEARS_URL = import.meta.env.VITE_API_URL + 'clinicalscheduler/rotations/years'
 
     /**
      * Gets the current grad year and available years from the backend
@@ -15,9 +15,7 @@ export class GradYearService {
     static async getGradYearData(): Promise<GradYearData> {
         const { get } = useFetch()
         try {
-            // Add cache busting parameter to force fresh data
-            const url = `${this.YEARS_URL}?_t=${Date.now()}`
-            const data = await get(url)
+            const data = await get(this.YEARS_URL)
             // ViperFetch wraps response in {result, errors, success} structure
             // Backend returns: { currentGradYear, availableGradYears, defaultYear }
             const result = {
