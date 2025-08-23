@@ -107,6 +107,29 @@ namespace Viper.test.ClinicalScheduler
             Assert.Equal(0, dto.ServiceId);
             Assert.Equal(string.Empty, dto.ServiceName);
             Assert.Equal(string.Empty, dto.ShortName);
+            Assert.Null(dto.ScheduleEditPermission);
+            Assert.Null(dto.UserCanEdit);
+        }
+
+        [Fact]
+        public void ServiceDto_WithPermissionProperties_SetsCorrectly()
+        {
+            // Arrange
+            var dto = new ServiceDto
+            {
+                ServiceId = 1,
+                ServiceName = "Cardiology",
+                ShortName = "Cardio",
+                ScheduleEditPermission = "SVMSecure.ClnSched.Edit.Cardio",
+                UserCanEdit = true
+            };
+
+            // Act & Assert
+            Assert.Equal(1, dto.ServiceId);
+            Assert.Equal("Cardiology", dto.ServiceName);
+            Assert.Equal("Cardio", dto.ShortName);
+            Assert.Equal("SVMSecure.ClnSched.Edit.Cardio", dto.ScheduleEditPermission);
+            Assert.True(dto.UserCanEdit);
         }
 
         [Fact]
@@ -162,7 +185,6 @@ namespace Viper.test.ClinicalScheduler
             // Arrange
             var mockRotationLogger = new Mock<ILogger<RotationService>>();
             var rotationService = new RotationService(mockRotationLogger.Object, _context);
-
             _ = new RotationsController(
                 _context,
                 _gradYearService,
@@ -183,7 +205,6 @@ namespace Viper.test.ClinicalScheduler
             // Arrange
             var mockRotationLogger = new Mock<ILogger<RotationService>>();
             var rotationService = new RotationService(mockRotationLogger.Object, _context);
-
             _ = new RotationsController(
                 _context,
                 _gradYearService,

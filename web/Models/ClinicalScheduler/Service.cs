@@ -9,6 +9,7 @@ namespace Viper.Models.ClinicalScheduler
         public int ServiceId { get; set; }
         public string ServiceName { get; set; } = string.Empty;
         public string ShortName { get; set; } = string.Empty;
+        public string? ScheduleEditPermission { get; set; }
 
         // Navigation properties
         public virtual ICollection<Rotation> Rotations { get; set; } = new List<Rotation>();

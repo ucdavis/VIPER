@@ -106,24 +106,19 @@
               </div>
             </div>
 
-            <q-separator vertical />
-
             <div class="col-auto">
-              <div class="text-subtitle2 q-mb-sm">
-                Add New Rotation:
-              </div>
               <div class="row items-center q-gutter-sm">
-                <q-icon
-                  name="add_circle"
-                  color="primary"
-                  size="md"
-                  aria-label="Add new rotation"
-                />
+                <div class="text-subtitle2">
+                  Add New Rotation:
+                </div>
                 <RotationSelector
                   v-model="selectedNewRotationId"
                   :exclude-rotation-names="assignedRotationNames"
+                  :only-with-scheduled-weeks="true"
+                  :year="currentYear"
                   @rotation-selected="onAddRotationSelected"
                   style="min-width: 200px"
+                  class="q-mt-none"
                 />
               </div>
             </div>
