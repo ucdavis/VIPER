@@ -284,7 +284,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                             dateStart = w.DateStart,
                             dateEnd = w.DateEnd,
                             termCode = w.TermCode,
-                            rotation = hasSchedule && rotations.TryGetValue(schedule.RotationId, out var rotation) ? new
+                            rotation = hasSchedule && rotations.TryGetValue(schedule?.RotationId ?? 0, out var rotation) ? new
                             {
                                 rotationId = schedule.RotationId,
                                 rotationName = rotation.Name, // Use loaded rotation data
@@ -292,7 +292,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                                 serviceId = rotation.ServiceId, // Use loaded rotation data
                                 serviceName = rotation.Service?.ServiceName // Use loaded rotation data
                             } : null, // No rotation assigned or rotation not found
-                            isPrimaryEvaluator = hasSchedule && schedule.Evaluator
+                            isPrimaryEvaluator = hasSchedule && schedule?.Evaluator == true
                         },
                         Semester = normalizedSemester
                     };
