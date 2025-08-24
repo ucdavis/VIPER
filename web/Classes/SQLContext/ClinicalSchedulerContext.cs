@@ -18,6 +18,7 @@ public class ClinicalSchedulerContext : DbContext
     public virtual DbSet<WeekGradYear> WeekGradYears { get; set; }
     public virtual DbSet<Person> Persons { get; set; } // Person data from vPerson view
     public virtual DbSet<Status> Statuses { get; set; }
+    public virtual DbSet<ScheduleAudit> ScheduleAudits { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -45,8 +46,7 @@ public class ClinicalSchedulerContext : DbContext
             entity.Property(e => e.Active).HasColumnName("active").HasDefaultValue(true);
 
             entity.HasOne(e => e.Service).WithMany(s => s.Rotations)
-               .HasForeignKey(e => e.ServiceId)
-               .OnDelete(DeleteBehavior.ClientSetNull);
+               .HasForeignKey(e => e.ServiceId);
         });
 
         modelBuilder.Entity<Service>(entity =>
@@ -73,16 +73,14 @@ public class ClinicalSchedulerContext : DbContext
             entity.Property(e => e.Role).HasColumnName("role").IsRequired(false);
 
             entity.HasOne(e => e.Rotation).WithMany(r => r.InstructorSchedules)
-               .HasForeignKey(e => e.RotationId)
-               .OnDelete(DeleteBehavior.ClientSetNull);
+               .HasForeignKey(e => e.RotationId);
             entity.HasOne(e => e.Week).WithMany(w => w.InstructorSchedules)
-               .HasForeignKey(e => e.WeekId)
-               .OnDelete(DeleteBehavior.ClientSetNull);
+               .HasForeignKey(e => e.WeekId);
             // Person relationship uses MothraId as foreign key and IdsMothraId as principal key
             entity.HasOne(e => e.Person).WithMany()
                .HasForeignKey(e => e.MothraId)
-               .HasPrincipalKey(p => p.IdsMothraId)
-               .OnDelete(DeleteBehavior.ClientSetNull);
+               .HasPrincipalKey(p => p.IdsMothraId);
+
         });
 
         modelBuilder.Entity<Week>(entity =>
@@ -106,8 +104,7 @@ public class ClinicalSchedulerContext : DbContext
             entity.Property(e => e.WeekGradYearId).HasColumnName("Weekgradyear_ID");
             entity.Property(e => e.WeekId).HasColumnName("Week_ID");
             entity.HasOne(e => e.Week).WithMany(w => w.WeekGradYears)
-               .HasForeignKey(e => e.WeekId)
-               .OnDelete(DeleteBehavior.ClientSetNull);
+               .HasForeignKey(e => e.WeekId);
         });
 
         // StudentSchedule entity configuration
@@ -123,14 +120,11 @@ public class ClinicalSchedulerContext : DbContext
             entity.Property(e => e.MakeUp).IsRequired(false);
             entity.Property(e => e.Incomplete).IsRequired(false);
             entity.HasOne(e => e.Service).WithMany()
-               .HasForeignKey(e => e.ServiceId)
-               .OnDelete(DeleteBehavior.ClientSetNull);
+               .HasForeignKey(e => e.ServiceId);
             entity.HasOne(e => e.Rotation).WithMany()
-               .HasForeignKey(e => e.RotationId)
-               .OnDelete(DeleteBehavior.ClientSetNull);
+               .HasForeignKey(e => e.RotationId);
             entity.HasOne(e => e.Week).WithMany()
-               .HasForeignKey(e => e.WeekId)
-               .OnDelete(DeleteBehavior.ClientSetNull);
+               .HasForeignKey(e => e.WeekId);
         });
 
         modelBuilder.Entity<Person>(entity =>
@@ -163,6 +157,40 @@ public class ClinicalSchedulerContext : DbContext
             entity.Property(e => e.DefaultGradYear).HasColumnName("DefaultGradYear");
             entity.Property(e => e.DefaultSelectionYear).HasColumnName("DefaultSelectionYear");
             entity.Property(e => e.PublishSchedule).HasColumnName("PublishSchedule");
+        });
+
+        modelBuilder.Entity<ScheduleAudit>(entity =>
+        {
+            entity.HasKey(e => e.ScheduleAuditId);
+            entity.ToTable("ScheduleAudit", schema: "dbo");
+
+            entity.Property(e => e.ScheduleAuditId).HasColumnName("ScheduleAudit_ID");
+            entity.Property(e => e.ModifiedBy).HasColumnName("modBy");
+            entity.Property(e => e.TimeStamp).HasColumnName("timestamp");
+            entity.Property(e => e.Action).HasColumnName("action");
+            entity.Property(e => e.Detail).HasColumnName("detail").IsRequired(false);
+            entity.Property(e => e.InstructorScheduleId).HasColumnName("InstructorSchedule_ID").IsRequired(false);
+            entity.Property(e => e.RotationId).HasColumnName("Rot_ID").IsRequired(false);
+            entity.Property(e => e.WeekId).HasColumnName("Week_ID").IsRequired(false);
+            entity.Property(e => e.MothraId).HasColumnName("Mothra_ID").IsRequired(false);
+
+            // Navigation properties for convenience (no foreign key constraints in database)
+            entity.HasOne(e => e.InstructorSchedule).WithMany()
+               .HasForeignKey(e => e.InstructorScheduleId)
+               .HasConstraintName(null); // No actual FK constraint in database
+
+            entity.HasOne(e => e.Rotation).WithMany()
+               .HasForeignKey(e => e.RotationId)
+               .HasConstraintName(null); // No actual FK constraint in database
+
+            entity.HasOne(e => e.Week).WithMany()
+               .HasForeignKey(e => e.WeekId)
+               .HasConstraintName(null); // No actual FK constraint in database
+
+            entity.HasOne(e => e.Person).WithMany()
+               .HasForeignKey(e => e.MothraId)
+               .HasPrincipalKey(p => p.IdsMothraId)
+               .HasConstraintName(null); // No actual FK constraint in database
         });
 
         // VWeek table is accessed through WeekGradYear + Week entities for better type safety

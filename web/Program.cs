@@ -192,6 +192,8 @@ try
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IClinicalScheduleSecurityService, Viper.Areas.ClinicalScheduler.Services.ClinicalScheduleSecurityService>();
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IClinicalScheduleService, Viper.Areas.ClinicalScheduler.Services.ClinicalScheduleService>();
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.ISchedulePermissionService, Viper.Areas.ClinicalScheduler.Services.SchedulePermissionService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IScheduleEditService, Viper.Areas.ClinicalScheduler.Services.ScheduleEditService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IScheduleAuditService, Viper.Areas.ClinicalScheduler.Services.ScheduleAuditService>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
