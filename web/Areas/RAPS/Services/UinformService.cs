@@ -20,7 +20,8 @@ namespace Viper.Areas.RAPS.Services
         //this is added to an extension attrbiute to mark a group as being "ours"
         private static readonly string _ourGroupIdentifier = "SVMManagedGroup";
 
-        public UinformService() {
+        public UinformService()
+        {
             //_logger = HttpHelper.Logger;
             _apiBase = (HttpHelper.Environment?.IsProduction() ?? false)
                 ? "https://ws.uinform.ucdavis.edu/"
@@ -41,7 +42,8 @@ namespace Viper.Areas.RAPS.Services
             HttpMethod method = HttpMethod.Get;
             string body = "";
 
-            if (!string.IsNullOrEmpty(search)) {
+            if (!string.IsNullOrEmpty(search))
+            {
                 url += "Search";
                 method = HttpMethod.Post;
                 body = new SearchClass() { Value = search }.ToJson();
@@ -74,11 +76,11 @@ namespace Viper.Areas.RAPS.Services
         public async Task<ManagedGroup> GetManagedGroup(string? distinguishedName = null, string? guid = null)
         {
             string url = "ManagedGroups/";
-            if(!string.IsNullOrEmpty(distinguishedName))
+            if (!string.IsNullOrEmpty(distinguishedName))
             {
                 url += "dn/" + distinguishedName;
             }
-            else if(!string.IsNullOrEmpty(guid))
+            else if (!string.IsNullOrEmpty(guid))
             {
                 url += "guid/" + guid;
             }
@@ -97,7 +99,7 @@ namespace Viper.Areas.RAPS.Services
         /// <returns></returns>
         public async Task CreateManagedGroup(string groupName, string displayName, string description, int maxMembers = 0)
         {
-            if(!groupName.StartsWith("SVM-"))
+            if (!groupName.StartsWith("SVM-"))
             {
                 groupName = "SVM-" + groupName;
             }
@@ -182,7 +184,7 @@ namespace Viper.Areas.RAPS.Services
         public async Task<AdUser> GetUser(string? guid = null, string? userPrincipalName = null, string? mail = null, string? samAccountName = null)
         {
             string url = "AdUsers/";
-            if(!string.IsNullOrEmpty(guid))
+            if (!string.IsNullOrEmpty(guid))
             {
                 url += "guid/" + guid;
             }
@@ -212,7 +214,7 @@ namespace Viper.Areas.RAPS.Services
         /// <returns></returns>
         private async Task<UinformResponse<T>?> SendRequest<T>(string url, HttpMethod method, string? body = null)
         {
-            if(!url.StartsWith(_apiBase))
+            if (!url.StartsWith(_apiBase))
             {
                 url = _apiBase + url;
             }
@@ -222,7 +224,7 @@ namespace Viper.Areas.RAPS.Services
                 throw new Exception("Invalid Method: " + method.Method);
             }
 
-            int epochTime = (int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+            int epochTime = (int)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;
             string publicKey = HttpHelper.GetSetting<string>("Credentials", "uInformPublicKey") ?? "";
             string sig = GetAuthSignature(method, publicKey, epochTime);
             string auth = Convert.ToBase64String(Encoding.ASCII.GetBytes(publicKey + ":" + sig));
@@ -236,7 +238,8 @@ namespace Viper.Areas.RAPS.Services
             request.Headers.Add("Accept", "application/json");
             request.Headers.Add("X-UTIMESTAMP", epochTime.ToString());
             using StringContent content = new(body ?? "", Encoding.UTF8, "application/json");
-            if (!string.IsNullOrEmpty(body)) {
+            if (!string.IsNullOrEmpty(body))
+            {
                 request.Content = content;
             }
 
@@ -249,7 +252,8 @@ namespace Viper.Areas.RAPS.Services
             }
             else
             {
-                uInformResponse = new UinformResponse<T>() {
+                uInformResponse = new UinformResponse<T>()
+                {
                     Success = false,
                     Error = new()
                     {
@@ -270,7 +274,10 @@ namespace Viper.Areas.RAPS.Services
             if (!string.IsNullOrEmpty(publicKey) && !string.IsNullOrEmpty(privateKey))
             {
                 string toSign = method.Method.ToUpper() + ":" + epochTime.ToString() + ":" + publicKey;
+                // Legacy API requires HMACSHA1 - third-party system constraint
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
                 using var sha1 = new HMACSHA1(Encoding.ASCII.GetBytes(privateKey));
+#pragma warning restore CA5350
                 byte[] hashed = sha1.ComputeHash(Encoding.ASCII.GetBytes(toSign));
                 return Convert.ToBase64String(hashed);
             }
