@@ -1,85 +1,241 @@
-const { spawnSync } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+const { spawnSync } = require("node:child_process")
+const path = require("node:path")
+const fs = require("node:fs")
+const { createLogger } = require("./script-utils")
 
 // Platform-specific constants
-const IS_WINDOWS = process.platform === 'win32';
+const IS_WINDOWS = process.platform === "win32"
+
+/**
+ * Categorize issues by severity and rule category
+ * @param {Array} issues - Array of issue objects with severity and rule properties
+ * @param {Function} categorizeRule - Function to categorize rules (returns 'critical-security', 'critical-accessibility', etc.)
+ * @param {string|string[]} criticalCategories - Critical category name(s) (e.g., 'critical-security' or ['critical-security', 'critical-accessibility'])
+ * @returns {Object} - Categorized issues: { criticalErrors, nonCriticalErrors, warnings }
+ */
+function categorizeIssuesBySeverity(issues, categorizeRule, criticalCategories) {
+    const criticalErrors = []
+    const nonCriticalErrors = []
+    const warnings = []
+
+    // Normalize criticalCategories to array for consistent handling
+    const criticalCategoriesArray = Array.isArray(criticalCategories) ? criticalCategories : [criticalCategories]
+
+    for (const issue of issues) {
+        const category = categorizeRule(issue.rule)
+
+        if (criticalCategoriesArray.includes(category)) {
+            criticalErrors.push(issue)
+        } else if (issue.severity === "error" || issue.severity === 2) {
+            nonCriticalErrors.push(issue)
+        } else {
+            warnings.push(issue)
+        }
+    }
+
+    return { criticalErrors, nonCriticalErrors, warnings }
+}
+
+/**
+ * Create a standardized summary reporter for lint results
+ * @param {string} toolName - Name of the linting tool (e.g., 'CSS', 'Vue/JS/TS')
+ * @param {Object} logger - Logger instance to use for output
+ * @returns {Object} - Reporter functions
+ */
+function createSummaryReporter(toolName, logger) {
+    return {
+        /**
+         * Log summary of issues found
+         * @param {number} totalIssues - Total number of issues
+         * @param {number} criticalCount - Number of critical security/accessibility errors
+         * @param {number} errorCount - Number of regular errors
+         * @param {number} warningCount - Number of warnings
+         */
+        logSummary(totalIssues, criticalCount, errorCount, warningCount) {
+            const parts = []
+            if (criticalCount > 0) {
+                parts.push(`${criticalCount} critical errors`)
+            }
+            if (errorCount > 0) {
+                parts.push(`${errorCount} errors`)
+            }
+            if (warningCount > 0) {
+                parts.push(`${warningCount} warnings`)
+            }
+
+            logger.plain(`\n📊 ${toolName} Summary: ${totalIssues} total issues (${parts.join(", ")})`)
+        },
+
+        /**
+         * Log commit decision and exit with appropriate code
+         * @param {boolean} hasBlockingIssues - Whether there are issues that should block
+         * @param {boolean} hasWarnings - Whether there are non-blocking warnings
+         * @param {string} blockingReason - Reason for blocking (e.g., 'CRITICAL ERRORS', 'FEDERAL ACCESSIBILITY COMPLIANCE')
+         */
+        handleCommitDecision(hasBlockingIssues, hasWarnings, blockingReason = "CRITICAL ERRORS") {
+            const blockOnWarnings = shouldBlockOnWarnings()
+            const shouldBlock = hasBlockingIssues || (blockOnWarnings && hasWarnings)
+
+            if (shouldBlock) {
+                if (hasBlockingIssues) {
+                    logger.plain(`\n🛑 COMMIT BLOCKED due to ${blockingReason}.`)
+                    logger.plain("🔒 Critical issues MUST be fixed before committing.")
+                }
+                if (blockOnWarnings && hasWarnings && !hasBlockingIssues) {
+                    logger.plain("\n⚠️  LINTING STOPPED due to warnings.")
+                    logger.plain(
+                        "💡 These warnings would not block commits in normal mode. Fix warnings above or use lint:precommit to ignore warnings.",
+                    )
+                }
+                process.exit(1)
+            } else if (hasWarnings) {
+                logger.plain("\n✅ COMMIT ALLOWED - Only warnings detected (non-blocking).")
+                logger.plain("💡 Consider addressing warnings to improve code quality.")
+            } else {
+                logger.plain(`\n✅ All ${toolName} checks passed!`)
+            }
+        },
+    }
+}
+
+/**
+ * Display categorized issues with standardized formatting using consistent logger
+ * @param {Object} categorizedIssues - Issues categorized by severity
+ * @param {Object} config - Display configuration
+ * @param {string} toolName - Name of the linting tool for logger context
+ */
+function displayCategorizedIssues(categorizedIssues, config, toolName) {
+    const { criticalErrors, nonCriticalErrors, warnings } = categorizedIssues
+    const { criticalLabel, nonCriticalLabel, warningLabel, criticalIcon = "🚨" } = config
+
+    const logger = createLogger(toolName)
+    const blockOnWarnings = shouldBlockOnWarnings()
+
+    // Display critical errors
+    if (criticalErrors.length > 0) {
+        logger.plain(`\n${criticalIcon} ${criticalLabel} (${criticalErrors.length}) - MUST FIX:`)
+        for (const issue of criticalErrors) {
+            logger.plain(`  ${issue.file}:${issue.line}:${issue.col} - ${issue.rule}: ${issue.message}`)
+        }
+    }
+
+    // Display non-critical errors
+    if (nonCriticalErrors.length > 0) {
+        logger.error(`${nonCriticalLabel} (${nonCriticalErrors.length}) - MUST FIX:`)
+        for (const issue of nonCriticalErrors) {
+            logger.plain(`  ${issue.file}:${issue.line}:${issue.col} - ${issue.rule}: ${issue.message}`)
+        }
+    }
+
+    // Display warnings only when blocking on warnings is enabled
+    if (blockOnWarnings && warnings.length > 0) {
+        logger.warning(`${warningLabel} (${warnings.length}):`)
+        for (const issue of warnings) {
+            logger.plain(`  ${issue.file}:${issue.line}:${issue.col} - ${issue.rule}: ${issue.message}`)
+        }
+    }
+
+    // Display summary message
+    const totalIssues = criticalErrors.length + nonCriticalErrors.length + warnings.length
+    const hasErrors = criticalErrors.length > 0 || nonCriticalErrors.length > 0
+
+    if (totalIssues === 0) {
+        logger.success(`No issues found`)
+    } else if (!blockOnWarnings && !hasErrors) {
+        logger.success("No critical violations found")
+    }
+}
+
+/**
+ * Handle commit decision based on categorized issues using consistent logger
+ * @param {Object} categorizedIssues - Issues categorized by severity
+ * @param {Object} config - Configuration for blocking behavior
+ * @param {string} toolName - Name of the linting tool
+ * @returns {Object} - Issue counts and blocking status
+ */
+function handleCommitDecisionForCategorizedIssues(categorizedIssues, config, toolName) {
+    const { criticalErrors, nonCriticalErrors, warnings } = categorizedIssues
+    const { criticalBlockingMessage, errorBlockingMessage } = config
+
+    const logger = createLogger(toolName)
+    const blockOnWarnings = shouldBlockOnWarnings()
+    const hasErrors = criticalErrors.length > 0 || nonCriticalErrors.length > 0
+
+    // Calculate totals for summary - always show actual counts found
+    const totalIssues = criticalErrors.length + nonCriticalErrors.length + warnings.length
+    const criticalCount = criticalErrors.length
+    const errorCount = nonCriticalErrors.length
+    const warningCount = warnings.length
+
+    // Create and use summary reporter
+    const reporter = createSummaryReporter(toolName, logger)
+
+    if (totalIssues > 0 || blockOnWarnings) {
+        reporter.logSummary(totalIssues, criticalCount, errorCount, warningCount)
+    }
+
+    // Handle blocking with consistent logger
+    if (hasErrors) {
+        if (criticalErrors.length > 0 && criticalBlockingMessage) {
+            logger.error(`COMMIT BLOCKED - ${criticalBlockingMessage}`)
+        }
+        if (nonCriticalErrors.length > 0 && errorBlockingMessage) {
+            logger.error(`COMMIT BLOCKED - ${errorBlockingMessage}`)
+        }
+        if (!criticalBlockingMessage && !errorBlockingMessage) {
+            logger.error("COMMIT BLOCKED due to ERRORS.")
+            logger.plain("🔒 All errors MUST be fixed before committing.")
+        }
+        process.exit(1)
+    }
+
+    // Use shared reporter for warning handling
+    reporter.handleCommitDecision(false, warnings.length > 0)
+
+    return { totalIssues, criticalCount, errorCount, warningCount, hasErrors }
+}
 
 /**
  * Parse command line arguments for lint-staged scripts
  * @returns {Object} { fixFlag: boolean, files: string[] }
  */
 function parseArguments() {
-  const knownFlags = new Set(['--fix']);
-  const args = process.argv.slice(2);
-  const fixFlag = args.includes('--fix');
-  const rawFiles = args.filter(a => !knownFlags.has(a) && !a.startsWith('--'));
+    const knownFlags = new Set(["--fix"])
+    const args = process.argv.slice(2)
+    const fixFlag = args.includes("--fix")
+    const rawFiles = args.filter((a) => !knownFlags.has(a) && !a.startsWith("--"))
 
-  return { fixFlag, rawFiles };
+    return { fixFlag, rawFiles }
 }
 
 /**
- * Sanitize and validate file paths with security checks
- * @param {string} filePath - Raw file path from lint-staged
- * @param {string} baseDir - Base directory to validate against
- * @param {string[]} allowedExtensions - Array of allowed file extensions (e.g., ['.css', '.vue'])
- * @param {number} maxFileSizeMB - Maximum file size in MB (default: 5)
- * @returns {string|null} - Relative path for linting tools, or null if file should be skipped
+ * Parse JSON output from linting tools (ESLint, Stylelint) with fallback to text parsing
+ * @param {string} stdout - Tool stdout
+ * @param {string} stderr - Tool stderr (may contain valid JSON in some cases)
+ * @param {string} toolName - Name of the linting tool for logging
+ * @param {Function} textFallbackParser - Function to parse text output if JSON parsing fails
+ * @returns {Array} - Array of parsed JSON results (empty array if no valid JSON)
  */
-function sanitizeFilePath(filePath, baseDir, allowedExtensions, maxFileSizeMB = 5) {
-  // Handle Windows paths passed by lint-staged - convert forward slashes to proper format
-  let normalizedPath = filePath;
+function parseJsonOutput(stdout, stderr, toolName, textFallbackParser) {
+    const logger = createLogger(toolName)
 
-  // On Windows, lint-staged may pass paths like C:/path/to/file
-  // Convert these to proper Windows format first
-  if (IS_WINDOWS && /^[A-Za-z]:[\\\\/]/.test(filePath)) {
-    normalizedPath = filePath.replace(/\//g, path.sep);
-  }
+    // Parse JSON output (should be in stdout with --format json)
+    const jsonOutput = stdout.trim()
 
-  // Normalize the path to prevent directory traversal
-  normalizedPath = path.normalize(normalizedPath);
-
-  // Resolve to absolute path for security checks
-  const resolvedPath = path.resolve(normalizedPath);
-  const baseAbsPath = path.resolve(baseDir);
-
-  // Ensure file is within base directory using path.relative (more secure than startsWith)
-  const relativeToBase = path.relative(baseAbsPath, resolvedPath);
-  if (relativeToBase.startsWith('..') || path.isAbsolute(relativeToBase)) {
-    console.warn(`[lint-skip] Outside base directory: ${filePath}`);
-    return null;
-  }
-
-  // Ensure it's an allowed file type
-  const ext = path.extname(resolvedPath).toLowerCase();
-  if (!allowedExtensions.includes(ext)) {
-    console.warn(`[lint-skip] Disallowed extension: ${filePath}`);
-    return null;
-  }
-
-  // If the file was removed between staging and lint run, treat as non-existent.
-  if (!fs.existsSync(resolvedPath)) {
-    return null;
-  }
-
-  // Check file size to prevent DoS attacks
-  const MAX_FILE_SIZE_BYTES = maxFileSizeMB * 1024 * 1024;
-  let stats;
-  try {
-    stats = fs.statSync(resolvedPath);
-  } catch (err) {
-    // Treat unexpected stat failures as non-existent to avoid blocking commits.
-    return null;
-  }
-
-  if (stats.size > MAX_FILE_SIZE_BYTES) {
-    throw new Error(`File too large (${Math.round(stats.size / 1024 / 1024)}MB > ${maxFileSizeMB}MB): ${filePath}. Large files may cause performance issues during linting. Consider excluding from commit or increasing maxFileSizeMB.`);
-  }
-
-  // Return relative path for linting tools (relative to base directory)
-  // Use forward slashes for cross-platform compatibility with linting tools
-  const relativePath = path.posix.normalize(path.relative(baseAbsPath, resolvedPath));
-  return relativePath;
+    try {
+        if (jsonOutput) {
+            const results = JSON.parse(jsonOutput)
+            if (!Array.isArray(results)) {
+                logger.warning(`${toolName} JSON output is not an array, analyzing text output`)
+                return textFallbackParser ? textFallbackParser(stdout + stderr) : []
+            }
+            return results
+        }
+        return []
+    } catch {
+        logger.warning(`Failed to parse ${toolName} JSON output, analyzing text output`)
+        return textFallbackParser ? textFallbackParser(stdout + stderr) : []
+    }
 }
 
 /**
@@ -91,50 +247,121 @@ function sanitizeFilePath(filePath, baseDir, allowedExtensions, maxFileSizeMB = 
  * @returns {Object} - { success: boolean, stdout: string, stderr: string, status: number }
  */
 function runCommand(command, args, description, cwd) {
-  console.log(`Running ${description}...`);
+    const logger = createLogger("Command")
+    logger.plain(`Running ${description}...`)
 
-  // Security: Try to resolve local binary first to avoid npx network dependency
-  const binName = IS_WINDOWS ? `${command}.cmd` : command;
-  const localBin = path.join(cwd, 'node_modules', '.bin', binName);
+    // Use local binary - requires proper npm install
+    const binName = IS_WINDOWS ? `${command}.cmd` : command
+    const localBin = path.join(cwd, "node_modules", ".bin", binName)
 
-  let execPath;
-  let useShell = false;
-  let finalArgs = args;
+    if (!fs.existsSync(localBin)) {
+        throw new Error(
+            `Command '${command}' not found in node_modules/.bin/. Please run 'npm install' to install dependencies.`,
+        )
+    }
 
-  if (fs.existsSync(localBin)) {
-    execPath = localBin;
+    const execPath = localBin
+    const finalArgs = args
     // Windows .cmd files need shell, but use it safely with individual args
-    useShell = IS_WINDOWS && localBin.endsWith('.cmd');
-  } else {
-    execPath = 'npx';
-    finalArgs = ['--no-install', command, ...args];
-    useShell = false;
-  }
+    const useShell = IS_WINDOWS && localBin.endsWith(".cmd")
 
-  const result = spawnSync(execPath, finalArgs, {
-    stdio: ['inherit', 'pipe', 'pipe'],
-    cwd: cwd,
-    shell: useShell,
-    encoding: 'utf8',
-    windowsHide: true
-  });
+    const result = spawnSync(execPath, finalArgs, {
+        stdio: ["inherit", "pipe", "pipe"],
+        cwd: cwd,
+        shell: useShell,
+        encoding: "utf8",
+        windowsHide: true,
+    })
 
-  if (result.error) {
-    console.error(`Failed to run ${description}:`, result.error);
-    return { 
-      success: false, 
-      stdout: result.stdout || '', 
-      stderr: result.stderr || '', 
-      status: -1 
-    };
-  }
+    if (result.error) {
+        logger.plainError(`Failed to run ${description}: ${result.error}`)
+        return {
+            success: false,
+            stdout: result.stdout || "",
+            stderr: result.stderr || "",
+            status: -1,
+        }
+    }
 
-  return {
-    success: result.status === 0,
-    stdout: result.stdout || '',
-    stderr: result.stderr || '',
-    status: result.status
-  };
+    return {
+        success: result.status === 0,
+        stdout: result.stdout || "",
+        stderr: result.stderr || "",
+        status: result.status,
+    }
+}
+
+/**
+ * Sanitize and validate file paths with security checks
+ * @param {string} filePath - Raw file path from lint-staged
+ * @param {string} baseDir - Base directory to validate against
+ * @param {string[]} allowedExtensions - Array of allowed file extensions (e.g., ['.css', '.vue'])
+ * @param {number} maxFileSizeMB - Maximum file size in MB (default: 5)
+ * @returns {string|null} - Relative path for linting tools, or null if file should be skipped
+ */
+function sanitizeFilePath(filePath, baseDir, allowedExtensions, maxFileSizeMB = 5) {
+    const logger = createLogger("FilePath")
+
+    // Handle Windows paths passed by lint-staged - convert forward slashes to proper format
+    let normalizedPath = filePath
+
+    // On Windows, lint-staged may pass paths like C:/path/to/file
+    // Convert these to proper Windows format first
+    if (IS_WINDOWS && /^[A-Za-z]:[\\\\/]/.test(filePath)) {
+        normalizedPath = filePath.replaceAll("/", path.sep)
+    }
+
+    // Normalize the path to prevent directory traversal
+    normalizedPath = path.normalize(normalizedPath)
+
+    // Resolve to absolute path for security checks
+    const resolvedPath = path.resolve(normalizedPath)
+    const baseAbsPath = path.resolve(baseDir)
+
+    // Ensure file is within base directory using path.relative (more secure than startsWith)
+    const relativeToBase = path.relative(baseAbsPath, resolvedPath)
+    if (relativeToBase.startsWith("..") || path.isAbsolute(relativeToBase)) {
+        logger.plainWarning(`[lint-skip] Outside base directory: ${filePath}`)
+        return null
+    }
+
+    // Ensure it's an allowed file type (skip check if no extensions specified)
+    if (allowedExtensions.length > 0) {
+        const ext = path.extname(resolvedPath).toLowerCase()
+        if (!allowedExtensions.includes(ext)) {
+            logger.plainWarning(`[lint-skip] Disallowed extension: ${filePath}`)
+            return null
+        }
+    }
+
+    // If the file was removed between staging and lint run, treat as non-existent.
+    if (!fs.existsSync(resolvedPath)) {
+        return null
+    }
+
+    // Check file size to prevent DoS attacks
+    const KB_TO_BYTES = 1024
+    const MB_TO_KB = 1024
+    const BYTES_PER_MB = KB_TO_BYTES * MB_TO_KB
+    const MAX_FILE_SIZE_BYTES = maxFileSizeMB * BYTES_PER_MB
+    let stats = null
+    try {
+        stats = fs.statSync(resolvedPath)
+    } catch {
+        // Treat unexpected stat failures as non-existent to avoid blocking commits.
+        return null
+    }
+
+    if (stats.size > MAX_FILE_SIZE_BYTES) {
+        throw new Error(
+            `File too large (${Math.round(stats.size / BYTES_PER_MB)}MB > ${maxFileSizeMB}MB): ${filePath}. Large files may cause performance issues during linting. Consider excluding from commit or increasing maxFileSizeMB.`,
+        )
+    }
+
+    // Return relative path for linting tools (relative to base directory)
+    // Use forward slashes for cross-platform compatibility with linting tools
+    const relativePath = path.posix.normalize(path.relative(baseAbsPath, resolvedPath))
+    return relativePath
 }
 
 /**
@@ -142,61 +369,18 @@ function runCommand(command, args, description, cwd) {
  * @returns {boolean} - True if warnings should block commits
  */
 function shouldBlockOnWarnings() {
-  return process.env.LINT_BLOCK_ON_WARNINGS === 'true';
-}
-
-/**
- * Create a standardized summary reporter for lint results
- * @param {string} toolName - Name of the linting tool (e.g., 'CSS', 'Vue/JS/TS')
- * @returns {Object} - Reporter functions
- */
-function createSummaryReporter(toolName) {
-  return {
-    /**
-     * Log summary of issues found
-     * @param {number} totalIssues - Total number of issues
-     * @param {number} criticalCount - Number of critical/error issues
-     * @param {number} warningCount - Number of warnings
-     */
-    logSummary(totalIssues, criticalCount, warningCount) {
-      console.log(`\n📊 ${toolName} Summary: ${totalIssues} total issues (${criticalCount} critical errors, ${warningCount} warnings)`);
-    },
-
-    /**
-     * Log commit decision and exit with appropriate code
-     * @param {boolean} hasBlockingIssues - Whether there are issues that should block
-     * @param {boolean} hasWarnings - Whether there are non-blocking warnings
-     * @param {string} blockingReason - Reason for blocking (e.g., 'CRITICAL ERRORS', 'FEDERAL ACCESSIBILITY COMPLIANCE')
-     */
-    handleCommitDecision(hasBlockingIssues, hasWarnings, blockingReason = 'CRITICAL ERRORS') {
-      const blockOnWarnings = shouldBlockOnWarnings();
-      const shouldBlock = hasBlockingIssues || (blockOnWarnings && hasWarnings);
-
-      if (shouldBlock) {
-        if (hasBlockingIssues) {
-          console.log(`\n🛑 COMMIT BLOCKED due to ${blockingReason}.`);
-          console.log('🔒 Critical issues MUST be fixed before committing.');
-        }
-        if (blockOnWarnings && hasWarnings && !hasBlockingIssues) {
-          console.log('\n⚠️  LINTING STOPPED due to warnings.');
-          console.log('💡 These warnings would not block commits in normal mode. Fix warnings above or use lint:precommit to ignore warnings.');
-        }
-        process.exit(1);
-      } else if (hasWarnings) {
-        console.log('\n✅ COMMIT ALLOWED - Only warnings detected (non-blocking).');
-        console.log('💡 Consider addressing warnings to improve code quality.');
-      } else {
-        console.log(`\n✅ All ${toolName} checks passed!`);
-      }
-    }
-  };
+    return process.env.LINT_BLOCK_ON_WARNINGS === "true"
 }
 
 module.exports = {
-  IS_WINDOWS,
-  parseArguments,
-  sanitizeFilePath,
-  runCommand,
-  shouldBlockOnWarnings,
-  createSummaryReporter
-};
+    IS_WINDOWS,
+    categorizeIssuesBySeverity,
+    createSummaryReporter,
+    displayCategorizedIssues,
+    handleCommitDecisionForCategorizedIssues,
+    parseArguments,
+    parseJsonOutput,
+    runCommand,
+    sanitizeFilePath,
+    shouldBlockOnWarnings,
+}

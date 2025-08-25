@@ -2,30 +2,24 @@
 is_global = true
 
 # =============================================================================
-# SECURITY RULES - TREAT AS ERRORS (BLOCK BUILD)
+# SONAR ANALYZER RULES - ENABLE BY DEFAULT
 # =============================================================================
-# Security vulnerabilities should always block builds to prevent deployment
-# of unsafe code. These rules catch common security issues like injection
-# attacks, improper cryptography, and authentication bypasses.
+# Enable all SonarAnalyzer rules by default
+dotnet_analyzer_diagnostic.category-sonarway.severity = warning
 
-# .NET Security analyzer category - covers SQL injection, XSS, CSRF, etc.
+# =============================================================================
+# SECURITY RULES - COMPREHENSIVE COVERAGE (BLOCK BUILD)
+# =============================================================================
+# Enable ALL security rules to prevent deployment of unsafe code.
+# This provides comprehensive coverage of OWASP Top 10, ASVS 4.0, and CWE Top 25.
+
+# .NET Security analyzer category - covers injection, XSS, CSRF, etc.
 dotnet_analyzer_diagnostic.category-security.severity = error
 
-# SonarAnalyzer Security rules (S2xxx-S6xxx range contains many security rules)
-# Path traversal vulnerabilities
-dotnet_diagnostic.S2083.severity = error
-# XPath injection vulnerabilities
-dotnet_diagnostic.S2091.severity = error
-# Cookie security issues
-dotnet_diagnostic.S2092.severity = error
-# Weak cryptographic algorithms
-dotnet_diagnostic.S4426.severity = error
-# Insecure random number generation
-dotnet_diagnostic.S2245.severity = error
-# CSRF protection issues
-dotnet_diagnostic.S5131.severity = error
-# SQL injection vulnerabilities
-dotnet_diagnostic.S3649.severity = error
+# SonarAnalyzer comprehensive security coverage
+# These category rules enable ALL vulnerability and security hotspot rules automatically
+dotnet_analyzer_diagnostic.category-vulnerability.severity = error
+dotnet_analyzer_diagnostic.category-security-hotspot.severity = warning
 
 # =============================================================================
 # SUPPRESSED NON-SECURITY RULES

@@ -1,20 +1,24 @@
 {
-  "{VueApp,scripts}/**/*.{vue,js,jsx,ts,tsx}": [
-    "node scripts/lint-staged-vue.js --fix"
-  ],
-  "{VueApp,web}/**/*.{css,vue}": [
-    "node scripts/lint-staged-css.js --fix"
-  ],
-  "web/**/*.cs": [
-    "node scripts/lint-staged-dotnet.js --fix"
-  ],
-  "web/**/*.cshtml": [
-    "node scripts/lint-staged-cshtml.js --fix"
-  ],
-  "test/**/*.cs": [  
-    "node scripts/lint-staged-dotnet.js --fix"
-  ],
-  "{web,test}/**/*.cs": [
-    "node scripts/lint-staged-sonar.js"
-  ]
+    "{VueApp,scripts}/**/*.{js,jsx,ts,tsx}": [
+        "node scripts/lint-staged-ts.js --fix",
+        "prettier --write"
+    ],
+    "{VueApp,scripts}/**/*.vue": [
+        "node scripts/lint-staged-vue.js --fix",
+        "prettier --write"
+    ],
+    "{VueApp,web}/**/*.{css,vue}": [
+        "node scripts/lint-staged-css.js --fix",
+        "prettier --write"
+    ],
+    "web/**/*.cs": [
+        "node scripts/lint-staged-dotnet.js --fix"
+    ],
+    "web/**/*.cshtml": [
+        "node scripts/lint-staged-cshtml.js --fix",
+        "prettier --write"
+    ],
+    "{web,test}/**/*.cs": [
+        "node scripts/lint-staged-dotnet.js --fix"
+    ]
 }

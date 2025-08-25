@@ -1,6 +1,16 @@
 {
-  "semi": false,
-  "printWidth": 120,
-  "tabWidth": 4,
-  "singleAttributePerLine": true
+    "semi": false,
+    "printWidth": 120,
+    "tabWidth": 4,
+    "useTabs": false,
+    "singleAttributePerLine": true,
+    "endOfLine": "auto",
+    "overrides": [
+        {
+            "files": "*.js",
+            "options": {
+                "tabWidth": 4
+            }
+        }
+    ]
 }

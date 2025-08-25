@@ -1,217 +1,189 @@
 #!/usr/bin/env node
 
-const path = require('path');
-const { 
-  parseArguments, 
-  sanitizeFilePath, 
-  runCommand, 
-  createSummaryReporter,
-  shouldBlockOnWarnings
-} = require('./lib/lint-staged-common');
-const { 
-  categorizeRule 
-} = require('./lib/critical-rules');
+const path = require("node:path")
+const {
+    parseArguments,
+    sanitizeFilePath,
+    runCommand,
+    parseJsonOutput,
+    categorizeIssuesBySeverity,
+    displayCategorizedIssues,
+    handleCommitDecisionForCategorizedIssues,
+} = require("./lib/lint-staged-common")
+const { categorizeRule } = require("./lib/critical-rules")
+const { createLogger } = require("./lib/script-utils")
 
 // Parse command line arguments
-const { fixFlag, rawFiles } = parseArguments();
+const { fixFlag, rawFiles } = parseArguments()
+
+const logger = createLogger("CSS")
 
 if (rawFiles.length === 0) {
-  process.exit(0);
+    logger.success("No .css files to check.")
+    process.exit(0)
 }
 
 // Project root directory path (for stylelint config)
-const projectRoot = path.join(__dirname, '..');
+const projectRoot = path.join(__dirname, "..")
 
 // Sanitize all file paths and filter out null results (missing files)
 const files = rawFiles
-  .map(filePath => sanitizeFilePath(filePath, projectRoot, ['.css', '.vue']))
-  .filter(file => file !== null);
+    .map((filePath) => sanitizeFilePath(filePath, projectRoot, [".css", ".vue"]))
+    .filter((file) => file !== null)
 
-// Function to analyze Stylelint output and separate accessibility vs style issues
-function analyzeStylelintOutput(stdout, stderr) {
-  const accessibilityErrors = [];
-  const accessibilityWarnings = [];
-  const styleIssues = [];
-  const output = stdout + stderr;
+/**
+ * Parse Stylelint JSON output and convert to standardized issue format
+ * @param {string} stdout - Stylelint stdout
+ * @param {string} stderr - Stylelint stderr
+ * @returns {Array} - Array of standardized issue objects
+ */
+function parseStylelintOutput(stdout, stderr) {
+    const issues = []
 
-  // Parse JSON output from Stylelint
-  let stylelintResults = [];
-  let jsonOutput = '';
+    // Use shared JSON parsing utility with text fallback
+    const stylelintResults = parseJsonOutput(stdout, stderr, "Stylelint", parseTextOutput)
 
-  jsonOutput = stdout.trim();
-
-  try {
-    if (jsonOutput.trim()) {
-      stylelintResults = JSON.parse(jsonOutput);
-    }
-  } catch (error) {
-    console.warn('Failed to parse Stylelint JSON output, analyzing text output');
-    return analyzeTextOutput(output);
-  }
-
-  // Process each file's results
-  stylelintResults.forEach(fileResult => {
-    if (fileResult.warnings) {
-      fileResult.warnings.forEach(warning => {
-        const issue = {
-          file: fileResult.source,
-          line: warning.line,
-          col: warning.column,
-          level: warning.severity === 'error' ? 'error' : 'warning',
-          message: warning.text,
-          rule: warning.rule || 'unknown'
-        };
-
-        // Categorize issues using shared rule definitions
-        const category = categorizeRule(issue.rule);
-        
-        if (category === 'critical-accessibility') {
-          accessibilityErrors.push(issue);
-        } else if (category === 'accessibility-warning') {
-          accessibilityWarnings.push(issue);
-        } else {
-          styleIssues.push(issue);
+    // Process each file's results
+    for (const fileResult of stylelintResults) {
+        if (fileResult.warnings) {
+            for (const warning of fileResult.warnings) {
+                issues.push({
+                    file: fileResult.source,
+                    line: warning.line,
+                    col: warning.column,
+                    severity: warning.severity === "error" ? "error" : "warning",
+                    message: warning.text,
+                    rule: warning.rule || "unknown",
+                })
+            }
         }
-      });
     }
-  });
 
-  return { accessibilityErrors, accessibilityWarnings, styleIssues, output };
+    return issues
 }
 
-// Fallback function to analyze text output when JSON parsing fails
-function analyzeTextOutput(output) {
-  const accessibilityErrors = [];
-  const accessibilityWarnings = [];
-  const styleIssues = [];
-  const lines = output.split('\n');
+/**
+ * Fallback function to parse text output when JSON parsing fails
+ * @param {string} output - Text output from Stylelint
+ * @returns {Array} - Array of standardized issue objects
+ */
+function parseTextOutput(output) {
+    const issues = []
+    const lines = output.split("\n")
 
-  lines.forEach(line => {
-    // Parse stylelint text output format: file:line:col ✖ message [rule]
-    const match = line.match(/(.+?):(\d+):(\d+)\s+✖\s+(.+?)\s+\[(.+?)\]/);
-    if (match) {
-      const [, file, lineNum, col, message, rule] = match;
-      const issue = {
-        file,
-        line: parseInt(lineNum),
-        col: parseInt(col),
-        level: 'error',
-        message,
-        rule
-      };
-
-      // Use shared categorization
-      const category = categorizeRule(issue.rule);
-      
-      if (category === 'critical-accessibility') {
-        accessibilityErrors.push(issue);
-      } else if (category === 'accessibility-warning') {
-        accessibilityWarnings.push(issue);
-      } else {
-        styleIssues.push(issue);
-      }
+    for (const line of lines) {
+        // Parse stylelint text output format: file:line:col ✖ message [rule]
+        const match = line.match(/(.+?):(\d+):(\d+)\s+✖\s+(.+?)\s+\[(.+?)\]/)
+        if (match) {
+            const [, file, lineNum, col, message, rule] = match
+            issues.push({
+                file,
+                line: Number.parseInt(lineNum, 10),
+                col: Number.parseInt(col, 10),
+                severity: "error", // Text output typically shows errors
+                message,
+                rule,
+            })
+        }
     }
-  });
 
-  return { accessibilityErrors, accessibilityWarnings, styleIssues, output };
+    return issues
 }
 
 try {
-  // Create summary reporter for CSS linting
-  const reporter = createSummaryReporter('CSS');
+    // Run Stylelint using shared command runner
+    const stylelintArgs = [...(fixFlag ? ["--fix"] : []), "--formatter", "json", "--allow-empty-input", ...files]
 
-  // Run Stylelint using shared command runner
-  const stylelintArgs = [
-    ...(fixFlag ? ['--fix'] : []),
-    '--formatter', 'json',
-    '--allow-empty-input',
-    ...files
-  ];
+    logger.info(`Running Stylelint accessibility and style checks on ${files.length} CSS/Vue files...`)
+    const stylelintResult = runCommand("stylelint", stylelintArgs, "Stylelint", projectRoot)
 
-  console.log(`🎨 Running Stylelint accessibility and style checks on ${files.length} CSS/Vue files...`);
-  const stylelintResult = runCommand('stylelint', stylelintArgs, 'Stylelint', projectRoot);
+    // Check for fatal errors
+    if (stylelintResult.status !== 0 && stylelintResult.status !== 2) {
+        logger.error("Stylelint command failed:")
+        if (stylelintResult.stdout) {
+            logger.error(stylelintResult.stdout)
+        }
+        if (stylelintResult.stderr) {
+            logger.error(stylelintResult.stderr)
+        }
+        logger.error("🛑 COMMIT BLOCKED - Stylelint execution failed")
+        process.exit(1)
+    }
 
-  // Check for fatal errors
-  if (stylelintResult.status !== 0 && stylelintResult.status !== 2) {
-    console.error('\n❌ Stylelint command failed:');
-    if (stylelintResult.stdout) console.error(stylelintResult.stdout);
-    if (stylelintResult.stderr) console.error(stylelintResult.stderr);
-    console.error('\n🛑 COMMIT BLOCKED - Stylelint execution failed');
-    process.exit(1);
-  }
+    // Status 2 means "violations found" - only warn if no violations were parsed
+    if (stylelintResult.status === 2) {
+        const jsonToCheck = stylelintResult.stdout.trim() || stylelintResult.stderr.trim()
+        const hasValidJson = jsonToCheck && jsonToCheck.startsWith("[")
+        if (!hasValidJson) {
+            logger.warning("STYLELINT CONFIGURATION WARNING: Status 2 with no parseable violations")
+            logger.warning("📋 Consider reviewing stylelint.config.mjs if unexpected behavior occurs")
+        }
+    }
 
-  // Warn about configuration errors (status 2)
-  if (stylelintResult.status === 2) {
-    console.warn('\n⚠️  STYLELINT CONFIGURATION WARNING: Status 2 indicates potential config issues');
-    console.warn('📋 Consider reviewing stylelint.config.mjs if unexpected behavior occurs');
-  }
+    // Filter out deprecation warnings
+    const cleanStderr = stylelintResult.stderr
+        ? stylelintResult.stderr
+              .split("\n")
+              .filter((line) => !line.includes("DeprecationWarning"))
+              .join("\n")
+              .trim()
+        : ""
 
-  // Filter out deprecation warnings
-  const cleanStderr = stylelintResult.stderr ?
-    stylelintResult.stderr
-      .split('\n')
-      .filter(line => !line.includes('DeprecationWarning'))
-      .join('\n')
-      .trim() : '';
+    // Parse and categorize Stylelint output
+    const issues = parseStylelintOutput(stylelintResult.stdout, cleanStderr)
 
-  // Analyze output
-  const { accessibilityErrors, accessibilityWarnings, styleIssues } = analyzeStylelintOutput(
-    stylelintResult.stdout,
-    cleanStderr
-  );
+    // For CSS, we need special handling of accessibility categories
+    const criticalAccessibilityIssues = []
+    const accessibilityWarnings = []
+    const otherIssues = []
 
-  // Display results with clear separation
-  if (accessibilityErrors.length > 0) {
-    console.log(`\n🚨 WCAG 2.1 AA VIOLATIONS (${accessibilityErrors.length}) - FEDERAL COMPLIANCE REQUIRED:`);
-    accessibilityErrors.forEach(issue => {
-      console.log(`  ${issue.file}:${issue.line}:${issue.col} - ${issue.rule}: ${issue.message}`);
-    });
-  }
+    for (const issue of issues) {
+        const category = categorizeRule(issue.rule)
+        if (category === "critical-accessibility") {
+            criticalAccessibilityIssues.push(issue)
+        } else if (category === "accessibility-warning") {
+            accessibilityWarnings.push(issue)
+        } else {
+            otherIssues.push(issue)
+        }
+    }
 
-  // Only show warnings when blocking on warnings is enabled
-  const blockOnWarnings = shouldBlockOnWarnings();
-  
-  if (blockOnWarnings && accessibilityWarnings.length > 0) {
-    console.log(`\n🔶 ACCESSIBILITY WARNINGS (${accessibilityWarnings.length}) - WCAG 2.1 AA SUPPORTIVE:`);
-    accessibilityWarnings.forEach(issue => {
-      console.log(`  ${issue.file}:${issue.line}:${issue.col} - ${issue.rule}: ${issue.message}`);
-    });
-  }
+    // Categorize non-accessibility issues by severity
+    const categorizedOtherIssues = categorizeIssuesBySeverity(otherIssues, () => "other", "never-matches")
 
-  if (blockOnWarnings && styleIssues.length > 0) {
-    console.log(`\n⚠️  STYLE ISSUES (${styleIssues.length}) - FORMATTING & CODE STYLE:`);
-    styleIssues.forEach(issue => {
-      console.log(`  ${issue.file}:${issue.line}:${issue.col} - ${issue.rule}: ${issue.message}`);
-    });
-  }
+    // Merge accessibility and other issues for display
+    const mergedCategorizedIssues = {
+        criticalErrors: [...criticalAccessibilityIssues, ...categorizedOtherIssues.nonCriticalErrors],
+        nonCriticalErrors: [],
+        warnings: [...accessibilityWarnings, ...categorizedOtherIssues.warnings],
+    }
 
-  if (accessibilityErrors.length === 0 && accessibilityWarnings.length === 0 && styleIssues.length === 0) {
-    console.log('✅ No CSS/Stylelint issues found in staged files');
-  } else if (!blockOnWarnings && accessibilityErrors.length === 0) {
-    console.log('✅ No critical CSS violations found');
-  }
+    // Display categorized issues using shared function
+    displayCategorizedIssues(
+        mergedCategorizedIssues,
+        {
+            criticalLabel:
+                criticalAccessibilityIssues.length > 0
+                    ? "WCAG 2.1 AA VIOLATIONS - FEDERAL COMPLIANCE REQUIRED"
+                    : "CSS ERRORS",
+            nonCriticalLabel: "OTHER ERRORS",
+            warningLabel: "ACCESSIBILITY & STYLE WARNINGS",
+            criticalIcon: criticalAccessibilityIssues.length > 0 ? "🚨" : "❌",
+        },
+        "CSS",
+    )
 
-  // Use shared summary reporter - adjust counts based on what we're showing
-  const totalIssues = accessibilityErrors.length + (blockOnWarnings ? (accessibilityWarnings.length + styleIssues.length) : 0);
-  const criticalCount = accessibilityErrors.length;
-  const warningCount = blockOnWarnings ? (accessibilityWarnings.length + styleIssues.length) : 0;
-  
-  if (totalIssues > 0 || blockOnWarnings) {
-    reporter.logSummary(totalIssues, criticalCount, warningCount);
-  }
+    // Use shared commit decision handler with special CSS messaging
+    const config = {}
+    if (criticalAccessibilityIssues.length > 0) {
+        config.criticalBlockingMessage = "FEDERAL ACCESSIBILITY COMPLIANCE REQUIRED"
+    }
+    if (mergedCategorizedIssues.criticalErrors.length > criticalAccessibilityIssues.length) {
+        config.errorBlockingMessage = "CSS ERRORS MUST BE FIXED"
+    }
 
-  // Handle federal compliance requirements
-  if (accessibilityErrors.length > 0) {
-    console.log('\n🛑 COMMIT BLOCKED - FEDERAL ACCESSIBILITY COMPLIANCE REQUIRED');
-    console.log('🏛️  WCAG 2.1 AA violations MUST be fixed for federal compliance.');
-    console.log('📋 Review violations above and use accessible code patterns.');
-    process.exit(1);
-  }
-  
-  // Use shared reporter for standard warning handling
-  reporter.handleCommitDecision(false, warningCount > 0);
-
+    handleCommitDecisionForCategorizedIssues(mergedCategorizedIssues, config, "CSS")
 } catch (error) {
-  console.error('Unexpected error:', error);
-  process.exit(1);
+    logger.error("Unexpected error:", error)
+    process.exit(1)
 }
