@@ -6,7 +6,7 @@
     import { useUserStore } from '@/store/UserStore'
     const userStore = useUserStore()
 
-    const props = defineProps({
+    defineProps({
         forScheduledStudent: {
             type: Boolean,
             default: false,
@@ -66,23 +66,46 @@
 </script>
 
 <template>
-    <q-select label="Select Service" dense options-dense outlined
-              v-model="selectedService" option-label="serviceName" option-value="serviceId" :options="services">
-        <template v-slot:option="scope">
-            <q-item v-bind="scope.itemProps">
-                <q-item-section side v-if="scope.opt.thisWeek">
-                    <q-badge color="green">This Week</q-badge>
-                </q-item-section>
-                <q-item-section side v-if="scope.opt.lastWeek && !scope.opt.thisWeek">
-                    <q-badge color="blue">Last Week</q-badge>
-                </q-item-section>
-                <q-item-section side v-if="scope.opt.scheduled && !scope.opt.lastWeek && !scope.opt.thisWeek">
-                    <q-badge color="grey-5">Scheduled</q-badge>
-                </q-item-section>
-                <q-item-section>
-                    <q-item-label>{{scope.opt.serviceName}}</q-item-label>
-                </q-item-section>
-            </q-item>
-        </template>
-    </q-select>
+  <q-select
+    label="Select Service"
+    dense
+    options-dense
+    outlined
+    v-model="selectedService"
+    option-label="serviceName"
+    option-value="serviceId"
+    :options="services"
+  >
+    <template #option="scope">
+      <q-item v-bind="scope.itemProps">
+        <q-item-section
+          side
+          v-if="scope.opt.thisWeek"
+        >
+          <q-badge color="green">
+            This Week
+          </q-badge>
+        </q-item-section>
+        <q-item-section
+          side
+          v-if="scope.opt.lastWeek && !scope.opt.thisWeek"
+        >
+          <q-badge color="blue">
+            Last Week
+          </q-badge>
+        </q-item-section>
+        <q-item-section
+          side
+          v-if="scope.opt.scheduled && !scope.opt.lastWeek && !scope.opt.thisWeek"
+        >
+          <q-badge color="grey-5">
+            Scheduled
+          </q-badge>
+        </q-item-section>
+        <q-item-section>
+          <q-item-label>{{ scope.opt.serviceName }}</q-item-label>
+        </q-item-section>
+      </q-item>
+    </template>
+  </q-select>
 </template>

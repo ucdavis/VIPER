@@ -1,3 +1,5 @@
+/* Base styles extracted from site.css - layout, typography, and non-color styles */
+
 @font-face {
     font-family: Metropolis;
     src: url('@/assets/fonts/Metropolis-Regular.woff2');
@@ -34,7 +36,7 @@ body {
 /*Placeholders used when loading*/
 #headerPlaceholder {
     height: 50px;
-    background-color: #022851;
+    background-color: var(--ucdavis-blue-100);
 }
 
 #topPlaceholder {
@@ -43,12 +45,12 @@ body {
 
 #mainNavPlaceholder {
     height: 50px;
-    background-color: #1D4776;
+    background-color: var(--ucdavis-blue-80);
 }
 
 /*Top nav/header styles*/
 #mainLayoutHeader {
-    background-color: #022851;
+    background-color: var(--ucdavis-blue-100);
     /*background-color: white;*/
 }
 
@@ -93,8 +95,7 @@ div.breadcrumbs {
 }
 
 #mainLayoutHeaderSections {
-    /*background-color: #1D4776;*/
-    background-color: #FFCD00;
+    background-color: var(--ucdavis-gold-70);
     min-height: 36px;
     border-bottom: 1px solid silver;
     /*padding: 0 12px;*/
@@ -102,11 +103,11 @@ div.breadcrumbs {
 
     #mainLayoutHeaderSections .selectedTopNav {
         /*background-color: #4F7094;*/
-        background-color: #FFE699;
+        background-color: var(--ucdavis-gold-40);
     }
 
     #mainLayoutHeaderSections a.q-btn.navLink {
-        
+
     }
 
 /*Left Nav styles*/

@@ -192,7 +192,7 @@
                     await viperFetch(this, "clinicalservices")
                         .then(data => this.services = data.map(d => ({ label: d.serviceName, value: d.serviceId })))
                     //get all scheduled services along with services scheduled this week and last week
-                    var scheduledServices = await viperFetch(this, "clinicalschedule/instructor?mothraId=" + this.userId)
+                    var scheduledServices = await viperFetch(this, "../api/cts/clinicalschedule/instructor?mothraId=" + this.userId)
                     var today = new Date()
                     today.setHours(0, 0, 0, 0)
                     var sunday = new Date(today)
@@ -233,7 +233,7 @@
 
                     if (this.service && this.service != this.studentsLoadedForService) {
                         var d = new Date().toJSON().split("T")[0]
-                        await viperFetch(this, "clinicalschedule/student?serviceId=" + this.service + "&startDate=" + d + "&endDate=" + d)
+                        await viperFetch(this, "../api/cts/clinicalschedule/student?serviceId=" + this.service + "&startDate=" + d + "&endDate=" + d)
                             .then(data => this.studentsOnService = data.map(s => ({
                                 label: s.lastName + ", " + s.firstName, mailId: s.mailId, value: s.personId
                             })))
