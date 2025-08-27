@@ -62,3 +62,40 @@ export interface PermissionSummary {
         userCanEdit: boolean
     }>
 }
+
+// Instructor Schedule types for edit functionality
+export interface InstructorScheduleRequest {
+    mothraId: string
+    rotationId: number
+    weekIds: number[]
+    isPrimaryEvaluator?: boolean
+}
+
+export interface InstructorScheduleResponse {
+    scheduleIds: number[]
+    message?: string
+}
+
+export interface ScheduleConflict {
+    weekId: number
+    weekNumber: number
+    rotationId: number
+    rotationName: string
+    dateStart: string
+    dateEnd: string
+    isAlreadyScheduled: boolean
+}
+
+export interface SetPrimaryEvaluatorRequest {
+    isPrimary: boolean
+}
+
+export interface AuditEntry {
+    auditId: number
+    action: string
+    details: string
+    modifiedBy: string
+    modifiedDate: string
+    mothraId?: string
+    instructorName?: string
+}

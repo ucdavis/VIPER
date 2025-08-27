@@ -238,42 +238,48 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     }
                 }
 
-                Dictionary<int, Models.ClinicalScheduler.InstructorSchedule> schedulesByWeekId;
-                try
-                {
-                    schedulesByWeekId = schedules.ToDictionary(s => s.WeekId, s => s);
-                }
-                catch (ArgumentException ex) when (ex.Message.Contains("An item with the same key has already been added"))
-                {
-                    _logger.LogError(ex, "Duplicate key error when creating schedules dictionary for clinician {MothraId}. " +
-                        "Total schedules: {ScheduleCount}, Unique WeekIds in vWeeks: {UniqueWeekCount}, " +
-                        "WeekIds from schedules: {ScheduleWeekIds}",
-                        mothraId, schedules.Count, vWeeks.Select(w => w.WeekId).Distinct().Count(),
-                        string.Join(", ", schedules.Select(s => s.WeekId).OrderBy(id => id)));
+                // Group schedules by WeekId to handle multiple rotations per week
+                var schedulesByWeekId = schedules
+                    .GroupBy(s => s.WeekId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
 
-                    // Create dictionary using GroupBy to handle duplicates - take the first schedule for each WeekId
-                    schedulesByWeekId = schedules
-                        .GroupBy(s => s.WeekId)
-                        .ToDictionary(g => g.Key, g => g.First());
+                _logger.LogInformation("Grouped {ScheduleCount} schedules into {WeekCount} weeks for clinician {MothraId}",
+                    schedules.Count, schedulesByWeekId.Count, mothraId);
 
-                    _logger.LogInformation("Created schedules dictionary with GroupBy fallback. Dictionary size: {DictionarySize}",
-                        schedulesByWeekId.Count);
-                }
-
-                // Deduplicate weeks and pre-calculate semester names for all weeks to avoid repeated calls
-                var deduplicatedWeeks = vWeeks
-                    .DistinctBy(w => w.WeekId)
-                    .ToList();
-
-                var weeksWithSemester = deduplicatedWeeks.Select(w =>
+                // Pre-calculate semester names for all weeks to avoid repeated calls
+                var weeksWithSemester = vWeeks.Select(w =>
                 {
                     var semesterName = TermCodeService.GetTermCodeDescription(w.TermCode);
                     var normalizedSemester = semesterName.StartsWith("Unknown Term")
                         ? "Unknown Semester"
                         : semesterName;
 
-                    // Check if this week has a schedule assignment
-                    var hasSchedule = schedulesByWeekId.TryGetValue(w.WeekId, out var schedule);
+                    // Check if this week has schedule assignments (could be multiple)
+                    var hasSchedules = schedulesByWeekId.TryGetValue(w.WeekId, out var weekSchedules);
+
+                    // Build rotations array for this week
+                    var weekRotations = hasSchedules && weekSchedules != null && weekSchedules.Any()
+                        ? weekSchedules.Select(schedule =>
+                        {
+                            rotations.TryGetValue(schedule.RotationId, out var rotation);
+                            if (rotation != null)
+                            {
+                                return new
+                                {
+                                    rotationId = schedule.RotationId,
+                                    rotationName = rotation.Name,
+                                    abbreviation = rotation.Abbreviation,
+                                    serviceId = rotation.ServiceId,
+                                    serviceName = rotation.Service?.ServiceName,
+                                    scheduleId = schedule.InstructorScheduleId,
+                                    isPrimaryEvaluator = schedule.Evaluator
+                                };
+                            }
+                            return null;
+                        }).Where(r => r != null)
+                          .OrderBy(r => r.rotationName) // Sort rotations alphabetically
+                          .ToArray()
+                        : new dynamic[0];
 
                     return new
                     {
@@ -284,15 +290,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                             dateStart = w.DateStart,
                             dateEnd = w.DateEnd,
                             termCode = w.TermCode,
-                            rotation = hasSchedule && rotations.TryGetValue(schedule?.RotationId ?? 0, out var rotation) ? new
-                            {
-                                rotationId = schedule.RotationId,
-                                rotationName = rotation.Name, // Use loaded rotation data
-                                abbreviation = rotation.Abbreviation, // Use loaded rotation data
-                                serviceId = rotation.ServiceId, // Use loaded rotation data
-                                serviceName = rotation.Service?.ServiceName // Use loaded rotation data
-                            } : null, // No rotation assigned or rotation not found
-                            isPrimaryEvaluator = hasSchedule && schedule?.Evaluator == true
+                            rotations = weekRotations // Array to support multiple rotations
                         },
                         Semester = normalizedSemester
                     };
@@ -401,7 +399,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// </summary>
         /// <param name="rotationIds">List of rotation IDs to load</param>
         /// <returns>Dictionary mapping rotation ID to rotation entity</returns>
-        private async Task<Dictionary<int, Models.ClinicalScheduler.Rotation>> LoadRotationsByIdsAsync(List<int> rotationIds)
+        private async Task<Dictionary<int, Viper.Models.ClinicalScheduler.Rotation>> LoadRotationsByIdsAsync(List<int> rotationIds)
         {
             return await _context.Rotations
                 .AsNoTracking()
@@ -500,17 +498,14 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <returns>Resolved full name</returns>
         private static string ResolveClinicianName(string? fullName, string? firstName, string? lastName, string mothraId)
         {
-            if (!string.IsNullOrWhiteSpace(fullName))
-            {
-                return fullName;
-            }
+            var first = firstName?.Trim();
+            var last = lastName?.Trim();
 
-            if (!string.IsNullOrWhiteSpace(firstName) || !string.IsNullOrWhiteSpace(lastName))
-            {
-                return $"{firstName ?? ""} {lastName ?? ""}".Trim();
-            }
+            if (!string.IsNullOrWhiteSpace(last) && !string.IsNullOrWhiteSpace(first))
+                return $"{last}, {first}";
 
-            return $"Clinician {mothraId}";
+            // Fallback to fullName (which is "First Last" format) or mothraId
+            return !string.IsNullOrWhiteSpace(fullName) ? fullName : $"Clinician {mothraId}";
         }
     }
 }

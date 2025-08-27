@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
+using Viper.Models.AAUD;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -33,32 +34,82 @@ namespace Viper.Areas.ClinicalScheduler.Services
             string mothraId,
             int rotationId,
             int[] weekIds,
+            int gradYear,
             bool isPrimaryEvaluator = false,
             CancellationToken cancellationToken = default)
         {
             try
             {
-                // Check permissions
-                if (!await _permissionService.HasEditPermissionForRotationAsync(rotationId, cancellationToken))
+                // Validate permissions and get current user
+                var currentUser = await ValidatePermissionsAndGetUserAsync(rotationId, cancellationToken);
+
+                // Trim and validate MothraId
+                mothraId = mothraId?.Trim();
+                if (string.IsNullOrEmpty(mothraId))
                 {
-                    throw new UnauthorizedAccessException($"User does not have permission to edit rotation {rotationId}");
+                    throw new ArgumentException("MothraId is required", nameof(mothraId));
                 }
 
-                var currentUser = _userHelper.GetCurrentUser();
-                if (currentUser == null)
+                // Validate that the person exists in the database
+                var personExists = await _context.Persons
+                    .AnyAsync(p => p.IdsMothraId == mothraId, cancellationToken);
+
+                if (!personExists)
                 {
-                    throw new UnauthorizedAccessException("No authenticated user found");
+                    throw new InvalidOperationException($"Person with MothraId {mothraId} not found in the system");
                 }
 
-                // Check for conflicts
-                var conflicts = await GetScheduleConflictsAsync(mothraId, weekIds, rotationId, cancellationToken);
-                if (conflicts.Any())
+                // Validate that the rotation exists
+                var rotationExists = await _context.Rotations
+                    .AnyAsync(r => r.RotId == rotationId, cancellationToken);
+
+                if (!rotationExists)
                 {
-                    var conflictDetails = string.Join(", ", conflicts.Select(c => $"Week {c.WeekId} on Rotation {c.RotationId}"));
-                    throw new InvalidOperationException($"Instructor {mothraId} has scheduling conflicts: {conflictDetails}");
+                    throw new InvalidOperationException($"Rotation with ID {rotationId} not found in the system");
                 }
 
-                using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+                // Validate that all weeks exist and are valid for the grad year
+                var existingWeekIds = await _context.Weeks
+                    .Where(w => weekIds.Contains(w.WeekId))
+                    .Select(w => w.WeekId)
+                    .ToListAsync(cancellationToken);
+
+                var missingWeekIds = weekIds.Except(existingWeekIds).ToList();
+                if (missingWeekIds.Any())
+                {
+                    throw new InvalidOperationException($"Week(s) not found in the system: {string.Join(", ", missingWeekIds)}");
+                }
+
+
+                // Check for duplicate scheduling within the same rotation
+                var existingSchedules = await _context.InstructorSchedules
+                    .Where(s => s.MothraId == mothraId && s.RotationId == rotationId && weekIds.Contains(s.WeekId))
+                    .Select(s => new { s.InstructorScheduleId, s.MothraId, s.RotationId, s.WeekId, s.Evaluator })
+                    .ToListAsync(cancellationToken);
+
+                if (existingSchedules.Any())
+                {
+                    var duplicateWeeks = existingSchedules.Select(s => s.WeekId).ToList();
+                    var duplicateDetails = string.Join(", ", duplicateWeeks.Select(w => $"Week {w}"));
+                    _logger.LogWarning("Instructor {MothraId} is already scheduled for {DuplicateDetails} in rotation {RotationId}",
+                        mothraId, duplicateDetails, rotationId);
+                    throw new InvalidOperationException($"Instructor {mothraId} is already scheduled for {duplicateDetails} in this rotation");
+                }
+
+                // Additional check: Get all existing schedules for this instructor and the specific weeks (regardless of rotation)
+                var allExistingForWeeks = await _context.InstructorSchedules
+                    .Where(s => s.MothraId == mothraId && weekIds.Contains(s.WeekId))
+                    .Select(s => new { s.WeekId, s.RotationId, s.InstructorScheduleId })
+                    .ToListAsync(cancellationToken);
+
+                _logger.LogInformation("Found {Count} total existing schedules for MothraId='{MothraId}' in weeks [{WeekIds}]: {Details}",
+                    allExistingForWeeks.Count, mothraId, string.Join(",", weekIds),
+                    string.Join(", ", allExistingForWeeks.Select(s => $"Week {s.WeekId} in Rotation {s.RotationId} (ID: {s.InstructorScheduleId})")));
+
+
+                // Use Serializable isolation level to prevent race conditions
+                using var transaction = await _context.Database.BeginTransactionAsync(
+                    System.Data.IsolationLevel.Serializable, cancellationToken);
                 try
                 {
                     var createdSchedules = new List<InstructorSchedule>();
@@ -67,10 +118,26 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
+                        _logger.LogInformation("Preparing to add InstructorSchedule: MothraId='{MothraId}' (length={Length}), RotationId={RotationId}, WeekId={WeekId}, IsPrimary={IsPrimary}, GradYear={GradYear}",
+                            mothraId, mothraId?.Length ?? 0, rotationId, weekId, isPrimaryEvaluator, gradYear);
+
+                        // Double-check for duplicates right before insertion (within transaction)
+                        var duplicateCheck = await _context.InstructorSchedules
+                            .Where(s => s.MothraId == mothraId && s.RotationId == rotationId && s.WeekId == weekId)
+                            .Select(s => new { s.InstructorScheduleId })
+                            .FirstOrDefaultAsync(cancellationToken);
+
+                        if (duplicateCheck != null)
+                        {
+                            _logger.LogError("Race condition detected! Duplicate found during insertion: InstructorScheduleId={ExistingId} for MothraId='{MothraId}', RotationId={RotationId}, WeekId={WeekId}",
+                                duplicateCheck.InstructorScheduleId, mothraId, rotationId, weekId);
+                            throw new InvalidOperationException($"Instructor {mothraId} is already scheduled for Week {weekId} in this rotation (detected during insertion)");
+                        }
+
                         // If setting as primary evaluator, clear existing primary first
                         if (isPrimaryEvaluator)
                         {
-                            await ClearPrimaryEvaluatorAsync(rotationId, weekId, cancellationToken);
+                            await ClearPrimaryEvaluatorAsync(rotationId, weekId, currentUser.MothraId, cancellationToken);
                         }
 
                         // Create new instructor schedule
@@ -79,7 +146,9 @@ namespace Viper.Areas.ClinicalScheduler.Services
                             MothraId = mothraId,
                             RotationId = rotationId,
                             WeekId = weekId,
-                            Evaluator = isPrimaryEvaluator
+                            Evaluator = isPrimaryEvaluator,
+                            ModifiedBy = currentUser.MothraId,
+                            ModifiedDate = DateTime.UtcNow
                         };
 
                         _context.InstructorSchedules.Add(schedule);
@@ -90,17 +159,19 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     await _context.SaveChangesAsync(cancellationToken);
 
                     // Log audit entries after successful save (so we have InstructorScheduleId)
+#pragma warning disable S3267 // Loop contains async operations that cannot be simplified to Select
                     foreach (var schedule in createdSchedules)
                     {
                         await _auditService.LogInstructorAddedAsync(
-                            mothraId, rotationId, schedule.WeekId, currentUser.MothraId, schedule.InstructorScheduleId, cancellationToken);
+                            mothraId, rotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
 
                         if (isPrimaryEvaluator)
                         {
                             await _auditService.LogPrimaryEvaluatorSetAsync(
-                                mothraId, rotationId, schedule.WeekId, currentUser.MothraId, schedule.InstructorScheduleId, cancellationToken);
+                                mothraId, rotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
                         }
                     }
+#pragma warning restore S3267
 
                     // Log summary instead of per-week logs
                     _logger.LogInformation("Added instructor {MothraId} to rotation {RotationId} for {WeekCount} weeks (Primary: {IsPrimary})",
@@ -109,17 +180,42 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     await transaction.CommitAsync(cancellationToken);
                     return createdSchedules;
                 }
-                catch
+                catch (Exception saveEx)
                 {
                     await transaction.RollbackAsync(cancellationToken);
-                    throw;
+
+                    _logger.LogError(saveEx, "Database save failed for MothraId='{MothraId}', RotationId={RotationId}, WeekIds=[{WeekIds}]",
+                        mothraId, rotationId, string.Join(",", weekIds));
+
+                    // Check if this is a database constraint violation (typically a duplicate key error)
+                    var errorMessage = saveEx.Message?.ToLower();
+                    var innerMessage = saveEx.InnerException?.Message?.ToLower();
+
+                    if ((errorMessage != null && (errorMessage.Contains("duplicate") || errorMessage.Contains("unique") || errorMessage.Contains("constraint") || errorMessage.Contains("violation of primary key"))) ||
+                        (innerMessage != null && (innerMessage.Contains("duplicate") || innerMessage.Contains("unique") || innerMessage.Contains("constraint") || innerMessage.Contains("violation of primary key"))))
+                    {
+                        throw new InvalidOperationException($"Instructor {mothraId} appears to already be scheduled for one or more of the specified weeks. Please refresh the page and try again.", saveEx);
+                    }
+
+                    // For other database errors, wrap with context
+                    throw new InvalidOperationException($"Database operation failed while adding instructor {mothraId} to rotation {rotationId}. Please try again or contact support if the problem persists.", saveEx);
                 }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Re-throw UnauthorizedAccessException without wrapping
+                throw;
+            }
+            catch (InvalidOperationException)
+            {
+                // Re-throw InvalidOperationException without wrapping (includes "already scheduled" messages)
+                throw;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding instructor {MothraId} to rotation {RotationId} for weeks {WeekIds}",
                     mothraId, rotationId, string.Join(",", weekIds));
-                throw;
+                throw new InvalidOperationException($"Failed to add instructor {mothraId} to rotation {rotationId}. Please try again or contact support if the problem persists.", ex);
             }
         }
 
@@ -139,17 +235,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return false;
                 }
 
-                // Check permissions
-                if (!await _permissionService.HasEditPermissionForRotationAsync(schedule.RotationId, cancellationToken))
-                {
-                    throw new UnauthorizedAccessException($"User does not have permission to edit rotation {schedule.RotationId}");
-                }
-
-                var currentUser = _userHelper.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    throw new UnauthorizedAccessException("No authenticated user found");
-                }
+                // Validate permissions and get current user
+                var currentUser = await ValidatePermissionsAndGetUserAsync(schedule.RotationId, cancellationToken);
 
                 // Check if can be removed (not primary evaluator, or there are other instructors for this rotation/week)
                 if (schedule.Evaluator)
@@ -168,18 +255,19 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
                 try
                 {
-                    // Log removal before deleting
+                    // Remove the schedule
+                    _context.InstructorSchedules.Remove(schedule);
+                    await _context.SaveChangesAsync(cancellationToken);
+
+                    // Log removal after successful deletion
                     await _auditService.LogInstructorRemovedAsync(
-                        schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, instructorScheduleId, cancellationToken);
+                        schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
 
                     if (schedule.Evaluator)
                     {
                         await _auditService.LogPrimaryEvaluatorUnsetAsync(
-                            schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, instructorScheduleId, cancellationToken);
+                            schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
                     }
-
-                    _context.InstructorSchedules.Remove(schedule);
-                    await _context.SaveChangesAsync(cancellationToken);
 
                     await transaction.CommitAsync(cancellationToken);
 
@@ -194,14 +282,24 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     throw;
                 }
             }
+            catch (UnauthorizedAccessException)
+            {
+                // Re-throw UnauthorizedAccessException without wrapping
+                throw;
+            }
+            catch (InvalidOperationException)
+            {
+                // Re-throw InvalidOperationException without wrapping (includes "Cannot remove primary evaluator" message)
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error removing instructor schedule {ScheduleId}", instructorScheduleId);
-                throw;
+                throw new InvalidOperationException($"Failed to remove instructor schedule. Please try again or contact support if the problem persists.", ex);
             }
         }
 
-        public async Task<bool> SetPrimaryEvaluatorAsync(
+        public async Task<(bool success, string? previousPrimaryName)> SetPrimaryEvaluatorAsync(
             int instructorScheduleId,
             bool isPrimary,
             CancellationToken cancellationToken = default)
@@ -215,53 +313,70 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 if (schedule == null)
                 {
                     _logger.LogWarning("InstructorSchedule {ScheduleId} not found for primary evaluator update", instructorScheduleId);
-                    return false;
+                    return (false, null);
                 }
 
-                // Check permissions
-                if (!await _permissionService.HasEditPermissionForRotationAsync(schedule.RotationId, cancellationToken))
-                {
-                    throw new UnauthorizedAccessException($"User does not have permission to edit rotation {schedule.RotationId}");
-                }
-
-                var currentUser = _userHelper.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    throw new UnauthorizedAccessException("No authenticated user found");
-                }
+                // Validate permissions and get current user
+                var currentUser = await ValidatePermissionsAndGetUserAsync(schedule.RotationId, cancellationToken);
 
                 // If already in the desired state, no action needed
                 if (schedule.Evaluator == isPrimary)
                 {
-                    return true;
+                    return (true, null);
                 }
 
                 using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
                 try
                 {
+                    string? previousPrimaryName = null;
+
                     if (isPrimary)
                     {
+                        // Find existing primary evaluator before clearing
+                        var existingPrimary = await _context.InstructorSchedules
+                            .Include(s => s.Person)
+                            .Where(s => s.RotationId == schedule.RotationId && s.WeekId == schedule.WeekId && s.Evaluator)
+                            .FirstOrDefaultAsync(cancellationToken);
+
+                        if (existingPrimary != null && existingPrimary.Person != null)
+                        {
+                            previousPrimaryName = existingPrimary.Person.PersonDisplayFullName ??
+                                $"{existingPrimary.Person.PersonDisplayLastName}, {existingPrimary.Person.PersonDisplayFirstName}";
+                        }
+
                         // Clear any existing primary evaluator for this rotation/week
-                        await ClearPrimaryEvaluatorAsync(schedule.RotationId, schedule.WeekId, cancellationToken);
+                        await ClearPrimaryEvaluatorAsync(schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
 
                         schedule.Evaluator = true;
-                        await _auditService.LogPrimaryEvaluatorSetAsync(
-                            schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, instructorScheduleId, cancellationToken);
+                        schedule.ModifiedBy = currentUser.MothraId;
+                        schedule.ModifiedDate = DateTime.UtcNow;
                     }
                     else
                     {
                         schedule.Evaluator = false;
-                        await _auditService.LogPrimaryEvaluatorUnsetAsync(
-                            schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, instructorScheduleId, cancellationToken);
+                        schedule.ModifiedBy = currentUser.MothraId;
+                        schedule.ModifiedDate = DateTime.UtcNow;
                     }
 
                     await _context.SaveChangesAsync(cancellationToken);
+
+                    // Log audit entries after successful save
+                    if (isPrimary)
+                    {
+                        await _auditService.LogPrimaryEvaluatorSetAsync(
+                            schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
+                    }
+                    else
+                    {
+                        await _auditService.LogPrimaryEvaluatorUnsetAsync(
+                            schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
+                    }
                     await transaction.CommitAsync(cancellationToken);
 
                     _logger.LogInformation("Set primary evaluator for {MothraId} on rotation {RotationId}, week {WeekId} to {IsPrimary}",
                         schedule.MothraId, schedule.RotationId, schedule.WeekId, isPrimary);
 
-                    return true;
+                    return (true, previousPrimaryName);
                 }
                 catch
                 {
@@ -272,7 +387,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error setting primary evaluator for instructor schedule {ScheduleId} to {IsPrimary}", instructorScheduleId, isPrimary);
-                throw;
+                throw new InvalidOperationException($"Failed to update primary evaluator status. Please try again or contact support if the problem persists.", ex);
             }
         }
 
@@ -313,9 +428,20 @@ namespace Viper.Areas.ClinicalScheduler.Services
             }
         }
 
-        public async Task<List<InstructorSchedule>> GetScheduleConflictsAsync(
+        /// <summary>
+        /// Gets other rotation schedules for an instructor during specified weeks.
+        /// This is informational only - instructors can be scheduled for multiple rotations in the same week.
+        /// </summary>
+        /// <param name="mothraId">Instructor's MothraID</param>
+        /// <param name="weekIds">Array of week IDs to check</param>
+        /// <param name="gradYear">Graduate year</param>
+        /// <param name="excludeRotationId">Optional rotation ID to exclude from results</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of instructor schedules for other rotations during the specified weeks</returns>
+        public async Task<List<InstructorSchedule>> GetOtherRotationSchedulesAsync(
             string mothraId,
             int[] weekIds,
+            int gradYear,
             int? excludeRotationId = null,
             CancellationToken cancellationToken = default)
         {
@@ -323,7 +449,15 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 var query = _context.InstructorSchedules
                     .AsNoTracking()
-                    .Where(s => s.MothraId == mothraId && weekIds.Contains(s.WeekId));
+                    .Include(s => s.Rotation)  // Include rotation data for name lookup
+                    .Join(_context.WeekGradYears,
+                        schedule => schedule.WeekId,
+                        weekGradYear => weekGradYear.WeekId,
+                        (schedule, weekGradYear) => new { schedule, weekGradYear })
+                    .Where(joined => joined.schedule.MothraId == mothraId &&
+                                   weekIds.Contains(joined.schedule.WeekId) &&
+                                   joined.weekGradYear.GradYear == gradYear)
+                    .Select(joined => joined.schedule);
 
                 if (excludeRotationId.HasValue)
                 {
@@ -334,8 +468,9 @@ namespace Viper.Areas.ClinicalScheduler.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking schedule conflicts for {MothraId} on weeks {WeekIds}", mothraId, string.Join(",", weekIds));
-                throw;
+                _logger.LogError(ex, "Error checking other rotation schedules for {MothraId} on weeks {WeekIds} for grad year {GradYear}",
+                    mothraId, string.Join(",", weekIds), gradYear);
+                throw new InvalidOperationException($"Failed to retrieve other rotation schedules. Please try again or contact support if the problem persists.", ex);
             }
         }
 
@@ -362,7 +497,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting scheduled instructors for rotation {RotationId} on weeks {WeekIds}", rotationId, string.Join(",", weekIds));
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve scheduled instructors. Please try again or contact support if the problem persists.", ex);
             }
         }
 
@@ -412,7 +547,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     foreach (var weekId in weekIds)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        await ClearPrimaryEvaluatorAsync(rotationId, weekId, cancellationToken);
+                        await ClearPrimaryEvaluatorAsync(rotationId, weekId, modifiedByMothraId, cancellationToken);
                     }
 
                     // Set the instructor as primary evaluator for all weeks
@@ -420,13 +555,20 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         schedule.Evaluator = true;
-
-                        // Log the change
-                        await _auditService.LogPrimaryEvaluatorSetAsync(
-                            mothraId, rotationId, schedule.WeekId, modifiedByMothraId, schedule.InstructorScheduleId, cancellationToken);
+                        schedule.ModifiedBy = modifiedByMothraId;
+                        schedule.ModifiedDate = DateTime.UtcNow;
                     }
 
                     await _context.SaveChangesAsync(cancellationToken);
+
+                    // Log audit entries after successful save
+#pragma warning disable S3267 // Loop contains async operations that cannot be simplified to Select
+                    foreach (var schedule in instructorSchedules)
+                    {
+                        await _auditService.LogPrimaryEvaluatorSetAsync(
+                            mothraId, rotationId, schedule.WeekId, modifiedByMothraId, cancellationToken);
+                    }
+#pragma warning restore S3267
                     await transaction.CommitAsync(cancellationToken);
 
                     _logger.LogInformation("Set {MothraId} as primary evaluator for rotation {RotationId} across {WeekCount} weeks",
@@ -444,8 +586,31 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 _logger.LogError(ex, "Error setting primary evaluator for {MothraId} on rotation {RotationId} for weeks {WeekIds}",
                     mothraId, rotationId, string.Join(",", weekIds));
-                throw;
+                throw new InvalidOperationException($"Failed to set primary evaluator for instructor {mothraId}. Please try again or contact support if the problem persists.", ex);
             }
+        }
+
+        /// <summary>
+        /// Validates that the current user has edit permissions for the specified rotation
+        /// </summary>
+        /// <param name="rotationId">Rotation ID to check</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The current authenticated user</returns>
+        /// <exception cref="UnauthorizedAccessException">Thrown when user lacks permission or is not authenticated</exception>
+        private async Task<AaudUser> ValidatePermissionsAndGetUserAsync(int rotationId, CancellationToken cancellationToken)
+        {
+            if (!await _permissionService.HasEditPermissionForRotationAsync(rotationId, cancellationToken))
+            {
+                throw new UnauthorizedAccessException($"User does not have permission to edit rotation {rotationId}");
+            }
+
+            var currentUser = _userHelper.GetCurrentUser();
+            if (currentUser == null)
+            {
+                throw new UnauthorizedAccessException("No authenticated user found");
+            }
+
+            return currentUser;
         }
 
         /// <summary>
@@ -455,7 +620,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// This method ensures only one primary evaluator exists per rotation/week by clearing existing primaries
         /// before setting a new one.
         /// </summary>
-        private async Task ClearPrimaryEvaluatorAsync(int rotationId, int weekId, CancellationToken cancellationToken)
+        private async Task ClearPrimaryEvaluatorAsync(int rotationId, int weekId, string modifiedByMothraId, CancellationToken cancellationToken)
         {
             var existingPrimary = await _context.InstructorSchedules
                 .Where(s => s.RotationId == rotationId && s.WeekId == weekId && s.Evaluator)
@@ -465,6 +630,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 schedule.Evaluator = false;
+                schedule.ModifiedBy = modifiedByMothraId;
+                schedule.ModifiedDate = DateTime.UtcNow;
             }
 
             if (existingPrimary.Any())

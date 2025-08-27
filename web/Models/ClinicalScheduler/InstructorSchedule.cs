@@ -12,6 +12,8 @@ namespace Viper.Models.ClinicalScheduler
         public int WeekId { get; set; }
         public bool Evaluator { get; set; }
         public string? Role { get; set; }
+        public string? ModifiedBy { get; set; }
+        public DateTime? ModifiedDate { get; set; }
 
         // Navigation properties
         public virtual Rotation Rotation { get; set; } = null!;

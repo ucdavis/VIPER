@@ -1,0 +1,8 @@
+/* Main stylesheet entry point */
+/* Imports all modular stylesheets in the correct order */
+
+/* Colors must be imported first so CSS variables are available to other stylesheets */
+@import './colors.css';
+
+/* Base styles (layout, typography, etc.) */
+@import './base.css';

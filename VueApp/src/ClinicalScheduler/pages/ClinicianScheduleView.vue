@@ -79,52 +79,31 @@
     <!-- Schedule display -->
     <div v-else-if="clinicianSchedule">
       <!-- Rotation selector section (only show when not past year) -->
-      <q-card
+      <RecentSelections
         v-if="!isPastYear"
-        class="q-mb-lg"
-        flat
-        bordered
+        :items="rotationItems"
+        :selected-item="selectedRotation"
+        recent-label="Recent Rotations:"
+        add-new-label="Add New Rotation:"
+        item-type="rotation"
+        item-key-field="rotId"
+        item-display-field="rotationName"
+        selector-spacing="none"
+        @select-item="selectRotation"
+        @clear-selection="selectedRotation = null"
       >
-        <q-card-section>
-          <div class="row items-center q-gutter-md">
-            <div class="col-auto">
-              <div class="text-subtitle2 q-mb-sm">
-                Available Rotations:
-              </div>
-              <div class="q-gutter-xs">
-                <q-btn
-                  v-for="rotation in clinicianRotations"
-                  :key="rotation.rotId"
-                  :color="selectedRotation?.rotId === rotation.rotId ? 'positive' : 'grey-4'"
-                  :text-color="selectedRotation?.rotId === rotation.rotId ? 'white' : 'dark'"
-                  :outline="selectedRotation?.rotId === rotation.rotId"
-                  size="sm"
-                  @click="selectRotation(rotation)"
-                >
-                  {{ rotation.rotationName }}
-                </q-btn>
-              </div>
-            </div>
-
-            <div class="col-auto">
-              <div class="row items-center q-gutter-sm">
-                <div class="text-subtitle2">
-                  Add New Rotation:
-                </div>
-                <RotationSelector
-                  v-model="selectedNewRotationId"
-                  :exclude-rotation-names="assignedRotationNames"
-                  :only-with-scheduled-weeks="true"
-                  :year="currentYear"
-                  @rotation-selected="onAddRotationSelected"
-                  style="min-width: 200px"
-                  class="q-mt-none"
-                />
-              </div>
-            </div>
-          </div>
-        </q-card-section>
-      </q-card>
+        <template #selector>
+          <RotationSelector
+            v-model="selectedNewRotationId"
+            :exclude-rotation-names="assignedRotationNames"
+            :only-with-scheduled-weeks="true"
+            :year="currentYear"
+            @rotation-selected="onAddRotationSelected"
+            style="min-width: 280px"
+            class="q-mt-none"
+          />
+        </template>
+      </RecentSelections>
 
       <!-- Schedule by semester -->
       <div
@@ -145,10 +124,14 @@
           >
             <template #assignments="{ week: weekItem }">
               <div
-                v-if="weekItem.rotation"
+                v-if="weekItem.rotations && Array.isArray(weekItem.rotations) && weekItem.rotations.length > 0"
                 class="rotation-assignment"
               >
-                <div class="row items-center q-gutter-xs">
+                <div
+                  v-for="rotation in weekItem.rotations"
+                  :key="`${rotation.scheduleId || rotation.rotationId}-${rotation.rotationId}`"
+                  class="row items-center q-gutter-xs q-mb-xs"
+                >
                   <q-icon
                     v-if="!isPastYear"
                     name="close"
@@ -156,21 +139,21 @@
                     color="negative"
                     class="cursor-pointer"
                     aria-label="Remove rotation from schedule"
-                    @click.stop="removeRotation()"
+                    @click.stop="removeRotation({ ...weekItem, rotation, scheduleId: rotation.scheduleId })"
                   />
-                  <span class="col text-body2">{{ weekItem.rotation.rotationName }}</span>
+                  <span class="col text-body2">{{ rotation.rotationName }}</span>
                   <q-icon
                     v-if="!isPastYear"
-                    :name="weekItem.isPrimaryEvaluator ? 'star' : 'star_outline'"
+                    :name="rotation.isPrimaryEvaluator ? 'star' : 'star_outline'"
                     size="xs"
-                    :color="weekItem.isPrimaryEvaluator ? 'amber' : 'grey-5'"
+                    :color="rotation.isPrimaryEvaluator ? 'amber' : 'grey-5'"
                     class="cursor-pointer"
-                    :title="weekItem.isPrimaryEvaluator ? 'Primary evaluator. To transfer primary status, click the star on another clinician.' : 'Click to make this clinician the primary evaluator.'"
-                    :aria-label="weekItem.isPrimaryEvaluator ? 'Primary evaluator - click to transfer to another clinician' : 'Click to make this clinician the primary evaluator'"
-                    @click.stop="togglePrimary()"
+                    :title="rotation.isPrimaryEvaluator ? 'Primary evaluator. To transfer primary status, click the star on another clinician.' : 'Click to make this clinician the primary evaluator.'"
+                    :aria-label="rotation.isPrimaryEvaluator ? 'Primary evaluator - click to transfer to another clinician' : 'Click to make this clinician the primary evaluator'"
+                    @click.stop="togglePrimary({ ...weekItem, rotation, scheduleId: rotation.scheduleId, isPrimaryEvaluator: rotation.isPrimaryEvaluator })"
                   />
                   <q-icon
-                    v-else-if="weekItem.isPrimaryEvaluator"
+                    v-else-if="rotation.isPrimaryEvaluator"
                     name="star"
                     size="xs"
                     color="amber"
@@ -211,6 +194,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import ClinicianSelector from '../components/ClinicianSelector.vue'
 import YearSelector from '../components/YearSelector.vue'
 import ScheduleLegend from '../components/ScheduleLegend.vue'
@@ -218,42 +202,84 @@ import RotationSelector from '../components/RotationSelector.vue'
 import SchedulerNavigation from '../components/SchedulerNavigation.vue'
 import WeekScheduleCard, { type WeekItem } from '../components/WeekScheduleCard.vue'
 import { ClinicianService, type Clinician, type ClinicianScheduleData } from '../services/ClinicianService'
+import InstructorScheduleService from '../services/InstructorScheduleService'
+import { GradYearService } from '../services/GradYearService'
+import { usePermissionsStore } from '../stores/permissions'
 
 
 
 import ScheduleBanner from '../components/ScheduleBanner.vue'
+import RecentSelections from '../components/RecentSelections.vue'
 
 
 
 const route = useRoute()
 const router = useRouter()
+const $q = useQuasar()
+
+// Permissions store
+const permissionsStore = usePermissionsStore()
 
 const selectedClinician = ref<Clinician | null>(null)
 const clinicianSchedule = ref<ClinicianScheduleData | null>(null)
 const clinicianRotations = ref<any[]>([])
 const selectedRotation = ref<any | null>(null)
 const selectedNewRotationId = ref<number | null>(null)
+const additionalRotation = ref<any | null>(null) // Track newly selected rotation from dropdown
 const loadingSchedule = ref(false)
 const scheduleError = ref<string | null>(null)
 const currentYear = ref<number | null>(null) // YearSelector will initialize with grad year
+const currentGradYear = ref<number>(new Date().getFullYear())
 // RotationSelector component handles rotation filtering and search
 const includeAllAffiliates = ref(false)
 
+// Loading states for operations
+const isAddingRotation = ref(false)
+const isRemovingRotation = ref(false)
+const isTogglingPrimary = ref(false)
+
 
 const isPastYear = computed(() => {
-    return currentYear.value !== null && currentYear.value < new Date().getFullYear()
+    // Compare selected year against the current grad year from backend
+    return currentYear.value !== null && currentYear.value < currentGradYear.value
 })
 
-// Use the semester data directly from the backend API
-// The backend already groups weeks by semester using TermCodeService.GetTermCodeDescription()
+// Computed property for rotation items to show in RecentSelections
+const rotationItems = computed(() => {
+    const items = []
+
+    // Add the newly selected rotation if it's not in the list
+    if (additionalRotation.value) {
+        items.push(additionalRotation.value)
+    }
+
+    // Add rotations from backend
+    clinicianRotations.value.forEach(rotation => {
+        // Don't add duplicates (check by rotId)
+        if (!items.some(item => item.rotId === rotation.rotId)) {
+            items.push(rotation)
+        }
+    })
+
+    return items.sort((a, b) => (a.rotationName || '').localeCompare(b.rotationName || ''))
+})
+
+const canEditRotation = (rotationId: number) => {
+    let rotation = clinicianRotations.value.find(r => r.rotId === rotationId)
+
+    if (!rotation && additionalRotation.value && additionalRotation.value.rotId === rotationId) {
+        rotation = additionalRotation.value
+    }
+
+    if (!rotation || !rotation.serviceId) return false
+    return permissionsStore.canEditService(rotation.serviceId)
+}
+
 const schedulesBySemester = computed(() => {
     if (!clinicianSchedule.value || !clinicianSchedule.value.schedulesBySemester) return []
-
-    // Return the backend data directly - it already has correct semester names and grouping
     return clinicianSchedule.value.schedulesBySemester
 })
 
-// Computed property for rotation names already assigned to this clinician
 const assignedRotationNames = computed(() => {
     if (!clinicianRotations.value) return []
 
@@ -275,7 +301,7 @@ const hasNoAssignments = computed(() => {
 
     // Check if all weeks have no rotation assignments
     return schedulesBySemester.value.every(semester =>
-        semester.weeks.every(week => !week.rotation)
+        semester.weeks.every(week => !week.rotations || week.rotations.length === 0)
     )
 })
 
@@ -285,26 +311,34 @@ const fetchClinicianSchedule = async (mothraId: string) => {
     scheduleError.value = null
     clinicianSchedule.value = null
     clinicianRotations.value = []
+    additionalRotation.value = null
 
     try {
-        // Fetch schedule
         const result = await ClinicianService.getClinicianSchedule(mothraId, { year: currentYear.value ?? undefined })
         if (result.success) {
             clinicianSchedule.value = result.result
 
-            // Extract unique rotations from schedule
             const rotationMap = new Map<number, any>()
             if (result.result.schedulesBySemester) {
                 result.result.schedulesBySemester.forEach(semester => {
                     semester.weeks.forEach(week => {
-                        if (week.rotation && !rotationMap.has(week.rotation.rotationId)) {
-                            rotationMap.set(week.rotation.rotationId, {
-                                rotId: week.rotation.rotationId,
-                                rotationName: week.rotation.rotationName,
-                                abbreviation: week.rotation.abbreviation,
-                                serviceName: week.rotation.serviceName
-                            })
+                        // Ensure rotations is always an array
+                        if (!week.rotations) {
+                            week.rotations = []
                         }
+                        const rotationsToProcess = week.rotations
+
+                        rotationsToProcess.forEach(rotation => {
+                            if (rotation && !rotationMap.has(rotation.rotationId)) {
+                                rotationMap.set(rotation.rotationId, {
+                                    rotId: rotation.rotationId,
+                                    rotationName: rotation.rotationName,
+                                    abbreviation: rotation.abbreviation,
+                                    serviceName: rotation.serviceName,
+                                    serviceId: rotation.serviceId
+                                })
+                            }
+                        })
                     })
                 })
             }
@@ -312,7 +346,6 @@ const fetchClinicianSchedule = async (mothraId: string) => {
             clinicianRotations.value = Array.from(rotationMap.values())
                 .sort((a, b) => (a.rotationName || '').localeCompare(b.rotationName || ''))
 
-            // Don't auto-select any rotation - let user choose
             selectedRotation.value = null
         } else {
             scheduleError.value = result.errors.join(', ') || 'Failed to load schedule'
@@ -327,7 +360,6 @@ const fetchClinicianSchedule = async (mothraId: string) => {
 
 const onClinicianChange = (clinician: Clinician | null) => {
     if (clinician) {
-        // Update URL to include the clinician ID and year if not current
         const query: any = {}
         if (currentYear.value !== null && currentYear.value !== new Date().getFullYear()) {
             query.year = currentYear.value
@@ -339,7 +371,6 @@ const onClinicianChange = (clinician: Clinician | null) => {
         })
         fetchClinicianSchedule(clinician.mothraId)
     } else {
-        // Navigate back to base clinician route
         router.push({ name: 'ClinicianSchedule' })
         clinicianSchedule.value = null
         clinicianRotations.value = []
@@ -348,9 +379,7 @@ const onClinicianChange = (clinician: Clinician | null) => {
 }
 
 const onYearChange = () => {
-    // Update URL with new year
     if (selectedClinician.value) {
-        // When clinician is selected, update URL and refetch their schedule for the new year
         const query: any = {}
         if (currentYear.value !== null) {
             query.year = currentYear.value
@@ -362,7 +391,6 @@ const onYearChange = () => {
         })
         fetchClinicianSchedule(selectedClinician.value.mothraId)
     } else {
-        // No clinician selected, just update the year in URL
         const query: any = {}
         if (currentYear.value !== null) {
             query.year = currentYear.value
@@ -380,10 +408,8 @@ const initializeFromUrl = () => {
     }
 }
 
-// Store the mothraId from URL for initialization
 const urlMothraId = ref<string | null>(null)
 
-// Load clinician from URL parameter if present
 const loadClinicianFromUrl = async () => {
     const mothraId = route.params.mothraId as string
     if (mothraId) {
@@ -408,7 +434,6 @@ const loadClinicianFromUrl = async () => {
             }
         } catch (error) {
             console.error('Error loading clinician schedule from URL:', error)
-            // Don't redirect immediately - the ClinicianSelector might still be able to find the clinician
         }
     }
 }
@@ -430,34 +455,344 @@ const selectRotation = (rotation: any) => {
     selectedRotation.value = rotation
 }
 
-const onWeekClick = (week: WeekItem) => {
-    if (isPastYear.value) return // No editing for past years
+const scheduleRotationToWeek = async (week: WeekItem) => {
+    if (!selectedRotation.value || !selectedClinician.value) return
 
-    if (week.rotation) {
-        // Week has rotation - functionality for editing will be added here
-    } else {
-        // Empty week - rotation assignment functionality will be added here
+    if (!canEditRotation(selectedRotation.value.rotId)) {
+        $q.notify({
+            type: 'negative',
+            message: 'You do not have permission to edit this rotation',
+            timeout: 3000
+        })
+        return
+    }
+
+    isAddingRotation.value = true
+
+    const currentSelectedRotation = selectedRotation.value
+    const currentAdditionalRotation = additionalRotation.value
+
+    try {
+        const conflictResult = await InstructorScheduleService.checkConflicts(
+            selectedClinician.value.mothraId,
+            selectedRotation.value.rotId,
+            [week.weekId],
+            currentYear.value
+        )
+
+        if (conflictResult.result && conflictResult.result.length > 0) {
+            const conflictNames = conflictResult.result.map(c => c.rotationName).join(', ')
+            const proceed = await new Promise<boolean>((resolve) => {
+                $q.dialog({
+                    title: 'Multiple Rotation Assignment',
+                    message: `${selectedClinician.value.fullName} is already scheduled for ${conflictNames} during this week. Do you want to add ${selectedRotation.value.rotationName} as an additional rotation?`,
+                    persistent: true,
+                    ok: {
+                        label: 'Add Rotation',
+                        color: 'primary'
+                    },
+                    cancel: {
+                        label: 'Cancel'
+                    }
+                }).onOk(() => resolve(true))
+                  .onCancel(() => resolve(false))
+            })
+
+            if (!proceed) {
+                return
+            }
+        }
+
+        const result = await InstructorScheduleService.addInstructor({
+            MothraId: selectedClinician.value.mothraId,
+            RotationId: selectedRotation.value.rotId,
+            WeekIds: [week.weekId],
+            GradYear: currentYear.value,
+            IsPrimaryEvaluator: false // Can be set later if needed
+        })
+
+        if (result.success) {
+            let message = `✓ ${selectedRotation.value.rotationName} scheduled successfully for Week ${week.weekNumber}`
+
+            if (result.result?.warningMessage) {
+                message += `\n\n${result.result.warningMessage}`
+            }
+
+            $q.notify({
+                type: result.result?.warningMessage ? 'warning' : 'positive',
+                message: message,
+                timeout: result.result?.warningMessage ? 6000 : 4000,
+                multiLine: result.result?.warningMessage ? true : false
+            })
+
+            // Instead of a full refresh, update the local data directly
+            if (clinicianSchedule.value && clinicianSchedule.value.schedulesBySemester) {
+                for (const semester of clinicianSchedule.value.schedulesBySemester) {
+                    const weekToUpdate = semester.weeks.find(w => w.weekId === week.weekId)
+                    if (weekToUpdate) {
+                        const newRotation = {
+                            rotationId: selectedRotation.value.rotId,
+                            rotationName: selectedRotation.value.rotationName,
+                            abbreviation: selectedRotation.value.abbreviation || '',
+                            serviceName: selectedRotation.value.serviceName || '',
+                            serviceId: selectedRotation.value.serviceId,
+                            scheduleId: result.result?.createdSchedules?.[0]?.instructorScheduleId || 0,
+                            isPrimaryEvaluator: false
+                        }
+
+                        // Initialize rotations array if it doesn't exist
+                        if (!weekToUpdate.rotations) {
+                            weekToUpdate.rotations = []
+                        }
+
+                        // Add new rotation to the array
+                        weekToUpdate.rotations.push(newRotation)
+
+                        // Add rotation to list if it's new
+                        if (!clinicianRotations.value.some(r => r.rotId === selectedRotation.value.rotId)) {
+                            clinicianRotations.value.push({
+                                rotId: selectedRotation.value.rotId,
+                                rotationName: selectedRotation.value.rotationName,
+                                abbreviation: selectedRotation.value.abbreviation || '',
+                                serviceName: selectedRotation.value.serviceName || '',
+                                serviceId: selectedRotation.value.serviceId
+                            })
+                            clinicianRotations.value.sort((a, b) => (a.rotationName || '').localeCompare(b.rotationName || ''))
+                        }
+
+                        break
+                    }
+                }
+            }
+
+            // Keep the rotation selected for quick adding to other weeks but clear dropdown
+            selectedRotation.value = currentSelectedRotation
+            additionalRotation.value = currentAdditionalRotation
+            // Clear the dropdown to fix the visual issue
+            selectedNewRotationId.value = null
+        } else {
+            throw new Error(result.errors.join(', '))
+        }
+    } catch (error) {
+        console.error('Error scheduling rotation:', error)
+
+        let userMessage = 'Failed to schedule rotation'
+        if (error instanceof Error) {
+            if (error.message.includes('already scheduled') || error.message.includes('already exists')) {
+                userMessage = `${selectedRotation.value.rotationName} is already scheduled for this week`
+            } else if (error.message.includes('permission')) {
+                userMessage = 'You do not have permission to schedule this rotation'
+            } else if (error.message.includes('not found')) {
+                userMessage = 'The selected rotation or week was not found'
+            } else {
+                userMessage = error.message
+            }
+        }
+
+        $q.notify({
+            type: 'negative',
+            message: userMessage,
+            timeout: 4000
+        })
+    } finally {
+        isAddingRotation.value = false
     }
 }
 
-const removeRotation = () => {
-    if (isPastYear.value) return
-    // Remove rotation assignment functionality will be implemented here
+const onWeekClick = async (week: WeekItem) => {
+    if (isPastYear.value) return // No editing for past years
+
+    if (selectedRotation.value && selectedClinician.value) {
+        // Check if same rotation is already scheduled
+        const rotationAlreadyScheduled =
+            week.rotations && week.rotations.some(r => r.rotationId === selectedRotation.value.rotId)
+
+        if (rotationAlreadyScheduled) {
+            $q.notify({
+                type: 'info',
+                message: `${selectedRotation.value.rotationName} is already scheduled for this week`
+            })
+            return
+        }
+
+        await scheduleRotationToWeek(week)
+    } else {
+        $q.notify({
+            type: 'warning',
+            message: 'Please select a rotation first'
+        })
+    }
 }
 
-const togglePrimary = () => {
-    if (isPastYear.value) return
-    // Toggle primary evaluator functionality will be implemented here
+const removeRotation = async (weekItem: any) => {
+    if (isPastYear.value || !weekItem.rotation || !weekItem.scheduleId) return
+
+    if (!canEditRotation(weekItem.rotation.rotationId)) {
+        $q.notify({
+            type: 'negative',
+            message: 'You do not have permission to edit this rotation',
+            timeout: 3000
+        })
+        return
+    }
+
+    const confirmed = await new Promise<boolean>((resolve) => {
+        $q.dialog({
+            title: 'Confirm Removal',
+            message: `Remove ${weekItem.rotation.rotationName} from this week's schedule?`,
+            cancel: true,
+            persistent: true
+        }).onOk(() => resolve(true))
+          .onCancel(() => resolve(false))
+    })
+
+    if (!confirmed) return
+
+    isRemovingRotation.value = true
+
+    try {
+        const result = await InstructorScheduleService.removeInstructor(weekItem.scheduleId)
+
+        if (result.success) {
+            $q.notify({
+                type: 'positive',
+                message: `${weekItem.rotation.rotationName} removed from schedule`
+            })
+
+            // Update the local state instead of refetching
+            if (clinicianSchedule.value && clinicianSchedule.value.schedulesBySemester) {
+                for (const semester of clinicianSchedule.value.schedulesBySemester) {
+                    const week = semester.weeks.find(w => w.weekId === weekItem.weekId)
+                    if (week && week.rotations) {
+                        // Remove the rotation from the week's rotations array
+                        const rotationIndex = week.rotations.findIndex(r => r.scheduleId === weekItem.scheduleId)
+                        if (rotationIndex !== -1) {
+                            week.rotations.splice(rotationIndex, 1)
+                        }
+
+                        // Check if this rotation is still assigned to any other weeks
+                        const stillAssigned = clinicianSchedule.value.schedulesBySemester.some(sem =>
+                            sem.weeks.some(w =>
+                                w.rotations && w.rotations.some(r => r.rotationId === weekItem.rotation.rotationId)
+                            )
+                        )
+
+                        // If not assigned anywhere else, remove from clinicianRotations list
+                        if (!stillAssigned) {
+                            const rotationListIndex = clinicianRotations.value.findIndex(r => r.rotId === weekItem.rotation.rotationId)
+                            if (rotationListIndex !== -1) {
+                                clinicianRotations.value.splice(rotationListIndex, 1)
+                            }
+                        }
+
+                        break
+                    }
+                }
+            }
+        } else {
+            throw new Error(result.errors.join(', '))
+        }
+    } catch (error) {
+        console.error('Error removing rotation:', error)
+    } finally {
+        isRemovingRotation.value = false
+    }
+}
+
+const togglePrimary = async (weekItem: any) => {
+    if (isPastYear.value || !weekItem.rotation || !weekItem.scheduleId) return
+
+    if (!canEditRotation(weekItem.rotation.rotationId)) {
+        $q.notify({
+            type: 'negative',
+            message: 'You do not have permission to edit this rotation',
+            timeout: 3000
+        })
+        return
+    }
+
+    const currentIsPrimary = weekItem.isPrimaryEvaluator || false
+
+    // If removing primary status, confirm
+    if (currentIsPrimary) {
+        const confirmed = await new Promise<boolean>((resolve) => {
+            $q.dialog({
+                title: 'Remove Primary Status',
+                message: `Remove primary evaluator status from ${selectedClinician.value?.fullName}? Another clinician should be designated as primary.`,
+                cancel: true,
+                persistent: true
+            }).onOk(() => resolve(true))
+              .onCancel(() => resolve(false))
+        })
+
+        if (!confirmed) return
+    }
+
+    isTogglingPrimary.value = true
+
+    try {
+        const result = await InstructorScheduleService.setPrimaryEvaluator(weekItem.scheduleId, !currentIsPrimary)
+
+        if (result.success) {
+            const action = currentIsPrimary ? 'removed as' : 'set as'
+            let message = `${selectedClinician.value?.fullName} ${action} primary evaluator`
+
+            // Add previous primary evaluator info if available and setting as primary
+            if (!currentIsPrimary && result.result?.result?.previousPrimaryName) {
+                message += ` (replaced ${result.result.result.previousPrimaryName})`
+            }
+
+            $q.notify({
+                type: 'positive',
+                message: message
+            })
+
+            // Update the local state instead of refetching
+            if (clinicianSchedule.value && clinicianSchedule.value.schedulesBySemester) {
+                for (const semester of clinicianSchedule.value.schedulesBySemester) {
+                    const week = semester.weeks.find(w => w.weekId === weekItem.weekId)
+                    if (week && week.rotations) {
+                        const rotation = week.rotations.find(r => r.scheduleId === weekItem.scheduleId)
+                        if (rotation) {
+                            rotation.isPrimaryEvaluator = !currentIsPrimary
+                            break
+                        }
+                    }
+                }
+            }
+        } else {
+            const errorMessage = result.errors && result.errors.length > 0
+                ? result.errors.join(', ')
+                : 'Unknown error occurred'
+            throw new Error(errorMessage)
+        }
+    } catch (error) {
+        console.error('Error toggling primary evaluator:', error)
+    } finally {
+        isTogglingPrimary.value = false
+    }
 }
 
 
 const onAddRotationSelected = (rotation: any) => {
-    if (rotation) {
-        // Rotation assignment functionality will be implemented here
-        console.log('Selected rotation to add:', rotation)
+    if (rotation && rotation.rotId && rotation.name) {
+        const serviceId = rotation.service?.serviceId || rotation.serviceId
+
+        if (!serviceId) {
+            console.warn('Rotation missing serviceId:', rotation)
+        }
+
+        const rotationData = {
+            rotId: rotation.rotId,
+            rotationName: rotation.name || rotation.rotationName,
+            serviceId: serviceId,
+            abbreviation: rotation.abbreviation
+        }
+
+        additionalRotation.value = rotationData
+        selectedRotation.value = rotationData
     }
 
-    // Reset dropdown
     selectedNewRotationId.value = null
 }
 
@@ -465,9 +800,21 @@ const onAddRotationSelected = (rotation: any) => {
 // Watchers
 
 // Load clinician from URL on component mount
-onMounted(() => {
+onMounted(async () => {
     // Set page title
     document.title = 'VIPER - Schedule by Clinician'
+
+    // Fetch current grad year from backend
+    try {
+        currentGradYear.value = await GradYearService.getCurrentGradYear()
+    } catch (error) {
+        console.error('Failed to fetch current grad year:', error)
+        // Fallback to current calendar year if fetch fails
+        currentGradYear.value = new Date().getFullYear()
+    }
+
+    // Initialize permissions
+    await permissionsStore.fetchUserPermissions()
 
     // Initialize from URL (this will override YearSelector's default if year param exists)
     initializeFromUrl()

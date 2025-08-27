@@ -16,9 +16,10 @@ public class ClinicalSchedulerContext : DbContext
     public virtual DbSet<StudentSchedule> StudentSchedules { get; set; }
     public virtual DbSet<Week> Weeks { get; set; }
     public virtual DbSet<WeekGradYear> WeekGradYears { get; set; }
-    public virtual DbSet<Person> Persons { get; set; } // Person data from vPerson view
+    public virtual DbSet<Person> Persons { get; set; }
     public virtual DbSet<Status> Statuses { get; set; }
     public virtual DbSet<ScheduleAudit> ScheduleAudits { get; set; }
+    public virtual DbSet<VWeek> VWeeks { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -43,6 +44,7 @@ public class ClinicalSchedulerContext : DbContext
             entity.Property(e => e.Abbreviation).HasColumnName("Rot_Abbrev");
             entity.Property(e => e.SubjectCode).HasColumnName("SubjCode").IsRequired(false);
             entity.Property(e => e.CourseNumber).HasColumnName("CrseNumb").IsRequired(false);
+            entity.Property(e => e.Assignable).HasColumnName("Assignable");
             entity.Property(e => e.Active).HasColumnName("active").HasDefaultValue(true);
 
             entity.HasOne(e => e.Service).WithMany(s => s.Rotations)
@@ -58,6 +60,7 @@ public class ClinicalSchedulerContext : DbContext
             entity.Property(e => e.ServiceName).HasColumnName("ServiceName");
             entity.Property(e => e.ShortName).HasColumnName("ShortName");
             entity.Property(e => e.ScheduleEditPermission).HasColumnName("ScheduleEditPermission").IsRequired(false);
+            entity.Property(e => e.WeekSize).HasColumnName("WeekSize").IsRequired(false);
         });
 
         modelBuilder.Entity<InstructorSchedule>(entity =>
@@ -71,6 +74,8 @@ public class ClinicalSchedulerContext : DbContext
             entity.Property(e => e.WeekId).HasColumnName("Week_ID");
             entity.Property(e => e.Evaluator).HasColumnName("evaluator");
             entity.Property(e => e.Role).HasColumnName("role").IsRequired(false);
+            entity.Property(e => e.ModifiedBy).HasColumnName("Modified_by").IsRequired(false);
+            entity.Property(e => e.ModifiedDate).HasColumnName("Modified_date").IsRequired(false);
 
             entity.HasOne(e => e.Rotation).WithMany(r => r.InstructorSchedules)
                .HasForeignKey(e => e.RotationId);
@@ -86,12 +91,11 @@ public class ClinicalSchedulerContext : DbContext
         modelBuilder.Entity<Week>(entity =>
         {
             entity.HasKey(e => e.WeekId);
-            entity.ToTable("vWeek", schema: "dbo"); // Maps to database view for week data
+            entity.ToTable("Week", schema: "dbo");
 
             entity.Property(e => e.WeekId).HasColumnName("Week_ID");
             entity.Property(e => e.DateStart).HasColumnName("DateStart");
             entity.Property(e => e.DateEnd).HasColumnName("DateEnd");
-            entity.Property(e => e.WeekNumber).HasColumnName("weeknum");
             entity.Property(e => e.TermCode).HasColumnName("TermCode");
             entity.Property(e => e.ExtendedRotation).HasColumnName("ExtendedRotation");
             entity.Property(e => e.StartWeek).HasColumnName("StartWeek");
@@ -133,7 +137,7 @@ public class ClinicalSchedulerContext : DbContext
             entity.ToTable("vPerson", schema: "dbo"); // Maps to person view for instructor data
 
             entity.Property(e => e.IdsMothraId).HasColumnName("ids_mothraID");
-            entity.Property(e => e.PersonDisplayFullName).HasColumnName("person_display_full_name");
+            entity.Property(e => e.PersonDisplayFullName).HasColumnName("fullName");
             entity.Property(e => e.PersonDisplayLastName).HasColumnName("person_display_last_name");
             entity.Property(e => e.PersonDisplayFirstName).HasColumnName("person_display_first_name");
             entity.Property(e => e.IdsMailId).HasColumnName("ids_mailID").IsRequired(false);
@@ -168,16 +172,11 @@ public class ClinicalSchedulerContext : DbContext
             entity.Property(e => e.ModifiedBy).HasColumnName("modBy");
             entity.Property(e => e.TimeStamp).HasColumnName("timestamp");
             entity.Property(e => e.Action).HasColumnName("action");
-            entity.Property(e => e.Detail).HasColumnName("detail").IsRequired(false);
-            entity.Property(e => e.InstructorScheduleId).HasColumnName("InstructorSchedule_ID").IsRequired(false);
-            entity.Property(e => e.RotationId).HasColumnName("Rot_ID").IsRequired(false);
-            entity.Property(e => e.WeekId).HasColumnName("Week_ID").IsRequired(false);
-            entity.Property(e => e.MothraId).HasColumnName("Mothra_ID").IsRequired(false);
+            entity.Property(e => e.Area).HasColumnName("area").IsRequired();
+            entity.Property(e => e.RotationId).HasColumnName("rot_ID").IsRequired(false);
+            entity.Property(e => e.WeekId).HasColumnName("week_ID").IsRequired(false);
+            entity.Property(e => e.MothraId).HasColumnName("mothraID").IsRequired(false);
 
-            // Navigation properties for convenience (no foreign key constraints in database)
-            entity.HasOne(e => e.InstructorSchedule).WithMany()
-               .HasForeignKey(e => e.InstructorScheduleId)
-               .HasConstraintName(null); // No actual FK constraint in database
 
             entity.HasOne(e => e.Rotation).WithMany()
                .HasForeignKey(e => e.RotationId)
@@ -193,6 +192,21 @@ public class ClinicalSchedulerContext : DbContext
                .HasConstraintName(null); // No actual FK constraint in database
         });
 
-        // VWeek table is accessed through WeekGradYear + Week entities for better type safety
+        modelBuilder.Entity<VWeek>(entity =>
+        {
+            entity.HasKey(e => e.WeekGradYearId);
+            entity.ToView("vWeek", schema: "dbo");
+
+            entity.Property(e => e.WeekId).HasColumnName("Week_ID");
+            entity.Property(e => e.WeekNum).HasColumnName("weeknum");
+            entity.Property(e => e.DateStart).HasColumnName("DateStart");
+            entity.Property(e => e.DateEnd).HasColumnName("DateEnd");
+            entity.Property(e => e.ExtendedRotation).HasColumnName("ExtendedRotation");
+            entity.Property(e => e.TermCode).HasColumnName("TermCode");
+            entity.Property(e => e.StartWeek).HasColumnName("StartWeek");
+            entity.Property(e => e.ForcedVacation).HasColumnName("ForcedVacation");
+            entity.Property(e => e.GradYear).HasColumnName("gradYear");
+            entity.Property(e => e.WeekGradYearId).HasColumnName("weekgradyear_id");
+        });
     }
 }

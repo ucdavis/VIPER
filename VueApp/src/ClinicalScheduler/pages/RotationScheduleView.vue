@@ -48,62 +48,48 @@
       type="read-only"
     />
 
+    <!-- No rotation selected message -->
+    <ScheduleBanner
+      v-else-if="!selectedRotation"
+      type="info"
+      custom-message="Please select a rotation to view its schedule."
+    />
+
     <!-- Instructions (only show when rotation is selected and not past year) -->
     <ScheduleBanner
-      v-if="selectedRotation && !isPastYear"
+      v-else-if="selectedRotation && !isPastYear"
       type="instructions"
       custom-message="This list of clinicians should contain any clinician scheduled for the rotation in the current or previous year. The user can click on a clinician to select them, and then click on any week to schedule them."
     />
 
     <!-- Clinician selector section (only show when rotation is selected and not past year) -->
-    <q-card
+    <RecentSelections
       v-if="selectedRotation && !isPastYear"
-      class="q-mb-lg"
-      flat
-      bordered
+      :items="clinicianItems"
+      :selected-item="selectedClinicianItem"
+      recent-label="Recent Clinicians:"
+      add-new-label="Add New Clinician:"
+      item-type="clinician"
+      item-key-field="fullName"
+      item-display-field="fullName"
+      label-spacing="md"
+      selector-spacing="lg"
+      @select-item="selectClinicianItem"
+      @clear-selection="clearClinicianSelection"
     >
-      <q-card-section>
-        <div class="row items-center q-gutter-md">
-          <div class="col-auto">
-            <div class="text-subtitle2 q-mb-sm">
-              Recent Clinicians:
-            </div>
-            <div class="q-gutter-xs">
-              <q-btn
-                v-for="clinician in availableClinicians"
-                :key="clinician"
-                :color="selectedClinician === clinician ? 'positive' : 'grey-4'"
-                :text-color="selectedClinician === clinician ? 'white' : 'dark'"
-                :outline="selectedClinician === clinician"
-                size="sm"
-                @click="selectClinician(clinician)"
-              >
-                {{ clinician }}
-              </q-btn>
-            </div>
-          </div>
-
-          <div class="col-auto q-mt-xl">
-            <div class="row items-start q-gutter-sm q-pb-lg">
-              <div
-                class="text-subtitle2 q-mt-xs"
-              >
-                Add New Clinician:
-              </div>
-              <ClinicianSelector
-                :model-value="null"
-                :year="currentYear"
-                :include-all-affiliates="includeAllAffiliates"
-                @update:include-all-affiliates="includeAllAffiliates = $event"
-                @change="onAddClinicianSelected"
-                :affiliates-toggle-label="'Include all affiliates'"
-                class="q-mt-none"
-              />
-            </div>
-          </div>
-        </div>
-      </q-card-section>
-    </q-card>
+      <template #selector>
+        <ClinicianSelector
+          :model-value="null"
+          :year="currentYear"
+          :include-all-affiliates="includeAllAffiliates"
+          @update:include-all-affiliates="includeAllAffiliates = $event"
+          @change="onAddClinicianSelected"
+          :affiliates-toggle-label="'Include all affiliates'"
+          class="q-mt-none"
+          style="min-width: 280px;"
+        />
+      </template>
+    </RecentSelections>
 
 
     <!-- No weeks scheduled message -->
@@ -159,10 +145,10 @@
                       class="cursor-pointer"
                       title="Remove this clinician from the schedule."
                       aria-label="Remove clinician from schedule"
-                      @click.stop="removeAssignment()"
+                      @click.stop="removeAssignment(assignment.id, assignment.clinicianName)"
                     />
                     <q-icon
-                      v-else-if="!isPastYear"
+                      v-else-if="!isPastYear && canEditRotation"
                       name="close"
                       size="xs"
                       color="grey-4"
@@ -182,14 +168,14 @@
                       aria-label="Primary evaluator"
                     />
                     <q-icon
-                      v-else-if="!isPastYear"
+                      v-else-if="!isPastYear && canEditRotation"
                       :name="assignment.isPrimary ? 'star' : 'star_outline'"
                       size="xs"
                       :color="assignment.isPrimary ? 'amber' : 'grey-5'"
                       class="cursor-pointer"
                       :title="assignment.isPrimary ? 'Primary evaluator. To transfer primary status, click the star on another clinician.' : 'Click to make this clinician the primary evaluator.'"
                       :aria-label="assignment.isPrimary ? 'Primary evaluator - click to transfer to another clinician' : 'Click to make this clinician the primary evaluator'"
-                      @click.stop="togglePrimary()"
+                      @click.stop="togglePrimary(assignment.id, assignment.isPrimary, assignment.clinicianName)"
                     />
                   </div>
                 </div>
@@ -200,7 +186,7 @@
                 class="text-center q-py-sm"
               >
                 <div class="text-grey-6 text-caption">
-                  {{ !isPastYear ? 'Click to add clinician' : 'No assignments' }}
+                  {{ !isPastYear && canEditRotation ? 'Click to add clinician' : 'No assignments' }}
                 </div>
               </div>
             </template>
@@ -220,8 +206,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import { RotationService, type RotationWithService, type RotationScheduleData } from '../services/RotationService'
+import InstructorScheduleService from '../services/InstructorScheduleService'
 import type { Clinician } from '../services/ClinicianService'
+import { GradYearService } from '../services/GradYearService'
+import { usePermissionsStore } from '../stores/permissions'
+import { useScheduleStateUpdater } from '../composables/useScheduleStateUpdater'
 import RotationSelector from '../components/RotationSelector.vue'
 import ClinicianSelector from '../components/ClinicianSelector.vue'
 import YearSelector from '../components/YearSelector.vue'
@@ -229,15 +220,24 @@ import ScheduleLegend from '../components/ScheduleLegend.vue'
 import SchedulerNavigation from '../components/SchedulerNavigation.vue'
 import WeekScheduleCard, { type WeekItem } from '../components/WeekScheduleCard.vue'
 import ScheduleBanner from '../components/ScheduleBanner.vue'
+import RecentSelections from '../components/RecentSelections.vue'
 
-// Router
+// Router and Quasar
 const route = useRoute()
 const router = useRouter()
+const $q = useQuasar()
+
+// Permissions store
+const permissionsStore = usePermissionsStore()
+
+// Schedule state updater composable
+const { addScheduleToWeek, removeScheduleFromWeek, updateSchedulePrimaryStatus } = useScheduleStateUpdater()
 
 // Reactive data
 const selectedRotationId = ref<number | null>(null)
 const selectedRotation = ref<RotationWithService | null>(null)
 const selectedClinician = ref<string | null>(null)
+const selectedClinicianData = ref<{ fullName: string; mothraId: string } | null>(null)
 const rotations = ref<RotationWithService[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
@@ -248,26 +248,58 @@ const isLoadingSchedule = ref(false)
 const scheduleError = ref<string | null>(null)
 // YearSelector will initialize with grad year
 const currentYear = ref<number | null>(null)
+const currentGradYear = ref<number>(new Date().getFullYear())
 
 // Clinician data for the dropdown
 const includeAllAffiliates = ref(false)
 
+// Loading states for operations
+const isAddingClinician = ref(false)
+const isRemovingClinician = ref(false)
+const isTogglingPrimary = ref(false)
+
 // Year selection is now handled by YearSelector component
 
 const isPastYear = computed(() => {
-    return currentYear.value !== null && currentYear.value < new Date().getFullYear()
+    // Compare selected year against the current grad year from backend
+    return currentYear.value !== null && currentYear.value < currentGradYear.value
+})
+
+const canEditRotation = computed(() => {
+    if (!selectedRotation.value || !selectedRotation.value.service) return false
+    return permissionsStore.canEditService(selectedRotation.value.service.serviceId)
 })
 
 
 // ClinicianSelector component handles the clinician dropdown functionality
 
 // Recent clinicians from API response (includes current and previous year)
-const availableClinicians = computed(() => {
-    if (!scheduleData.value || !scheduleData.value.recentClinicians) return []
 
-    return scheduleData.value.recentClinicians
-        .map(clinician => clinician.fullName)
-        .sort()
+// Computed properties for RecentSelections component
+const clinicianItems = computed(() => {
+    const items = []
+    
+    // Add the selected clinician if they're not in the recent list
+    if (selectedClinicianData.value) {
+        items.push(selectedClinicianData.value)
+    }
+    
+    // Add recent clinicians from backend
+    if (scheduleData.value && scheduleData.value.recentClinicians) {
+        scheduleData.value.recentClinicians.forEach(clinician => {
+            // Don't add duplicates (check by mothraId)
+            if (!items.some(item => item.mothraId === clinician.mothraId)) {
+                items.push({ fullName: clinician.fullName, mothraId: clinician.mothraId })
+            }
+        })
+    }
+    
+    return items.sort((a, b) => a.fullName.localeCompare(b.fullName))
+})
+
+const selectedClinicianItem = computed(() => {
+    if (!selectedClinician.value) return null
+    return clinicianItems.value.find(item => item.fullName === selectedClinician.value) || null
 })
 
 // Use the semester data directly from the backend API
@@ -316,6 +348,7 @@ function onRotationSelected(rotation: RotationWithService | null) {
     selectedRotation.value = rotation
     selectedRotationId.value = rotation ? rotation.rotId : null // Update rotation ID for URL
     selectedClinician.value = null // Reset clinician selection when rotation changes
+    selectedClinicianData.value = null
 
     // Update URL with selected rotation
     updateUrl()
@@ -403,14 +436,34 @@ async function loadScheduleData(rotationId: number) {
     }
 }
 
-function selectClinician(clinician: string) {
-    selectedClinician.value = selectedClinician.value === clinician ? null : clinician
+// Methods for RecentSelections component
+function selectClinicianItem(clinicianItem: { fullName: string; mothraId: string }) {
+    selectedClinician.value = clinicianItem.fullName
+    selectedClinicianData.value = clinicianItem
+}
+
+function clearClinicianSelection() {
+    selectedClinician.value = null
+    selectedClinicianData.value = null
 }
 
 function onAddClinicianSelected(clinician: Clinician | null) {
     if (clinician) {
-        // In Phase 7, we'll implement the actual API call to add clinicians to schedules
-        alert(`Adding "${clinician.fullName}" to schedule will be implemented in Phase 7 (Edit Functionality)`)
+        // Store the full clinician data (including mothraId)
+        const clinicianData = {
+            fullName: clinician.fullName,
+            mothraId: clinician.mothraId
+        }
+        
+        // The recent clinicians list comes from the backend and is read-only
+        // We can't modify it directly, but we can still select the clinician
+        
+        // Select the clinician (same as clicking a recent clinician chip)
+        selectedClinician.value = clinician.fullName
+        selectedClinicianData.value = clinicianData
+        
+        // If we need to reload schedule data to get updated recent clinicians,
+        // that will happen automatically after adding them to a week
     }
 }
 
@@ -435,9 +488,25 @@ function getWeekAssignments(weekId: number) {
     return []
 }
 
-function scheduleClinicianToWeek(week: WeekItem) {
+async function scheduleClinicianToWeek(week: WeekItem) {
+    // Check permissions first
+    if (!canEditRotation.value) {
+        return // Silently ignore if no permission
+    }
+
     if (!selectedClinician.value) {
-        alert('Please select a clinician first')
+        $q.notify({
+            type: 'warning',
+            message: 'Please select a clinician first'
+        })
+        return
+    }
+
+    if (!selectedRotation.value) {
+        $q.notify({
+            type: 'warning',
+            message: 'Please select a rotation first'
+        })
         return
     }
 
@@ -447,22 +516,274 @@ function scheduleClinicianToWeek(week: WeekItem) {
     )
 
     if (existingAssignment) {
-        alert('Clinician is already scheduled for this week')
+        $q.notify({
+            type: 'warning',
+            message: `${selectedClinician.value} is already scheduled for this week`
+        })
         return
     }
 
-    // In Phase 7, we'll implement the actual API call to add assignments
-    alert('Adding/editing schedules will be implemented in Phase 7 (Edit Functionality)')
+    // Check permissions
+    if (selectedRotation.value.service && !permissionsStore.canEditService(selectedRotation.value.service.serviceId)) {
+        // Error notification removed - errors are now handled by GenericError component
+        console.error('Permission denied: You do not have permission to edit this rotation')
+        return
+    }
+
+    isAddingClinician.value = true
+
+    try {
+        // Use the stored clinician data
+        if (!selectedClinicianData.value) {
+            throw new Error('Clinician data not found')
+        }
+
+        const clinician = selectedClinicianData.value
+
+        // Check for other rotation assignments (informational)
+        const conflictResult = await InstructorScheduleService.checkConflicts(
+            clinician.mothraId,
+            selectedRotation.value.rotId,
+            [week.weekId],
+            currentYear.value
+        )
+
+        if (conflictResult.result && conflictResult.result.length > 0) {
+            const conflict = conflictResult.result[0]
+            const proceed = await new Promise<boolean>((resolve) => {
+                $q.dialog({
+                    title: 'Other Rotation Assignment',
+                    message: `Note: ${selectedClinician.value} is also scheduled for ${conflict.rotationName} during this week. Do you want to add them to this rotation as well?`,
+                    persistent: true,
+                    ok: { label: 'Yes, Add', color: 'primary' },
+                    cancel: { label: 'Cancel', color: 'grey' }
+                }).onOk(() => resolve(true))
+                  .onCancel(() => resolve(false))
+            })
+
+            if (!proceed) {
+                return
+            }
+        }
+
+        // Add the instructor to the schedule
+        const result = await InstructorScheduleService.addInstructor({
+            MothraId: clinician.mothraId,
+            RotationId: selectedRotation.value.rotId,
+            WeekIds: [week.weekId],
+            GradYear: currentYear.value,
+            IsPrimaryEvaluator: requiresPrimaryEvaluator(week) // Set as primary if required and none exists
+        })
+
+        if (result.success) {
+            // Show success message with optional warning
+            let message = `✓ ${selectedClinician.value} successfully added to Week ${week.weekNumber}`
+            
+            // Append warning message if instructor is scheduled for other rotations
+            if (result.result?.warningMessage) {
+                message += `\n\n${result.result.warningMessage}`
+            }
+            
+            $q.notify({
+                type: result.result?.warningMessage ? 'warning' : 'positive',
+                message: message,
+                timeout: result.result?.warningMessage ? 6000 : 4000,
+                multiLine: result.result?.warningMessage ? true : false,
+                actions: [
+                    {
+                        icon: 'close',
+                        color: 'white',
+                        handler: () => { /* dismiss */ }
+                    }
+                ]
+            })
+
+            // Update local state instead of refetching
+            if (scheduleData.value) {
+                addScheduleToWeek(
+                    scheduleData.value,
+                    week.weekId,
+                    {
+                        instructorScheduleId: result.result?.createdSchedules?.[0]?.instructorScheduleId || 0,
+                        mothraId: selectedClinicianData.value?.mothraId || '',
+                        clinicianName: selectedClinician.value || '',
+                        isPrimaryEvaluator: requiresPrimaryEvaluator(week)
+                    }
+                )
+            }
+        } else {
+            throw new Error(result.errors.join(', '))
+        }
+    } catch (error) {
+        console.error('Error scheduling clinician:', error)
+
+        // Extract meaningful error message for user
+        let userMessage = 'Failed to schedule clinician'
+        if (error instanceof Error) {
+            if (error.message.includes('403')) {
+                userMessage = 'You do not have permission to edit this rotation'
+            } else if (error.message.includes('409')) {
+                userMessage = 'Schedule conflict detected'
+            } else if (error.message.includes('500')) {
+                userMessage = 'Server error occurred. Please try again.'
+            } else if (error.message.includes('400')) {
+                // Check for specific backend error messages
+                if (error.message.includes('already scheduled') && error.message.includes('in this rotation')) {
+                    userMessage = 'This instructor is already scheduled for this week in this rotation.'
+                } else if (error.message.includes('scheduling constraints')) {
+                    userMessage = 'Unable to add instructor due to scheduling constraints. This may be due to business rules or existing assignments.'
+                } else {
+                    userMessage = 'Invalid request. Please check your selection.'
+                }
+            } else {
+                userMessage = error.message || userMessage
+            }
+        }
+
+        // Error notification removed - errors are now handled by GenericError component
+        console.error('Scheduling error:', userMessage)
+    } finally {
+        isAddingClinician.value = false
+    }
 }
 
-function removeAssignment() {
-    // In Phase 7, we'll implement the actual API call to remove assignments
-    alert('Removing schedule assignments will be implemented in Phase 7 (Edit Functionality)')
+async function removeAssignment(scheduleId: number, clinicianName: string) {
+    if (!selectedRotation.value) return
+
+    // Check permissions
+    if (selectedRotation.value.service && !permissionsStore.canEditService(selectedRotation.value.service.serviceId)) {
+        // Error notification removed - errors are now handled by GenericError component
+        console.error('Permission denied: You do not have permission to edit this rotation')
+        return
+    }
+
+    // Confirm removal
+    const confirmed = await new Promise<boolean>((resolve) => {
+        $q.dialog({
+            title: 'Confirm Removal',
+            message: `Remove ${clinicianName} from this week's schedule?`,
+            cancel: true,
+            persistent: true
+        }).onOk(() => resolve(true))
+          .onCancel(() => resolve(false))
+    })
+
+    if (!confirmed) return
+
+    isRemovingClinician.value = true
+
+    try {
+        const result = await InstructorScheduleService.removeInstructor(scheduleId)
+
+        if (result.success) {
+            $q.notify({
+                type: 'positive',
+                message: `${clinicianName} removed from schedule`
+            })
+
+            // Update local state instead of refetching
+            if (scheduleData.value) {
+                removeScheduleFromWeek(scheduleData.value, scheduleId)
+            }
+        } else {
+            const errorMessage = result.errors && result.errors.length > 0
+                ? result.errors.join(', ')
+                : 'Unknown error occurred'
+            throw new Error(errorMessage)
+        }
+    } catch (error) {
+        console.error('Error removing clinician:', error)
+
+        // Extract meaningful error message for user
+        let userMessage = 'Failed to remove clinician from schedule'
+        if (error instanceof Error) {
+            if (error.message.includes('403')) {
+                userMessage = 'You do not have permission to edit this rotation'
+            } else if (error.message.includes('500')) {
+                userMessage = 'Server error occurred. Please try again.'
+            } else if (error.message.includes('404')) {
+                userMessage = 'Instructor schedule not found'
+            } else {
+                userMessage = error.message || userMessage
+            }
+        }
+
+        // Error notification removed - errors are now handled by GenericError component
+        console.error('Remove assignment error:', userMessage)
+    } finally {
+        isRemovingClinician.value = false
+    }
 }
 
-function togglePrimary() {
-    // In Phase 7, we'll implement the actual API call to toggle primary status
-    alert('Changing primary evaluator status will be implemented in Phase 7 (Edit Functionality)')
+async function togglePrimary(scheduleId: number, currentIsPrimary: boolean, clinicianName: string) {
+    if (!selectedRotation.value) return
+
+    // Check permissions
+    if (selectedRotation.value.service && !permissionsStore.canEditService(selectedRotation.value.service.serviceId)) {
+        // Error notification removed - errors are now handled by GenericError component
+        console.error('Permission denied: You do not have permission to edit this rotation')
+        return
+    }
+
+    // If removing primary status, confirm
+    if (currentIsPrimary) {
+        const confirmed = await new Promise<boolean>((resolve) => {
+            $q.dialog({
+                title: 'Remove Primary Status',
+                message: `Remove primary evaluator status from ${clinicianName}? Another clinician should be designated as primary.`,
+                cancel: true,
+                persistent: true
+            }).onOk(() => resolve(true))
+              .onCancel(() => resolve(false))
+        })
+
+        if (!confirmed) return
+    }
+
+    isTogglingPrimary.value = true
+
+    try {
+        const result = await InstructorScheduleService.setPrimaryEvaluator(scheduleId, !currentIsPrimary)
+
+        if (result.success) {
+            const action = currentIsPrimary ? 'removed as' : 'set as'
+            $q.notify({
+                type: 'positive',
+                message: `${clinicianName} ${action} primary evaluator`
+            })
+
+            // Update local state instead of refetching
+            if (scheduleData.value) {
+                updateSchedulePrimaryStatus(scheduleData.value, scheduleId, !currentIsPrimary)
+            }
+        } else {
+            const errorMessage = result.errors && result.errors.length > 0
+                ? result.errors.join(', ')
+                : 'Unknown error occurred'
+            throw new Error(errorMessage)
+        }
+    } catch (error) {
+        console.error('Error toggling primary evaluator:', error)
+
+        // Extract meaningful error message for user
+        let userMessage = 'Failed to update primary evaluator status'
+        if (error instanceof Error) {
+            if (error.message.includes('403')) {
+                userMessage = 'You do not have permission to edit this rotation'
+            } else if (error.message.includes('500')) {
+                userMessage = 'Server error occurred. Please try again.'
+            } else if (error.message.includes('404')) {
+                userMessage = 'Instructor schedule not found'
+            } else {
+                userMessage = error.message || userMessage
+            }
+        }
+
+        // Error notification removed - errors are now handled by GenericError component
+        console.error('Toggle primary evaluator error:', userMessage)
+    } finally {
+        isTogglingPrimary.value = false
+    }
 }
 
 function requiresPrimaryEvaluator(week: WeekItem): boolean {
@@ -496,6 +817,18 @@ onMounted(async () => {
     // Initialize from URL (this will override YearSelector's default if year param exists)
     initializeFromUrl()
 
+    // Fetch current grad year from backend
+    try {
+        currentGradYear.value = await GradYearService.getCurrentGradYear()
+    } catch (error) {
+        console.error('Failed to fetch current grad year:', error)
+        // Fallback to current calendar year if fetch fails
+        currentGradYear.value = new Date().getFullYear()
+    }
+
+    // Initialize permissions
+    await permissionsStore.fetchUserPermissions()
+
     // Load rotations (ClinicianSelector will handle loading clinicians)
     await loadRotations()
 
@@ -509,7 +842,4 @@ onMounted(async () => {
 <style scoped>
 /* Import shared schedule styles */
 @import '../assets/schedule-shared.css';
-
-
-
 </style>

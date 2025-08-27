@@ -90,7 +90,7 @@ namespace Viper.test.ClinicalScheduler
         /// <summary>
         /// Creates a test user for testing purposes
         /// </summary>
-        public static AaudUser CreateUser(string mothraId, string loginId = null, string displayName = null)
+        public static AaudUser CreateUser(string mothraId, string? loginId = null, string? displayName = null)
         {
             return new AaudUser
             {
@@ -108,7 +108,7 @@ namespace Viper.test.ClinicalScheduler
         /// <summary>
         /// Creates a test instructor schedule
         /// </summary>
-        public static InstructorSchedule CreateInstructorSchedule(string mothraId, int rotationId, int weekId, bool isEvaluator = false, string role = null)
+        public static InstructorSchedule CreateInstructorSchedule(string mothraId, int rotationId, int weekId, bool isEvaluator = false, string? role = null)
         {
             return new InstructorSchedule
             {
@@ -123,7 +123,7 @@ namespace Viper.test.ClinicalScheduler
         /// <summary>
         /// Creates a test service
         /// </summary>
-        public static Service CreateService(int serviceId, string serviceName, string shortName = null, string scheduleEditPermission = null)
+        public static Service CreateService(int serviceId, string serviceName, string? shortName = null, string? scheduleEditPermission = null)
         {
             if (string.IsNullOrEmpty(serviceName))
                 throw new ArgumentException("Service name cannot be null or empty", nameof(serviceName));
@@ -140,7 +140,7 @@ namespace Viper.test.ClinicalScheduler
         /// <summary>
         /// Creates a test rotation
         /// </summary>
-        public static Rotation CreateRotation(int rotId, string name, int serviceId, string abbreviation = null)
+        public static Rotation CreateRotation(int rotId, string name, int serviceId, string? abbreviation = null)
         {
             if (string.IsNullOrEmpty(name))
                 throw new ArgumentException("Rotation name cannot be null or empty", nameof(name));

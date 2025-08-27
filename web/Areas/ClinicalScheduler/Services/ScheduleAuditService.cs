@@ -26,7 +26,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
             int rotationId,
             int weekId,
             string modifiedByMothraId,
-            int instructorScheduleId,
             CancellationToken cancellationToken = default)
         {
             return await CreateAuditEntryAsync(
@@ -35,7 +34,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 weekId,
                 modifiedByMothraId,
                 ScheduleAuditActions.InstructorAdded,
-                instructorScheduleId,
                 cancellationToken);
         }
 
@@ -44,7 +42,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
             int rotationId,
             int weekId,
             string modifiedByMothraId,
-            int instructorScheduleId,
             CancellationToken cancellationToken = default)
         {
             return await CreateAuditEntryAsync(
@@ -53,7 +50,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 weekId,
                 modifiedByMothraId,
                 ScheduleAuditActions.InstructorRemoved,
-                instructorScheduleId,
                 cancellationToken);
         }
 
@@ -62,7 +58,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
             int rotationId,
             int weekId,
             string modifiedByMothraId,
-            int instructorScheduleId,
             CancellationToken cancellationToken = default)
         {
             return await CreateAuditEntryAsync(
@@ -71,7 +66,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 weekId,
                 modifiedByMothraId,
                 ScheduleAuditActions.PrimaryEvaluatorSet,
-                instructorScheduleId,
                 cancellationToken);
         }
 
@@ -80,7 +74,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
             int rotationId,
             int weekId,
             string modifiedByMothraId,
-            int instructorScheduleId,
             CancellationToken cancellationToken = default)
         {
             return await CreateAuditEntryAsync(
@@ -89,7 +82,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 weekId,
                 modifiedByMothraId,
                 ScheduleAuditActions.PrimaryEvaluatorUnset,
-                instructorScheduleId,
                 cancellationToken);
         }
 
@@ -99,16 +91,32 @@ namespace Viper.Areas.ClinicalScheduler.Services
         {
             try
             {
+                // Since InstructorScheduleId doesn't exist in the audit table,
+                // we need to get the instructor schedule details first
+                var schedule = await _context.InstructorSchedules
+                    .AsNoTracking()
+                    .Where(s => s.InstructorScheduleId == instructorScheduleId)
+                    .Select(s => new { s.MothraId, s.RotationId, s.WeekId })
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (schedule == null)
+                {
+                    return new List<ScheduleAudit>();
+                }
+
+                // Find audit entries matching the rotation, week, and instructor
                 return await _context.ScheduleAudits
                     .AsNoTracking()
-                    .Where(a => a.InstructorScheduleId == instructorScheduleId)
+                    .Where(a => a.RotationId == schedule.RotationId
+                        && a.WeekId == schedule.WeekId
+                        && a.MothraId == schedule.MothraId)
                     .OrderByDescending(a => a.TimeStamp)
                     .ToListAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving audit history for instructor schedule {ScheduleId}", instructorScheduleId);
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve audit history for instructor schedule {instructorScheduleId}. Please try again or contact support if the problem persists.", ex);
             }
         }
 
@@ -128,7 +136,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving audit history for rotation {RotationId}, week {WeekId}", rotationId, weekId);
-                throw;
+                throw new InvalidOperationException($"Failed to retrieve audit history for rotation {rotationId}, week {weekId}. Please try again or contact support if the problem persists.", ex);
             }
         }
 
@@ -147,7 +155,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
             int weekId,
             string modifiedByMothraId,
             string action,
-                        int? relatedId = null,
             CancellationToken cancellationToken = default)
         {
             try
@@ -158,12 +165,10 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     RotationId = rotationId,
                     WeekId = weekId,
                     Action = action,
-                    InstructorScheduleId = relatedId,
-                    TimeStamp = DateTime.UtcNow
+                    Area = ScheduleAuditAreas.Clinicians,
+                    TimeStamp = DateTime.UtcNow,
+                    ModifiedBy = modifiedByMothraId
                 };
-
-                // Store the modifier's MothraId (matches database schema and legacy implementation)
-                auditEntry.ModifiedBy = modifiedByMothraId;
 
                 _context.ScheduleAudits.Add(auditEntry);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -177,7 +182,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 _logger.LogError(ex, "Error creating audit entry for action {Action}, {MothraId} on rotation {RotationId}, week {WeekId}",
                     action, mothraId, rotationId, weekId);
-                throw;
+                throw new InvalidOperationException($"Failed to create audit entry for action '{action}'. Please try again or contact support if the problem persists.", ex);
             }
         }
 

@@ -185,6 +185,7 @@ try
     builder.Services.AddDbContext<ClinicalSchedulerContext>();
 
     // Clinical Scheduler services
+    builder.Services.AddScoped<Viper.Areas.Curriculum.Services.TermCodeService>();
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IGradYearService, Viper.Areas.ClinicalScheduler.Services.GradYearService>();
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IWeekService, Viper.Areas.ClinicalScheduler.Services.WeekService>();
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IPersonService, Viper.Areas.ClinicalScheduler.Services.PersonService>();
