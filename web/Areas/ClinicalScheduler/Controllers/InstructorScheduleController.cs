@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.ClinicalScheduler.Extensions;
 using Viper.Areas.ClinicalScheduler.Constants;
+using Viper.Areas.ClinicalScheduler.Models;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
 using System.ComponentModel.DataAnnotations;
@@ -11,24 +12,52 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
     /// <summary>
     /// DTOs for instructor schedule operations
     /// </summary>
-    public class AddInstructorRequest
+    public class AddInstructorRequest : IValidatableObject
     {
-        [Required]
+        [Required(ErrorMessage = "MothraId is required")]
         public string MothraId { get; set; } = string.Empty;
 
-        [Required]
-        public int RotationId { get; set; }
+        [Required(ErrorMessage = "RotationId is required")]
+        [Range(1, int.MaxValue, ErrorMessage = "RotationId must be greater than 0")]
+        public int? RotationId { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "WeekIds are required")]
+        [MinLength(1, ErrorMessage = "At least one week must be specified")]
+        [MaxLength(52, ErrorMessage = "Cannot schedule more than 52 weeks at once")]
         public int[] WeekIds { get; set; } = Array.Empty<int>();
 
+        [Required(ErrorMessage = "GradYear is required")]
+        [Range(1, int.MaxValue, ErrorMessage = "GradYear must be greater than 0")]
+        public int? GradYear { get; set; }
+
         public bool IsPrimaryEvaluator { get; set; } = false;
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            // Ensure WeekIds are all positive and unique
+            if (WeekIds != null && WeekIds.Length > 0)
+            {
+                if (WeekIds.Any(w => w <= 0))
+                {
+                    yield return new ValidationResult(
+                        "All week IDs must be greater than 0",
+                        new[] { nameof(WeekIds) });
+                }
+
+                if (WeekIds.Distinct().Count() != WeekIds.Length)
+                {
+                    yield return new ValidationResult(
+                        "Week IDs must be unique",
+                        new[] { nameof(WeekIds) });
+                }
+            }
+        }
     }
 
     public class SetPrimaryEvaluatorRequest
     {
-        [Required]
-        public bool IsPrimary { get; set; }
+        [Required(ErrorMessage = "IsPrimary flag is required")]
+        public bool? IsPrimary { get; set; }
     }
 
     public class InstructorScheduleResponse
@@ -46,6 +75,23 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         public List<InstructorScheduleResponse> Conflicts { get; set; } = new();
         public string Message { get; set; } = string.Empty;
         public bool HasConflicts => Conflicts.Any();
+    }
+
+    public class AddInstructorResponse
+    {
+        public List<InstructorScheduleResponse> Schedules { get; set; } = new();
+        public List<int> ScheduleIds { get; set; } = new();
+        public string? WarningMessage { get; set; }
+    }
+
+    public class SuccessResponse
+    {
+        public string Message { get; set; }
+
+        public SuccessResponse(string message)
+        {
+            Message = message;
+        }
     }
 
     /// <summary>
@@ -78,110 +124,143 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// </summary>
         /// <param name="request">Add instructor request</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>List of created instructor schedule entries</returns>
+        /// <returns>Response containing created instructor schedule entries and optional warning</returns>
         [HttpPost]
-        [ProducesResponseType(typeof(List<InstructorScheduleResponse>), 200)]
-        [ProducesResponseType(typeof(string), 400)]
+        [ProducesResponseType(typeof(AddInstructorResponse), 200)]
+        [ProducesResponseType(typeof(ErrorResponse), 400)]
         [ProducesResponseType(403)]
-        [ProducesResponseType(typeof(string), 409)] // Conflict
+        [ProducesResponseType(typeof(ErrorResponse), 409)] // Conflict
         public async Task<IActionResult> AddInstructor(
             [FromBody] AddInstructorRequest request,
             CancellationToken cancellationToken = default)
         {
+            var correlationId = Guid.NewGuid().ToString();
+
             try
             {
+                // Trim MothraId before validation
+                request.MothraId = request.MothraId?.Trim();
+
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
-                }
+                    var errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList();
 
-                if (!request.WeekIds.Any())
-                {
-                    return BadRequest(ValidationMessages.WeekIdsRequired);
-                }
+                    _logger.LogWarning("Model validation failed (CorrelationId: {CorrelationId}): {Errors}",
+                        correlationId, string.Join("; ", errors));
 
-                // Trim and validate MothraId
-                request.MothraId = request.MothraId?.Trim();
-                if (string.IsNullOrEmpty(request.MothraId))
-                {
-                    return BadRequest(ValidationMessages.MothraIdRequired);
-                }
+                    // Return first error message or generic message
+                    var userMessage = errors.FirstOrDefault() ?? "Please check your input and try again.";
 
-                // Validate input parameters
-                if (request.RotationId <= 0)
-                {
-                    return BadRequest(ValidationMessages.RotationIdRequired);
-                }
-
-                if (request.WeekIds.Any(w => w <= 0))
-                {
-                    return BadRequest(ValidationMessages.InvalidWeekIds);
-                }
-
-                if (request.WeekIds.Distinct().Count() != request.WeekIds.Length)
-                {
-                    return BadRequest(ValidationMessages.WeekIdsMustBeUnique);
+                    return BadRequest(new ErrorResponse(
+                        ErrorCodes.ValidationError,
+                        userMessage,
+                        correlationId));
                 }
 
                 // Defense-in-depth: Check permissions at controller level before proceeding
-                if (!await _permissionService.HasEditPermissionForRotationAsync(request.RotationId, cancellationToken))
+                if (!await _permissionService.HasEditPermissionForRotationAsync(request.RotationId!.Value, cancellationToken))
                 {
-                    _logger.LogWarning("User attempted to add instructor to rotation {RotationId} without permission",
-                        request.RotationId);
-                    return Forbid("You do not have permission to edit this rotation");
+                    _logger.LogWarning("User attempted to add instructor to rotation {RotationId} without permission (CorrelationId: {CorrelationId})",
+                        request.RotationId!.Value, correlationId);
+                    return Forbid();
                 }
 
-                // Check for conflicts first
-                var conflicts = await _scheduleEditService.GetScheduleConflictsAsync(
-                    request.MothraId, request.WeekIds, request.RotationId, cancellationToken);
+                // Check for other rotation assignments (informational only)
+                var otherRotations = await _scheduleEditService.GetOtherRotationSchedulesAsync(
+                    request.MothraId, request.WeekIds, request.GradYear!.Value, request.RotationId!.Value, cancellationToken);
 
-                if (conflicts.Any())
+                string warningMessage = null;
+                if (otherRotations.Any())
                 {
-                    var conflictResponse = new ScheduleConflictResponse
-                    {
-                        Conflicts = conflicts.Select(c => c.ToResponse()).ToList(),
-                        Message = $"Instructor {request.MothraId} has scheduling conflicts on the specified weeks"
-                    };
-                    return Conflict(conflictResponse);
+                    // Get unique rotation names
+                    var rotationNames = otherRotations
+                        .Select(s => s.Rotation?.Name ?? $"Rotation {s.RotationId}")
+                        .Distinct()
+                        .OrderBy(name => name);
+
+                    warningMessage = $"Note: This instructor is also scheduled for {string.Join(", ", rotationNames)}";
+                    _logger.LogInformation("Instructor {MothraId} has other rotation assignments (CorrelationId: {CorrelationId}): {Details}",
+                        request.MothraId, correlationId, warningMessage);
                 }
 
                 // Add instructor to schedule
                 var createdSchedules = await _scheduleEditService.AddInstructorAsync(
                     request.MothraId,
-                    request.RotationId,
+                    request.RotationId!.Value,
                     request.WeekIds,
+                    request.GradYear!.Value,
                     request.IsPrimaryEvaluator,
                     cancellationToken);
 
-                var response = new List<InstructorScheduleResponse>();
+                var scheduleResponses = new List<InstructorScheduleResponse>();
                 foreach (var schedule in createdSchedules)
                 {
                     var canRemove = await _scheduleEditService.CanRemoveInstructorAsync(schedule.InstructorScheduleId, cancellationToken);
-                    response.Add(schedule.ToResponse(canRemove));
+                    scheduleResponses.Add(schedule.ToResponse(canRemove));
                 }
 
-                _logger.LogInformation("Successfully added instructor to rotation {RotationId} for {WeekCount} weeks",
-                    request.RotationId, request.WeekIds.Length);
+                _logger.LogInformation("Successfully added instructor to rotation {RotationId} for {WeekCount} weeks (CorrelationId: {CorrelationId})",
+                    request.RotationId!.Value, request.WeekIds.Length, correlationId);
+
+                // Return response with optional warning message
+                var response = new AddInstructorResponse
+                {
+                    Schedules = scheduleResponses,
+                    ScheduleIds = scheduleResponses.Select(s => s.InstructorScheduleId).ToList(),
+                    WarningMessage = warningMessage
+                };
 
                 return Ok(response);
             }
             catch (UnauthorizedAccessException ex)
             {
-                _logger.LogWarning(ex, "Unauthorized attempt to add instructor to rotation {RotationId}",
-                    request.RotationId);
+                _logger.LogWarning(ex, "Unauthorized attempt to add instructor to rotation {RotationId} (CorrelationId: {CorrelationId})",
+                    request.RotationId!.Value, correlationId);
                 return Forbid();
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "Invalid operation when adding instructor to rotation {RotationId}: {ErrorMessage}",
-                    request.RotationId, ex.Message);
-                return BadRequest("Unable to add instructor due to scheduling constraints");
+                _logger.LogWarning(ex, "Invalid operation when adding instructor to rotation {RotationId} (CorrelationId: {CorrelationId}): {ErrorMessage}",
+                    request.RotationId!.Value, correlationId, ex.Message);
+
+                // Map specific error messages to user-friendly messages
+                string userMessage = UserMessages.GenericError;
+                string errorCode = ErrorCodes.InvalidOperation;
+
+                if (ex.Message.Contains("Person with MothraId") && ex.Message.Contains("not found"))
+                {
+                    userMessage = UserMessages.InvalidPerson;
+                    errorCode = ErrorCodes.ResourceNotFound;
+                }
+                else if (ex.Message.Contains("Rotation with ID") && ex.Message.Contains("not found"))
+                {
+                    userMessage = UserMessages.InvalidRotation;
+                    errorCode = ErrorCodes.ResourceNotFound;
+                }
+                else if (ex.Message.Contains("Week(s) not found"))
+                {
+                    userMessage = UserMessages.InvalidWeeks;
+                    errorCode = ErrorCodes.ResourceNotFound;
+                }
+                else if (ex.Message.Contains("already scheduled") || ex.Message.Contains("duplicate"))
+                {
+                    userMessage = UserMessages.DuplicateSchedule;
+                    errorCode = ErrorCodes.DuplicateSchedule;
+                }
+
+                return BadRequest(new ErrorResponse(errorCode, userMessage, correlationId));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding instructor to rotation {RotationId}",
-                    request.RotationId);
-                return StatusCode(500, "An error occurred while adding the instructor to the schedule");
+                _logger.LogError(ex, "Error adding instructor to rotation {RotationId} (CorrelationId: {CorrelationId})",
+                    request.RotationId!.Value, correlationId);
+                return StatusCode(500, new ErrorResponse(
+                    ErrorCodes.SystemError,
+                    UserMessages.GenericError,
+                    correlationId));
             }
         }
 
@@ -192,46 +271,72 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Success or failure result</returns>
         [HttpDelete("{instructorScheduleId:int}")]
-        [ProducesResponseType(200)]
-        [ProducesResponseType(400)]
+        [ProducesResponseType(204)] // No Content for successful deletion
+        [ProducesResponseType(typeof(ErrorResponse), 400)]
         [ProducesResponseType(403)]
-        [ProducesResponseType(404)]
+        [ProducesResponseType(typeof(ErrorResponse), 404)]
         public async Task<IActionResult> RemoveInstructor(
             int instructorScheduleId,
             CancellationToken cancellationToken = default)
         {
+            var correlationId = Guid.NewGuid().ToString();
+
             try
             {
                 // Validate input parameters
                 if (instructorScheduleId <= 0)
                 {
-                    return BadRequest(ValidationMessages.InstructorScheduleIdRequired);
+                    return BadRequest(new ErrorResponse(
+                        ErrorCodes.ValidationError,
+                        ValidationMessages.InstructorScheduleIdRequired,
+                        correlationId));
                 }
 
                 var success = await _scheduleEditService.RemoveInstructorScheduleAsync(instructorScheduleId, cancellationToken);
 
                 if (!success)
                 {
-                    return NotFound($"Instructor schedule {instructorScheduleId} not found");
+                    return NotFound(new ErrorResponse(
+                        ErrorCodes.ResourceNotFound,
+                        "The specified schedule was not found.",
+                        correlationId));
                 }
 
-                _logger.LogInformation("Successfully removed instructor schedule {ScheduleId}", instructorScheduleId);
-                return Ok(new { message = "Instructor successfully removed from schedule" });
+                _logger.LogInformation("Successfully removed instructor schedule {ScheduleId} (CorrelationId: {CorrelationId})",
+                    instructorScheduleId, correlationId);
+                return NoContent(); // Return 204 No Content for successful deletion
             }
             catch (UnauthorizedAccessException ex)
             {
-                _logger.LogWarning(ex, "Unauthorized attempt to remove instructor schedule {ScheduleId}", instructorScheduleId);
+                _logger.LogWarning(ex, "Unauthorized attempt to remove instructor schedule {ScheduleId} (CorrelationId: {CorrelationId})",
+                    instructorScheduleId, correlationId);
                 return Forbid();
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "Invalid operation when removing instructor schedule {ScheduleId}: {ErrorMessage}", instructorScheduleId, ex.Message);
-                return BadRequest("Cannot remove this instructor. They may be the primary evaluator with no other instructors assigned to this rotation/week.");
+                _logger.LogWarning(ex, "Invalid operation when removing instructor schedule {ScheduleId} (CorrelationId: {CorrelationId}): {ErrorMessage}",
+                    instructorScheduleId, correlationId, ex.Message);
+
+                // Map to user-friendly message
+                string userMessage = "Cannot remove this instructor at this time. Please try again later.";
+                if (ex.Message.Contains("primary evaluator"))
+                {
+                    userMessage = "Cannot remove the primary evaluator when they are the only instructor assigned.";
+                }
+
+                return BadRequest(new ErrorResponse(
+                    ErrorCodes.InvalidOperation,
+                    userMessage,
+                    correlationId));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error removing instructor schedule {ScheduleId}", instructorScheduleId);
-                return StatusCode(500, "An error occurred while removing the instructor from the schedule");
+                _logger.LogError(ex, "Error removing instructor schedule {ScheduleId} (CorrelationId: {CorrelationId})",
+                    instructorScheduleId, correlationId);
+                return StatusCode(500, new ErrorResponse(
+                    ErrorCodes.SystemError,
+                    UserMessages.GenericError,
+                    correlationId));
             }
         }
 
@@ -244,54 +349,73 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <returns>Success or failure result</returns>
         [HttpPut("{instructorScheduleId:int}/primary")]
         [ProducesResponseType(200)]
-        [ProducesResponseType(400)]
+        [ProducesResponseType(typeof(ErrorResponse), 400)]
         [ProducesResponseType(403)]
-        [ProducesResponseType(404)]
+        [ProducesResponseType(typeof(ErrorResponse), 404)]
         public async Task<IActionResult> SetPrimaryEvaluator(
             int instructorScheduleId,
             [FromBody] SetPrimaryEvaluatorRequest request,
             CancellationToken cancellationToken = default)
         {
+            var correlationId = Guid.NewGuid().ToString();
+
             try
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
+                    _logger.LogWarning("Model validation failed (CorrelationId: {CorrelationId}): {Errors}",
+                        correlationId, string.Join("; ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
+                    return BadRequest(new ErrorResponse(
+                        ErrorCodes.ValidationError,
+                        "Please check your input and try again.",
+                        correlationId));
                 }
 
                 // Validate input parameters
                 if (instructorScheduleId <= 0)
                 {
-                    return BadRequest(ValidationMessages.InstructorScheduleIdRequired);
+                    return BadRequest(new ErrorResponse(
+                        ErrorCodes.ValidationError,
+                        ValidationMessages.InstructorScheduleIdRequired,
+                        correlationId));
                 }
 
-                var success = await _scheduleEditService.SetPrimaryEvaluatorAsync(
-                    instructorScheduleId, request.IsPrimary, cancellationToken);
+                var (success, previousPrimaryName) = await _scheduleEditService.SetPrimaryEvaluatorAsync(
+                    instructorScheduleId, request.IsPrimary!.Value, cancellationToken);
 
                 if (!success)
                 {
-                    return NotFound($"Instructor schedule {instructorScheduleId} not found");
+                    return NotFound(new ErrorResponse(
+                        ErrorCodes.ResourceNotFound,
+                        "The specified schedule was not found.",
+                        correlationId));
                 }
 
-                var action = request.IsPrimary ? "set as" : "removed as";
-                _logger.LogInformation("Successfully {Action} primary evaluator for instructor schedule {ScheduleId}",
-                    action, instructorScheduleId);
+                var action = request.IsPrimary!.Value ? "set as" : "removed as";
+                _logger.LogInformation("Successfully {Action} primary evaluator for instructor schedule {ScheduleId} (CorrelationId: {CorrelationId})",
+                    action, instructorScheduleId, correlationId);
 
                 return Ok(new
                 {
                     message = $"Instructor successfully {action} primary evaluator",
-                    isPrimaryEvaluator = request.IsPrimary
+                    isPrimaryEvaluator = request.IsPrimary!.Value,
+                    previousPrimaryName = previousPrimaryName
                 });
             }
             catch (UnauthorizedAccessException ex)
             {
-                _logger.LogWarning(ex, "Unauthorized attempt to modify primary evaluator for instructor schedule {ScheduleId}", instructorScheduleId);
+                _logger.LogWarning(ex, "Unauthorized attempt to modify primary evaluator for instructor schedule {ScheduleId} (CorrelationId: {CorrelationId})",
+                    instructorScheduleId, correlationId);
                 return Forbid();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error setting primary evaluator for instructor schedule {ScheduleId}", instructorScheduleId);
-                return StatusCode(500, "An error occurred while updating the primary evaluator status");
+                _logger.LogError(ex, "Error setting primary evaluator for instructor schedule {ScheduleId} (CorrelationId: {CorrelationId})",
+                    instructorScheduleId, correlationId);
+                return StatusCode(500, new ErrorResponse(
+                    ErrorCodes.SystemError,
+                    UserMessages.GenericError,
+                    correlationId));
             }
         }
 
@@ -300,15 +424,17 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// </summary>
         /// <param name="mothraId">Instructor's MothraID</param>
         /// <param name="weekIds">Comma-separated week IDs</param>
+        /// <param name="gradYear">Graduation year</param>
         /// <param name="excludeRotationId">Optional rotation ID to exclude from conflict check</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>Schedule conflicts if any</returns>
-        [HttpGet("conflicts")]
+        /// <returns>Other rotation assignments for the instructor (informational)</returns>
+        [HttpGet("other-assignments")]
         [ProducesResponseType(typeof(ScheduleConflictResponse), 200)]
         [ProducesResponseType(400)]
         public async Task<IActionResult> CheckScheduleConflicts(
             [FromQuery] string mothraId,
             [FromQuery] string weekIds,
+            [FromQuery] int gradYear,
             [FromQuery] int? excludeRotationId = null,
             CancellationToken cancellationToken = default)
         {
@@ -322,6 +448,15 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 if (string.IsNullOrEmpty(weekIds))
                 {
                     return BadRequest(ValidationMessages.WeekIdsRequiredForConflicts);
+                }
+
+                // Validate gradYear
+                if (gradYear <= 0)
+                {
+                    return BadRequest(new ErrorResponse(
+                        ErrorCodes.ValidationError,
+                        "GradYear must be greater than zero.",
+                        Guid.NewGuid().ToString()));
                 }
 
                 // Parse week IDs and track invalid ones
@@ -353,15 +488,15 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 var weekIdArray = parsedWeekIds.Distinct().ToArray();
 
-                var conflicts = await _scheduleEditService.GetScheduleConflictsAsync(
-                    mothraId, weekIdArray, excludeRotationId, cancellationToken);
+                var otherRotations = await _scheduleEditService.GetOtherRotationSchedulesAsync(
+                    mothraId, weekIdArray, gradYear, excludeRotationId, cancellationToken);
 
                 var response = new ScheduleConflictResponse
                 {
-                    Conflicts = conflicts.Select(c => c.ToResponse()).ToList(),
-                    Message = conflicts.Any()
-                        ? $"Found {conflicts.Count} scheduling conflicts for instructor {mothraId}"
-                        : $"No scheduling conflicts found for instructor {mothraId}"
+                    Conflicts = otherRotations.Select(c => c.ToResponse()).ToList(),
+                    Message = otherRotations.Any()
+                        ? $"Note: Instructor {mothraId} is also scheduled for {otherRotations.Count} other rotation(s) during these weeks"
+                        : $"No other rotation assignments found for instructor {mothraId}"
                 };
 
                 return Ok(response);

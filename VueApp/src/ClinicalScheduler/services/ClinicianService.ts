@@ -30,19 +30,22 @@ export interface ClinicianRotationItem {
     }
 }
 
+export interface ScheduleRotation {
+    rotationId: number
+    rotationName: string
+    abbreviation: string
+    serviceId: number
+    serviceName: string
+    scheduleId: number
+    isPrimaryEvaluator: boolean
+}
+
 export interface ScheduleWeek {
     weekId: number
     weekNumber: number
     dateStart: string
     dateEnd: string
-    rotation: {
-        rotationId: number
-        rotationName: string
-        abbreviation: string
-        serviceId: number
-        serviceName: string
-    }
-    isPrimaryEvaluator: boolean
+    rotations: ScheduleRotation[]
 }
 
 export interface ScheduleBySemester {
@@ -98,7 +101,7 @@ export class ClinicianService {
     static async getClinicians(options?: { year?: number; includeAllAffiliates?: boolean }): Promise<ApiResult<Clinician[]>> {
         try {
             const { year, includeAllAffiliates } = options || {}
-            
+
             const params: Record<string, any> = {}
             if (year !== undefined) {
                 params.year = year
@@ -125,7 +128,7 @@ export class ClinicianService {
     static async getClinicianSchedule(mothraId: string, options?: { year?: number }): Promise<ApiResult<ClinicianScheduleData>> {
         try {
             const { year } = options || {}
-            
+
             const params: Record<string, any> = {}
             if (year !== undefined) {
                 params.year = year
@@ -181,7 +184,7 @@ export class ClinicianService {
                 return cliniciansResult
             }
 
-            const filtered = cliniciansResult.result.filter(clinician => 
+            const filtered = cliniciansResult.result.filter(clinician =>
                 clinician.fullName.toLowerCase().includes(searchTerm) ||
                 clinician.firstName.toLowerCase().includes(searchTerm) ||
                 clinician.lastName.toLowerCase().includes(searchTerm) ||

@@ -53,7 +53,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            dynamic response = okResult.Value;
+            dynamic? response = okResult.Value;
             Assert.Equal(serviceId, response.serviceId);
             Assert.True(response.canEdit);
             Assert.Equal(requiredPermission, response.requiredPermission);
@@ -80,7 +80,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            dynamic response = okResult.Value;
+            dynamic? response = okResult.Value;
             Assert.Equal(serviceId, response.serviceId);
             Assert.False(response.canEdit);
             Assert.Equal(requiredPermission, response.requiredPermission);
@@ -104,10 +104,10 @@ namespace Viper.test.ClinicalScheduler
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            dynamic response = okResult.Value;
+            dynamic? response = okResult.Value;
             Assert.Equal(rotationId, response.rotationId);
             Assert.True(response.canEdit);
-            Assert.Equal(TestUserMothraId, response.user.mothraId);
+            Assert.Equal(TestUserMothraId, response!.user.mothraId);
         }
 
         [Fact]
@@ -130,12 +130,12 @@ namespace Viper.test.ClinicalScheduler
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            dynamic response = okResult.Value;
-            Assert.Equal(TestUserMothraId, response.user.mothraId);
-            Assert.Equal(TestUserDisplayName, response.user.displayName);
-            Assert.False(response.permissions.hasManagePermission);
-            Assert.Equal(1, response.permissions.editableServiceCount);
-            Assert.Single(response.editableServices);
+            dynamic? response = okResult.Value;
+            Assert.Equal(TestUserMothraId, response!.user.mothraId);
+            Assert.Equal(TestUserDisplayName, response!.user.displayName);
+            Assert.False(response!.permissions.hasManagePermission);
+            Assert.Equal(1, response!.permissions.editableServiceCount);
+            Assert.Single(response!.editableServices);
         }
 
         [Fact]

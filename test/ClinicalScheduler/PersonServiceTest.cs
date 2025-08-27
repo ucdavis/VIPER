@@ -89,7 +89,7 @@ namespace Viper.test.ClinicalScheduler
         new Viper.Models.ClinicalScheduler.Person
         {
             IdsMothraId = "12345",
-            PersonDisplayFullName = "John Smith",
+            PersonDisplayFullName = "Smith, John",
             PersonDisplayFirstName = "John",
             PersonDisplayLastName = "Smith",
             IdsMailId = "jsmith@example.com"
@@ -97,7 +97,7 @@ namespace Viper.test.ClinicalScheduler
         new Viper.Models.ClinicalScheduler.Person
         {
             IdsMothraId = "67890",
-            PersonDisplayFullName = "Jane Doe",
+            PersonDisplayFullName = "Doe, Jane",
             PersonDisplayFirstName = "Jane",
             PersonDisplayLastName = "Doe",
             IdsMailId = "jdoe@example.com"
@@ -212,7 +212,7 @@ namespace Viper.test.ClinicalScheduler
             var clinician = result.FirstOrDefault(c => ((dynamic)c).MothraId == "67890");
             if (clinician != null)
             {
-                Assert.Equal("Jane Doe", ((dynamic)clinician).FullName);
+                Assert.Equal("Doe, Jane", ((dynamic)clinician).FullName);
                 Assert.Equal(DateTime.Now.Year, ((dynamic)clinician).Year);
                 Assert.True(((dynamic)clinician).ScheduleCount > 0);
             }

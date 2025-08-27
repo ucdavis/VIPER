@@ -24,10 +24,9 @@ namespace Viper.test.ClinicalScheduler
             var rotationId = 1;
             var weekId = 1;
             var modifiedBy = "modifier456";
-            var scheduleId = 100;
 
             // Act
-            var result = await _service.LogInstructorAddedAsync(mothraId, rotationId, weekId, modifiedBy, scheduleId);
+            var result = await _service.LogInstructorAddedAsync(mothraId, rotationId, weekId, modifiedBy);
 
             // Assert
             Assert.NotNull(result);
@@ -35,7 +34,6 @@ namespace Viper.test.ClinicalScheduler
             Assert.Equal(rotationId, result.RotationId);
             Assert.Equal(weekId, result.WeekId);
             Assert.Equal(modifiedBy, result.ModifiedBy);
-            Assert.Equal(scheduleId, result.InstructorScheduleId);
             Assert.Equal(ScheduleAuditActions.InstructorAdded, result.Action);
             Assert.True(result.TimeStamp > DateTime.MinValue);
 
@@ -53,10 +51,9 @@ namespace Viper.test.ClinicalScheduler
             var rotationId = 1;
             var weekId = 1;
             var modifiedBy = "modifier456";
-            var scheduleId = 100;
 
             // Act
-            var result = await _service.LogInstructorRemovedAsync(mothraId, rotationId, weekId, modifiedBy, scheduleId);
+            var result = await _service.LogInstructorRemovedAsync(mothraId, rotationId, weekId, modifiedBy);
 
             // Assert
             Assert.NotNull(result);
@@ -65,7 +62,6 @@ namespace Viper.test.ClinicalScheduler
             Assert.Equal(rotationId, result.RotationId);
             Assert.Equal(weekId, result.WeekId);
             Assert.Equal(modifiedBy, result.ModifiedBy);
-            Assert.Equal(scheduleId, result.InstructorScheduleId);
         }
 
         [Fact]
@@ -76,10 +72,9 @@ namespace Viper.test.ClinicalScheduler
             var rotationId = 1;
             var weekId = 1;
             var modifiedBy = "modifier456";
-            var scheduleId = 100;
 
             // Act
-            var result = await _service.LogPrimaryEvaluatorSetAsync(mothraId, rotationId, weekId, modifiedBy, scheduleId);
+            var result = await _service.LogPrimaryEvaluatorSetAsync(mothraId, rotationId, weekId, modifiedBy);
 
             // Assert
             Assert.NotNull(result);
@@ -88,7 +83,6 @@ namespace Viper.test.ClinicalScheduler
             Assert.Equal(rotationId, result.RotationId);
             Assert.Equal(weekId, result.WeekId);
             Assert.Equal(modifiedBy, result.ModifiedBy);
-            Assert.Equal(scheduleId, result.InstructorScheduleId);
         }
 
         [Fact]
@@ -99,10 +93,9 @@ namespace Viper.test.ClinicalScheduler
             var rotationId = 1;
             var weekId = 1;
             var modifiedBy = "modifier456";
-            var scheduleId = 100;
 
             // Act
-            var result = await _service.LogPrimaryEvaluatorUnsetAsync(mothraId, rotationId, weekId, modifiedBy, scheduleId);
+            var result = await _service.LogPrimaryEvaluatorUnsetAsync(mothraId, rotationId, weekId, modifiedBy);
 
             // Assert
             Assert.NotNull(result);
@@ -113,22 +106,21 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetInstructorScheduleAuditHistoryAsync_ReturnsAuditEntriesForSchedule()
         {
             // Arrange
-            var scheduleId = 100;
-            var auditEntry1 = CreateAuditEntry("test123", 1, 1, "modifier", ScheduleAuditActions.InstructorAdded, scheduleId);
-            var auditEntry2 = CreateAuditEntry("test123", 1, 1, "modifier", ScheduleAuditActions.PrimaryEvaluatorSet, scheduleId);
-            var auditEntry3 = CreateAuditEntry("other456", 1, 1, "modifier", ScheduleAuditActions.InstructorAdded, 200); // Different schedule
+            // Create audit entries without InstructorScheduleId since it's no longer in the model
+            var auditEntry1 = CreateAuditEntry("test123", 1, 1, "modifier", ScheduleAuditActions.InstructorAdded);
+            var auditEntry2 = CreateAuditEntry("test123", 1, 1, "modifier", ScheduleAuditActions.PrimaryEvaluatorSet);
+            var auditEntry3 = CreateAuditEntry("other456", 2, 1, "modifier", ScheduleAuditActions.InstructorAdded); // Different rotation
 
             await Context.ScheduleAudits.AddRangeAsync(auditEntry1, auditEntry2, auditEntry3);
             await Context.SaveChangesAsync();
 
             // Act
-            var result = await _service.GetInstructorScheduleAuditHistoryAsync(scheduleId);
+            var result = await _service.GetRotationWeekAuditHistoryAsync(1, 1);
 
             // Assert
             Assert.Equal(2, result.Count);
-            Assert.All(result, entry => Assert.Equal(scheduleId, entry.InstructorScheduleId));
-            Assert.Contains(result, entry => entry.Action == ScheduleAuditActions.InstructorAdded);
-            Assert.Contains(result, entry => entry.Action == ScheduleAuditActions.PrimaryEvaluatorSet);
+            Assert.Contains(result, entry => entry.Action == ScheduleAuditActions.InstructorAdded && entry.MothraId == "test123");
+            Assert.Contains(result, entry => entry.Action == ScheduleAuditActions.PrimaryEvaluatorSet && entry.MothraId == "test123");
 
             // Should be ordered by timestamp descending (most recent first)
             Assert.True(result[0].TimeStamp >= result[1].TimeStamp);
@@ -189,7 +181,7 @@ namespace Viper.test.ClinicalScheduler
             Assert.Empty(result);
         }
 
-        private ScheduleAudit CreateAuditEntry(string mothraId, int rotationId, int weekId, string modifiedBy, string action, int? relatedId = null)
+        private ScheduleAudit CreateAuditEntry(string mothraId, int rotationId, int weekId, string modifiedBy, string action)
         {
             return new ScheduleAudit
             {
@@ -198,9 +190,8 @@ namespace Viper.test.ClinicalScheduler
                 WeekId = weekId,
                 Action = action,
                 ModifiedBy = modifiedBy,
-                InstructorScheduleId = relatedId,
                 TimeStamp = DateTime.UtcNow,
-                Detail = null
+                Area = "ClinicalScheduler"
             };
         }
 

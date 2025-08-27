@@ -27,6 +27,45 @@ namespace Viper.test.ClinicalScheduler
                 _mockUserHelper.Object);
         }
 
+        private async Task AddTestPersonAsync(string mothraId, string firstName = "Test", string lastName = "User")
+        {
+            if (!Context.Persons.Any(p => p.IdsMothraId == mothraId))
+            {
+                await Context.Persons.AddAsync(new Person
+                {
+                    IdsMothraId = mothraId,
+                    PersonDisplayFullName = $"{lastName}, {firstName}",
+                    PersonDisplayLastName = lastName,
+                    PersonDisplayFirstName = firstName
+                });
+            }
+        }
+
+        private async Task AddTestWeekGradYearAsync(int weekId, int gradYear = 2025)
+        {
+            // Add Week if it doesn't exist
+            if (!Context.Weeks.Any(w => w.WeekId == weekId))
+            {
+                await Context.Weeks.AddAsync(new Week
+                {
+                    WeekId = weekId,
+                    DateStart = DateTime.UtcNow.AddDays(-7 * (10 - weekId)), // Simulate different weeks
+                    DateEnd = DateTime.UtcNow.AddDays(-7 * (10 - weekId) + 6),
+                    TermCode = 202501
+                });
+            }
+
+            // Add WeekGradYear if it doesn't exist
+            if (!Context.WeekGradYears.Any(w => w.WeekId == weekId && w.GradYear == gradYear))
+            {
+                await Context.WeekGradYears.AddAsync(new WeekGradYear
+                {
+                    WeekId = weekId,
+                    GradYear = gradYear
+                });
+            }
+        }
+
         [Fact]
         public async Task AddInstructorAsync_WithValidData_CreatesInstructorSchedules()
         {
@@ -36,15 +75,21 @@ namespace Viper.test.ClinicalScheduler
             var weekIds = new[] { 1, 2 };
             var user = TestDataBuilder.CreateUser("currentuser");
 
+            // Add required test data
+            await AddTestPersonAsync(mothraId);
+            await AddTestWeekGradYearAsync(1);
+            await AddTestWeekGradYearAsync(2);
+            await Context.SaveChangesAsync();
+
             _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
             _mockPermissionService.Setup(x => x.HasEditPermissionForRotationAsync(rotationId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
             _mockAuditService.Setup(x => x.LogInstructorAddedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ScheduleAudit());
 
             // Act
-            var result = await _service.AddInstructorAsync(mothraId, rotationId, weekIds, false);
+            var result = await _service.AddInstructorAsync(mothraId, rotationId, weekIds, 2025, false, CancellationToken.None);
 
             // Assert
             Assert.Equal(2, result.Count);
@@ -58,7 +103,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Verify audit logging was called
             _mockAuditService.Verify(x => x.LogInstructorAddedAsync(mothraId, rotationId, It.IsAny<int>(),
-                user.MothraId, It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+                user.MothraId, It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
         [Fact]
@@ -71,6 +116,12 @@ namespace Viper.test.ClinicalScheduler
             var weekIds = new[] { weekId };
             var user = TestDataBuilder.CreateUser("currentuser");
 
+            // Add required test data
+            await AddTestPersonAsync(mothraId);
+            await AddTestPersonAsync("existing456", "Existing", "User");
+            await AddTestWeekGradYearAsync(weekId);
+            await Context.SaveChangesAsync();
+
             // Create existing primary evaluator
             var existingPrimary = TestDataBuilder.CreateInstructorSchedule("existing456", rotationId, weekId, true);
             await Context.InstructorSchedules.AddAsync(existingPrimary);
@@ -80,14 +131,14 @@ namespace Viper.test.ClinicalScheduler
             _mockPermissionService.Setup(x => x.HasEditPermissionForRotationAsync(rotationId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
             _mockAuditService.Setup(x => x.LogInstructorAddedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ScheduleAudit());
             _mockAuditService.Setup(x => x.LogPrimaryEvaluatorSetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ScheduleAudit());
 
             // Act
-            var result = await _service.AddInstructorAsync(mothraId, rotationId, weekIds, true);
+            var result = await _service.AddInstructorAsync(mothraId, rotationId, weekIds, 2025, true, CancellationToken.None);
 
             // Assert
             var newSchedule = result[0];
@@ -99,7 +150,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Verify audit logging
             _mockAuditService.Verify(x => x.LogPrimaryEvaluatorSetAsync(mothraId, rotationId, weekId,
-                user.MothraId, It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
+                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -115,7 +166,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Act & Assert
             await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-                _service.AddInstructorAsync(mothraId, rotationId, weekIds, false));
+                _service.AddInstructorAsync(mothraId, rotationId, weekIds, 2025, false, CancellationToken.None));
         }
 
         [Fact]
@@ -128,8 +179,13 @@ namespace Viper.test.ClinicalScheduler
             var weekIds = new[] { weekId };
             var user = TestDataBuilder.CreateUser("currentuser");
 
-            // Create conflicting schedule
-            var conflictingSchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, 2, weekId, false);
+            // Add required test data
+            await AddTestPersonAsync(mothraId);
+            await AddTestWeekGradYearAsync(weekId);
+            await Context.SaveChangesAsync();
+
+            // Create conflicting schedule - same instructor, same rotation, same week
+            var conflictingSchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, rotationId, weekId, false);
             await Context.InstructorSchedules.AddAsync(conflictingSchedule);
             await Context.SaveChangesAsync();
 
@@ -139,8 +195,8 @@ namespace Viper.test.ClinicalScheduler
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                _service.AddInstructorAsync(mothraId, rotationId, weekIds, false));
-            Assert.Contains("scheduling conflicts", ex.Message);
+                _service.AddInstructorAsync(mothraId, rotationId, weekIds, 2025, false, CancellationToken.None));
+            Assert.Contains("already scheduled", ex.Message);
         }
 
         [Fact]
@@ -156,7 +212,7 @@ namespace Viper.test.ClinicalScheduler
             _mockPermissionService.Setup(x => x.HasEditPermissionForRotationAsync(1, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
             _mockAuditService.Setup(x => x.LogInstructorRemovedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ScheduleAudit());
 
             // Act
@@ -169,7 +225,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Verify audit logging
             _mockAuditService.Verify(x => x.LogInstructorRemovedAsync("test123", 1, 1,
-                user.MothraId, schedule.InstructorScheduleId, It.IsAny<CancellationToken>()), Times.Once);
+                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -187,10 +243,10 @@ namespace Viper.test.ClinicalScheduler
             _mockPermissionService.Setup(x => x.HasEditPermissionForRotationAsync(1, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
             _mockAuditService.Setup(x => x.LogInstructorRemovedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ScheduleAudit());
             _mockAuditService.Setup(x => x.LogPrimaryEvaluatorUnsetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ScheduleAudit());
 
             // Act
@@ -203,7 +259,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Verify primary evaluator unset audit log
             _mockAuditService.Verify(x => x.LogPrimaryEvaluatorUnsetAsync("primary123", 1, 1,
-                user.MothraId, primarySchedule.InstructorScheduleId, It.IsAny<CancellationToken>()), Times.Once);
+                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -238,20 +294,20 @@ namespace Viper.test.ClinicalScheduler
             _mockPermissionService.Setup(x => x.HasEditPermissionForRotationAsync(1, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
             _mockAuditService.Setup(x => x.LogPrimaryEvaluatorSetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ScheduleAudit());
 
             // Act
             var result = await _service.SetPrimaryEvaluatorAsync(schedule.InstructorScheduleId, true);
 
             // Assert
-            Assert.True(result);
+            Assert.True(result.success);
             var updatedSchedule = await Context.InstructorSchedules.FindAsync(schedule.InstructorScheduleId);
             Assert.True(updatedSchedule!.Evaluator);
 
             // Verify audit logging
             _mockAuditService.Verify(x => x.LogPrimaryEvaluatorSetAsync("test123", 1, 1,
-                user.MothraId, schedule.InstructorScheduleId, It.IsAny<CancellationToken>()), Times.Once);
+                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -302,11 +358,17 @@ namespace Viper.test.ClinicalScheduler
         }
 
         [Fact]
-        public async Task GetScheduleConflictsAsync_WithConflicts_ReturnsConflictingSchedules()
+        public async Task GetOtherRotationSchedulesAsync_WithConflicts_ReturnsConflictingSchedules()
         {
             // Arrange
             var mothraId = "test123";
             var weekIds = new[] { 1, 2 };
+
+            // Add required test data
+            await AddTestWeekGradYearAsync(1);
+            await AddTestWeekGradYearAsync(2);
+            await Context.SaveChangesAsync();
+
             var conflictSchedule1 = TestDataBuilder.CreateInstructorSchedule(mothraId, 1, 1, false);
             var conflictSchedule2 = TestDataBuilder.CreateInstructorSchedule(mothraId, 2, 2, false);
 
@@ -314,7 +376,7 @@ namespace Viper.test.ClinicalScheduler
             await Context.SaveChangesAsync();
 
             // Act
-            var result = await _service.GetScheduleConflictsAsync(mothraId, weekIds);
+            var result = await _service.GetOtherRotationSchedulesAsync(mothraId, weekIds, 2025);
 
             // Assert
             Assert.Equal(2, result.Count);
@@ -322,12 +384,17 @@ namespace Viper.test.ClinicalScheduler
         }
 
         [Fact]
-        public async Task GetScheduleConflictsAsync_WithExcludedRotation_ExcludesSpecifiedRotation()
+        public async Task GetOtherRotationSchedulesAsync_WithExcludedRotation_ExcludesSpecifiedRotation()
         {
             // Arrange
             var mothraId = "test123";
             var weekIds = new[] { 1 };
             var excludeRotationId = 1;
+
+            // Add required test data
+            await AddTestWeekGradYearAsync(1);
+            await Context.SaveChangesAsync();
+
             var includedSchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, excludeRotationId, 1, false);
             var excludedSchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, 2, 1, false);
 
@@ -335,7 +402,7 @@ namespace Viper.test.ClinicalScheduler
             await Context.SaveChangesAsync();
 
             // Act
-            var result = await _service.GetScheduleConflictsAsync(mothraId, weekIds, excludeRotationId);
+            var result = await _service.GetOtherRotationSchedulesAsync(mothraId, weekIds, 2025, excludeRotationId);
 
             // Assert
             Assert.Single(result);
@@ -344,7 +411,7 @@ namespace Viper.test.ClinicalScheduler
 
 
         [Fact]
-        public async Task GetScheduleConflictsAsync_NoConflicts_ReturnsEmptyList()
+        public async Task GetOtherRotationSchedulesAsync_NoConflicts_ReturnsEmptyList()
         {
             // Arrange
             var service = new ScheduleEditService(Context, _mockPermissionService.Object, _mockAuditService.Object, _mockLogger.Object, _mockUserHelper.Object);
@@ -355,17 +422,35 @@ namespace Viper.test.ClinicalScheduler
             await Context.SaveChangesAsync();
 
             // Act - Check for conflicts on different weeks
-            var result = await service.GetScheduleConflictsAsync("12345", new[] { 10, 15 }, cancellationToken: CancellationToken.None);
+            var result = await service.GetOtherRotationSchedulesAsync("12345", new[] { 10, 15 }, 2025, cancellationToken: CancellationToken.None);
 
             // Assert
             Assert.Empty(result);
         }
 
         [Fact]
-        public async Task GetScheduleConflictsAsync_WithMultipleConflicts_ReturnsAllConflictingSchedules()
+        public async Task GetOtherRotationSchedulesAsync_WithMultipleConflicts_ReturnsAllConflictingSchedules()
         {
             // Arrange
             var service = new ScheduleEditService(Context, _mockPermissionService.Object, _mockAuditService.Object, _mockLogger.Object, _mockUserHelper.Object);
+
+            // Add required test data
+            await AddTestWeekGradYearAsync(10);
+            await AddTestWeekGradYearAsync(15);
+            await AddTestWeekGradYearAsync(20);
+
+            // Add rotation 3 if it doesn't exist
+            if (!Context.Rotations.Any(r => r.RotId == 3))
+            {
+                await Context.Rotations.AddAsync(new Rotation
+                {
+                    RotId = 3,
+                    ServiceId = 1,
+                    Name = "Test Rotation 3",
+                    Abbreviation = "TR3"
+                });
+            }
+            await Context.SaveChangesAsync();
 
             // Create multiple conflicting schedules
             var schedule1 = TestDataBuilder.CreateInstructorSchedule("12345", 1, 10);
@@ -375,7 +460,7 @@ namespace Viper.test.ClinicalScheduler
             await Context.SaveChangesAsync();
 
             // Act - Check for conflicts on all these weeks for a different rotation
-            var result = await service.GetScheduleConflictsAsync("12345", new[] { 10, 15, 20 }, excludeRotationId: 4, cancellationToken: CancellationToken.None);
+            var result = await service.GetOtherRotationSchedulesAsync("12345", new[] { 10, 15, 20 }, 2025, excludeRotationId: 4, cancellationToken: CancellationToken.None);
 
             // Assert
             Assert.Equal(3, result.Count);
@@ -403,14 +488,14 @@ namespace Viper.test.ClinicalScheduler
             _mockPermissionService.Setup(x => x.HasEditPermissionForRotationAsync(rotationId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
             _mockAuditService.Setup(x => x.LogPrimaryEvaluatorSetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ScheduleAudit());
 
             // Act - Switch primary evaluator from instructor1 to instructor2
             var result = await _service.SetPrimaryEvaluatorAsync(instructor2.InstructorScheduleId, true);
 
             // Assert
-            Assert.True(result);
+            Assert.True(result.success);
 
             // Verify instructor1 is no longer primary
             var updatedInstructor1 = await Context.InstructorSchedules.FindAsync(instructor1.InstructorScheduleId);

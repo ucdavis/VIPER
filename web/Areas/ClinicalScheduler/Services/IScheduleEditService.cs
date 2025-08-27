@@ -13,6 +13,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="mothraId">Instructor's MothraID</param>
         /// <param name="rotationId">Rotation ID</param>
         /// <param name="weekIds">Array of week IDs to schedule</param>
+        /// <param name="gradYear">Graduation year for conflict detection</param>
         /// <param name="isPrimaryEvaluator">Whether this instructor should be the primary evaluator</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of created InstructorSchedule entries</returns>
@@ -20,6 +21,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             string mothraId,
             int rotationId,
             int[] weekIds,
+            int gradYear,
             bool isPrimaryEvaluator = false,
             CancellationToken cancellationToken = default);
 
@@ -39,8 +41,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="instructorScheduleId">InstructorSchedule ID</param>
         /// <param name="isPrimary">True to set as primary, false to unset</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>True if successfully updated</returns>
-        Task<bool> SetPrimaryEvaluatorAsync(
+        /// <returns>Tuple with success flag and previous primary evaluator name (if any)</returns>
+        Task<(bool success, string? previousPrimaryName)> SetPrimaryEvaluatorAsync(
             int instructorScheduleId,
             bool isPrimary,
             CancellationToken cancellationToken = default);
@@ -56,16 +58,19 @@ namespace Viper.Areas.ClinicalScheduler.Services
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Get conflicting schedules for an instructor on specific weeks
+        /// Gets other rotation schedules for an instructor during specified weeks.
+        /// This is informational only - instructors can be scheduled for multiple rotations in the same week.
         /// </summary>
         /// <param name="mothraId">Instructor's MothraID</param>
         /// <param name="weekIds">Week IDs to check</param>
-        /// <param name="excludeRotationId">Rotation ID to exclude from conflict check</param>
+        /// <param name="gradYear">Graduation year</param>
+        /// <param name="excludeRotationId">Rotation ID to exclude from results</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>List of conflicting InstructorSchedule entries</returns>
-        Task<List<InstructorSchedule>> GetScheduleConflictsAsync(
+        /// <returns>List of instructor schedules for other rotations during the specified weeks</returns>
+        Task<List<InstructorSchedule>> GetOtherRotationSchedulesAsync(
             string mothraId,
             int[] weekIds,
+            int gradYear,
             int? excludeRotationId = null,
             CancellationToken cancellationToken = default);
 

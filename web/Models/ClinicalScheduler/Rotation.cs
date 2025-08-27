@@ -12,6 +12,7 @@ namespace Viper.Models.ClinicalScheduler
         public string Abbreviation { get; set; } = string.Empty;
         public string SubjectCode { get; set; } = string.Empty;
         public string CourseNumber { get; set; } = string.Empty;
+        public bool Assignable { get; set; }
         public bool Active { get; set; } = true;
 
         // Navigation properties

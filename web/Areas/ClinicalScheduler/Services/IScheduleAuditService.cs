@@ -14,7 +14,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="rotationId">Rotation ID</param>
         /// <param name="weekId">Week ID</param>
         /// <param name="modifiedByMothraId">User who made the change</param>
-        /// <param name="instructorScheduleId">Created InstructorSchedule ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Created audit entry</returns>
         Task<ScheduleAudit> LogInstructorAddedAsync(
@@ -22,7 +21,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
             int rotationId,
             int weekId,
             string modifiedByMothraId,
-            int instructorScheduleId,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -32,7 +30,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="rotationId">Rotation ID</param>
         /// <param name="weekId">Week ID</param>
         /// <param name="modifiedByMothraId">User who made the change</param>
-        /// <param name="instructorScheduleId">Removed InstructorSchedule ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Created audit entry</returns>
         Task<ScheduleAudit> LogInstructorRemovedAsync(
@@ -40,7 +37,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
             int rotationId,
             int weekId,
             string modifiedByMothraId,
-            int instructorScheduleId,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -50,7 +46,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="rotationId">Rotation ID</param>
         /// <param name="weekId">Week ID</param>
         /// <param name="modifiedByMothraId">User who made the change</param>
-        /// <param name="instructorScheduleId">InstructorSchedule ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Created audit entry</returns>
         Task<ScheduleAudit> LogPrimaryEvaluatorSetAsync(
@@ -58,7 +53,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
             int rotationId,
             int weekId,
             string modifiedByMothraId,
-            int instructorScheduleId,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -68,7 +62,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="rotationId">Rotation ID</param>
         /// <param name="weekId">Week ID</param>
         /// <param name="modifiedByMothraId">User who made the change</param>
-        /// <param name="instructorScheduleId">InstructorSchedule ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Created audit entry</returns>
         Task<ScheduleAudit> LogPrimaryEvaluatorUnsetAsync(
@@ -76,7 +69,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
             int rotationId,
             int weekId,
             string modifiedByMothraId,
-            int instructorScheduleId,
             CancellationToken cancellationToken = default);
 
         /// <summary>

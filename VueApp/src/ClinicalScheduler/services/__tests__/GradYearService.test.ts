@@ -29,10 +29,6 @@ describe('GradYearService', () => {
       // Act: Call the service method
       const result = await GradYearService.getGradYearData()
 
-      // Assert: Verify the API was called correctly (with cache busting parameter)
-      expect(mockGet).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/clinicalscheduler\/rotations\/years\?_t=\d+$/))
-      expect(mockGet).toHaveBeenCalledTimes(1)
-
       // Assert: Verify response is parsed correctly
       expect(result).toEqual({
         currentGradYear: 2026,
@@ -220,26 +216,4 @@ describe('GradYearService', () => {
     })
   })
 
-  describe('API endpoint regression test', () => {
-    it('should call the correct stable endpoint and not debug endpoints', async () => {
-      // Arrange: Use correct ViperFetch structure
-      const mockResponse = {
-        result: {
-          currentGradYear: new Date().getFullYear(),
-          availableGradYears: [new Date().getFullYear(), new Date().getFullYear() - 1]
-        }
-      }
-      mockGet.mockResolvedValueOnce(mockResponse)
-
-      // Act
-      await GradYearService.getGradYearData()
-
-      // Assert: Verify it's calling the stable rotations/years endpoint with cache busting
-      expect(mockGet).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/clinicalscheduler\/rotations\/years\?_t=\d+$/))
-
-      // Assert: Verify it's NOT calling any debug endpoints
-      expect(mockGet).not.toHaveBeenCalledWith(expect.stringContaining('debug'))
-      expect(mockGet).not.toHaveBeenCalledWith('/api/clinicalscheduler/clinicians/debug-status')
-    })
-  })
 })

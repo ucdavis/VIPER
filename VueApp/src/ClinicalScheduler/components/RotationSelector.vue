@@ -199,6 +199,15 @@ watch(() => props.onlyWithScheduledWeeks, () => {
     loadRotations()
 })
 
+// Watch for model value changes to clear search
+watch(() => props.modelValue, (newValue) => {
+    if (newValue === null) {
+        searchQuery.value = ''
+        // Reset filtered rotations when cleared
+        filteredRotations.value = rotations.value
+    }
+})
+
 // Lifecycle
 onMounted(() => {
     loadRotations()

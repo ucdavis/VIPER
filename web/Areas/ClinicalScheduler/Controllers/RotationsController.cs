@@ -229,7 +229,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 var deduplicatedWeeks = vWeeks.DistinctBy(w => w.WeekId).ToList();
                 var weeksWithSemester = deduplicatedWeeks.Select(w => new
                 {
-                    Week = BuildWeekScheduleItem(w, baseInstructorSchedules, personData, deduplicatedWeeks),
+                    Week = BuildWeekScheduleItem(w, baseInstructorSchedules, personData, deduplicatedWeeks, rotation),
                     Semester = NormalizeSemesterName(w.TermCode)
                 });
 
@@ -484,7 +484,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <summary>
         /// Normalizes semester name from term code
         /// </summary>
-        private string NormalizeSemesterName(int termCode)
+        private static string NormalizeSemesterName(int termCode)
         {
             var semesterName = TermCodeService.GetTermCodeDescription(termCode);
             return semesterName.StartsWith("Unknown Term") ? "Unknown Semester" : semesterName;
@@ -493,7 +493,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <summary>
         /// Builds a week schedule item with instructor information
         /// </summary>
-        private object BuildWeekScheduleItem(VWeek week, IEnumerable<InstructorSchedule> allSchedules, Dictionary<string, Person> personData, List<VWeek> allWeeks)
+        private object BuildWeekScheduleItem(VWeek week, IEnumerable<InstructorSchedule> allSchedules, Dictionary<string, Person> personData, List<VWeek> allWeeks, Rotation? rotation = null)
         {
             var weekSchedules = allSchedules
                 .Where(s => s.WeekId == week.WeekId)
@@ -502,7 +502,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     instructorScheduleId = i.InstructorScheduleId,
                     firstName = personData.ContainsKey(i.MothraId) ? personData[i.MothraId].PersonDisplayFirstName : "Unknown",
                     lastName = personData.ContainsKey(i.MothraId) ? personData[i.MothraId].PersonDisplayLastName : "Unknown",
-                    fullName = personData.ContainsKey(i.MothraId) ? personData[i.MothraId].PersonDisplayFullName : $"Person {i.MothraId}",
+                    fullName = personData.ContainsKey(i.MothraId)
+                        ? personData[i.MothraId].PersonDisplayFullName
+                        : $"Person {i.MothraId}",
                     mothraId = i.MothraId,
                     evaluator = i.Evaluator,
                     isPrimaryEvaluator = i.Evaluator
@@ -518,7 +520,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 termCode = week.TermCode,
                 extendedRotation = week.ExtendedRotation,
                 forcedVacation = week.ForcedVacation,
-                requiresPrimaryEvaluator = EvaluationPolicyService.RequiresPrimaryEvaluator(week.WeekNum, allWeeks),
+                requiresPrimaryEvaluator = EvaluationPolicyService.RequiresPrimaryEvaluator(
+                    week.WeekNum,
+                    allWeeks,
+                    rotation?.Service?.WeekSize),
                 instructorSchedules = weekSchedules
             };
         }
@@ -535,7 +540,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     semester = g.Key,
                     weeks = g.Select(item => item.Week).OrderBy(w => w.dateStart).ToList()
                 })
-                .OrderBy(g => g.weeks.Any() ? g.weeks.First().dateStart : DateTime.MaxValue)
+                .OrderBy(g => g.weeks.Any() ? g.weeks[0].dateStart : DateTime.MaxValue)
                 .Cast<object>()
                 .ToList();
         }
@@ -550,7 +555,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 .Select(mothraId => new
                 {
                     mothraId = mothraId,
-                    fullName = personData.ContainsKey(mothraId) ? personData[mothraId].PersonDisplayFullName : $"Clinician {mothraId}"
+                    fullName = personData.ContainsKey(mothraId)
+                        ? personData[mothraId].PersonDisplayFullName
+                        : $"Clinician {mothraId}"
                 })
                 .OrderBy(c => c.fullName)
                 .Cast<object>()

@@ -1,7 +1,7 @@
 namespace Viper.Models.ClinicalScheduler
 {
     /// <summary>
-    /// Clinical Scheduler Week entity - maps directly to Clinical Scheduler database Week table/view
+    /// Clinical Scheduler Week entity - maps directly to Clinical Scheduler database Week table
     /// This is distinct from CTS.Week which is used for cross-database view access
     /// </summary>
     public class Week
@@ -9,7 +9,6 @@ namespace Viper.Models.ClinicalScheduler
         public int WeekId { get; set; }
         public DateTime DateStart { get; set; }
         public DateTime DateEnd { get; set; }
-        public int WeekNumber { get; set; }
         public int TermCode { get; set; }
         public bool ExtendedRotation { get; set; }
         public bool StartWeek { get; set; }

@@ -18,7 +18,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         }
 
         /// <summary>
-        /// Gets weeks for a specific grad year using Entity Framework entities
+        /// Gets weeks for a specific grad year using the vWeek view directly
         /// Returns weeks with proper academic week numbering and year associations
         /// </summary>
         /// <param name="gradYear">The graduation year to get weeks for</param>
@@ -29,32 +29,18 @@ namespace Viper.Areas.ClinicalScheduler.Services
         {
             try
             {
-                var query = _context.WeekGradYears
+                var query = _context.VWeeks
                     .AsNoTracking()
-                    .Include(wgy => wgy.Week)
-                    .Where(wgy => wgy.GradYear == gradYear);
+                    .Where(w => w.GradYear == gradYear);
 
                 if (!includeExtendedRotation)
                 {
-                    query = query.Where(wgy => !wgy.Week.ExtendedRotation);
+                    query = query.Where(w => !w.ExtendedRotation);
                 }
 
-                // Project to VWeek in the database query for better performance
+                // Query the view directly - no deduplication needed since we're filtering by grad year
                 var weeks = await query
-                    .OrderBy(wgy => wgy.WeekNum)
-                    .Select(wgy => new VWeek
-                    {
-                        WeekId = wgy.WeekId,
-                        WeekNum = wgy.WeekNum,
-                        DateStart = wgy.Week.DateStart,
-                        DateEnd = wgy.Week.DateEnd,
-                        ExtendedRotation = wgy.Week.ExtendedRotation,
-                        TermCode = wgy.Week.TermCode,
-                        StartWeek = wgy.Week.StartWeek,
-                        ForcedVacation = false, // This field isn't available in WeekGradYear
-                        GradYear = wgy.GradYear,
-                        WeekGradYearId = wgy.WeekGradYearId
-                    })
+                    .OrderBy(w => w.WeekNum)
                     .ToListAsync(cancellationToken);
 
                 _logger.LogInformation("Retrieved {Count} weeks for grad year {GradYear}, includeExtendedRotation: {IncludeExtendedRotation}",
@@ -63,13 +49,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving weeks for grad year {GradYear}", gradYear);
+                _logger.LogError(ex, "Error retrieving weeks for grad year {GradYear}: {ErrorMessage}", gradYear, ex.Message);
                 throw new InvalidOperationException($"Failed to retrieve weeks for graduation year {gradYear}", ex);
             }
         }
 
         /// <summary>
-        /// Gets a specific week by ID using Entity Framework entities
+        /// Gets a specific week by ID using the vWeek view directly
         /// Returns week data with grad year and week number information
         /// </summary>
         /// <param name="weekId">The week ID</param>
@@ -80,32 +66,17 @@ namespace Viper.Areas.ClinicalScheduler.Services
         {
             try
             {
-                var query = _context.WeekGradYears
+                var query = _context.VWeeks
                     .AsNoTracking()
-                    .Include(wgy => wgy.Week)
-                    .Where(wgy => wgy.WeekId == weekId);
+                    .Where(w => w.WeekId == weekId);
 
                 if (gradYear.HasValue)
                 {
-                    query = query.Where(wgy => wgy.GradYear == gradYear.Value);
+                    query = query.Where(w => w.GradYear == gradYear.Value);
                 }
 
-                // Project directly to VWeek for better performance
-                var week = await query
-                    .Select(wgy => new VWeek
-                    {
-                        WeekId = wgy.WeekId,
-                        WeekNum = wgy.WeekNum,
-                        DateStart = wgy.Week.DateStart,
-                        DateEnd = wgy.Week.DateEnd,
-                        ExtendedRotation = wgy.Week.ExtendedRotation,
-                        TermCode = wgy.Week.TermCode,
-                        StartWeek = wgy.Week.StartWeek,
-                        ForcedVacation = false, // This field isn't available in WeekGradYear
-                        GradYear = wgy.GradYear,
-                        WeekGradYearId = wgy.WeekGradYearId
-                    })
-                    .FirstOrDefaultAsync(cancellationToken);
+                // Query the view directly
+                var week = await query.FirstOrDefaultAsync(cancellationToken);
 
                 if (week == null)
                 {
@@ -135,34 +106,19 @@ namespace Viper.Areas.ClinicalScheduler.Services
         {
             try
             {
-                // Use DateTime.Today for better clarity and avoid .Date on columns for sargability
+                // Use DateTime.Today for better clarity
                 var today = DateTime.Today;
-                var query = _context.WeekGradYears
+                var query = _context.VWeeks
                     .AsNoTracking()
-                    .Include(wgy => wgy.Week)
-                    .Where(wgy => wgy.Week.DateStart <= today && wgy.Week.DateEnd >= today);
+                    .Where(w => w.DateStart <= today && w.DateEnd >= today);
 
                 if (gradYear.HasValue)
                 {
-                    query = query.Where(wgy => wgy.GradYear == gradYear.Value);
+                    query = query.Where(w => w.GradYear == gradYear.Value);
                 }
 
-                // Project directly to VWeek for better performance
-                var week = await query
-                    .Select(wgy => new VWeek
-                    {
-                        WeekId = wgy.WeekId,
-                        WeekNum = wgy.WeekNum,
-                        DateStart = wgy.Week.DateStart,
-                        DateEnd = wgy.Week.DateEnd,
-                        ExtendedRotation = wgy.Week.ExtendedRotation,
-                        TermCode = wgy.Week.TermCode,
-                        StartWeek = wgy.Week.StartWeek,
-                        ForcedVacation = false, // This field isn't available in WeekGradYear
-                        GradYear = wgy.GradYear,
-                        WeekGradYearId = wgy.WeekGradYearId
-                    })
-                    .FirstOrDefaultAsync(cancellationToken);
+                // Query the view directly
+                var week = await query.FirstOrDefaultAsync(cancellationToken);
 
                 if (week == null)
                 {
@@ -181,7 +137,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         }
 
         /// <summary>
-        /// Gets weeks by date range using Entity Framework entities
+        /// Gets weeks by date range using the vWeek view directly
         /// Returns weeks that overlap with the specified date range
         /// </summary>
         /// <param name="startDate">Start date (optional)</param>
@@ -192,39 +148,25 @@ namespace Viper.Areas.ClinicalScheduler.Services
         {
             try
             {
-                var query = _context.WeekGradYears
+                var query = _context.VWeeks
                     .AsNoTracking()
-                    .Include(wgy => wgy.Week)
                     .AsQueryable();
 
                 if (startDate.HasValue)
                 {
-                    query = query.Where(wgy => wgy.Week.DateEnd >= startDate.Value);
+                    query = query.Where(w => w.DateEnd >= startDate.Value);
                 }
 
                 if (endDate.HasValue)
                 {
-                    query = query.Where(wgy => wgy.Week.DateStart <= endDate.Value);
+                    query = query.Where(w => w.DateStart <= endDate.Value);
                 }
 
-                // Project to VWeek in the database query with improved ordering for stability
+                // Query the view directly with improved ordering for stability
                 var weeks = await query
-                    .OrderBy(wgy => wgy.Week.DateStart)
-                    .ThenBy(wgy => wgy.GradYear)
-                    .ThenBy(wgy => wgy.WeekNum)
-                    .Select(wgy => new VWeek
-                    {
-                        WeekId = wgy.WeekId,
-                        WeekNum = wgy.WeekNum,
-                        DateStart = wgy.Week.DateStart,
-                        DateEnd = wgy.Week.DateEnd,
-                        ExtendedRotation = wgy.Week.ExtendedRotation,
-                        TermCode = wgy.Week.TermCode,
-                        StartWeek = wgy.Week.StartWeek,
-                        ForcedVacation = false, // This field isn't available in WeekGradYear
-                        GradYear = wgy.GradYear,
-                        WeekGradYearId = wgy.WeekGradYearId
-                    })
+                    .OrderBy(w => w.DateStart)
+                    .ThenBy(w => w.GradYear)
+                    .ThenBy(w => w.WeekNum)
                     .ToListAsync(cancellationToken);
 
                 _logger.LogInformation("Retrieved {Count} weeks for date range {StartDate} to {EndDate}",

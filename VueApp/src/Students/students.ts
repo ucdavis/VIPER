@@ -15,7 +15,6 @@ import { useQuasarConfig } from "@/composables/QuasarConfig"
 //import our css
 import "@/assets/site.css"
 
-const { quasarConfig } = useQuasarConfig()
 const pinia = createPinia()
 const app = createApp(App)
 app.provide("apiURL", import.meta.env.VITE_API_URL)
@@ -23,4 +22,4 @@ app.provide("viperOneUrl", import.meta.env.VITE_VIPER_1_HOME)
 app.use(pinia)
 app.use(router)
 app.use(Quasar, quasarConfig)
-app.mount("#myApp")
+app.mount('#myApp')
