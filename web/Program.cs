@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Rewrite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
 using Newtonsoft.Json;
@@ -172,17 +173,26 @@ try
     });
 
 
-    builder.Services.AddDbContext<AAUDContext>();
-    builder.Services.AddDbContext<CoursesContext>();
-    builder.Services.AddDbContext<RAPSContext>();
-    builder.Services.AddDbContext<VIPERContext>(opt =>
+    // Enable detailed errors in non-production environments.
+    void ConfigureDbContextOptions(DbContextOptionsBuilder options)
     {
         if (builder.Environment.EnvironmentName != "Production")
         {
-            opt.EnableDetailedErrors(true);
+            options.EnableDetailedErrors(true);
         }
+    }
+
+    builder.Services.AddDbContext<AAUDContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<CoursesContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<RAPSContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<VIPERContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<ClinicalSchedulerContext>(options =>
+    {
+        ConfigureDbContextOptions(options);
+        // Set compatibility level match what the database is set to.
+        // EF Core 8 uses OPENJSON, which requires compatibility level 130 (SQL Server 2016) or higher.
+        options.UseSqlServer(builder.Configuration.GetConnectionString("ClinicalScheduler"), sqlServerOptions => sqlServerOptions.UseCompatibilityLevel(100));
     });
-    builder.Services.AddDbContext<ClinicalSchedulerContext>();
 
     // Clinical Scheduler services
     builder.Services.AddScoped<Viper.Areas.Curriculum.Services.TermCodeService>();
