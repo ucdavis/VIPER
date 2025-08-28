@@ -1,0 +1,30 @@
+# Ignore everything
+**
+.*
+
+# Re-allow directories so we can re-include files inside them
+!*/
+
+# Allow supported file types at root
+!*.json
+!*.md
+!*.mjs
+
+# Allow support file types at in subfolders
+!**/*.cshtml
+!**/*.css
+!**/*.htm
+!**/*.html
+!**/*.js
+!**/*.json
+!**/*.md
+!**/*.mjs
+!**/*.ts
+!**/*.vue
+
+# Then exclude specific files you never want formatted
+*.min.js
+*.min.css
+*.bundle.js
+*.bundle.css
+package-lock.json

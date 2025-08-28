@@ -1,0 +1,66 @@
+{
+    "plugins": ["import", "promise", "unicorn"],
+    "categories": {
+        "correctness": "error",
+        "pedantic": "warn",
+        "perf": "warn",
+        "restriction": "error",
+        "style": "warn",
+        "suspicious": "warn"
+    },
+    "rules": {
+        "import/no-cycle": "error",
+        "import/no-duplicates": "error",
+        "import/no-self-import": "error",
+        "id-length": "off",
+        "max-lines-per-function": ["warn", { "max": 100 }],
+        "no-magic-numbers": [
+            "warn",
+            {
+                "ignore": [-1, 0, 1, 2],
+                "ignoreArrayIndexes": true,
+                "ignoreDefaultValues": true,
+                "ignoreClassFieldInitialValues": true,
+                "ignoreEnums": true,
+                "ignoreReadonlyClassProperties": true,
+                "ignoreTypeIndexes": true
+            }
+        ],
+        "sort-keys": "off",
+        "sort-imports": "off",
+        "no-ternary": "off",
+        "func-style": "off"
+    },
+    "overrides": [
+        {
+            "files": ["scripts/**/*"],
+            "plugins": ["node"],
+            "rules": {
+                "no-console": "off",
+                "import/no-commonjs": "off",
+                "import/unambiguous": "off",
+                "import/no-default-export": "off",
+                "unicorn/prefer-module": "off",
+                "unicorn/no-process-exit": "off",
+                "max-lines": "off",
+                "max-params": "off",
+                "unicorn/no-null": "off" // Conflicts with eslint/no-undefined - codebase uses null consistently
+            }
+        },
+        {
+            "files": ["**/*.test.*", "**/*.spec.*", "**/tests/**/*", "**/test/**/*"],
+            "plugins": ["vitest"],
+            "rules": {
+                "no-console": "off"
+            }
+        },
+        {
+            "files": ["VueApp/src/**/*"],
+            "rules": {
+                "no-console": "error"
+            }
+        }
+    ],
+    "ignore": ["node_modules/**", "bin/**", "obj/**", "dist/**", "wwwroot/**", "*.min.js", "*.bundle.js"],
+    "allowWarningErrors": false
+}

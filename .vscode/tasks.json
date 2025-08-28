@@ -1,0 +1,198 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        // Windows-focused development tasks
+        // Development Tasks
+        {
+            "label": "dev:backend",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "dev:backend"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "group": "backend"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "dev:frontend",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "dev:frontend"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "group": "frontend"
+            }
+        },
+        {
+            "label": "dev:fullstack",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "dev:fullstack"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "dev:frontend-build",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "dev:frontend-build"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        // Linting Tasks
+        {
+            "label": "lint",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "lint"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "lint:precommit",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "lint:precommit"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "lint:staged",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "lint:staged"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        // Testing Tasks
+        {
+            "label": "test:backend",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "test:backend"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "test:frontend",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "test:frontend"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        // Debug Support Tasks
+        {
+            "label": "findViperProcess",
+            "type": "shell",
+            "command": "node",
+            "args": ["${workspaceFolder}/scripts/launch-find-viper.js"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "showReuseMessage": false
+            }
+        },
+        {
+            "label": "findViperProcessToFile",
+            "type": "process",
+            "command": "node",
+            "args": ["${workspaceFolder}/scripts/launch-find-viper.js"],
+            "group": "build",
+            "presentation": {
+                "echo": false,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "ensureChromeDebugging",
+            "type": "shell",
+            "command": "node",
+            "args": ["${workspaceFolder}/scripts/launch-chrome-debug.js"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        // Build Tasks (keeping existing)
+        {
+            "label": "build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Viper.sln",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary;ForceNoAlign"
+            ],
+            "group": "build",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "publish",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "publish",
+                "${workspaceFolder}/Viper.sln",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary;ForceNoAlign"
+            ],
+            "group": "build",
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}
