@@ -9,6 +9,7 @@ const {
     categorizeIssuesBySeverity,
     displayCategorizedIssues,
     handleCommitDecisionForCategorizedIssues,
+    filterTypeScriptErrors,
 } = require("./lib/lint-staged-common")
 const { categorizeRule } = require("./lib/critical-rules")
 const { createLogger } = require("./lib/script-utils")
@@ -59,7 +60,15 @@ function parseOxlintOutput(stdout, stderr) {
         // Check if line is a file header (not indented, likely a file path)
         if (line.trim() && !line.startsWith(" ") && !line.startsWith("\t")) {
             // This looks like a file path - update current file context
-            currentFile = line.trim()
+            let filePath = line.trim()
+
+            // Clean Windows long path prefix (\\?\) for cleaner display
+            const WINDOWS_LONG_PATH_PREFIX = "\\\\?\\"
+            if (filePath.startsWith(WINDOWS_LONG_PATH_PREFIX)) {
+                filePath = filePath.slice(WINDOWS_LONG_PATH_PREFIX.length)
+            }
+
+            currentFile = filePath
         } else {
             // Check if line is an issue (indented with position info)
             const issueMatch = line.match(/^\s+(\d+:\d+)\s+(error|warning)\s+(.+?)\s+([a-z-_/()0-9:]+)$/i)
@@ -161,9 +170,17 @@ try {
             logger.success("TypeScript type checking passed")
         } else {
             logger.error("TypeScript type checking failed:")
-            logger.plain(tscResult.stdout)
-            logger.plain(tscResult.stderr)
-            hasTypeErrors = true
+
+            // Filter the TypeScript errors to only show those related to the files being linted
+            const combinedOutput = tscResult.stdout + tscResult.stderr
+            const filteredOutput = filterTypeScriptErrors(combinedOutput, rawFiles, projectRoot)
+
+            if (filteredOutput.trim()) {
+                logger.plain(filteredOutput)
+                hasTypeErrors = true
+            } else {
+                logger.success("No TypeScript errors found in the specified files")
+            }
         }
     }
 

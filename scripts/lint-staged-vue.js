@@ -9,6 +9,7 @@ const {
     categorizeIssuesBySeverity,
     displayCategorizedIssues,
     handleCommitDecisionForCategorizedIssues,
+    filterTypeScriptErrors,
 } = require("./lib/lint-staged-common")
 const { categorizeRule } = require("./lib/critical-rules")
 const { createLogger } = require("./lib/script-utils")
@@ -68,6 +69,30 @@ function parseESLintOutput(stdout, stderr) {
     }
 
     return issues
+}
+
+/**
+ * Handle TypeScript errors with filtering and logging
+ * @param {Object} appResult - TypeScript command result
+ * @param {string[]} rawFiles - Raw file paths being linted
+ * @param {string} projectRoot - Project root directory
+ * @param {Object} logger - Logger instance
+ * @returns {boolean} - Whether type errors were found
+ */
+function handleTypeScriptErrors(appResult, rawFiles, projectRoot, logger) {
+    logger.error("TypeScript type checking failed:")
+
+    // Filter the TypeScript errors to only show those related to the files being linted
+    const combinedOutput = appResult.stdout + appResult.stderr
+    const filteredOutput = filterTypeScriptErrors(combinedOutput, rawFiles, projectRoot)
+
+    if (!filteredOutput.trim()) {
+        logger.success("No TypeScript errors found in the specified files")
+        return false
+    }
+
+    logger.plain(filteredOutput)
+    return true
 }
 
 try {
@@ -181,10 +206,7 @@ try {
                 vueAppDir,
             )
             if (!appResult.success) {
-                logger.error("TypeScript type checking failed:")
-                logger.plain(appResult.stdout)
-                logger.plain(appResult.stderr)
-                hasTypeErrors = true
+                hasTypeErrors = handleTypeScriptErrors(appResult, rawFiles, projectRoot, logger)
             }
         }
 

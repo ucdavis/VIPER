@@ -229,7 +229,6 @@ function runLinter(script, files, description, fix) {
         cwd: projectRoot,
         env: {
             ...process.env,
-            LINT_BLOCK_ON_WARNINGS: "false", // Always show warnings, never block
         },
     })
 

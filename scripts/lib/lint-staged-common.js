@@ -372,6 +372,67 @@ function shouldBlockOnWarnings() {
     return process.env.LINT_BLOCK_ON_WARNINGS === "true"
 }
 
+/**
+ * Filter TypeScript compiler output to only show errors related to target files/directories
+ * @param {string} tscOutput - Raw TypeScript compiler output (stdout + stderr)
+ * @param {string[]} targetFiles - Array of target file paths or directories to filter for
+ * @param {string} projectRoot - Project root directory for path resolution
+ * @returns {string} - Filtered output containing only relevant errors
+ */
+function filterTypeScriptErrors(tscOutput, targetFiles, projectRoot) {
+    if (!tscOutput || !tscOutput.trim()) {
+        return tscOutput
+    }
+
+    const lines = tscOutput.split("\n")
+    const filteredLines = []
+
+    // Convert target files to absolute paths for matching
+    const absoluteTargets = targetFiles.map((target) => {
+        const resolved = path.resolve(projectRoot, target)
+        // Handle both files and directories
+        return {
+            original: target,
+            resolved: resolved,
+            isDirectory: fs.existsSync(resolved) && fs.statSync(resolved).isDirectory(),
+        }
+    })
+
+    for (const line of lines) {
+        // TypeScript error format: filepath(line,col): error TSxxxx: message
+        const errorMatch = line.match(/^(.+?)\((\d+),(\d+)\):\s+(error|warning)\s+TS\d+:/)
+
+        if (errorMatch) {
+            const [, errorFilePath] = errorMatch
+            const absoluteErrorPath = path.resolve(projectRoot, errorFilePath)
+
+            // Check if this error belongs to any of our target files/directories
+            const isRelevant = absoluteTargets.some((target) => {
+                if (target.isDirectory) {
+                    // For directories, check if error file is within the directory
+                    const relativePath = path.relative(target.resolved, absoluteErrorPath)
+                    return !relativePath.startsWith("..") && !path.isAbsolute(relativePath)
+                }
+                // For files, check exact match
+                return absoluteErrorPath === target.resolved
+            })
+
+            if (isRelevant) {
+                filteredLines.push(line)
+            }
+        } else {
+            // Keep non-error lines (like summary messages) if we have any relevant errors
+            // or if this might be a continuation of an error message
+            const hasRelevantErrors = filteredLines.some((line) => line.includes("error TS"))
+            if (hasRelevantErrors || line.trim() === "" || line.includes("Found ")) {
+                filteredLines.push(line)
+            }
+        }
+    }
+
+    return filteredLines.join("\n")
+}
+
 module.exports = {
     IS_WINDOWS,
     categorizeIssuesBySeverity,
@@ -383,4 +444,5 @@ module.exports = {
     runCommand,
     sanitizeFilePath,
     shouldBlockOnWarnings,
+    filterTypeScriptErrors,
 }
