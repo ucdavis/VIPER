@@ -254,15 +254,10 @@ try
     app.UseCsp(csp =>
     {
         // Allow JavaScript from:
-        var scriptSources = csp.AllowScripts
+        csp.AllowScripts
             .FromSelf() // This domain
-            .AddNonce(); // Inline scripts only with Nonce
-
-        // Allow eval only in development for Vite HMR
-        if (app.Environment.IsDevelopment())
-        {
-            scriptSources.AllowUnsafeEval(); // allow JS eval command for HMR
-        }
+            .AddNonce() // Inline scripts only with Nonce
+            .AllowUnsafeEval(); // allow JS eval command (must also fit within other restrictions)
 
         // Allow connections for WebSocket HMR and legacy systems in development
         if (app.Environment.IsDevelopment())
