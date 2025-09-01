@@ -116,7 +116,7 @@ ChartJS.register(CategoryScale, LinearScale, LineElement, Title, Tooltip, Legend
         </div>
         <div
             v-for="epa in epas"
-            :key="epa.epaId"
+            :key="epa.epaId || `epa-${epa.name}`"
             class="row"
         >
             <div class="col-12 col-lg-2">
@@ -140,7 +140,7 @@ ChartJS.register(CategoryScale, LinearScale, LineElement, Title, Tooltip, Legend
                 >
                     <span
                         v-for="ea in getAssessmentsForEpa(epa.epaId)"
-                        :key="ea.assessmentId"
+                        :key="ea.encounterId"
                     >
                         <strong>{{ formatDate(ea.encounterDate.toString()) }} - {{ ea.enteredByName }}</strong>
                         <br />

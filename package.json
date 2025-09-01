@@ -8,15 +8,16 @@
     "scripts": {
         "dev": "concurrently --names \"BACKEND,FRONTEND,BROWSER\" --prefix-colors \"blue,green,yellow\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:browser\"",
         "dev:backend": "npm run mailpit:start && cd web && cross-env DOTNET_USE_COMPILER_SERVER=1 dotnet watch run --launch-profile https",
-        "dev:backend-build": "npm run mailpit:start && npm run dev:frontend-build && dotnet publish ./web/Viper.csproj -c Release -p:EnvironmentName=Development -o ./dist/dev && cd dist/dev && cross-env ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_HTTPS_PORT=7158 ASPNETCORE_URLS=\"https://localhost:7158;http://localhost:5001\" dotnet Viper.dll",
+        "dev:backend-build-only": "npm run mailpit:start && npm run dev:frontend-build && dotnet publish ./web/Viper.csproj -c Release -p:EnvironmentName=Development -o ./dist/dev",
+        "dev:backend-run": "cd dist/dev && cross-env ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_HTTPS_PORT=7158 ASPNETCORE_URLS=\"https://localhost:7158;http://localhost:5001\" dotnet Viper.dll",
         "dev:browser": "node scripts/launch-open-browser.js",
-        "dev:build": "concurrently --names \"BACKEND,BROWSER\" --prefix-colors \"blue,yellow\" \"npm run dev:backend-build\" \"npm run dev:browser\"",
+        "dev:build": "npm run dev:backend-build-only && concurrently --names \"BACKEND,BROWSER\" --prefix-colors \"blue,yellow\" \"npm run dev:backend-run\" \"npm run dev:browser\"",
         "dev:frontend": "cd VueApp && npm install && npm run dev:typed",
         "dev:frontend-build": "cd VueApp && npm install && npm run build-dev",
         "dev:stop": "node scripts/stop-dev-services.js",
         "mailpit:start": "node scripts/manage-mailpit.js start",
-        "mailpit:stop": "node scripts/manage-mailpit.js stop",
         "mailpit:status": "node scripts/manage-mailpit.js status",
+        "mailpit:stop": "node scripts/manage-mailpit.js stop",
         "lint": "cross-env LINT_BLOCK_ON_WARNINGS=true DOTNET_USE_COMPILER_SERVER=1 node scripts/lint-any.js",
         "lint:precommit": "cross-env DOTNET_USE_COMPILER_SERVER=1 lint-staged",
         "lint:staged": "cross-env LINT_BLOCK_ON_WARNINGS=true DOTNET_USE_COMPILER_SERVER=1 lint-staged",
@@ -24,8 +25,7 @@
         "test": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\" \"npm run test:backend\" \"npm run test:frontend\"",
         "test:backend": "cd test && cross-env DOTNET_USE_COMPILER_SERVER=1 dotnet test -m",
         "test:frontend": "cd VueApp && npm run test:run",
-        "build:test": "cd VueApp && npm install && npm run build-test && cd .. && dotnet publish ./web/Viper.csproj -c Release -p:EnvironmentName=Development -o ./dist/test && cd dist/test && dotnet Viper.dll",
-        "build:prod": "cd VueApp && npm install && npm run build && cd .. && dotnet publish ./web/Viper.csproj -c Release -p:EnvironmentName=Development -o ./dist/prod && cd dist/prod && dotnet Viper.dll"
+        "verify:build": "node scripts/verify-build.js"
     },
     "devDependencies": {
         "@double-great/stylelint-a11y": "^3.0.4",

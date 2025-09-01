@@ -182,4 +182,5 @@ module.exports = {
     killProcess,
     killProcessOnPort,
     openBrowser,
+    DEFAULT_ENV_VARS,
 }
