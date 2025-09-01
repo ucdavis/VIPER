@@ -21,10 +21,8 @@ using System.Net;
 using System.Security.Claims;
 using System.Xml.Linq;
 using Viper;
-using Viper.Areas.Jobs.JobClasses;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Models.CTS;
 using Web;
 using Web.Authorization;
 
@@ -312,14 +310,10 @@ try
         csp.AllowPlugins
             .FromNowhere(); // Plugins not allowed
 
-        // Allow styles - unsafe inline only in development
-        var styleSources = csp.AllowStyles
-            .FromSelf(); // This domain
-
-        if (app.Environment.IsDevelopment())
-        {
-            styleSources.AllowUnsafeInline(); // Allows inline CSS in development only
-        }
+        // Allow styles
+        csp.AllowStyles
+            .FromSelf() // This domain
+            .AllowUnsafeInline(); // Allows inline CSS
     });
 
     // Configure the HTTP request pipeline.
