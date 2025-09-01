@@ -59,8 +59,10 @@ function createLogger(prefix) {
 
 // Get development server environment variables from .env.local or defaults
 function getDevServerEnv() {
-    const envPath = path.resolve(process.cwd(), "../.env.local")
-    const envConfig = fs.existsSync(envPath) ? dotenv.config({ path: envPath }).parsed : {}
+    // Always look for .env.local in the project root (where package.json is)
+    const projectRoot = path.resolve(__dirname, "../..")
+    const envPath = path.join(projectRoot, ".env.local")
+    const envConfig = fs.existsSync(envPath) ? dotenv.config({ path: envPath }).parsed || {} : {}
 
     const mergedEnv = { ...DEFAULT_ENV_VARS }
     for (const key in DEFAULT_ENV_VARS) {

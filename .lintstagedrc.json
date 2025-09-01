@@ -12,8 +12,7 @@
         "prettier --write"
     ],
     "web/**/*.cshtml": [
-        "node scripts/lint-staged-cshtml.js --fix",
-        "prettier --write"
+        "node scripts/lint-staged-cshtml.js --fix"
     ],
     "{web,test}/**/*.cs": [
         "node scripts/lint-staged-dotnet.js --fix"

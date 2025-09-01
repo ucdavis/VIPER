@@ -42,7 +42,8 @@
 </q-form>
 
 <h3>
-    <q-btn no-caps size="md" label="Add EPA" color="green" @@click="this.showForm=true"></q-btn>
+    Add New EPA
+    <q-btn no-caps size="md" label="Add EPA" color="green" @@click="this.showForm=true" class="q-ml-sm"></q-btn>
 </h3>
 
 <q-list separator>
@@ -61,7 +62,7 @@
         <q-item-section top class="text-dark col-12 col-md-6 col-lg-4">Description</q-item-section>
         <q-item-section top class="text-dark col-12 col-md-6 col-lg-3">Services</q-item-section>
     </q-item>
-    <q-item v-for="epa in epas">
+    <q-item v-for="epa in epas" :key="epa.epaId">
         <q-item-section top side class="text-dark col-5 col-md-4 col-lg-2">
             <template v-slot:default>
                 <span class="row fit">
@@ -84,7 +85,7 @@
         @* eslint-disable-next-line vue/no-v-html *@
         <q-item-section top class="text-dark col-12 col-md-6 col-lg-4" v-html="epa.description"></q-item-section>
         <q-item-section top class="text-dark col-12 col-md-6 col-lg-3">
-            <span v-for="epaService in epa.services">
+            <span v-for="epaService in epa.services" :key="epaService.serviceId">
                 {{epaService.serviceName}}
             </span>
         </q-item-section>
@@ -93,6 +94,7 @@
 
 @section Scripts {
     <script asp-add-nonce="true">
+        /* global createVueApp, viperFetch */
         createVueApp({
             data() {
                 return {
@@ -117,7 +119,14 @@
                 submitEpa: async function () {
                     var u = this.epa?.epaId ? ("epas/" + this.epa.epaId) : "epas"
                     //submit epa
-                    let { services: _, ...epaObj } = this.epa
+                    // Create EPA object without services (handled separately via API)
+                    var epaObj = {
+                        epaId: this.epa.epaId,
+                        order: this.epa.order,
+                        name: this.epa.name,
+                        description: this.epa.description,
+                        active: this.epa.active
+                    }
                     var updatedEpa = await viperFetch(this, u, {
                         method: this.epa?.epaId ? "PUT" : "POST",
                         body: JSON.stringify(epaObj),
@@ -129,7 +138,7 @@
                         body: JSON.stringify(this.epaServices),
                         headers: { "Content-Type": "application/json" }
                     })
-                    
+
                     //reload
                     this.getEpas()
                 },

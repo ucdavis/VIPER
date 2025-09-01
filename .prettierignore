@@ -11,7 +11,6 @@
 !*.mjs
 
 # Allow support file types at in subfolders
-!**/*.cshtml
 !**/*.css
 !**/*.htm
 !**/*.html

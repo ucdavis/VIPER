@@ -338,7 +338,9 @@ try
                 catch (Exception ex)
                 {
                     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-                    logger.LogDebug("Vite server not available ({Message}), falling back to static files for {Path}", ex.Message, context.Request.Path);
+                    logger.LogDebug("Vite server not available ({Message}), falling back to static files for {Path}",
+                        ex.Message,
+                        Uri.EscapeDataString(context.Request.Path.Value ?? "unknown"));
                     // Fall through to static file serving
                 }
             }
