@@ -30,14 +30,14 @@ if (inputArgs.length === 0) {
 🔍 Smart Linter - Routes files to the correct linter automatically
 
 Usage:
-  npm run lint [--fix] <file|folder|pattern>
+  npm run lint [-- --fix] <file|folder|pattern>
 
 Examples:
-     npm run lint web/Views/Home/Index.cshtml
+  npm run lint web/Views/Home/Index.cshtml
   npm run lint VueApp/src/components/HelloWorld.vue
   npm run lint web/wwwroot/css/directory.css
   npm run lint VueApp/src
-  npm run lint --fix VueApp/src  (auto-fix issues)
+  npm run lint -- --fix VueApp/src  (auto-fix issues)
 
 Supported file types:
   📄 .css, .vue → CSS/Stylelint (accessibility & style)
@@ -173,6 +173,67 @@ function categorizeFiles(files) {
 }
 
 /**
+ * Format a single file with Prettier (with optional second pass)
+ * @param {string} file - File path
+ * @param {string} projectRoot - Project root directory
+ * @returns {boolean} - Whether formatting succeeded
+ */
+function formatSingleFile(file, projectRoot) {
+    const normalizedFile = file.replaceAll("\\", "/")
+    const fullPath = path.join(projectRoot, file)
+
+    // Get file content before first pass to detect changes
+    let contentBefore = ""
+    try {
+        contentBefore = require("node:fs").readFileSync(fullPath, "utf8")
+    } catch (err) {
+        console.error(`❌ Failed to read ${normalizedFile}: ${err.message}`)
+        return false
+    }
+
+    // First pass
+    const firstResult = spawnSync("npx", ["prettier", "--write", normalizedFile], {
+        stdio: "inherit",
+        cwd: projectRoot,
+    })
+
+    if (firstResult.error || firstResult.status !== 0) {
+        console.error(
+            `❌ Failed to format ${normalizedFile} (first pass):`,
+            firstResult.error?.message || `Exit code ${firstResult.status}`,
+        )
+        return false
+    }
+
+    // Check if file was modified by first pass
+    let contentAfterFirst = ""
+    try {
+        contentAfterFirst = require("node:fs").readFileSync(fullPath, "utf8")
+    } catch (err) {
+        console.error(`❌ Failed to read ${normalizedFile} after formatting: ${err.message}`)
+        return false
+    }
+
+    // Only run second pass if first pass made changes
+    if (contentBefore !== contentAfterFirst) {
+        const secondResult = spawnSync("npx", ["prettier", "--write", normalizedFile], {
+            stdio: "inherit",
+            cwd: projectRoot,
+        })
+
+        if (secondResult.error || secondResult.status !== 0) {
+            console.error(
+                `❌ Failed to format ${normalizedFile} (second pass):`,
+                secondResult.error?.message || `Exit code ${secondResult.status}`,
+            )
+            return false
+        }
+    }
+
+    return true
+}
+
+/**
  * Run prettier check on files
  * @param {string[]} files - Array of file paths
  * @param {boolean} fix - Whether to fix issues
@@ -185,9 +246,18 @@ function runPrettierCheck(files, fix) {
 
     console.log(`\n🎨 Prettier ${fix ? "fixing" : "checking"} formatting (${files.length} files)`)
 
-    const prettierArgs = fix ? ["--write"] : ["--check"]
-    prettierArgs.push(...files)
-
+    if (fix) {
+        // For fixing, format each file with optional second pass
+        let allSucceeded = true
+        for (const file of files) {
+            if (!formatSingleFile(file, projectRoot)) {
+                allSucceeded = false
+            }
+        }
+        return allSucceeded
+    }
+    // For checking, we can process all files at once
+    const prettierArgs = ["--check", ...files]
     const result = spawnSync("npx", ["prettier", ...prettierArgs], {
         stdio: "inherit",
         cwd: projectRoot,
@@ -198,10 +268,9 @@ function runPrettierCheck(files, fix) {
         return false
     }
 
-    if (!fix && result.status !== 0) {
+    if (result.status !== 0) {
         console.log("\n💡 Files need prettier formatting. Run with --fix to auto-format:")
-        console.log("   npm run lint --fix <files>")
-        console.log("   or: npm run pretty:staged:fix")
+        console.log("   npm run lint -- --fix <files>")
     }
 
     return result.status === 0
@@ -304,7 +373,7 @@ try {
 
     if (!prettierPassed && !shouldFix) {
         console.log("\n💡 Some files have formatting issues. Use --fix to auto-format:")
-        console.log("   npm run lint --fix <files>")
+        console.log("   npm run lint -- --fix <files>")
     }
 } catch (error) {
     console.error("❌ Unexpected error:", error.message)

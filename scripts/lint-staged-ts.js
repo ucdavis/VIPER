@@ -96,6 +96,43 @@ function parseOxlintOutput(stdout, stderr) {
     return issues
 }
 
+/**
+ * Helper function to check TypeScript files with a specific config
+ * @param {string[]} files - Array of file paths
+ * @param {string} command - Command to run (tsc or vue-tsc)
+ * @param {string} configPath - Path to tsconfig file
+ * @param {string} description - Description for logging
+ * @param {string[]} rawFiles - Original file list for filtering
+ * @param {string} projectRoot - Project root directory
+ * @param {Object} logger - Logger instance
+ * @returns {boolean} - Whether there are type errors
+ */
+function runTypeCheck(files, command, configPath, description, rawFiles, projectRoot, logger) {
+    if (files.length === 0) {
+        return false
+    }
+
+    logger.info(`Checking ${files.length} ${description}...`)
+    const result = runCommand(
+        command,
+        ["--project", configPath, "--noEmit"],
+        `TypeScript ${description} checking`,
+        projectRoot,
+    )
+
+    if (!result.success) {
+        const combinedOutput = result.stdout + result.stderr
+        const filteredOutput = filterTypeScriptErrors(combinedOutput, rawFiles, projectRoot)
+
+        if (filteredOutput.trim()) {
+            logger.error("TypeScript type checking failed:")
+            logger.plain(filteredOutput)
+            return true // Has errors
+        }
+    }
+    return false // No errors
+}
+
 try {
     let hasTypeErrors = false
 
@@ -155,32 +192,47 @@ try {
         "TypeScript/JavaScript",
     )
 
-    // Run TypeScript type checking for Node.js config files
-    const nodeConfigFiles = vueAppFiles.filter((file) => !file.startsWith("VueApp/src/"))
+    // Run TypeScript type checking for all TypeScript files
+    const tsFiles = files.filter((file) => /\.(ts|tsx)$/.test(file))
 
-    if (nodeConfigFiles.length > 0) {
-        logger.info(`Running TypeScript type checking for ${nodeConfigFiles.length} Node.js config files...`)
-        const tscResult = runCommand(
-            "tsc",
-            ["--project", "VueApp/tsconfig.node.json", "--noEmit"],
-            "TypeScript node checking",
-            projectRoot,
-        )
-        if (tscResult.success) {
+    if (tsFiles.length > 0) {
+        logger.info("Running TypeScript type checking...")
+
+        // Check VueApp files
+        const vueAppTsFiles = tsFiles.filter((file) => file.startsWith("VueApp/"))
+
+        if (vueAppTsFiles.length > 0) {
+            // Separate app files from config files
+            const appFiles = vueAppTsFiles.filter((file) => file.startsWith("VueApp/src/"))
+            const nodeConfigFiles = vueAppTsFiles.filter((file) => !file.startsWith("VueApp/src/"))
+
+            // Check app files with tsconfig.app.json
+            const appHasErrors = runTypeCheck(
+                appFiles,
+                "vue-tsc",
+                "VueApp/tsconfig.app.json",
+                "application files",
+                rawFiles,
+                projectRoot,
+                logger,
+            )
+
+            // Check Node config files with tsconfig.node.json
+            const nodeHasErrors = runTypeCheck(
+                nodeConfigFiles,
+                "tsc",
+                "VueApp/tsconfig.node.json",
+                "Node.js config files",
+                rawFiles,
+                projectRoot,
+                logger,
+            )
+
+            hasTypeErrors = appHasErrors || nodeHasErrors
+        }
+
+        if (!hasTypeErrors) {
             logger.success("TypeScript type checking passed")
-        } else {
-            logger.error("TypeScript type checking failed:")
-
-            // Filter the TypeScript errors to only show those related to the files being linted
-            const combinedOutput = tscResult.stdout + tscResult.stderr
-            const filteredOutput = filterTypeScriptErrors(combinedOutput, rawFiles, projectRoot)
-
-            if (filteredOutput.trim()) {
-                logger.plain(filteredOutput)
-                hasTypeErrors = true
-            } else {
-                logger.success("No TypeScript errors found in the specified files")
-            }
         }
     }
 

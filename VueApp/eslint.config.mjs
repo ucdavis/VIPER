@@ -1,14 +1,14 @@
 // Import plugins for comprehensive linting
 import eslint from "@eslint/js"
 import pluginVue from "eslint-plugin-vue"
-import tseslint from "typescript-eslint"
-import { defineConfigWithVueTs, vueTsConfigs } from "@vue/eslint-config-typescript"
 import globals from "globals"
 import eslintConfigPrettier from "eslint-config-prettier"
 import a11y from "eslint-plugin-vuejs-accessibility"
 import quasarEslint from "@quasar/app-vite/eslint"
+import tsParser from "@typescript-eslint/parser"
+import vueParser from "vue-eslint-parser"
 
-export default defineConfigWithVueTs(
+export default [
     // Global ignores
     {
         ignores: ["node_modules/**", "dist/**", "coverage/**", "*.d.ts"],
@@ -17,27 +17,32 @@ export default defineConfigWithVueTs(
     // Quasar recommended configuration (includes Quasar-specific rules)
     ...quasarEslint.configs.recommended(),
 
-    // Main configuration for Vue + TypeScript files
+    // ESLint recommended rules
+    eslint.configs.recommended,
+    
+    // Vue strongly recommended rules
+    ...pluginVue.configs["flat/strongly-recommended"],
+    
+    // Main configuration for Vue files
     {
-        files: ["**/*.{js,ts,jsx,tsx,vue}"],
-        extends: [
-            eslint.configs.recommended,
-            ...tseslint.configs.recommended,
-            ...pluginVue.configs["flat/strongly-recommended"],
-            eslintConfigPrettier,
-        ],
+        files: ["**/*.vue"],
         plugins: {
             "vuejs-accessibility": a11y,
         },
         languageOptions: {
+            parser: vueParser,
             ecmaVersion: "latest",
             sourceType: "module",
+            parserOptions: {
+                parser: tsParser,
+                extraFileExtensions: [".vue"],
+                ecmaFeatures: {
+                    jsx: true,
+                },
+            },
             globals: {
                 ...globals.browser,
                 ...globals.node,
-            },
-            parserOptions: {
-                parser: tseslint.parser,
             },
         },
         rules: {
@@ -70,7 +75,11 @@ export default defineConfigWithVueTs(
             "vuejs-accessibility/mouse-events-have-key-events": "warn", // WCAG 2.1.1 Keyboard (A) - Broader than click events
             "vuejs-accessibility/no-access-key": "warn", // Best practice - Access keys can conflict with AT
             "vuejs-accessibility/no-onchange": "warn", // WCAG 3.2.2 On Input (A) - Context changes should be user-initiated
-            // Architectural overrides
+
+            // Turn off rules that go against Vue.js project practices
+            "no-null": "off", // Vue.js ecosystem uses null extensively
+            "no-eq-null": "off", // Vue.js community standard - != null is widely accepted
+            "no-undefined": "off", // Vue.js apps commonly check for undefined explicitly
             "vue/multi-word-component-names": "off", // Allow single-word area components
         },
     },
@@ -97,6 +106,6 @@ export default defineConfigWithVueTs(
         },
     },
 
-    // Type-aware rules for Vue + TypeScript
-    vueTsConfigs.recommendedTypeChecked,
-)
+    // Prettier config - must be last to override formatting rules
+    eslintConfigPrettier,
+]

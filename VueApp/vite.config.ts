@@ -1,18 +1,20 @@
 // Build configuration file - performs filesystem operations with dynamic paths
-import { fileURLToPath, URL } from 'node:url';
+import { fileURLToPath, URL } from "node:url"
 
-import { defineConfig, loadEnv } from 'vite';
-import plugin from '@vitejs/plugin-vue';
+import { defineConfig, loadEnv } from "vite"
+import plugin from "@vitejs/plugin-vue"
 import Inspector from "vite-plugin-vue-inspector"
-import * as fs from "fs"
-import * as path from "path"
-import * as child_process from "child_process"
-import { env } from "process"
+import fs from "node:fs"
+import path, { resolve } from "node:path"
+// oxlint-disable-next-line import/max-dependencies -- Vite config requires multiple build tool integrations
+import child_process from "node:child_process"
+import { env } from "node:process"
 import { quasar } from "@quasar/vite-plugin"
 
-import { resolve } from "node:path"
-const baseFolder =
-    env.APPDATA !== undefined && env.APPDATA !== "" ? `${env.APPDATA}/ASP.NET/https` : `${env.HOME}/.aspnet/https`
+// Port constants
+const MAX_PORT = 65_535
+
+const baseFolder = env.APPDATA && env.APPDATA !== "" ? `${env.APPDATA}/ASP.NET/https` : `${env.HOME}/.aspnet/https`
 
 const certificateName = "VueApp"
 const certFilePath = path.join(baseFolder, `${certificateName}.pem`)
@@ -39,30 +41,32 @@ if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
     }
 }
 
-const target = env.ASPNETCORE_HTTPS_PORT
-    ? `https://localhost:${env.ASPNETCORE_HTTPS_PORT}`
-    : env.ASPNETCORE_URLS
-      ? env.ASPNETCORE_URLS.split(";")[0]
-      : "https://localhost:5001"
+let target = "https://localhost:5001" // Default target
+if (env.ASPNETCORE_HTTPS_PORT) {
+    target = `https://localhost:${env.ASPNETCORE_HTTPS_PORT}`
+} else if (env.ASPNETCORE_URLS) {
+    ;[target] = env.ASPNETCORE_URLS.split(";")
+}
 
 // https://vitejs.dev/config/
+// oxlint-disable-next-line max-lines-per-function -- Vite config function handles multiple build concerns in one place
 export default defineConfig(({ mode }) => {
     // Load environment variables from parent directory only (root of project)
     const viteEnv = loadEnv(mode, path.resolve(process.cwd(), ".."), ["VITE_"])
 
     // Parse port numbers with fallbacks to defaults
-    const vitePort = parseInt(viteEnv.VITE_PORT || process.env.VITE_PORT || "5173", 10)
-    const hmrPort = parseInt(viteEnv.VITE_HMR_PORT || process.env.VITE_HMR_PORT || "24678", 10)
+    const vitePort = Number.parseInt(viteEnv.VITE_PORT || process.env.VITE_PORT || "5173", 10)
+    const hmrPort = Number.parseInt(viteEnv.VITE_HMR_PORT || process.env.VITE_HMR_PORT || "24678", 10)
 
     // Validate port numbers
-    if (isNaN(vitePort) || vitePort < 1 || vitePort > 65535) {
+    if (Number.isNaN(vitePort) || vitePort < 1 || vitePort > MAX_PORT) {
         throw new Error(
-            `Invalid VITE_PORT (${viteEnv.VITE_PORT || process.env.VITE_PORT}). Must be an integer between 1 and 65535.`,
+            `Invalid VITE_PORT (${viteEnv.VITE_PORT || process.env.VITE_PORT}). Must be an integer between 1 and ${MAX_PORT}.`,
         )
     }
-    if (isNaN(hmrPort) || hmrPort < 1 || hmrPort > 65535) {
+    if (Number.isNaN(hmrPort) || hmrPort < 1 || hmrPort > MAX_PORT) {
         throw new Error(
-            `Invalid VITE_HMR_PORT (${viteEnv.VITE_HMR_PORT || process.env.VITE_HMR_PORT}). Must be an integer between 1 and 65535.`,
+            `Invalid VITE_HMR_PORT (${viteEnv.VITE_HMR_PORT || process.env.VITE_HMR_PORT}). Must be an integer between 1 and ${MAX_PORT}.`,
         )
     }
 
@@ -72,6 +76,7 @@ export default defineConfig(({ mode }) => {
             // Vue Inspector - enables clicking components in browser to open in IDE (dev mode only)
             // Toggle with Ctrl+Shift, supports VS Code and Visual Studio
             mode === "development" &&
+                // oxlint-disable-next-line new-cap -- Inspector is a factory function from vite-plugin-vue-inspector
                 Inspector({
                     toggleButtonVisibility: "active", // Show toggle button when inspector is active
                     toggleComboKey: "control-shift", // Keyboard shortcut to toggle inspector
@@ -138,7 +143,6 @@ export default defineConfig(({ mode }) => {
         define: {
             __VUE_PROD_DEVTOOLS__: mode !== "production",
         },
-        assetsInclude: ["**/*.html"],
         base: "/2/vue/",
     }
 })

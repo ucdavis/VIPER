@@ -326,26 +326,25 @@ try
                     var httpClientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();
                     var httpClient = httpClientFactory.CreateClient("ViteProxy");
 
-                    // Build the Vite server URL
+                    // Build the Vite server URL and try to proxy directly
                     var viteUrl = ViteProxyHelpers.BuildViteUrl(context.Request.Path, context.Request.QueryString, VueAppNames);
-
-                    // Forward the request to Vite
                     var requestMessage = ViteProxyHelpers.CreateProxyRequest(context, viteUrl);
                     using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
 
                     // Copy the response back to the client
                     await ViteProxyHelpers.CopyProxyResponse(context, response);
+                    return; // Successfully proxied, don't continue to static files
                 }
                 catch (Exception ex)
                 {
                     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-                    await ViteProxyHelpers.HandleProxyError(context, ex, logger, VueAppNames);
+                    logger.LogDebug("Vite server not available ({Message}), falling back to static files for {Path}", ex.Message, context.Request.Path);
+                    // Fall through to static file serving
                 }
             }
-            else
-            {
-                await next();
-            }
+
+            // Continue to static file serving (either Vite not needed or not available)
+            await next();
         });
     }
 

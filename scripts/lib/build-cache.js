@@ -3,6 +3,9 @@
 const fs = require("node:fs")
 const path = require("node:path")
 const { execFileSync } = require("node:child_process")
+const { createLogger } = require("./script-utils")
+
+const logger = createLogger("Cache")
 
 /**
  * Build caching utilities to avoid redundant builds during linting
@@ -44,13 +47,13 @@ function processFileEntry(file, filePath, extensions, latestTime, scanDirectory)
         stat = fs.lstatSync(filePath)
     } catch (error) {
         // Skip files we can't stat (permission issues, etc.)
-        console.warn(`Warning: Could not stat file ${filePath}: ${error.message}`)
+        logger.warning(`Could not stat file ${filePath}: ${error.message}`)
         return latestTime
     }
 
     // Skip symlinks to prevent traversal attacks
     if (stat.isSymbolicLink()) {
-        console.warn(`Security: Skipping symlink: ${filePath}`)
+        logger.warning(`Security: Skipping symlink: ${filePath}`)
         return latestTime
     }
 
@@ -89,7 +92,7 @@ function getLatestFileTimestamp(projectPath, extensions = [".cs", ".csproj"]) {
             }
         } catch (error) {
             // Ignore permission errors or missing directories
-            console.warn(`Warning: Could not scan directory ${dir}: ${error.message}`)
+            logger.warning(`Could not scan directory ${dir}: ${error.message}`)
         }
     }
 
@@ -109,7 +112,7 @@ function loadBuildCache() {
             return JSON.parse(fs.readFileSync(CACHE_FILE, "utf8"))
         }
     } catch (error) {
-        console.warn(`Warning: Could not load build cache: ${error.message}`)
+        logger.warning(`Could not load build cache: ${error.message}`)
     }
 
     return {}
@@ -125,7 +128,7 @@ function saveBuildCache(cache) {
     try {
         fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2))
     } catch (error) {
-        console.warn(`Warning: Could not save build cache: ${error.message}`)
+        logger.warning(`Could not save build cache: ${error.message}`)
     }
 }
 
@@ -140,15 +143,27 @@ function needsBuild(projectPath, projectName) {
     const latestFileTime = getLatestFileTimestamp(projectPath)
     const cacheEntry = cache[projectName]
 
+    // Always rebuild if no cache entry exists
+    if (!cacheEntry || typeof cacheEntry !== "object") {
+        logger.info(`📝 Build needed for ${projectName}: no valid cache entry found`)
+        return true
+    }
+
     // Handle both old (timestamp) and new (object) cache formats
     const lastBuildTime = cacheEntry && typeof cacheEntry === "object" ? cacheEntry.timestamp : cacheEntry || 0
 
-    const needsRebuild = latestFileTime > lastBuildTime
+    // Check if files have been modified since last build
+    // Use a 100ms buffer to account for filesystem timestamp granularity
+    // (Windows NTFS and some network filesystems have ~100ms timestamp resolution)
+    const TIMESTAMP_BUFFER = 100
+    const needsRebuild = latestFileTime > lastBuildTime + TIMESTAMP_BUFFER
 
     if (needsRebuild) {
-        console.log(`📝 Build needed for ${projectName}: files modified since last build`)
+        logger.info(
+            `📝 Build needed for ${projectName}: files modified since last build (latest: ${new Date(latestFileTime).toISOString()}, cached: ${new Date(lastBuildTime).toISOString()})`,
+        )
     } else {
-        console.log(`✅ Skipping build for ${projectName}: no changes since last build`)
+        logger.info(`✅ Skipping build for ${projectName}: no changes since last build`)
     }
 
     return needsRebuild
@@ -193,15 +208,15 @@ function clearBuildCache(projectName) {
         const cache = loadBuildCache()
         delete cache[projectName]
         saveBuildCache(cache)
-        console.log(`🧹 Cleared build cache for ${projectName}`)
+        logger.info(`🧹 Cleared build cache for ${projectName}`)
     } else {
         try {
             if (fs.existsSync(CACHE_FILE)) {
                 fs.unlinkSync(CACHE_FILE)
             }
-            console.log("🧹 Cleared all build cache")
+            logger.info("🧹 Cleared all build cache")
         } catch (error) {
-            console.warn(`Warning: Could not clear build cache: ${error.message}`)
+            logger.warning(`Could not clear build cache: ${error.message}`)
         }
     }
 }
@@ -225,7 +240,7 @@ function buildIfNeeded(projectPath, projectName, buildArgs = ["build"], options 
     }
 
     try {
-        console.log(`🔨 Building ${projectName}...`)
+        logger.info(`🔨 Building ${projectName}...`)
         const result = execFileSync("dotnet", buildArgs, {
             cwd: projectPath,
             encoding: "utf8",
@@ -234,7 +249,7 @@ function buildIfNeeded(projectPath, projectName, buildArgs = ["build"], options 
         })
 
         markAsBuilt(projectName, result)
-        console.log(`✅ Build completed for ${projectName}`)
+        logger.success(`✅ Build completed for ${projectName}`)
 
         return { success: true, output: result, wasCached: false }
     } catch (error) {
@@ -245,7 +260,7 @@ function buildIfNeeded(projectPath, projectName, buildArgs = ["build"], options 
         // Store the build output even for failed builds so analyzers can process it
         markAsBuilt(projectName, buildOutput)
 
-        console.log(`⚠️  Build completed with errors for ${projectName} (analyzer output captured)`)
+        logger.warning(`⚠️  Build completed with errors for ${projectName} (analyzer output captured)`)
 
         // Return success=true so analyzers can process the output
         // The analyzer will determine if the errors should block the commit
