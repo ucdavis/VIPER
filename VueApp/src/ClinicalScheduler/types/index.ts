@@ -1,6 +1,6 @@
 // Clinical Scheduler types will be defined here
 
-export interface Rotation {
+interface Rotation {
     rotId: number
     serviceId: number
     name: string
@@ -9,7 +9,7 @@ export interface Rotation {
     courseNumber?: string
 }
 
-export interface Service {
+interface Service {
     serviceId: number
     serviceName: string
     shortName: string
@@ -18,12 +18,12 @@ export interface Service {
 }
 
 // Permission-related types
-export interface User {
+interface User {
     mothraId: string
     displayName: string
 }
 
-export interface UserPermissions {
+interface UserPermissions {
     user: User
     permissions: {
         hasManagePermission: boolean
@@ -33,20 +33,20 @@ export interface UserPermissions {
     editableServices: Service[]
 }
 
-export interface ServicePermissionCheck {
+interface ServicePermissionCheck {
     serviceId: number
     canEdit: boolean
     requiredPermission: string
     user: User
 }
 
-export interface RotationPermissionCheck {
+interface RotationPermissionCheck {
     rotationId: number
     canEdit: boolean
     user: User
 }
 
-export interface PermissionSummary {
+interface PermissionSummary {
     user: User
     summary: {
         totalServices: number
@@ -64,33 +64,33 @@ export interface PermissionSummary {
 }
 
 // Instructor Schedule types for edit functionality
-export interface InstructorScheduleRequest {
+interface InstructorScheduleRequest {
     mothraId: string
     rotationId: number
     weekIds: number[]
     isPrimaryEvaluator?: boolean
 }
 
-export interface InstructorScheduleResponse {
+interface InstructorScheduleResponse {
     scheduleIds: number[]
     message?: string
 }
 
-export interface ScheduleConflict {
+interface ScheduleConflict {
     weekId: number
     weekNumber: number
     rotationId: number
-    rotationName: string
+    name: string
     dateStart: string
     dateEnd: string
     isAlreadyScheduled: boolean
 }
 
-export interface SetPrimaryEvaluatorRequest {
+interface SetPrimaryEvaluatorRequest {
     isPrimary: boolean
 }
 
-export interface AuditEntry {
+interface AuditEntry {
     auditId: number
     action: string
     details: string
@@ -98,4 +98,19 @@ export interface AuditEntry {
     modifiedDate: string
     mothraId?: string
     instructorName?: string
+}
+
+export {
+    type Rotation,
+    type Service,
+    type User,
+    type UserPermissions,
+    type ServicePermissionCheck,
+    type RotationPermissionCheck,
+    type PermissionSummary,
+    type InstructorScheduleRequest,
+    type InstructorScheduleResponse,
+    type ScheduleConflict,
+    type SetPrimaryEvaluatorRequest,
+    type AuditEntry,
 }

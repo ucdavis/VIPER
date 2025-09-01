@@ -1,4 +1,4 @@
-﻿using Viper.Areas.CTS.Models;
+using Viper.Areas.CTS.Models;
 using Viper.Models.CTS;
 
 namespace Viper.Areas.ClinicalScheduler.Services

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;

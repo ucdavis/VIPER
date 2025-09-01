@@ -18,7 +18,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of created InstructorSchedule entries</returns>
         Task<List<InstructorSchedule>> AddInstructorAsync(
-            string mothraId,
+            string? mothraId,
             int rotationId,
             int[] weekIds,
             int gradYear,
@@ -68,7 +68,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of instructor schedules for other rotations during the specified weeks</returns>
         Task<List<InstructorSchedule>> GetOtherRotationSchedulesAsync(
-            string mothraId,
+            string? mothraId,
             int[] weekIds,
             int gradYear,
             int? excludeRotationId = null,

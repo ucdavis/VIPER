@@ -1,4 +1,5 @@
 import { useGenericErrorHandler } from './ErrorHandler'
+import { useUserStore } from '@/store/UserStore'
 const errorHandler = useGenericErrorHandler();
 
 export function useFetch() {
@@ -95,7 +96,11 @@ export function useFetch() {
         if (options.headers === undefined) {
             options.headers = {}
         }
-        addHeader(options, "X-CSRF-TOKEN", "")
+        
+        // Get antiforgery token from user store
+        const userStore = useUserStore()
+        const token = userStore.userInfo.token || ""
+        addHeader(options, "X-CSRF-TOKEN", token)
 
         let errors: string[] = []
         const result = await fetch(url, options)

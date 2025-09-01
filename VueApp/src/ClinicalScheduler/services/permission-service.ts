@@ -1,10 +1,5 @@
-import { useFetch } from '../../composables/ViperFetch'
-import type { 
-    UserPermissions, 
-    ServicePermissionCheck, 
-    RotationPermissionCheck, 
-    PermissionSummary 
-} from '../types'
+import { useFetch } from "../../composables/ViperFetch"
+import type { UserPermissions, ServicePermissionCheck, RotationPermissionCheck, PermissionSummary } from "../types"
 
 const { get } = useFetch()
 
@@ -12,90 +7,66 @@ const { get } = useFetch()
  * Service for managing user permissions and access control in Clinical Scheduler
  */
 class PermissionService {
-    private static readonly BASE_URL = import.meta.env.VITE_API_URL + 'clinicalscheduler/permissions'
-    
+    private static readonly BASE_URL = `${import.meta.env.VITE_API_URL}clinicalscheduler/permissions`
+
     /**
      * Get the current user's service-level edit permissions
      */
     async getUserPermissions(): Promise<UserPermissions> {
-        try {
-            const response = await get(`${PermissionService.BASE_URL}/user`)
-            
-            if (!response.success) {
-                throw new Error(response.errors?.join(', ') || 'Failed to fetch user permissions')
-            }
-            
-            return response.result
-        } catch (error) {
-            console.error('Error fetching user permissions:', error)
-            throw error
+        const response = await get(`${PermissionService.BASE_URL}/user`)
+
+        if (!response.success) {
+            throw new Error(response.errors?.join(", ") || "Failed to fetch user permissions")
         }
+
+        return response.result
     }
 
     /**
      * Check if current user can edit a specific service
      */
     async canEditService(serviceId: number): Promise<ServicePermissionCheck> {
-        try {
-            if (!serviceId || serviceId <= 0) {
-                throw new Error('Valid service ID is required')
-            }
-
-            const response = await get(
-                `${PermissionService.BASE_URL}/service/${serviceId}/can-edit`
-            )
-            
-            if (!response.success) {
-                throw new Error(response.errors?.join(', ') || 'Failed to check service permissions')
-            }
-            
-            return response.result
-        } catch (error) {
-            console.error(`Error checking edit permission for service ${serviceId}:`, error)
-            throw error
+        if (!serviceId || serviceId <= 0) {
+            throw new Error("Valid service ID is required")
         }
+
+        const response = await get(`${PermissionService.BASE_URL}/service/${serviceId}/can-edit`)
+
+        if (!response.success) {
+            throw new Error(response.errors?.join(", ") || "Failed to check service permissions")
+        }
+
+        return response.result
     }
 
     /**
      * Check if current user can edit a specific rotation
      */
     async canEditRotation(rotationId: number): Promise<RotationPermissionCheck> {
-        try {
-            if (!rotationId || rotationId <= 0) {
-                throw new Error('Valid rotation ID is required')
-            }
-
-            const response = await get(
-                `${PermissionService.BASE_URL}/rotation/${rotationId}/can-edit`
-            )
-            
-            if (!response.success) {
-                throw new Error(response.errors?.join(', ') || 'Failed to check rotation permissions')
-            }
-            
-            return response.result
-        } catch (error) {
-            console.error(`Error checking edit permission for rotation ${rotationId}:`, error)
-            throw error
+        if (!rotationId || rotationId <= 0) {
+            throw new Error("Valid rotation ID is required")
         }
+
+        const response = await get(`${PermissionService.BASE_URL}/rotation/${rotationId}/can-edit`)
+
+        if (!response.success) {
+            throw new Error(response.errors?.join(", ") || "Failed to check rotation permissions")
+        }
+
+        return response.result
     }
 
     /**
      * Get summary of permission system configuration
      */
     async getPermissionSummary(): Promise<PermissionSummary> {
-        try {
-            const response = await get(`${PermissionService.BASE_URL}/summary`)
-            
-            if (!response.success) {
-                throw new Error(response.errors?.join(', ') || 'Failed to fetch permission summary')
-            }
-            
-            return response.result
-        } catch (error) {
-            console.error('Error fetching permission summary:', error)
-            throw error
+        const response = await get(`${PermissionService.BASE_URL}/summary`)
+
+        if (!response.success) {
+            throw new Error(response.errors?.join(", ") || "Failed to fetch permission summary")
         }
+
+        return response.result
     }
 
     /**
@@ -107,26 +78,24 @@ class PermissionService {
             const resultMap = new Map<number, boolean>()
 
             // Validate input and create safe mapping
-            const validServiceIds = serviceIds.filter(id => Number.isInteger(id) && id > 0)
+            const validServiceIds = serviceIds.filter((id) => Number.isInteger(id) && id > 0)
             const servicePerms = userPermissions.permissions?.servicePermissions || {}
-            
+
             for (const serviceId of validServiceIds) {
                 // Safe property access using hasOwnProperty check
                 const key = serviceId.toString()
-                const hasPermission = Object.prototype.hasOwnProperty.call(servicePerms, key) 
-                    ? Boolean(servicePerms[key as unknown as keyof typeof servicePerms]) 
+                const hasPermission = Object.prototype.hasOwnProperty.call(servicePerms, key)
+                    ? Boolean(servicePerms[key as unknown as keyof typeof servicePerms])
                     : false
                 resultMap.set(serviceId, hasPermission)
             }
 
             // Convert Map to Record for return
             return Object.fromEntries(resultMap)
-        } catch (error) {
-            console.error('Error checking multiple service permissions:', error)
-            
+        } catch {
             // Return safe default permissions
             const resultMap = new Map<number, boolean>()
-            const validServiceIds = serviceIds.filter(id => Number.isInteger(id) && id > 0)
+            const validServiceIds = serviceIds.filter((id) => Number.isInteger(id) && id > 0)
             for (const serviceId of validServiceIds) {
                 resultMap.set(serviceId, false)
             }
@@ -142,32 +111,29 @@ class PermissionService {
             // For now, check each rotation individually
             // This could be optimized with a batch endpoint if needed
             const resultsMap = new Map<number, boolean>()
-            const validRotationIds = rotationIds.filter(id => Number.isInteger(id) && id > 0)
-            
+            const validRotationIds = rotationIds.filter((id) => Number.isInteger(id) && id > 0)
+
             const checks = validRotationIds.map(async (rotationId) => {
                 try {
                     const result = await this.canEditRotation(rotationId)
                     return { rotationId, canEdit: Boolean(result?.canEdit) }
-                } catch (error) {
-                    console.warn(`Failed to check permissions for rotation ${rotationId}:`, error)
+                } catch {
                     return { rotationId, canEdit: false }
                 }
             })
 
             const checkResults = await Promise.all(checks)
-            
+
             // Safely assign results using Map
             for (const { rotationId, canEdit } of checkResults) {
                 resultsMap.set(rotationId, canEdit)
             }
-            
+
             return Object.fromEntries(resultsMap)
-        } catch (error) {
-            console.error('Error checking multiple rotation permissions:', error)
-            
+        } catch {
             // Return safe default permissions using Map
             const resultMap = new Map<number, boolean>()
-            const validRotationIds = rotationIds.filter(id => Number.isInteger(id) && id > 0)
+            const validRotationIds = rotationIds.filter((id) => Number.isInteger(id) && id > 0)
             for (const rotationId of validRotationIds) {
                 resultMap.set(rotationId, false)
             }
@@ -182,8 +148,7 @@ class PermissionService {
         try {
             const userPermissions = await this.getUserPermissions()
             return userPermissions.permissions.hasManagePermission
-        } catch (error) {
-            console.error('Error checking manage permission:', error)
+        } catch {
             return false
         }
     }
@@ -195,13 +160,13 @@ class PermissionService {
         try {
             const userPermissions = await this.getUserPermissions()
             return userPermissions.editableServices
-        } catch (error) {
-            console.error('Error fetching editable services:', error)
+        } catch {
             return []
         }
     }
 }
 
-// Export singleton instance
-export const permissionService = new PermissionService()
-export default permissionService
+// Export singleton instance and class
+const permissionService = new PermissionService()
+
+export { permissionService, PermissionService }

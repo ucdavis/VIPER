@@ -648,5 +648,40 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 return HandleException(ex, "Failed to retrieve available years");
             }
         }
+
+        /// <summary>
+        /// Get initial page data for Clinical Scheduler including years and permissions
+        /// This eliminates multiple API calls on page load
+        /// </summary>
+        /// <param name="publishedOnly">If true, only return years where PublishSchedule is true</param>
+        /// <returns>Initial data needed by Clinical Scheduler pages</returns>
+        [HttpGet("page-data")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(object), StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<object>> GetPageData([FromQuery] bool publishedOnly = false)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                _logger.LogInformation("Getting initial page data, publishedOnly: {PublishedOnly}", publishedOnly);
+
+                var currentGradYear = await GetCurrentGradYearAsync();
+                var availableGradYears = await _gradYearService.GetAvailableGradYearsAsync(publishedOnly);
+
+                return Ok(new
+                {
+                    currentGradYear = currentGradYear,
+                    availableGradYears = availableGradYears,
+                });
+            }
+            catch (Exception ex)
+            {
+                return HandleException(ex, "Failed to retrieve initial page data");
+            }
+        }
     }
 }

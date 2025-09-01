@@ -33,87 +33,11 @@ namespace Viper.Areas.ClinicalScheduler.Services
     /// </summary>
     public class PersonService : BaseClinicalSchedulerService, IPersonService
     {
-        #region Constants
-
-        /// <summary>
-        /// Default number of days to look back for historical clinician data (2 years)
-        /// </summary>
-        private const int DEFAULT_HISTORICAL_LOOKBACK_DAYS = 730;
-
-        /// <summary>
-        /// Number of days to look back for recent/active clinicians only (30 days)
-        /// </summary>
-        private const int RECENT_CLINICIANS_LOOKBACK_DAYS = 30;
-
-        #endregion
-
         private readonly ILogger<PersonService> _logger;
 
         public PersonService(ILogger<PersonService> logger, ClinicalSchedulerContext context) : base(context)
         {
             _logger = logger;
-        }
-
-        /// <summary>
-        /// Gets all active clinicians from Clinical Scheduler instructor schedules
-        /// Extracts person data from InstructorSchedule view instead of accessing AAUD
-        /// </summary>
-        /// <param name="includeHistorical">If true, includes clinicians from older schedules</param>
-        /// <param name="sinceDays">Number of days back to look for historical data (default: 730 days / ~2 years)</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>List of unique clinicians with their basic info</returns>
-        public async Task<List<ClinicianSummary>> GetCliniciansAsync(bool includeHistorical = true, int sinceDays = DEFAULT_HISTORICAL_LOOKBACK_DAYS, CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                var cutoffDate = includeHistorical ? DateTime.Now.AddDays(-sinceDays) : DateTime.Now.AddDays(-RECENT_CLINICIANS_LOOKBACK_DAYS);
-
-                _logger.LogInformation("Getting clinicians from Clinical Scheduler InstructorSchedule view (includeHistorical: {IncludeHistorical}, cutoffDate: {CutoffDate})",
-                    includeHistorical, cutoffDate.ToString("yyyy-MM-dd"));
-
-                // Get unique clinicians from InstructorSchedule view
-                // This contains all person data we need without accessing AAUD
-                // Split into two steps to avoid complex LINQ translation issues
-
-                // Step 1: Get all instructor schedules with weeks and person data
-                var instructorSchedules = await _context.InstructorSchedules
-                    .AsNoTracking()
-                    .Include(i => i.Week)
-                    .Include(i => i.Person)
-                    .Where(i => i.Week.DateStart >= cutoffDate && !string.IsNullOrEmpty(i.MothraId))
-                    .ToListAsync(cancellationToken);
-
-                // Step 2: Group and process in memory (client-side)
-                var clinicians = instructorSchedules
-                    .GroupBy(i => i.MothraId)
-                    .Select(g =>
-                    {
-                        var first = g.First();
-                        var person = first.Person;
-                        return new ClinicianSummary
-                        {
-                            MothraId = g.Key,
-                            FullName = person?.PersonDisplayFullName ?? "Unknown",
-                            FirstName = person?.PersonDisplayFirstName ?? "Unknown",
-                            LastName = person?.PersonDisplayLastName ?? "Unknown",
-                            MiddleName = "", // Person model doesn't have middle name display field
-                            MailId = person?.IdsMailId ?? "",
-                            Source = "InstructorSchedule",
-                            LastScheduled = g.Max(x => x.Week.DateEnd)
-                        };
-                    })
-                    .OrderBy(c => c.LastName)
-                    .ThenBy(c => c.FirstName)
-                    .ToList();
-
-                _logger.LogInformation("Retrieved {Count} unique clinicians from Clinical Scheduler data", clinicians.Count);
-                return clinicians;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving clinicians from Clinical Scheduler context");
-                throw new InvalidOperationException("Failed to retrieve clinicians from Clinical Scheduler database", ex);
-            }
         }
 
         /// <summary>
@@ -245,6 +169,80 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 throw new InvalidOperationException($"Failed to retrieve clinicians for grad year {year}. Check database connectivity and view permissions.", ex);
             }
         }
+
+        /// <summary>
+        /// Gets clinicians for a range of grad years (more efficient than day-based filtering)
+        /// </summary>
+        /// <param name="startGradYear">Starting grad year (inclusive)</param>
+        /// <param name="endGradYear">Ending grad year (inclusive)</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of clinicians who were scheduled during the specified grad year range</returns>
+        public async Task<List<ClinicianSummary>> GetCliniciansByGradYearRangeAsync(int startGradYear, int endGradYear, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+
+                // Step 1: Get unique MothraIds with last scheduled date using EF navigation properties
+                var mothraIdData = await _context.InstructorSchedules
+                    .AsNoTracking()
+                    .Include(i => i.Week)
+                        .ThenInclude(w => w.WeekGradYears)
+                    .Where(i => i.Week.WeekGradYears.Any(wgy =>
+                        wgy.GradYear >= startGradYear &&
+                        wgy.GradYear <= endGradYear))
+                    .Where(i => !string.IsNullOrEmpty(i.MothraId))
+                    .GroupBy(i => i.MothraId)
+                    .Select(g => new
+                    {
+                        MothraId = g.Key,
+                        LastScheduled = g.Max(i => i.Week.DateEnd)
+                    })
+                    .ToListAsync(cancellationToken);
+
+
+                if (!mothraIdData.Any())
+                {
+                    return new List<ClinicianSummary>();
+                }
+
+                // Step 2: Get person details for those MothraIds
+                var mothraIds = mothraIdData.Select(x => x.MothraId).ToList();
+                var persons = await _context.Persons
+                    .AsNoTracking()
+                    .Where(p => mothraIds.Contains(p.IdsMothraId))
+                    .ToListAsync(cancellationToken);
+
+
+                // Step 3: Combine the data in memory
+                var clinicians = mothraIdData
+                    .Select(m =>
+                    {
+                        var person = persons.FirstOrDefault(p => p.IdsMothraId == m.MothraId);
+                        return new ClinicianSummary
+                        {
+                            MothraId = m.MothraId,
+                            FullName = person?.PersonDisplayFullName ?? $"Clinician {m.MothraId}",
+                            FirstName = person?.PersonDisplayFirstName ?? "",
+                            LastName = person?.PersonDisplayLastName ?? "",
+                            MiddleName = "", // vPerson doesn't have middle name separately
+                            MailId = person?.IdsMailId ?? "",
+                            Source = $"GradYearRange_{startGradYear}-{endGradYear}_EF",
+                            LastScheduled = m.LastScheduled
+                        };
+                    })
+                    .OrderBy(c => c.LastName ?? "")
+                    .ThenBy(c => c.FirstName ?? "")
+                    .ToList();
+
+                return clinicians;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving clinicians for grad year range {StartYear}-{EndYear}", startGradYear, endGradYear);
+                throw new InvalidOperationException($"Failed to retrieve clinicians for grad year range {startGradYear}-{endGradYear}", ex);
+            }
+        }
+
 
         /// <summary>
         /// Gets all unique MothraIds from Clinical Scheduler data

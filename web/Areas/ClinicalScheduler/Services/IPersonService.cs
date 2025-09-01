@@ -6,14 +6,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
     /// </summary>
     public interface IPersonService
     {
-        /// <summary>
-        /// Get all clinicians based on their instruction schedule history
-        /// </summary>
-        /// <param name="includeHistorical">Include historical clinicians beyond the recent time frame</param>
-        /// <param name="sinceDays">Number of days back to look for recent schedules (default: 730 days / 2 years)</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>List of clinicians with their summary information</returns>
-        Task<List<ClinicianSummary>> GetCliniciansAsync(bool includeHistorical = true, int sinceDays = 730, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get clinicians filtered by a specific year
@@ -22,6 +14,15 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of clinicians for the specified year</returns>
         Task<List<ClinicianYearSummary>> GetCliniciansByYearAsync(int year, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get clinicians for a range of grad years
+        /// </summary>
+        /// <param name="startGradYear">Starting grad year (inclusive)</param>
+        /// <param name="endGradYear">Ending grad year (inclusive)</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of clinicians who were scheduled during the specified grad year range</returns>
+        Task<List<ClinicianSummary>> GetCliniciansByGradYearRangeAsync(int startGradYear, int endGradYear, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get detailed information for a specific person by their MothraId

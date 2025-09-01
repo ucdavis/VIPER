@@ -16,14 +16,14 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         #region Constants
 
         /// <summary>
-        /// Number of days to look back for active clinicians (2 years)
+        /// Number of grad years to look back for active clinicians (current + previous year)
         /// </summary>
-        private const int ACTIVE_CLINICIANS_LOOKBACK_DAYS = 730;
+        private const int ACTIVE_CLINICIANS_GRAD_YEARS_BACK = 1;
 
         /// <summary>
-        /// Number of days to look back for all affiliates including historical (3 years)
+        /// Number of grad years to look back for all affiliates (current + previous year)
         /// </summary>
-        private const int ALL_AFFILIATES_LOOKBACK_DAYS = 1095;
+        private const int ALL_AFFILIATES_GRAD_YEARS_BACK = 1;
 
         #endregion
 
@@ -277,9 +277,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                             }
                             return null;
                         }).Where(r => r != null)
-                          .OrderBy(r => r.rotationName) // Sort rotations alphabetically
+                          .OrderBy(r => r!.rotationName) // Sort rotations alphabetically
+                          .Cast<dynamic>()
                           .ToArray()
-                        : new dynamic[0];
+                        : Array.Empty<dynamic>();
 
                     return new
                     {
@@ -371,15 +372,18 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         }
 
         /// <summary>
-        /// Helper method to get all clinicians using PersonService with standard parameters
+        /// Helper method to get all clinicians using PersonService with grad year filtering
         /// </summary>
-        /// <param name="includeAllAffiliates">Whether to include all affiliates (3 year lookback) or just active (2 year lookback)</param>
+        /// <param name="includeAllAffiliates">Whether to include all affiliates or just active (both use current + previous grad year)</param>
         /// <returns>List of clinicians from PersonService</returns>
         private async Task<List<ClinicianSummary>> GetAllCliniciansAsync(bool includeAllAffiliates = false)
         {
-            return await _personService.GetCliniciansAsync(
-                includeHistorical: true,
-                sinceDays: includeAllAffiliates ? ALL_AFFILIATES_LOOKBACK_DAYS : ACTIVE_CLINICIANS_LOOKBACK_DAYS,
+            var currentGradYear = await GetCurrentGradYearAsync();
+            var gradYearsBack = includeAllAffiliates ? ALL_AFFILIATES_GRAD_YEARS_BACK : ACTIVE_CLINICIANS_GRAD_YEARS_BACK;
+
+            return await _personService.GetCliniciansByGradYearRangeAsync(
+                currentGradYear - gradYearsBack,
+                currentGradYear,
                 cancellationToken: HttpContext.RequestAborted);
         }
 

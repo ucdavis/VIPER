@@ -7,7 +7,7 @@ namespace Viper.Areas.ClinicalScheduler.Models
         public string CorrelationId { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
-        public ErrorResponse(string code, string userMessage, string correlationId = null)
+        public ErrorResponse(string code, string userMessage, string? correlationId = null)
         {
             Code = code;
             UserMessage = userMessage;

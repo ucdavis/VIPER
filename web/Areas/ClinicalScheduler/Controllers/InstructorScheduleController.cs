@@ -170,9 +170,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 // Check for other rotation assignments (informational only)
                 var otherRotations = await _scheduleEditService.GetOtherRotationSchedulesAsync(
-                    request.MothraId, request.WeekIds, request.GradYear!.Value, request.RotationId!.Value, cancellationToken);
+                    request.MothraId!, request.WeekIds, request.GradYear!.Value, request.RotationId!.Value, cancellationToken);
 
-                string warningMessage = null;
+                string? warningMessage = null;
                 if (otherRotations.Any())
                 {
                     // Get unique rotation names

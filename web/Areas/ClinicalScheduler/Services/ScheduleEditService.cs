@@ -31,7 +31,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         }
 
         public async Task<List<InstructorSchedule>> AddInstructorAsync(
-            string mothraId,
+            string? mothraId,
             int rotationId,
             int[] weekIds,
             int gradYear,
@@ -163,12 +163,12 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     foreach (var schedule in createdSchedules)
                     {
                         await _auditService.LogInstructorAddedAsync(
-                            mothraId, rotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
+                            mothraId!, rotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
 
                         if (isPrimaryEvaluator)
                         {
                             await _auditService.LogPrimaryEvaluatorSetAsync(
-                                mothraId, rotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
+                                mothraId!, rotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
                         }
                     }
 #pragma warning restore S3267
@@ -439,7 +439,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of instructor schedules for other rotations during the specified weeks</returns>
         public async Task<List<InstructorSchedule>> GetOtherRotationSchedulesAsync(
-            string mothraId,
+            string? mothraId,
             int[] weekIds,
             int gradYear,
             int? excludeRotationId = null,

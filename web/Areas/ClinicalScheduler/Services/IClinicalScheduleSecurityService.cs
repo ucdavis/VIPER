@@ -1,4 +1,4 @@
-﻿namespace Viper.Areas.ClinicalScheduler.Services
+namespace Viper.Areas.ClinicalScheduler.Services
 {
     /// <summary>
     /// Interface for Clinical schedule permission checking

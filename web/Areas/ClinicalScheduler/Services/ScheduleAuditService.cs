@@ -22,14 +22,14 @@ namespace Viper.Areas.ClinicalScheduler.Services
         }
 
         public async Task<ScheduleAudit> LogInstructorAddedAsync(
-            string mothraId,
+            string? mothraId,
             int rotationId,
             int weekId,
             string modifiedByMothraId,
             CancellationToken cancellationToken = default)
         {
             return await CreateAuditEntryAsync(
-                mothraId,
+                mothraId!,
                 rotationId,
                 weekId,
                 modifiedByMothraId,

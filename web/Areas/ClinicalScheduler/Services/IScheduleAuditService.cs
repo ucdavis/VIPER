@@ -17,7 +17,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Created audit entry</returns>
         Task<ScheduleAudit> LogInstructorAddedAsync(
-            string mothraId,
+            string? mothraId,
             int rotationId,
             int weekId,
             string modifiedByMothraId,

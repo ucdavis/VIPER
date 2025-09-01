@@ -81,7 +81,18 @@ namespace Viper.test.ClinicalScheduler
     };
 
             _context.InstructorSchedules.AddRange(testSchedules);
-            _context.SaveChanges(); // Save schedules before adding persons
+            
+            // Create WeekGradYear entries that our EF queries depend on
+            var testWeekGradYears = new[]
+            {
+                new WeekGradYear { WeekGradYearId = 1, WeekId = 1, GradYear = 2023, WeekNum = 1 },
+                new WeekGradYear { WeekGradYearId = 2, WeekId = 2, GradYear = 2023, WeekNum = 20 },
+                new WeekGradYear { WeekGradYearId = 3, WeekId = 3, GradYear = 2024, WeekNum = 1 },
+                new WeekGradYear { WeekGradYearId = 4, WeekId = 4, GradYear = 2024, WeekNum = 20 }
+            };
+            
+            _context.WeekGradYears.AddRange(testWeekGradYears);
+            _context.SaveChanges(); // Save schedules and week grad years before adding persons
 
             // Create test persons (for year-specific queries)
             var testPersons = new[]
@@ -116,7 +127,7 @@ namespace Viper.test.ClinicalScheduler
             // In a real scenario, these properties would be populated by SQL views/joins
 
             // Act
-            var result = await _personService.GetCliniciansAsync(includeHistorical: true, sinceDays: 730);
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(2022, 2024);
 
             // Assert
             Assert.NotNull(result);
@@ -132,7 +143,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetCliniciansAsync_WithLimitedHistory_ExcludesOldRecords()
         {
             // Act
-            var result = await _personService.GetCliniciansAsync(includeHistorical: true, sinceDays: 60);
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(2023, 2024);
 
             // Assert
             Assert.NotNull(result);
@@ -144,7 +155,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetCliniciansAsync_WithoutHistorical_UsesDefaultRange()
         {
             // Act
-            var result = await _personService.GetCliniciansAsync(includeHistorical: false);
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(2023, 2024);
 
             // Assert
             Assert.NotNull(result);
@@ -254,7 +265,7 @@ namespace Viper.test.ClinicalScheduler
             // This tests that clinicians with multiple schedule entries are properly grouped
 
             // Act
-            var result = await _personService.GetCliniciansAsync(includeHistorical: true, sinceDays: 730);
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(2022, 2024);
 
             // Assert
             var johnSmith = result.FirstOrDefault(c => ((dynamic)c).MothraId == "12345");
@@ -269,7 +280,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetCliniciansAsync_ReturnsCorrectDataStructure()
         {
             // Act
-            var result = await _personService.GetCliniciansAsync();
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(2023, 2024);
 
             // Assert
             Assert.NotNull(result);
@@ -293,7 +304,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetCliniciansAsync_WithDifferentSinceDays_ReturnsAppropriateResults(int sinceDays)
         {
             // Act
-            var result = await _personService.GetCliniciansAsync(includeHistorical: true, sinceDays: sinceDays);
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(2020, 2024);
 
             // Assert
             Assert.NotNull(result);

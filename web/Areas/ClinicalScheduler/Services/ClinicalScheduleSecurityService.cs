@@ -1,4 +1,4 @@
-﻿using Viper.Classes.SQLContext;
+using Viper.Classes.SQLContext;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {

@@ -53,10 +53,11 @@ namespace Viper.test.ClinicalScheduler
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            dynamic? response = okResult.Value;
-            Assert.Equal(serviceId, response.serviceId);
-            Assert.True(response.canEdit);
-            Assert.Equal(requiredPermission, response.requiredPermission);
+            var response = Assert.IsType<object>(okResult.Value);
+            dynamic dynamicResponse = response;
+            Assert.Equal(serviceId, dynamicResponse.serviceId);
+            Assert.True(dynamicResponse.canEdit);
+            Assert.Equal(requiredPermission, dynamicResponse.requiredPermission);
         }
 
         [Fact]
@@ -80,10 +81,11 @@ namespace Viper.test.ClinicalScheduler
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            dynamic? response = okResult.Value;
-            Assert.Equal(serviceId, response.serviceId);
-            Assert.False(response.canEdit);
-            Assert.Equal(requiredPermission, response.requiredPermission);
+            var response = Assert.IsType<object>(okResult.Value);
+            dynamic dynamicResponse = response;
+            Assert.Equal(serviceId, dynamicResponse.serviceId);
+            Assert.False(dynamicResponse.canEdit);
+            Assert.Equal(requiredPermission, dynamicResponse.requiredPermission);
         }
 
         [Fact]
@@ -104,10 +106,11 @@ namespace Viper.test.ClinicalScheduler
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            dynamic? response = okResult.Value;
-            Assert.Equal(rotationId, response.rotationId);
-            Assert.True(response.canEdit);
-            Assert.Equal(TestUserMothraId, response!.user.mothraId);
+            var response = Assert.IsType<object>(okResult.Value);
+            dynamic dynamicResponse = response;
+            Assert.Equal(rotationId, dynamicResponse.rotationId);
+            Assert.True(dynamicResponse.canEdit);
+            Assert.Equal(TestUserMothraId, dynamicResponse.user.mothraId);
         }
 
         [Fact]

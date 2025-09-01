@@ -91,7 +91,7 @@ namespace Viper.test.ClinicalScheduler
             };
 
             _mockPersonService
-                .Setup(x => x.GetCliniciansAsync(It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .Setup(x => x.GetCliniciansByGradYearRangeAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(defaultClinicians);
 
             // Setup default clinicians by year

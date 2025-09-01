@@ -186,13 +186,7 @@ try
     builder.Services.AddDbContext<CoursesContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<RAPSContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<VIPERContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<ClinicalSchedulerContext>(options =>
-    {
-        ConfigureDbContextOptions(options);
-        // Set compatibility level match what the database is set to.
-        // EF Core 8 uses OPENJSON, which requires compatibility level 130 (SQL Server 2016) or higher.
-        options.UseSqlServer(builder.Configuration.GetConnectionString("ClinicalScheduler"), sqlServerOptions => sqlServerOptions.UseCompatibilityLevel(100));
-    });
+    builder.Services.AddDbContext<ClinicalSchedulerContext>(ConfigureDbContextOptions);
 
     // Clinical Scheduler services
     builder.Services.AddScoped<Viper.Areas.Curriculum.Services.TermCodeService>();

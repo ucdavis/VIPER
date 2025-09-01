@@ -1,88 +1,86 @@
 <template>
-  <div class="clinician-selector-with-toggle">
-    <q-select
-      v-model="selectedClinician"
-      :options="filteredClinicians"
-      :loading="loading"
-      :error="!!error"
-      :error-message="error || undefined"
-      placeholder="Search for a clinician..."
-      emit-value
-      map-options
-      use-input
-      fill-input
-      hide-selected
-      clearable
-      dense
-      :input-debounce="300"
-      @filter="onFilter"
-      @update:model-value="onClinicianChange"
-      option-label="fullName"
-      option-value="mothraId"
-    >
-      <template #prepend>
-        <q-icon name="search" />
-      </template>
-
-      <template #no-option>
-        <q-item>
-          <q-item-section class="text-grey">
-            {{ searchQuery ? 'No clinicians found' : 'Loading clinicians...' }}
-          </q-item-section>
-        </q-item>
-      </template>
-
-      <template #option="scope">
-        <q-item v-bind="scope.itemProps">
-          <q-item-section>
-            <q-item-label>{{ scope.opt.fullName }}</q-item-label>
-          </q-item-section>
-        </q-item>
-      </template>
-
-      <template #selected-item="scope">
-        <span v-if="scope.opt">{{ scope.opt.fullName }}</span>
-      </template>
-
-      <template #error>
-        <div class="q-field__bottom text-negative">
-          {{ error }}
-          <q-btn
-            flat
+    <div class="clinician-selector-with-toggle">
+        <q-select
+            v-model="selectedClinician"
+            :options="filteredClinicians"
+            :loading="loading"
+            :error="!!error"
+            :error-message="error || undefined"
+            placeholder="Search for a clinician..."
+            emit-value
+            map-options
+            use-input
+            fill-input
+            hide-selected
+            clearable
             dense
-            size="sm"
-            label="Retry"
-            @click="fetchClinicians"
-            class="q-ml-sm"
-          />
-        </div>
-      </template>
-    </q-select>
+            :input-debounce="300"
+            @filter="onFilter"
+            @update:model-value="onClinicianChange"
+            option-label="fullName"
+            option-value="mothraId"
+        >
+            <template #prepend>
+                <q-icon name="search" />
+            </template>
 
-    <!-- Include All Affiliates Toggle -->
-    <div
-      v-if="showAffiliatesToggle"
-      class="affiliates-toggle-under-field"
-    >
-      <q-checkbox
-        :model-value="includeAllAffiliates"
-        @update:model-value="onAffiliatesToggle"
-        :label="affiliatesToggleLabel"
-        :disable="isPastYear"
-        color="primary"
-        size="xs"
-        dense
-      />
-      <q-tooltip v-if="isPastYear">
-        This option is only available for the current year
-      </q-tooltip>
+            <template #no-option>
+                <q-item>
+                    <q-item-section class="text-grey">
+                        {{ searchQuery ? "No clinicians found" : "Loading clinicians..." }}
+                    </q-item-section>
+                </q-item>
+            </template>
+
+            <template #option="scope">
+                <q-item v-bind="scope.itemProps">
+                    <q-item-section>
+                        <q-item-label>{{ scope.opt.fullName }}</q-item-label>
+                    </q-item-section>
+                </q-item>
+            </template>
+
+            <template #selected-item="scope">
+                <span v-if="scope.opt">{{ scope.opt.fullName }}</span>
+            </template>
+
+            <template #error>
+                <div class="q-field__bottom text-negative">
+                    {{ error }}
+                    <q-btn
+                        flat
+                        dense
+                        size="sm"
+                        label="Retry"
+                        @click="fetchClinicians"
+                        class="q-ml-sm"
+                    />
+                </div>
+            </template>
+        </q-select>
+
+        <!-- Include All Affiliates Toggle -->
+        <div
+            v-if="showAffiliatesToggle"
+            class="affiliates-toggle-under-field"
+        >
+            <q-checkbox
+                :model-value="includeAllAffiliates"
+                @update:model-value="onAffiliatesToggle"
+                :label="affiliatesToggleLabel"
+                :disable="isPastYear"
+                color="primary"
+                size="xs"
+                dense
+            />
+            <q-tooltip v-if="isPastYear"> This option is only available for the current year </q-tooltip>
+        </div>
     </div>
-  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { ClinicianService, type Clinician } from '../services/ClinicianService'
+import { ref, computed, onMounted, watch } from "vue"
+import { ClinicianService, type Clinician } from "../services/clinician-service"
 
 interface Props {
     modelValue?: Clinician | null
@@ -98,15 +96,15 @@ const props = withDefaults(defineProps<Props>(), {
     year: null,
     includeAllAffiliates: false,
     showAffiliatesToggle: true,
-    affiliatesToggleLabel: 'Include all affiliates',
-    isPastYear: false
+    affiliatesToggleLabel: "Include all affiliates",
+    isPastYear: false,
 })
 
 const emit = defineEmits<{
-    'update:modelValue': [value: Clinician | null]
-    'change': [value: Clinician | null]
-    'update:include-all-affiliates': [value: boolean]
-    'clinicians-loaded': [clinicians: Clinician[]]
+    "update:modelValue": [value: Clinician | null]
+    change: [value: Clinician | null]
+    "update:include-all-affiliates": [value: boolean]
+    "clinicians-loaded": [clinicians: Clinician[]]
 }>()
 
 // Reactive data
@@ -114,15 +112,15 @@ const clinicians = ref<Clinician[]>([])
 const filteredClinicians = ref<Clinician[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
-const searchQuery = ref('')
+const searchQuery = ref("")
 
 // Computed
 const selectedClinician = computed({
     get: () => props.modelValue?.mothraId || null,
     set: (value) => {
-        const clinician = clinicians.value.find(c => c.mothraId === value) || null
-        emit('update:modelValue', clinician)
-    }
+        const clinician = clinicians.value.find((c) => c.mothraId === value) || null
+        emit("update:modelValue", clinician)
+    },
 })
 
 // Methods
@@ -133,19 +131,18 @@ const fetchClinicians = async () => {
     try {
         const result = await ClinicianService.getClinicians({
             year: props.year || undefined,
-            includeAllAffiliates: props.includeAllAffiliates
+            includeAllAffiliates: props.includeAllAffiliates,
         })
         if (result.success) {
             clinicians.value = result.result
             filteredClinicians.value = result.result
             // Emit event to notify parent that clinicians are loaded
-            emit('clinicians-loaded', result.result)
+            emit("clinicians-loaded", result.result)
         } else {
-            error.value = result.errors.join(', ') || 'Failed to load clinicians'
+            error.value = result.errors.join(", ") || "Failed to load clinicians"
         }
     } catch (err) {
-        error.value = err instanceof Error ? err.message : 'Failed to load clinicians'
-        console.error('Error loading clinicians:', err)
+        error.value = err instanceof Error ? err.message : "Failed to load clinicians"
     } finally {
         loading.value = false
     }
@@ -153,45 +150,57 @@ const fetchClinicians = async () => {
 
 const filterClinicians = (items: Clinician[], searchTerm: string): Clinician[] => {
     const search = searchTerm.toLowerCase()
-    return items.filter(clinician =>
-        clinician.fullName.toLowerCase().includes(search) ||
-        clinician.firstName.toLowerCase().includes(search) ||
-        clinician.lastName.toLowerCase().includes(search) ||
-        clinician.mothraId.toLowerCase().includes(search)
+    return items.filter(
+        (clinician) =>
+            clinician.fullName.toLowerCase().includes(search) ||
+            clinician.firstName.toLowerCase().includes(search) ||
+            clinician.lastName.toLowerCase().includes(search) ||
+            clinician.mothraId.toLowerCase().includes(search),
     )
 }
 
 function onFilter(val: string, update: (fn: () => void) => void) {
     searchQuery.value = val
     update(() => {
-        filteredClinicians.value = val === ''
-            ? clinicians.value
-            : filterClinicians(clinicians.value, val)
+        filteredClinicians.value = val === "" ? clinicians.value : filterClinicians(clinicians.value, val)
     })
 }
 
 const onClinicianChange = (mothraId: string | null) => {
-    const clinician = clinicians.value.find(c => c.mothraId === mothraId) || null
-    emit('change', clinician)
+    const clinician = clinicians.value.find((c) => c.mothraId === mothraId) || null
+    emit("change", clinician)
 }
 
 const onAffiliatesToggle = (value: boolean) => {
-    emit('update:include-all-affiliates', value)
+    emit("update:include-all-affiliates", value)
 }
 
 // Watchers
-watch(() => props.includeAllAffiliates, () => {
-    fetchClinicians()
-})
+watch(
+    () => props.includeAllAffiliates,
+    () => {
+        if (props.year !== null && !loading.value) {
+            void fetchClinicians()
+        }
+    },
+)
 
 // Watch for year changes and refetch clinicians
-watch(() => props.year, () => {
-    fetchClinicians()
-})
+watch(
+    () => props.year,
+    (newYear) => {
+        if (newYear !== null && !loading.value) {
+            void fetchClinicians()
+        }
+    },
+)
 
 // Lifecycle
 onMounted(() => {
-    fetchClinicians()
+    // Only fetch if we have a year, otherwise the watcher will handle it
+    if (props.year !== null) {
+        void fetchClinicians()
+    }
 })
 </script>
 
@@ -237,5 +246,4 @@ onMounted(() => {
     padding-bottom: 0 !important;
     margin-bottom: 0 !important;
 }
-
 </style>
