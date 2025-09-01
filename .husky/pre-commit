@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# Check if this is a merge commit
+if git rev-parse -q --verify MERGE_HEAD > /dev/null 2>&1; then
+    echo "🔀 Merge commit detected - skipping linting, running build verification only..."
+    npm run verify:build
+else
+    echo "🔍 Running pre-commit checks..."
+    npx lint-staged
+    npm run verify:build
+fi

@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			".oxlintrc.json": "jsonc"
+		},
+		"terminal.integrated.gpuAcceleration": "off"
+	}
+}

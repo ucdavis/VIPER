@@ -1,10 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Models;
 using Viper.Classes.SQLContext;
 using Viper.Models.Students;
-using static System.Runtime.CompilerServices.RuntimeHelpers;
 
 namespace Viper.Areas.Students.Services
 {
@@ -110,7 +108,7 @@ namespace Viper.Areas.Students.Services
         /// <returns></returns>
         public async Task<List<Student>> GetStudentsByTermCodeAndClassLevel(int termCode, string classLevel)
         {
-            var studentsByTerm= await _context.AaudStudents
+            var studentsByTerm = await _context.AaudStudents
                 .Where(h => h.TermCode == termCode && h.ClassLevel == classLevel)
                 .Select(h => h.SpridenId)
                 .ToListAsync();

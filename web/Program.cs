@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Rewrite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
 using Newtonsoft.Json;
@@ -26,13 +25,27 @@ using Viper.Areas.Jobs.JobClasses;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
+using Web;
 using Web.Authorization;
+
+// Load .env.local for local development only (multiple-instance support)
+// Avoid loading in production - guard by ASPNETCORE_ENVIRONMENT.
+var envPath = Path.Combine(Directory.GetCurrentDirectory(), "../.env.local");
+var aspNetEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+if (string.Equals(aspNetEnv, "Development", StringComparison.OrdinalIgnoreCase)
+    && File.Exists(envPath))
+{
+    DotNetEnv.Env.Load(envPath);
+}
+
+// Centralized SPA application names to avoid duplication
+string[] VueAppNames = { "CTS", "Computing", "Students" };
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
 
 // Early init of NLog to allow startup and exception logging, before host is built
-var logger = NLog.LogManager.Setup().SetupExtensions(s => s.RegisterLayoutRenderer("currentEnviroment", (logevent) => builder.Environment.EnvironmentName)).LoadConfigurationFromAppSettings().GetCurrentClassLogger();
+var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
 try
 {
@@ -67,7 +80,7 @@ try
     }
     catch (Exception ex)
     {
-        logger.Fatal("Failed to get secrets from AWS. Error: " + ex.InnerException);
+        logger.Fatal(ex, "Failed to get secrets from AWS");
     }
 
     //Use forwarded for headers on test and prod
@@ -214,7 +227,25 @@ try
         q.AwaitApplicationStarted = true;
         q.WaitForJobsToComplete = true;
     });
-   
+
+    // Add email services
+    builder.Services.Configure<Viper.Services.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+    builder.Services.AddTransient<Viper.Services.IEmailService, Viper.Services.EmailService>();
+
+    // Add HttpClient for Vite proxy (development only)
+    if (builder.Environment.IsDevelopment())
+    {
+        builder.Services.AddHttpClient("ViteProxy", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
+        {
+            ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+        });
+    }
+
+
     var app = builder.Build();
 
     var scheduler = await app.Services
@@ -225,10 +256,33 @@ try
     app.UseCsp(csp =>
     {
         // Allow JavaScript from:
-        csp.AllowScripts
+        var scriptSources = csp.AllowScripts
             .FromSelf() // This domain
-            .AddNonce() // Inline scripts only with Nonce
-            .AllowUnsafeEval(); // allow JS eval command (must also fit within other restrictions)
+            .AddNonce(); // Inline scripts only with Nonce
+
+        // Allow eval only in development for Vite HMR
+        if (app.Environment.IsDevelopment())
+        {
+            scriptSources.AllowUnsafeEval(); // allow JS eval command for HMR
+        }
+
+        // Allow connections for WebSocket HMR and legacy systems in development
+        if (app.Environment.IsDevelopment())
+        {
+            // In development, be permissive to avoid CSP console noise
+            // ASP.NET Core browser refresh uses random ports that CSP can't predict
+            csp.AllowConnections
+                .ToSelf()
+                .ToAnywhere(); // Allow all external connections in development
+        }
+        else
+        {
+            // In production, be restrictive - only allow self and specific external services
+            csp.AllowConnections
+                .ToSelf()
+                .To("http://localhost") // Still need legacy ColdFusion in production
+                .To("https://localhost"); // Secure localhost connections
+        }
 
         // Contained iframes can be sourced from:
         csp.AllowFrames
@@ -258,9 +312,14 @@ try
         csp.AllowPlugins
             .FromNowhere(); // Plugins not allowed
 
-        csp.AllowStyles
-            .FromSelf() // This domain
-            .AllowUnsafeInline(); // Allows inline CSS
+        // Allow styles - unsafe inline only in development
+        var styleSources = csp.AllowStyles
+            .FromSelf(); // This domain
+
+        if (app.Environment.IsDevelopment())
+        {
+            styleSources.AllowUnsafeInline(); // Allows inline CSS in development only
+        }
     });
 
     // Configure the HTTP request pipeline.
@@ -276,15 +335,64 @@ try
     else
     {
         app.UseDeveloperExceptionPage(); // Development error / exception page
+
     }
 
-    app.UseSitemapMiddleware();
+    // In development, set up Vite proxy BEFORE rewrite rules so it can handle .ts/.js files
+    if (app.Environment.IsDevelopment())
+    {
+        // Development: Proxy Vue.js assets to Vite dev server for hot module replacement (HMR)
+        // This middleware intercepts requests for Vue assets and forwards them to the Vite dev server
+        app.Use(async (context, next) =>
+        {
+            if (ViteProxyHelpers.ShouldProxyToVite(context, VueAppNames))
+            {
+                try
+                {
+                    // Use the registered HttpClient from dependency injection
+                    var httpClientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();
+                    var httpClient = httpClientFactory.CreateClient("ViteProxy");
 
-    var baseUrl = app.Environment.IsDevelopment() ? "" : "2/";
-    RewriteOptions rewriteOptions = new RewriteOptions()
-                .AddRewrite(@"(?i)^CTS", "/vue/src/cts/index.html", true)
-                .AddRewrite(@"(?i)^Computing", "/vue/src/computing/index.html", true)
-                .AddRewrite(@"(?i)^Students", "/vue/src/students/index.html", true);
+                    // Build the Vite server URL and try to proxy directly
+                    var viteUrl = ViteProxyHelpers.BuildViteUrl(context.Request.Path, context.Request.QueryString, VueAppNames);
+                    var requestMessage = ViteProxyHelpers.CreateProxyRequest(context, viteUrl);
+                    using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
+
+                    // Copy the response back to the client
+                    await ViteProxyHelpers.CopyProxyResponse(context, response);
+                    return; // Successfully proxied, don't continue to static files
+                }
+                catch (Exception ex)
+                {
+                    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+                    logger.LogDebug("Vite server not available ({Message}), falling back to static files for {Path}",
+                        ex.Message,
+                        Uri.EscapeDataString(context.Request.Path.Value ?? "unknown"));
+                    // Fall through to static file serving
+                }
+            }
+
+            // Continue to static file serving (either Vite not needed or not available)
+            await next();
+        });
+    }
+
+    var rewriteOptions = new RewriteOptions();
+
+    // Add redirects and rewrites for each SPA using centralized app names
+    foreach (var appName in VueAppNames)
+    {
+        var lowerAppName = appName.ToLower();
+        var escapedLowerAppName = System.Text.RegularExpressions.Regex.Escape(lowerAppName);
+        var escapedAppName = System.Text.RegularExpressions.Regex.Escape(appName);
+
+        // Redirect lowercase to proper case
+        rewriteOptions.AddRedirect($@"^{escapedLowerAppName}(/.*)?$", $"{appName}$1", 301);
+
+        // Rewrite SPA routes to /2/vue paths
+        rewriteOptions.AddRewrite($@"(?i)^{escapedAppName}", $"/2/vue/src/{lowerAppName}/index.html", true);
+    }
+
     app.UseRewriter(rewriteOptions);
 
     //for the vue src files, use directories in the url but serve index.html
@@ -297,23 +405,36 @@ try
         RedirectToAppendTrailingSlash = true
     });
 
-    // allow static file serving
+    // Static file serving configuration
     if (app.Environment.IsDevelopment())
     {
-        //In development, make sure files can be found when the vue app
-        //uses /2/vue/....
+        // In development: Proxy middleware runs first, then static files as fallback
+        // Serve built Vue files for hashed assets that proxy doesn't intercept
         app.UseStaticFiles(new StaticFileOptions
         {
             FileProvider = new PhysicalFileProvider(
-            Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
+                Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
             RequestPath = "/2/vue"
         });
+
+        // Serve other static files
         app.UseStaticFiles();
     }
     else
     {
+        // In production, serve built Vue files directly
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(
+                Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
+            RequestPath = "/2/vue"
+        });
+
         app.UseStaticFiles();
     }
+
+    // Add sitemap middleware after static file handling
+    app.UseSitemapMiddleware();
 
     // apply settings define earlier
     app.UseRouting();
