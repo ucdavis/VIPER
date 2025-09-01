@@ -42,6 +42,34 @@ async function verifyVueTypeScript() {
     }
 }
 
+async function verifyVueBuild() {
+    logger.info("Checking Vue.js build...")
+
+    try {
+        const vueAppDir = path.resolve(process.cwd(), "VueApp")
+        const { stderr } = await execAsync("npm run build-only-dev", {
+            cwd: vueAppDir,
+            timeout: TIMEOUT_MS,
+            env: { ...process.env, NODE_ENV: "development" },
+        })
+
+        if (stderr && !stderr.includes("WARNING")) {
+            logger.warning("Vue.js build warnings:")
+            console.log(stderr)
+        }
+
+        logger.success("Vue.js build passed ✓")
+        return true
+    } catch (error) {
+        logger.error("Vue.js build failed")
+        console.error(error.stdout || error.message)
+        if (error.stderr) {
+            console.error(error.stderr)
+        }
+        return false
+    }
+}
+
 async function verifyDotNetBuild() {
     logger.info("Checking .NET compilation...")
 
@@ -72,7 +100,7 @@ async function main() {
     logger.info("Starting build verification...")
 
     // Run checks in parallel for speed
-    const checks = await Promise.allSettled([verifyVueTypeScript(), verifyDotNetBuild()])
+    const checks = await Promise.allSettled([verifyVueTypeScript(), verifyVueBuild(), verifyDotNetBuild()])
 
     const results = checks.map((result) => (result.status === "fulfilled" ? result.value : false))
 
