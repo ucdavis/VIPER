@@ -21,7 +21,6 @@ interface RotationSummary {
     }[]
 }
 
-
 interface InstructorScheduleItem {
     instructorScheduleId: number
     firstName: string
@@ -83,14 +82,14 @@ interface RecentClinician {
 interface RotationScheduleData {
     rotation:
         | {
-            rotId: number
-            name: string
-            abbreviation: string
-            service: {
-                serviceId: number
-                serviceName: string
-                shortName: string
-            }
+              rotId: number
+              name: string
+              abbreviation: string
+              service: {
+                  serviceId: number
+                  serviceName: string
+                  shortName: string
+              }
           }
         | undefined
     gradYear: number

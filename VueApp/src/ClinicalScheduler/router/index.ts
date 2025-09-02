@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router"
 import { clinicalSchedulerRoutes as routes } from "./routes"
-import useRequireLogin from "@/composables/RequireLogin"
+import { useRequireLogin } from "@/composables/RequireLogin"
 
 const baseUrl = import.meta.env.VITE_VIPER_HOME
 const router = createRouter({

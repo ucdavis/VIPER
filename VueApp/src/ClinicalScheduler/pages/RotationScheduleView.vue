@@ -611,7 +611,8 @@ async function scheduleClinicianToWeek(week: WeekItem) {
             // Update local state instead of refetching
             if (scheduleData.value) {
                 addScheduleToWeek(scheduleData.value, week.weekId, {
-                    instructorScheduleId: result.result?.createdSchedules?.[0]?.instructorScheduleId || 0,
+                    instructorScheduleId:
+                        result.result?.schedules?.[0]?.instructorScheduleId || result.result?.scheduleIds?.[0] || 0,
                     mothraId: selectedClinicianData.value?.mothraId || "",
                     clinicianName: selectedClinician.value || "",
                     isPrimaryEvaluator: requiresPrimaryEvaluator(week),

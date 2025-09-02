@@ -223,6 +223,7 @@ import { InstructorScheduleService } from "../services/instructor-schedule-servi
 import { PageDataService } from "../services/page-data-service"
 import { usePermissionsStore } from "../stores/permissions"
 import type { RotationWithService } from "../types/rotation-types"
+import type { Rotation } from "../types"
 
 // Interface for clinician rotation item
 interface ClinicianRotationItem {
@@ -592,9 +593,7 @@ const scheduleRotationToWeek = async (week: WeekItem) => {
                                 serviceName: selectedRotation.value.serviceName || "",
                                 serviceId: selectedRotation.value.serviceId,
                             })
-                            clinicianRotations.value.sort((a, b) =>
-                                (a.name || "").localeCompare(b.name || ""),
-                            )
+                            clinicianRotations.value.sort((a, b) => (a.name || "").localeCompare(b.name || ""))
                         }
 
                         break
@@ -640,7 +639,8 @@ const onWeekClick = async (week: WeekItem) => {
     if (selectedRotation.value && selectedClinician.value) {
         // Check if same rotation is already scheduled
         const rotationAlreadyScheduled =
-            Array.isArray(week.rotations) && week.rotations.some((r: Rotation) => r.rotationId === selectedRotation.value!.rotId)
+            Array.isArray(week.rotations) &&
+            week.rotations.some((r: Rotation) => r.rotId === selectedRotation.value!.rotId)
 
         if (rotationAlreadyScheduled) {
             $q.notify({

@@ -11,8 +11,9 @@ import "@quasar/extras/material-icons/material-icons.css"
 import "quasar/dist/quasar.css"
 import { useQuasarConfig } from "@/composables/QuasarConfig"
 //import our css
-import "@/assets/site.css"
+import "@/styles/index.css"
 
+const { quasarConfig } = useQuasarConfig()
 const pinia = createPinia()
 const app = createApp(App)
 
@@ -23,4 +24,4 @@ app.provide("apiURL", import.meta.env.VITE_API_URL)
 app.use(pinia)
 app.use(router)
 app.use(Quasar, quasarConfig)
-app.mount('#myApp')
+app.mount("#myApp")

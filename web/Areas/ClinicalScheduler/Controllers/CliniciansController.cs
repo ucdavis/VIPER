@@ -20,11 +20,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// </summary>
         private const int ACTIVE_CLINICIANS_GRAD_YEARS_BACK = 1;
 
-        /// <summary>
-        /// Number of grad years to look back for all affiliates (current + previous year)
-        /// </summary>
-        private const int ALL_AFFILIATES_GRAD_YEARS_BACK = 1;
-
         #endregion
 
         private readonly ClinicalSchedulerContext _context;
@@ -262,22 +257,23 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         ? weekSchedules.Select(schedule =>
                         {
                             rotations.TryGetValue(schedule.RotationId, out var rotation);
-                            if (rotation != null)
+                            // Always return a rotation object even if lookup fails
+                            return new
                             {
-                                return new
-                                {
-                                    rotationId = schedule.RotationId,
-                                    rotationName = rotation.Name,
-                                    abbreviation = rotation.Abbreviation,
-                                    serviceId = rotation.ServiceId,
-                                    serviceName = rotation.Service?.ServiceName,
-                                    scheduleId = schedule.InstructorScheduleId,
-                                    isPrimaryEvaluator = schedule.Evaluator
-                                };
-                            }
-                            return null;
-                        }).Where(r => r != null)
-                          .OrderBy(r => r!.rotationName) // Sort rotations alphabetically
+                                rotationId = schedule.RotationId,
+                                name = rotation != null && !string.IsNullOrEmpty(rotation.Name)
+                                    ? rotation.Name
+                                    : (rotation != null && !string.IsNullOrEmpty(rotation.Abbreviation)
+                                        ? rotation.Abbreviation
+                                        : $"Rotation {schedule.RotationId}"),
+                                abbreviation = rotation?.Abbreviation ?? "",
+                                serviceId = rotation?.ServiceId ?? 0,
+                                serviceName = rotation?.Service?.ServiceName ?? "",
+                                scheduleId = schedule.InstructorScheduleId,
+                                isPrimaryEvaluator = schedule.Evaluator
+                            };
+                        })
+                          .OrderBy(r => r!.name) // Sort rotations alphabetically
                           .Cast<dynamic>()
                           .ToArray()
                         : Array.Empty<dynamic>();
@@ -379,12 +375,53 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         private async Task<List<ClinicianSummary>> GetAllCliniciansAsync(bool includeAllAffiliates = false)
         {
             var currentGradYear = await GetCurrentGradYearAsync();
-            var gradYearsBack = includeAllAffiliates ? ALL_AFFILIATES_GRAD_YEARS_BACK : ACTIVE_CLINICIANS_GRAD_YEARS_BACK;
 
-            return await _personService.GetCliniciansByGradYearRangeAsync(
-                currentGradYear - gradYearsBack,
-                currentGradYear,
-                cancellationToken: HttpContext.RequestAborted);
+            if (includeAllAffiliates)
+            {
+                // When includeAllAffiliates is true, fetch active employee affiliates from AAUD database
+                _logger.LogInformation("Fetching all active employee affiliates from AAUD database");
+
+                var allAffiliates = await _aaudContext.AaudUsers
+                    .AsNoTracking()
+                    .Where(u => !string.IsNullOrEmpty(u.MothraId) &&
+                               !string.IsNullOrEmpty(u.EmployeeId) &&
+                               (u.CurrentEmployee || u.FutureEmployee))
+                    .Select(u => new ClinicianSummary
+                    {
+                        MothraId = u.MothraId,
+                        FullName = u.DisplayFullName,
+                        FirstName = u.DisplayFirstName,
+                        LastName = u.DisplayLastName
+                    })
+                    .OrderBy(c => c.LastName)
+                    .ThenBy(c => c.FirstName)
+                    .ToListAsync(HttpContext.RequestAborted);
+
+                _logger.LogInformation("Found {Count} active employee affiliates from AAUD", allAffiliates.Count);
+                return allAffiliates;
+            }
+            else
+            {
+                // When includeAllAffiliates is false, get only scheduled clinicians
+                // but filter out those without proper names
+                var gradYearsBack = ACTIVE_CLINICIANS_GRAD_YEARS_BACK;
+
+                var scheduledClinicians = await _personService.GetCliniciansByGradYearRangeAsync(
+                    currentGradYear - gradYearsBack,
+                    currentGradYear,
+                    cancellationToken: HttpContext.RequestAborted);
+
+                // Filter out clinicians without proper names (those showing as "Clinician {MothraId}")
+                var cliniciansWithNames = scheduledClinicians
+                    .Where(c => !string.IsNullOrEmpty(c.FullName) &&
+                               !c.FullName.StartsWith("Clinician ", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                _logger.LogInformation("Filtered {Original} scheduled clinicians to {Filtered} with proper names",
+                    scheduledClinicians.Count, cliniciansWithNames.Count);
+
+                return cliniciansWithNames;
+            }
         }
 
         /// <summary>

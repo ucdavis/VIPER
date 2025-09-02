@@ -126,7 +126,7 @@ function createPermissionUtils(
         if (userPermissions.value && typeof serviceId === "number" && serviceId > 0) {
             const servicePerms = userPermissions.value.permissions?.servicePermissions || {}
             const key = serviceId.toString()
-            return Object.prototype.hasOwnProperty.call(servicePerms, key)
+            return Object.hasOwn(servicePerms, key)
                 ? Boolean(servicePerms[key as unknown as keyof typeof servicePerms])
                 : false
         }

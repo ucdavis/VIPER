@@ -53,7 +53,10 @@ function findWeekByScheduleId(semesters: SemesterWithWeeks[], scheduleId: number
  * Add clinician to recent list if not already present
  */
 function addToRecentClinicians(scheduleData: RotationScheduleData, mothraId: string, clinicianName: string): void {
-    if (scheduleData.recentClinicians && !scheduleData.recentClinicians.some((c: RecentClinician) => c.mothraId === mothraId)) {
+    if (
+        scheduleData.recentClinicians &&
+        !scheduleData.recentClinicians.some((c: RecentClinician) => c.mothraId === mothraId)
+    ) {
         scheduleData.recentClinicians.push({
             fullName: clinicianName,
             mothraId: mothraId,

@@ -84,7 +84,7 @@ class PermissionService {
             for (const serviceId of validServiceIds) {
                 // Safe property access using hasOwnProperty check
                 const key = serviceId.toString()
-                const hasPermission = Object.prototype.hasOwnProperty.call(servicePerms, key)
+                const hasPermission = Object.hasOwn(servicePerms, key)
                     ? Boolean(servicePerms[key as unknown as keyof typeof servicePerms])
                     : false
                 resultMap.set(serviceId, hasPermission)

@@ -40,7 +40,21 @@ class ClinicianService {
             }
 
             const url = this.buildUrl(this.BASE_URL, params)
-            return await get(url)
+            const response = await get(url)
+
+            // Handle both response formats:
+            // 1. When includeAllAffiliates=true, backend returns raw array
+            // 2. Otherwise, it returns wrapped response with success/result/errors
+            if (Array.isArray(response)) {
+                // Raw array response - wrap it in ApiResult format
+                return {
+                    result: response,
+                    success: true,
+                    errors: [],
+                }
+            }
+            // Already wrapped response
+            return response
         } catch (error) {
             return {
                 result: [],

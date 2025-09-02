@@ -91,7 +91,6 @@ const cardClasses = computed(() => {
 /* Ensure long names wrap properly */
 .week-schedule-card .text-body2 {
     overflow-wrap: break-word;
-    overflow-wrap: break-word;
     hyphens: auto;
     line-height: 1.2;
 }

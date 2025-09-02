@@ -1,24 +1,27 @@
 <template>
     <div class="clinician-selector-with-toggle">
         <q-select
+            ref="clinicianSelect"
             v-model="selectedClinician"
-            :options="filteredClinicians"
+            :options="props.includeAllAffiliates ? clinicians : filteredClinicians"
             :loading="loading"
             :error="!!error"
             :error-message="error || undefined"
             placeholder="Search for a clinician..."
-            emit-value
-            map-options
-            use-input
-            fill-input
-            hide-selected
+            :emit-value="!props.includeAllAffiliates"
+            :map-options="!props.includeAllAffiliates"
+            :use-input="!props.includeAllAffiliates"
+            :fill-input="!props.includeAllAffiliates"
+            :hide-selected="!props.includeAllAffiliates"
+            :option-label="props.includeAllAffiliates ? getOptionLabel : 'fullName'"
+            :option-value="props.includeAllAffiliates ? getOptionValue : 'mothraId'"
             clearable
             dense
-            :input-debounce="300"
+            :input-debounce="100"
             @filter="onFilter"
+            @popup-show="onPopupShow"
             @update:model-value="onClinicianChange"
-            option-label="fullName"
-            option-value="mothraId"
+            :virtual-scroll-slice-size="50"
         >
             <template #prepend>
                 <q-icon name="search" />
@@ -35,13 +38,19 @@
             <template #option="scope">
                 <q-item v-bind="scope.itemProps">
                     <q-item-section>
-                        <q-item-label>{{ scope.opt.fullName }}</q-item-label>
+                        <q-item-label>{{
+                            props.includeAllAffiliates
+                                ? `${scope.opt.lastName}, ${scope.opt.firstName}`
+                                : scope.opt.fullName
+                        }}</q-item-label>
                     </q-item-section>
                 </q-item>
             </template>
 
             <template #selected-item="scope">
-                <span v-if="scope.opt">{{ scope.opt.fullName }}</span>
+                <span v-if="scope.opt">{{
+                    props.includeAllAffiliates ? `${scope.opt.lastName}, ${scope.opt.firstName}` : scope.opt.fullName
+                }}</span>
             </template>
 
             <template #error>
@@ -79,8 +88,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue"
+import { ref, computed, onMounted, watch, nextTick } from "vue"
 import { ClinicianService, type Clinician } from "../services/clinician-service"
+import type { QSelect } from "quasar"
 
 interface Props {
     modelValue?: Clinician | null
@@ -108,6 +118,7 @@ const emit = defineEmits<{
 }>()
 
 // Reactive data
+const clinicianSelect = ref<QSelect | null>(null)
 const clinicians = ref<Clinician[]>([])
 const filteredClinicians = ref<Clinician[]>([])
 const loading = ref(false)
@@ -116,10 +127,24 @@ const searchQuery = ref("")
 
 // Computed
 const selectedClinician = computed({
-    get: () => props.modelValue?.mothraId || null,
+    get: () => {
+        // When includeAllAffiliates is true, we work with the full clinician object
+        // When false, we work with mothraId string
+        if (props.includeAllAffiliates) {
+            return props.modelValue || null
+        } else {
+            return props.modelValue?.mothraId || null
+        }
+    },
     set: (value) => {
-        const clinician = clinicians.value.find((c) => c.mothraId === value) || null
-        emit("update:modelValue", clinician)
+        if (props.includeAllAffiliates) {
+            // Value is already the full clinician object
+            emit("update:modelValue", value)
+        } else {
+            // Value is mothraId string, find the clinician
+            const clinician = clinicians.value.find((c) => c.mothraId === value) || null
+            emit("update:modelValue", clinician)
+        }
     },
 })
 
@@ -134,10 +159,28 @@ const fetchClinicians = async () => {
             includeAllAffiliates: props.includeAllAffiliates,
         })
         if (result.success) {
-            clinicians.value = result.result
-            filteredClinicians.value = result.result
+            // Filter out records with empty/blank names and sort by lastName, firstName
+            const validClinicians = result.result
+                .filter(
+                    (clinician) =>
+                        clinician.fullName &&
+                        clinician.fullName.trim().length > 1 &&
+                        clinician.firstName &&
+                        clinician.lastName,
+                )
+                .sort((a, b) => {
+                    const lastNameCompare = a.lastName.localeCompare(b.lastName)
+                    return lastNameCompare !== 0 ? lastNameCompare : a.firstName.localeCompare(b.firstName)
+                })
+
+            clinicians.value = validClinicians
+            filteredClinicians.value = validClinicians
+
             // Emit event to notify parent that clinicians are loaded
             emit("clinicians-loaded", result.result)
+
+            // Reset search query when affiliates toggle changes
+            searchQuery.value = ""
         } else {
             error.value = result.errors.join(", ") || "Failed to load clinicians"
         }
@@ -152,27 +195,59 @@ const filterClinicians = (items: Clinician[], searchTerm: string): Clinician[] =
     const search = searchTerm.toLowerCase()
     return items.filter(
         (clinician) =>
-            clinician.fullName.toLowerCase().includes(search) ||
+            `${clinician.lastName}, ${clinician.firstName}`.toLowerCase().includes(search) ||
             clinician.firstName.toLowerCase().includes(search) ||
             clinician.lastName.toLowerCase().includes(search) ||
             clinician.mothraId.toLowerCase().includes(search),
     )
 }
 
+// Helper functions for QSelect options when includeAllAffiliates is true
+const getOptionLabel = (clinician: Clinician) => `${clinician.lastName}, ${clinician.firstName}`
+const getOptionValue = (clinician: Clinician) => clinician.mothraId
+
+// eslint-disable-next-line no-unused-vars
 function onFilter(val: string, update: (fn: () => void) => void) {
+    // Only used when use-input is true (i.e., when includeAllAffiliates is false)
     searchQuery.value = val
     update(() => {
-        filteredClinicians.value = val === "" ? clinicians.value : filterClinicians(clinicians.value, val)
+        if (val === "") {
+            filteredClinicians.value = clinicians.value
+        } else {
+            filteredClinicians.value = filterClinicians(clinicians.value, val)
+        }
     })
 }
 
-const onClinicianChange = (mothraId: string | null) => {
-    const clinician = clinicians.value.find((c) => c.mothraId === mothraId) || null
-    emit("change", clinician)
+const onClinicianChange = (value: string | Clinician | null) => {
+    if (props.includeAllAffiliates) {
+        // Value is already the full clinician object
+        emit("change", value as Clinician | null)
+    } else {
+        // Value is mothraId string, find the clinician
+        const clinician = clinicians.value.find((c) => c.mothraId === value) || null
+        emit("change", clinician)
+    }
 }
 
 const onAffiliatesToggle = (value: boolean) => {
     emit("update:include-all-affiliates", value)
+}
+
+const onPopupShow = () => {
+    // When includeAllAffiliates is true (use-input is false), QSelect will show options automatically
+    // When includeAllAffiliates is false (use-input is true), we need to populate filteredClinicians
+    if (!props.includeAllAffiliates && searchQuery.value === "" && clinicians.value.length > 0) {
+        // Show all clinicians when not using affiliates mode and search is empty
+        filteredClinicians.value = clinicians.value
+    }
+
+    // Ensure the input is focused and ready for searching when use-input is enabled
+    if (!props.includeAllAffiliates) {
+        nextTick(() => {
+            clinicianSelect.value?.focus()
+        })
+    }
 }
 
 // Watchers

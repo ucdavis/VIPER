@@ -80,8 +80,6 @@ function parseESLintOutput(stdout, stderr) {
  * @returns {boolean} - Whether type errors were found
  */
 function handleTypeScriptErrors(appResult, rawFiles, projectRoot, logger) {
-    logger.error("TypeScript type checking failed:")
-
     // Filter the TypeScript errors to only show those related to the files being linted
     const combinedOutput = appResult.stdout + appResult.stderr
     const filteredOutput = filterTypeScriptErrors(combinedOutput, rawFiles, projectRoot)
@@ -91,6 +89,7 @@ function handleTypeScriptErrors(appResult, rawFiles, projectRoot, logger) {
         return false
     }
 
+    logger.error("TypeScript type checking failed:")
     logger.plain(filteredOutput)
     return true
 }

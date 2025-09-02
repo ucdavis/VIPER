@@ -107,10 +107,11 @@
             "files": [
                 "VueApp/**/composables/**/*",
                 "VueApp/**/stores/**/*",
-                "VueApp/**/utils/**/*"
+                "VueApp/**/utils/**/*",
+                "VueApp/**/router/**/*"
             ],
             "rules": {
-                "import/prefer-default-export": "off" // Vue 3 best practice: use named exports for composables, stores, utils
+                "import/prefer-default-export": "off" // Vue 3 best practice: use named exports for composables, stores, utils, and router modules
             }
         },
         {

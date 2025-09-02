@@ -8,12 +8,19 @@ export interface PageInitialData {
 
 export class PageDataService {
     private static readonly PAGE_DATA_URL = `${import.meta.env.VITE_API_URL}clinicalscheduler/rotations/page-data`
-    
+
     // Cache to prevent multiple API calls within the same session
     private static cachedData: PageInitialData | null = null
     private static cachePromise: Promise<PageInitialData> | null = null
     private static cacheTime: number | null = null
-    private static readonly MAX_AGE_MS = 10 * 60 * 1000 // 10 minutes TTL
+    // Cache configuration constants
+    /* eslint-disable no-magic-numbers */
+    private static readonly SECONDS_IN_MINUTE = 60
+    private static readonly MS_IN_SECOND = 1000
+    private static readonly CACHE_TTL_MINUTES = 10
+    /* eslint-enable no-magic-numbers */
+    private static readonly MINUTES_TO_MS = PageDataService.SECONDS_IN_MINUTE * PageDataService.MS_IN_SECOND
+    private static readonly MAX_AGE_MS = PageDataService.CACHE_TTL_MINUTES * PageDataService.MINUTES_TO_MS
 
     /**
      * Gets initial page data for Clinical Scheduler (with caching)
@@ -36,7 +43,7 @@ export class PageDataService {
 
         // Create the promise and cache it immediately to prevent duplicate requests
         this.cachePromise = this.fetchPageData()
-        
+
         try {
             const result = await this.cachePromise
             this.cachedData = result

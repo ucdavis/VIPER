@@ -87,10 +87,12 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 // Emits
+/* eslint-disable no-unused-vars */
 interface Emits {
     (e: "update:modelValue", value: number | null): void
     (e: "rotation-selected", rotation: RotationWithService | null): void
 }
+/* eslint-enable no-unused-vars */
 
 const emit = defineEmits<Emits>()
 
@@ -171,6 +173,7 @@ function filterRotations(items: RotationWithService[], searchTerm: string): Rota
     )
 }
 
+// eslint-disable-next-line no-unused-vars
 function onFilter(val: string, update: (fn: () => void) => void) {
     searchQuery.value = val
     update(() => {

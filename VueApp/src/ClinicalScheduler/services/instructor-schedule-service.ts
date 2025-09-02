@@ -229,7 +229,14 @@ interface InstructorScheduleRequest {
 
 interface InstructorScheduleResponse {
     scheduleIds: number[]
-    createdSchedules?: Array<{ instructorScheduleId: number }>
+    schedules?: Array<{
+        instructorScheduleId: number
+        mothraId: string
+        rotationId: number
+        weekId: number
+        isPrimaryEvaluator: boolean
+        canRemove: boolean
+    }>
     message?: string
     warningMessage?: string
 }

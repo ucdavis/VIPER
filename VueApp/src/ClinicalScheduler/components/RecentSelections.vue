@@ -78,10 +78,12 @@ interface Props<T> {
     selectorSpacing?: "none" | "xs" | "sm" | "md" | "lg"
 }
 
+/* eslint-disable no-unused-vars */
 interface Emits<T> {
     (e: "select-item", item: T): void
     (e: "clear-selection"): void
 }
+/* eslint-enable no-unused-vars */
 
 const props = withDefaults(defineProps<Props<T>>(), {
     labelSpacing: "xs",

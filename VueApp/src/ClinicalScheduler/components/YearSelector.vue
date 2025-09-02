@@ -32,10 +32,12 @@ interface Props {
     modelValue: number | null
 }
 
+/* eslint-disable no-unused-vars */
 interface Emits {
     (e: "update:modelValue", value: number): void
     (e: "year-changed", value: number): void
 }
+/* eslint-enable no-unused-vars */
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
