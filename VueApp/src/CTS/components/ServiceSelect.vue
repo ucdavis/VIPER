@@ -54,9 +54,9 @@ async function getServices() {
     )
 
     services.value.forEach((s) => {
-        s.thisWeek = schedThisWeek && schedThisWeek.serviceId == s.serviceId
-        s.lastWeek = schedLastWeek && schedLastWeek.serviceId == s.serviceId
-        s.scheduled = scheduledServices.find((ss: ScheduledService) => ss.serviceId == s.serviceId)
+        s.thisWeek = !!(schedThisWeek && schedThisWeek.serviceId == s.serviceId)
+        s.lastWeek = !!(schedLastWeek && schedLastWeek.serviceId == s.serviceId)
+        s.scheduled = !!scheduledServices.find((ss: ScheduledService) => ss.serviceId == s.serviceId)
     })
 
     //auto select a service - this week, then last week

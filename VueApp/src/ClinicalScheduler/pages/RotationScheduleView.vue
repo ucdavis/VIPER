@@ -557,20 +557,22 @@ async function scheduleClinicianToWeek(week: WeekItem) {
 
         if (conflictResult.result && conflictResult.result.length > 0) {
             const conflict = conflictResult.result[0]
-            const proceed = await new Promise<boolean>((resolve) => {
-                $q.dialog({
-                    title: "Other Rotation Assignment",
-                    message: `Note: ${selectedClinician.value} is also scheduled for ${conflict.name} during this week. Do you want to add them to this rotation as well?`,
-                    persistent: true,
-                    ok: { label: "Yes, Add", color: "primary" },
-                    cancel: { label: "Cancel", color: "grey" },
+            if (conflict) {
+                const proceed = await new Promise<boolean>((resolve) => {
+                    $q.dialog({
+                        title: "Other Rotation Assignment",
+                        message: `Note: ${selectedClinician.value} is also scheduled for ${conflict.name} during this week. Do you want to add them to this rotation as well?`,
+                        persistent: true,
+                        ok: { label: "Yes, Add", color: "primary" },
+                        cancel: { label: "Cancel", color: "grey" },
+                    })
+                        .onOk(() => resolve(true))
+                        .onCancel(() => resolve(false))
                 })
-                    .onOk(() => resolve(true))
-                    .onCancel(() => resolve(false))
-            })
 
-            if (!proceed) {
-                return
+                if (!proceed) {
+                    return
+                }
             }
         }
 

@@ -158,9 +158,10 @@ async function loadRotations() {
 }
 
 function getRotationDisplayName(rotation: RotationWithService): string {
-    // Remove everything after and including the first parenthesis
-    const beforeParenthesis = rotation.name.split("(")[0].trim()
-    return beforeParenthesis || rotation.name
+    if (!rotation.name) {
+        return `[ERROR: Rotation ${rotation.rotId} missing name]`
+    }
+    return rotation.name
 }
 
 function filterRotations(items: RotationWithService[], searchTerm: string): RotationWithService[] {

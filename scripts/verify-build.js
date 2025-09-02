@@ -19,7 +19,7 @@ async function verifyVueTypeScript() {
 
     try {
         const vueAppDir = path.resolve(process.cwd(), "VueApp")
-        const { stderr } = await execAsync("npx vue-tsc --noEmit --skipLibCheck", {
+        const { stderr } = await execAsync("npx vue-tsc --build --force", {
             cwd: vueAppDir,
             timeout: TIMEOUT_MS,
             env: { ...process.env, NODE_ENV: "development" },

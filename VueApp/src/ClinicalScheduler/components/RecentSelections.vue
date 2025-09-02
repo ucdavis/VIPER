@@ -66,30 +66,28 @@
 </template>
 
 <script setup lang="ts" generic="T extends Record<string, any>">
-interface Props<T> {
-    items: T[]
-    selectedItem: T | null
-    recentLabel: string
-    addNewLabel: string
-    itemType: string
-    itemKeyField: keyof T
-    itemDisplayField: keyof T
-    labelSpacing?: "xs" | "sm" | "md" | "lg"
-    selectorSpacing?: "none" | "xs" | "sm" | "md" | "lg"
-}
+const props = withDefaults(
+    defineProps<{
+        items: T[]
+        selectedItem: T | null
+        recentLabel: string
+        addNewLabel: string
+        itemType: string
+        itemKeyField: keyof T
+        itemDisplayField: keyof T
+        labelSpacing?: "xs" | "sm" | "md" | "lg"
+        selectorSpacing?: "none" | "xs" | "sm" | "md" | "lg"
+    }>(),
+    {
+        labelSpacing: "xs",
+        selectorSpacing: "none",
+    },
+)
 
-/* eslint-disable no-unused-vars */
-interface Emits<T> {
-    (e: "select-item", item: T): void
-    (e: "clear-selection"): void
-}
-/* eslint-enable no-unused-vars */
-
-const props = withDefaults(defineProps<Props<T>>(), {
-    labelSpacing: "xs",
-    selectorSpacing: "none",
-})
-const emit = defineEmits<Emits<T>>()
+const emit = defineEmits<{
+    "select-item": [item: T]
+    "clear-selection": []
+}>()
 
 function getItemKey(item: T): string | number {
     return item[props.itemKeyField] as string | number

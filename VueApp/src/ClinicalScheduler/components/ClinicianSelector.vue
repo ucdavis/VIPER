@@ -136,13 +136,13 @@ const selectedClinician = computed({
             return props.modelValue?.mothraId || null
         }
     },
-    set: (value) => {
+    set: (value: Clinician | string | null) => {
         if (props.includeAllAffiliates) {
             // Value is already the full clinician object
-            emit("update:modelValue", value)
+            emit("update:modelValue", value as Clinician | null)
         } else {
             // Value is mothraId string, find the clinician
-            const clinician = clinicians.value.find((c) => c.mothraId === value) || null
+            const clinician = clinicians.value.find((c) => c.mothraId === (value as string)) || null
             emit("update:modelValue", clinician)
         }
     },

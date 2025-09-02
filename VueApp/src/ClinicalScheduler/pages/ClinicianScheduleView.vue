@@ -572,7 +572,7 @@ const scheduleRotationToWeek = async (week: WeekItem) => {
                             abbreviation: selectedRotation.value.abbreviation || "",
                             serviceName: selectedRotation.value.serviceName || "",
                             serviceId: selectedRotation.value.serviceId || 0,
-                            scheduleId: result.result?.createdSchedules?.[0]?.instructorScheduleId || 0,
+                            scheduleId: result.result?.schedules?.[0]?.instructorScheduleId || 0,
                             isPrimaryEvaluator: false,
                         }
 
