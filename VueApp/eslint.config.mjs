@@ -84,6 +84,20 @@ export default [
         },
     },
 
+    // TypeScript files
+    {
+        files: ["**/*.ts"],
+        languageOptions: {
+            parser: tsParser,
+            ecmaVersion: "latest",
+            sourceType: "module",
+            globals: {
+                ...globals.browser,
+                ...globals.node,
+            },
+        },
+    },
+
     // Node.js specific files (config files)
     {
         files: ["*.{js,ts}", "**/*.config.{js,ts}"],

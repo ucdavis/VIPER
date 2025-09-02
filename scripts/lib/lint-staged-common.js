@@ -299,7 +299,8 @@ function runCommand(command, args, description, cwd) {
  * @param {number} maxFileSizeMB - Maximum file size in MB (default: 5)
  * @returns {string|null} - Relative path for linting tools, or null if file should be skipped
  */
-function sanitizeFilePath(filePath, baseDir, allowedExtensions, maxFileSizeMB = 5) {
+const DEFAULT_MAX_FILE_SIZE_MB = 5
+function sanitizeFilePath(filePath, baseDir, allowedExtensions, maxFileSizeMB = DEFAULT_MAX_FILE_SIZE_MB) {
     const logger = createLogger("FilePath")
 
     // Handle Windows paths passed by lint-staged - convert forward slashes to proper format

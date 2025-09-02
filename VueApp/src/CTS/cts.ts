@@ -15,7 +15,7 @@ import "quasar/dist/quasar.css"
 import { useQuasarConfig } from "@/composables/QuasarConfig"
 
 //import our css
-import "@/assets/site.css"
+import "@/styles/index.css"
 import "@/cts/assets/cts.css"
 
 const { quasarConfig } = useQuasarConfig()
