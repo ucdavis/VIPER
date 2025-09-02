@@ -9,7 +9,7 @@
         "dev": "concurrently --kill-others-on-fail --names \"BACKEND,FRONTEND,BROWSER\" --prefix-colors \"blue,green,yellow\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:browser\"",
         "dev:backend": "npm run mailpit:start && cd web && cross-env DOTNET_USE_COMPILER_SERVER=1 dotnet watch run --launch-profile https",
         "dev:backend-build-only": "npm run mailpit:start && npm run dev:frontend-build && dotnet publish ./web/Viper.csproj -c Release -p:EnvironmentName=Development -o ./dist/dev",
-        "dev:backend-run": "cd dist/dev && cross-env ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_HTTPS_PORT=7158 ASPNETCORE_URLS=\"https://localhost:7158;http://localhost:5001\" dotnet Viper.dll",
+        "dev:backend-run": "node scripts/run-backend.js",
         "dev:browser": "node scripts/launch-open-browser.js",
         "dev:build": "npm run dev:backend-build-only && concurrently --kill-others-on-fail --names \"BACKEND,BROWSER\" --prefix-colors \"blue,yellow\" \"npm run dev:backend-run\" \"npm run dev:browser\"",
         "dev:frontend": "cd VueApp && npm install && npm run dev:typed",
