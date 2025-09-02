@@ -30,12 +30,12 @@ namespace Viper.test.ClinicalScheduler
 
         private void SeedTestData()
         {
-            // Create test weeks
+            // Create test weeks - dates are needed for LastScheduled/FirstScheduled but not for grad year filtering
             var testWeeks = new[]
             {
-        new Week { WeekId = 1, DateStart = DateTime.UtcNow.AddDays(-365), DateEnd = DateTime.UtcNow.AddDays(-358), TermCode = 202401 },
-        new Week { WeekId = 2, DateStart = DateTime.UtcNow.AddDays(-30), DateEnd = DateTime.UtcNow.AddDays(-23), TermCode = 202501 },
-        new Week { WeekId = 3, DateStart = DateTime.UtcNow.AddDays(-800), DateEnd = DateTime.UtcNow.AddDays(-793), TermCode = 202301 }
+        new Week { WeekId = 1, DateStart = new DateTime(2023, 1, 1), DateEnd = new DateTime(2023, 1, 7), TermCode = 202401 },
+        new Week { WeekId = 2, DateStart = new DateTime(2023, 6, 1), DateEnd = new DateTime(2023, 6, 7), TermCode = 202501 },
+        new Week { WeekId = 3, DateStart = new DateTime(2022, 1, 1), DateEnd = new DateTime(2022, 1, 7), TermCode = 202301 }
     };
 
             _context.Weeks.AddRange(testWeeks);
@@ -81,16 +81,16 @@ namespace Viper.test.ClinicalScheduler
     };
 
             _context.InstructorSchedules.AddRange(testSchedules);
-            
+
             // Create WeekGradYear entries that our EF queries depend on
             var testWeekGradYears = new[]
             {
                 new WeekGradYear { WeekGradYearId = 1, WeekId = 1, GradYear = 2023, WeekNum = 1 },
                 new WeekGradYear { WeekGradYearId = 2, WeekId = 2, GradYear = 2023, WeekNum = 20 },
-                new WeekGradYear { WeekGradYearId = 3, WeekId = 3, GradYear = 2024, WeekNum = 1 },
+                new WeekGradYear { WeekGradYearId = 3, WeekId = 3, GradYear = 2022, WeekNum = 1 },
                 new WeekGradYear { WeekGradYearId = 4, WeekId = 4, GradYear = 2024, WeekNum = 20 }
             };
-            
+
             _context.WeekGradYears.AddRange(testWeekGradYears);
             _context.SaveChanges(); // Save schedules and week grad years before adding persons
 
@@ -127,7 +127,7 @@ namespace Viper.test.ClinicalScheduler
             // In a real scenario, these properties would be populated by SQL views/joins
 
             // Act
-            var result = await _personService.GetCliniciansByGradYearRangeAsync(2022, 2024);
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(2023, 2024);
 
             // Assert
             Assert.NotNull(result);
@@ -135,7 +135,7 @@ namespace Viper.test.ClinicalScheduler
             var mothraIds = result.Select(c => ((dynamic)c).MothraId).ToList();
             Assert.Contains("12345", mothraIds);
             Assert.Contains("67890", mothraIds);
-            // Old Clinician should be excluded due to 730 day limit
+            // Clinician 99999 is in grad year 2022, should be excluded from 2023-2024 range
             Assert.DoesNotContain("99999", mothraIds);
         }
 
@@ -147,8 +147,8 @@ namespace Viper.test.ClinicalScheduler
 
             // Assert
             Assert.NotNull(result);
-            Assert.Equal(2, result.Count); // Should still have John Smith and Jane Doe (recent schedules)
-            Assert.DoesNotContain(result, c => ((dynamic)c).MothraId == "99999"); // Old Clinician should be excluded
+            Assert.Equal(2, result.Count); // Should have 12345 and 67890 (both in grad years 2023-2024)
+            Assert.DoesNotContain(result, c => ((dynamic)c).MothraId == "99999"); // Clinician 99999 in grad year 2022 should be excluded
         }
 
         [Fact]
@@ -213,18 +213,18 @@ namespace Viper.test.ClinicalScheduler
         [Fact]
         public async Task GetCliniciansByYearAsync_WithValidYear_ReturnsClinicians()
         {
-            // Act - Using year from the recent test data
-            var result = await _personService.GetCliniciansByYearAsync(DateTime.Now.Year);
+            // Act - Using year from the test data (2023)
+            var result = await _personService.GetCliniciansByYearAsync(2023);
 
             // Assert
             Assert.NotNull(result);
-            Assert.True(result.Count >= 1); // Should have at least Jane Doe from recent schedules
+            Assert.True(result.Count >= 1); // Should have clinicians from 2023 test data
 
             var clinician = result.FirstOrDefault(c => ((dynamic)c).MothraId == "67890");
             if (clinician != null)
             {
                 Assert.Equal("Doe, Jane", ((dynamic)clinician).FullName);
-                Assert.Equal(DateTime.Now.Year, ((dynamic)clinician).Year);
+                Assert.Equal(2023, ((dynamic)clinician).Year);
                 Assert.True(((dynamic)clinician).ScheduleCount > 0);
             }
         }
@@ -291,28 +291,24 @@ namespace Viper.test.ClinicalScheduler
 
             // Verify core properties exist (some may be null due to EF in-memory limitations)
             Assert.NotNull(clinician.MothraId);
-            Assert.Equal("InstructorSchedule", clinician.Source);
+            Assert.Equal("GradYearRange_2023-2024_EF", clinician.Source);
             Assert.NotNull(clinician.LastScheduled);
             // Note: FullName, FirstName, LastName may be null in tests due to EF configuration
         }
 
         [Theory]
-        [InlineData(30)]
-        [InlineData(365)]
-        [InlineData(730)]
-        [InlineData(1095)]
-        public async Task GetCliniciansAsync_WithDifferentSinceDays_ReturnsAppropriateResults(int sinceDays)
+        [InlineData(2022, 2022, 1)] // Only 2022 grad year - should include only clinician 99999
+        [InlineData(2023, 2023, 2)] // Only 2023 grad year - should include clinicians 12345 and 67890  
+        [InlineData(2024, 2024, 0)] // Only 2024 grad year - no clinicians in our test data
+        [InlineData(2022, 2024, 3)] // Full range - should include all 3 clinicians
+        public async Task GetCliniciansAsync_WithDifferentGradYearRanges_ReturnsAppropriateResults(int startYear, int endYear, int expectedCount)
         {
             // Act
-            var result = await _personService.GetCliniciansByGradYearRangeAsync(2020, 2024);
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(startYear, endYear);
 
             // Assert
             Assert.NotNull(result);
-            // Verify that longer timeframes include more or equal clinicians
-            if (sinceDays >= 730)
-            {
-                Assert.True(result.Count >= 2); // Should include recent clinicians
-            }
+            Assert.Equal(expectedCount, result.Count);
         }
 
         public void Dispose()
