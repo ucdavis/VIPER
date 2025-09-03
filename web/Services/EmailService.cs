@@ -156,4 +156,33 @@ namespace Viper.Services
         public string DefaultFromAddress { get; set; } = "noreply@example.com";
         public bool UseMailpit { get; set; } = false;
     }
+
+    /// <summary>
+    /// Email notification configuration for various system notifications
+    /// </summary>
+    public class EmailNotificationSettings
+    {
+        public PrimaryEvaluatorRemovedNotificationSettings PrimaryEvaluatorRemoved { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Configuration for primary evaluator removal notifications
+    /// </summary>
+    public class PrimaryEvaluatorRemovedNotificationSettings
+    {
+        /// <summary>
+        /// List of email addresses to notify when a primary evaluator is removed
+        /// </summary>
+        public List<string> To { get; set; } = new();
+
+        /// <summary>
+        /// From address for the notification email
+        /// </summary>
+        public string From { get; set; } = "svmithelp@ucdavis.edu";
+
+        /// <summary>
+        /// Subject line for the notification email
+        /// </summary>
+        public string Subject { get; set; } = "Primary Evaluator Removed";
+    }
 }

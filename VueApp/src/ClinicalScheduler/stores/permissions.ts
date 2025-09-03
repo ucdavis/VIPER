@@ -5,6 +5,7 @@ import type {
     UserPermissions,
     ServicePermissionCheck,
     RotationPermissionCheck,
+    InstructorSchedulePermissionCheck,
     PermissionSummary,
     User,
     Service,
@@ -23,8 +24,17 @@ function createPermissionsState() {
 function createPermissionsGetters(state: ReturnType<typeof createPermissionsState>) {
     return {
         user: computed<User | null>(() => state.userPermissions.value?.user || null),
+        hasAdminPermission: computed<boolean>(
+            () => state.userPermissions.value?.permissions.hasAdminPermission || false,
+        ),
         hasManagePermission: computed<boolean>(
             () => state.userPermissions.value?.permissions.hasManagePermission || false,
+        ),
+        hasEditClnSchedulesPermission: computed<boolean>(
+            () => state.userPermissions.value?.permissions.hasEditClnSchedulesPermission || false,
+        ),
+        hasEditOwnSchedulePermission: computed<boolean>(
+            () => state.userPermissions.value?.permissions.hasEditOwnSchedulePermission || false,
         ),
         editableServices: computed<Service[]>(() => state.userPermissions.value?.editableServices || []),
         editableServiceCount: computed<number>(
@@ -106,11 +116,32 @@ function createPermissionActions(state: ReturnType<typeof createPermissionsState
         }
     }
 
+    async function checkOwnSchedulePermission(
+        instructorScheduleId: number,
+    ): Promise<InstructorSchedulePermissionCheck | null> {
+        try {
+            isLoading.value = true
+            errorState.value = null
+
+            const result = await permissionService.canEditOwnSchedule(instructorScheduleId)
+            return result
+        } catch (error) {
+            errorState.value =
+                error instanceof Error
+                    ? error.message
+                    : `Failed to check own schedule ${instructorScheduleId} permissions`
+            return null
+        } finally {
+            isLoading.value = false
+        }
+    }
+
     return {
         fetchUserPermissions,
         fetchPermissionSummary,
         checkServicePermission,
         checkRotationPermission,
+        checkOwnSchedulePermission,
     }
 }
 
@@ -168,7 +199,16 @@ export const usePermissionsStore = defineStore("permissions", () => {
 
     // Getters
     const getters = createPermissionsGetters(state)
-    const { user, hasManagePermission, editableServices, editableServiceCount, servicePermissions } = getters
+    const {
+        user,
+        hasAdminPermission,
+        hasManagePermission,
+        hasEditClnSchedulesPermission,
+        hasEditOwnSchedulePermission,
+        editableServices,
+        editableServiceCount,
+        servicePermissions,
+    } = getters
 
     // Actions
     const actions = createPermissionActions(state)
@@ -188,7 +228,10 @@ export const usePermissionsStore = defineStore("permissions", () => {
 
         // Getters
         user,
+        hasAdminPermission,
         hasManagePermission,
+        hasEditClnSchedulesPermission,
+        hasEditOwnSchedulePermission,
         editableServices,
         editableServiceCount,
         servicePermissions,

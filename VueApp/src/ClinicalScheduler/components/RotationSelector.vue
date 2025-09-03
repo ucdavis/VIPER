@@ -64,6 +64,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue"
 import { RotationService } from "../services/rotation-service"
+import { usePermissionsStore } from "../stores/permissions"
 import type { RotationWithService } from "../types/rotation-types"
 
 // Constants
@@ -96,6 +97,9 @@ interface Emits {
 
 const emit = defineEmits<Emits>()
 
+// Store
+const permissionsStore = usePermissionsStore()
+
 // Reactive data
 const rotations = ref<RotationWithService[]>([])
 const filteredRotations = ref<RotationWithService[]>([])
@@ -112,6 +116,23 @@ const selectedRotation = computed({
     set: (value) => {
         emit("update:modelValue", value?.rotId || null)
     },
+})
+
+// Filter rotations based on user permissions
+const permissionFilteredRotations = computed(() => {
+    return rotations.value.filter((rotation) => {
+        // If user has admin or manage permissions, show all rotations
+        if (
+            permissionsStore.hasAdminPermission ||
+            permissionsStore.hasManagePermission ||
+            permissionsStore.hasEditClnSchedulesPermission
+        ) {
+            return true
+        }
+
+        // Check if user has permission to edit this rotation's service
+        return permissionsStore.canEditService(rotation.serviceId)
+    })
 })
 
 // Methods
@@ -146,7 +167,8 @@ async function loadRotations() {
                 .sort((a, b) => getRotationDisplayName(a).localeCompare(getRotationDisplayName(b)))
 
             rotations.value = filteredResult
-            filteredRotations.value = filteredResult
+            // Use permission-filtered rotations as the base for filtering
+            filteredRotations.value = permissionFilteredRotations.value
         } else {
             error.value = result.errors.join(", ") || "Failed to load rotations"
         }
@@ -178,7 +200,8 @@ function filterRotations(items: RotationWithService[], searchTerm: string): Rota
 function onFilter(val: string, update: (fn: () => void) => void) {
     searchQuery.value = val
     update(() => {
-        filteredRotations.value = val === "" ? rotations.value : filterRotations(rotations.value, val)
+        const baseRotations = permissionFilteredRotations.value
+        filteredRotations.value = val === "" ? baseRotations : filterRotations(baseRotations, val)
     })
 }
 
@@ -218,13 +241,31 @@ watch(
         if (newValue === null) {
             searchQuery.value = ""
             // Reset filtered rotations when cleared
-            filteredRotations.value = rotations.value
+            filteredRotations.value = permissionFilteredRotations.value
         }
     },
 )
 
+// Watch for permission changes to update filtered rotations
+watch(
+    () => permissionsStore.servicePermissions,
+    () => {
+        // Update filtered rotations when permissions change
+        if (searchQuery.value === "") {
+            filteredRotations.value = permissionFilteredRotations.value
+        } else {
+            filteredRotations.value = filterRotations(permissionFilteredRotations.value, searchQuery.value)
+        }
+    },
+    { deep: true },
+)
+
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
+    // Initialize permissions store first
+    if (!permissionsStore.userPermissions) {
+        await permissionsStore.initialize()
+    }
     void loadRotations()
 })
 </script>

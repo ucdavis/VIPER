@@ -58,12 +58,12 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 var servicePermissions = await _permissionService.GetUserServicePermissionsAsync(HttpContext.RequestAborted);
                 var editableServices = await _permissionService.GetUserEditableServicesAsync(HttpContext.RequestAborted);
 
-                // Check for general manage permission
-                var hasManagePermission = _userHelper.HasPermission(
-                    HttpContext.RequestServices.GetRequiredService<RAPSContext>(),
-                    user,
-                    ClinicalSchedulePermissions.Manage
-                );
+                // Check for all permission levels
+                var rapsContext = HttpContext.RequestServices.GetRequiredService<RAPSContext>();
+                var hasAdminPermission = _userHelper.HasPermission(rapsContext, user, ClinicalSchedulePermissions.Admin);
+                var hasManagePermission = _userHelper.HasPermission(rapsContext, user, ClinicalSchedulePermissions.Manage);
+                var hasEditClnSchedulesPermission = _userHelper.HasPermission(rapsContext, user, ClinicalSchedulePermissions.EditClnSchedules);
+                var hasEditOwnSchedulePermission = _userHelper.HasPermission(rapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule);
 
                 var response = new
                 {
@@ -74,7 +74,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     },
                     permissions = new
                     {
+                        hasAdminPermission = hasAdminPermission,
                         hasManagePermission = hasManagePermission,
+                        hasEditClnSchedulesPermission = hasEditClnSchedulesPermission,
+                        hasEditOwnSchedulePermission = hasEditOwnSchedulePermission,
                         servicePermissions = servicePermissions,
                         editableServiceCount = editableServices.Count
                     },
@@ -205,6 +208,60 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             catch (Exception ex)
             {
                 return HandleException(ex, "Failed to check rotation edit permissions", "RotationId", rotationId);
+            }
+        }
+
+        /// <summary>
+        /// Check if current user can edit their own schedule for a specific instructor schedule entry
+        /// </summary>
+        /// <param name="instructorScheduleId">Instructor schedule ID to check</param>
+        /// <returns>Permission check result</returns>
+        [HttpGet("instructor-schedule/{instructorScheduleId:int}/can-edit-own")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<object>> CanEditOwnSchedule(int instructorScheduleId)
+        {
+            if (instructorScheduleId <= 0)
+            {
+                _logger.LogWarning("Invalid instructor schedule ID provided for own schedule permission check: {InstructorScheduleId}", instructorScheduleId);
+                return BadRequest(new { error = "Instructor schedule ID must be a positive integer", instructorScheduleId });
+            }
+
+            try
+            {
+                var user = _userHelper.GetCurrentUser();
+
+                if (user == null)
+                {
+                    _logger.LogWarning("No current user found when checking own schedule edit permission for instructor schedule {InstructorScheduleId}", instructorScheduleId);
+                    return Unauthorized(new { error = "User not authenticated" });
+                }
+
+                _logger.LogInformation("Checking own schedule edit permission for user {MothraId} and instructor schedule {InstructorScheduleId}", user.MothraId, instructorScheduleId);
+
+                var canEdit = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId, HttpContext.RequestAborted);
+
+                var response = new
+                {
+                    instructorScheduleId = instructorScheduleId,
+                    canEditOwn = canEdit,
+                    user = new
+                    {
+                        mothraId = user.MothraId
+                    }
+                };
+
+                _logger.LogDebug("Own schedule permission check result for user {MothraId} and instructor schedule {InstructorScheduleId}: canEditOwn={CanEditOwn}",
+                    user.MothraId, instructorScheduleId, canEdit);
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return HandleException(ex, "Failed to check own schedule edit permissions", "InstructorScheduleId", instructorScheduleId);
             }
         }
 

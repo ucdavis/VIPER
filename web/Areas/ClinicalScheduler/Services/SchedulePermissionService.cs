@@ -51,7 +51,18 @@ namespace Viper.Areas.ClinicalScheduler.Services
         }
 
         /// <summary>
+        /// Check if user has full access permissions (Admin > Manage > EditClnSchedules)
+        /// </summary>
+        private bool HasFullAccessPermission(AaudUser user)
+        {
+            return _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.Admin) ||
+                   _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.Manage) ||
+                   _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.EditClnSchedules);
+        }
+
+        /// <summary>
         /// Check if the current user has edit permissions for a specific service
+        /// Enhanced with permission hierarchy (Admin > Manage > EditClnSchedules > Service-specific)
         /// </summary>
         public async Task<bool> HasEditPermissionForServiceAsync(int serviceId, CancellationToken cancellationToken = default)
         {
@@ -60,13 +71,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 var user = GetValidatedCurrentUser($"checking edit permissions for service {serviceId}");
                 if (user == null) return false;
 
-                // If user has manage permission, they can edit everything
-                if (_userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.Manage))
+                if (HasFullAccessPermission(user))
                 {
-                    _logger.LogDebug("User {MothraId} has manage permission for service {ServiceId}", user.MothraId, serviceId);
+                    _logger.LogDebug("User {MothraId} has full access permission for service {ServiceId}", user.MothraId, serviceId);
                     return true;
                 }
 
+                // Check service-specific permission
                 var requiredPermission = await GetRequiredPermissionForServiceAsync(serviceId, cancellationToken);
                 var hasPermission = _userHelper.HasPermission(_rapsContext, user, requiredPermission);
 
@@ -122,10 +133,9 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 var allServices = await _context.Services.AsNoTracking().ToListAsync(cancellationToken);
 
-                // If user has manage permission, they can edit all services
-                if (_userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.Manage))
+                if (HasFullAccessPermission(user))
                 {
-                    _logger.LogDebug("User {MothraId} has manage permission, returning all services", user.MothraId);
+                    _logger.LogDebug("User {MothraId} has full access permission, returning all services", user.MothraId);
                     return allServices;
                 }
 
@@ -158,16 +168,17 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 if (user == null) return new Dictionary<int, bool>();
 
                 var services = await _context.Services.AsNoTracking().ToListAsync(cancellationToken);
-                var hasManagePermission = _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.Manage);
+
+                var hasFullAccess = HasFullAccessPermission(user);
 
                 var permissions = services.ToDictionary(
                     service => service.ServiceId,
-                    service => hasManagePermission || _userHelper.HasPermission(_rapsContext, user, GetEffectivePermission(service))
+                    service => hasFullAccess || _userHelper.HasPermission(_rapsContext, user, GetEffectivePermission(service))
                 );
 
                 var editableCount = permissions.Count(kvp => kvp.Value);
-                _logger.LogDebug("User {MothraId} can edit {EditableCount} out of {TotalCount} services (hasManage: {HasManage})",
-                    user.MothraId, editableCount, permissions.Count, hasManagePermission);
+                _logger.LogDebug("User {MothraId} can edit {EditableCount} out of {TotalCount} services (hasFullAccess: {HasFullAccess})",
+                    user.MothraId, editableCount, permissions.Count, hasFullAccess);
 
                 return permissions;
             }
@@ -204,6 +215,54 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 _logger.LogError(ex, "Error getting required permission for service {ServiceId}", serviceId);
                 return ClinicalSchedulePermissions.Manage;
+            }
+        }
+
+        /// <summary>
+        /// Check if the current user can edit their own schedule for a specific instructor schedule entry
+        /// </summary>
+        /// <param name="instructorScheduleId">Instructor schedule ID to check</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>True if current user can edit their own schedule for this entry</returns>
+        public async Task<bool> CanEditOwnScheduleAsync(int instructorScheduleId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var user = GetValidatedCurrentUser($"checking own schedule edit permissions for instructor schedule {instructorScheduleId}");
+                if (user == null) return false;
+
+                // First check if user has EditOwnSchedule permission
+                if (!_userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule))
+                {
+                    _logger.LogDebug("User {MothraId} does not have EditOwnSchedule permission", user.MothraId);
+                    return false;
+                }
+
+                // Get the instructor schedule entry
+                var instructorSchedule = await _context.InstructorSchedules
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.InstructorScheduleId == instructorScheduleId, cancellationToken);
+
+                if (instructorSchedule == null)
+                {
+                    _logger.LogDebug("Instructor schedule not found when checking own schedule permissions");
+                    return false;
+                }
+
+                // Check if the schedule belongs to the current user
+                var canEdit = instructorSchedule.MothraId == user.MothraId;
+
+                _logger.LogDebug("User {MothraId} own schedule edit check for instructor schedule {InstructorScheduleId}: scheduleOwner={ScheduleOwner}, canEdit={CanEdit}",
+                    user.MothraId, instructorScheduleId, instructorSchedule.MothraId, canEdit);
+
+                return canEdit;
+            }
+            catch (Exception ex)
+            {
+                var user = _userHelper.GetCurrentUser();
+                _logger.LogError(ex, "Error checking own schedule permissions for user {MothraId} and instructor schedule {InstructorScheduleId}",
+                    user?.MothraId ?? "unknown", instructorScheduleId);
+                return false;
             }
         }
     }

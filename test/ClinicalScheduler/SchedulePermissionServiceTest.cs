@@ -241,5 +241,224 @@ namespace Viper.test.ClinicalScheduler
             // Assert
             Assert.False(result);
         }
+
+        [Fact]
+        public async Task HasEditPermissionForServiceAsync_WithAdminPermission_ReturnsTrue()
+        {
+            // Arrange
+            var serviceId = CardiologyServiceId;
+            SetupUserWithAdminPermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task HasEditPermissionForServiceAsync_WithEditClnSchedulesPermission_ReturnsTrue()
+        {
+            // Arrange
+            var serviceId = CardiologyServiceId;
+            SetupUserWithEditClnSchedulesPermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task HasEditPermissionForServiceAsync_WithServiceSpecificPermission_ForMatchingService_ReturnsTrue()
+        {
+            // Arrange
+            var serviceId = CardiologyServiceId; // Service with specific permission "SVMSecure.ClnSched.Edit.Cardio"
+            SetupUserWithServiceSpecificPermission(TestUserMothraId, CardiologyEditPermission);
+
+            // Act
+            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task HasEditPermissionForServiceAsync_WithServiceSpecificPermission_ForDifferentService_ReturnsFalse()
+        {
+            // Arrange
+            var serviceId = SurgeryServiceId; // Surgery service, but user only has Cardiology permission
+            SetupUserWithServiceSpecificPermission(TestUserMothraId, CardiologyEditPermission);
+
+            // Act
+            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task GetUserEditableServicesAsync_WithAdminPermission_ReturnsAllServices()
+        {
+            // Arrange
+            SetupUserWithAdminPermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.GetUserEditableServicesAsync();
+
+            // Assert
+            Assert.Equal(4, result.Count); // All services should be returned
+        }
+
+        [Fact]
+        public async Task GetUserEditableServicesAsync_WithEditClnSchedulesPermission_ReturnsAllServices()
+        {
+            // Arrange
+            SetupUserWithEditClnSchedulesPermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.GetUserEditableServicesAsync();
+
+            // Assert
+            Assert.Equal(4, result.Count); // All services should be returned
+        }
+
+        [Fact]
+        public async Task GetUserServicePermissionsAsync_WithAdminPermission_ReturnsAllTrue()
+        {
+            // Arrange
+            SetupUserWithAdminPermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.GetUserServicePermissionsAsync();
+
+            // Assert
+            Assert.Equal(4, result.Count); // All services should be present
+            Assert.All(result.Values, permission => Assert.True(permission)); // All should be true
+        }
+
+        [Fact]
+        public async Task GetUserServicePermissionsAsync_WithEditClnSchedulesPermission_ReturnsAllTrue()
+        {
+            // Arrange
+            SetupUserWithEditClnSchedulesPermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.GetUserServicePermissionsAsync();
+
+            // Assert
+            Assert.Equal(4, result.Count); // All services should be present
+            Assert.All(result.Values, permission => Assert.True(permission)); // All should be true
+        }
+
+        [Fact]
+        public async Task CanEditOwnScheduleAsync_WithEditOwnSchedulePermission_WhenOwnSchedule_ReturnsTrue()
+        {
+            // Arrange
+            var instructorScheduleId = TestInstructorScheduleId; // Schedule belongs to TestUserMothraId
+            SetupUserWithEditOwnSchedulePermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CanEditOwnScheduleAsync_WithEditOwnSchedulePermission_WhenNotOwnSchedule_ReturnsFalse()
+        {
+            // Arrange
+            var instructorScheduleId = OtherInstructorScheduleId; // Schedule belongs to different user
+            SetupUserWithEditOwnSchedulePermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId);
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task CanEditOwnScheduleAsync_WithoutEditOwnSchedulePermission_ReturnsFalse()
+        {
+            // Arrange
+            var instructorScheduleId = TestInstructorScheduleId;
+            SetupUserWithoutEditOwnSchedulePermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId);
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task CanEditOwnScheduleAsync_WithNonExistentSchedule_ReturnsFalse()
+        {
+            // Arrange
+            var instructorScheduleId = 999; // Non-existent schedule
+            SetupUserWithEditOwnSchedulePermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId);
+
+            // Assert
+            Assert.False(result);
+        }
+
+        // Helper methods for permission setups
+
+        private void SetupUserWithAdminPermission(string mothraId)
+        {
+            var user = TestDataBuilder.CreateUser(mothraId);
+            MockUserHelper.Setup(u => u.GetCurrentUser()).Returns(user);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Admin)).Returns(true);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Manage)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditClnSchedules)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditOwnSchedule)).Returns(false);
+        }
+
+        private void SetupUserWithEditClnSchedulesPermission(string mothraId)
+        {
+            var user = TestDataBuilder.CreateUser(mothraId);
+            MockUserHelper.Setup(u => u.GetCurrentUser()).Returns(user);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Admin)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Manage)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditClnSchedules)).Returns(true);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditOwnSchedule)).Returns(false);
+        }
+
+        private void SetupUserWithServiceSpecificPermission(string mothraId, string specificPermission)
+        {
+            var user = TestDataBuilder.CreateUser(mothraId);
+            MockUserHelper.Setup(u => u.GetCurrentUser()).Returns(user);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Admin)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Manage)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditClnSchedules)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditOwnSchedule)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, specificPermission)).Returns(true);
+        }
+
+        private void SetupUserWithEditOwnSchedulePermission(string mothraId)
+        {
+            var user = TestDataBuilder.CreateUser(mothraId);
+            MockUserHelper.Setup(u => u.GetCurrentUser()).Returns(user);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Admin)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Manage)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditClnSchedules)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditOwnSchedule)).Returns(true);
+        }
+
+        private void SetupUserWithoutEditOwnSchedulePermission(string mothraId)
+        {
+            var user = TestDataBuilder.CreateUser(mothraId);
+            MockUserHelper.Setup(u => u.GetCurrentUser()).Returns(user);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Admin)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Manage)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditClnSchedules)).Returns(false);
+            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditOwnSchedule)).Returns(false);
+        }
     }
 }

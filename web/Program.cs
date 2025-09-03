@@ -217,6 +217,8 @@ try
 
     // Add email services
     builder.Services.Configure<Viper.Services.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+    builder.Services.Configure<Viper.Services.EmailNotificationSettings>(builder.Configuration.GetSection("EmailNotifications"));
+    builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<Viper.Services.EmailNotificationSettings>, Viper.Services.EmailNotificationSettingsValidator>();
     builder.Services.AddTransient<Viper.Services.IEmailService, Viper.Services.EmailService>();
 
     // Add HttpClient for Vite proxy (development only)

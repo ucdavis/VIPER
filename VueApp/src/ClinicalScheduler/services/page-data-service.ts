@@ -1,10 +1,14 @@
 // Page Data Service for Clinical Scheduler
 import { useFetch } from "../../composables/ViperFetch"
 
-export interface PageInitialData {
+interface PageInitialData {
     currentGradYear: number
     availableGradYears: number[]
 }
+
+const CACHE_EXPIRY = {
+    TEN_MINUTES_MS: 600_000,
+} as const
 
 export class PageDataService {
     private static readonly PAGE_DATA_URL = `${import.meta.env.VITE_API_URL}clinicalscheduler/rotations/page-data`
@@ -13,14 +17,6 @@ export class PageDataService {
     private static cachedData: PageInitialData | null = null
     private static cachePromise: Promise<PageInitialData> | null = null
     private static cacheTime: number | null = null
-    // Cache configuration constants
-    /* eslint-disable no-magic-numbers */
-    private static readonly SECONDS_IN_MINUTE = 60
-    private static readonly MS_IN_SECOND = 1000
-    private static readonly CACHE_TTL_MINUTES = 10
-    /* eslint-enable no-magic-numbers */
-    private static readonly MINUTES_TO_MS = PageDataService.SECONDS_IN_MINUTE * PageDataService.MS_IN_SECOND
-    private static readonly MAX_AGE_MS = PageDataService.CACHE_TTL_MINUTES * PageDataService.MINUTES_TO_MS
 
     /**
      * Gets initial page data for Clinical Scheduler (with caching)
@@ -29,7 +25,7 @@ export class PageDataService {
     static async getPageData(): Promise<PageInitialData> {
         // Return cached data if available and not expired
         if (this.cachedData && this.cacheTime) {
-            if (Date.now() - this.cacheTime < this.MAX_AGE_MS) {
+            if (Date.now() - this.cacheTime < CACHE_EXPIRY.TEN_MINUTES_MS) {
                 return this.cachedData
             }
             // Cache expired, clear it
@@ -107,3 +103,5 @@ export class PageDataService {
         return result.availableGradYears
     }
 }
+
+export type { PageInitialData }

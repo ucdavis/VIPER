@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Models.ClinicalScheduler;
+using Viper.Services;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -11,6 +13,8 @@ namespace Viper.test.ClinicalScheduler
         private readonly Mock<IScheduleAuditService> _mockAuditService;
         private readonly Mock<IUserHelper> _mockUserHelper;
         private readonly Mock<ILogger<ScheduleEditService>> _mockLogger;
+        private readonly Mock<IEmailService> _mockEmailService;
+        private readonly Mock<IOptions<EmailNotificationSettings>> _mockEmailNotificationOptions;
         private readonly ScheduleEditService _service;
         public ScheduleEditServiceTest()
         {
@@ -18,12 +22,28 @@ namespace Viper.test.ClinicalScheduler
             _mockAuditService = new Mock<IScheduleAuditService>();
             _mockUserHelper = new Mock<IUserHelper>();
             _mockLogger = new Mock<ILogger<ScheduleEditService>>();
+            _mockEmailService = new Mock<IEmailService>();
+            _mockEmailNotificationOptions = new Mock<IOptions<EmailNotificationSettings>>();
+
+            // Setup default email notification configuration for tests
+            var emailNotificationSettings = new EmailNotificationSettings
+            {
+                PrimaryEvaluatorRemoved = new PrimaryEvaluatorRemovedNotificationSettings
+                {
+                    To = new List<string> { "test@ucdavis.edu" },
+                    From = "testfrom@ucdavis.edu",
+                    Subject = "Test Primary Evaluator Removed"
+                }
+            };
+            _mockEmailNotificationOptions.Setup(x => x.Value).Returns(emailNotificationSettings);
 
             _service = new ScheduleEditService(
                 Context,
                 _mockPermissionService.Object,
                 _mockAuditService.Object,
                 _mockLogger.Object,
+                _mockEmailService.Object,
+                _mockEmailNotificationOptions.Object,
                 _mockUserHelper.Object);
         }
 
@@ -266,13 +286,13 @@ namespace Viper.test.ClinicalScheduler
         public async Task RemoveInstructorScheduleAsync_PrimaryEvaluatorWithoutOtherInstructors_ThrowsInvalidOperationException()
         {
             // Arrange
-            var primarySchedule = TestDataBuilder.CreateInstructorSchedule("primary123", 1, 1, true);
+            var primarySchedule = TestDataBuilder.CreateInstructorSchedule("primary123", 2, 2, true);
             await Context.InstructorSchedules.AddAsync(primarySchedule);
             await Context.SaveChangesAsync();
 
             var user = TestDataBuilder.CreateUser("currentuser");
             _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
-            _mockPermissionService.Setup(x => x.HasEditPermissionForRotationAsync(1, It.IsAny<CancellationToken>()))
+            _mockPermissionService.Setup(x => x.HasEditPermissionForRotationAsync(2, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
 
             // Act & Assert
@@ -346,7 +366,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task CanRemoveInstructorAsync_PrimaryEvaluatorWithoutOtherInstructors_ReturnsFalse()
         {
             // Arrange
-            var primarySchedule = TestDataBuilder.CreateInstructorSchedule("primary123", 1, 1, true);
+            var primarySchedule = TestDataBuilder.CreateInstructorSchedule("primary123", 2, 2, true);
             await Context.InstructorSchedules.AddAsync(primarySchedule);
             await Context.SaveChangesAsync();
 
@@ -414,7 +434,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetOtherRotationSchedulesAsync_NoConflicts_ReturnsEmptyList()
         {
             // Arrange
-            var service = new ScheduleEditService(Context, _mockPermissionService.Object, _mockAuditService.Object, _mockLogger.Object, _mockUserHelper.Object);
+            var service = new ScheduleEditService(Context, _mockPermissionService.Object, _mockAuditService.Object, _mockLogger.Object, _mockEmailService.Object, _mockEmailNotificationOptions.Object, _mockUserHelper.Object);
 
             // Create instructor schedule for different weeks (no conflicts)
             var scheduleNoConflict = TestDataBuilder.CreateInstructorSchedule("12345", 1, 5);
@@ -432,7 +452,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetOtherRotationSchedulesAsync_WithMultipleConflicts_ReturnsAllConflictingSchedules()
         {
             // Arrange
-            var service = new ScheduleEditService(Context, _mockPermissionService.Object, _mockAuditService.Object, _mockLogger.Object, _mockUserHelper.Object);
+            var service = new ScheduleEditService(Context, _mockPermissionService.Object, _mockAuditService.Object, _mockLogger.Object, _mockEmailService.Object, _mockEmailNotificationOptions.Object, _mockUserHelper.Object);
 
             // Add required test data
             await AddTestWeekGradYearAsync(10);
