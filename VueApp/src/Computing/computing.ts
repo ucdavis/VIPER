@@ -6,14 +6,12 @@ import { createPinia } from "pinia"
 import { router } from "./router"
 import App from "./App.vue"
 //import quasar, icon libraries, css, and our default quasar config
-import { Quasar } from "quasar"
 import "@quasar/extras/material-icons/material-icons.css"
 import "quasar/dist/quasar.css"
-import { useQuasarConfig } from "@/composables/QuasarConfig"
+import { initializeQuasar } from "@/composables/QuasarConfig"
 //import our css
 import "@/styles/index.css"
 
-const { quasarConfig } = useQuasarConfig()
 const pinia = createPinia()
 const app = createApp(App)
 
@@ -23,5 +21,7 @@ app.provide("apiURL", import.meta.env.VITE_API_URL)
 //load plugins
 app.use(pinia)
 app.use(router)
-app.use(Quasar, quasarConfig)
+
+// Initialize Quasar with our brand colors
+initializeQuasar(app)
 app.mount("#myApp")

@@ -12,13 +12,12 @@ import IconSet from "quasar/icon-set/material-symbols-outlined.js"
 
 // Import Quasar css
 import "quasar/dist/quasar.css"
-import { useQuasarConfig } from "@/composables/QuasarConfig"
+import { initializeQuasar } from "@/composables/QuasarConfig"
 
 //import our css
 import "@/styles/index.css"
 import "@/cts/assets/cts.css"
 
-const { quasarConfig } = useQuasarConfig()
 const pinia = createPinia()
 const app = createApp(App)
 Quasar.iconSet.set(IconSet)
@@ -26,5 +25,7 @@ app.provide("apiURL", import.meta.env.VITE_API_URL)
 
 app.use(pinia)
 app.use(router)
-app.use(Quasar, quasarConfig)
+
+// Initialize Quasar with our brand colors
+initializeQuasar(app)
 app.mount("#myApp")
