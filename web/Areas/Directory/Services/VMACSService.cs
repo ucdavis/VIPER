@@ -1,12 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System.DirectoryServices.AccountManagement;
-using System.DirectoryServices;
-using Viper.Areas.RAPS.Models;
-using Viper.Areas.Directory.Models;
-using System.Net.Http;
+﻿using Viper.Areas.Directory.Models;
 using System.Text;
+using System.Xml;
 using System.Xml.Serialization;
-using Microsoft.CodeAnalysis.Elfie.Model.Strings;
 
 namespace Viper.Areas.Directory.Services
 {
@@ -24,12 +19,13 @@ namespace Viper.Areas.Directory.Services
         /// </summary>
         /// <param name="loginID"></param>
         /// <returns></returns>
-        public static async Task<VMACSQuery?> Search (String? loginID)
+        public static async Task<VMACSQuery?> Search(String? loginID)
         {
-			
+
             string request = $"/trust/query.xml?dbfile=3&index=CampusLoginId&find={loginID}&format=CHRIS4&AUTH=06232005".ToString();
             using HttpResponseMessage response = await sharedClient.GetAsync(request);
-            if (response.IsSuccessStatusCode == false){
+            if (!response.IsSuccessStatusCode)
+            {
                 return null;
             }
             var s = await response.Content.ReadAsStringAsync();
@@ -38,10 +34,20 @@ namespace Viper.Areas.Directory.Services
             {
                 var serializer = new XmlSerializer(typeof(VMACSQuery));
                 //return Encoding.ASCII.GetString(stream.ToArray());
-                var vmacs_api = (VMACSQuery?)serializer.Deserialize(stream);
-                if (vmacs_api != null && vmacs_api.item != null)
+
+                // Use XmlReader with secure settings to prevent XXE attacks
+                var readerSettings = new XmlReaderSettings
                 {
-                    return vmacs_api;
+                    DtdProcessing = DtdProcessing.Prohibit,
+                    XmlResolver = null
+                };
+                using (var xmlReader = XmlReader.Create(stream, readerSettings))
+                {
+                    var vmacs_api = (VMACSQuery?)serializer.Deserialize(xmlReader);
+                    if (vmacs_api != null && vmacs_api.item != null)
+                    {
+                        return vmacs_api;
+                    }
                 }
             }
             return null;

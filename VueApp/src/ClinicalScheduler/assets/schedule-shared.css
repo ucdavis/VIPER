@@ -1,0 +1,43 @@
+/* Shared styles for Clinical Scheduler schedule views */
+
+.clinical-scheduler-container {
+    font-family: Arial, sans-serif;
+    margin: 0 auto;
+}
+
+/* Shared typography for schedule pages */
+h3 {
+    color: var(--ucdavis-black-80);
+    font-size: 16px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.schedule-note {
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--ucdavis-black-40);
+    font-style: italic;
+}
+
+/* Quasar card styling for weeks requiring primary evaluator */
+.requires-primary-card {
+    border: 2px solid #ff4444 !important;
+    background-color: #fff5f5;
+}
+
+/* Mobile responsiveness for main headers */
+@media (max-width: 768px) {
+    h2 {
+        font-size: 18px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    h2 {
+        font-size: 16px;
+    }
+}

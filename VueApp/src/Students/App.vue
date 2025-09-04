@@ -1,7 +1,7 @@
 <template>
     <main>
         <component :is="$route.meta.layout || 'div'"
-                   nav="viper-students" navarea="false" highlightedTopNav="Students"
+                   nav="viper-students" :navarea="false" highlightedTopNav="Students"
                    :breadcrumbs="$route.meta?.breadcrumbs">
         </component>
     </main>

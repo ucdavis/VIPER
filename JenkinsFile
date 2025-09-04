@@ -1,7 +1,7 @@
 @Library('AdminAppsSharedLibrary') _
 def copyOperations = [
 	[
-		source: ".\\web\\bin\\Release\\net7.0\\publish",
+		source: ".\\web\\bin\\Release\\net8.0\\publish",
 		testDestination: "%vipertestnet%",
 		prodDestination: "%viperprodnet%",
 		includeFiles: "*.*",
@@ -62,6 +62,7 @@ pipeline {
 			steps {
                 bat 'type NUL > app_offline.htm'
 				bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit" --configuration release --nologo'
+				bat 'npm run --prefix VueApp test:run'
             }
 		}
 		stage('Deploy to test') {
@@ -93,7 +94,7 @@ pipeline {
 				}
 
 				//Archive the artifacts - in this case, all files - so that the restore job can re-deploy them.
-				archiveArtifacts artifacts: 'web/bin/Release/net7.0/publish/**/*', fingerprint: true, onlyIfSuccessful: true
+				archiveArtifacts artifacts: 'web/bin/Release/net8.0/publish/**/*', fingerprint: true, onlyIfSuccessful: true
 			}
 		}
 }

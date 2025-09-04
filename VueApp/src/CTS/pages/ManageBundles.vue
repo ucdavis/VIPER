@@ -12,7 +12,6 @@
     //form props
     const emptyBundle = { bundleId: null, assessment: false, clinical: false, milestone: false, name: "", roles: [] } as Bundle
     const bundle = ref(structuredClone(emptyBundle)) as Ref<Bundle>
-    const showBundleForm = ref(false)
     const roles = ref([]) as Ref<Role[]>
     const bundleRoles = ref([]) as Ref<number[]>
 
@@ -32,7 +31,7 @@
     const loading = ref(false)
 
     async function load() {
-        get(apiUrl + "cts/bundles?milestone=false").then(r => bundles.value = r.result)
+        get(apiUrl + "cts/bundles").then(r => bundles.value = r.result)
         get(apiUrl + "cts/roles").then(r => roles.value = r.result)
     }
 
@@ -126,7 +125,7 @@
         </template>
         <template v-slot:body-cell-roles="props">
             <q-td :props="props">
-                <div v-for="r in props.row.roles">{{ r.name }}</div>
+                <div v-for="r in props.row.roles" :key="r.roleId">{{ r.name }}</div>
             </q-td>
         </template>
         <template v-slot:body-cell-compcount="props">

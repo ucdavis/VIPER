@@ -182,6 +182,21 @@ export type BundleCompetency = {
     order: number,
 }
 
+export type CompetencyBundleAssociation = {
+    competencyId: number,
+    domainId: number,
+    parentId: number | null,
+    number: string,
+    name: string,
+    description: string | null,
+    canLinkToStudent: boolean,
+    domainName: string | null,
+    domainOrder: number | null,
+    parentNumber: string | null,
+    parentName: string | null,
+    bundles: Bundle[]
+}
+
 export type BundleCompetencyAddUpdate = {
     bundleCompetencyId: number | null,
     bundleId: number,

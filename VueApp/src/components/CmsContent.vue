@@ -39,5 +39,7 @@
     getContentBlock()
 </script>
 <template>
-    <div v-html="cb?.content"></div>
+  <!-- Content sanitized by CMS.cs using OWASP AntiSamy -->
+  <!-- eslint-disable-next-line vue/no-v-html -->
+  <div v-html="cb?.content" />
 </template>
