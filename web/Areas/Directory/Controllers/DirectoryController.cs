@@ -20,6 +20,7 @@ namespace Viper.Areas.Directory.Controllers
     public class DirectoryController : AreaController
     {
         public Classes.SQLContext.AAUDContext _aaud;
+        public Models.DirectoryUser User;
         private readonly RAPSContext? _rapsContext;
         public IUserHelper UserHelper;
 
@@ -28,6 +29,7 @@ namespace Viper.Areas.Directory.Controllers
             _aaud = new AAUDContext();
             this._rapsContext = (RAPSContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(RAPSContext));
             UserHelper = new UserHelper();
+            User = new DirectoryUser();
         }
 
         /// <summary>
@@ -36,7 +38,11 @@ namespace Viper.Areas.Directory.Controllers
         [Route("/[area]/")]
         public async Task<ActionResult> Index(string? useExample)
         {
-            return await Task.Run(() => View("~/Areas/Directory/Views/Card.cshtml"));
+            AaudUser? currentUser = UserHelper.GetCurrentUser();
+            User.CanDisplayIDs = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
+            User.CanEmulate = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.SU");
+
+            return await Task.Run(() => View("~/Areas/Directory/Views/Card.cshtml",User));
         }
 
         /// <summary>
