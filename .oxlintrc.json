@@ -76,11 +76,24 @@
             }
         },
         {
-            "files": ["**/*.test.*", "**/*.spec.*", "**/tests/**/*", "**/test/**/*"],
+            "files": ["**/__tests__/**/*"],
             "plugins": ["vitest"],
             "rules": {
                 "no-console": "off",
-                "no-magic-numbers": "off"
+                "no-magic-numbers": "off",
+                "import/max-dependencies": "off",
+                "max-lines-per-function": [
+                    "warn",
+                    {
+                        "max": 200
+                    }
+                ],
+                "max-lines": [
+                    "warn",
+                    {
+                        "max": 500
+                    }
+                ]
             }
         },
         {
@@ -115,9 +128,21 @@
             }
         },
         {
+            "files": ["VueApp/**/*"],
+            "rules": {
+                "no-duplicate-imports": "off" // Allow separate type-only imports for better tree-shaking in Vue 3 TypeScript projects
+            }
+        },
+        {
             "files": ["VueApp/**/*.vue"],
             "rules": {
                 "import/no-default-export": "off" // Vue components use default exports as standard practice
+            }
+        },
+        {
+            "files": ["**/stores/**/*", "**/store/**/*"],
+            "rules": {
+                "import/max-dependencies": "off" // Store files naturally coordinate between many modules and services
             }
         },
         {

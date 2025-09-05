@@ -3,12 +3,16 @@
 <script src="~/lib/quasar/dist/quasar.umd.prod.js"></script>
 <script asp-add-nonce="true">
     // set global JS object with the CSRF token.
+    // eslint-disable-next-line no-unused-vars
     var csrfToken = "@Xsrf.GetAndStoreTokens(Context).RequestToken";
 </script>
 <script src="~/js/site.js"></script>
+<script src="~/js/ucdavis-colors.js"></script>
 <script src="~/js/vueSetup.js"></script>
 <script asp-add-nonce="true">
     // define global Vue objects
+    /* global Vue */
+    /* eslint-disable no-unused-vars -- Global framework variables used by other pages */
     const { createApp, ref, computed, watch, nextTick, toRaw } = Vue;
     let vueSetupActions = [];
     let vueSetupObjects = {};
@@ -28,6 +32,7 @@
     var vueUnmountedActions = [];
     var vueBeforeUpdateActions = [];
     var vueUpdatedActions = [];
+    /* eslint-enable no-unused-vars */
 </script>
 
 @* Pages or controls can update the global VUE objects

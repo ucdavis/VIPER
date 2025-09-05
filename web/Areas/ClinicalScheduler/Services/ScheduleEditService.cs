@@ -679,7 +679,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 }
 
                 // Get rotation name - explicitly load if not already loaded
-                var rotationName = "Unknown Rotation";
+                string rotationName;
                 if (schedule.Rotation != null)
                 {
                     rotationName = schedule.Rotation.Name;

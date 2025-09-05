@@ -25,6 +25,32 @@
         </text>
     }
     <link href="~/lib/quasar/dist/quasar.prod.css" rel="stylesheet" type="text/css">
+    <script src="~/js/ucdavis-colors.js"></script>
+    <script asp-add-nonce="true">
+        /* global window, document */
+        // Apply UC Davis brand colors immediately to prevent flash
+        // Must run after Quasar CSS loads but before page content renders
+        (function() {
+            // Use shared colors if available, otherwise fallback to hardcoded values
+            const colors = window.UCDavisBrandColors || {
+                primary: '#022851',      // UC Davis Blue 100 (Primary Aggie Blue)
+                secondary: '#4b6983',    // UC Davis Blue 70
+                accent: '#ffc519',       // UC Davis Gold 90
+                dark: '#1d1d1d',         // Dark background
+                'dark-page': '#121212',  // Darker page background
+                positive: '#226e34',     // Green for success states
+                negative: '#6e2222',     // Red for error states
+                info: '#289094',         // Teal for informational states
+                warning: '#ffc519'       // Gold for warning states
+            };
+
+            // Apply as CSS variables immediately before page renders
+            const root = document.documentElement;
+            Object.entries(colors).forEach(([key, value]) => {
+                root.style.setProperty('--q-' + key, value);
+            });
+        })();
+    </script>
 
     @RenderSection("Styles", required: false)
 
@@ -76,7 +102,7 @@
                         <span class="mainLayoutViperMode">Test</span>
                     }
                 </q-btn>
-               
+
                 @if (UserHelper.IsEmulating())
                 {
                     <q-banner dense rounded inline-actions class="bg-warning text-black q-ml-lg">
@@ -84,7 +110,7 @@
                     </q-banner>
                 }
                 <q-space></q-space>
-                
+
                 @*Don't show the search until it does something*@
                 @if (HttpHelper.Environment?.EnvironmentName == "Development")
                 {
@@ -107,16 +133,16 @@
             user = UserHelper.GetCurrentUser()
             }
             )
-            
+
         </q-header>
-       
+
         @await Component.InvokeAsync("LeftNav",
         new {
         user = UserHelper.GetCurrentUser(),
         nav = 0
         }
         )
-        
+
         <q-page-container id="mainLayoutBody">
             <div class="q-pa-md" v-cloak>
             @RenderBody()

@@ -31,21 +31,23 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
     }
 
     [Route("api/clinicalscheduler/rotations")]
-    [Permission(Allow = ClinicalSchedulePermissions.Manage)]
+    [Permission(Allow = ClinicalSchedulePermissions.Base)]
     public class RotationsController : BaseClinicalSchedulerController
     {
         private readonly ClinicalSchedulerContext _context;
         private readonly IWeekService _weekService;
         private readonly IRotationService _rotationService;
+        private readonly ISchedulePermissionService _permissionService;
 
         public RotationsController(ClinicalSchedulerContext context,
             IGradYearService gradYearService, IWeekService weekService, IRotationService rotationService,
-            ILogger<RotationsController> logger)
+            ISchedulePermissionService permissionService, ILogger<RotationsController> logger)
             : base(gradYearService, logger)
         {
             _context = context;
             _weekService = weekService;
             _rotationService = rotationService;
+            _permissionService = permissionService;
         }
 
 
@@ -83,8 +85,19 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     rotations = await _rotationService.GetRotationsAsync(activeOnly: true, HttpContext.RequestAborted);
                 }
 
+                // Filter rotations based on user permissions
+                var filteredRotations = new List<Viper.Models.ClinicalScheduler.Rotation>();
+                foreach (var rotation in rotations)
+                {
+                    // Check if user can edit this rotation's service
+                    if (await _permissionService.HasEditPermissionForServiceAsync(rotation.ServiceId, HttpContext.RequestAborted))
+                    {
+                        filteredRotations.Add(rotation);
+                    }
+                }
+
                 // Convert to DTOs for response
-                var rotationDtos = rotations.Select(r => new RotationDto
+                var rotationDtos = filteredRotations.Select(r => new RotationDto
                 {
                     RotId = r.RotId,
                     Name = r.Name,
@@ -328,8 +341,18 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         .ToListAsync();
                 }
 
-                _logger.LogInformation("Retrieved {Count} rotations with scheduled weeks for year {Year}", rotationsWithSchedules.Count, targetYear);
-                return Ok(rotationsWithSchedules);
+                // Filter results based on user permissions
+                var filteredRotations = new List<RotationDto>();
+                foreach (var rotation in rotationsWithSchedules)
+                {
+                    if (await _permissionService.HasEditPermissionForServiceAsync(rotation.ServiceId, HttpContext.RequestAborted))
+                    {
+                        filteredRotations.Add(rotation);
+                    }
+                }
+
+                _logger.LogInformation("Retrieved {Count} rotations with scheduled weeks for year {Year} (filtered to {FilteredCount})", rotationsWithSchedules.Count, targetYear, filteredRotations.Count);
+                return Ok(filteredRotations);
             }
             catch (Exception ex)
             {

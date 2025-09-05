@@ -1,215 +1,256 @@
 <template>
-    <div class="clinical-scheduler-container">
+    <div class="clinical-scheduler-container position-relative">
         <SchedulerNavigation />
 
-        <div class="row items-center q-mb-md">
-            <h2 class="col-auto q-pr-sm">Schedule Clinicians for</h2>
-            <div class="col-auto">
-                <RotationSelector
-                    v-model="selectedRotationId"
-                    :year="currentYear"
-                    :only-with-scheduled-weeks="true"
-                    @rotation-selected="onRotationSelected"
-                    style="min-width: 300px"
+        <!-- Access denied for users without rotation view permissions -->
+        <AccessDeniedCard
+            v-if="!permissionsStore.isLoading && !permissionsStore.canAccessRotationView"
+            :message="ACCESS_DENIED_MESSAGES.ROTATION_VIEW"
+            :subtitle="ACCESS_DENIED_SUBTITLES.ROTATION_VIEW"
+        >
+            <template #actions>
+                <q-btn
+                    color="primary"
+                    label="Return to Home"
+                    to="/ClinicalScheduler"
                 />
-            </div>
-            <div class="col-auto">
-                <YearSelector
-                    v-model="currentYear"
-                    @year-changed="onYearChange"
-                    style="min-width: 120px"
-                />
-            </div>
+            </template>
+        </AccessDeniedCard>
+
+        <!-- Loading permissions state -->
+        <div
+            v-else-if="permissionsStore.isLoading"
+            class="text-center q-my-lg"
+        >
+            <q-spinner-dots
+                size="3rem"
+                color="primary"
+            />
+            <div class="q-mt-md text-body1">Loading permissions...</div>
         </div>
 
-        <!-- Error display for rotation loading -->
-        <ScheduleBanner
-            v-if="error"
-            type="error"
-            :error-message="error"
-        >
-            <template #action>
-                <q-btn
-                    flat
-                    color="white"
-                    label="Retry"
-                    :loading="isLoading"
-                    @click="loadRotations"
-                />
-            </template>
-        </ScheduleBanner>
-
-        <!-- Read-only notice for past years -->
-        <ScheduleBanner
-            v-if="isPastYear"
-            type="read-only"
-        />
-
-        <!-- No rotation selected message -->
-        <ScheduleBanner
-            v-else-if="!selectedRotation"
-            type="info"
-            custom-message="Please select a rotation to view its schedule."
-        />
-
-        <!-- Instructions (only show when rotation is selected and not past year) -->
-        <ScheduleBanner
-            v-else-if="selectedRotation && !isPastYear"
-            type="instructions"
-            custom-message="This list of clinicians should contain any clinician scheduled for the rotation in the current or previous year. The user can click on a clinician to select them, and then click on any week to schedule them."
-        />
-
-        <!-- Clinician selector section (only show when rotation is selected and not past year) -->
-        <RecentSelections
-            v-if="selectedRotation && !isPastYear"
-            :items="clinicianItems"
-            :selected-item="selectedClinicianItem"
-            recent-label="Recent Clinicians:"
-            add-new-label="Add New Clinician:"
-            item-type="clinician"
-            item-key-field="fullName"
-            item-display-field="fullName"
-            label-spacing="md"
-            selector-spacing="lg"
-            @select-item="selectClinicianItem"
-            @clear-selection="clearClinicianSelection"
-        >
-            <template #selector>
-                <ClinicianSelector
-                    :model-value="null"
-                    :year="currentYear"
-                    :include-all-affiliates="includeAllAffiliates"
-                    @update:include-all-affiliates="includeAllAffiliates = $event"
-                    @change="onAddClinicianSelected"
-                    :affiliates-toggle-label="'Include all affiliates'"
-                    class="q-mt-none"
-                    style="min-width: 280px"
-                />
-            </template>
-        </RecentSelections>
-
-        <!-- No weeks scheduled message -->
-        <ScheduleBanner
-            v-if="selectedRotation && weeksBySeason.length === 0 && !isLoadingSchedule"
-            type="no-entries"
-            :custom-message="`${selectedRotation.name} has no weeks scheduled for ${currentYear}.`"
-        />
-
-        <!-- Season headers and week grids -->
-        <div v-if="selectedRotation && weeksBySeason.length > 0">
-            <div
-                v-for="season in weeksBySeason"
-                :key="season.name"
-            >
-                <h3>{{ season.displayName }}</h3>
-                <div class="row q-gutter-md q-mb-lg">
-                    <WeekScheduleCard
-                        v-for="week in season.weeks"
-                        :key="week.weekId"
-                        :week="week"
-                        :is-past-year="isPastYear"
-                        :additional-classes="{ 'requires-primary-card': requiresPrimaryEvaluator(week) }"
-                        @click="scheduleClinicianToWeek"
-                    >
-                        <template #week-icon="{ week: weekItem }">
-                            <q-icon
-                                v-if="requiresPrimaryEvaluator(weekItem)"
-                                name="warning"
-                                size="xs"
-                                color="orange"
-                                title="Primary evaluator required for this week"
+        <!-- Main content when user has access -->
+        <div v-else>
+            <div class="schedule-header">
+                <div class="row items-center q-mb-md q-gutter-md mobile-column">
+                    <div class="row items-center mobile-column q-gutter-md">
+                        <h2 class="q-pr-md q-my-none mobile-full-width">Schedule Clinicians for</h2>
+                        <div class="col-auto mobile-full-width">
+                            <RotationSelector
+                                v-model="selectedRotationId"
+                                :year="currentYear"
+                                :only-with-scheduled-weeks="true"
+                                @rotation-selected="onRotationSelected"
+                                style="min-width: 300px"
                             />
-                        </template>
-
-                        <template #assignments="{ week: weekItem }">
-                            <div
-                                v-if="getWeekAssignments(weekItem.weekId).length > 0"
-                                class="q-gutter-xs"
-                            >
-                                <div
-                                    v-for="assignment in getWeekAssignments(weekItem.weekId)"
-                                    :key="assignment.id"
-                                    class="assignment-item"
-                                >
-                                    <div class="row items-center q-gutter-xs">
-                                        <!-- Remove button - only show for current year -->
-                                        <q-icon
-                                            v-if="!isPastYear && !assignment.isPrimary"
-                                            name="close"
-                                            size="xs"
-                                            color="negative"
-                                            class="cursor-pointer"
-                                            title="Remove this clinician from the schedule."
-                                            aria-label="Remove clinician from schedule"
-                                            @click.stop="removeAssignment(assignment.id, assignment.clinicianName)"
-                                        />
-                                        <q-icon
-                                            v-else-if="!isPastYear && canEditRotation"
-                                            name="close"
-                                            size="xs"
-                                            color="grey-4"
-                                            title="Cannot remove primary clinician. Make another clinician primary first."
-                                            aria-label="Cannot remove primary clinician"
-                                        />
-
-                                        <span class="col text-body2">{{ assignment.clinicianName }}</span>
-
-                                        <!-- Primary star - for past years, only show filled stars without click handler -->
-                                        <q-icon
-                                            v-if="isPastYear && assignment.isPrimary"
-                                            name="star"
-                                            size="xs"
-                                            color="amber"
-                                            title="Primary evaluator"
-                                            aria-label="Primary evaluator"
-                                        />
-                                        <q-icon
-                                            v-else-if="!isPastYear && canEditRotation"
-                                            :name="assignment.isPrimary ? 'star' : 'star_outline'"
-                                            size="xs"
-                                            :color="assignment.isPrimary ? 'amber' : 'grey-5'"
-                                            class="cursor-pointer"
-                                            :title="
-                                                assignment.isPrimary
-                                                    ? 'Primary evaluator. To transfer primary status, click the star on another clinician.'
-                                                    : 'Click to make this clinician the primary evaluator.'
-                                            "
-                                            :aria-label="
-                                                assignment.isPrimary
-                                                    ? 'Primary evaluator - click to transfer to another clinician'
-                                                    : 'Click to make this clinician the primary evaluator'
-                                            "
-                                            @click.stop="
-                                                togglePrimary(
-                                                    assignment.id,
-                                                    assignment.isPrimary,
-                                                    assignment.clinicianName,
-                                                )
-                                            "
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div
-                                v-else
-                                class="text-center q-py-sm"
-                            >
-                                <div class="text-grey-6 text-caption">
-                                    {{ !isPastYear && canEditRotation ? "Click to add clinician" : "No assignments" }}
-                                </div>
-                            </div>
-                        </template>
-                    </WeekScheduleCard>
+                        </div>
+                        <div class="col-auto mobile-no-margin">
+                            <YearSelector
+                                v-model="currentYear"
+                                @year-changed="onYearChange"
+                                style="min-width: 120px"
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Legend -->
-        <ScheduleLegend
-            v-if="selectedRotation && weeksBySeason.length > 0"
-            :show-warning="true"
-        />
+            <!-- Permission info banner -->
+            <PermissionInfoBanner />
+
+            <!-- Error display for rotation loading -->
+            <ScheduleBanner
+                v-if="error"
+                type="error"
+                :error-message="error"
+            >
+                <template #action>
+                    <q-btn
+                        flat
+                        color="white"
+                        label="Retry"
+                        :loading="isLoading"
+                        @click="loadRotations"
+                    />
+                </template>
+            </ScheduleBanner>
+
+            <!-- Read-only notice for past years -->
+            <ScheduleBanner
+                v-if="isPastYear"
+                type="read-only"
+            />
+
+            <!-- No rotation selected message -->
+            <ScheduleBanner
+                v-else-if="!selectedRotation"
+                type="info"
+                custom-message="Please select a rotation to view its schedule."
+            />
+
+            <!-- Instructions (only show when rotation is selected and not past year) -->
+            <ScheduleBanner
+                v-else-if="selectedRotation && !isPastYear"
+                type="instructions"
+                custom-message="This list of clinicians should contain any clinician scheduled for the rotation in the current or previous year. The user can click on a clinician to select them, and then click on any week to schedule them."
+            />
+
+            <!-- Clinician selector section (only show when rotation is selected and not past year) -->
+            <RecentSelections
+                v-if="selectedRotation && !isPastYear"
+                :items="clinicianItems"
+                :selected-item="selectedClinicianItem"
+                recent-label="Recent Clinicians:"
+                add-new-label="Add New Clinician:"
+                item-type="clinician"
+                item-key-field="fullName"
+                item-display-field="fullName"
+                label-spacing="md"
+                selector-spacing="lg"
+                :is-loading="isLoadingSchedule"
+                empty-state-message="No recent clinicians. Please add a clinician below."
+                @select-item="selectClinicianItem"
+                @clear-selection="clearClinicianSelection"
+            >
+                <template #selector>
+                    <ClinicianSelector
+                        :model-value="null"
+                        :year="currentYear"
+                        :include-all-affiliates="includeAllAffiliates"
+                        @update:include-all-affiliates="includeAllAffiliates = $event"
+                        @change="onAddClinicianSelected"
+                        :affiliates-toggle-label="'Include all affiliates'"
+                        class="q-mt-none"
+                        style="min-width: 280px"
+                    />
+                </template>
+            </RecentSelections>
+
+            <!-- No weeks scheduled message -->
+            <ScheduleBanner
+                v-if="selectedRotation && weeksBySeason.length === 0 && !isLoadingSchedule"
+                type="no-entries"
+                :custom-message="`${selectedRotation.name} has no weeks scheduled for ${currentYear}.`"
+            />
+
+            <!-- Season headers and week grids -->
+            <div v-if="selectedRotation && weeksBySeason.length > 0">
+                <div
+                    v-for="season in weeksBySeason"
+                    :key="season.name"
+                >
+                    <h3>{{ season.displayName }}</h3>
+                    <div class="row q-gutter-md q-mb-lg">
+                        <WeekScheduleCard
+                            v-for="week in season.weeks"
+                            :key="week.weekId"
+                            :week="week"
+                            :is-past-year="isPastYear"
+                            :additional-classes="{ 'requires-primary-card': requiresPrimaryEvaluator(week) }"
+                            @click="scheduleClinicianToWeek"
+                        >
+                            <template #week-icon="{ week: weekItem }">
+                                <q-icon
+                                    v-if="requiresPrimaryEvaluator(weekItem)"
+                                    name="warning"
+                                    size="xs"
+                                    color="orange"
+                                    title="Primary evaluator required for this week"
+                                />
+                            </template>
+
+                            <template #assignments="{ week: weekItem }">
+                                <div
+                                    v-if="getWeekAssignments(weekItem.weekId).length > 0"
+                                    class="q-gutter-xs"
+                                >
+                                    <div
+                                        v-for="assignment in getWeekAssignments(weekItem.weekId)"
+                                        :key="assignment.id"
+                                        class="assignment-item"
+                                    >
+                                        <div class="row items-center q-gutter-xs">
+                                            <!-- Remove button - only show for current year -->
+                                            <q-icon
+                                                v-if="!isPastYear && !assignment.isPrimary"
+                                                name="close"
+                                                size="xs"
+                                                color="negative"
+                                                class="cursor-pointer"
+                                                title="Remove this clinician from the schedule."
+                                                aria-label="Remove clinician from schedule"
+                                                @click.stop="removeAssignment(assignment.id, assignment.clinicianName)"
+                                            />
+                                            <q-icon
+                                                v-else-if="!isPastYear && canEditRotation"
+                                                name="close"
+                                                size="xs"
+                                                color="grey-4"
+                                                title="Cannot remove primary clinician. Make another clinician primary first."
+                                                aria-label="Cannot remove primary clinician"
+                                            />
+
+                                            <span class="col text-body2">{{ assignment.clinicianName }}</span>
+
+                                            <!-- Primary star - for past years, only show filled stars without click handler -->
+                                            <q-icon
+                                                v-if="isPastYear && assignment.isPrimary"
+                                                name="star"
+                                                size="xs"
+                                                color="amber"
+                                                title="Primary evaluator"
+                                                aria-label="Primary evaluator"
+                                            />
+                                            <q-icon
+                                                v-else-if="!isPastYear && canEditRotation"
+                                                :name="assignment.isPrimary ? 'star' : 'star_outline'"
+                                                size="xs"
+                                                :color="assignment.isPrimary ? 'amber' : 'grey-5'"
+                                                class="cursor-pointer"
+                                                :title="
+                                                    assignment.isPrimary
+                                                        ? 'Primary evaluator. To transfer primary status, click the star on another clinician.'
+                                                        : 'Click to make this clinician the primary evaluator.'
+                                                "
+                                                :aria-label="
+                                                    assignment.isPrimary
+                                                        ? 'Primary evaluator - click to transfer to another clinician'
+                                                        : 'Click to make this clinician the primary evaluator'
+                                                "
+                                                @click.stop="
+                                                    togglePrimary(
+                                                        assignment.id,
+                                                        assignment.isPrimary,
+                                                        assignment.clinicianName,
+                                                    )
+                                                "
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    v-else
+                                    class="text-center q-py-sm"
+                                >
+                                    <div class="text-grey-6 text-caption">
+                                        {{
+                                            !isPastYear && canEditRotation ? "Click to add clinician" : "No assignments"
+                                        }}
+                                    </div>
+                                </div>
+                            </template>
+                        </WeekScheduleCard>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <ScheduleLegend
+                v-if="selectedRotation && weeksBySeason.length > 0"
+                :show-warning="true"
+            />
+        </div>
     </div>
 </template>
 
@@ -232,6 +273,9 @@ import SchedulerNavigation from "../components/SchedulerNavigation.vue"
 import WeekScheduleCard, { type WeekItem } from "../components/WeekScheduleCard.vue"
 import ScheduleBanner from "../components/ScheduleBanner.vue"
 import RecentSelections from "../components/RecentSelections.vue"
+import PermissionInfoBanner from "../components/PermissionInfoBanner.vue"
+import AccessDeniedCard from "../components/AccessDeniedCard.vue"
+import { ACCESS_DENIED_MESSAGES, ACCESS_DENIED_SUBTITLES } from "../constants/permission-messages"
 
 // Router and Quasar
 const route = useRoute()
@@ -797,4 +841,27 @@ onMounted(async () => {
 <style scoped>
 /* Import shared schedule styles */
 @import url("../assets/schedule-shared.css");
+
+/* No access section */
+.no-access-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 40px;
+}
+
+.no-access-card {
+    max-width: 400px;
+    padding: 20px;
+}
+
+.no-access-card h3 {
+    color: var(--ucdavis-black-80);
+    margin-bottom: 16px;
+    font-size: 20px;
+}
+
+.no-access-card p {
+    margin-bottom: 12px;
+    color: var(--ucdavis-black-60);
+}
 </style>

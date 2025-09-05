@@ -58,6 +58,37 @@
                 </div>
             </template>
         </q-select>
+
+        <!-- Permission feedback messages using Quasar components -->
+        <div
+            v-if="shouldShowPermissionInfo"
+            class="rotation-permission-info"
+        >
+            <q-chip
+                v-if="permissionsStore.hasOnlyServiceSpecificPermissions"
+                icon="business"
+                color="positive"
+                text-color="white"
+                size="sm"
+                dense
+            >
+                Showing {{ filteredRotations.length }} of {{ totalRotations }} rotations ({{
+                    permissionsStore.getEditableServicesDisplay()
+                }}
+                only)
+            </q-chip>
+
+            <q-chip
+                v-else-if="permissionsStore.hasFullAccessPermission && hasFilteredRotations"
+                icon="check_circle"
+                color="primary"
+                text-color="white"
+                size="sm"
+                dense
+            >
+                Showing all {{ filteredRotations.length }} available rotations
+            </q-chip>
+        </div>
     </div>
 </template>
 
@@ -133,6 +164,16 @@ const permissionFilteredRotations = computed(() => {
         // Check if user has permission to edit this rotation's service
         return permissionsStore.canEditService(rotation.serviceId)
     })
+})
+
+// Permission info computed properties
+const totalRotations = computed(() => rotations.value.length)
+
+const hasFilteredRotations = computed(() => filteredRotations.value.length > 0 && rotations.value.length > 0)
+
+const shouldShowPermissionInfo = computed(() => {
+    // Show permission info when rotations are loaded and not in error state
+    return !isLoading.value && !error.value && rotations.value.length > 0
 })
 
 // Methods
@@ -273,5 +314,26 @@ onMounted(async () => {
 <style scoped>
 .rotation-selector {
     max-width: 400px;
+    position: relative;
+}
+
+/* Permission info positioned absolutely like ClinicianSelector checkbox */
+.rotation-permission-info {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: -18px;
+    margin-left: 12px;
+    padding: 2px 4px;
+    font-size: 12px;
+    z-index: 1;
+    background: white;
+}
+
+/* Responsive adjustments */
+@media (width <= 600px) {
+    .rotation-selector {
+        max-width: 100%;
+    }
 }
 </style>

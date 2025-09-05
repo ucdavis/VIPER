@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.Curriculum.Services;
+using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
@@ -10,7 +11,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
     [Route("api/[area]/[controller]")]
     [ApiController]
     [Area("ClinicalScheduler")]
-    [Permission(Allow = ClinicalSchedulePermissions.Manage)]
+    [Permission(Allow = ClinicalSchedulePermissions.Base)]
     public class CliniciansController : BaseClinicalSchedulerController
     {
         #region Constants
@@ -26,15 +27,18 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         private readonly AAUDContext _aaudContext; // Legacy context for fallback clinician lookup
         private readonly IWeekService _weekService;
         private readonly IPersonService _personService;
+        private readonly IUserHelper _userHelper;
 
         public CliniciansController(ClinicalSchedulerContext context, AAUDContext aaudContext, ILogger<CliniciansController> logger,
-            IGradYearService gradYearService, IWeekService weekService, IPersonService personService)
+            IGradYearService gradYearService, IWeekService weekService, IPersonService personService,
+            IUserHelper? userHelper = null)
             : base(gradYearService, logger)
         {
             _context = context;
             _aaudContext = aaudContext;
             _weekService = weekService;
             _personService = personService;
+            _userHelper = userHelper ?? new UserHelper();
         }
 
         /// <summary>
@@ -53,20 +57,23 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 var currentGradYear = await GetCurrentGradYearAsync();
                 var targetYear = year ?? currentGradYear;
 
-                _logger.LogInformation("GetClinicians endpoint called with year: {Year}, includeAllAffiliates: {IncludeAllAffiliates}", targetYear, includeAllAffiliates);
+                _logger.LogDebug("GetClinicians endpoint called with year: {Year}, includeAllAffiliates: {IncludeAllAffiliates}", targetYear, includeAllAffiliates);
 
                 if (targetYear >= currentGradYear)
                 {
                     // Current or future year: use PersonService to get clinicians from Clinical Scheduler data
-                    _logger.LogInformation("Using PersonService to get clinicians for current/future year {Year} (includeAllAffiliates: {IncludeAllAffiliates})", targetYear, includeAllAffiliates);
+                    _logger.LogDebug("Using PersonService to get clinicians for current/future year {Year} (includeAllAffiliates: {IncludeAllAffiliates})", targetYear, includeAllAffiliates);
 
                     // Note: includeAllAffiliates parameter is kept for API compatibility
                     // but PersonService only has access to clinicians who have been scheduled
                     // This is actually better data quality since it's clinicians actually involved in scheduling
                     var clinicians = await GetAllCliniciansAsync(includeAllAffiliates);
 
+                    // Filter clinicians based on user permissions
+                    var filteredClinicians = FilterCliniciansByPermissions(clinicians);
+
                     // Convert to the expected response format
-                    var result = clinicians.Select(c => new
+                    var result = filteredClinicians.Select(c => new
                     {
                         MothraId = c.MothraId,
                         FullName = c.FullName,
@@ -74,18 +81,22 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         LastName = c.LastName
                     }).ToList();
 
-                    _logger.LogInformation("Retrieved {TotalClinicianCount} unique clinicians from PersonService", result.Count);
+                    _logger.LogDebug("Retrieved {TotalClinicianCount} unique clinicians from PersonService (filtered to {FilteredCount} based on permissions)",
+                        clinicians.Count, result.Count);
                     return Ok(result);
                 }
                 else
                 {
                     // Past year: use PersonService to get clinicians for specific year
-                    _logger.LogInformation("Using PersonService to get clinicians for past year {Year}", targetYear);
+                    _logger.LogDebug("Using PersonService to get clinicians for past year {Year}", targetYear);
 
                     var clinicians = await _personService.GetCliniciansByYearAsync(targetYear, HttpContext.RequestAborted);
 
+                    // Filter clinicians based on user permissions
+                    var filteredClinicians = FilterCliniciansByPermissions(clinicians);
+
                     // Convert to the expected response format
-                    var result = clinicians.Select(c => new
+                    var result = filteredClinicians.Select(c => new
                     {
                         MothraId = c.MothraId,
                         FullName = c.FullName,
@@ -93,7 +104,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         LastName = c.LastName
                     }).ToList();
 
-                    _logger.LogInformation("Found {ClinicianCount} clinicians for year {Year}", result.Count, targetYear);
+                    _logger.LogDebug("Found {ClinicianCount} clinicians for year {Year} (filtered to {FilteredCount} based on permissions)",
+                        clinicians.Count, targetYear, result.Count);
                     return Ok(result);
                 }
             }
@@ -112,6 +124,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <returns>Schedule information for the clinician grouped by semester</returns>
         [HttpGet("{mothraId}/schedule")]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetClinicianSchedule(string mothraId, [FromQuery] int? year = null)
         {
@@ -119,14 +132,21 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
             try
             {
+                // Check if user has permission to view this clinician's schedule
+                var hasPermission = CheckClinicianScheduleViewPermission(mothraId);
+                if (!hasPermission)
+                {
+                    _logger.LogWarning("User does not have permission to view schedule for clinician {MothraId}", mothraId);
+                    return Forbid("You do not have permission to view this clinician's schedule.");
+                }
                 // Use grad year logic instead of calendar year
                 var targetYear = await GetTargetYearAsync(year);
-                _logger.LogInformation("Fetching schedule for clinician {MothraId}, grad year: {Year}", mothraId, targetYear);
+                _logger.LogDebug("Fetching schedule for clinician {MothraId}, grad year: {Year}", mothraId, targetYear);
 
                 // Get weeks for the grad year using vWeek view (contains correct week numbers)
                 var vWeeks = await _weekService.GetWeeksAsync(targetYear, includeExtendedRotation: true);
 
-                _logger.LogInformation("Retrieved {WeekCount} weeks for year {Year}, unique WeekIds: {UniqueCount}",
+                _logger.LogDebug("Retrieved {WeekCount} weeks for year {Year}, unique WeekIds: {UniqueCount}",
                     vWeeks.Count, targetYear, vWeeks.Select(w => w.WeekId).Distinct().Count());
 
                 if (!vWeeks.Any())
@@ -166,7 +186,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 if (!schedules.Any())
                 {
-                    _logger.LogInformation("No schedules found for clinician {MothraId} - returning empty schedule", mothraId);
+                    _logger.LogDebug("No schedules found for clinician {MothraId} - returning empty schedule", mothraId);
 
                     // Use PersonService to get clinician info (same data source as GetClinicians endpoint)
                     clinicianInfo = await BuildClinicianInfoAsync(mothraId);
@@ -214,7 +234,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 // Always show ALL weeks for the grad year with assignments where they exist
                 // Create a lookup for existing schedules by weekId (should be unique now after grad year filtering)
-                _logger.LogInformation("Retrieved {ScheduleCount} schedules for clinician {MothraId}", schedules.Count, mothraId);
+                _logger.LogDebug("Retrieved {ScheduleCount} schedules for clinician {MothraId}", schedules.Count, mothraId);
 
                 // Debug: Check for duplicate WeekIds in schedules
                 var weekIdCounts = schedules.GroupBy(s => s.WeekId).Where(g => g.Count() > 1).ToList();
@@ -238,7 +258,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     .GroupBy(s => s.WeekId)
                     .ToDictionary(g => g.Key, g => g.ToList());
 
-                _logger.LogInformation("Grouped {ScheduleCount} schedules into {WeekCount} weeks for clinician {MothraId}",
+                _logger.LogDebug("Grouped {ScheduleCount} schedules into {WeekCount} weeks for clinician {MothraId}",
                     schedules.Count, schedulesByWeekId.Count, mothraId);
 
                 // Pre-calculate semester names for all weeks to avoid repeated calls
@@ -258,14 +278,13 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         {
                             rotations.TryGetValue(schedule.RotationId, out var rotation);
                             // Always return a rotation object even if lookup fails
+                            // Determine rotation name with fallback logic
+                            var rotationName = GetRotationDisplayName(rotation, schedule.RotationId);
+
                             return new
                             {
                                 rotationId = schedule.RotationId,
-                                name = rotation != null && !string.IsNullOrEmpty(rotation.Name)
-                                    ? rotation.Name
-                                    : (rotation != null && !string.IsNullOrEmpty(rotation.Abbreviation)
-                                        ? rotation.Abbreviation
-                                        : $"Rotation {schedule.RotationId}"),
+                                name = rotationName,
                                 abbreviation = rotation?.Abbreviation ?? "",
                                 serviceId = rotation?.ServiceId ?? 0,
                                 serviceName = rotation?.Service?.ServiceName ?? "",
@@ -301,7 +320,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         semester = g.Key,
                         weeks = g.Select(item => item.Week).OrderBy(w => w.dateStart).ToList()
                     })
-                    .OrderBy(g => g.weeks.Any() ? g.weeks.Min(w => w.dateStart) : DateTime.MaxValue)
+                    .OrderBy(g =>
+                    {
+                        return g.weeks.Any() ? g.weeks.Min(w => w.dateStart) : DateTime.MaxValue;
+                    })
                     .Cast<object>()
                     .ToList();
 
@@ -312,7 +334,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     schedulesBySemester = groupedSchedules
                 };
 
-                _logger.LogInformation("Found {ScheduleCount} schedule entries for clinician {MothraId} (grad year {Year})",
+                _logger.LogDebug("Found {ScheduleCount} schedule entries for clinician {MothraId} (grad year {Year})",
                     schedules.Count, mothraId, targetYear);
                 return Ok(result);
             }
@@ -334,7 +356,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         {
             try
             {
-                _logger.LogInformation("Fetching rotations for clinician {MothraId}", mothraId);
+                _logger.LogDebug("Fetching rotations for clinician {MothraId}", mothraId);
 
                 // Get unique rotation IDs for this clinician
                 var rotationIds = await _context.InstructorSchedules
@@ -358,7 +380,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     .ThenBy(r => r.RotationName)
                     .ToList();
 
-                _logger.LogInformation("Found {RotationCount} unique rotations for clinician {MothraId}", rotations.Count, mothraId);
+                _logger.LogDebug("Found {RotationCount} unique rotations for clinician {MothraId}", rotations.Count, mothraId);
                 return Ok(rotations);
             }
             catch (Exception ex)
@@ -379,7 +401,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             if (includeAllAffiliates)
             {
                 // When includeAllAffiliates is true, fetch active employee affiliates from AAUD database
-                _logger.LogInformation("Fetching all active employee affiliates from AAUD database");
+                _logger.LogDebug("Fetching all active employee affiliates from AAUD database");
 
                 var allAffiliates = await _aaudContext.AaudUsers
                     .AsNoTracking()
@@ -397,7 +419,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     .ThenBy(c => c.FirstName)
                     .ToListAsync(HttpContext.RequestAborted);
 
-                _logger.LogInformation("Found {Count} active employee affiliates from AAUD", allAffiliates.Count);
+                _logger.LogDebug("Found {Count} active employee affiliates from AAUD", allAffiliates.Count);
                 return allAffiliates;
             }
             else
@@ -417,7 +439,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                                !c.FullName.StartsWith("Clinician ", StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
-                _logger.LogInformation("Filtered {Original} scheduled clinicians to {Filtered} with proper names",
+                _logger.LogDebug("Filtered {Original} scheduled clinicians to {Filtered} with proper names",
                     scheduledClinicians.Count, cliniciansWithNames.Count);
 
                 return cliniciansWithNames;
@@ -548,5 +570,137 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             // Fallback to fullName (which is "First Last" format) or mothraId
             return !string.IsNullOrWhiteSpace(fullName) ? fullName : $"Clinician {mothraId}";
         }
+
+        /// <summary>
+        /// Filter clinicians based on user permissions. 
+        /// Users with EditOwnSchedule permission should only see themselves.
+        /// </summary>
+        /// <param name="clinicians">List of all available clinicians</param>
+        /// <returns>Filtered list of clinicians based on user permissions</returns>
+        private IEnumerable<ClinicianSummary> FilterCliniciansByPermissions(IEnumerable<ClinicianSummary> clinicians)
+        {
+            try
+            {
+                var currentUser = _userHelper.GetCurrentUser();
+                if (currentUser == null)
+                {
+                    _logger.LogWarning("No current user found when filtering clinicians");
+                    return clinicians; // Return all if no user context
+                }
+
+                // Get RAPS context to check permissions
+                var rapsContext = HttpContext.RequestServices.GetRequiredService<RAPSContext>();
+
+                // Check permission levels
+                var hasAdminPermission = _userHelper.HasPermission(rapsContext, currentUser, ClinicalSchedulePermissions.Admin);
+                var hasManagePermission = _userHelper.HasPermission(rapsContext, currentUser, ClinicalSchedulePermissions.Manage);
+                var hasEditClnSchedulesPermission = _userHelper.HasPermission(rapsContext, currentUser, ClinicalSchedulePermissions.EditClnSchedules);
+                var hasEditOwnSchedulePermission = _userHelper.HasPermission(rapsContext, currentUser, ClinicalSchedulePermissions.EditOwnSchedule);
+
+                // Users with EditOwnSchedule permission only (no higher permissions) should only see themselves
+                if (hasEditOwnSchedulePermission &&
+                    !hasAdminPermission &&
+                    !hasManagePermission &&
+                    !hasEditClnSchedulesPermission)
+                {
+                    _logger.LogDebug("Filtering clinicians for own-schedule-only user {MothraId}", currentUser.MothraId);
+
+                    // Filter to only the current user
+                    var filteredClinicians = clinicians.Where(c => c.MothraId == currentUser.MothraId).ToList();
+
+                    _logger.LogDebug("Filtered {Original} clinicians to {Filtered} for own-schedule-only user",
+                        clinicians.Count(), filteredClinicians.Count);
+
+                    return filteredClinicians;
+                }
+
+                // All other users (Admin, Manage, EditClnSchedules, or service-specific permissions) see all clinicians
+                return clinicians;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error filtering clinicians by permissions. Returning unfiltered list.");
+                return clinicians; // Return unfiltered list on error to avoid breaking functionality
+            }
+        }
+
+        /// <summary>
+        /// Check if the current user has permission to view a specific clinician's schedule.
+        /// Users with EditOwnSchedule permission can only view their own schedule.
+        /// </summary>
+        /// <param name="targetMothraId">The MothraId of the clinician whose schedule is being requested</param>
+        /// <returns>True if user has permission, false otherwise</returns>
+        private bool CheckClinicianScheduleViewPermission(string targetMothraId)
+        {
+            try
+            {
+                var currentUser = _userHelper.GetCurrentUser();
+                if (currentUser == null)
+                {
+                    _logger.LogWarning("No current user found when checking clinician schedule view permission");
+                    return false;
+                }
+
+                // Get RAPS context to check permissions
+                var rapsContext = HttpContext.RequestServices.GetRequiredService<RAPSContext>();
+
+                // Check permission levels
+                var hasAdminPermission = _userHelper.HasPermission(rapsContext, currentUser, ClinicalSchedulePermissions.Admin);
+                var hasManagePermission = _userHelper.HasPermission(rapsContext, currentUser, ClinicalSchedulePermissions.Manage);
+                var hasEditClnSchedulesPermission = _userHelper.HasPermission(rapsContext, currentUser, ClinicalSchedulePermissions.EditClnSchedules);
+                var hasEditOwnSchedulePermission = _userHelper.HasPermission(rapsContext, currentUser, ClinicalSchedulePermissions.EditOwnSchedule);
+
+                // Users with higher permissions can view any clinician's schedule
+                if (hasAdminPermission || hasManagePermission || hasEditClnSchedulesPermission)
+                {
+                    _logger.LogDebug("User {MothraId} has elevated permissions, allowing access to view schedule for {TargetMothraId}",
+                        currentUser.MothraId, targetMothraId);
+                    return true;
+                }
+
+                // Users with EditOwnSchedule permission can only view their own schedule
+                if (hasEditOwnSchedulePermission)
+                {
+                    var canViewOwnSchedule = currentUser.MothraId.Equals(targetMothraId, StringComparison.OrdinalIgnoreCase);
+                    _logger.LogDebug("User {MothraId} has EditOwnSchedule permission. Can view schedule for {TargetMothraId}: {CanView}",
+                        currentUser.MothraId, targetMothraId, canViewOwnSchedule);
+                    return canViewOwnSchedule;
+                }
+
+                // Check if user has service-specific permissions that would allow them to view this clinician
+                // This would be handled by existing service-level permission logic (if implemented)
+                // For now, deny access if no specific permissions are found
+                _logger.LogDebug("User {MothraId} has no applicable permissions to view schedule for {TargetMothraId}",
+                    currentUser.MothraId, targetMothraId);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking clinician schedule view permission for target {TargetMothraId}", targetMothraId);
+                return false; // Deny access on error
+            }
+        }
+
+        /// <summary>
+        /// Gets the display name for a rotation with fallback logic
+        /// </summary>
+        /// <param name="rotation">The rotation entity (may be null)</param>
+        /// <param name="rotationId">The rotation ID for fallback display</param>
+        /// <returns>Display name for the rotation</returns>
+        private static string GetRotationDisplayName(Rotation? rotation, int rotationId)
+        {
+            if (rotation != null && !string.IsNullOrEmpty(rotation.Name))
+            {
+                return rotation.Name;
+            }
+
+            if (rotation != null && !string.IsNullOrEmpty(rotation.Abbreviation))
+            {
+                return rotation.Abbreviation;
+            }
+
+            return $"Rotation {rotationId}";
+        }
+
     }
 }
