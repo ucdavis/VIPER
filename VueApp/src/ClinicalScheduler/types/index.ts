@@ -26,7 +26,10 @@ interface User {
 interface UserPermissions {
     user: User
     permissions: {
+        hasAdminPermission: boolean
         hasManagePermission: boolean
+        hasEditClnSchedulesPermission: boolean
+        hasEditOwnSchedulePermission: boolean
         servicePermissions: Record<number, boolean>
         editableServiceCount: number
     }
@@ -43,6 +46,12 @@ interface ServicePermissionCheck {
 interface RotationPermissionCheck {
     rotationId: number
     canEdit: boolean
+    user: User
+}
+
+interface InstructorSchedulePermissionCheck {
+    instructorScheduleId: number
+    canEditOwn: boolean
     user: User
 }
 
@@ -107,6 +116,7 @@ export {
     type UserPermissions,
     type ServicePermissionCheck,
     type RotationPermissionCheck,
+    type InstructorSchedulePermissionCheck,
     type PermissionSummary,
     type InstructorScheduleRequest,
     type InstructorScheduleResponse,

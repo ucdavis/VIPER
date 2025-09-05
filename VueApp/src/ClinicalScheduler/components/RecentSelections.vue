@@ -4,7 +4,7 @@
         flat
         bordered
     >
-        <q-card-section class="q-pa-sm">
+        <q-card-section class="q-pa-sm q-pb-md">
             <div class="column q-gutter-sm">
                 <!-- Recent items section -->
                 <div>
@@ -26,6 +26,7 @@
                         </q-btn>
                     </div>
                     <div class="q-gutter-none">
+                        <!-- Show chips when items exist -->
                         <q-chip
                             v-for="item in items"
                             :key="getItemKey(item)"
@@ -39,6 +40,14 @@
                         >
                             {{ getItemDisplayName(item) }}
                         </q-chip>
+
+                        <!-- Show empty state message when no items and not loading -->
+                        <div
+                            v-if="!isLoading && items.length === 0"
+                            class="text-grey-6 text-body2 q-py-sm"
+                        >
+                            {{ emptyStateMessage }}
+                        </div>
                     </div>
                 </div>
 
@@ -77,10 +86,14 @@ const props = withDefaults(
         itemDisplayField: keyof T
         labelSpacing?: "xs" | "sm" | "md" | "lg"
         selectorSpacing?: "none" | "xs" | "sm" | "md" | "lg"
+        isLoading?: boolean
+        emptyStateMessage?: string
     }>(),
     {
         labelSpacing: "xs",
         selectorSpacing: "none",
+        isLoading: false,
+        emptyStateMessage: "",
     },
 )
 

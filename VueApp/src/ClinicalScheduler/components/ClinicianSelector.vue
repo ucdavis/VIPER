@@ -1,6 +1,31 @@
 <template>
     <div class="clinician-selector-with-toggle">
+        <!-- Read-only display for own-schedule users -->
+        <div
+            v-if="props.isOwnScheduleOnly"
+            class="own-schedule-display"
+        >
+            <q-field
+                dense
+                filled
+                class="own-schedule-field"
+            >
+                <template #control>
+                    <div class="self-center full-width no-outline q-pa-xs">
+                        <div class="text-body1">
+                            {{ props.modelValue?.fullName || "Loading..." }}
+                        </div>
+                    </div>
+                </template>
+                <template #prepend>
+                    <q-icon name="person" />
+                </template>
+            </q-field>
+        </div>
+
+        <!-- Regular searchable select for users with broader permissions -->
         <q-select
+            v-else
             ref="clinicianSelect"
             v-model="selectedClinician"
             :options="props.includeAllAffiliates ? clinicians : filteredClinicians"
@@ -70,7 +95,7 @@
 
         <!-- Include All Affiliates Toggle -->
         <div
-            v-if="showAffiliatesToggle"
+            v-if="showAffiliatesToggle && !props.isOwnScheduleOnly"
             class="affiliates-toggle-under-field"
         >
             <q-checkbox
@@ -90,6 +115,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from "vue"
 import { ClinicianService, type Clinician } from "../services/clinician-service"
+import { usePermissionsStore } from "../stores/permissions"
 import type { QSelect } from "quasar"
 
 interface Props {
@@ -98,6 +124,7 @@ interface Props {
     includeAllAffiliates?: boolean
     showAffiliatesToggle?: boolean
     affiliatesToggleLabel?: string
+    isOwnScheduleOnly?: boolean
     isPastYear?: boolean
 }
 
@@ -107,6 +134,7 @@ const props = withDefaults(defineProps<Props>(), {
     includeAllAffiliates: false,
     showAffiliatesToggle: true,
     affiliatesToggleLabel: "Include all affiliates",
+    isOwnScheduleOnly: false,
     isPastYear: false,
 })
 
@@ -116,6 +144,9 @@ const emit = defineEmits<{
     "update:include-all-affiliates": [value: boolean]
     "clinicians-loaded": [clinicians: Clinician[]]
 }>()
+
+// Store
+const permissionsStore = usePermissionsStore()
 
 // Reactive data
 const clinicianSelect = ref<QSelect | null>(null)
@@ -160,7 +191,7 @@ const fetchClinicians = async () => {
         })
         if (result.success) {
             // Filter out records with empty/blank names and sort by lastName, firstName
-            const validClinicians = result.result
+            let validClinicians = result.result
                 .filter(
                     (clinician) =>
                         clinician.fullName &&
@@ -172,6 +203,38 @@ const fetchClinicians = async () => {
                     const lastNameCompare = a.lastName.localeCompare(b.lastName)
                     return lastNameCompare !== 0 ? lastNameCompare : a.firstName.localeCompare(b.firstName)
                 })
+
+            // For own-schedule users, only show the current user
+            if (props.isOwnScheduleOnly && permissionsStore.userPermissions?.user?.mothraId) {
+                const currentUserMothraId = permissionsStore.userPermissions.user.mothraId
+                const currentUserDisplayName = permissionsStore.userPermissions.user.displayName
+
+                const userClinician = validClinicians.find((clinician) => clinician.mothraId === currentUserMothraId)
+
+                if (userClinician) {
+                    // User found in clinicians list
+                    validClinicians = [userClinician]
+
+                    // Auto-select the current user immediately if not already selected
+                    if (!props.modelValue) {
+                        emit("update:modelValue", userClinician)
+                    }
+                } else {
+                    // User not found - create a synthetic clinician entry
+                    const syntheticClinician = {
+                        mothraId: currentUserMothraId,
+                        fullName: currentUserDisplayName || "You",
+                        firstName: currentUserDisplayName?.split(" ")[0] || "User",
+                        lastName: currentUserDisplayName?.split(" ").slice(1).join(" ") || "",
+                    }
+                    validClinicians = [syntheticClinician]
+
+                    // Auto-select the synthetic user immediately
+                    if (!props.modelValue) {
+                        emit("update:modelValue", syntheticClinician)
+                    }
+                }
+            }
 
             clinicians.value = validClinicians
             filteredClinicians.value = validClinicians

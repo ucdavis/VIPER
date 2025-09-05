@@ -38,6 +38,7 @@ namespace Viper.test.ClinicalScheduler
             // Arrange
             var mockRotationLogger = new Mock<ILogger<RotationService>>();
             var rotationService = new RotationService(mockRotationLogger.Object, _context);
+            var mockPermissionService = new Mock<ISchedulePermissionService>();
 
             // Act
             var controller = new RotationsController(
@@ -45,6 +46,7 @@ namespace Viper.test.ClinicalScheduler
                 _gradYearService,
                 _weekService,
                 rotationService,
+                mockPermissionService.Object,
                 _mockLogger.Object);
 
             // Assert
@@ -63,7 +65,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Assert
             Assert.NotNull(permissionAttribute);
-            Assert.Equal(ClinicalSchedulePermissions.Manage, permissionAttribute.Allow);
+            Assert.Equal(ClinicalSchedulePermissions.Base, permissionAttribute.Allow);
         }
 
         [Fact]
@@ -185,11 +187,13 @@ namespace Viper.test.ClinicalScheduler
             // Arrange
             var mockRotationLogger = new Mock<ILogger<RotationService>>();
             var rotationService = new RotationService(mockRotationLogger.Object, _context);
+            var mockPermissionService = new Mock<ISchedulePermissionService>();
             _ = new RotationsController(
                 _context,
                 _gradYearService,
                 _weekService,
                 rotationService,
+                mockPermissionService.Object,
                 _mockLogger.Object);
 
             // Act & Assert
@@ -205,11 +209,13 @@ namespace Viper.test.ClinicalScheduler
             // Arrange
             var mockRotationLogger = new Mock<ILogger<RotationService>>();
             var rotationService = new RotationService(mockRotationLogger.Object, _context);
+            var mockPermissionService = new Mock<ISchedulePermissionService>();
             _ = new RotationsController(
                 _context,
                 _gradYearService,
                 _weekService,
                 rotationService,
+                mockPermissionService.Object,
                 _mockLogger.Object);
 
             // Act & Assert

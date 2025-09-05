@@ -44,5 +44,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Required permission string, or default manage permission if none specified</returns>
         Task<string> GetRequiredPermissionForServiceAsync(int serviceId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Check if the current user can edit their own schedule for a specific instructor schedule entry
+        /// </summary>
+        /// <param name="instructorScheduleId">Instructor schedule ID to check</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>True if current user can edit their own schedule for this entry</returns>
+        Task<bool> CanEditOwnScheduleAsync(int instructorScheduleId, CancellationToken cancellationToken = default);
     }
 }

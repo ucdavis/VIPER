@@ -149,5 +149,9 @@ export default defineConfig(({ mode }) => {
             __VUE_PROD_DEVTOOLS__: mode !== "production",
         },
         base: "/2/vue/",
+        test: {
+            environment: "happy-dom",
+            globals: true,
+        },
     }
 })

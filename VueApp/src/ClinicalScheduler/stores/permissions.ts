@@ -1,17 +1,19 @@
 import { defineStore } from "pinia"
 import { ref, computed, readonly } from "vue"
-import { permissionService } from "../services/permission-service"
-import type {
-    UserPermissions,
-    ServicePermissionCheck,
-    RotationPermissionCheck,
-    PermissionSummary,
-    User,
-    Service,
-} from "../types"
+import {
+    hasFullAccess,
+    hasAnyEditing,
+    hasOnlyServicePermissions,
+    hasOnlyOwnPermission,
+    hasLimitedPermissions,
+} from "./permissions-helpers"
+import { createPermissionActions } from "./permissions-actions"
+import type { PermissionsState } from "./permissions-actions"
+import { createPermissionUtils } from "./permissions-utils"
+import type { UserPermissions, PermissionSummary, User, Service } from "../types"
 
 // Helper functions extracted to reduce main store function size
-function createPermissionsState() {
+function createPermissionsState(): PermissionsState {
     return {
         userPermissions: ref<UserPermissions | null>(null),
         permissionSummary: ref<PermissionSummary | null>(null),
@@ -20,147 +22,159 @@ function createPermissionsState() {
     }
 }
 
-function createPermissionsGetters(state: ReturnType<typeof createPermissionsState>) {
+/**
+ * Creates basic permission getters for individual permission flags and user data
+ */
+function createBasicPermissionGetters(state: PermissionsState) {
     return {
         user: computed<User | null>(() => state.userPermissions.value?.user || null),
+        hasAdminPermission: computed<boolean>(
+            () => state.userPermissions.value?.permissions.hasAdminPermission || false,
+        ),
         hasManagePermission: computed<boolean>(
             () => state.userPermissions.value?.permissions.hasManagePermission || false,
         ),
-        editableServices: computed<Service[]>(() => state.userPermissions.value?.editableServices || []),
-        editableServiceCount: computed<number>(
-            () => state.userPermissions.value?.permissions.editableServiceCount || 0,
+        hasEditClnSchedulesPermission: computed<boolean>(
+            () => state.userPermissions.value?.permissions.hasEditClnSchedulesPermission || false,
         ),
+        hasEditOwnSchedulePermission: computed<boolean>(
+            () => state.userPermissions.value?.permissions.hasEditOwnSchedulePermission || false,
+        ),
+        editableServices: computed<Service[]>(() => state.userPermissions.value?.editableServices || []),
+        editableServiceCount: computed<number>(() => state.userPermissions.value?.editableServices?.length || 0),
         servicePermissions: computed<Record<number, boolean>>(
             () => state.userPermissions.value?.permissions.servicePermissions || {},
         ),
     }
 }
 
-// Helper function to create permission actions
-function createPermissionActions(state: ReturnType<typeof createPermissionsState>) {
-    const { userPermissions, permissionSummary, isLoading, error: errorState } = state
-
-    async function fetchUserPermissions(): Promise<UserPermissions | null> {
-        try {
-            isLoading.value = true
-            errorState.value = null
-
-            const permissions = await permissionService.getUserPermissions()
-            userPermissions.value = permissions
-
-            return permissions
-        } catch (error) {
-            errorState.value = error instanceof Error ? error.message : "Failed to fetch user permissions"
-            return null
-        } finally {
-            isLoading.value = false
-        }
-    }
-
-    async function fetchPermissionSummary(): Promise<PermissionSummary | null> {
-        try {
-            isLoading.value = true
-            errorState.value = null
-
-            const summary = await permissionService.getPermissionSummary()
-            permissionSummary.value = summary
-
-            return summary
-        } catch (error) {
-            errorState.value = error instanceof Error ? error.message : "Failed to fetch permission summary"
-            return null
-        } finally {
-            isLoading.value = false
-        }
-    }
-
-    async function checkServicePermission(serviceId: number): Promise<ServicePermissionCheck | null> {
-        try {
-            isLoading.value = true
-            errorState.value = null
-
-            const result = await permissionService.canEditService(serviceId)
-            return result
-        } catch (error) {
-            errorState.value =
-                error instanceof Error ? error.message : `Failed to check service ${serviceId} permissions`
-            return null
-        } finally {
-            isLoading.value = false
-        }
-    }
-
-    async function checkRotationPermission(rotationId: number): Promise<RotationPermissionCheck | null> {
-        try {
-            isLoading.value = true
-            errorState.value = null
-
-            const result = await permissionService.canEditRotation(rotationId)
-            return result
-        } catch (error) {
-            errorState.value =
-                error instanceof Error ? error.message : `Failed to check rotation ${rotationId} permissions`
-            return null
-        } finally {
-            isLoading.value = false
-        }
-    }
-
+/**
+ * Creates permission level getters that combine multiple permission flags
+ */
+function createPermissionLevelGetters(state: PermissionsState) {
     return {
-        fetchUserPermissions,
-        fetchPermissionSummary,
-        checkServicePermission,
-        checkRotationPermission,
+        hasFullAccessPermission: computed<boolean>(() => {
+            const perms = state.userPermissions.value?.permissions
+            return hasFullAccess(perms)
+        }),
+
+        hasAnyEditPermission: computed<boolean>(() => {
+            const perms = state.userPermissions.value?.permissions
+            const serviceCount = state.userPermissions.value?.editableServices?.length || 0
+            return hasAnyEditing(perms, serviceCount)
+        }),
+
+        hasOnlyServiceSpecificPermissions: computed<boolean>(() => {
+            const perms = state.userPermissions.value?.permissions
+            const serviceCount = state.userPermissions.value?.editableServices?.length || 0
+            return hasOnlyServicePermissions(perms, serviceCount)
+        }),
+
+        hasOnlyOwnSchedulePermission: computed<boolean>(() => {
+            const perms = state.userPermissions.value?.permissions
+            const serviceCount = state.userPermissions.value?.editableServices?.length || 0
+            return hasOnlyOwnPermission(perms, serviceCount)
+        }),
+
+        hasLimitedPermissions: computed<boolean>(() => {
+            const perms = state.userPermissions.value?.permissions
+            const serviceCount = state.userPermissions.value?.editableServices?.length || 0
+            return hasLimitedPermissions(perms, serviceCount)
+        }),
     }
 }
 
-// Helper function for utility methods
-function createPermissionUtils(
-    state: ReturnType<typeof createPermissionsState>,
-    getters: ReturnType<typeof createPermissionsGetters>,
-) {
-    const { userPermissions, permissionSummary, error: errorState } = state
-    const { editableServices } = getters
-
-    function canEditService(serviceId: number): boolean {
-        if (userPermissions.value && typeof serviceId === "number" && serviceId > 0) {
-            const servicePerms = userPermissions.value.permissions?.servicePermissions || {}
-            const key = serviceId.toString()
-            return Object.hasOwn(servicePerms, key)
-                ? Boolean(servicePerms[key as unknown as keyof typeof servicePerms])
-                : false
-        }
-        return false
-    }
-
-    function isServiceEditable(serviceId: number): boolean {
-        return editableServices.value.some((service) => service.serviceId === serviceId)
-    }
-
-    function getRequiredPermission(serviceId: number): string | null {
-        const service = editableServices.value.find((s) => s.serviceId === serviceId)
-        return service?.scheduleEditPermission ?? null
-    }
-
-    function clearData(): void {
-        userPermissions.value = null
-        permissionSummary.value = null
-        errorState.value = null
-    }
-
-    function clearError(): void {
-        errorState.value = null
-    }
-
+/**
+ * Creates view access getters that determine which parts of the application users can access
+ */
+function createViewAccessGetters(state: PermissionsState) {
     return {
-        canEditService,
-        isServiceEditable,
-        getRequiredPermission,
-        clearData,
-        clearError,
+        /**
+         * Determines if user can access the clinician view of the scheduler.
+         * Clinician view shows schedules from the perspective of individual instructors.
+         * Access granted to: full access users + users who can edit their own schedule.
+         */
+        canAccessClinicianView: computed<boolean>(() => {
+            const perms = state.userPermissions.value?.permissions
+            if (!perms) {
+                return false
+            }
+
+            // Full access users and own schedule users can access clinician view
+            return hasFullAccess(perms) || Boolean(perms.hasEditOwnSchedulePermission)
+        }),
+
+        /**
+         * Determines if user can access the rotation view of the scheduler.
+         * Rotation view shows schedules organized by clinical rotations.
+         * Access granted to: full access users + users with service-specific permissions.
+         */
+        canAccessRotationView: computed<boolean>(() => {
+            const perms = state.userPermissions.value?.permissions
+            if (!perms) {
+                return false
+            }
+
+            // Full access users and service-specific users can access rotation view
+            const serviceCount = state.userPermissions.value?.editableServices?.length || 0
+            return hasFullAccess(perms) || serviceCount > 0
+        }),
+
+        /**
+         * Returns a string representation of the user's highest permission level.
+         * Used for routing, UI display, and access control decisions.
+         * Hierarchy: admin > manage > edit_all > edit_own > service_specific > none
+         */
+        permissionLevel: computed<string>(() => {
+            const perms = state.userPermissions.value?.permissions
+            if (!perms) {
+                return "none"
+            }
+
+            const serviceCount = state.userPermissions.value?.editableServices?.length || 0
+            if (perms.hasAdminPermission) {
+                return "admin"
+            }
+            if (perms.hasManagePermission) {
+                return "manage"
+            }
+            if (perms.hasEditClnSchedulesPermission) {
+                return "edit_all"
+            }
+            if (perms.hasEditOwnSchedulePermission) {
+                return "edit_own"
+            }
+            if (serviceCount > 0) {
+                return "service_specific"
+            }
+
+            return "none"
+        }),
     }
 }
 
+/**
+ * Creates all permission getters by combining the sub-getter functions
+ */
+function createPermissionsGetters(state: PermissionsState) {
+    return {
+        ...createBasicPermissionGetters(state),
+        ...createPermissionLevelGetters(state),
+        ...createViewAccessGetters(state),
+    }
+}
+
+/**
+ * Clinical Scheduler permissions store.
+ *
+ * Manages user permissions for the clinical scheduling system, providing:
+ * - User permission data and state management
+ * - Computed properties for different permission levels and access checks
+ * - Actions for fetching permissions and performing dynamic permission validation
+ * - Utility functions for permission-related operations
+ *
+ * The store is organized into modular sections (helpers, actions, utils) for maintainability.
+ */
 export const usePermissionsStore = defineStore("permissions", () => {
     // State
     const state = createPermissionsState()
@@ -168,7 +182,24 @@ export const usePermissionsStore = defineStore("permissions", () => {
 
     // Getters
     const getters = createPermissionsGetters(state)
-    const { user, hasManagePermission, editableServices, editableServiceCount, servicePermissions } = getters
+    const {
+        user,
+        hasAdminPermission,
+        hasManagePermission,
+        hasEditClnSchedulesPermission,
+        hasEditOwnSchedulePermission,
+        editableServices,
+        editableServiceCount,
+        servicePermissions,
+        hasFullAccessPermission,
+        hasAnyEditPermission,
+        hasOnlyServiceSpecificPermissions,
+        hasOnlyOwnSchedulePermission,
+        hasLimitedPermissions,
+        canAccessClinicianView,
+        canAccessRotationView,
+        permissionLevel,
+    } = getters
 
     // Actions
     const actions = createPermissionActions(state)
@@ -188,10 +219,21 @@ export const usePermissionsStore = defineStore("permissions", () => {
 
         // Getters
         user,
+        hasAdminPermission,
         hasManagePermission,
+        hasEditClnSchedulesPermission,
+        hasEditOwnSchedulePermission,
         editableServices,
         editableServiceCount,
         servicePermissions,
+        hasFullAccessPermission,
+        hasAnyEditPermission,
+        hasOnlyServiceSpecificPermissions,
+        hasOnlyOwnSchedulePermission,
+        hasLimitedPermissions,
+        canAccessClinicianView,
+        canAccessRotationView,
+        permissionLevel,
 
         // Actions
         ...actions,

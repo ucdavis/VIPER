@@ -19,6 +19,7 @@
             role="tab"
         />
         <q-route-tab
+            v-if="permissionsStore.canAccessRotationView"
             name="rotation"
             label="Schedule by Rotation"
             :to="{ name: 'RotationSchedule' }"
@@ -28,6 +29,7 @@
             role="tab"
         />
         <q-route-tab
+            v-if="permissionsStore.canAccessClinicianView"
             name="clinician"
             label="Schedule by Clinician"
             :to="{ name: 'ClinicianSchedule' }"
@@ -42,8 +44,10 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import { useRoute } from "vue-router"
+import { usePermissionsStore } from "../stores/permissions"
 
 const route = useRoute()
+const permissionsStore = usePermissionsStore()
 
 // Helper to check if a tab should be active based on route name
 const isTabActive = (baseRouteName: string): string => {

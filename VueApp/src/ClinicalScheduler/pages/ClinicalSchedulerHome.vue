@@ -1,135 +1,276 @@
 <template>
-    <div class="clinical-scheduler-home">
-        <h1>Clinical Scheduler</h1>
+    <div
+        class="q-pa-md"
+        style="max-width: 800px"
+    >
+        <div class="row items-center q-mb-md">
+            <h1 class="text-h4 text-primary q-my-none">Clinical Scheduler</h1>
+        </div>
 
-        <div class="view-selector">
-            <h2>Select Scheduling View:</h2>
+        <!-- Loading state -->
+        <div
+            v-if="permissionsStore.isLoading"
+            class="text-center q-my-lg"
+        >
+            <q-spinner-dots
+                :size="UI_CONFIG.LOADING_SPINNER_SIZE"
+                color="primary"
+            />
+            <div class="q-mt-md text-body1">Loading permissions...</div>
+        </div>
 
-            <div class="view-options">
-                <div
-                    class="view-card"
-                    tabindex="0"
-                    role="button"
-                    @click="navigateToRotationView"
-                    @keydown.enter="navigateToRotationView"
-                    @keydown.space="navigateToRotationView"
-                >
-                    <h3>Schedule by Rotation</h3>
-                    <p>Schedule clinicians for a specific rotation</p>
-                </div>
+        <!-- Access denied for users without any edit permissions -->
+        <AccessDeniedCard
+            v-else-if="!permissionsStore.hasAnyEditPermission"
+            :message="ACCESS_DENIED_MESSAGES.CLINICAL_SCHEDULER"
+            :subtitle="ACCESS_DENIED_SUBTITLES.CLINICAL_SCHEDULER"
+        />
 
-                <div
-                    class="view-card"
-                    tabindex="0"
-                    role="button"
-                    @click="navigateToClinicianView"
-                    @keydown.enter="navigateToClinicianView"
-                    @keydown.space="navigateToClinicianView"
-                >
-                    <h3>Schedule by Clinician</h3>
-                    <p>Schedule rotations for a specific clinician</p>
+        <!-- Main content for users with permissions -->
+        <div v-else>
+            <!-- Permission info banner for limited access users -->
+            <PermissionInfoBanner />
+
+            <div>
+                <h2 class="text-h5 text-grey-8 q-mb-md">Select Scheduling View:</h2>
+
+                <div class="row q-gutter-md">
+                    <!-- Schedule by Rotation - available to rotation-specific and full access users -->
+                    <div
+                        v-if="canAccessRotationView"
+                        class="col-12 col-sm-auto"
+                        style="min-width: 300px; max-width: 400px; flex: 1"
+                    >
+                        <q-card
+                            flat
+                            bordered
+                            class="cursor-pointer view-card-custom"
+                            :class="{
+                                'view-card-hover': rotationHovered,
+                                'shadow-2': !rotationHovered,
+                                'shadow-4': rotationHovered,
+                            }"
+                            tabindex="0"
+                            @click="navigateToRotationView"
+                            @keydown.enter="navigateToRotationView"
+                            @keydown.space="navigateToRotationView"
+                            @mouseenter="rotationHovered = true"
+                            @mouseleave="rotationHovered = false"
+                            @focus="rotationHovered = true"
+                            @blur="rotationHovered = false"
+                        >
+                            <q-card-section>
+                                <div class="row items-center justify-between q-mb-sm">
+                                    <h3 class="text-h6 text-primary q-my-none">Schedule by Rotation</h3>
+                                    <q-icon
+                                        name="assignment"
+                                        size="24px"
+                                        color="primary"
+                                        class="opacity-70"
+                                    />
+                                </div>
+                                <p class="text-grey-7 q-mb-sm">Schedule clinicians for a specific rotation</p>
+                                <q-banner
+                                    v-if="permissionsStore.hasOnlyServiceSpecificPermissions"
+                                    dense
+                                    inline-actions
+                                    class="text-primary bg-primary-1 rounded-borders"
+                                >
+                                    <template #avatar>
+                                        <q-icon
+                                            name="info"
+                                            size="14px"
+                                        />
+                                    </template>
+                                    <span class="text-caption">Limited to your authorized rotations</span>
+                                </q-banner>
+                            </q-card-section>
+                        </q-card>
+                    </div>
+
+                    <!-- Schedule by Clinician - not available to rotation-specific only users -->
+                    <div
+                        v-if="canAccessClinicianView"
+                        class="col-12 col-sm-auto"
+                        style="min-width: 300px; max-width: 400px; flex: 1"
+                    >
+                        <q-card
+                            flat
+                            bordered
+                            class="cursor-pointer view-card-custom"
+                            :class="{
+                                'view-card-hover': clinicianHovered,
+                                'shadow-2': !clinicianHovered,
+                                'shadow-4': clinicianHovered,
+                            }"
+                            tabindex="0"
+                            @click="navigateToClinicianView"
+                            @keydown.enter="navigateToClinicianView"
+                            @keydown.space="navigateToClinicianView"
+                            @mouseenter="clinicianHovered = true"
+                            @mouseleave="clinicianHovered = false"
+                            @focus="clinicianHovered = true"
+                            @blur="clinicianHovered = false"
+                        >
+                            <q-card-section>
+                                <div class="row items-center justify-between q-mb-sm">
+                                    <h3 class="text-h6 text-primary q-my-none">Schedule by Clinician</h3>
+                                    <q-icon
+                                        name="person"
+                                        size="24px"
+                                        color="primary"
+                                        class="opacity-70"
+                                    />
+                                </div>
+                                <p class="text-grey-7 q-mb-sm">Schedule rotations for a specific clinician</p>
+                                <q-banner
+                                    v-if="permissionsStore.hasOnlyOwnSchedulePermission"
+                                    dense
+                                    inline-actions
+                                    class="text-primary bg-primary-1 rounded-borders"
+                                >
+                                    <template #avatar>
+                                        <q-icon
+                                            name="info"
+                                            size="14px"
+                                        />
+                                    </template>
+                                    <span class="text-caption">Your schedule only</span>
+                                </q-banner>
+                            </q-card-section>
+                        </q-card>
+                    </div>
+
+                    <!-- Disabled card explanation for rotation-specific users -->
+                    <div
+                        v-if="permissionsStore.hasOnlyServiceSpecificPermissions"
+                        class="col-12 col-sm-auto"
+                        style="min-width: 300px; max-width: 400px; flex: 1"
+                    >
+                        <q-card
+                            flat
+                            bordered
+                            disable
+                            class="cursor-not-allowed bg-grey-1"
+                            tabindex="0"
+                        >
+                            <q-card-section class="opacity-60">
+                                <div class="row items-center justify-between q-mb-sm">
+                                    <h3 class="text-h6 text-grey-6 q-my-none">Schedule by Clinician</h3>
+                                    <q-icon
+                                        name="person_off"
+                                        size="24px"
+                                        color="grey-6"
+                                        class="opacity-70"
+                                    />
+                                </div>
+                                <p class="text-grey-6 q-mb-sm">Not available with rotation-specific permissions</p>
+                                <q-banner
+                                    dense
+                                    inline-actions
+                                    class="text-grey-7 bg-grey-3 rounded-borders"
+                                >
+                                    <template #avatar>
+                                        <q-icon
+                                            name="lock"
+                                            size="14px"
+                                        />
+                                    </template>
+                                    <span class="text-caption">Contact admin for full access</span>
+                                </q-banner>
+                            </q-card-section>
+                        </q-card>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, onMounted } from "vue"
+<script setup lang="ts">
+import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
+import { usePermissionsStore } from "../stores/permissions"
+import PermissionInfoBanner from "../components/PermissionInfoBanner.vue"
+import AccessDeniedCard from "../components/AccessDeniedCard.vue"
+import { ACCESS_DENIED_MESSAGES, ACCESS_DENIED_SUBTITLES } from "../constants/permission-messages"
+import { UI_CONFIG } from "../constants/app-constants"
 
-export default defineComponent({
-    name: "ClinicalSchedulerHome",
-    setup() {
-        const router = useRouter()
+// Composables
+const router = useRouter()
+const permissionsStore = usePermissionsStore()
 
-        const navigateToRotationView = () => {
-            void router.push("/ClinicalScheduler/rotation")
+// Reactive hover states for cards
+const rotationHovered = ref(false)
+const clinicianHovered = ref(false)
+
+// Computed
+const canAccessRotationView = computed(() => {
+    // Use the store's canAccessRotationView for consistency
+    return permissionsStore.canAccessRotationView
+})
+
+const canAccessClinicianView = computed(() => {
+    // Available to full access users and own schedule users, but NOT rotation-specific only users
+    return permissionsStore.canAccessClinicianView
+})
+
+// Methods
+const navigateToRotationView = () => {
+    if (canAccessRotationView.value) {
+        void router.push("/ClinicalScheduler/rotation")
+    }
+}
+
+const navigateToClinicianView = () => {
+    if (canAccessClinicianView.value) {
+        void router.push("/ClinicalScheduler/clinician")
+    }
+}
+
+// Lifecycle
+onMounted(async () => {
+    // Set page title
+    document.title = "VIPER - Clinical Scheduler"
+
+    // Initialize permissions if not already loaded
+    if (!permissionsStore.userPermissions) {
+        try {
+            await permissionsStore.initialize()
+        } catch {
+            // Handle initialization errors gracefully - component will fall back to default state
         }
-
-        const navigateToClinicianView = () => {
-            void router.push("/ClinicalScheduler/clinician")
-        }
-
-        onMounted(() => {
-            // Set page title
-            document.title = "VIPER - Clinical Scheduler"
-        })
-
-        return {
-            navigateToRotationView,
-            navigateToClinicianView,
-        }
-    },
+    }
 })
 </script>
 
 <style scoped>
-.clinical-scheduler-home {
-    padding: 0 20px 20px;
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-h1 {
-    color: var(--ucdavis-aggie-blue);
-    font-size: 24px;
-    margin: 0 0 15px;
-}
-
-h2 {
-    color: var(--ucdavis-black-80);
-    margin-bottom: 20px;
-}
-
-.view-options {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-}
-
-@media screen and (prefers-reduced-motion: reduce) {
-    .view-card {
-        border: 1px solid #ddd;
-        padding: 20px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: none;
-        background-color: #f9f9f9;
-    }
-}
-
-.view-card {
-    border: 1px solid #ddd;
-    padding: 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
+/* Custom card styling to work with Quasar */
+.view-card-custom {
     background-color: #f9f9f9;
+    transition: all 0.3s ease;
 }
 
-.view-card:hover,
-.view-card:focus {
-    background-color: #e9e9e9;
-    box-shadow: 0 4px 8px rgb(0 0 0 / 10%);
+.view-card-hover {
     transform: translateY(-2px);
-    outline: 2px solid var(--ucdavis-aggie-blue);
-    outline-offset: 2px;
 }
 
-.view-card h3 {
-    color: var(--ucdavis-aggie-blue);
-    margin-bottom: 10px;
+.opacity-70 {
+    opacity: 0.7;
 }
 
-.view-card p {
-    margin-bottom: 10px;
-    color: var(--ucdavis-black-50);
+.opacity-60 {
+    opacity: 0.6;
 }
 
-.view-card .example {
-    font-style: italic;
-    font-size: 14px;
-    color: #777;
+/* Reduced motion support */
+@media screen and (prefers-reduced-motion: reduce) {
+    .view-card-custom {
+        transition: none;
+    }
+
+    .view-card-hover {
+        transform: none;
+    }
 }
 </style>

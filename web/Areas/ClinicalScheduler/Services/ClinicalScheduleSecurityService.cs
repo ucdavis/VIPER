@@ -12,6 +12,24 @@ namespace Viper.Areas.ClinicalScheduler.Services
         public const string ViewStudents = "SVMSecure.ClnSched.ViewStdSchedules";
         public const string ViewClinicians = "SVMSecure.ClnSched.ViewClnSchedules";
         public const string ViewOwn = "SVMSecure.ClnSched.MySchedule";
+
+        /// <summary>
+        /// Highest level permission - grants full access to all clinical schedule operations.
+        /// Permission hierarchy: Admin > Manage > EditClnSchedules > Service-specific permissions
+        /// </summary>
+        public const string Admin = "SVMSecure.ClnSched.Admin";
+
+        /// <summary>
+        /// Grants permission to edit all clinical schedules across all services.
+        /// Falls below Admin but above service-specific permissions in the hierarchy.
+        /// </summary>
+        public const string EditClnSchedules = "SVMSecure.ClnSched.EditClnSchedules";
+
+        /// <summary>
+        /// Allows clinicians to edit their own schedule entries only.
+        /// Does not grant permission to edit other instructors' schedules.
+        /// </summary>
+        public const string EditOwnSchedule = "SVMSecure.ClnSched.EditOwnSchedule";
     }
 
     /// <summary>

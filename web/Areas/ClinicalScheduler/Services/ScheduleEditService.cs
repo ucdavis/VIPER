@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 using Viper.Models.AAUD;
+using Viper.Services;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -15,18 +17,24 @@ namespace Viper.Areas.ClinicalScheduler.Services
         private readonly IScheduleAuditService _auditService;
         private readonly ILogger<ScheduleEditService> _logger;
         private readonly IUserHelper _userHelper;
+        private readonly IEmailService _emailService;
+        private readonly EmailNotificationSettings _emailNotificationSettings;
 
         public ScheduleEditService(
             ClinicalSchedulerContext context,
             ISchedulePermissionService permissionService,
             IScheduleAuditService auditService,
             ILogger<ScheduleEditService> logger,
+            IEmailService emailService,
+            IOptions<EmailNotificationSettings> emailNotificationOptions,
             IUserHelper? userHelper = null)
         {
             _context = context;
             _permissionService = permissionService;
             _auditService = auditService;
             _logger = logger;
+            _emailService = emailService;
+            _emailNotificationSettings = emailNotificationOptions.Value;
             _userHelper = userHelper ?? new UserHelper();
         }
 
@@ -267,6 +275,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     {
                         await _auditService.LogPrimaryEvaluatorUnsetAsync(
                             schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
+
+                        await SendPrimaryEvaluatorRemovedNotificationAsync(schedule, cancellationToken);
                     }
 
                     await transaction.CommitAsync(cancellationToken);
@@ -639,6 +649,93 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 await _context.SaveChangesAsync(cancellationToken);
                 _logger.LogDebug("Cleared primary evaluator flag for {Count} instructors on rotation {RotationId}, week {WeekId}",
                     existingPrimary.Count, rotationId, weekId);
+            }
+        }
+
+        /// <summary>
+        /// Send email notification when a primary evaluator is removed
+        /// Matches the ColdFusion system's notification format and recipients
+        /// </summary>
+        private async Task SendPrimaryEvaluatorRemovedNotificationAsync(InstructorSchedule schedule, CancellationToken cancellationToken)
+        {
+            try
+            {
+                // Get instructor name - attempt to lookup, but gracefully handle if not found
+                var instructorText = "";
+                try
+                {
+                    var person = await _context.Persons
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(p => p.IdsMothraId == schedule.MothraId, cancellationToken);
+
+                    if (person != null)
+                    {
+                        instructorText = $"({person.PersonDisplayFirstName} {person.PersonDisplayLastName}) ";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not retrieve instructor name for {MothraId} in email notification", schedule.MothraId);
+                }
+
+                // Get rotation name - explicitly load if not already loaded
+                string rotationName;
+                if (schedule.Rotation != null)
+                {
+                    rotationName = schedule.Rotation.Name;
+                }
+                else
+                {
+                    // Lazy-load rotation if navigation property is null
+                    await _context.Entry(schedule)
+                        .Reference(s => s.Rotation)
+                        .LoadAsync(cancellationToken);
+                    rotationName = schedule.Rotation?.Name ?? "Unknown Rotation";
+                }
+
+                // Get week information - use week start date to find week number from WeekGradYear
+                var weekDisplay = schedule.WeekId.ToString(); // Default fallback
+                try
+                {
+                    var weekGradYear = await _context.WeekGradYears
+                        .Include(wgy => wgy.Week)
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(wgy => wgy.WeekId == schedule.WeekId, cancellationToken);
+
+                    if (weekGradYear != null)
+                    {
+                        weekDisplay = weekGradYear.WeekNum.ToString();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not retrieve week number for {WeekId} in email notification", schedule.WeekId);
+                }
+
+                // Format email body to match ColdFusion system: "Primary evaluator (Name) removed from {rotation} week {weeknum}"
+                var emailBody = $"Primary evaluator {instructorText}removed from {rotationName} week {weekDisplay}";
+
+                // Send email notifications to all configured recipients
+                var notificationConfig = _emailNotificationSettings.PrimaryEvaluatorRemoved;
+                foreach (var recipient in notificationConfig.To)
+                {
+                    await _emailService.SendEmailAsync(
+                        to: recipient,
+                        subject: notificationConfig.Subject,
+                        body: emailBody,
+                        isHtml: false,
+                        from: notificationConfig.From
+                    );
+                }
+
+                _logger.LogInformation("Primary evaluator removal notification sent for {MothraId} from {RotationName} week {WeekDisplay}",
+                    schedule.MothraId, rotationName, weekDisplay);
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't fail the transaction - email is secondary to the schedule removal
+                _logger.LogError(ex, "Failed to send primary evaluator removal notification for {MothraId} from rotation {RotationId} week {WeekId}",
+                    schedule.MothraId, schedule.RotationId, schedule.WeekId);
             }
         }
     }

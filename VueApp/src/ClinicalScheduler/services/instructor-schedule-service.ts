@@ -1,5 +1,6 @@
 import { useFetch } from "../../composables/ViperFetch"
 import type { ApiResult } from "../types/api"
+import { SCHEDULE_OPERATION_ERRORS } from "../constants/permission-messages"
 
 class InstructorScheduleService {
     private static readonly BASE_URL = `${import.meta.env.VITE_API_URL}clinicalscheduler/instructor-schedules`
@@ -70,7 +71,7 @@ class InstructorScheduleService {
                     errorMessage =
                         "Server error occurred. The instructor may be a primary evaluator or there may be a permission issue."
                 } else if (error.message.includes("403")) {
-                    errorMessage = "You do not have permission to remove this instructor."
+                    errorMessage = SCHEDULE_OPERATION_ERRORS.NO_PERMISSION_REMOVE_INSTRUCTOR
                 } else if (error.message.includes("404")) {
                     errorMessage = "Instructor schedule not found."
                 }
@@ -122,7 +123,7 @@ class InstructorScheduleService {
                 if (error.message.includes("500")) {
                     errorMessage = "Server error occurred while updating primary evaluator status."
                 } else if (error.message.includes("403")) {
-                    errorMessage = "You do not have permission to modify primary evaluator status."
+                    errorMessage = SCHEDULE_OPERATION_ERRORS.NO_PERMISSION_MODIFY_PRIMARY_EVALUATOR
                 } else if (error.message.includes("404")) {
                     errorMessage = "Instructor schedule not found."
                 }

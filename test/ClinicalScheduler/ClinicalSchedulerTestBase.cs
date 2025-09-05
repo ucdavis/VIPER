@@ -27,6 +27,10 @@ namespace Viper.test.ClinicalScheduler
         public const int CardiologyRotationId = 1;
         public const int SurgeryRotationId = 2;
 
+        // Instructor Schedule ID constants
+        public const int TestInstructorScheduleId = 1; // Schedule belonging to TestUserMothraId
+        public const int OtherInstructorScheduleId = 2; // Schedule belonging to different user
+
         // Permission constants
         public const string CardiologyEditPermission = "SVMSecure.ClnSched.Edit.Cardio";
         public const string InternalMedicineEditPermission = "SVMSecure.ClnSched.Edit.IM";
@@ -80,6 +84,29 @@ namespace Viper.test.ClinicalScheduler
             };
 
             Context.Rotations.AddRange(rotations);
+
+            // Add test instructor schedules for own schedule permission testing
+            var instructorSchedules = new[]
+            {
+                new InstructorSchedule
+                {
+                    InstructorScheduleId = TestInstructorScheduleId,
+                    MothraId = TestUserMothraId, // Belongs to test user
+                    RotationId = CardiologyRotationId,
+                    WeekId = 1,
+                    Evaluator = false
+                },
+                new InstructorSchedule
+                {
+                    InstructorScheduleId = OtherInstructorScheduleId,
+                    MothraId = "otheruser", // Belongs to different user
+                    RotationId = SurgeryRotationId,
+                    WeekId = 1,
+                    Evaluator = false
+                }
+            };
+
+            Context.InstructorSchedules.AddRange(instructorSchedules);
             Context.SaveChanges();
         }
 
