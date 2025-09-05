@@ -135,12 +135,15 @@
 
             <!-- Season headers and week grids -->
             <div v-if="selectedRotation && weeksBySeason.length > 0">
-                <div
+                <q-expansion-item
                     v-for="season in weeksBySeason"
                     :key="season.name"
+                    :model-value="!isSeasonPast(season)"
+                    :label="season.displayName"
+                    header-class="text-h6"
+                    class="q-mb-md"
                 >
-                    <h3>{{ season.displayName }}</h3>
-                    <div class="row q-gutter-md q-mb-lg">
+                    <div class="row q-gutter-md q-mb-lg q-pa-md">
                         <WeekScheduleCard
                             v-for="week in season.weeks"
                             :key="week.weekId"
@@ -242,7 +245,7 @@
                             </template>
                         </WeekScheduleCard>
                     </div>
-                </div>
+                </q-expansion-item>
             </div>
 
             <!-- Legend -->
@@ -259,7 +262,7 @@ import { ref, computed, onMounted, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
 import { RotationService } from "../services/rotation-service"
-import type { RotationWithService, RotationScheduleData } from "../types/rotation-types"
+import type { RotationWithService, RotationScheduleData, WeekWithSchedules } from "../types/rotation-types"
 import { InstructorScheduleService } from "../services/instructor-schedule-service"
 import type { Clinician } from "../services/clinician-service"
 import { PageDataService } from "../services/page-data-service"
@@ -368,6 +371,20 @@ const weeksBySeason = computed(() => {
         weeks: semester.weeks,
     }))
 })
+
+// Check if a season/term has ended
+function isSeasonPast(season: { weeks: WeekWithSchedules[] }): boolean {
+    if (!season.weeks || season.weeks.length === 0) return false
+
+    // Get the last week's end date
+    const lastWeek = season.weeks[season.weeks.length - 1]
+    if (!lastWeek.dateEnd) return false
+
+    const endDate = new Date(lastWeek.dateEnd)
+    const today = new Date()
+
+    return endDate < today
+}
 
 // Watch for includeAllAffiliates changes (ClinicianSelector handles reloading automatically)
 watch(

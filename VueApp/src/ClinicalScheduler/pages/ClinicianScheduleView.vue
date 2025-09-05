@@ -141,14 +141,16 @@
                 </RecentSelections>
 
                 <!-- Schedule by semester -->
-                <div
+                <q-expansion-item
                     v-for="semester in schedulesBySemester"
                     :key="semester.semester"
+                    :model-value="!isSemesterPast(semester)"
+                    :label="semester.semester"
+                    header-class="text-h6"
+                    class="q-mb-md"
                 >
-                    <h3>{{ semester.semester }}</h3>
-
                     <!-- Week grid -->
-                    <div class="row q-gutter-md q-mb-lg">
+                    <div class="row q-gutter-md q-mb-lg q-pa-md">
                         <WeekScheduleCard
                             v-for="week in semester.weeks"
                             :key="week.weekId"
@@ -243,7 +245,7 @@
                             </template>
                         </WeekScheduleCard>
                     </div>
-                </div>
+                </q-expansion-item>
             </div>
 
             <!-- Legend -->
@@ -266,7 +268,7 @@ import { ClinicianService, type Clinician, type ClinicianScheduleData } from "..
 import { InstructorScheduleService } from "../services/instructor-schedule-service"
 import { PageDataService } from "../services/page-data-service"
 import { usePermissionsStore } from "../stores/permissions"
-import type { RotationWithService } from "../types/rotation-types"
+import type { RotationWithService, WeekWithSchedules } from "../types/rotation-types"
 import type { Rotation } from "../types"
 
 // Interface for clinician rotation item
@@ -379,6 +381,20 @@ const assignedRotationNames = computed(() => {
 })
 
 // Check if clinician has no rotation assignments
+// Check if a semester/term has ended
+function isSemesterPast(semester: { weeks: WeekWithSchedules[] }): boolean {
+    if (!semester.weeks || semester.weeks.length === 0) return false
+
+    // Get the last week's end date
+    const lastWeek = semester.weeks[semester.weeks.length - 1]
+    if (!lastWeek.dateEnd) return false
+
+    const endDate = new Date(lastWeek.dateEnd)
+    const today = new Date()
+
+    return endDate < today
+}
+
 const hasNoAssignments = computed(() => {
     // Don't show "no assignments" message while still loading
     if (loadingSchedule.value) return false

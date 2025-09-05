@@ -100,6 +100,7 @@ import type { RotationWithService } from "../types/rotation-types"
 
 // Constants
 const INPUT_DEBOUNCE_MS = 300
+const EXCLUDED_ROTATION_NAMES = ["vacation"] // Rotation names to exclude (case-insensitive)
 
 // Props
 interface Props {
@@ -199,10 +200,19 @@ async function loadRotations() {
         }
 
         if (result.success) {
-            // Filter out excluded rotation names
+            // Filter out excluded rotation names and system-excluded rotations
             const filteredResult = result.result
                 .filter((rotation) => {
                     const rotationName = getRotationDisplayName(rotation)
+                    // Check system-excluded rotations (case-insensitive)
+                    if (
+                        EXCLUDED_ROTATION_NAMES.some(
+                            (excluded) => rotationName.toLowerCase() === excluded.toLowerCase(),
+                        )
+                    ) {
+                        return false
+                    }
+                    // Check prop-excluded rotations
                     return !props.excludeRotationNames || !props.excludeRotationNames.includes(rotationName)
                 })
                 .sort((a, b) => getRotationDisplayName(a).localeCompare(getRotationDisplayName(b)))

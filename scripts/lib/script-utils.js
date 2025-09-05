@@ -111,7 +111,14 @@ async function killProcess(name) {
         return true
     } catch (error) {
         // If the process doesn't exist, an error is thrown. We can ignore it.
-        if (error.message.includes("not found")) {
+        // pkill exits with code 1 when no processes match, kill exits with an error
+        // taskkill includes "not found" in its error message
+        if (
+            error.message.includes("not found") ||
+            error.message.includes("No such process") ||
+            error.message.includes("ERROR: The process") ||
+            error.code === 1 // pkill returns exit code 1 when no processes match
+        ) {
             return false
         }
         // Re-throw other errors

@@ -1,6 +1,6 @@
 <template>
     <q-card
-        class="q-mb-md"
+        class="q-mb-md recent-selections-card"
         flat
         bordered
     >
@@ -123,3 +123,20 @@ function clearSelection(): void {
     emit("clear-selection")
 }
 </script>
+
+<style scoped>
+.recent-selections-card {
+    position: sticky;
+    top: 16px;
+    z-index: 100;
+    background-color: white;
+}
+
+/* Ensure the card doesn't get too tall on scroll */
+@media (height <= 800px) {
+    .recent-selections-card {
+        max-height: calc(100vh - 200px);
+        overflow-y: auto;
+    }
+}
+</style>
