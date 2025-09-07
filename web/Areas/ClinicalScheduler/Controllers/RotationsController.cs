@@ -73,7 +73,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             {
                 _logger.LogInformation("Getting rotations. ServiceId: {ServiceId}, IncludeService: {IncludeService}", serviceId, includeService);
 
-                // Get rotations through service layer for consistent deduplication
+                // Get rotations through service layer
                 List<Viper.Models.ClinicalScheduler.Rotation> rotations;
 
                 if (serviceId.HasValue)
@@ -150,7 +150,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             {
                 _logger.LogInformation("Getting rotation with ID: {RotationId}, IncludeService: {IncludeService}", id, includeService);
 
-                // Get rotations through service layer for consistent deduplication
+                // Get rotations through service layer
                 var rotation = await _rotationService.GetRotationAsync(id, HttpContext.RequestAborted);
 
                 if (rotation == null)
@@ -222,6 +222,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 var allInstructorSchedules = await GetInstructorSchedulesForWeeksAsync(id, weekIds);
                 var recentCliniciansData = await GetRecentCliniciansAsync(id, targetYear, targetYear - 1);
 
+                // Get rotation weekly preferences (closed status)
+                var rotationWeeklyPrefs = await GetRotationWeeklyPrefsAsync(id, weekIds);
+
                 // Process and deduplicate data
                 var baseInstructorSchedules = allInstructorSchedules
                     .DistinctBy(i => i.InstructorScheduleId)
@@ -242,7 +245,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 var deduplicatedWeeks = vWeeks.DistinctBy(w => w.WeekId).ToList();
                 var weeksWithSemester = deduplicatedWeeks.Select(w => new
                 {
-                    Week = BuildWeekScheduleItem(w, baseInstructorSchedules, personData, deduplicatedWeeks, rotation),
+                    Week = BuildWeekScheduleItem(w, baseInstructorSchedules, personData, deduplicatedWeeks, rotationWeeklyPrefs, rotation),
                     Semester = NormalizeSemesterName(w.TermCode)
                 });
 
@@ -495,6 +498,21 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         }
 
         /// <summary>
+        /// Fetches rotation weekly preferences for specified weeks
+        /// </summary>
+        /// <param name="rotationId">The rotation ID</param>
+        /// <param name="weekIds">List of week IDs to fetch preferences for</param>
+        /// <returns>Dictionary mapping WeekId to Closed status (true if rotation is closed for that week)</returns>
+        private async Task<Dictionary<int, bool>> GetRotationWeeklyPrefsAsync(int rotationId, List<int> weekIds)
+        {
+            var prefs = await _context.RotationWeeklyPrefs
+                .AsNoTracking()
+                .Where(p => p.RotId == rotationId && weekIds.Contains(p.WeekId))
+                .ToDictionaryAsync(p => p.WeekId, p => p.Closed);
+            return prefs;
+        }
+
+        /// <summary>
         /// Data structure for recent clinician information
         /// </summary>
         private sealed class RecentClinicianData
@@ -516,7 +534,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <summary>
         /// Builds a week schedule item with instructor information
         /// </summary>
-        private object BuildWeekScheduleItem(VWeek week, IEnumerable<InstructorSchedule> allSchedules, Dictionary<string, Person> personData, List<VWeek> allWeeks, Rotation? rotation = null)
+        private object BuildWeekScheduleItem(VWeek week, IEnumerable<InstructorSchedule> allSchedules,
+            Dictionary<string, Person> personData, List<VWeek> allWeeks,
+            Dictionary<int, bool> rotationWeeklyPrefs, Rotation? rotation = null) // WeekId -> Closed status mapping
         {
             var weekSchedules = allSchedules
                 .Where(s => s.WeekId == week.WeekId)
@@ -534,6 +554,21 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 })
                 .ToList();
 
+            // Get all weeks for this rotation (ordered by week number)
+            var rotationWeeks = allWeeks.Where(w =>
+                allSchedules.Any(s => s.WeekId == w.WeekId)
+            ).OrderBy(w => w.WeekNum).ToList();
+
+            // Check if this specific week is closed for this rotation
+            var rotationClosed = rotationWeeklyPrefs.TryGetValue(week.WeekId, out var closed) && closed;
+
+            // Use the simplified evaluation logic with actual closed status
+            var requiresPrimary = EvaluationPolicyService.RequiresPrimaryEvaluator(
+                week.WeekNum,
+                rotationWeeks,
+                rotation?.Service?.WeekSize,
+                rotationClosed);
+
             return new
             {
                 weekId = week.WeekId,
@@ -542,11 +577,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 dateEnd = week.DateEnd,
                 termCode = week.TermCode,
                 extendedRotation = week.ExtendedRotation,
-                forcedVacation = week.ForcedVacation,
-                requiresPrimaryEvaluator = EvaluationPolicyService.RequiresPrimaryEvaluator(
-                    week.WeekNum,
-                    allWeeks,
-                    rotation?.Service?.WeekSize),
+                rotationClosed = rotationClosed,
+                requiresPrimaryEvaluator = requiresPrimary,
                 instructorSchedules = weekSchedules
             };
         }
@@ -706,5 +738,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 return HandleException(ex, "Failed to retrieve initial page data");
             }
         }
+
     }
 }

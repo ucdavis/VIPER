@@ -262,7 +262,7 @@ import { ref, computed, onMounted, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
 import { RotationService } from "../services/rotation-service"
-import type { RotationWithService, RotationScheduleData, WeekWithSchedules } from "../types/rotation-types"
+import type { RotationWithService, RotationScheduleData } from "../types/rotation-types"
 import { InstructorScheduleService } from "../services/instructor-schedule-service"
 import type { Clinician } from "../services/clinician-service"
 import { PageDataService } from "../services/page-data-service"
@@ -373,12 +373,12 @@ const weeksBySeason = computed(() => {
 })
 
 // Check if a season/term has ended
-function isSeasonPast(season: { weeks: WeekWithSchedules[] }): boolean {
+function isSeasonPast(season: { weeks: { dateEnd: string }[] }): boolean {
     if (!season.weeks || season.weeks.length === 0) return false
 
     // Get the last week's end date
     const lastWeek = season.weeks[season.weeks.length - 1]
-    if (!lastWeek.dateEnd) return false
+    if (!lastWeek || !lastWeek.dateEnd) return false
 
     const endDate = new Date(lastWeek.dateEnd)
     const today = new Date()

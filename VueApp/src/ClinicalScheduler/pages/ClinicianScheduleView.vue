@@ -268,7 +268,7 @@ import { ClinicianService, type Clinician, type ClinicianScheduleData } from "..
 import { InstructorScheduleService } from "../services/instructor-schedule-service"
 import { PageDataService } from "../services/page-data-service"
 import { usePermissionsStore } from "../stores/permissions"
-import type { RotationWithService, WeekWithSchedules } from "../types/rotation-types"
+import type { RotationWithService } from "../types/rotation-types"
 import type { Rotation } from "../types"
 
 // Interface for clinician rotation item
@@ -382,12 +382,12 @@ const assignedRotationNames = computed(() => {
 
 // Check if clinician has no rotation assignments
 // Check if a semester/term has ended
-function isSemesterPast(semester: { weeks: WeekWithSchedules[] }): boolean {
+function isSemesterPast(semester: { weeks: { dateEnd: string }[] }): boolean {
     if (!semester.weeks || semester.weeks.length === 0) return false
 
     // Get the last week's end date
     const lastWeek = semester.weeks[semester.weeks.length - 1]
-    if (!lastWeek.dateEnd) return false
+    if (!lastWeek || !lastWeek.dateEnd) return false
 
     const endDate = new Date(lastWeek.dateEnd)
     const today = new Date()

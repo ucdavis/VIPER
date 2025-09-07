@@ -5,7 +5,7 @@ namespace Viper.Models.ClinicalScheduler
     /// <summary>
     /// Represents the vWeek view from the legacy database which includes proper academic year and week number calculations
     /// </summary>
-    public class VWeek : IRotationWeekInfo
+    public class VWeek : EvaluationPolicyService.IRotationWeekInfo
     {
         public int WeekId { get; set; }
         public int WeekNum { get; set; }

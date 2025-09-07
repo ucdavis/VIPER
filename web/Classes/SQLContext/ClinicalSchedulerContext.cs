@@ -20,6 +20,7 @@ public class ClinicalSchedulerContext : DbContext
     public virtual DbSet<Status> Statuses { get; set; }
     public virtual DbSet<ScheduleAudit> ScheduleAudits { get; set; }
     public virtual DbSet<VWeek> VWeeks { get; set; }
+    public virtual DbSet<RotationWeeklyPref> RotationWeeklyPrefs { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -161,6 +162,32 @@ public class ClinicalSchedulerContext : DbContext
             entity.Property(e => e.DefaultGradYear).HasColumnName("DefaultGradYear");
             entity.Property(e => e.DefaultSelectionYear).HasColumnName("DefaultSelectionYear");
             entity.Property(e => e.PublishSchedule).HasColumnName("PublishSchedule");
+        });
+
+        modelBuilder.Entity<RotationWeeklyPref>(entity =>
+        {
+            entity.HasKey(e => e.RotationWeeklyPrefsId);
+            entity.ToTable("RotationWeeklyPref", schema: "dbo");
+
+            entity.Property(e => e.RotationWeeklyPrefsId).HasColumnName("RotationWeeklyPrefs_ID");
+            entity.Property(e => e.RotId).HasColumnName("Rot_ID");
+            entity.Property(e => e.WeekId).HasColumnName("Week_ID");
+            entity.Property(e => e.MinStudents).HasColumnName("MinStudents");
+            entity.Property(e => e.MaxStudents).HasColumnName("MaxStudents");
+            entity.Property(e => e.ModifiedBy).HasColumnName("Modified_by").HasMaxLength(8);
+            entity.Property(e => e.ModifiedDate).HasColumnName("Modified_Date");
+            entity.Property(e => e.Closed).HasColumnName("Closed");
+            entity.Property(e => e.Virtual).HasColumnName("Virtual").HasDefaultValue(false);
+            entity.Property(e => e.GradeMode).HasColumnName("GradeMode").HasMaxLength(20);
+            entity.Property(e => e.GradeModeLevel).HasColumnName("GradeModeLevel").HasMaxLength(20);
+
+            entity.HasOne(e => e.Rotation).WithMany()
+                .HasForeignKey(e => e.RotId)
+                .HasConstraintName("FK_RotationWeeklyPref_Rotation");
+
+            entity.HasOne(e => e.Week).WithMany()
+                .HasForeignKey(e => e.WeekId)
+                .HasConstraintName(null);
         });
 
         modelBuilder.Entity<ScheduleAudit>(entity =>
