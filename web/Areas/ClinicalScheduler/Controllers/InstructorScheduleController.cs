@@ -5,6 +5,7 @@ using Viper.Areas.ClinicalScheduler.Constants;
 using Viper.Areas.ClinicalScheduler.Models;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Requests;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
+using Viper.Areas.ClinicalScheduler.Validators;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
 
@@ -22,11 +23,13 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         private readonly IScheduleEditService _scheduleEditService;
         private readonly IScheduleAuditService _auditService;
         private readonly ISchedulePermissionService _permissionService;
+        private readonly AddInstructorValidator _validator;
 
         public InstructorScheduleController(
             IScheduleEditService scheduleEditService,
             IScheduleAuditService auditService,
             ISchedulePermissionService permissionService,
+            AddInstructorValidator validator,
             IGradYearService gradYearService,
             ILogger<InstructorScheduleController> logger)
             : base(gradYearService, logger)
@@ -34,6 +37,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             _scheduleEditService = scheduleEditService;
             _auditService = auditService;
             _permissionService = permissionService;
+            _validator = validator;
         }
 
         /// <summary>
@@ -55,130 +59,186 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
             try
             {
-                // Trim MothraId before validation
-                request.MothraId = request.MothraId?.Trim();
-
-                if (!ModelState.IsValid)
+                // Step 1: Validate request
+                var validationResult = _validator.ValidateRequest(request, correlationId);
+                if (!validationResult.IsValid)
                 {
-                    var errors = ModelState.Values
-                        .SelectMany(v => v.Errors)
-                        .Select(e => e.ErrorMessage)
-                        .ToList();
-
-                    _logger.LogWarning("Model validation failed (CorrelationId: {CorrelationId}): {Errors}",
-                        correlationId, string.Join("; ", errors));
-
-                    // Return first error message or generic message
-                    var userMessage = errors.FirstOrDefault() ?? "Please check your input and try again.";
-
                     return BadRequest(new ErrorResponse(
                         ErrorCodes.ValidationError,
-                        userMessage,
+                        validationResult.ErrorMessage!,
                         correlationId));
                 }
 
-                // Defense-in-depth: Check permissions at controller level before proceeding
-                if (!await _permissionService.HasEditPermissionForRotationAsync(request.RotationId!.Value, cancellationToken))
+                // Step 2: Check permissions
+                if (!await CheckPermissionsAsync(request.RotationId!.Value, correlationId, cancellationToken))
                 {
-                    _logger.LogWarning("User attempted to add instructor to rotation {RotationId} without permission (CorrelationId: {CorrelationId})",
-                        request.RotationId!.Value, correlationId);
                     return Forbid();
                 }
 
-                // Check for other rotation assignments (informational only)
-                var otherRotations = await _scheduleEditService.GetOtherRotationSchedulesAsync(
-                    request.MothraId!, request.WeekIds, request.GradYear!.Value, request.RotationId!.Value, cancellationToken);
-
-                string? warningMessage = null;
-                if (otherRotations.Any())
-                {
-                    // Get unique rotation names
-                    var rotationNames = otherRotations
-                        .Select(s => s.Rotation?.Name ?? $"Rotation {s.RotationId}")
-                        .Distinct()
-                        .OrderBy(name => name);
-
-                    warningMessage = $"Note: This instructor is also scheduled for {string.Join(", ", rotationNames)}";
-                    _logger.LogInformation("Instructor {MothraId} has other rotation assignments (CorrelationId: {CorrelationId}): {Details}",
-                        request.MothraId, correlationId, warningMessage);
-                }
-
-                // Add instructor to schedule
-                var createdSchedules = await _scheduleEditService.AddInstructorAsync(
-                    request.MothraId,
-                    request.RotationId!.Value,
+                // Step 3: Check for conflicts and build warning message
+                var warningMessage = await BuildConflictWarningAsync(
+                    request.MothraId!,
                     request.WeekIds,
                     request.GradYear!.Value,
-                    request.IsPrimaryEvaluator,
+                    request.RotationId!.Value,
+                    correlationId,
                     cancellationToken);
 
-                var scheduleResponses = new List<InstructorScheduleResponse>();
-                foreach (var schedule in createdSchedules)
-                {
-                    var canRemove = await _scheduleEditService.CanRemoveInstructorAsync(schedule.InstructorScheduleId, cancellationToken);
-                    scheduleResponses.Add(schedule.ToResponse(canRemove));
-                }
-
-                _logger.LogInformation("Successfully added instructor to rotation {RotationId} for {WeekCount} weeks (CorrelationId: {CorrelationId})",
-                    request.RotationId!.Value, request.WeekIds.Length, correlationId);
-
-                // Return response with optional warning message
-                var response = new AddInstructorResponse
-                {
-                    Schedules = scheduleResponses,
-                    ScheduleIds = scheduleResponses.Select(s => s.InstructorScheduleId).ToList(),
-                    WarningMessage = warningMessage
-                };
+                // Step 4: Add instructor through service layer
+                var response = await ProcessAddInstructorAsync(
+                    request,
+                    warningMessage,
+                    correlationId,
+                    cancellationToken);
 
                 return Ok(response);
             }
             catch (UnauthorizedAccessException ex)
             {
-                _logger.LogWarning(ex, "Unauthorized attempt to add instructor to rotation {RotationId} (CorrelationId: {CorrelationId})",
-                    request.RotationId!.Value, correlationId);
-                return Forbid();
+                return HandleUnauthorizedAccess(ex, request.RotationId!.Value, correlationId);
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "Invalid operation when adding instructor to rotation {RotationId} (CorrelationId: {CorrelationId}): {ErrorMessage}",
-                    request.RotationId!.Value, correlationId, ex.Message);
-
-                // Map specific error messages to user-friendly messages
-                string userMessage = UserMessages.GenericError;
-                string errorCode = ErrorCodes.InvalidOperation;
-
-                if (ex.Message.Contains("Person with MothraId") && ex.Message.Contains("not found"))
-                {
-                    userMessage = UserMessages.InvalidPerson;
-                    errorCode = ErrorCodes.ResourceNotFound;
-                }
-                else if (ex.Message.Contains("Rotation with ID") && ex.Message.Contains("not found"))
-                {
-                    userMessage = UserMessages.InvalidRotation;
-                    errorCode = ErrorCodes.ResourceNotFound;
-                }
-                else if (ex.Message.Contains("Week(s) not found"))
-                {
-                    userMessage = UserMessages.InvalidWeeks;
-                    errorCode = ErrorCodes.ResourceNotFound;
-                }
-                else if (ex.Message.Contains("already scheduled") || ex.Message.Contains("duplicate"))
-                {
-                    userMessage = UserMessages.DuplicateSchedule;
-                    errorCode = ErrorCodes.DuplicateSchedule;
-                }
-
-                return BadRequest(new ErrorResponse(errorCode, userMessage, correlationId));
+                return HandleInvalidOperation(ex, correlationId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding instructor to rotation {RotationId} (CorrelationId: {CorrelationId})",
-                    request.RotationId!.Value, correlationId);
-                return StatusCode(500, new ErrorResponse(
-                    ErrorCodes.SystemError,
-                    UserMessages.GenericError,
-                    correlationId));
+                return HandleSystemError(ex, request.RotationId!.Value, correlationId);
             }
+        }
+
+        private async Task<bool> CheckPermissionsAsync(
+            int rotationId,
+            string correlationId,
+            CancellationToken cancellationToken)
+        {
+            if (!await _permissionService.HasEditPermissionForRotationAsync(rotationId, cancellationToken))
+            {
+                _logger.LogWarning("User attempted to add instructor to rotation {RotationId} without permission (CorrelationId: {CorrelationId})",
+                    rotationId, correlationId);
+                return false;
+            }
+            return true;
+        }
+
+        private async Task<string?> BuildConflictWarningAsync(
+            string mothraId,
+            int[] weekIds,
+            int gradYear,
+            int rotationId,
+            string correlationId,
+            CancellationToken cancellationToken)
+        {
+            var otherRotations = await _scheduleEditService.GetOtherRotationSchedulesAsync(
+                mothraId, weekIds, gradYear, rotationId, cancellationToken);
+
+            if (!otherRotations.Any())
+                return null;
+
+            // Get unique rotation names
+            var rotationNames = otherRotations
+                .Select(s => s.Rotation?.Name ?? $"Rotation {s.RotationId}")
+                .Distinct()
+                .OrderBy(name => name);
+
+            var warningMessage = $"Note: This instructor is also scheduled for {string.Join(", ", rotationNames)}";
+
+            _logger.LogInformation("Instructor {MothraId} has other rotation assignments (CorrelationId: {CorrelationId}): {Details}",
+                mothraId, correlationId, warningMessage);
+
+            return warningMessage;
+        }
+
+        private async Task<AddInstructorResponse> ProcessAddInstructorAsync(
+            AddInstructorRequest request,
+            string? warningMessage,
+            string correlationId,
+            CancellationToken cancellationToken)
+        {
+            // Add instructor to schedule
+            var createdSchedules = await _scheduleEditService.AddInstructorAsync(
+                request.MothraId!,
+                request.RotationId!.Value,
+                request.WeekIds,
+                request.GradYear!.Value,
+                request.IsPrimaryEvaluator,
+                cancellationToken);
+
+            var scheduleResponses = new List<InstructorScheduleResponse>();
+            foreach (var schedule in createdSchedules)
+            {
+                var canRemove = await _scheduleEditService.CanRemoveInstructorAsync(
+                    schedule.InstructorScheduleId, cancellationToken);
+                scheduleResponses.Add(schedule.ToResponse(canRemove));
+            }
+
+            _logger.LogInformation("Successfully added instructor to rotation {RotationId} for {WeekCount} weeks (CorrelationId: {CorrelationId})",
+                request.RotationId!.Value, request.WeekIds.Length, correlationId);
+
+            return new AddInstructorResponse
+            {
+                Schedules = scheduleResponses,
+                ScheduleIds = scheduleResponses.Select(s => s.InstructorScheduleId).ToList(),
+                WarningMessage = warningMessage
+            };
+        }
+
+        private IActionResult HandleUnauthorizedAccess(
+            UnauthorizedAccessException ex,
+            int rotationId,
+            string correlationId)
+        {
+            _logger.LogWarning(ex, "Unauthorized attempt to add instructor to rotation {RotationId} (CorrelationId: {CorrelationId})",
+                rotationId, correlationId);
+            return Forbid();
+        }
+
+        private IActionResult HandleInvalidOperation(
+            InvalidOperationException ex,
+            string correlationId)
+        {
+            _logger.LogWarning(ex, "Invalid operation (CorrelationId: {CorrelationId}): {ErrorMessage}",
+                correlationId, ex.Message);
+
+            // Map specific error messages to user-friendly messages
+            string userMessage = UserMessages.GenericError;
+            string errorCode = ErrorCodes.InvalidOperation;
+
+            if (ex.Message.Contains("Person with MothraId") && ex.Message.Contains("not found"))
+            {
+                userMessage = UserMessages.InvalidPerson;
+                errorCode = ErrorCodes.ResourceNotFound;
+            }
+            else if (ex.Message.Contains("Rotation with ID") && ex.Message.Contains("not found"))
+            {
+                userMessage = UserMessages.InvalidRotation;
+                errorCode = ErrorCodes.ResourceNotFound;
+            }
+            else if (ex.Message.Contains("Week(s) not found"))
+            {
+                userMessage = UserMessages.InvalidWeeks;
+                errorCode = ErrorCodes.ResourceNotFound;
+            }
+            else if (ex.Message.Contains("already scheduled") || ex.Message.Contains("duplicate"))
+            {
+                userMessage = UserMessages.DuplicateSchedule;
+                errorCode = ErrorCodes.DuplicateSchedule;
+            }
+
+            return BadRequest(new ErrorResponse(errorCode, userMessage, correlationId));
+        }
+
+        private IActionResult HandleSystemError(
+            Exception ex,
+            int rotationId,
+            string correlationId)
+        {
+            _logger.LogError(ex, "Error adding instructor to rotation {RotationId} (CorrelationId: {CorrelationId})",
+                rotationId, correlationId);
+            return StatusCode(500, new ErrorResponse(
+                ErrorCodes.SystemError,
+                UserMessages.GenericError,
+                correlationId));
         }
 
         /// <summary>

@@ -6,6 +6,7 @@ using System.ComponentModel.DataAnnotations;
 using Viper.Areas.ClinicalScheduler.Controllers;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Requests;
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Areas.ClinicalScheduler.Validators;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -17,6 +18,7 @@ namespace Viper.test.ClinicalScheduler
         private readonly Mock<IScheduleEditService> _mockScheduleEditService;
         private readonly Mock<IScheduleAuditService> _mockAuditService;
         private readonly Mock<ISchedulePermissionService> _mockPermissionService;
+        private readonly AddInstructorValidator _validator;
         private readonly Mock<IGradYearService> _mockGradYearService;
         private readonly Mock<ILogger<InstructorScheduleController>> _mockLogger;
         private readonly InstructorScheduleController _controller;
@@ -29,10 +31,15 @@ namespace Viper.test.ClinicalScheduler
             _mockGradYearService = new Mock<IGradYearService>();
             _mockLogger = new Mock<ILogger<InstructorScheduleController>>();
 
+            // Create real validator instance with mock logger
+            var mockValidatorLogger = new Mock<ILogger<AddInstructorValidator>>();
+            _validator = new AddInstructorValidator(mockValidatorLogger.Object);
+
             _controller = new InstructorScheduleController(
                 _mockScheduleEditService.Object,
                 _mockAuditService.Object,
                 _mockPermissionService.Object,
+                _validator,
                 _mockGradYearService.Object,
                 _mockLogger.Object
             );

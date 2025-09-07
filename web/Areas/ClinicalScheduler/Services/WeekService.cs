@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Viper.Areas.ClinicalScheduler.Extensions;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Classes.SQLContext;
-using Viper.Models.ClinicalScheduler;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -25,7 +26,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="includeExtendedRotation">Whether to include extended rotation weeks</param>
         /// <param name="cancellationToken">Cancellation token for async operations</param>
         /// <returns>List of weeks with proper week numbers and grad year</returns>
-        public async Task<List<VWeek>> GetWeeksAsync(int gradYear, bool includeExtendedRotation = true, CancellationToken cancellationToken = default)
+        public async Task<List<WeekDto>> GetWeeksAsync(int gradYear, bool includeExtendedRotation = true, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -45,7 +46,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 _logger.LogInformation("Retrieved {Count} weeks for grad year {GradYear}, includeExtendedRotation: {IncludeExtendedRotation}",
                     weeks.Count, gradYear, includeExtendedRotation);
-                return weeks;
+                return weeks.ToDto();
             }
             catch (Exception ex)
             {
@@ -62,7 +63,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="gradYear">Optional grad year filter</param>
         /// <param name="cancellationToken">Cancellation token for async operations</param>
         /// <returns>The week or null if not found</returns>
-        public async Task<VWeek?> GetWeekAsync(int weekId, int? gradYear = null, CancellationToken cancellationToken = default)
+        public async Task<WeekDto?> GetWeekAsync(int weekId, int? gradYear = null, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -86,7 +87,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 _logger.LogDebug("Retrieved week {WeekId} for grad year {GradYear}, week number {WeekNum}",
                     weekId, week.GradYear, week.WeekNum);
-                return week;
+                return week.ToDto();
             }
             catch (Exception ex)
             {
@@ -102,7 +103,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="gradYear">Optional grad year filter</param>
         /// <param name="cancellationToken">Cancellation token for async operations</param>
         /// <returns>The current week or null if not found</returns>
-        public async Task<VWeek?> GetCurrentWeekAsync(int? gradYear = null, CancellationToken cancellationToken = default)
+        public async Task<WeekDto?> GetCurrentWeekAsync(int? gradYear = null, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -127,7 +128,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 }
 
                 _logger.LogInformation("Current week is {WeekNum} for grad year {GradYear}", week.WeekNum, week.GradYear);
-                return week;
+                return week.ToDto();
             }
             catch (Exception ex)
             {
@@ -144,7 +145,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="endDate">End date (optional)</param>
         /// <param name="cancellationToken">Cancellation token for async operations</param>
         /// <returns>List of weeks that overlap with the date range</returns>
-        public async Task<List<VWeek>> GetWeeksByDateRangeAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
+        public async Task<List<WeekDto>> GetWeeksByDateRangeAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -171,7 +172,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 _logger.LogInformation("Retrieved {Count} weeks for date range {StartDate} to {EndDate}",
                     weeks.Count, startDate?.ToString("yyyy-MM-dd") ?? "none", endDate?.ToString("yyyy-MM-dd") ?? "none");
-                return weeks;
+                return weeks.ToDto();
             }
             catch (Exception ex)
             {

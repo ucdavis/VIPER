@@ -38,7 +38,6 @@ namespace Viper.test.ClinicalScheduler
         {
             _controller = new CliniciansController(
                 Context,
-                _aaudContext,
                 _mockLogger.Object,
                 _mockGradYearService.Object,
                 _mockWeekService.Object,

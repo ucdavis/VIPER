@@ -24,18 +24,16 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         #endregion
 
         private readonly ClinicalSchedulerContext _context;
-        private readonly AAUDContext _aaudContext; // Legacy context for fallback clinician lookup
         private readonly IWeekService _weekService;
         private readonly IPersonService _personService;
         private readonly IUserHelper _userHelper;
 
-        public CliniciansController(ClinicalSchedulerContext context, AAUDContext aaudContext, ILogger<CliniciansController> logger,
+        public CliniciansController(ClinicalSchedulerContext context, ILogger<CliniciansController> logger,
             IGradYearService gradYearService, IWeekService weekService, IPersonService personService,
             IUserHelper? userHelper = null)
             : base(gradYearService, logger)
         {
             _context = context;
-            _aaudContext = aaudContext;
             _weekService = weekService;
             _personService = personService;
             _userHelper = userHelper ?? new UserHelper();
@@ -404,24 +402,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
             if (includeAllAffiliates)
             {
-                // When includeAllAffiliates is true, fetch active employee affiliates from AAUD database
+                // When includeAllAffiliates is true, fetch active employee affiliates from AAUD database through PersonService
                 _logger.LogDebug("Fetching all active employee affiliates from AAUD database");
 
-                var allAffiliates = await _aaudContext.AaudUsers
-                    .AsNoTracking()
-                    .Where(u => !string.IsNullOrEmpty(u.MothraId) &&
-                               !string.IsNullOrEmpty(u.EmployeeId) &&
-                               (u.CurrentEmployee || u.FutureEmployee))
-                    .Select(u => new ClinicianSummary
-                    {
-                        MothraId = u.MothraId,
-                        FullName = u.DisplayFullName,
-                        FirstName = u.DisplayFirstName,
-                        LastName = u.DisplayLastName
-                    })
-                    .OrderBy(c => c.LastName)
-                    .ThenBy(c => c.FirstName)
-                    .ToListAsync(HttpContext.RequestAborted);
+                var allAffiliates = await _personService.GetAllActiveEmployeeAffiliatesAsync(HttpContext.RequestAborted);
 
                 _logger.LogDebug("Found {Count} active employee affiliates from AAUD", allAffiliates.Count);
                 return allAffiliates;
@@ -457,8 +441,25 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <returns>Clinician info or null if not found</returns>
         private async Task<ClinicianSummary?> GetClinicianByMothraIdAsync(string mothraId)
         {
-            var clinicians = await GetAllCliniciansAsync(includeAllAffiliates: true);
-            return clinicians.FirstOrDefault(c => c.MothraId == mothraId);
+            // First try to get from scheduled clinicians (better data quality)
+            var person = await _personService.GetPersonAsync(mothraId, HttpContext.RequestAborted);
+            if (person != null)
+            {
+                return new ClinicianSummary
+                {
+                    MothraId = person.MothraId,
+                    FullName = person.FullName,
+                    FirstName = person.FirstName,
+                    LastName = person.LastName,
+                    MiddleName = person.MiddleName,
+                    MailId = person.MailId,
+                    Source = person.Source,
+                    LastScheduled = person.LastScheduled
+                };
+            }
+
+            // Fallback to AAUD lookup through PersonService
+            return await _personService.GetClinicianFromAaudAsync(mothraId, HttpContext.RequestAborted);
         }
 
         /// <summary>
@@ -495,47 +496,24 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         }
 
         /// <summary>
-        /// Helper method to build clinician info object, trying PersonService first, then AAUD fallback
+        /// Helper method to build clinician info object, trying PersonService first with fallback
         /// </summary>
         /// <param name="mothraId">The MothraId to lookup</param>
         /// <param name="role">Optional role to include</param>
         /// <returns>Clinician info object</returns>
         private async Task<object> BuildClinicianInfoAsync(string mothraId, string? role = null)
         {
-            // Try PersonService first
+            // Try PersonService which includes AAUD fallback
             var clinicianFromPersonService = await GetClinicianByMothraIdAsync(mothraId);
             if (clinicianFromPersonService != null)
             {
                 return BuildClinicianInfoFromPersonService(clinicianFromPersonService, mothraId, role);
             }
 
-            // Fallback to AAUD context
-            var clinicianFromAaud = await GetClinicianFromAaudAsync(mothraId, role);
-            return clinicianFromAaud ?? CreateDefaultClinicianInfo(mothraId, role);
+            // If all lookups fail, return default
+            return CreateDefaultClinicianInfo(mothraId, role);
         }
 
-        /// <summary>
-        /// Helper method to get clinician info from AAUD context as fallback
-        /// </summary>
-        /// <param name="mothraId">The MothraId to look up</param>
-        /// <param name="role">Optional role to include in the result</param>
-        /// <returns>Clinician info object or null if not found</returns>
-        private async Task<object?> GetClinicianFromAaudAsync(string mothraId, string? role = null)
-        {
-            var clinicianFromAaud = await _aaudContext.VwVmthClinicians
-                .Where(c => c.IdsMothraid == mothraId)
-                .Select(c => new
-                {
-                    mothraId = mothraId,
-                    fullName = ResolveClinicianName(c.FullName, c.PersonDisplayFirstName, c.PersonDisplayLastName, mothraId),
-                    firstName = c.PersonDisplayFirstName ?? "",
-                    lastName = c.PersonDisplayLastName ?? "",
-                    role = role
-                })
-                .FirstOrDefaultAsync();
-
-            return clinicianFromAaud;
-        }
 
         /// <summary>
         /// Helper method to create a default clinician info object when no data is found
@@ -553,26 +531,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 lastName = "",
                 role = role
             };
-        }
-
-        /// <summary>
-        /// Helper method to resolve clinician full name with fallbacks
-        /// </summary>
-        /// <param name="fullName">Primary full name from data source</param>
-        /// <param name="firstName">First name to use as fallback</param>
-        /// <param name="lastName">Last name to use as fallback</param>
-        /// <param name="mothraId">MothraId to use as final fallback</param>
-        /// <returns>Resolved full name</returns>
-        private static string ResolveClinicianName(string? fullName, string? firstName, string? lastName, string mothraId)
-        {
-            var first = firstName?.Trim();
-            var last = lastName?.Trim();
-
-            if (!string.IsNullOrWhiteSpace(last) && !string.IsNullOrWhiteSpace(first))
-                return $"{last}, {first}";
-
-            // Fallback to fullName (which is "First Last" format) or mothraId
-            return !string.IsNullOrWhiteSpace(fullName) ? fullName : $"Clinician {mothraId}";
         }
 
         /// <summary>

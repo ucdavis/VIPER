@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
-using Viper.Areas.ClinicalScheduler.Extensions;
 using Viper.Areas.Curriculum.Services;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
@@ -59,7 +58,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogInformation("Getting rotations. ServiceId: {ServiceId}, IncludeService: {IncludeService}", serviceId, includeService);
 
                 // Get rotations through service layer
-                List<Viper.Models.ClinicalScheduler.Rotation> rotations;
+                List<RotationDto> rotations;
 
                 if (serviceId.HasValue)
                 {
@@ -71,7 +70,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 }
 
                 // Filter rotations based on user permissions
-                var filteredRotations = new List<Viper.Models.ClinicalScheduler.Rotation>();
+                var filteredRotations = new List<RotationDto>();
                 foreach (var rotation in rotations)
                 {
                     // Check if user can edit this rotation's service
@@ -81,8 +80,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     }
                 }
 
-                // Convert to DTOs for response
-                var rotationDtos = filteredRotations.ToDto(includeService).ToList();
+                // Rotations are already DTOs from the service
+                var rotationDtos = filteredRotations;
 
                 _logger.LogInformation("Retrieved {Count} rotations via RotationService", rotationDtos.Count);
                 return Ok(rotationDtos);
@@ -114,7 +113,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             if (id <= 0)
             {
                 _logger.LogWarning("Invalid rotation ID requested: {RotationId}", id);
-                return BadRequest(new { error = "Rotation ID must be a positive integer", rotationId = id });
+                return BadRequest(new RotationErrorResponse("Rotation ID must be a positive integer", id));
             }
 
             try
@@ -127,7 +126,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 if (rotation == null)
                 {
                     _logger.LogWarning("Rotation not found with ID: {RotationId}", id);
-                    return NotFound(new { error = "Rotation not found", rotationId = id });
+                    return NotFound(new RotationErrorResponse("Rotation not found", id));
                 }
 
                 // Build response object
@@ -163,7 +162,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             if (id <= 0)
             {
                 _logger.LogWarning("Invalid rotation ID requested for schedule: {RotationId}", id);
-                return BadRequest(new { error = "Rotation ID must be a positive integer", rotationId = id });
+                return BadRequest(new RotationErrorResponse("Rotation ID must be a positive integer", id));
             }
 
             try
@@ -176,7 +175,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 if (rotation == null)
                 {
-                    return NotFound(new { error = "Rotation not found", rotationId = id });
+                    return NotFound(new RotationErrorResponse("Rotation not found", id));
                 }
 
                 // Get weeks for the target year
@@ -351,13 +350,18 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     .AsNoTracking()
                     .Include(r => r.Service)
                     .GroupBy(r => new { r.ServiceId, r.Service.ServiceName, r.Service.ShortName })
-                    .Select(g => new
+                    .Select(g => new ServiceSummaryDto
                     {
                         ServiceId = g.Key.ServiceId,
                         ServiceName = g.Key.ServiceName,
                         ShortName = g.Key.ShortName,
                         RotationCount = g.Count(),
-                        Rotations = g.Select(r => new { r.RotId, r.Name, r.Abbreviation }).ToList()
+                        Rotations = g.Select(r => new RotationSummaryDto
+                        {
+                            RotId = r.RotId,
+                            Name = r.Name,
+                            Abbreviation = r.Abbreviation
+                        }).ToList()
                     })
                     .OrderBy(s => s.ServiceName)
                     .ToListAsync();
@@ -367,7 +371,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogInformation("Retrieved summary for {ServiceCount} services with {TotalRotations} total rotations",
                     summary.Count, totalRotations);
 
-                return Ok(new
+                return Ok(new RotationSummaryResponse
                 {
                     TotalRotations = totalRotations,
                     ServiceCount = summary.Count,
@@ -389,7 +393,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <param name="rotation">The rotation entity</param>
         /// <param name="includeService">Whether to include service details</param>
         /// <returns>Anonymous object representing the rotation</returns>
-        private object BuildRotationResponse(Viper.Models.ClinicalScheduler.Rotation rotation, bool includeService = true)
+        private object BuildRotationResponse(RotationDto rotation, bool includeService = true)
         {
             return new
             {
@@ -413,7 +417,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <summary>
         /// Gets weeks for a rotation filtered by year
         /// </summary>
-        private async Task<List<VWeek>> GetWeeksForRotationAsync(int year, bool includeExtendedRotation = true)
+        private async Task<List<WeekDto>> GetWeeksForRotationAsync(int year, bool includeExtendedRotation = true)
         {
             return await _weekService.GetWeeksAsync(year, includeExtendedRotation);
         }
@@ -505,9 +509,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <summary>
         /// Builds a week schedule item with instructor information
         /// </summary>
-        private object BuildWeekScheduleItem(VWeek week, IEnumerable<InstructorSchedule> allSchedules,
-            Dictionary<string, Person> personData, List<VWeek> allWeeks,
-            Dictionary<int, bool> rotationWeeklyPrefs, Rotation? rotation = null) // WeekId -> Closed status mapping
+        private object BuildWeekScheduleItem(WeekDto week, IEnumerable<InstructorSchedule> allSchedules,
+            Dictionary<string, Person> personData, List<WeekDto> allWeeks,
+            Dictionary<int, bool> rotationWeeklyPrefs, RotationDto? rotation = null) // WeekId -> Closed status mapping
         {
             var weekSchedules = allSchedules
                 .Where(s => s.WeekId == week.WeekId)
@@ -593,7 +597,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <summary>
         /// Builds the complete rotation schedule response
         /// </summary>
-        private object BuildRotationScheduleResponse(Viper.Models.ClinicalScheduler.Rotation rotation, int gradYear,
+        private object BuildRotationScheduleResponse(RotationDto rotation, int gradYear,
             List<object> schedulesBySemester, List<object> recentClinicians)
         {
             return new
@@ -608,7 +612,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <summary>
         /// Builds an empty rotation schedule response when no weeks are found
         /// </summary>
-        private object BuildEmptyScheduleResponse(Viper.Models.ClinicalScheduler.Rotation rotation, int academicYear)
+        private object BuildEmptyScheduleResponse(RotationDto rotation, int academicYear)
         {
             return new
             {
@@ -625,7 +629,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// </summary>
         /// <param name="rotation">The rotation entity</param>
         /// <returns>Anonymous object representing the rotation</returns>
-        private object BuildSimpleRotationResponse(Viper.Models.ClinicalScheduler.Rotation rotation)
+        private object BuildSimpleRotationResponse(RotationDto rotation)
         {
             return new
             {

@@ -34,10 +34,12 @@ namespace Viper.Areas.ClinicalScheduler.Services
     public class PersonService : BaseClinicalSchedulerService, IPersonService
     {
         private readonly ILogger<PersonService> _logger;
+        private readonly AAUDContext _aaudContext;
 
-        public PersonService(ILogger<PersonService> logger, ClinicalSchedulerContext context) : base(context)
+        public PersonService(ILogger<PersonService> logger, ClinicalSchedulerContext context, AAUDContext aaudContext) : base(context)
         {
             _logger = logger;
+            _aaudContext = aaudContext;
         }
 
         /// <summary>
@@ -272,6 +274,117 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogError(ex, "Error retrieving unique MothraIds");
                 throw new InvalidOperationException("Failed to retrieve unique MothraIds from database", ex);
             }
+        }
+
+        /// <summary>
+        /// Get all active employee affiliates from AAUD database
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of active employee affiliates</returns>
+        public async Task<List<ClinicianSummary>> GetAllActiveEmployeeAffiliatesAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                _logger.LogDebug("Fetching all active employee affiliates from AAUD database");
+
+                var allAffiliates = await _aaudContext.AaudUsers
+                    .AsNoTracking()
+                    .Where(u => !string.IsNullOrEmpty(u.MothraId) &&
+                               !string.IsNullOrEmpty(u.EmployeeId) &&
+                               (u.CurrentEmployee || u.FutureEmployee))
+                    .Select(u => new ClinicianSummary
+                    {
+                        MothraId = u.MothraId,
+                        FullName = u.DisplayFullName,
+                        FirstName = u.DisplayFirstName,
+                        LastName = u.DisplayLastName,
+                        MiddleName = u.DisplayMiddleName,
+                        MailId = u.LoginId,
+                        Source = "AAUD"
+                    })
+                    .OrderBy(c => c.LastName)
+                    .ThenBy(c => c.FirstName)
+                    .ToListAsync(cancellationToken);
+
+                _logger.LogDebug("Found {Count} active employee affiliates from AAUD", allAffiliates.Count);
+                return allAffiliates;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving active employee affiliates from AAUD");
+                throw new InvalidOperationException("Failed to retrieve active employee affiliates from AAUD database", ex);
+            }
+        }
+
+        /// <summary>
+        /// Get clinician info from AAUD context as fallback
+        /// </summary>
+        /// <param name="mothraId">The MothraId to look up</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Clinician info or null if not found</returns>
+        public async Task<ClinicianSummary?> GetClinicianFromAaudAsync(string mothraId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(mothraId))
+                {
+                    _logger.LogWarning("GetClinicianFromAaudAsync called with empty MothraId");
+                    return null;
+                }
+
+                _logger.LogDebug("Getting clinician data for MothraId: {MothraId} from AAUD context", mothraId);
+
+                var clinician = await _aaudContext.VwVmthClinicians
+                    .AsNoTracking()
+                    .Where(c => c.IdsMothraid == mothraId)
+                    .Select(c => new ClinicianSummary
+                    {
+                        MothraId = mothraId,
+                        FullName = ResolveClinicianName(c.FullName, c.PersonDisplayFirstName, c.PersonDisplayLastName, mothraId),
+                        FirstName = c.PersonDisplayFirstName ?? "",
+                        LastName = c.PersonDisplayLastName ?? "",
+                        MiddleName = "", // VwVmthClinician doesn't have middle name field
+                        MailId = "", // VwVmthClinician doesn't have mail ID field
+                        Source = "AAUD_VwVmthClinician"
+                    })
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (clinician == null)
+                {
+                    _logger.LogWarning("Clinician not found for MothraId: {MothraId} in AAUD data", mothraId);
+                }
+                else
+                {
+                    _logger.LogDebug("Found clinician for MothraId: {MothraId} in AAUD data", mothraId);
+                }
+
+                return clinician;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving clinician data for MothraId: {MothraId} from AAUD", mothraId);
+                throw new InvalidOperationException($"Failed to retrieve clinician data for MothraId {mothraId} from AAUD", ex);
+            }
+        }
+
+        /// <summary>
+        /// Helper method to resolve clinician full name with fallbacks
+        /// </summary>
+        /// <param name="fullName">Primary full name from data source</param>
+        /// <param name="firstName">First name to use as fallback</param>
+        /// <param name="lastName">Last name to use as fallback</param>
+        /// <param name="mothraId">MothraId to use as final fallback</param>
+        /// <returns>Resolved full name</returns>
+        private static string ResolveClinicianName(string? fullName, string? firstName, string? lastName, string mothraId)
+        {
+            var first = firstName?.Trim();
+            var last = lastName?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(last) && !string.IsNullOrWhiteSpace(first))
+                return $"{last}, {first}";
+
+            // Fallback to fullName (which is "First Last" format) or mothraId
+            return !string.IsNullOrWhiteSpace(fullName) ? fullName : $"Clinician {mothraId}";
         }
     }
 }

@@ -1,4 +1,4 @@
-using Viper.Models.ClinicalScheduler;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -13,7 +13,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of rotations with their associated service data</returns>
-        Task<List<Rotation>> GetRotationsAsync(CancellationToken cancellationToken = default);
+        Task<List<RotationDto>> GetRotationsAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get a specific rotation by its ID
@@ -21,7 +21,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="rotationId">The rotation ID to retrieve</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Rotation with service data or null if not found</returns>
-        Task<Rotation?> GetRotationAsync(int rotationId, CancellationToken cancellationToken = default);
+        Task<RotationDto?> GetRotationAsync(int rotationId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get all rotations for a specific service
@@ -29,14 +29,14 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="serviceId">The service ID to filter by</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of rotations for the specified service</returns>
-        Task<List<Rotation>> GetRotationsByServiceAsync(int serviceId, CancellationToken cancellationToken = default);
+        Task<List<RotationDto>> GetRotationsByServiceAsync(int serviceId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get all services
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of all services</returns>
-        Task<List<Service>> GetServicesAsync(CancellationToken cancellationToken = default);
+        Task<List<ServiceDto>> GetServicesAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get a specific service by its ID
@@ -44,6 +44,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="serviceId">The service ID to retrieve</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Service or null if not found</returns>
-        Task<Service?> GetServiceAsync(int serviceId, CancellationToken cancellationToken = default);
+        Task<ServiceDto?> GetServiceAsync(int serviceId, CancellationToken cancellationToken = default);
     }
 }

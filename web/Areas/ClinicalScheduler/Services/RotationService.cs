@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Viper.Areas.ClinicalScheduler.Extensions;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 
@@ -23,7 +25,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of rotations with their associated service data</returns>
-        public async Task<List<Rotation>> GetRotationsAsync(CancellationToken cancellationToken = default)
+        public async Task<List<RotationDto>> GetRotationsAsync(CancellationToken cancellationToken = default)
         {
             try
             {
@@ -40,7 +42,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 _logger.LogInformation("Retrieved {Count} rotations from Clinical Scheduler",
                     rotations.Count);
-                return rotations;
+                return rotations.Select(r => r.ToDto()).ToList();
             }
             catch (Exception ex)
             {
@@ -55,7 +57,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="rotationId">The rotation ID to retrieve</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Rotation with service data or null if not found</returns>
-        public async Task<Rotation?> GetRotationAsync(int rotationId, CancellationToken cancellationToken = default)
+        public async Task<RotationDto?> GetRotationAsync(int rotationId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -77,7 +79,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         rotation.Name, rotation.Service?.ServiceName ?? "Unknown");
                 }
 
-                return rotation;
+                return rotation?.ToDto();
             }
             catch (Exception ex)
             {
@@ -135,7 +137,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="serviceId">Service ID to filter by</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of rotations for the specified service</returns>
-        public async Task<List<Rotation>> GetRotationsByServiceAsync(int serviceId, CancellationToken cancellationToken = default)
+        public async Task<List<RotationDto>> GetRotationsByServiceAsync(int serviceId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -149,7 +151,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .ToListAsync(cancellationToken);
 
                 _logger.LogInformation("Retrieved {Count} rotations for service ID: {ServiceId}", rotations.Count, serviceId);
-                return rotations;
+                return rotations.Select(r => r.ToDto()).ToList();
             }
             catch (Exception ex)
             {
@@ -163,7 +165,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of all services</returns>
-        public async Task<List<Service>> GetServicesAsync(CancellationToken cancellationToken = default)
+        public async Task<List<ServiceDto>> GetServicesAsync(CancellationToken cancellationToken = default)
         {
             try
             {
@@ -175,7 +177,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .ToListAsync(cancellationToken);
 
                 _logger.LogInformation("Retrieved {Count} services from Clinical Scheduler", services.Count);
-                return services;
+                return services.Select(s => s.ToDto()).ToList();
             }
             catch (Exception ex)
             {
@@ -190,7 +192,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="serviceId">Service ID to retrieve</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Service or null if not found</returns>
-        public async Task<Service?> GetServiceAsync(int serviceId, CancellationToken cancellationToken = default)
+        public async Task<ServiceDto?> GetServiceAsync(int serviceId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -210,7 +212,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     _logger.LogInformation("Found service: {ServiceName}", service.ServiceName);
                 }
 
-                return service;
+                return service?.ToDto();
             }
             catch (Exception ex)
             {

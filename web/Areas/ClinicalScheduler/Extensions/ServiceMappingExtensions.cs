@@ -20,6 +20,7 @@ namespace Viper.Areas.ClinicalScheduler.Extensions
                 ServiceId = service.ServiceId,
                 ServiceName = service.ServiceName,
                 ShortName = service.ShortName,
+                WeekSize = service.WeekSize,
                 ScheduleEditPermission = service.ScheduleEditPermission,
                 UserCanEdit = null // This should be set by the caller based on user permissions
             };
@@ -38,6 +39,7 @@ namespace Viper.Areas.ClinicalScheduler.Extensions
                 ServiceId = service.ServiceId,
                 ServiceName = service.ServiceName,
                 ShortName = service.ShortName,
+                WeekSize = service.WeekSize,
                 ScheduleEditPermission = service.ScheduleEditPermission,
                 UserCanEdit = userCanEdit
             };

@@ -10,6 +10,7 @@ namespace Viper.test.ClinicalScheduler
     public class PersonServiceTest : IDisposable
     {
         private readonly ClinicalSchedulerContext _context;
+        private readonly Mock<AAUDContext> _mockAaudContext;
         private readonly Mock<ILogger<PersonService>> _mockLogger;
         private readonly PersonService _personService;
 
@@ -21,8 +22,9 @@ namespace Viper.test.ClinicalScheduler
                 .Options;
             _context = new ClinicalSchedulerContext(options);
 
+            _mockAaudContext = new Mock<AAUDContext>();
             _mockLogger = new Mock<ILogger<PersonService>>();
-            _personService = new PersonService(_mockLogger.Object, _context);
+            _personService = new PersonService(_mockLogger.Object, _context, _mockAaudContext.Object);
 
             // Seed test data
             SeedTestData();

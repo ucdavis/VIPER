@@ -56,10 +56,22 @@ namespace Viper.test.ClinicalScheduler
             // - Cardiology (ID: CardiologyRotationId, Service: CardiologyServiceId) 
             // - Surgery (ID: SurgeryRotationId, Service: SurgeryServiceId)
             // Used to test that users see only rotations they have permissions for
-            var allRotations = new List<Viper.Models.ClinicalScheduler.Rotation>
+            var allRotations = new List<RotationDto>
             {
-                new Viper.Models.ClinicalScheduler.Rotation { RotId = CardiologyRotationId, Name = "Cardiology", ServiceId = CardiologyServiceId },
-                new Viper.Models.ClinicalScheduler.Rotation { RotId = SurgeryRotationId, Name = "Surgery", ServiceId = SurgeryServiceId }
+                new RotationDto
+                {
+                    RotId = CardiologyRotationId,
+                    Name = "Cardiology",
+                    ServiceId = CardiologyServiceId,
+                    Service = new ServiceDto { ServiceId = CardiologyServiceId, ServiceName = "Cardiology Service", ShortName = "CARD" }
+                },
+                new RotationDto
+                {
+                    RotId = SurgeryRotationId,
+                    Name = "Surgery",
+                    ServiceId = SurgeryServiceId,
+                    Service = new ServiceDto { ServiceId = SurgeryServiceId, ServiceName = "Surgery Service", ShortName = "SURG" }
+                }
             };
             _mockRotationService.Setup(s => s.GetRotationsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(allRotations);
