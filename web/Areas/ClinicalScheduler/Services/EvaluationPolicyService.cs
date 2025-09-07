@@ -4,17 +4,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
     /// Service for determining evaluation requirements for clinical rotations.
     /// Following KISS principles for simple, clear business logic.
     /// </summary>
-    public static class EvaluationPolicyService
+    public class EvaluationPolicyService : IEvaluationPolicyService
     {
-        /// <summary>
-        /// Simple interface for week information needed for evaluation decisions
-        /// </summary>
-        public interface IRotationWeekInfo
-        {
-            int WeekNum { get; }
-            bool ExtendedRotation { get; }
-            bool StartWeek { get; }
-        }
 
         /// <summary>
         /// Determines if a week requires a primary evaluator based on simple business rules:
@@ -33,7 +24,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="serviceWeekSize">The WeekSize from the Service table (1 or 2)</param>
         /// <param name="rotationClosed">Whether the rotation is closed this week (from RotationWeeklyPref)</param>
         /// <returns>True if the week requires a primary evaluator</returns>
-        public static bool RequiresPrimaryEvaluator(
+        public bool RequiresPrimaryEvaluator(
             int weekNumber,
             IEnumerable<IRotationWeekInfo> rotationWeeks,
             int? serviceWeekSize = null,

@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.ClinicalScheduler.Controllers;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.ClinicalScheduler.Services;
 
 namespace Viper.test.ClinicalScheduler
@@ -14,6 +15,7 @@ namespace Viper.test.ClinicalScheduler
         private readonly Mock<IWeekService> _mockWeekService;
         private readonly Mock<IRotationService> _mockRotationService;
         private readonly Mock<ISchedulePermissionService> _mockPermissionService;
+        private readonly Mock<IEvaluationPolicyService> _mockEvaluationPolicyService;
         private RotationsController _controller = null!;
 
         public RotationsControllerTest()
@@ -23,6 +25,7 @@ namespace Viper.test.ClinicalScheduler
             _mockWeekService = new Mock<IWeekService>();
             _mockRotationService = new Mock<IRotationService>();
             _mockPermissionService = new Mock<ISchedulePermissionService>();
+            _mockEvaluationPolicyService = new Mock<IEvaluationPolicyService>();
 
             SetupDefaultMockBehavior();
             RecreateController();
@@ -36,6 +39,7 @@ namespace Viper.test.ClinicalScheduler
                 _mockWeekService.Object,
                 _mockRotationService.Object,
                 _mockPermissionService.Object,
+                _mockEvaluationPolicyService.Object,
                 _mockLogger.Object);
             var serviceProvider = new ServiceCollection().BuildServiceProvider();
             TestDataBuilder.SetupControllerContext(_controller, serviceProvider);

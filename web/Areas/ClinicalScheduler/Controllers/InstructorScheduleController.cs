@@ -3,96 +3,13 @@ using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.ClinicalScheduler.Extensions;
 using Viper.Areas.ClinicalScheduler.Constants;
 using Viper.Areas.ClinicalScheduler.Models;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Requests;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
-using System.ComponentModel.DataAnnotations;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
 {
-    /// <summary>
-    /// DTOs for instructor schedule operations
-    /// </summary>
-    public class AddInstructorRequest : IValidatableObject
-    {
-        [Required(ErrorMessage = "MothraId is required")]
-        public string MothraId { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "RotationId is required")]
-        [Range(1, int.MaxValue, ErrorMessage = "RotationId must be greater than 0")]
-        public int? RotationId { get; set; }
-
-        [Required(ErrorMessage = "WeekIds are required")]
-        [MinLength(1, ErrorMessage = "At least one week must be specified")]
-        [MaxLength(52, ErrorMessage = "Cannot schedule more than 52 weeks at once")]
-        public int[] WeekIds { get; set; } = Array.Empty<int>();
-
-        [Required(ErrorMessage = "GradYear is required")]
-        [Range(1, int.MaxValue, ErrorMessage = "GradYear must be greater than 0")]
-        public int? GradYear { get; set; }
-
-        public bool IsPrimaryEvaluator { get; set; } = false;
-
-        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-        {
-            // Ensure WeekIds are all positive and unique
-            if (WeekIds != null && WeekIds.Length > 0)
-            {
-                if (WeekIds.Any(w => w <= 0))
-                {
-                    yield return new ValidationResult(
-                        "All week IDs must be greater than 0",
-                        new[] { nameof(WeekIds) });
-                }
-
-                if (WeekIds.Distinct().Count() != WeekIds.Length)
-                {
-                    yield return new ValidationResult(
-                        "Week IDs must be unique",
-                        new[] { nameof(WeekIds) });
-                }
-            }
-        }
-    }
-
-    public class SetPrimaryEvaluatorRequest
-    {
-        [Required(ErrorMessage = "IsPrimary flag is required")]
-        public bool? IsPrimary { get; set; }
-    }
-
-    public class InstructorScheduleResponse
-    {
-        public int InstructorScheduleId { get; set; }
-        public string MothraId { get; set; } = string.Empty;
-        public int RotationId { get; set; }
-        public int WeekId { get; set; }
-        public bool IsPrimaryEvaluator { get; set; }
-        public bool CanRemove { get; set; }
-    }
-
-    public class ScheduleConflictResponse
-    {
-        public List<InstructorScheduleResponse> Conflicts { get; set; } = new();
-        public string Message { get; set; } = string.Empty;
-        public bool HasConflicts => Conflicts.Any();
-    }
-
-    public class AddInstructorResponse
-    {
-        public List<InstructorScheduleResponse> Schedules { get; set; } = new();
-        public List<int> ScheduleIds { get; set; } = new();
-        public string? WarningMessage { get; set; }
-    }
-
-    public class SuccessResponse
-    {
-        public string Message { get; set; }
-
-        public SuccessResponse(string message)
-        {
-            Message = message;
-        }
-    }
 
     /// <summary>
     /// Controller for managing instructor schedule assignments

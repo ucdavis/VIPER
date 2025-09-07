@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
+using Viper.Areas.ClinicalScheduler.Extensions;
 using Viper.Areas.Curriculum.Services;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
@@ -9,26 +11,6 @@ using Person = Viper.Models.ClinicalScheduler.Person;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
 {
-    // DTOs for type safety
-    public class ServiceDto
-    {
-        public int ServiceId { get; set; }
-        public string ServiceName { get; set; } = string.Empty;
-        public string ShortName { get; set; } = string.Empty;
-        public string? ScheduleEditPermission { get; set; }
-        public bool? UserCanEdit { get; set; }
-    }
-
-    public class RotationDto
-    {
-        public int RotId { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string Abbreviation { get; set; } = string.Empty;
-        public string SubjectCode { get; set; } = string.Empty;
-        public string CourseNumber { get; set; } = string.Empty;
-        public int ServiceId { get; set; }
-        public ServiceDto? Service { get; set; }
-    }
 
     [Route("api/clinicalscheduler/rotations")]
     [Permission(Allow = ClinicalSchedulePermissions.Base)]
@@ -38,16 +20,19 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         private readonly IWeekService _weekService;
         private readonly IRotationService _rotationService;
         private readonly ISchedulePermissionService _permissionService;
+        private readonly IEvaluationPolicyService _evaluationPolicyService;
 
         public RotationsController(ClinicalSchedulerContext context,
             IGradYearService gradYearService, IWeekService weekService, IRotationService rotationService,
-            ISchedulePermissionService permissionService, ILogger<RotationsController> logger)
+            ISchedulePermissionService permissionService, IEvaluationPolicyService evaluationPolicyService,
+            ILogger<RotationsController> logger)
             : base(gradYearService, logger)
         {
             _context = context;
             _weekService = weekService;
             _rotationService = rotationService;
             _permissionService = permissionService;
+            _evaluationPolicyService = evaluationPolicyService;
         }
 
 
@@ -97,21 +82,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 }
 
                 // Convert to DTOs for response
-                var rotationDtos = filteredRotations.Select(r => new RotationDto
-                {
-                    RotId = r.RotId,
-                    Name = r.Name,
-                    Abbreviation = r.Abbreviation,
-                    SubjectCode = r.SubjectCode,
-                    CourseNumber = r.CourseNumber,
-                    ServiceId = r.ServiceId,
-                    Service = includeService && r.Service != null ? new ServiceDto
-                    {
-                        ServiceId = r.Service.ServiceId,
-                        ServiceName = r.Service.ServiceName,
-                        ShortName = r.Service.ShortName
-                    } : null
-                }).ToList();
+                var rotationDtos = filteredRotations.ToDto(includeService).ToList();
 
                 _logger.LogInformation("Retrieved {Count} rotations via RotationService", rotationDtos.Count);
                 return Ok(rotationDtos);
@@ -563,7 +534,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             var rotationClosed = rotationWeeklyPrefs.TryGetValue(week.WeekId, out var closed) && closed;
 
             // Use the simplified evaluation logic with actual closed status
-            var requiresPrimary = EvaluationPolicyService.RequiresPrimaryEvaluator(
+            var requiresPrimary = _evaluationPolicyService.RequiresPrimaryEvaluator(
                 week.WeekNum,
                 rotationWeeks,
                 rotation?.Service?.WeekSize,
