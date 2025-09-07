@@ -115,6 +115,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from "vue"
 import { ClinicianService, type Clinician } from "../services/clinician-service"
+import type { ViewContext } from "../types"
 import { usePermissionsStore } from "../stores/permissions"
 import type { QSelect } from "quasar"
 
@@ -126,6 +127,7 @@ interface Props {
     affiliatesToggleLabel?: string
     isOwnScheduleOnly?: boolean
     isPastYear?: boolean
+    viewContext?: ViewContext
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -136,6 +138,7 @@ const props = withDefaults(defineProps<Props>(), {
     affiliatesToggleLabel: "Include all affiliates",
     isOwnScheduleOnly: false,
     isPastYear: false,
+    viewContext: undefined,
 })
 
 const emit = defineEmits<{
@@ -188,6 +191,7 @@ const fetchClinicians = async () => {
         const result = await ClinicianService.getClinicians({
             year: props.year || undefined,
             includeAllAffiliates: props.includeAllAffiliates,
+            viewContext: props.viewContext,
         })
         if (result.success) {
             // Filter out records with empty/blank names and sort by lastName, firstName

@@ -82,7 +82,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 }
                 else
                 {
-                    rotations = await _rotationService.GetRotationsAsync(activeOnly: true, HttpContext.RequestAborted);
+                    rotations = await _rotationService.GetRotationsAsync(HttpContext.RequestAborted);
                 }
 
                 // Filter rotations based on user permissions

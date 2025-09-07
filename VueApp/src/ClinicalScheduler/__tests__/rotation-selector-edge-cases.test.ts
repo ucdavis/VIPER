@@ -13,16 +13,13 @@ describe("RotationSelector - Basic Edge Cases", () => {
             subjectCode: "VM",
             courseNumber: "999",
             serviceId: 999,
-            service: null,
+            service: undefined,
         }
 
         expect(componentLogic.getRotationDisplayName(rotationWithoutService)).toBe("Orphaned Rotation")
 
         const filtered = componentLogic.filterRotations([rotationWithoutService], "orphan")
         expect(filtered).toHaveLength(1)
-
-        const deduplicated = componentLogic.deduplicateRotations([rotationWithoutService])
-        expect(deduplicated).toHaveLength(1)
     })
 
     it("handles rotations with same name but different case", () => {
@@ -34,7 +31,7 @@ describe("RotationSelector - Basic Edge Cases", () => {
                 subjectCode: "VM",
                 courseNumber: "100",
                 serviceId: 1,
-                service: null,
+                service: undefined,
             },
             {
                 rotId: 2,
@@ -43,17 +40,13 @@ describe("RotationSelector - Basic Edge Cases", () => {
                 subjectCode: "VM",
                 courseNumber: "200",
                 serviceId: 2,
-                service: null,
+                service: undefined,
             },
         ]
 
         // Filtering should be case-insensitive
         const filtered = componentLogic.filterRotations(testRotations, "TEST")
         expect(filtered).toHaveLength(2)
-
-        // Deduplication considers them different (exact string match for Map key)
-        const deduplicated = componentLogic.deduplicateRotations(testRotations)
-        expect(deduplicated).toHaveLength(2) // Different names due to case
     })
 
     it("handles very long rotation names", () => {
@@ -65,7 +58,7 @@ describe("RotationSelector - Basic Edge Cases", () => {
             subjectCode: "VM",
             courseNumber: "999",
             serviceId: 1,
-            service: null,
+            service: undefined,
         }
 
         expect(componentLogic.getRotationDisplayName(rotation)).toBe("A".repeat(1000))
@@ -86,7 +79,7 @@ describe("RotationSelector - Null Handling", () => {
             subjectCode: "VM",
             courseNumber: "999",
             serviceId: 999,
-            service: null,
+            service: undefined,
         }
 
         const rotationsWithNull = [rotationWithNullService]

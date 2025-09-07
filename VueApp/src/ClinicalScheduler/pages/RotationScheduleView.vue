@@ -120,6 +120,7 @@
                         @update:include-all-affiliates="includeAllAffiliates = $event"
                         @change="onAddClinicianSelected"
                         :affiliates-toggle-label="'Include all affiliates'"
+                        view-context="rotation"
                         class="q-mt-none"
                         style="min-width: 280px"
                     />

@@ -6,6 +6,7 @@ import {
     hasOnlyServicePermissions,
     hasOnlyOwnPermission,
     hasLimitedPermissions,
+    hasClinicianViewReadOnly as helperHasClinicianViewReadOnly,
 } from "./permissions-helpers"
 import { createPermissionActions } from "./permissions-actions"
 import type { PermissionsState } from "./permissions-actions"
@@ -80,6 +81,12 @@ function createPermissionLevelGetters(state: PermissionsState) {
             const perms = state.userPermissions.value?.permissions
             const serviceCount = state.userPermissions.value?.editableServices?.length || 0
             return hasLimitedPermissions(perms, serviceCount)
+        }),
+
+        hasClinicianViewReadOnly: computed<boolean>(() => {
+            const perms = state.userPermissions.value?.permissions
+            const serviceCount = state.userPermissions.value?.editableServices?.length || 0
+            return helperHasClinicianViewReadOnly(perms, serviceCount)
         }),
     }
 }
@@ -196,6 +203,7 @@ export const usePermissionsStore = defineStore("permissions", () => {
         hasOnlyServiceSpecificPermissions,
         hasOnlyOwnSchedulePermission,
         hasLimitedPermissions,
+        hasClinicianViewReadOnly,
         canAccessClinicianView,
         canAccessRotationView,
         permissionLevel,
@@ -231,6 +239,7 @@ export const usePermissionsStore = defineStore("permissions", () => {
         hasOnlyServiceSpecificPermissions,
         hasOnlyOwnSchedulePermission,
         hasLimitedPermissions,
+        hasClinicianViewReadOnly,
         canAccessClinicianView,
         canAccessRotationView,
         permissionLevel,

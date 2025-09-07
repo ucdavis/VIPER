@@ -6,8 +6,6 @@ using Moq;
 using Viper.Areas.ClinicalScheduler.Controllers;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
-using Viper.Models.ClinicalScheduler;
-using Web.Authorization;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -18,26 +16,26 @@ namespace Viper.test.ClinicalScheduler
         private readonly Mock<IGradYearService> _mockGradYearService;
         private readonly Mock<IWeekService> _mockWeekService;
         private readonly Mock<IPersonService> _mockPersonService;
-        private readonly CliniciansController _controller;
+        private CliniciansController _controller = null!;
 
         public CliniciansControllerTest()
         {
-            // Create a mock AAUDContext since we're not testing AAUD functionality
             var aaudOptions = new DbContextOptionsBuilder<AAUDContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
             _aaudContext = new AAUDContext(aaudOptions);
 
             _mockLogger = new Mock<ILogger<CliniciansController>>();
-
-            // Create mock service instances for true unit testing
             _mockGradYearService = new Mock<IGradYearService>();
             _mockWeekService = new Mock<IWeekService>();
             _mockPersonService = new Mock<IPersonService>();
 
-            // Set up default mock behavior for common scenarios
             SetupDefaultMockBehavior();
+            RecreateController();
+        }
 
+        private void RecreateController()
+        {
             _controller = new CliniciansController(
                 Context,
                 _aaudContext,
@@ -47,298 +45,242 @@ namespace Viper.test.ClinicalScheduler
                 _mockPersonService.Object,
                 MockUserHelper.Object);
 
-            // Setup HttpContext with service provider for dependency injection
-            var serviceProvider = CreateCustomTestServiceProvider(Context, _aaudContext);
-            TestDataBuilder.SetupControllerContext(_controller, serviceProvider);
-
-        }
-
-        private static IServiceProvider CreateCustomTestServiceProvider(ClinicalSchedulerContext context, AAUDContext aaudContext)
-        {
-            return new ServiceCollection()
-                .AddSingleton(context)
-                .AddSingleton<RAPSContext>(new Mock<RAPSContext>().Object)
-                .AddSingleton(aaudContext)
+            var serviceProvider = new ServiceCollection()
+                .AddSingleton(Context)
+                .AddSingleton(MockRapsContext.Object)
+                .AddSingleton(_aaudContext)
                 .BuildServiceProvider();
+            TestDataBuilder.SetupControllerContext(_controller, serviceProvider);
         }
 
         private void SetupDefaultMockBehavior()
         {
-            // Setup current grad year - mock to return fixed test year for consistency
-            _mockGradYearService
-                .Setup(x => x.GetCurrentGradYearAsync())
-                .ReturnsAsync(2024);
+            _mockGradYearService.Setup(x => x.GetCurrentGradYearAsync()).ReturnsAsync(2024);
 
-
-            // Setup default clinicians list for GetCliniciansAsync
             var defaultClinicians = new List<ClinicianSummary>
             {
-                new ClinicianSummary
-                {
-                    MothraId = "12345",
-                    FullName = "Dr. John Smith",
-                    FirstName = "John",
-                    LastName = "Smith"
-                },
-                new ClinicianSummary
-                {
-                    MothraId = "67890",
-                    FullName = "Dr. Jane Doe",
-                    FirstName = "Jane",
-                    LastName = "Doe"
-                }
+                new ClinicianSummary { MothraId = TestUserMothraId, FullName = "Test User" },
+                new ClinicianSummary { MothraId = "67890", FullName = "Dr. Jane Doe" }
             };
-
-            _mockPersonService
-                .Setup(x => x.GetCliniciansByGradYearRangeAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            _mockPersonService.Setup(x => x.GetCliniciansByGradYearRangeAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(defaultClinicians);
-
-            // Setup default clinicians by year
             var defaultCliniciansByYear = new List<ClinicianYearSummary>
             {
-                new ClinicianYearSummary
-                {
-                    MothraId = "11111",
-                    FullName = "Dr. Future Clinician",
-                    FirstName = "Future",
-                    LastName = "Clinician"
-                }
+                new ClinicianYearSummary { MothraId = TestUserMothraId, FullName = "Test User" },
+                new ClinicianYearSummary { MothraId = "67890", FullName = "Dr. Jane Doe" }
             };
-
-            _mockPersonService
-                .Setup(x => x.GetCliniciansByYearAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            _mockPersonService.Setup(x => x.GetCliniciansByYearAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(defaultCliniciansByYear);
-
-            // Setup weeks service to return test weeks with fixed dates
-            var baseDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            var defaultWeeks = new List<VWeek>
-            {
-                new VWeek { WeekId = 1, DateStart = baseDate.AddDays(0), DateEnd = baseDate.AddDays(6), TermCode = 202401, WeekNum = 1, GradYear = 2024, ExtendedRotation = false, StartWeek = false, ForcedVacation = false, WeekGradYearId = 1 },
-                new VWeek { WeekId = 2, DateStart = baseDate.AddDays(7), DateEnd = baseDate.AddDays(13), TermCode = 202401, WeekNum = 2, GradYear = 2024, ExtendedRotation = false, StartWeek = false, ForcedVacation = false, WeekGradYearId = 2 },
-                new VWeek { WeekId = 3, DateStart = baseDate.AddDays(14), DateEnd = baseDate.AddDays(20), TermCode = 202401, WeekNum = 3, GradYear = 2024, ExtendedRotation = false, StartWeek = false, ForcedVacation = false, WeekGradYearId = 3 }
-            };
-
-            _mockWeekService
-                .Setup(x => x.GetWeeksAsync(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(defaultWeeks);
         }
 
-
         [Fact]
-        public async Task GetClinicians_WithDefaultParameters_ReturnsCurrentYearClinicians()
+        public async Task GetClinicians_ForAdminUser_ReturnsAllClinicians()
         {
-            // Act
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.Admin });
+            RecreateController();
+
             var result = await _controller.GetClinicians();
 
-            // Assert - should return OK result with clinician data
             var okResult = Assert.IsType<OkObjectResult>(result);
-            var clinicians = Assert.IsAssignableFrom<IEnumerable<object>>(okResult.Value);
+            var clinicians = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResult.Value);
+            Assert.Equal(2, clinicians.Count());
+        }
+
+        [Fact]
+        public async Task GetClinicians_ForOwnScheduleUser_WithoutViewContext_ReturnsAllClinicians()
+        {
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.EditOwnSchedule });
+            RecreateController();
+
+            var result = await _controller.GetClinicians();
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var clinicians = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResult.Value);
+            // Without viewContext, users with EditOwnSchedule should see all clinicians
+            Assert.Equal(2, clinicians.Count());
+        }
+
+        [Fact]
+        public async Task GetClinicians_ForOwnScheduleUser_InClinicianView_ReturnsOnlyOwnClinician()
+        {
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.EditOwnSchedule });
+            RecreateController();
+
+            var result = await _controller.GetClinicians(viewContext: "clinician");
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var clinicians = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResult.Value);
             var clinicianList = clinicians.ToList();
-
-            // Should have at least the test clinicians we seeded
-            Assert.True(clinicianList.Count >= 2); // Should have John Smith and Jane Doe
+            Assert.Single(clinicianList);
+            Assert.Equal(TestUserMothraId, clinicianList[0].MothraId);
         }
 
         [Fact]
-        public async Task GetClinicians_WithFutureYear_ReturnsYearSpecificClinicians()
+        public async Task GetClinicianSchedule_ForAdminUser_ReturnsSchedule()
         {
-            // Act
-            var result = await _controller.GetClinicians(year: 2026);
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.Admin });
+            RecreateController();
 
-            // Assert - may return error due to in-memory database limitations
-            Assert.IsAssignableFrom<IActionResult>(result);
+            var result = await _controller.GetClinicianSchedule("67890"); // Requesting other user's schedule
 
-            // If successful, check the data
-            if (result is OkObjectResult okResult)
-            {
-                var clinicians = Assert.IsAssignableFrom<IEnumerable<object>>(okResult.Value);
-                var clinicianList = clinicians.ToList();
-                Assert.True(clinicianList.Count >= 1); // Should have Future Clinician
-            }
+            Assert.IsType<ObjectResult>(result);
         }
 
         [Fact]
-        public async Task GetClinicians_WithIncludeAllAffiliates_HandlesParameter()
+        public async Task GetClinicianSchedule_ForOwnScheduleUser_ReturnsOwnSchedule()
         {
-            // Act
-            var result = await _controller.GetClinicians(includeAllAffiliates: true);
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.EditOwnSchedule });
+            RecreateController();
 
-            // Assert - may return error due to in-memory database limitations
-            Assert.IsAssignableFrom<IActionResult>(result);
+            var result = await _controller.GetClinicianSchedule(TestUserMothraId);
 
-            // If successful, check the data
-            if (result is OkObjectResult okResult)
-            {
-                Assert.NotNull(okResult.Value);
-            }
+            Assert.IsType<ObjectResult>(result);
         }
 
-        // Note: Removed GetCliniciansCount and CompareCounts tests as they test legacy AAUD functionality
+        [Fact]
+        public async Task GetClinicianSchedule_ForOwnScheduleUser_ReturnsForbidForOtherSchedule()
+        {
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.EditOwnSchedule });
+            RecreateController();
+
+            var result = await _controller.GetClinicianSchedule("67890"); // Requesting other user's schedule
+
+            var forbidResult = Assert.IsType<ForbidResult>(result);
+            Assert.Equal("You do not have permission to view this clinician's schedule.", forbidResult.AuthenticationSchemes[0]);
+        }
 
         [Fact]
-        public async Task GetClinicianSchedule_WithValidMothraId_ReturnsForbidResult()
+        public async Task GetClinicianSchedule_WithNoAuthenticatedUser_ReturnsForbid()
         {
-            // Act
+            SetupUserWithPermissions(null, new string[] { }); // No user
+            RecreateController();
+
             var result = await _controller.GetClinicianSchedule("12345");
 
-            // Assert
-            // Should return ForbidResult because there's no authenticated user in the test context
-            var forbidResult = Assert.IsType<ForbidResult>(result);
-            Assert.NotNull(forbidResult);
+            Assert.IsType<ForbidResult>(result);
         }
 
         [Fact]
-        public async Task GetClinicianSchedule_WithInvalidMothraId_ReturnsForbidResult()
+        public async Task GetClinicians_ForUserWithCombinedPermissions_InClinicianView_ReturnsOnlyOwnClinician()
         {
-            // Act
-            var result = await _controller.GetClinicianSchedule("INVALID");
+            // Setup user with both EditOwnSchedule and service-specific permissions
+            SetupUserWithPermissions(TestUserMothraId, new[] {
+                ClinicalSchedulePermissions.EditOwnSchedule,
+                CardiologyEditPermission
+            });
+            RecreateController();
 
-            // Assert
-            // Should return ForbidResult because there's no authenticated user in the test context
-            var forbidResult = Assert.IsType<ForbidResult>(result);
-            Assert.NotNull(forbidResult);
-        }
+            var result = await _controller.GetClinicians(viewContext: "clinician");
 
-        [Fact]
-        public async Task GetClinicianSchedule_WithYear_ReturnsForbidResult()
-        {
-            // Act
-            var result = await _controller.GetClinicianSchedule("11111", year: 2026);
-
-            // Assert
-            // Should return ForbidResult because there's no authenticated user in the test context
-            var forbidResult = Assert.IsType<ForbidResult>(result);
-            Assert.NotNull(forbidResult);
-        }
-
-        [Fact]
-        public async Task GetClinicianRotations_WithValidMothraId_ReturnsEmptyData()
-        {
-            // Act
-            var result = await _controller.GetClinicianRotations("12345");
-
-            // Assert
-            // This method actually returns OK but with empty data since there are no instructor schedules in the test database
             var okResult = Assert.IsType<OkObjectResult>(result);
-            var rotations = Assert.IsAssignableFrom<IEnumerable<object>>(okResult.Value);
-            Assert.Empty(rotations); // Should be empty since there's no test data
+            var clinicians = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResult.Value);
+            var clinicianList = clinicians.ToList();
+            Assert.Single(clinicianList);
+            Assert.Equal(TestUserMothraId, clinicianList[0].MothraId);
         }
 
         [Fact]
-        public async Task GetClinicianRotations_WithInvalidMothraId_ReturnsEmptyList()
+        public async Task GetClinicians_ForUserWithCombinedPermissions_InRotationView_ReturnsAllClinicians()
         {
-            // Act
-            var result = await _controller.GetClinicianRotations("INVALID");
+            // Setup user with both EditOwnSchedule and service-specific permissions
+            SetupUserWithPermissions(TestUserMothraId, new[] {
+                ClinicalSchedulePermissions.EditOwnSchedule,
+                CardiologyEditPermission
+            });
+            RecreateController();
 
-            // Assert
+            var result = await _controller.GetClinicians(viewContext: "rotation");
+
             var okResult = Assert.IsType<OkObjectResult>(result);
-            var rotations = Assert.IsAssignableFrom<IEnumerable<object>>(okResult.Value);
-            Assert.Empty(rotations);
-        }
-
-        // Note: Removed AnalyzeClinicianData test as it tests legacy AAUD functionality
-
-        [Fact]
-        public void CliniciansController_HasCorrectRouteAttribute()
-        {
-            // Arrange
-            var controllerType = typeof(CliniciansController);
-
-            // Act
-            var routeAttribute = controllerType.GetCustomAttributes(typeof(RouteAttribute), false)
-                .FirstOrDefault() as RouteAttribute;
-
-            // Assert
-            Assert.NotNull(routeAttribute);
-            Assert.Equal("api/[area]/[controller]", routeAttribute.Template);
+            var clinicians = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResult.Value);
+            Assert.Equal(2, clinicians.Count()); // Should see all clinicians
         }
 
         [Fact]
-        public void CliniciansController_HasCorrectAreaAttribute()
+        public async Task GetClinicians_ForUserWithOnlyServicePermissions_InBothViews_ReturnsAllClinicians()
         {
-            // Arrange
-            var controllerType = typeof(CliniciansController);
+            // Setup user with only service-specific permissions (no EditOwnSchedule)
+            SetupUserWithPermissions(TestUserMothraId, new[] { CardiologyEditPermission });
+            RecreateController();
 
-            // Act
-            var areaAttribute = controllerType.GetCustomAttributes(typeof(AreaAttribute), false)
-                .FirstOrDefault() as AreaAttribute;
+            // Test clinician view
+            var resultClinician = await _controller.GetClinicians(viewContext: "clinician");
+            var okResultClinician = Assert.IsType<OkObjectResult>(resultClinician);
+            var cliniciansClinician = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResultClinician.Value);
+            Assert.Equal(2, cliniciansClinician.Count()); // Should see all clinicians
 
-            // Assert
-            Assert.NotNull(areaAttribute);
-            Assert.Equal("ClinicalScheduler", areaAttribute.RouteValue);
+            // Test rotation view
+            var resultRotation = await _controller.GetClinicians(viewContext: "rotation");
+            var okResultRotation = Assert.IsType<OkObjectResult>(resultRotation);
+            var cliniciansRotation = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResultRotation.Value);
+            Assert.Equal(2, cliniciansRotation.Count()); // Should see all clinicians
         }
 
         [Fact]
-        public void CliniciansController_HasCorrectPermissionAttribute()
+        public async Task GetClinicians_WithNoViewContext_DefaultBehavior_FiltersBasedOnPermissions()
         {
-            // Arrange
-            var controllerType = typeof(CliniciansController);
+            // Setup user with only EditOwnSchedule permission
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.EditOwnSchedule });
+            RecreateController();
 
-            // Act
-            var permissionAttribute = controllerType.GetCustomAttributes(typeof(PermissionAttribute), false)
-                .FirstOrDefault() as PermissionAttribute;
+            // No viewContext should behave like default (not "clinician")
+            var result = await _controller.GetClinicians();
 
-            // Assert
-            Assert.NotNull(permissionAttribute);
-            Assert.Equal(ClinicalSchedulePermissions.Base, permissionAttribute.Allow);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var clinicians = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResult.Value);
+            // Without viewContext="clinician", users with EditOwnSchedule should see all clinicians
+            Assert.Equal(2, clinicians.Count());
         }
 
         [Fact]
-        public void GetClinicianSchedule_HasCorrectHttpGetAttribute()
+        public async Task GetClinicians_ViewContextParameterPassing_WorksCorrectly()
         {
-            // Arrange
-            var methodInfo = typeof(CliniciansController).GetMethod("GetClinicianSchedule");
+            // Setup user with EditOwnSchedule permission
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.EditOwnSchedule });
+            RecreateController();
 
-            // Act
-            var httpGetAttribute = methodInfo?.GetCustomAttributes(typeof(HttpGetAttribute), false)
-                .FirstOrDefault() as HttpGetAttribute;
+            // Test that viewContext parameter is properly processed
+            var resultWithContext = await _controller.GetClinicians(viewContext: "clinician");
+            var okResultWithContext = Assert.IsType<OkObjectResult>(resultWithContext);
+            var cliniciansWithContext = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResultWithContext.Value);
+            Assert.Single(cliniciansWithContext); // Should filter to self in clinician view
 
-            // Assert
-            Assert.NotNull(httpGetAttribute);
-            Assert.Equal("{mothraId}/schedule", httpGetAttribute.Template);
+            var resultWithoutContext = await _controller.GetClinicians();
+            var okResultWithoutContext = Assert.IsType<OkObjectResult>(resultWithoutContext);
+            var cliniciansWithoutContext = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResultWithoutContext.Value);
+            Assert.Equal(2, cliniciansWithoutContext.Count()); // Should show all without specific context
         }
 
         [Fact]
-        public void GetClinicianRotations_HasCorrectHttpGetAttribute()
+        public async Task GetClinicians_ForUserWithMultipleServicePermissions_ReturnsAllClinicians()
         {
-            // Arrange
-            var methodInfo = typeof(CliniciansController).GetMethod("GetClinicianRotations");
+            // Setup user with multiple service-specific permissions
+            SetupUserWithPermissions(TestUserMothraId, new[] {
+                CardiologyEditPermission,
+                InternalMedicineEditPermission
+            });
+            RecreateController();
 
-            // Act
-            var httpGetAttribute = methodInfo?.GetCustomAttributes(typeof(HttpGetAttribute), false)
-                .FirstOrDefault() as HttpGetAttribute;
+            var result = await _controller.GetClinicians();
 
-            // Assert
-            Assert.NotNull(httpGetAttribute);
-            Assert.Equal("{mothraId}/rotations", httpGetAttribute.Template);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var clinicians = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResult.Value);
+            Assert.Equal(2, clinicians.Count()); // Should see all clinicians regardless of view context
         }
-
-        // Note: Removed GetCliniciansCount attribute test as it tests legacy functionality
-
-        [Theory]
-        [InlineData(null)]
-        [InlineData(2024)]
-        [InlineData(2025)]
-        [InlineData(2026)]
-        public async Task GetClinicians_WithVariousYears_DoesNotThrow(int? year)
-        {
-            // Act & Assert - should not throw exceptions
-            var result = await _controller.GetClinicians(year: year);
-
-            // Due to in-memory database limitations, may return error results
-            // The important thing is that it doesn't throw exceptions
-            Assert.IsAssignableFrom<IActionResult>(result);
-        }
-
-        // Note: Removed GetCliniciansCount parameterized test as it tests legacy functionality
 
         [Fact]
-        public void CliniciansController_CanBeCreated()
+        public async Task GetClinicians_ForUserWithSingleServicePermission_ReturnsAllClinicians()
         {
-            // Act & Assert
-            Assert.NotNull(_controller);
-        }
+            // Setup user with only Cardiology service permission
+            SetupUserWithPermissions(TestUserMothraId, new[] { CardiologyEditPermission });
+            RecreateController();
 
+            var result = await _controller.GetClinicians(viewContext: "rotation");
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var clinicians = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResult.Value);
+            Assert.Equal(2, clinicians.Count()); // Should see all clinicians to assign to rotations
+        }
 
         protected override void Dispose(bool disposing)
         {

@@ -33,9 +33,9 @@ namespace Viper.test.ClinicalScheduler
             // Create test weeks - dates are needed for LastScheduled/FirstScheduled but not for grad year filtering
             var testWeeks = new[]
             {
-        new Week { WeekId = 1, DateStart = new DateTime(2023, 1, 1), DateEnd = new DateTime(2023, 1, 7), TermCode = 202401 },
-        new Week { WeekId = 2, DateStart = new DateTime(2023, 6, 1), DateEnd = new DateTime(2023, 6, 7), TermCode = 202501 },
-        new Week { WeekId = 3, DateStart = new DateTime(2022, 1, 1), DateEnd = new DateTime(2022, 1, 7), TermCode = 202301 }
+        new Week { WeekId = 1, DateStart = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Unspecified), DateEnd = new DateTime(2023, 1, 7, 0, 0, 0, DateTimeKind.Unspecified), TermCode = 202401 },
+        new Week { WeekId = 2, DateStart = new DateTime(2023, 6, 1, 0, 0, 0, DateTimeKind.Unspecified), DateEnd = new DateTime(2023, 6, 7, 0, 0, 0, DateTimeKind.Unspecified), TermCode = 202501 },
+        new Week { WeekId = 3, DateStart = new DateTime(2022, 1, 1, 0, 0, 0, DateTimeKind.Unspecified), DateEnd = new DateTime(2022, 1, 7, 0, 0, 0, DateTimeKind.Unspecified), TermCode = 202301 }
     };
 
             _context.Weeks.AddRange(testWeeks);

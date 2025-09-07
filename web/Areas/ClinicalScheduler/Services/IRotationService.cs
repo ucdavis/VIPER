@@ -9,12 +9,11 @@ namespace Viper.Areas.ClinicalScheduler.Services
     public interface IRotationService
     {
         /// <summary>
-        /// Get all rotations with optional filtering by active status
+        /// Get all rotations
         /// </summary>
-        /// <param name="activeOnly">Whether to include only active rotations</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of rotations with their associated service data</returns>
-        Task<List<Rotation>> GetRotationsAsync(bool activeOnly = true, CancellationToken cancellationToken = default);
+        Task<List<Rotation>> GetRotationsAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get a specific rotation by its ID

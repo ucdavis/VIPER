@@ -162,6 +162,35 @@ namespace Viper.test.ClinicalScheduler
             MockUserHelper.Setup(x => x.GetCurrentUser()).Returns((AaudUser?)null);
         }
 
+        /// <summary>
+        /// Sets up the UserHelper mock to return a user with a specific set of permissions.
+        /// </summary>
+        /// <param name="userMothraId">The MothraId of the user to set up. If null, sets up a null user.</param>
+        /// <param name="permissions">The list of permissions the user should have.</param>
+        protected void SetupUserWithPermissions(string? userMothraId, IEnumerable<string> permissions)
+        {
+            if (userMothraId == null)
+            {
+                MockUserHelper.Setup(x => x.GetCurrentUser()).Returns((AaudUser?)null);
+                return;
+            }
+
+            var testUser = CreateTestUser();
+            testUser.MothraId = userMothraId;
+            MockUserHelper.Setup(x => x.GetCurrentUser()).Returns(testUser);
+
+            // Default all permissions to false
+            MockUserHelper.Setup(x => x.HasPermission(It.IsAny<RAPSContext>(), It.IsAny<AaudUser>(), It.IsAny<string>()))
+                .Returns(false);
+
+            // Set up the specific permissions to return true
+            foreach (var permission in permissions)
+            {
+                MockUserHelper.Setup(x => x.HasPermission(MockRapsContext.Object, testUser, permission))
+                    .Returns(true);
+            }
+        }
+
         // Test data creation methods
         private static Service CreateCardiologyService() => new()
         {

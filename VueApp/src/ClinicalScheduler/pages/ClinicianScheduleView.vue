@@ -41,11 +41,12 @@
                                 :year="currentYear"
                                 :include-all-affiliates="includeAllAffiliates"
                                 :show-affiliates-toggle="true"
-                                :is-own-schedule-only="permissionsStore.hasOnlyOwnSchedulePermission"
+                                :is-own-schedule-only="permissionsStore.hasClinicianViewReadOnly"
                                 @change="onClinicianChange"
                                 @update:include-all-affiliates="includeAllAffiliates = $event"
                                 @clinicians-loaded="handleClinicianSelectorReady"
                                 :is-past-year="isPastYear"
+                                view-context="clinician"
                                 style="min-width: 300px"
                             />
                         </div>

@@ -1,5 +1,8 @@
 // Clinical Scheduler types will be defined here
 
+// View context type for filtering clinicians
+type ViewContext = "clinician" | "rotation"
+
 interface Rotation {
     rotId: number
     serviceId: number
@@ -110,6 +113,7 @@ interface AuditEntry {
 }
 
 export {
+    type ViewContext,
     type Rotation,
     type Service,
     type User,

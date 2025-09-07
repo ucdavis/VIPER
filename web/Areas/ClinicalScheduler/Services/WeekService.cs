@@ -14,7 +14,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
         public WeekService(ILogger<WeekService> logger, ClinicalSchedulerContext context) : base(context)
         {
-            _logger = logger;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>

@@ -21,40 +21,26 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// Gets all rotations with service information
         /// Replaces direct context access in controllers with centralized service logic
         /// </summary>
-        /// <param name="activeOnly">If true, filters to only active rotations (placeholder for future filtering)</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of rotations with their associated service data</returns>
-        public async Task<List<Rotation>> GetRotationsAsync(bool activeOnly = true, CancellationToken cancellationToken = default)
+        public async Task<List<Rotation>> GetRotationsAsync(CancellationToken cancellationToken = default)
         {
             try
             {
-                _logger.LogInformation("Getting rotations from Clinical Scheduler (activeOnly: {ActiveOnly})", activeOnly);
+                _logger.LogInformation("Getting rotations from Clinical Scheduler");
 
                 var query = _context.Rotations
                     .AsNoTracking()
                     .Include(r => r.Service);
 
-                // Note: activeOnly parameter is kept for future implementation
-                // Currently no active/inactive flag exists in the rotation data
-                if (activeOnly)
-                {
-                    _logger.LogDebug("ActiveOnly filtering requested but no active flag available in rotation data");
-                }
-
                 var rotations = await query
+                    .OrderBy(r => r.Service != null ? r.Service.ServiceName : r.Name)
+                    .ThenBy(r => r.Name)
                     .ToListAsync(cancellationToken);
 
-                // Deduplicate rotations by RotId to avoid duplicates from database
-                var uniqueRotations = rotations
-                    .GroupBy(r => r.RotId)
-                    .Select(g => g.First()) // Take the first occurrence of each unique RotId
-                    .OrderBy(r => r.Service?.ServiceName ?? r.Name)
-                    .ThenBy(r => r.Name)
-                    .ToList();
-
-                _logger.LogInformation("Retrieved {TotalCount} rotations from Clinical Scheduler, deduplicated to {UniqueCount} unique rotations",
-                    rotations.Count, uniqueRotations.Count);
-                return uniqueRotations;
+                _logger.LogInformation("Retrieved {Count} rotations from Clinical Scheduler",
+                    rotations.Count);
+                return rotations;
             }
             catch (Exception ex)
             {
@@ -126,7 +112,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 }
 
                 var rotations = await query
-                    .OrderBy(r => r.Service.ServiceName ?? r.Name)
+                    .OrderBy(r => r.Service != null ? r.Service.ServiceName : r.Name)
                     .ThenBy(r => r.Name)
                     .ToListAsync(cancellationToken);
 
