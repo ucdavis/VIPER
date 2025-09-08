@@ -27,7 +27,7 @@
             @if (!String.IsNullOrEmpty(Model.StudentId)){ <li><b>Student ID:</b> @Model.StudentId</li> }
             @if (!String.IsNullOrEmpty(Model.IamId)){ <li><b>IAM ID:</b> @Model.IamId</li> }
             @if (!String.IsNullOrEmpty(Model.Pidm)){ <li><b>PIDM:</b> @Model.Pidm</li> }
-            @if (!String.IsNullOrEmpty(Model.MivId.ToString())){ <li><b>MIV ID:</b> @Model.MivId</li> }
+            @if (!String.IsNullOrEmpty(Model.MivId)){ <li><b>MIV ID:</b> @Model.MivId</li> }
         </ul>
     </div>
     <!--- Employee -------------------------------------------------------------------------------------- --->
@@ -38,7 +38,7 @@
             @if (!String.IsNullOrEmpty(Model.EmployeePrimaryTitle)){ <li><b>Primary Title:</b> @Model.EmployeePrimaryTitle</li> }
             @if (!String.IsNullOrEmpty(Model.EmployeeSchoolDivision)){ <li><b>School Division:</b> @Model.EmployeeSchoolDivision</li> }
             @if (!String.IsNullOrEmpty(Model.EmployeeStatus)){ <li><b>Status:</b> @Model.EmployeeStatus</li> }
-            @if (!String.IsNullOrEmpty(Model.EmployeeTerm.ToString())){ <li><b>Term:</b> @Model.EmployeeTerm</li> }
+            @if (!String.IsNullOrEmpty(Model.EmployeeTerm)){ <li><b>Term:</b> @Model.EmployeeTerm</li> }
             @if (!String.IsNullOrEmpty(Model.EmployeeHomeDepartment)){ <li><b>Home Department:</b> @Model.EmployeeHomeDepartment</li> }
             @if (!String.IsNullOrEmpty(Model.EmployeeEffortHomeDepartment)){ <li><b>Effort Home Department:</b> @Model.EmployeeEffortHomeDepartment</li> }
             @if (!String.IsNullOrEmpty(Model.EmployeeTeachingHomeDepartment)){ <li><b>Teaching Home Department:</b> @Model.EmployeeTeachingHomeDepartment</li> }
@@ -81,8 +81,8 @@
             @if (!String.IsNullOrEmpty(Model.AssociationsAppointmentDepartment)){ <li><b>Appointment Department:</b> @Model.AssociationsAppointmentDepartment (@Model.AssociationsAppointmentDepartmentAbbrev @Model.AssociationsAppointmentDepartmentCode)</li> }
             @if (!String.IsNullOrEmpty(Model.AssociationsPositionType)){ <li><b>Position Type:</b> @Model.AssociationsPositionType</li> }
             @if (!String.IsNullOrEmpty(Model.AssociationsEmployeeClass)){ <li><b>Employee Class:</b> @Model.AssociationsEmployeeClass</li> }
-            @if (!String.IsNullOrEmpty(Model.AssociationsPercentFulltime.ToString())){ <li><b>Percent Full-time:</b> @Model.AssociationsPercentFulltime</li> }
-            @if (!String.IsNullOrEmpty(Model.AssociationsStart.ToString())){ <li><b>Association:</b> @Model.AssociationsStart &ndash; @Model.AssociationsEnd</li> }
+            @if (!String.IsNullOrEmpty(Model.AssociationsPercentFulltime)){ <li><b>Percent Full-time:</b> @Model.AssociationsPercentFulltime</li> }
+            @if (!String.IsNullOrEmpty(Model.AssociationsStart)){ <li><b>Association:</b> @Model.AssociationsStart &ndash; @Model.AssociationsEnd</li> }
         </ul>
     </div>
     <!--- Roles and permissions ------------------------------------------------------------------------ --->
