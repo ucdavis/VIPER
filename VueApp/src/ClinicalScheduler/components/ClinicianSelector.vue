@@ -362,7 +362,7 @@ onMounted(() => {
     padding: 2px 4px;
     font-size: 12px;
     z-index: 1;
-    background: white;
+    background: inherit;
 }
 
 /* Reduce spacing around separators in the dropdown menu */

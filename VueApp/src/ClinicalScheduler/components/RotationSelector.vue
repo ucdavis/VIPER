@@ -59,35 +59,13 @@
             </template>
         </q-select>
 
-        <!-- Permission feedback messages using Quasar components -->
-        <div
-            v-if="shouldShowPermissionInfo"
-            class="rotation-permission-info"
-        >
-            <q-chip
-                v-if="permissionsStore.hasOnlyServiceSpecificPermissions"
-                icon="business"
-                color="positive"
-                text-color="white"
-                size="sm"
-                dense
-            >
-                Showing {{ filteredRotations.length }} of {{ totalRotations }} rotations ({{
-                    permissionsStore.getEditableServicesDisplay()
-                }}
-                only)
-            </q-chip>
-
-            <q-chip
-                v-else-if="permissionsStore.hasFullAccessPermission && hasFilteredRotations"
-                icon="check_circle"
-                color="primary"
-                text-color="white"
-                size="sm"
-                dense
-            >
-                Showing all {{ filteredRotations.length }} available rotations
-            </q-chip>
+        <div class="permission-chip-spacing">
+            <PermissionFeedbackChip
+                v-if="shouldShowPermissionInfo"
+                :filtered-count="filteredRotations.length"
+                :total-count="totalRotations"
+                :visible="shouldShowPermissionInfo"
+            />
         </div>
     </div>
 </template>
@@ -96,6 +74,7 @@
 import { ref, computed, onMounted, watch } from "vue"
 import { RotationService } from "../services/rotation-service"
 import { usePermissionsStore } from "../stores/permissions"
+import PermissionFeedbackChip from "./PermissionFeedbackChip.vue"
 import type { RotationWithService } from "../types/rotation-types"
 
 // Constants
@@ -120,7 +99,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 // Emits
-/* eslint-disable no-unused-vars */
+/* eslint-disable no-unused-vars */ // Vue 3 TypeScript emit interface appears unused to ESLint
 interface Emits {
     (e: "update:modelValue", value: number | null): void
     (e: "rotation-selected", rotation: RotationWithService | null): void
@@ -169,8 +148,6 @@ const permissionFilteredRotations = computed(() => {
 
 // Permission info computed properties
 const totalRotations = computed(() => rotations.value.length)
-
-const hasFilteredRotations = computed(() => filteredRotations.value.length > 0 && rotations.value.length > 0)
 
 const shouldShowPermissionInfo = computed(() => {
     // Show permission info when rotations are loaded and not in error state
@@ -247,6 +224,7 @@ function filterRotations(items: RotationWithService[], searchTerm: string): Rota
     )
 }
 
+// Quasar QSelect filter callback signature requires fn parameter, but we don't use it
 // eslint-disable-next-line no-unused-vars
 function onFilter(val: string, update: (fn: () => void) => void) {
     searchQuery.value = val
@@ -345,5 +323,17 @@ onMounted(async () => {
     .rotation-selector {
         max-width: 100%;
     }
+}
+
+/* Reduce spacing around the field with bottom area (like error messages, helper text) */
+.q-field--with-bottom {
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+/* Add spacing between q-select and permission chip without affecting year dropdown alignment */
+.permission-chip-spacing {
+    margin-top: 8px;
+    margin-bottom: -8px;
 }
 </style>

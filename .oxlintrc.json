@@ -20,7 +20,14 @@
             }
         ],
         "id-length": "off",
-        "max-lines-per-function": ["warn", { "max": 100 }],
+        "max-lines-per-function": [
+            "warn",
+            {
+                "max": 100,
+                "skipBlankLines": true,
+                "skipComments": true
+            }
+        ],
         "no-magic-numbers": [
             "warn",
             {
@@ -151,6 +158,16 @@
             ],
             "rules": {
                 "import/unambiguous": "off" // TypeScript declaration files are ambient, not modules
+            }
+        },
+        {
+            "files": [
+                "VueApp/src/**/composables/use-schedule-operations.ts",
+                "VueApp/src/**/composables/use-schedule-crud.ts",
+                "VueApp/src/**/composables/use-schedule-dialogs.ts"
+            ],
+            "rules": {
+                "promise/avoid-new": "off", // Quasar dialogs require Promise wrapper for async/await
             }
         }
     ],

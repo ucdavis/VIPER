@@ -94,4 +94,10 @@ const cardClasses = computed(() => {
     hyphens: auto;
     line-height: 1.2;
 }
+
+/* Style for weeks requiring primary evaluator */
+.requires-primary-card {
+    border: 2px solid #f44 !important;
+    background-color: #fff5f5;
+}
 </style>

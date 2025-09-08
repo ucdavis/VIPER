@@ -127,9 +127,27 @@ function clearSelection(): void {
 <style scoped>
 .recent-selections-card {
     position: sticky;
-    top: 16px;
+    top: 130px; /* Desktop: Blue header + yellow navigation + padding (35px + 60px + 35px) */
     z-index: 100;
-    background-color: white;
+    background-color: #f8f9fa; /* Light gray to make the box stand out from white week boxes */
+}
+
+/* Responsive positioning for tablet screens */
+
+/* Quasar breakpoint: gt-sm (yellow header visible when > 1023px) */
+@media (width <= 1023px) and (width >= 600px) {
+    .recent-selections-card {
+        top: 90px; /* Tablet: Blue header + padding when yellow header collapses */
+    }
+}
+
+/* Mobile screens need less spacing */
+
+/* Quasar xs breakpoint: mobile screens */
+@media (width <= 599px) {
+    .recent-selections-card {
+        top: 65px; /* Mobile: Reduced spacing for smaller screens */
+    }
 }
 
 /* Ensure the card doesn't get too tall on scroll */
