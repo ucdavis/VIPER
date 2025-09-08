@@ -1,5 +1,255 @@
-﻿@{
-    ViewData["Title"] = "User Info Page";
+﻿@using Viper.Classes.SQLContext;
+@model Viper.Areas.Directory.Models.UserInfoResult;
+@{
+        RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
+        ViewData["Title"] = "User Information";
+
 }
 <article class="userinfo">
+    <!--- Directiory -------------------------------------------------------------------------------------- --->
+    <div class="directory">
+        <h2><a href="/default.cfm?page=directory">Directory Information</a></h2>
+        <span class="photo"><img src="https://viper.vetmed.ucdavis.edu/userphoto.cfm?/userPhoto.cfm?mailID=@Model.Email" width="87" height="111" border="0" /></span>
+        <span class="photo2"><img src="https://viper.vetmed.ucdavis.edu/userphoto.cfm?/userPhoto.cfm?mailID=@Model.Email&altphoto=yes" width="87" height="111" border="0" /></span>
+        <h3>@Model.DisplayFullName</h3>
+        <ul>
+            <li>@Model.Title</li>
+            <li>@Model.Department</li>
+            <li>@Model.Email (@Model.EmailHost)</li>
+            <li><b>Login ID:</b> @Model.LoginId</li>
+            @if (!String.IsNullOrEmpty(Model.URI)){ <li><b>URI:</b> @Model.URI</li> }
+            @if (!String.IsNullOrEmpty(Model.Phone)){ <li><b>Phone:</b> @Model.Phone</li> }
+            @if (!String.IsNullOrEmpty(Model.Mobile)){ <li><b>Mobile:</b> @Model.Mobile</li> }
+            @if (!String.IsNullOrEmpty(Model.Pager)){ <li><b>Pager:</b> @Model.Pager</li> }
+            @if (!String.IsNullOrEmpty(Model.PostalAddress)){ <li><b>Address:</b> @Model.PostalAddress</li> }
+            @if (!String.IsNullOrEmpty(Model.MothraId)){ <li><b>Mothra ID:</b> @Model.MothraId</li> }
+            @if (!String.IsNullOrEmpty(Model.EmployeeId)){ <li><b>Employee ID:</b> @Model.EmployeeId</li> }
+            @if (!String.IsNullOrEmpty(Model.StudentId)){ <li><b>Student ID:</b> @Model.StudentId</li> }
+            @if (!String.IsNullOrEmpty(Model.IamId)){ <li><b>IAM ID:</b> @Model.IamId</li> }
+            @if (!String.IsNullOrEmpty(Model.Pidm)){ <li><b>PIDM:</b> @Model.Pidm</li> }
+            @if (!String.IsNullOrEmpty(Model.MivId.ToString())){ <li><b>MIV ID:</b> @Model.MivId</li> }
+        </ul>
+    </div>
+    <!--- Employee -------------------------------------------------------------------------------------- --->
+    <div class="employee">
+        <h2><a href="/faculty/default.cfm?page=redirectToPublic&amp;mivID=#user.miv_id#" target="u">Employee Information</a></h2>
+        <ul>
+            @if (!String.IsNullOrEmpty(Model.EmployeeId)){ <li><b>Employee ID:</b> @Model.EmployeeId</li> }
+            @if (!String.IsNullOrEmpty(Model.EmployeePrimaryTitle)){ <li><b>Primary Title:</b> @Model.EmployeePrimaryTitle</li> }
+            @if (!String.IsNullOrEmpty(Model.EmployeeSchoolDivision)){ <li><b>School Division:</b> @Model.EmployeeSchoolDivision</li> }
+            @if (!String.IsNullOrEmpty(Model.EmployeeStatus)){ <li><b>Status:</b> @Model.EmployeeStatus</li> }
+            @if (!String.IsNullOrEmpty(Model.EmployeeTerm.ToString())){ <li><b>Term:</b> @Model.EmployeeTerm</li> }
+            @if (!String.IsNullOrEmpty(Model.EmployeeHomeDepartment)){ <li><b>Home Department:</b> @Model.EmployeeHomeDepartment</li> }
+            @if (!String.IsNullOrEmpty(Model.EmployeeEffortHomeDepartment)){ <li><b>Effort Home Department:</b> @Model.EmployeeEffortHomeDepartment</li> }
+            @if (!String.IsNullOrEmpty(Model.EmployeeTeachingHomeDepartment)){ <li><b>Teaching Home Department:</b> @Model.EmployeeTeachingHomeDepartment</li> }
+            @if (!String.IsNullOrEmpty(Model.EmployeeTeachingPercentFulltime)){ <li><b>Teaching Percent Full-time:</b> @Model.EmployeeTeachingPercentFulltime</li> }
+        </ul>
+    </div>
+    <!--- Student -------------------------------------------------------------------------------------- --->
+    <div class="student">
+        <h2><a href="/students/sis/default.cfm?Page=SelectStudent&amp;pidm=#user.pidm#" target="u">Student Information</a></h2>
+        <ul>
+            @if (!String.IsNullOrEmpty(Model.StudentPriorName)){ <li><b>Prior Name</b> @Model.StudentPriorName</li> }
+            @if (!String.IsNullOrEmpty(Model.StudentBannerId)){ <li><b>Banner ID</b> @Model.StudentBannerId</li> }
+            @if (!String.IsNullOrEmpty(Model.StudentConfidential.ToString())){ <li><b>Confidential?</b> @(Model.StudentConfidential ? "Yes":"No")</li> }
+            @if (!String.IsNullOrEmpty(Model.StudentStatus)){ <li><b>Student Status</b> @Model.StudentStatus</li> }
+            @if (!String.IsNullOrEmpty(Model.StudentPrimaryMajor)){ <li><b>Primary Major</b> @Model.StudentPrimaryMajor</li> }
+            @if (!String.IsNullOrEmpty(Model.StudentAllMajors)){ <li><b>All Majors</b> @Model.StudentAllMajors</li> }
+            @if (!String.IsNullOrEmpty(Model.StudentRegistrationStatus)){ <li><b>Registration Status</b> @Model.StudentRegistrationStatus</li> }
+            @if (!String.IsNullOrEmpty(Model.StudentClassLevel)){ <li><b>Class Level</b> @Model.StudentClassLevel</li> }
+            @if (!String.IsNullOrEmpty(Model.StudentClassOf)){ <li><b>Class Of</b> @Model.StudentClassOf</li> }
+        </ul>
+    </div>
+    <!--- IAM Information -------------------------------------------------------------------------------------- --->
+    <div class="iam">
+        <h2><a href="https://iam.ucdavis.edu" target="u">IAM Information</a></h2>
+        <ul>
+            @if (!String.IsNullOrEmpty(Model.IamId)){ <li><b>IAM ID:</b> @Model.IamId</li> }
+            @if (!String.IsNullOrEmpty(Model.PPSId)){ <li><b>PPS ID:</b> @Model.PPSId</li> }
+            @if (!String.IsNullOrEmpty(Model.OFullName)){ <li><b>Full Name:</b> @Model.OFullName</li> }
+            <li><b>Employee?</b> @(Model.IsEmployee ? "Yes":"No")</li>
+            <li><b>HS Employee?</b> @(Model.IsHSEmployee ? "Yes":"No")</li>
+            <li><b>Faculty?</b> @(Model.IsFaculty ? "Yes":"No")</li>
+            <li><b>Student?</b> @(Model.IsStudent ? "Yes":"No")</li>
+            <li><b>Staff?</b> @(Model.IsStaff ? "Yes":"No")</li>
+            <li><b>External?</b> @(Model.IsExternal ? "Yes":"No")</li>
+        </ul>
+        <ul>
+            @if (!String.IsNullOrEmpty(Model.AssociationsTitle)){ <li><b>Title:</b> @Model.AssociationsTitle (@Model.AssociationsTitleCode)</li> }
+            @if (!String.IsNullOrEmpty(Model.AssociationsDepartment)){ <li><b>Department:</b> @Model.AssociationsDepartment (@Model.AssociationsDepartmentCode)</li> }
+            @if (!String.IsNullOrEmpty(Model.AssociationsAdminDepartment)){ <li><b>Admin Department:</b> @Model.AssociationsAdminDepartment (@Model.AssociationsAdminDepartmentAbbrev @Model.AssociationsAdminDepartmentCode)</li> }
+            @if (!String.IsNullOrEmpty(Model.AssociationsAppointmentDepartment)){ <li><b>Appointment Department:</b> @Model.AssociationsAppointmentDepartment (@Model.AssociationsAppointmentDepartmentAbbrev @Model.AssociationsAppointmentDepartmentCode)</li> }
+            @if (!String.IsNullOrEmpty(Model.AssociationsPositionType)){ <li><b>Position Type:</b> @Model.AssociationsPositionType</li> }
+            @if (!String.IsNullOrEmpty(Model.AssociationsEmployeeClass)){ <li><b>Employee Class:</b> @Model.AssociationsEmployeeClass</li> }
+            @if (!String.IsNullOrEmpty(Model.AssociationsPercentFulltime.ToString())){ <li><b>Percent Full-time:</b> @Model.AssociationsPercentFulltime</li> }
+            @if (!String.IsNullOrEmpty(Model.AssociationsStart.ToString())){ <li><b>Association:</b> @Model.AssociationsStart &ndash; @Model.AssociationsEnd</li> }
+        </ul>
+    </div>
+    <!--- Roles and permissions ------------------------------------------------------------------------ --->
+    <div class="roles">
+        <h2><a href="/RAPS/" target="u">System Roles</a></h2>
+        <table>
+            <thead>
+                <tr><th>#perm#</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>#permFormat(p["displayName"][r])#</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="permissions">
+        <h2>System Permissions</h2>
+        <ul class="tree">
+            <li>
+                <details>
+                    <summary>#p["summary"]# (#p["count"]#)</summary>
+                    <ul>
+                        <li>#q#</li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+    </div>
+    <!--- UC Path -------------------------------------------------------------------------------------- --->
+    <div class="ucpath">
+        <h2><a href="/default.cfm?Page=UCPathInfo&emplid=#user.employee_ID#" target="u">UC Path</a></h2>
+        <ul>
+            <li><b>Roles:</b> #ucpath_flags#</li>
+        </ul>
+        <ul>
+            @if (!String.IsNullOrEmpty(Model.UCPathJobCode)){ <li><b>Position:</b> @Model.UCPathJobCode @Model.UCPathJobDescription &mdash; @Model.UCPathDepartmentId @Model.UCPathDepartmentDescription</li> }
+            @if (!String.IsNullOrEmpty(Model.UCPathJobStatus)){ <li><b>Status:</b> @Model.UCPathJobStatus (@Model.UCPathEmployeeStatus: @Model.UCPathJobStatusDescription)</li> }
+            @if (!String.IsNullOrEmpty(Model.UCPathPositionEffective)){ <li><b>Effective:</b> @Model.UCPathPositionEffective &ndash; @Model.UCPathEndDate</li> }
+            @if (!String.IsNullOrEmpty(Model.UCPathFTE)){ <li><b>FTE:</b> @Model.UCPathFTE</li> }
+            @if (!String.IsNullOrEmpty(Model.UCPathUnion)){ <li><b>Union:</b> @Model.UCPathUnion</li> }
+            @if (!String.IsNullOrEmpty(Model.UCPathReportsToName)){ <li><b>Reports to:</b> @Model.UCPathReportsToName, @Model.UCPathReportsToPosition</li> }
+        </ul>
+    </div>
+    <div class="upcpath_history">
+        <h3>UCPath History</h3>
+        <table>
+            <thead>
+                <tr><th>Job Description</th><th>Action Description</th><th>Effective Date</th><th>Reports To</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>#ucpath_history.jobcode# #ucpath_history.jobcode_desc# &mdash; #ucpath_history.deptID# #ucpath_history.dept_desc#</td>
+                    <td>#ucpath_history.action_descr#</td>
+                    <td>#showDate(ucpath_history.position_effdt)#</td>
+                    <td class="just">#ucpath_history.reportsToName#, #ucpath_history.reportsToPosition#</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <!--- ID Cards ------------------------------------------------------------------------------------- --->
+    <div class="idCards">
+        <h2><a href="/IDCards/default.cfm" target="u">ID Cards</a></h2>
+        @if (!Model.IDCards.Any())
+        {
+            <p>No ID Cards have been issued.</p>
+        } 
+        else
+        {
+            <table>
+                <thead>
+                    <tr><th>Card Number</th><th>Card Info</th><th>Status</th><th>Applied</th><th>Issued</th><th colspan="2">Deactivated</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var i in Model.IDCards)
+                    {
+                        <tr>
+                            <td class="center">@i.Number</td>
+                    <td class="just">@i.DisplayName @i.LastName / @i.Line2</td>
+                    <td>@i.StatusDescription</td>
+                    <td>@i.Applied</td>
+                    <td>@i.Issued</td>
+                    <td>@i.DeactivatedReason</td>
+                    <td>@i.Deactivated</td>
+                </tr>
+                }
+            </tbody>
+        </table>
+        }
+    </div>
+    <!--- Keys -------------------------------------------------------------------------------------- --->
+    <div class="keys">
+        <h2><a href="/facilities/keys/default.cfm?page=PersonDetails&amp;personid=#user.mothraid#" target="u">Keys Assigned</a></h2>
+        @if (!Model.Keys.Any())
+        {
+        <p>No keys have been issued.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr><th>Access Description</th><th>Key Number</th><th>Cut Number</th><th>Issued</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var k in Model.Keys)
+                    {
+                        <tr><td>#keys.accessDescription#</td><td>#keys.keynumber#</td><td>#keys.cutNumber#</td><td>Issued #showDate(keys.issuedDate)# by #keys.issued_by#</td></tr>
+                    }
+            </tbody>
+        </table>
+        }
+    </div>
+    <!--- Loans -------------------------------------------------------------------------------------- --->
+    <div class="loans">
+        <h2><a href="/cats/loaner/default.cfm?page=loans" target="u">Loaner Equipment</a></h2>
+        @if (!Model.Loans.Any())
+        {
+            <p>No equipment has been loaned.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr><th>Asset</th><th>Loan Date</th><th>Due Date</th><th>Comments</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var l in Model.Loans)
+                    {
+                        <tr><td>#loans.asset_name#</td><td>#showDate(loans.loan_date)#</td><td>#showDate(loans.loan_due_date)#</td><td>#loans.loan_comments#</td></tr>
+                    }
+            </tbody>
+        </table>
+        }
+    </div>
+    <!--- Instinct ----------------------------------------------------------------------------------- --->
+    <div class="instinct">
+        <h2>Instinct</h2>
+        <ul>
+            <li><b>Instinct ID:</b> #instinct.id#</li>
+            <li><b>Instinct Username:</b> #instinct.username#</li>
+            <li><b>Roles:</b> #arrayToList(instinct.roles,", ")#</li>
+            <li><b>Status:</b> #instinct.status#</li>
+            <li><b>Password expires:</b> #showDate(instinct.passwordExpiresAt)#</li>
+            <li><b>Active account?:</b> #showYesNo(instinct.isActive)#</li>
+        </ul>
+    </div>
+    <!--- Active Directory Group Membership -------------------------------------------------------------------------------------- --->
+    <div class="adGroup">
+        <h2>Active Directory Group Membership</h2>
+        <p class="note">Information about ucsvm, ad.vmth, vetmed, and svm is not yet available.</p>
+        <ul>
+            <!---<li><b>GUID:</b> #ad.objectGUID#</li>--->
+            <li><b>Display Name:</b> #ad.displayName#</li>
+            <li><b>Mail:</b> #ad.mail#</li>
+            <li><b>SAM Account Name:</b> #ad.samAccountName#</li>
+            <li><b>User Principal Name:</b> #ad.userprincipalName#</li>
+            <li><b>Distinguished Name:</b> #permFormat(ad.distinguishedName)#</li>
+        </ul>
+        <h3>Member of:</h3>
+        <ul>
+            <li>
+                <details>
+                    <summary>#domain#</summary><ul>
+                        <li>#m#</li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+    </div>
 </article>
