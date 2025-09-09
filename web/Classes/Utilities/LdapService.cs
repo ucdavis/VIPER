@@ -45,7 +45,7 @@ namespace Viper.Classes.Utilities
         }
 
         /// <summary>
-        /// Get users for display\ searching by name, cn, or samAccountName
+        /// Get users for display: searching by name, cn, or samAccountName
         /// </summary>
         /// <param name="search">Searches all fields (phone number, SN, given name, UID, CN, mail) for this value</param>
         /// <returns>List of Users</returns>
@@ -121,6 +121,24 @@ namespace Viper.Classes.Utilities
             }
             return null;
         }
+
+        /// <summary>
+        /// Look up User by its MothraID
+        /// </summary>
+        /// <param name="id">iamID for looking up user</param>
+        /// <returns>LdapUserContact</returns>
+        public LdapUserContact? GetUserByMothraID(string? id)
+        {
+            if (id == null) return null;
+            string filter = string.Format("(ucdpersonuuid = {0})", id);
+            var results = SearchLdap(filter);
+            if (results.Entries.Count > 0)
+            {
+                return new LdapUserContact(results.Entries[0]);
+            }
+            return null;
+            }
+
 
         /// <summary>
         /// Get dictionary of Users from a list of MothraIDs

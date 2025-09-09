@@ -1,5 +1,5 @@
 ﻿@using Viper.Classes.SQLContext;
-@model Viper.Models.AAUD.AaudUser;
+@model Viper.Areas.Directory.Models.DirectoryUser;
 @{
     RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
     IUserHelper UserHelper = new UserHelper();
@@ -21,10 +21,13 @@
               color="green"
               label="Search all of UCD">
     </q-toggle>
+    @if (Model.CanDisplayIDs)
+    {
     <q-toggle v-model="ids"
-              color="blue"
+        color="blue"
               label="Display IDs">
     </q-toggle>
+    }
     <!--
     <q-toggle v-model="debug"
               color="red"
@@ -44,10 +47,13 @@
                     <q-icon name="email" size="xs"></q-icon>
                     <q-tooltip>Email {{user.mailId}}</q-tooltip>
                 </a>
+                @if (Model.CanEmulate)
+                {
                 <a v-if="user.svm" :href="'@HttpHelper.GetRootURL()/EmulateUser/' + user.loginId" class="emulate_button top_button">
                     <q-icon name="face" size="xs"></q-icon>
                     <q-tooltip>Emulate {{user.name}}</q-tooltip>
                 </a>
+                }
                 <a v-if="ids" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&mothraID=' + user.mothraId + '&loginID=' + user.loginId" class="AAUD_button top_button">
                     <q-icon name="account_circle" size="xs"></q-icon>
                     <q-tooltip>AAUD Check</q-tooltip>
@@ -60,7 +66,7 @@
                     <q-icon name="supervisor_account" size="xs"></q-icon>
                     <q-tooltip>MSO/CAO Lookup</q-tooltip>
                 </a>
-                @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.DirectoryUCPathInfo"))
+                @if (Model.CanSeeUCPathInfo)
                 {
                     @:
                     <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UCPathInfo&emplid=' + user.employeeId" v-if="ids && user.employeeId" class="UCPath_button top_button">
@@ -68,7 +74,7 @@
                         <q-tooltip>UCPath Info</q-tooltip>
                     </a>
                 }
-                    @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CATS.ServiceDesk"))
+                @if (Model.CanSeeAltPhoto)
                 {
                     @:
                     <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID' + user.iamId + '&mailID=' + props.row.mailId + '&empName=' + user.name" v-if="ids && user.currentAffiliate" class="photo_button top_button">
@@ -84,7 +90,7 @@
                     </q-avatar>
                 </q-card-section>
                 <q-card-section class="col">
-                    <h5 v-if="user.userName">{{user.userName}}</h5>
+                    <h5><span v-if="ids && user.userName">{{user.userName}}</span>&nbsp;</h5>
                     <h1>{{user.name}}</h1>
                     <h2 v-if="user.title">{{user.title}}</h2>
                     <h2 v-if="user.department">{{user.department}}</h2>
@@ -105,12 +111,9 @@
             <q-card-section class="row ids" v-if="ids && (user.spridentId || user.pidm || user.employeeId || user.iamId || user.mothraId || user.mivId)">
                 <div v-if="user.spridenId">
                     <span>BannerID:</span>
-                    @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.SIS.AllStudents"))
-                    {
+                    @if (Model.CanSeeAllStudents) {
                     @: <a :href="'@HttpHelper.GetOldViperRootURL()' + '/students/sis/default.cfm?Page=AssignPidmAndRedirect&Pidm=' + user.spridenId + '&JumpPage=Home'">{{ user.spridenId }}</a>
-                    }
-                    else
-                    {
+                    } else {
                     @: {{ user.spridenId }}
                     }
                 </div>
