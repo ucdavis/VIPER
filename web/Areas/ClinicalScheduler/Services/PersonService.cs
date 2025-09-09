@@ -10,15 +10,11 @@ namespace Viper.Areas.ClinicalScheduler.Services
         public string? FullName { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
-        public string? MiddleName { get; set; }
-        public string? MailId { get; set; }
-        public string Source { get; set; } = string.Empty;
     }
 
     public class ClinicianYearSummary : ClinicianSummary
     {
         public int Year { get; set; }
-        public int ScheduleCount { get; set; }
     }
     /// <summary>
     /// Service for handling person and clinician data from Clinical Scheduler context
@@ -54,31 +50,23 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 _logger.LogInformation("Getting person data for MothraId: {MothraId} from Clinical Scheduler context", mothraId);
 
-                // Split into two steps to avoid complex LINQ translation issues
-                var instructorSchedules = await _context.InstructorSchedules
+                // Query the vPerson view directly - much more efficient than joining through InstructorSchedules
+                var personData = await _context.Persons
                     .AsNoTracking()
-                    .Include(i => i.Person)
-                    .Where(i => i.MothraId == mothraId)
-                    .ToListAsync(cancellationToken);
+                    .Where(p => p.IdsMothraId == mothraId)
+                    .FirstOrDefaultAsync(cancellationToken);
 
-                var person = instructorSchedules
-                    .GroupBy(i => i.MothraId)
-                    .Select(g =>
+                ClinicianSummary? person = null;
+                if (personData != null)
+                {
+                    person = new ClinicianSummary
                     {
-                        var first = g.First();
-                        var personData = first.Person;
-                        return new ClinicianSummary
-                        {
-                            MothraId = g.Key,
-                            FullName = personData?.PersonDisplayFullName ?? "Unknown",
-                            FirstName = personData?.PersonDisplayFirstName ?? "Unknown",
-                            LastName = personData?.PersonDisplayLastName ?? "Unknown",
-                            MiddleName = "", // Person model doesn't have middle name display field
-                            MailId = personData?.IdsMailId ?? "",
-                            Source = "InstructorSchedule"
-                        };
-                    })
-                    .FirstOrDefault();
+                        MothraId = mothraId,
+                        FullName = personData.PersonDisplayFullName ?? "Unknown",
+                        FirstName = personData.PersonDisplayFirstName ?? "Unknown",
+                        LastName = personData.PersonDisplayLastName ?? "Unknown"
+                    };
+                }
 
                 if (person == null)
                 {
@@ -138,11 +126,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                             FullName = person?.PersonDisplayFullName,
                             FirstName = person?.PersonDisplayFirstName,
                             LastName = person?.PersonDisplayLastName,
-                            MiddleName = null, // vPerson doesn't have middle name separately
-                            MailId = person?.IdsMailId,
-                            Source = "InstructorSchedule+vPerson",
-                            Year = year,
-                            ScheduleCount = g.Count()
+                            Year = year
                         };
                     })
                     .OrderBy(c => c.LastName)
@@ -211,10 +195,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                             MothraId = m.MothraId,
                             FullName = person?.PersonDisplayFullName ?? $"Clinician {m.MothraId}",
                             FirstName = person?.PersonDisplayFirstName ?? "",
-                            LastName = person?.PersonDisplayLastName ?? "",
-                            MiddleName = "", // vPerson doesn't have middle name separately
-                            MailId = person?.IdsMailId ?? "",
-                            Source = $"GradYearRange_{startGradYear}-{endGradYear}_EF"
+                            LastName = person?.PersonDisplayLastName ?? ""
                         };
                     })
                     .OrderBy(c => c.LastName ?? "")
@@ -282,10 +263,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         MothraId = u.MothraId,
                         FullName = u.DisplayFullName,
                         FirstName = u.DisplayFirstName,
-                        LastName = u.DisplayLastName,
-                        MiddleName = u.DisplayMiddleName,
-                        MailId = u.LoginId,
-                        Source = "AAUD"
+                        LastName = u.DisplayLastName
                     })
                     .OrderBy(c => c.LastName)
                     .ThenBy(c => c.FirstName)
@@ -327,10 +305,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         MothraId = mothraId,
                         FullName = ResolveClinicianName(c.FullName, c.PersonDisplayFirstName, c.PersonDisplayLastName, mothraId),
                         FirstName = c.PersonDisplayFirstName ?? "",
-                        LastName = c.PersonDisplayLastName ?? "",
-                        MiddleName = "", // VwVmthClinician doesn't have middle name field
-                        MailId = "", // VwVmthClinician doesn't have mail ID field
-                        Source = "AAUD_VwVmthClinician"
+                        LastName = c.PersonDisplayLastName ?? ""
                     })
                     .FirstOrDefaultAsync(cancellationToken);
 

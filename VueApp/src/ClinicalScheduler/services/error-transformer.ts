@@ -5,6 +5,134 @@ import type { ApiError } from "../types/api-responses"
  * for consistent error handling across the application.
  */
 
+// HTTP Status Code Constants
+const HTTP_STATUS = {
+    FORBIDDEN: 403,
+    NOT_FOUND: 404,
+    CONFLICT: 409,
+    INTERNAL_SERVER_ERROR: 500,
+} as const
+
+/**
+ * Handle HTTP status-based error transformation
+ */
+function handleHttpStatusError(status: number, error: any): ApiError | null {
+    if (status === HTTP_STATUS.FORBIDDEN) {
+        return {
+            kind: "PermissionError",
+            message: extractMessageOr(error?.message || "", "You don't have permission to perform this action"),
+        }
+    }
+
+    if (status === HTTP_STATUS.NOT_FOUND) {
+        return {
+            kind: "NotFoundError",
+            message: extractMessageOr(error?.message || "", "The requested resource was not found"),
+        }
+    }
+
+    if (status === HTTP_STATUS.CONFLICT) {
+        return {
+            kind: "ConflictError",
+            message: extractMessageOr(error?.message || "", "This operation conflicts with existing data"),
+        }
+    }
+
+    if (status >= HTTP_STATUS.INTERNAL_SERVER_ERROR) {
+        return { kind: "HttpError", status, message: "An internal server error occurred. Please try again later." }
+    }
+
+    return null
+}
+
+/**
+ * Handle Error object-based error transformation
+ */
+function handleErrorObject(error: Error): ApiError {
+    const errorMessage = error.message.toLowerCase()
+
+    // Fallback to text parsing for non-HTTP errors
+    if (errorMessage.includes("forbidden") || errorMessage.includes("403")) {
+        return {
+            kind: "PermissionError",
+            message: extractMessageOr(error.message, "You don't have permission to perform this action"),
+        }
+    }
+
+    if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+        return {
+            kind: "NotFoundError",
+            message: extractMessageOr(error.message, "The requested resource was not found"),
+        }
+    }
+
+    if (errorMessage.includes("409") || errorMessage.includes("conflict")) {
+        return {
+            kind: "ConflictError",
+            message: extractMessageOr(error.message, "This operation conflicts with existing data"),
+        }
+    }
+
+    if (errorMessage.includes("400") || errorMessage.includes("validation")) {
+        return handleValidationError(error)
+    }
+
+    if (errorMessage.includes("500") || errorMessage.includes("internal server error")) {
+        return {
+            kind: "HttpError",
+            status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+            message: "An internal server error occurred. Please try again later.",
+        }
+    }
+
+    // Generic HTTP error with status code extraction
+    const statusMatch = errorMessage.match(/\b([4-5]\d{2})\b/)
+    if (statusMatch?.[1]) {
+        return {
+            kind: "HttpError",
+            status: Number.parseInt(statusMatch[1], 10),
+            message: extractMessageOr(error.message ?? "", "An error occurred while processing your request"),
+        }
+    }
+
+    // Default to unknown error with original message
+    return {
+        kind: "UnknownError",
+        message: error.message ?? "An unexpected error occurred",
+    }
+}
+
+/**
+ * Handle validation error transformation
+ */
+function handleValidationError(error: Error): ApiError {
+    const errorWithDetails = error as Error & { errors?: string[] | Record<string, string[]> }
+
+    if (errorWithDetails.errors) {
+        // Handle array of validation errors
+        if (Array.isArray(errorWithDetails.errors)) {
+            return {
+                kind: "ValidationError",
+                message: errorWithDetails.errors.join(", ") || "Validation failed",
+                details: undefined,
+            }
+        }
+        // Handle validation details object
+        if (typeof errorWithDetails.errors === "object") {
+            return {
+                kind: "ValidationError",
+                message: "Validation failed. Please check the form fields.",
+                details: errorWithDetails.errors,
+            }
+        }
+    }
+
+    return {
+        kind: "ValidationError",
+        message: extractMessageOr(error.message, "The provided data is invalid"),
+    }
+}
+
 /**
  * Transform an unknown error into a typed ApiError
  */
@@ -22,109 +150,14 @@ function transformError(error: unknown): ApiError {
     const status = typeof maybeResponse?.status === "number" ? maybeResponse.status : undefined
 
     if (status) {
-        if (status === 403) {
-            return {
-                kind: "PermissionError",
-                message: extractMessageOr(
-                    (error as any)?.message || "",
-                    "You don't have permission to perform this action",
-                ),
-            }
-        }
-
-        if (status === 404) {
-            return {
-                kind: "NotFoundError",
-                message: extractMessageOr((error as any)?.message || "", "The requested resource was not found"),
-            }
-        }
-        if (status === 409) {
-            return {
-                kind: "ConflictError",
-                message: extractMessageOr((error as any)?.message || "", "This operation conflicts with existing data"),
-            }
-        }
-        if (status >= 500) {
-            return { kind: "HttpError", status, message: "An internal server error occurred. Please try again later." }
+        const statusError = handleHttpStatusError(status, error)
+        if (statusError) {
+            return statusError
         }
     }
 
     if (error instanceof Error) {
-        const errorMessage = error.message.toLowerCase()
-        // Fallback to text parsing for non-HTTP errors
-        if (errorMessage.includes("forbidden") || errorMessage.includes("403")) {
-            return {
-                kind: "PermissionError",
-                message: extractMessageOr(error.message, "You don't have permission to perform this action"),
-            }
-        }
-
-        if (errorMessage.includes("404") || errorMessage.includes("not found")) {
-            return {
-                kind: "NotFoundError",
-                message: extractMessageOr(error.message, "The requested resource was not found"),
-            }
-        }
-
-        if (errorMessage.includes("409") || errorMessage.includes("conflict")) {
-            return {
-                kind: "ConflictError",
-                message: extractMessageOr(error.message, "This operation conflicts with existing data"),
-            }
-        }
-
-        if (errorMessage.includes("400") || errorMessage.includes("validation")) {
-            // Check if error has validation details
-            const errorWithDetails = error as Error & { errors?: string[] | Record<string, string[]> }
-
-            if (errorWithDetails.errors) {
-                // Handle array of validation errors
-                if (Array.isArray(errorWithDetails.errors)) {
-                    return {
-                        kind: "ValidationError",
-                        message: errorWithDetails.errors.join(", ") || "Validation failed",
-                        details: undefined,
-                    }
-                }
-                // Handle validation details object
-                if (typeof errorWithDetails.errors === "object") {
-                    return {
-                        kind: "ValidationError",
-                        message: "Validation failed. Please check the form fields.",
-                        details: errorWithDetails.errors,
-                    }
-                }
-            }
-
-            return {
-                kind: "ValidationError",
-                message: extractMessageOr(error.message, "The provided data is invalid"),
-            }
-        }
-
-        if (errorMessage.includes("500") || errorMessage.includes("internal server error")) {
-            return {
-                kind: "HttpError",
-                status: 500,
-                message: "An internal server error occurred. Please try again later.",
-            }
-        }
-
-        // Generic HTTP error with status code extraction
-        const statusMatch = errorMessage.match(/\b([4-5]\d{2})\b/)
-        if (statusMatch && statusMatch[1]) {
-            return {
-                kind: "HttpError",
-                status: Number.parseInt(statusMatch[1], 10),
-                message: extractMessageOr(error.message ?? "", "An error occurred while processing your request"),
-            }
-        }
-
-        // Default to unknown error with original message
-        return {
-            kind: "UnknownError",
-            message: error.message ?? "An unexpected error occurred",
-        }
+        return handleErrorObject(error)
     }
 
     // Handle non-Error objects

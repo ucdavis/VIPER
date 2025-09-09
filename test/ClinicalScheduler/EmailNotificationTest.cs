@@ -19,6 +19,7 @@ namespace Viper.test.ClinicalScheduler
         private readonly Mock<ILogger<ScheduleEditService>> _mockLogger;
         private readonly Mock<IEmailService> _mockEmailService;
         private readonly Mock<IOptions<EmailNotificationSettings>> _mockEmailNotificationOptions;
+        private readonly Mock<IGradYearService> _mockGradYearService;
         private readonly ScheduleEditService _service;
         private readonly EmailNotificationSettings _testEmailSettings;
 
@@ -43,6 +44,12 @@ namespace Viper.test.ClinicalScheduler
             };
             _mockEmailNotificationOptions.Setup(x => x.Value).Returns(_testEmailSettings);
 
+            _mockGradYearService = new Mock<IGradYearService>();
+            // Set up default for grad year service - use current year
+            var currentYear = DateTime.Now.Year;
+            _mockGradYearService.Setup(x => x.GetCurrentGradYearAsync())
+                .ReturnsAsync(currentYear);
+
             _service = new ScheduleEditService(
                 Context,
                 _mockPermissionService.Object,
@@ -50,6 +57,7 @@ namespace Viper.test.ClinicalScheduler
                 _mockLogger.Object,
                 _mockEmailService.Object,
                 _mockEmailNotificationOptions.Object,
+                _mockGradYearService.Object,
                 _mockUserHelper.Object);
         }
 
@@ -383,6 +391,7 @@ namespace Viper.test.ClinicalScheduler
                 _mockLogger.Object,
                 _mockEmailService.Object,
                 _mockEmailNotificationOptions.Object,
+                _mockGradYearService.Object,
                 _mockUserHelper.Object);
 
             await AddTestPersonAsync(mothraId, "John", "Doe");

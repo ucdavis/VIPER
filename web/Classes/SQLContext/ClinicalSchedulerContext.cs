@@ -13,7 +13,6 @@ public class ClinicalSchedulerContext : DbContext
     public virtual DbSet<Rotation> Rotations { get; set; }
     public virtual DbSet<Service> Services { get; set; }
     public virtual DbSet<InstructorSchedule> InstructorSchedules { get; set; }
-    public virtual DbSet<StudentSchedule> StudentSchedules { get; set; }
     public virtual DbSet<Week> Weeks { get; set; }
     public virtual DbSet<WeekGradYear> WeekGradYears { get; set; }
     public virtual DbSet<Person> Persons { get; set; }
@@ -112,25 +111,6 @@ public class ClinicalSchedulerContext : DbContext
                .HasForeignKey(e => e.WeekId);
         });
 
-        // StudentSchedule entity configuration
-        modelBuilder.Entity<StudentSchedule>(entity =>
-        {
-            entity.HasKey(e => e.StudentScheduleId);
-            entity.ToTable("studentSchedule", schema: "dbo");
-            entity.Property(e => e.MiddleName).IsRequired(false);
-            entity.Property(e => e.MailId).IsRequired(false);
-            entity.Property(e => e.Pidm).IsRequired(false);
-            entity.Property(e => e.NotGraded).IsRequired(false);
-            entity.Property(e => e.NotEnrolled).IsRequired(false);
-            entity.Property(e => e.MakeUp).IsRequired(false);
-            entity.Property(e => e.Incomplete).IsRequired(false);
-            entity.HasOne(e => e.Service).WithMany()
-               .HasForeignKey(e => e.ServiceId);
-            entity.HasOne(e => e.Rotation).WithMany()
-               .HasForeignKey(e => e.RotationId);
-            entity.HasOne(e => e.Week).WithMany()
-               .HasForeignKey(e => e.WeekId);
-        });
 
         modelBuilder.Entity<Person>(entity =>
         {

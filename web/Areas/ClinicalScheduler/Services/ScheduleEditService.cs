@@ -19,6 +19,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         private readonly IUserHelper _userHelper;
         private readonly IEmailService _emailService;
         private readonly EmailNotificationSettings _emailNotificationSettings;
+        private readonly IGradYearService _gradYearService;
 
         public ScheduleEditService(
             ClinicalSchedulerContext context,
@@ -27,6 +28,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             ILogger<ScheduleEditService> logger,
             IEmailService emailService,
             IOptions<EmailNotificationSettings> emailNotificationOptions,
+            IGradYearService gradYearService,
             IUserHelper? userHelper = null)
         {
             _context = context;
@@ -35,6 +37,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             _logger = logger;
             _emailService = emailService;
             _emailNotificationSettings = emailNotificationOptions.Value;
+            _gradYearService = gradYearService;
             _userHelper = userHelper ?? new UserHelper();
         }
 
@@ -50,6 +53,21 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 // Validate permissions and get current user
                 var currentUser = await ValidatePermissionsAndGetUserAsync(rotationId, cancellationToken);
+
+                // Validate grad year - only allow current or future years
+                var currentGradYear = await _gradYearService.GetCurrentGradYearAsync();
+                const int minYear = 2009;
+                var maxYear = currentGradYear + 2;
+
+                if (gradYear < minYear || gradYear > maxYear)
+                {
+                    throw new ArgumentException($"Academic year must be between {minYear} and {maxYear}.", nameof(gradYear));
+                }
+
+                if (gradYear < currentGradYear)
+                {
+                    throw new InvalidOperationException($"Cannot modify schedules for past academic years. Current year is {currentGradYear}, requested year is {gradYear}.");
+                }
 
                 // Trim and validate MothraId
                 mothraId = mothraId?.Trim();

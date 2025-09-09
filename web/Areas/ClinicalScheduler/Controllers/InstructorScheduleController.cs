@@ -29,15 +29,15 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             IScheduleEditService scheduleEditService,
             IScheduleAuditService auditService,
             ISchedulePermissionService permissionService,
-            AddInstructorValidator validator,
             IGradYearService gradYearService,
-            ILogger<InstructorScheduleController> logger)
+            ILogger<InstructorScheduleController> logger,
+            ILogger<AddInstructorValidator> validatorLogger)
             : base(gradYearService, logger)
         {
             _scheduleEditService = scheduleEditService;
             _auditService = auditService;
             _permissionService = permissionService;
-            _validator = validator;
+            _validator = new AddInstructorValidator(validatorLogger, gradYearService);
         }
 
         /// <summary>
@@ -60,7 +60,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             try
             {
                 // Step 1: Validate request
-                var validationResult = _validator.ValidateRequest(request, correlationId);
+                var validationResult = await _validator.ValidateRequestAsync(request, correlationId, cancellationToken);
                 if (!validationResult.IsValid)
                 {
                     return BadRequest(new ErrorResponse(

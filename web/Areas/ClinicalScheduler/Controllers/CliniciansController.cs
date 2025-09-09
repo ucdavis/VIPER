@@ -450,10 +450,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     MothraId = person.MothraId,
                     FullName = person.FullName,
                     FirstName = person.FirstName,
-                    LastName = person.LastName,
-                    MiddleName = person.MiddleName,
-                    MailId = person.MailId,
-                    Source = person.Source
+                    LastName = person.LastName
                 };
             }
 

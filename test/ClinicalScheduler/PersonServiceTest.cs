@@ -228,7 +228,6 @@ namespace Viper.test.ClinicalScheduler
             {
                 Assert.Equal("Doe, Jane", ((dynamic)clinician).FullName);
                 Assert.Equal(2023, ((dynamic)clinician).Year);
-                Assert.True(((dynamic)clinician).ScheduleCount > 0);
             }
         }
 
@@ -298,7 +297,6 @@ namespace Viper.test.ClinicalScheduler
 
             // Verify core properties exist (some may be null due to EF in-memory limitations)
             Assert.NotNull(clinician.MothraId);
-            Assert.Equal("GradYearRange_2023-2024_EF", clinician.Source);
             // Note: FullName, FirstName, LastName may be null in tests due to EF configuration
         }
 

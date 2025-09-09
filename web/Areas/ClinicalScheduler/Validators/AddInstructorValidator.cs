@@ -1,17 +1,35 @@
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Requests;
+using Viper.Areas.ClinicalScheduler.Services;
 
 namespace Viper.Areas.ClinicalScheduler.Validators
 {
+    /// <summary>
+    /// Validates instructor assignment requests for the Clinical Scheduler
+    /// </summary>
     public class AddInstructorValidator
     {
         private readonly ILogger<AddInstructorValidator> _logger;
+        private readonly IGradYearService _gradYearService;
 
-        public AddInstructorValidator(ILogger<AddInstructorValidator> logger)
+        /// <summary>
+        /// Initializes a new instance of the AddInstructorValidator class
+        /// </summary>
+        /// <param name="logger">Logger for validation operations</param>
+        /// <param name="gradYearService">Service for grad year operations</param>
+        public AddInstructorValidator(ILogger<AddInstructorValidator> logger, IGradYearService gradYearService)
         {
             _logger = logger;
+            _gradYearService = gradYearService;
         }
 
-        public ValidationResult ValidateRequest(AddInstructorRequest request, string correlationId)
+        /// <summary>
+        /// Validates an add instructor request for completeness and business rules
+        /// </summary>
+        /// <param name="request">The instructor assignment request to validate</param>
+        /// <param name="correlationId">Correlation ID for request tracking</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Validation result containing success status and any error messages</returns>
+        public async Task<ValidationResult> ValidateRequestAsync(AddInstructorRequest request, string correlationId, CancellationToken cancellationToken = default)
         {
             var mothraId = request.MothraId?.Trim();
             var errors = new List<string>();
@@ -33,9 +51,25 @@ namespace Viper.Areas.ClinicalScheduler.Validators
             }
 
             // Validate GradYear
-            if (!request.GradYear.HasValue || request.GradYear.Value < 1900 || request.GradYear.Value > 2100)
+            if (!request.GradYear.HasValue)
             {
                 errors.Add("Valid academic year is required.");
+            }
+            else
+            {
+                var requestedYear = request.GradYear.Value;
+                var currentGradYear = await _gradYearService.GetCurrentGradYearAsync();
+                var minYear = 2009;
+                var maxYear = currentGradYear + 2;
+
+                if (requestedYear < minYear || requestedYear > maxYear)
+                {
+                    errors.Add($"Academic year must be between {minYear} and {maxYear}.");
+                }
+                else if (requestedYear < currentGradYear)
+                {
+                    errors.Add($"Cannot modify schedules for past academic years. Current year is {currentGradYear}.");
+                }
             }
 
             // Validate WeekIds
@@ -64,10 +98,24 @@ namespace Viper.Areas.ClinicalScheduler.Validators
             return new ValidationResult { IsValid = true };
         }
 
+        /// <summary>
+        /// Represents the result of a validation operation
+        /// </summary>
         public class ValidationResult
         {
+            /// <summary>
+            /// Indicates whether the validation passed without errors
+            /// </summary>
             public bool IsValid { get; set; }
+
+            /// <summary>
+            /// Primary error message for display
+            /// </summary>
             public string? ErrorMessage { get; set; }
+
+            /// <summary>
+            /// Collection of all validation error messages
+            /// </summary>
             public List<string> Errors { get; set; } = new List<string>();
         }
     }

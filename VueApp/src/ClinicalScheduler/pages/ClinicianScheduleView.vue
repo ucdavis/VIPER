@@ -95,7 +95,7 @@
             <div v-if="selectedClinician">
                 <!-- Rotation selector section (only show when not past year) -->
                 <RecentSelections
-                    v-if="!isPastYear && !hasNoAssignments"
+                    v-if="!isPastYear"
                     :items="rotationItems"
                     :selected-item="(selectedRotation as RotationWithService) || null"
                     recent-label="Recent Rotations:"

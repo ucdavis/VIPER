@@ -325,9 +325,10 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return true;
                 }
 
-                // Check if user is viewing their own schedule
+                // Check if user is viewing their own schedule (either with ViewOwn or EditOwnSchedule permission)
                 if (mothraId != null && mothraId == user.MothraId &&
-                    _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.ViewOwn))
+                    (_userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.ViewOwn) ||
+                     _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule)))
                 {
                     _logger.LogDebug("User {MothraId} is viewing their own instructor schedule", user.MothraId);
                     return true;
