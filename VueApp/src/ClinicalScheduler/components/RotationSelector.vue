@@ -65,6 +65,8 @@
                 :filtered-count="filteredRotations.length"
                 :total-count="totalRotations"
                 :visible="shouldShowPermissionInfo"
+                :show-service-specific="true"
+                :show-full-access="true"
             />
         </div>
     </div>
@@ -76,10 +78,10 @@ import { RotationService } from "../services/rotation-service"
 import { usePermissionsStore } from "../stores/permissions"
 import PermissionFeedbackChip from "./PermissionFeedbackChip.vue"
 import type { RotationWithService } from "../types/rotation-types"
+import { EXCLUDED_ROTATION_NAMES } from "../constants/rotation-constants"
 
 // Constants
 const INPUT_DEBOUNCE_MS = 300
-const EXCLUDED_ROTATION_NAMES = ["vacation"] // Rotation names to exclude (case-insensitive)
 
 // Props
 interface Props {
@@ -99,12 +101,10 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 // Emits
-/* eslint-disable no-unused-vars */ // Vue 3 TypeScript emit interface appears unused to ESLint
 interface Emits {
     (e: "update:modelValue", value: number | null): void
     (e: "rotation-selected", rotation: RotationWithService | null): void
 }
-/* eslint-enable no-unused-vars */
 
 const emit = defineEmits<Emits>()
 
@@ -224,8 +224,7 @@ function filterRotations(items: RotationWithService[], searchTerm: string): Rota
     )
 }
 
-// Quasar QSelect filter callback signature requires fn parameter, but we don't use it
-// eslint-disable-next-line no-unused-vars
+// Quasar QSelect filter callback
 function onFilter(val: string, update: (fn: () => void) => void) {
     searchQuery.value = val
     update(() => {

@@ -28,6 +28,14 @@
                 "skipComments": true
             }
         ],
+        "max-lines": [
+            "warn",
+            {
+                "max": 350,
+                "skipBlankLines": true,
+                "skipComments": true
+            }
+        ],
         "no-magic-numbers": [
             "warn",
             {

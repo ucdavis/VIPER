@@ -1,14 +1,17 @@
 import { useFetch } from "../../composables/ViperFetch"
-import type { ApiResult } from "../types/api"
-import { SCHEDULE_OPERATION_ERRORS } from "../constants/permission-messages"
+import type { ApiResult, TypedApiResult } from "../types/api"
+import { transformError, getScheduleErrorMessage } from "./error-transformer"
 
 class InstructorScheduleService {
     private static readonly BASE_URL = `${import.meta.env.VITE_API_URL}clinicalscheduler/instructor-schedules`
 
     /**
      * Add an instructor to one or more weeks of a rotation
+     * Returns TypedApiResult with structured error information
      */
-    static async addInstructor(request: InstructorScheduleRequest): Promise<ApiResult<InstructorScheduleResponse>> {
+    static async addInstructor(
+        request: InstructorScheduleRequest,
+    ): Promise<TypedApiResult<InstructorScheduleResponse>> {
         try {
             // Trim MothraId to prevent whitespace issues
             const trimmedRequest = { ...request, MothraId: request.MothraId.trim() }
@@ -16,33 +19,23 @@ class InstructorScheduleService {
             const response = await post(this.BASE_URL, trimmedRequest)
             return response as ApiResult<InstructorScheduleResponse>
         } catch (error) {
-            // Extract meaningful error message from the response
-            let errorMessage = "Failed to add instructor to schedule"
-            if (error instanceof Error) {
-                // Check if error has validation errors property (from ViperFetch ValidationError)
-                const errorWithDetails = error as Error & { errors?: string[] }
-                if (errorWithDetails.errors && Array.isArray(errorWithDetails.errors)) {
-                    const validationErrors = errorWithDetails.errors
-                    if (validationErrors.length > 0) {
-                        errorMessage = validationErrors.join(", ")
-                    }
-                } else {
-                    errorMessage = error.message
-                }
-            }
+            const apiError = transformError(error)
+            const errorMessage = getScheduleErrorMessage(error, "add")
 
             return {
                 result: { scheduleIds: [] },
                 success: false,
-                errors: [errorMessage],
+                error: apiError,
+                errors: [errorMessage], // Keep for backward compatibility
             }
         }
     }
 
     /**
      * Remove an instructor from a scheduled week
+     * Returns TypedApiResult with structured error information
      */
-    static async removeInstructor(scheduleId: number): Promise<ApiResult<boolean>> {
+    static async removeInstructor(scheduleId: number): Promise<TypedApiResult<boolean>> {
         try {
             const { del } = useFetch()
             const response = await del(`${this.BASE_URL}/${scheduleId}`)
@@ -61,26 +54,14 @@ class InstructorScheduleService {
                 errors: response?.errors || ["Failed to remove instructor from schedule"],
             }
         } catch (error) {
-            // Try to extract meaningful error message from HTTP response
-            let errorMessage = "Failed to remove instructor from schedule"
-            if (error instanceof Error) {
-                errorMessage = error.message
-
-                // If it's an HTTP error, try to get more details
-                if (error.message.includes("500")) {
-                    errorMessage =
-                        "Server error occurred. The instructor may be a primary evaluator or there may be a permission issue."
-                } else if (error.message.includes("403")) {
-                    errorMessage = SCHEDULE_OPERATION_ERRORS.NO_PERMISSION_REMOVE_INSTRUCTOR
-                } else if (error.message.includes("404")) {
-                    errorMessage = "Instructor schedule not found."
-                }
-            }
+            const apiError = transformError(error)
+            const errorMessage = getScheduleErrorMessage(error, "remove")
 
             return {
                 result: false,
                 success: false,
-                errors: [errorMessage],
+                error: apiError,
+                errors: [errorMessage], // Keep for backward compatibility
             }
         }
     }
@@ -91,7 +72,7 @@ class InstructorScheduleService {
     static async setPrimaryEvaluator(
         scheduleId: number,
         isPrimary: boolean,
-    ): Promise<ApiResult<{ isPrimaryEvaluator: boolean; previousPrimaryName?: string | undefined }>> {
+    ): Promise<TypedApiResult<{ isPrimaryEvaluator: boolean; previousPrimaryName?: string | undefined }>> {
         try {
             const request: SetPrimaryEvaluatorRequest = { IsPrimary: isPrimary }
             const { put } = useFetch()
@@ -114,25 +95,14 @@ class InstructorScheduleService {
                 errors: response?.errors || ["Failed to set primary evaluator status"],
             }
         } catch (error) {
-            // Try to extract meaningful error message from HTTP response
-            let errorMessage = "Failed to set primary evaluator status"
-            if (error instanceof Error) {
-                errorMessage = error.message
-
-                // If it's an HTTP error, try to get more details
-                if (error.message.includes("500")) {
-                    errorMessage = "Server error occurred while updating primary evaluator status."
-                } else if (error.message.includes("403")) {
-                    errorMessage = SCHEDULE_OPERATION_ERRORS.NO_PERMISSION_MODIFY_PRIMARY_EVALUATOR
-                } else if (error.message.includes("404")) {
-                    errorMessage = "Instructor schedule not found."
-                }
-            }
+            const apiError = transformError(error)
+            const errorMessage = getScheduleErrorMessage(error, "toggle")
 
             return {
                 result: { isPrimaryEvaluator: false },
                 success: false,
-                errors: [errorMessage],
+                error: apiError,
+                errors: [errorMessage], // Keep for backward compatibility
             }
         }
     }
@@ -143,7 +113,7 @@ class InstructorScheduleService {
     static updatePrimaryEvaluator(
         scheduleId: number,
         isPrimary: boolean,
-    ): Promise<ApiResult<{ isPrimaryEvaluator: boolean; previousPrimaryName?: string | undefined }>> {
+    ): Promise<TypedApiResult<{ isPrimaryEvaluator: boolean; previousPrimaryName?: string | undefined }>> {
         return this.setPrimaryEvaluator(scheduleId, isPrimary)
     }
 

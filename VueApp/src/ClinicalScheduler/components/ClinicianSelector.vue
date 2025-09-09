@@ -33,13 +33,13 @@
             :error="!!error"
             :error-message="error || undefined"
             placeholder="Search for a clinician..."
-            :emit-value="!props.includeAllAffiliates"
-            :map-options="!props.includeAllAffiliates"
+            emit-value
+            map-options
             :use-input="!props.includeAllAffiliates"
             :fill-input="!props.includeAllAffiliates"
             :hide-selected="!props.includeAllAffiliates"
-            :option-label="props.includeAllAffiliates ? getOptionLabel : 'fullName'"
-            :option-value="props.includeAllAffiliates ? getOptionValue : 'mothraId'"
+            option-label="fullName"
+            option-value="mothraId"
             clearable
             dense
             :input-debounce="100"
@@ -113,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from "vue"
+import { ref, computed, onMounted, watch } from "vue"
 import { ClinicianService, type Clinician } from "../services/clinician-service"
 import type { ViewContext } from "../types"
 import { usePermissionsStore } from "../stores/permissions"
@@ -162,23 +162,17 @@ const searchQuery = ref("")
 // Computed
 const selectedClinician = computed({
     get: () => {
-        // When includeAllAffiliates is true, we work with the full clinician object
-        // When false, we work with mothraId string
-        if (props.includeAllAffiliates) {
-            return props.modelValue || null
-        } else {
-            return props.modelValue?.mothraId || null
-        }
+        if (!props.modelValue) return null
+        // Try to find the clinician in the loaded list first
+        const foundClinician = clinicians.value.find((c) => c.mothraId === props.modelValue?.mothraId)
+        // If found in list, return that (ensures we have the latest data)
+        // Otherwise return the modelValue itself (handles initial load before list is populated)
+        return foundClinician || props.modelValue
     },
-    set: (value: Clinician | string | null) => {
-        if (props.includeAllAffiliates) {
-            // Value is already the full clinician object
-            emit("update:modelValue", value as Clinician | null)
-        } else {
-            // Value is mothraId string, find the clinician
-            const clinician = clinicians.value.find((c) => c.mothraId === (value as string)) || null
-            emit("update:modelValue", clinician)
-        }
+    set: (value: string | null) => {
+        // Value is mothraId string, find the clinician
+        const clinician = clinicians.value.find((c) => c.mothraId === value) || null
+        emit("update:modelValue", clinician)
     },
 })
 
@@ -269,11 +263,6 @@ const filterClinicians = (items: Clinician[], searchTerm: string): Clinician[] =
     )
 }
 
-// Helper functions for QSelect options when includeAllAffiliates is true
-const getOptionLabel = (clinician: Clinician) => `${clinician.lastName}, ${clinician.firstName}`
-const getOptionValue = (clinician: Clinician) => clinician.mothraId
-
-// eslint-disable-next-line no-unused-vars
 function onFilter(val: string, update: (fn: () => void) => void) {
     // Only used when use-input is true (i.e., when includeAllAffiliates is false)
     searchQuery.value = val
@@ -286,15 +275,10 @@ function onFilter(val: string, update: (fn: () => void) => void) {
     })
 }
 
-const onClinicianChange = (value: string | Clinician | null) => {
-    if (props.includeAllAffiliates) {
-        // Value is already the full clinician object
-        emit("change", value as Clinician | null)
-    } else {
-        // Value is mothraId string, find the clinician
-        const clinician = clinicians.value.find((c) => c.mothraId === value) || null
-        emit("change", clinician)
-    }
+const onClinicianChange = (value: string | null) => {
+    // Value is mothraId string, find the clinician
+    const clinician = clinicians.value.find((c) => c.mothraId === value) || null
+    emit("change", clinician)
 }
 
 const onAffiliatesToggle = (value: boolean) => {
@@ -311,9 +295,10 @@ const onPopupShow = () => {
 
     // Ensure the input is focused and ready for searching when use-input is enabled
     if (!props.includeAllAffiliates) {
-        nextTick(() => {
+        // Use setTimeout as alternative to nextTick
+        setTimeout(() => {
             clinicianSelect.value?.focus()
-        })
+        }, 0)
     }
 }
 

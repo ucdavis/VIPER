@@ -107,7 +107,7 @@ const bannerMessage = computed(() => {
     if (permissionsStore.hasOnlyServiceSpecificPermissions) {
         const services = permissionsStore.getEditableServicesDisplay()
         const serviceCount = permissionsStore.editableServiceCount
-        const plural = serviceCount > 1 ? "rotations" : "rotation"
+        const plural = serviceCount > 1 ? "services" : "service"
 
         return `You can manage schedules for ${serviceCount} ${plural}: ${services}.`
     }
@@ -120,7 +120,7 @@ const bannerMessage = computed(() => {
         // User has both service-specific AND own-schedule permissions
         const services = permissionsStore.getEditableServicesDisplay()
         const serviceCount = permissionsStore.editableServiceCount
-        const plural = serviceCount > 1 ? "rotations" : "rotation"
+        const plural = serviceCount > 1 ? "services" : "service"
 
         return `You can manage schedules for ${serviceCount} ${plural} (${services}) and edit your own schedule entries.`
     }

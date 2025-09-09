@@ -13,19 +13,12 @@ namespace Viper.Areas.ClinicalScheduler.Services
         public string? MiddleName { get; set; }
         public string? MailId { get; set; }
         public string Source { get; set; } = string.Empty;
-        public DateTime? LastScheduled { get; set; }
-    }
-
-    public class PersonSummary : ClinicianSummary
-    {
-        public int TotalSchedules { get; set; }
     }
 
     public class ClinicianYearSummary : ClinicianSummary
     {
         public int Year { get; set; }
         public int ScheduleCount { get; set; }
-        public DateTime? FirstScheduled { get; set; }
     }
     /// <summary>
     /// Service for handling person and clinician data from Clinical Scheduler context
@@ -49,7 +42,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="mothraId">The MothraId to search for</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Person information or null if not found</returns>
-        public async Task<PersonSummary?> GetPersonAsync(string mothraId, CancellationToken cancellationToken = default)
+        public async Task<ClinicianSummary?> GetPersonAsync(string mothraId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -64,7 +57,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // Split into two steps to avoid complex LINQ translation issues
                 var instructorSchedules = await _context.InstructorSchedules
                     .AsNoTracking()
-                    .Include(i => i.Week)
                     .Include(i => i.Person)
                     .Where(i => i.MothraId == mothraId)
                     .ToListAsync(cancellationToken);
@@ -75,7 +67,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     {
                         var first = g.First();
                         var personData = first.Person;
-                        return new PersonSummary
+                        return new ClinicianSummary
                         {
                             MothraId = g.Key,
                             FullName = personData?.PersonDisplayFullName ?? "Unknown",
@@ -83,9 +75,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                             LastName = personData?.PersonDisplayLastName ?? "Unknown",
                             MiddleName = "", // Person model doesn't have middle name display field
                             MailId = personData?.IdsMailId ?? "",
-                            Source = "InstructorSchedule",
-                            LastScheduled = g.Max(x => x.Week.DateEnd),
-                            TotalSchedules = g.Count()
+                            Source = "InstructorSchedule"
                         };
                     })
                     .FirstOrDefault();
@@ -96,8 +86,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 }
                 else
                 {
-                    _logger.LogInformation("Found person for MothraId: {MothraId} with {TotalSchedules} schedule entries",
-                        mothraId, person.TotalSchedules);
+                    _logger.LogInformation("Found person for MothraId: {MothraId}", mothraId);
                 }
 
                 return person;
@@ -153,9 +142,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                             MailId = person?.IdsMailId,
                             Source = "InstructorSchedule+vPerson",
                             Year = year,
-                            ScheduleCount = g.Count(),
-                            FirstScheduled = g.Min(x => x.Week.DateStart),
-                            LastScheduled = g.Max(x => x.Week.DateEnd)
+                            ScheduleCount = g.Count()
                         };
                     })
                     .OrderBy(c => c.LastName)
@@ -196,8 +183,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .GroupBy(i => i.MothraId)
                     .Select(g => new
                     {
-                        MothraId = g.Key,
-                        LastScheduled = g.Max(i => i.Week.DateEnd)
+                        MothraId = g.Key
                     })
                     .ToListAsync(cancellationToken);
 
@@ -228,8 +214,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                             LastName = person?.PersonDisplayLastName ?? "",
                             MiddleName = "", // vPerson doesn't have middle name separately
                             MailId = person?.IdsMailId ?? "",
-                            Source = $"GradYearRange_{startGradYear}-{endGradYear}_EF",
-                            LastScheduled = m.LastScheduled
+                            Source = $"GradYearRange_{startGradYear}-{endGradYear}_EF"
                         };
                     })
                     .OrderBy(c => c.LastName ?? "")

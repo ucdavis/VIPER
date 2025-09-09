@@ -1,10 +1,13 @@
 #!/bin/sh
 
-# Check if this is a merge commit
+# Check if this is a merge commit or rebase
 if git rev-parse -q --verify MERGE_HEAD > /dev/null 2>&1; then
     echo "🔀 Merge commit detected - skipping linting, running tests and build verification..."
     npm run test
     npm run verify:build
+elif [ -d ".git/rebase-merge" ] || [ -d ".git/rebase-apply" ]; then
+    echo "🔄 Rebase in progress - skipping pre-commit checks..."
+    exit 0
 else
     echo "🔍 Running pre-commit checks..."
     npx lint-staged

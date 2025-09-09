@@ -4,7 +4,11 @@
         class="permission-feedback-chip"
     >
         <q-chip
-            v-if="permissionsStore.hasOnlyServiceSpecificPermissions && showServiceSpecific"
+            v-if="
+                showServiceSpecific &&
+                permissionsStore.editableServiceCount > 0 &&
+                !permissionsStore.hasFullAccessPermission
+            "
             icon="business"
             color="positive"
             text-color="white"
@@ -73,8 +77,8 @@ const props = withDefaults(defineProps<Props>(), {
     customMessage: "",
     customIcon: "",
     customColor: "",
-    filteredCount: 0,
-    totalCount: 0,
+    filteredCount: undefined,
+    totalCount: undefined,
 })
 
 const permissionsStore = usePermissionsStore()
@@ -86,7 +90,7 @@ const computedServiceSpecificMessage = computed(() => {
     }
 
     if (props.filteredCount !== undefined && props.totalCount !== undefined) {
-        return `Showing ${props.filteredCount} of ${props.totalCount} items (${permissionsStore.getEditableServicesDisplay()} only)`
+        return `Showing ${props.filteredCount} of ${props.totalCount} items (${permissionsStore.getEditableServicesDisplay()})`
     }
 
     return `Limited to ${permissionsStore.getEditableServicesDisplay()}`
@@ -111,7 +115,12 @@ const shouldShow = computed(() => {
 
     if (props.customMessage) return true
 
-    if (props.showServiceSpecific && permissionsStore.hasOnlyServiceSpecificPermissions) {
+    // Show service-specific chip if user has service permissions (regardless of other permissions)
+    if (
+        props.showServiceSpecific &&
+        permissionsStore.editableServiceCount > 0 &&
+        !permissionsStore.hasFullAccessPermission
+    ) {
         return true
     }
 

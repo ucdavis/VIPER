@@ -453,8 +453,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     LastName = person.LastName,
                     MiddleName = person.MiddleName,
                     MailId = person.MailId,
-                    Source = person.Source,
-                    LastScheduled = person.LastScheduled
+                    Source = person.Source
                 };
             }
 

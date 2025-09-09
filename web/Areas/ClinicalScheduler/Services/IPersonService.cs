@@ -30,7 +30,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="mothraId">The person's MothraId</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Person information or null if not found</returns>
-        Task<PersonSummary?> GetPersonAsync(string mothraId, CancellationToken cancellationToken = default);
+        Task<ClinicianSummary?> GetPersonAsync(string mothraId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get all unique MothraIds from the instructor schedules

@@ -7,11 +7,12 @@ import a11y from "eslint-plugin-vuejs-accessibility"
 import quasarEslint from "@quasar/app-vite/eslint"
 import tsParser from "@typescript-eslint/parser"
 import vueParser from "vue-eslint-parser"
+import tseslint from "@typescript-eslint/eslint-plugin"
 
 export default [
-    // Global ignores
+    // Global ignores - Exclude .ts and .js files since we use oxlint for TypeScript and JavaScript
     {
-        ignores: ["node_modules/**", "dist/**", "coverage/**", "*.d.ts"],
+        ignores: ["node_modules/**", "dist/**", "coverage/**", "*.d.ts", "**/*.ts", "**/*.js", "**/*.mjs", "**/*.cjs"],
     },
 
     // Quasar recommended configuration (includes Quasar-specific rules)
@@ -19,15 +20,16 @@ export default [
 
     // ESLint recommended rules
     eslint.configs.recommended,
-    
+
     // Vue strongly recommended rules
     ...pluginVue.configs["flat/strongly-recommended"],
-    
+
     // Main configuration for Vue files
     {
         files: ["**/*.vue"],
         plugins: {
             "vuejs-accessibility": a11y,
+            "@typescript-eslint": tseslint,
         },
         languageOptions: {
             parser: vueParser,
@@ -46,6 +48,15 @@ export default [
             },
         },
         rules: {
+            // Disable the base rule and enable TypeScript-aware version
+            "no-unused-vars": "off",
+            "@typescript-eslint/no-unused-vars": ["error", {
+                "args": "all",
+                "argsIgnorePattern": "^_",
+                "varsIgnorePattern": "^_",
+                "caughtErrorsIgnorePattern": "^_",
+                "ignoreRestSiblings": true
+            }],
             // Vue security rules
             "vue/no-v-html": "error", // Prevents XSS via v-html
             "vue/no-v-text-v-html-on-component": "error", // Component XSS protection
@@ -84,34 +95,11 @@ export default [
         },
     },
 
-    // TypeScript files
-    {
-        files: ["**/*.ts"],
-        languageOptions: {
-            parser: tsParser,
-            ecmaVersion: "latest",
-            sourceType: "module",
-            globals: {
-                ...globals.browser,
-                ...globals.node,
-            },
-        },
-    },
+    // TypeScript files - removed since we use oxlint for .ts files
 
-    // Node.js specific files (config files)
+    // Browser specific Vue files - stricter console rules
     {
-        files: ["*.{js,ts}", "**/*.config.{js,ts}"],
-        languageOptions: {
-            globals: globals.node,
-        },
-        rules: {
-            "no-console": "off", // Allow console in Node.js config files
-        },
-    },
-
-    // Browser specific files - stricter console rules
-    {
-        files: ["src/**/*.{js,ts,jsx,tsx,vue}"],
+        files: ["src/**/*.vue"],
         languageOptions: {
             globals: globals.browser,
         },

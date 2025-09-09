@@ -1,117 +1,142 @@
 <template>
-    <div
-        class="week-cell"
-        :class="{
-            'week-cell--clickable': isClickable,
-            'week-cell--has-assignments': hasAssignments,
-            'week-cell--requires-primary': requiresPrimary && !hasPrimary,
-            'week-cell--past': isPast,
-        }"
+    <q-card
+        :class="cardClasses"
+        clickable
         @click="handleClick"
-        @keydown.enter="handleClick"
-        @keydown.space.prevent="handleClick"
-        :tabindex="isClickable ? 0 : -1"
-        :role="isClickable ? 'button' : undefined"
-        :aria-label="`Week ${week.weekNumber} from ${formatDateRange(week.dateStart, week.dateEnd)}`"
     >
-        <!-- Week header -->
-        <div class="week-cell__header">
-            <div class="week-cell__number">Week {{ week.weekNumber }}</div>
-            <q-icon
-                v-if="requiresPrimary && !hasPrimary"
-                name="warning"
-                size="xs"
-                color="orange"
-                class="week-cell__warning-icon"
-                title="Primary evaluator required for this week"
-            />
-        </div>
+        <q-card-section class="q-pa-sm">
+            <!-- Week header -->
+            <div class="text-center text-weight-medium text-grey-8 q-mb-sm row items-center justify-center q-gutter-xs">
+                <q-icon
+                    v-if="requiresPrimary && !hasPrimary"
+                    name="warning"
+                    size="xs"
+                    color="orange"
+                    title="Primary evaluator required for this week"
+                />
+                <span>Week {{ week.weekNumber }} ({{ formatDate(week.dateStart) }})</span>
+            </div>
 
-        <!-- Week dates -->
-        <div class="week-cell__dates">
-            {{ formatDateRange(week.dateStart, week.dateEnd) }}
-        </div>
-
-        <!-- Assignments -->
-        <div class="week-cell__assignments">
-            <div
-                v-if="assignments.length > 0"
-                class="week-cell__assignment-list"
-            >
+            <!-- Assignments -->
+            <div>
                 <div
-                    v-for="assignment in assignments"
-                    :key="assignment.id"
-                    class="week-cell__assignment-item"
+                    v-if="assignments.length > 0"
+                    class="week-cell__assignment-list"
                 >
-                    <div class="week-cell__assignment-content">
-                        <!-- Remove button -->
-                        <q-icon
-                            v-if="canEdit && !isPast && !assignment.isPrimary"
-                            name="close"
-                            size="xs"
-                            color="negative"
-                            class="week-cell__remove-btn"
-                            title="Remove this clinician from the schedule"
-                            @click.stop="$emit('remove-assignment', assignment)"
-                        />
-                        <q-icon
-                            v-else-if="canEdit && !isPast && assignment.isPrimary"
-                            name="close"
-                            size="xs"
-                            color="grey-4"
-                            class="week-cell__remove-btn week-cell__remove-btn--disabled"
-                            title="Cannot remove primary clinician. Make another clinician primary first."
-                        />
+                    <div
+                        v-for="assignment in assignments"
+                        :key="assignment.id"
+                        class="week-cell__assignment-item"
+                    >
+                        <div class="week-cell__assignment-content">
+                            <!-- Remove button -->
+                            <q-btn
+                                v-if="canEdit && !isPastYear && (!assignment.isPrimary || !requiresPrimaryForWeek)"
+                                flat
+                                round
+                                dense
+                                size="sm"
+                                icon="close"
+                                color="negative"
+                                class="week-cell__remove-btn"
+                                aria-label="Remove this clinician from the schedule"
+                                @click.stop="$emit('remove-assignment', assignment.id, assignment.displayName)"
+                            >
+                                <q-tooltip :delay="600">Remove {{ assignment.displayName }} from schedule</q-tooltip>
+                            </q-btn>
+                            <q-btn
+                                v-else-if="canEdit && !isPastYear && requiresPrimaryForWeek && assignment.isPrimary"
+                                flat
+                                round
+                                dense
+                                size="sm"
+                                icon="close"
+                                color="grey-4"
+                                class="week-cell__remove-btn week-cell__remove-btn--disabled"
+                                aria-label="Cannot remove primary clinician. Make another clinician primary first."
+                                :disable="true"
+                            >
+                                <q-tooltip :delay="600"
+                                    >Cannot remove primary clinician. Make another clinician primary first.</q-tooltip
+                                >
+                            </q-btn>
 
-                        <!-- Clinician name -->
-                        <span class="week-cell__clinician-name">{{ assignment.clinicianName }}</span>
+                            <!-- Clinician name -->
+                            <span class="week-cell__clinician-name">{{ assignment.displayName }}</span>
 
-                        <!-- Primary star -->
-                        <q-icon
-                            v-if="isPast && assignment.isPrimary"
-                            name="star"
-                            size="xs"
-                            color="amber"
-                            title="Primary evaluator"
-                        />
-                        <q-icon
-                            v-else-if="canEdit && !isPast"
-                            :name="assignment.isPrimary ? 'star' : 'star_outline'"
-                            size="xs"
-                            :color="assignment.isPrimary ? 'amber' : 'grey-5'"
-                            class="week-cell__primary-btn"
-                            :title="
-                                assignment.isPrimary
-                                    ? 'Primary evaluator. Click another clinician\'s star to transfer primary status.'
-                                    : 'Click to make this clinician the primary evaluator.'
-                            "
-                            @click.stop="$emit('toggle-primary', assignment)"
-                        />
+                            <!-- Primary star -->
+                            <q-btn
+                                v-if="isPastYear && assignment.isPrimary"
+                                flat
+                                round
+                                dense
+                                icon="star"
+                                size="sm"
+                                color="amber"
+                                class="week-cell__primary-btn"
+                                aria-label="Primary evaluator"
+                                :disable="true"
+                            >
+                                <q-tooltip :delay="600">Primary evaluator</q-tooltip>
+                            </q-btn>
+                            <q-btn
+                                v-else-if="canEdit && !isPastYear && showPrimaryToggle"
+                                flat
+                                round
+                                dense
+                                :icon="assignment.isPrimary ? 'star' : 'star_outline'"
+                                size="sm"
+                                :color="assignment.isPrimary ? 'amber' : 'grey-5'"
+                                class="week-cell__primary-btn"
+                                :aria-label="
+                                    assignment.isPrimary
+                                        ? 'Primary evaluator. Click another clinician\'s star to transfer primary status.'
+                                        : 'Click to make this clinician the primary evaluator.'
+                                "
+                                @click.stop="
+                                    $emit(
+                                        'toggle-primary',
+                                        assignment.id,
+                                        assignment.isPrimary ?? false,
+                                        assignment.displayName,
+                                    )
+                                "
+                            >
+                                <q-tooltip :delay="600">{{
+                                    assignment.isPrimary
+                                        ? "Primary evaluator. Click another clinician's star to transfer primary status."
+                                        : "Click to make this clinician the primary evaluator."
+                                }}</q-tooltip>
+                            </q-btn>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty state -->
+                <div
+                    v-else
+                    class="week-cell__empty"
+                >
+                    <div class="week-cell__empty-text">
+                        {{ emptyStateText }}
                     </div>
                 </div>
             </div>
-
-            <!-- Empty state -->
-            <div
-                v-else
-                class="week-cell__empty"
-            >
-                <div class="week-cell__empty-text">
-                    {{ emptyStateText }}
-                </div>
-            </div>
-        </div>
-    </div>
+        </q-card-section>
+    </q-card>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue"
+import { useDateFunctions } from "@/composables/DateFunctions"
+
+const { formatDate } = useDateFunctions()
 
 export interface WeekAssignment {
     id: number
-    clinicianName: string
-    isPrimary: boolean
-    mothraId: string
+    displayName: string
+    isPrimary?: boolean
+    [key: string]: unknown // Allow additional properties
 }
 
 interface Props {
@@ -119,127 +144,94 @@ interface Props {
         weekId: number
         weekNumber: number
         dateStart: string
-        dateEnd: string
-        requiresPrimaryEvaluator: boolean
+        dateEnd?: string
+        requiresPrimaryEvaluator?: boolean
+        [key: string]: unknown // Allow additional properties
     }
     assignments?: WeekAssignment[]
     canEdit?: boolean
-    isPast?: boolean
-    isClickable?: boolean
+    isPastYear?: boolean
+    requiresPrimaryForWeek?: boolean
+    showPrimaryToggle?: boolean
+    additionalClasses?: string | string[] | Record<string, boolean>
 }
 
 const props = withDefaults(defineProps<Props>(), {
     assignments: () => [],
     canEdit: false,
-    isPast: false,
-    isClickable: true,
+    isPastYear: false,
+    requiresPrimaryForWeek: false,
+    showPrimaryToggle: true,
+    additionalClasses: "",
 })
 
 const emit = defineEmits<{
     click: [week: Props["week"]]
-    "remove-assignment": [assignment: WeekAssignment]
-    "toggle-primary": [assignment: WeekAssignment]
+    "remove-assignment": [assignmentId: number, displayName: string]
+    "toggle-primary": [assignmentId: number, isPrimary: boolean, displayName: string]
 }>()
 
 // Computed properties
-const hasAssignments = computed(() => props.assignments.length > 0)
-
-const requiresPrimary = computed(() => props.week.requiresPrimaryEvaluator)
+const requiresPrimary = computed(() => props.week.requiresPrimaryEvaluator ?? false)
 
 const hasPrimary = computed(() => {
     return props.assignments.some((a) => a.isPrimary)
 })
 
 const emptyStateText = computed(() => {
-    if (props.isPast) return "No assignments"
-    if (props.canEdit && props.isClickable) return "Click to add clinician"
+    if (props.isPastYear) return "No assignments"
+    if (props.canEdit) return "Click to add assignment"
     return "No assignments"
 })
 
 // Methods
 function handleClick() {
-    if (props.isClickable && !props.isPast) {
+    if (!props.isPastYear && props.canEdit) {
         emit("click", props.week)
     }
 }
 
-function formatDateRange(start: string, end: string): string {
-    const startDate = new Date(start)
-    const endDate = new Date(end)
-    const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }
+// Computed property for card classes
+const cardClasses = computed(() => {
+    const baseClasses = "col-xs-12 col-sm-6 col-md-4 col-lg-3 col-xl-2 cursor-pointer week-schedule-card"
 
-    return `${startDate.toLocaleDateString("en-US", options)} - ${endDate.toLocaleDateString("en-US", options)}`
-}
+    // Add the requires-primary class if needed
+    const requiresPrimaryClass = requiresPrimary.value && !hasPrimary.value ? "requires-primary-card" : ""
+
+    // Handle additional classes prop
+    let additional = ""
+    if (Array.isArray(props.additionalClasses)) {
+        additional = props.additionalClasses.join(" ")
+    } else if (typeof props.additionalClasses === "object") {
+        additional = Object.entries(props.additionalClasses)
+            .filter(([, value]) => value)
+            .map(([key]) => key)
+            .join(" ")
+    } else {
+        additional = props.additionalClasses || ""
+    }
+
+    return `${baseClasses} ${requiresPrimaryClass} ${additional}`.trim()
+})
 </script>
 
 <style scoped>
-@media screen and (prefers-reduced-motion: reduce) {
-    .week-cell {
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
-        padding: 12px;
-        min-width: 200px;
-        transition: none;
-    }
-}
-
-.week-cell {
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    padding: 12px;
+.week-schedule-card {
+    max-width: 280px;
     min-width: 200px;
-    transition: all 0.2s ease;
 }
 
-.week-cell--clickable {
-    cursor: pointer;
+.week-schedule-card .q-card {
+    height: 100%;
 }
 
-.week-cell--clickable:hover,
-.week-cell--clickable:focus {
-    box-shadow: 0 2px 4px rgb(0 0 0 / 10%);
-    border-color: #1976d2;
-}
-
-.week-cell--requires-primary {
+/* Style for weeks requiring primary evaluator */
+.requires-primary-card {
     border: 2px solid #f44 !important;
     background-color: #fff5f5;
 }
 
-.week-cell--past {
-    opacity: 0.7;
-    cursor: default;
-}
-
-.week-cell__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 4px;
-}
-
-.week-cell__number {
-    font-weight: 600;
-    font-size: 14px;
-    color: #333;
-}
-
-.week-cell__warning-icon {
-    flex-shrink: 0;
-}
-
-.week-cell__dates {
-    font-size: 12px;
-    color: #666;
-    margin-bottom: 8px;
-}
-
-.week-cell__assignments {
-    min-height: 60px;
-}
-
+/* Assignment item styling */
 .week-cell__assignment-list {
     display: flex;
     flex-direction: column;
@@ -259,12 +251,11 @@ function formatDateRange(start: string, end: string): string {
 }
 
 .week-cell__remove-btn {
-    cursor: pointer;
     flex-shrink: 0;
 }
 
 .week-cell__remove-btn--disabled {
-    cursor: not-allowed;
+    opacity: 0.5;
 }
 
 .week-cell__clinician-name {
@@ -277,7 +268,6 @@ function formatDateRange(start: string, end: string): string {
 }
 
 .week-cell__primary-btn {
-    cursor: pointer;
     flex-shrink: 0;
 }
 
@@ -292,5 +282,9 @@ function formatDateRange(start: string, end: string): string {
     font-size: 12px;
     color: #999;
     font-style: italic;
+}
+
+.cursor-pointer {
+    cursor: pointer;
 }
 </style>
