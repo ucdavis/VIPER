@@ -12,7 +12,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
         protected BaseClinicalSchedulerService(ClinicalSchedulerContext context)
         {
-            _context = context;
+            _context = context ?? throw new ArgumentNullException(nameof(context));
         }
 
         /// <summary>

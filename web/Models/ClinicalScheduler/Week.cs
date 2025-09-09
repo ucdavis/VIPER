@@ -16,6 +16,5 @@ namespace Viper.Models.ClinicalScheduler
         // Navigation properties
         public virtual ICollection<WeekGradYear> WeekGradYears { get; set; } = new List<WeekGradYear>();
         public virtual ICollection<InstructorSchedule> InstructorSchedules { get; set; } = new List<InstructorSchedule>();
-        public virtual ICollection<StudentSchedule> StudentSchedules { get; set; } = new List<StudentSchedule>();
     }
 }

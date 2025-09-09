@@ -18,6 +18,5 @@ namespace Viper.Models.ClinicalScheduler
         // Navigation properties
         public virtual Service Service { get; set; } = null!;
         public virtual ICollection<InstructorSchedule> InstructorSchedules { get; set; } = new List<InstructorSchedule>();
-        public virtual ICollection<StudentSchedule> StudentSchedules { get; set; } = new List<StudentSchedule>();
     }
 }

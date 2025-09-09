@@ -54,7 +54,7 @@ describe("PermissionInfoBanner - Display Logic", () => {
 
             expect(banner.exists()).toBeTruthy()
             expect(banner.text()).toContain("Rotation-Specific Access")
-            expect(banner.text()).toContain("You can manage schedules for 2 rotations: Cardiology and Surgery")
+            expect(banner.text()).toContain("You can manage schedules for 2 services: Cardiology and Surgery")
         })
 
         it("shows banner for own schedule permissions", () => {
@@ -98,7 +98,29 @@ describe("PermissionInfoBanner - Display Logic", () => {
             // Title reflects limited access
             expect(banner.text()).toContain("Limited Access")
             // Message includes both rotation-specific services and own-schedule note
-            expect(banner.text()).toContain("You can manage schedules for 1 rotation (Cardiology)")
+            expect(banner.text()).toContain("You can manage schedules for 1 service (Cardiology)")
+            expect(banner.text()).toContain("edit your own schedule entries")
+        })
+
+        it("shows combined message for multiple services with own-schedule permission", () => {
+            // Test case for users like Jonathan Dear with multiple services AND edit-own
+            mockPermissionsStore.hasOnlyServiceSpecificPermissions = false
+            mockPermissionsStore.hasOnlyOwnSchedulePermission = false
+            mockPermissionsStore.hasLimitedPermissions = true
+            mockPermissionsStore.editableServiceCount = 3
+            mockPermissionsStore.hasEditOwnSchedulePermission = true
+            mockPermissionsStore.getEditableServicesDisplay = vi
+                .fn()
+                .mockReturnValue("Internal Medicine, Surgery, Pediatrics")
+
+            const wrapper = createWrapper()
+            const banner = wrapper.findComponent({ name: "QBanner" })
+
+            expect(banner.exists()).toBeTruthy()
+            expect(banner.text()).toContain("Limited Access")
+            expect(banner.text()).toContain(
+                "You can manage schedules for 3 services (Internal Medicine, Surgery, Pediatrics)",
+            )
             expect(banner.text()).toContain("edit your own schedule entries")
         })
     })

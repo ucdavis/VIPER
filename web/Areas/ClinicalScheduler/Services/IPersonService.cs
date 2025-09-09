@@ -30,7 +30,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="mothraId">The person's MothraId</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Person information or null if not found</returns>
-        Task<PersonSummary?> GetPersonAsync(string mothraId, CancellationToken cancellationToken = default);
+        Task<ClinicianSummary?> GetPersonAsync(string mothraId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get all unique MothraIds from the instructor schedules
@@ -38,5 +38,20 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of unique MothraIds</returns>
         Task<List<string>> GetAllMothraIdsAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get all active employee affiliates from AAUD database
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of active employee affiliates</returns>
+        Task<List<ClinicianSummary>> GetAllActiveEmployeeAffiliatesAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get clinician info from AAUD context as fallback
+        /// </summary>
+        /// <param name="mothraId">The MothraId to look up</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Clinician info or null if not found</returns>
+        Task<ClinicianSummary?> GetClinicianFromAaudAsync(string mothraId, CancellationToken cancellationToken = default);
     }
 }

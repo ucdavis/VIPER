@@ -24,53 +24,55 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         #endregion
 
         private readonly ClinicalSchedulerContext _context;
-        private readonly AAUDContext _aaudContext; // Legacy context for fallback clinician lookup
         private readonly IWeekService _weekService;
         private readonly IPersonService _personService;
         private readonly IUserHelper _userHelper;
 
-        public CliniciansController(ClinicalSchedulerContext context, AAUDContext aaudContext, ILogger<CliniciansController> logger,
+        public CliniciansController(ClinicalSchedulerContext context, ILogger<CliniciansController> logger,
             IGradYearService gradYearService, IWeekService weekService, IPersonService personService,
             IUserHelper? userHelper = null)
             : base(gradYearService, logger)
         {
             _context = context;
-            _aaudContext = aaudContext;
             _weekService = weekService;
             _personService = personService;
             _userHelper = userHelper ?? new UserHelper();
         }
 
         /// <summary>
-        /// Get a list of all unique clinicians, combining active clinicians with historically scheduled ones
+        /// Get a list of clinicians based on the specified filters
         /// </summary>
         /// <param name="year">Year to filter clinicians by (optional, defaults to current year behavior)</param>
-        /// <param name="includeAllAffiliates">If true, includes all affiliates instead of just active clinicians</param>
+        /// <param name="includeAllAffiliates">If true, includes all active employee affiliates from AAUD; if false, only returns clinicians who have been scheduled</param>
+        /// <param name="viewContext">The view context (clinician or rotation) to determine permission filtering</param>
         /// <returns>List of clinicians with their basic info</returns>
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetClinicians([FromQuery] int? year = null, [FromQuery] bool includeAllAffiliates = false)
+        public async Task<IActionResult> GetClinicians([FromQuery] int? year = null, [FromQuery] bool includeAllAffiliates = false, [FromQuery] string? viewContext = null)
         {
             try
             {
                 var currentGradYear = await GetCurrentGradYearAsync();
                 var targetYear = year ?? currentGradYear;
 
-                _logger.LogDebug("GetClinicians endpoint called with year: {Year}, includeAllAffiliates: {IncludeAllAffiliates}", targetYear, includeAllAffiliates);
+                // Normalize and validate viewContext
+                var normalizedViewContext = NormalizeViewContext(viewContext);
+
+                _logger.LogDebug("GetClinicians endpoint called with year: {Year}, includeAllAffiliates: {IncludeAllAffiliates}, viewContext: {ViewContext} (normalized: {NormalizedViewContext})", targetYear, includeAllAffiliates, viewContext, normalizedViewContext);
 
                 if (targetYear >= currentGradYear)
                 {
                     // Current or future year: use PersonService to get clinicians from Clinical Scheduler data
                     _logger.LogDebug("Using PersonService to get clinicians for current/future year {Year} (includeAllAffiliates: {IncludeAllAffiliates})", targetYear, includeAllAffiliates);
 
-                    // Note: includeAllAffiliates parameter is kept for API compatibility
-                    // but PersonService only has access to clinicians who have been scheduled
-                    // This is actually better data quality since it's clinicians actually involved in scheduling
+                    // Fetch clinicians based on includeAllAffiliates flag
+                    // true = all active employee affiliates from AAUD database
+                    // false = only clinicians who have been scheduled (better data quality for scheduling purposes)
                     var clinicians = await GetAllCliniciansAsync(includeAllAffiliates);
 
-                    // Filter clinicians based on user permissions
-                    var filteredClinicians = FilterCliniciansByPermissions(clinicians);
+                    // Filter clinicians based on user permissions and view context
+                    var filteredClinicians = FilterCliniciansByPermissions(clinicians, normalizedViewContext);
 
                     // Convert to the expected response format
                     var result = filteredClinicians.Select(c => new
@@ -81,8 +83,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         LastName = c.LastName
                     }).ToList();
 
-                    _logger.LogDebug("Retrieved {TotalClinicianCount} unique clinicians from PersonService (filtered to {FilteredCount} based on permissions)",
-                        clinicians.Count, result.Count);
+                    _logger.LogDebug("Retrieved {TotalClinicianCount} unique clinicians from PersonService (filtered to {FilteredCount} based on permissions for {ViewContext} view)",
+                        clinicians.Count, result.Count, viewContext ?? "default");
                     return Ok(result);
                 }
                 else
@@ -92,8 +94,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                     var clinicians = await _personService.GetCliniciansByYearAsync(targetYear, HttpContext.RequestAborted);
 
-                    // Filter clinicians based on user permissions
-                    var filteredClinicians = FilterCliniciansByPermissions(clinicians);
+                    // Filter clinicians based on user permissions and view context
+                    var filteredClinicians = FilterCliniciansByPermissions(clinicians, normalizedViewContext);
 
                     // Convert to the expected response format
                     var result = filteredClinicians.Select(c => new
@@ -104,8 +106,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         LastName = c.LastName
                     }).ToList();
 
-                    _logger.LogDebug("Found {ClinicianCount} clinicians for year {Year} (filtered to {FilteredCount} based on permissions)",
-                        clinicians.Count, targetYear, result.Count);
+                    _logger.LogDebug("Found {ClinicianCount} clinicians for year {Year} (filtered to {FilteredCount} based on permissions for {ViewContext} view)",
+                        clinicians.Count, targetYear, result.Count, viewContext ?? "default");
                     return Ok(result);
                 }
             }
@@ -400,24 +402,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
             if (includeAllAffiliates)
             {
-                // When includeAllAffiliates is true, fetch active employee affiliates from AAUD database
+                // When includeAllAffiliates is true, fetch active employee affiliates from AAUD database through PersonService
                 _logger.LogDebug("Fetching all active employee affiliates from AAUD database");
 
-                var allAffiliates = await _aaudContext.AaudUsers
-                    .AsNoTracking()
-                    .Where(u => !string.IsNullOrEmpty(u.MothraId) &&
-                               !string.IsNullOrEmpty(u.EmployeeId) &&
-                               (u.CurrentEmployee || u.FutureEmployee))
-                    .Select(u => new ClinicianSummary
-                    {
-                        MothraId = u.MothraId,
-                        FullName = u.DisplayFullName,
-                        FirstName = u.DisplayFirstName,
-                        LastName = u.DisplayLastName
-                    })
-                    .OrderBy(c => c.LastName)
-                    .ThenBy(c => c.FirstName)
-                    .ToListAsync(HttpContext.RequestAborted);
+                var allAffiliates = await _personService.GetAllActiveEmployeeAffiliatesAsync(HttpContext.RequestAborted);
 
                 _logger.LogDebug("Found {Count} active employee affiliates from AAUD", allAffiliates.Count);
                 return allAffiliates;
@@ -453,8 +441,21 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <returns>Clinician info or null if not found</returns>
         private async Task<ClinicianSummary?> GetClinicianByMothraIdAsync(string mothraId)
         {
-            var clinicians = await GetAllCliniciansAsync(includeAllAffiliates: true);
-            return clinicians.FirstOrDefault(c => c.MothraId == mothraId);
+            // First try to get from scheduled clinicians (better data quality)
+            var person = await _personService.GetPersonAsync(mothraId, HttpContext.RequestAborted);
+            if (person != null)
+            {
+                return new ClinicianSummary
+                {
+                    MothraId = person.MothraId,
+                    FullName = person.FullName,
+                    FirstName = person.FirstName,
+                    LastName = person.LastName
+                };
+            }
+
+            // Fallback to AAUD lookup through PersonService
+            return await _personService.GetClinicianFromAaudAsync(mothraId, HttpContext.RequestAborted);
         }
 
         /// <summary>
@@ -491,47 +492,24 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         }
 
         /// <summary>
-        /// Helper method to build clinician info object, trying PersonService first, then AAUD fallback
+        /// Helper method to build clinician info object, trying PersonService first with fallback
         /// </summary>
         /// <param name="mothraId">The MothraId to lookup</param>
         /// <param name="role">Optional role to include</param>
         /// <returns>Clinician info object</returns>
         private async Task<object> BuildClinicianInfoAsync(string mothraId, string? role = null)
         {
-            // Try PersonService first
+            // Try PersonService which includes AAUD fallback
             var clinicianFromPersonService = await GetClinicianByMothraIdAsync(mothraId);
             if (clinicianFromPersonService != null)
             {
                 return BuildClinicianInfoFromPersonService(clinicianFromPersonService, mothraId, role);
             }
 
-            // Fallback to AAUD context
-            var clinicianFromAaud = await GetClinicianFromAaudAsync(mothraId, role);
-            return clinicianFromAaud ?? CreateDefaultClinicianInfo(mothraId, role);
+            // If all lookups fail, return default
+            return CreateDefaultClinicianInfo(mothraId, role);
         }
 
-        /// <summary>
-        /// Helper method to get clinician info from AAUD context as fallback
-        /// </summary>
-        /// <param name="mothraId">The MothraId to look up</param>
-        /// <param name="role">Optional role to include in the result</param>
-        /// <returns>Clinician info object or null if not found</returns>
-        private async Task<object?> GetClinicianFromAaudAsync(string mothraId, string? role = null)
-        {
-            var clinicianFromAaud = await _aaudContext.VwVmthClinicians
-                .Where(c => c.IdsMothraid == mothraId)
-                .Select(c => new
-                {
-                    mothraId = mothraId,
-                    fullName = ResolveClinicianName(c.FullName, c.PersonDisplayFirstName, c.PersonDisplayLastName, mothraId),
-                    firstName = c.PersonDisplayFirstName ?? "",
-                    lastName = c.PersonDisplayLastName ?? "",
-                    role = role
-                })
-                .FirstOrDefaultAsync();
-
-            return clinicianFromAaud;
-        }
 
         /// <summary>
         /// Helper method to create a default clinician info object when no data is found
@@ -552,32 +530,12 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         }
 
         /// <summary>
-        /// Helper method to resolve clinician full name with fallbacks
-        /// </summary>
-        /// <param name="fullName">Primary full name from data source</param>
-        /// <param name="firstName">First name to use as fallback</param>
-        /// <param name="lastName">Last name to use as fallback</param>
-        /// <param name="mothraId">MothraId to use as final fallback</param>
-        /// <returns>Resolved full name</returns>
-        private static string ResolveClinicianName(string? fullName, string? firstName, string? lastName, string mothraId)
-        {
-            var first = firstName?.Trim();
-            var last = lastName?.Trim();
-
-            if (!string.IsNullOrWhiteSpace(last) && !string.IsNullOrWhiteSpace(first))
-                return $"{last}, {first}";
-
-            // Fallback to fullName (which is "First Last" format) or mothraId
-            return !string.IsNullOrWhiteSpace(fullName) ? fullName : $"Clinician {mothraId}";
-        }
-
-        /// <summary>
-        /// Filter clinicians based on user permissions. 
+        /// Filter clinicians based on user permissions.
         /// Users with EditOwnSchedule permission should only see themselves.
         /// </summary>
         /// <param name="clinicians">List of all available clinicians</param>
         /// <returns>Filtered list of clinicians based on user permissions</returns>
-        private IEnumerable<ClinicianSummary> FilterCliniciansByPermissions(IEnumerable<ClinicianSummary> clinicians)
+        private IEnumerable<ClinicianSummary> FilterCliniciansByPermissions(IEnumerable<ClinicianSummary> clinicians, string? viewContext = null)
         {
             try
             {
@@ -597,24 +555,26 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 var hasEditClnSchedulesPermission = _userHelper.HasPermission(rapsContext, currentUser, ClinicalSchedulePermissions.EditClnSchedules);
                 var hasEditOwnSchedulePermission = _userHelper.HasPermission(rapsContext, currentUser, ClinicalSchedulePermissions.EditOwnSchedule);
 
-                // Users with EditOwnSchedule permission only (no higher permissions) should only see themselves
+                // Users with EditOwnSchedule permission should only see themselves in clinician view
+                // In rotation view, they should see all clinicians to add to rotations
                 if (hasEditOwnSchedulePermission &&
                     !hasAdminPermission &&
                     !hasManagePermission &&
-                    !hasEditClnSchedulesPermission)
+                    !hasEditClnSchedulesPermission &&
+                    viewContext == "clinician")
                 {
-                    _logger.LogDebug("Filtering clinicians for own-schedule-only user {MothraId}", currentUser.MothraId);
+                    _logger.LogDebug("Filtering clinicians for own-schedule user {MothraId} in clinician view", currentUser.MothraId);
 
-                    // Filter to only the current user
+                    // Filter to only the current user in clinician view
                     var filteredClinicians = clinicians.Where(c => c.MothraId == currentUser.MothraId).ToList();
 
-                    _logger.LogDebug("Filtered {Original} clinicians to {Filtered} for own-schedule-only user",
+                    _logger.LogDebug("Filtered {Original} clinicians to {Filtered} for own-schedule user in clinician view",
                         clinicians.Count(), filteredClinicians.Count);
 
                     return filteredClinicians;
                 }
 
-                // All other users (Admin, Manage, EditClnSchedules, or service-specific permissions) see all clinicians
+                // All other cases (Admin, Manage, EditClnSchedules, rotation view, or service-specific permissions) see all clinicians
                 return clinicians;
             }
             catch (Exception ex)
@@ -622,6 +582,27 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogError(ex, "Error filtering clinicians by permissions. Returning unfiltered list.");
                 return clinicians; // Return unfiltered list on error to avoid breaking functionality
             }
+        }
+
+        /// <summary>
+        /// Normalize and validate the viewContext parameter
+        /// </summary>
+        /// <param name="viewContext">The raw viewContext value from the request</param>
+        /// <returns>Normalized viewContext value or null for invalid/unknown values</returns>
+        private static string? NormalizeViewContext(string? viewContext)
+        {
+            if (string.IsNullOrWhiteSpace(viewContext))
+                return null;
+
+            var normalized = viewContext.Trim().ToLowerInvariant();
+
+            // Whitelist of valid view contexts
+            return normalized switch
+            {
+                "clinician" => "clinician",
+                "rotation" => "rotation",
+                _ => null // Treat unknown values as default (null)
+            };
         }
 
         /// <summary>

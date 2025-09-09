@@ -1,116 +1,79 @@
 namespace Viper.Areas.ClinicalScheduler.Services
 {
     /// <summary>
-    /// Interface for rotation week information needed for evaluation policy decisions
+    /// Service for determining evaluation requirements for clinical rotations.
+    /// Following KISS principles for simple, clear business logic.
     /// </summary>
-    public interface IRotationWeekInfo
+    public class EvaluationPolicyService : IEvaluationPolicyService
     {
-        /// <summary>
-        /// The academic week number from the database view
-        /// </summary>
-        int WeekNum { get; }
 
         /// <summary>
-        /// Whether this is an extended rotation week
+        /// Determines if a week requires a primary evaluator based on simple business rules:
+        /// 
+        /// 1. If RotationWeeklyPref.Closed = 1 for the rotation and week, no primary needed
+        /// 2. If weekSize = 1, every week needs a primary
+        /// 3. If weekSize = 2, the last week of the rotation needs a primary:
+        ///    - Usually this is the second week
+        ///    - For 3-week rotations where week 3 is ExtendedRotation=true, no evaluation needed
+        ///    - Logic: For StartWeek=false, check next week:
+        ///      * If next week has ExtendedRotation=true, no primary needed
+        ///      * Otherwise, primary is needed
         /// </summary>
-        bool ExtendedRotation { get; }
-
-        /// <summary>
-        /// The graduation year this week belongs to
-        /// </summary>
-        int GradYear { get; }
-    }
-
-    /// <summary>
-    /// Utility class for evaluation-related business rules and policies
-    /// Centralizes logic for determining evaluation requirements and schedules
-    /// </summary>
-    public static class EvaluationPolicyService
-    {
-        /// <summary>
-        /// Determines if a week requires a primary evaluator based on business rules
-        ///
-        /// Evaluation logic:
-        /// - If Service.WeekSize is specified: Evaluator required every N weeks (where N = WeekSize)
-        ///   Example: WeekSize=1 means every week, WeekSize=2 means every 2nd week
-        /// - If Service.WeekSize is null: Falls back to default logic (last non-extended week only)
-        /// - Extended rotation weeks never require evaluation regardless of WeekSize
-        ///
-        /// Examples with WeekSize:
-        /// - WeekSize=1, Weeks 5,6,7: All weeks require evaluation
-        /// - WeekSize=2, Weeks 5,6,7,8: Weeks 6 and 8 require evaluation (every 2nd week)
-        /// - WeekSize=null, Weeks 5,6,7: Week 7 requires evaluation (last week only)
-        /// </summary>
-        /// <param name="weekNumber">The academic week number from the database view</param>
-        /// <param name="rotationWeeks">All weeks for this rotation to determine rotation boundaries</param>
-        /// <param name="serviceWeekSize">Optional service-specific evaluation frequency in weeks</param>
+        /// <param name="weekNumber">The week number to check</param>
+        /// <param name="rotationWeeks">All weeks for the rotation in the year</param>
+        /// <param name="serviceWeekSize">The WeekSize from the Service table (1 or 2)</param>
+        /// <param name="rotationClosed">Whether the rotation is closed this week (from RotationWeeklyPref)</param>
         /// <returns>True if the week requires a primary evaluator</returns>
-        public static bool RequiresPrimaryEvaluator(int weekNumber, IEnumerable<IRotationWeekInfo> rotationWeeks, int? serviceWeekSize = null)
+        public bool RequiresPrimaryEvaluator(
+            int weekNumber,
+            IEnumerable<IRotationWeekInfo> rotationWeeks,
+            int? serviceWeekSize = null,
+            bool rotationClosed = false)
         {
+            // Rule 1: If rotation is closed for this week, no primary needed
+            if (rotationClosed)
+                return false;
+
             if (rotationWeeks == null || !rotationWeeks.Any())
                 return false;
 
-            // Find all weeks with the given week number (could be multiple with different grad years)
-            var candidateWeeks = rotationWeeks.Where(w => w.WeekNum == weekNumber).ToList();
-            if (!candidateWeeks.Any())
+            // Find the current week
+            var currentWeek = rotationWeeks.FirstOrDefault(w => w.WeekNum == weekNumber);
+            if (currentWeek == null)
                 return false;
 
-            // Check each candidate week to see if any require evaluation
-            foreach (var currentWeek in candidateWeeks)
+            // If this is an extended rotation week, it never needs evaluation
+            if (currentWeek.ExtendedRotation)
+                return false;
+
+            // Rule 2: If weekSize = 1, every non-extended week needs a primary
+            if (serviceWeekSize == 1)
+                return true;
+
+            // Rule 3: If weekSize = 2, check if this is the last week of a rotation block
+            if (serviceWeekSize == 2)
             {
-                // If this is an extended rotation week, it never requires evaluation
-                if (currentWeek.ExtendedRotation)
-                    continue;
-
-                // Filter weeks to only include those from the same graduation year as the current week
-                var sameGradYearWeeks = rotationWeeks
-                    .Where(w => w.GradYear == currentWeek.GradYear)
-                    .ToList();
-
-                // Get all non-extended rotation weeks ordered by week number
-                var nonExtendedWeeks = sameGradYearWeeks
-                    .Where(w => !w.ExtendedRotation)
-                    .OrderBy(w => w.WeekNum)
-                    .ToList();
-
-                // If there are no non-extended weeks, no evaluation needed
-                if (!nonExtendedWeeks.Any())
-                    continue;
-
-                // Check if Service has WeekSize configured for interval-based evaluation
-                if (serviceWeekSize.HasValue && serviceWeekSize.Value > 0)
+                // If StartWeek = false (this is not the start of a block)
+                if (!currentWeek.StartWeek)
                 {
-                    // BUSINESS RULE: WeekSize intervals count ONLY non-extended weeks.
-                    // Extended weeks are completely skipped in the counting sequence.
-                    // This means if WeekSize=2, evaluations occur at the 2nd, 4th, 6th non-extended week,
-                    // regardless of any extended weeks that may fall between them chronologically.
-                    // This is intentional to ensure consistent evaluation intervals based on actual
-                    // rotation weeks rather than calendar weeks.
+                    // Check the next week
+                    var nextWeek = rotationWeeks.FirstOrDefault(w => w.WeekNum == weekNumber + 1);
 
-                    // Find the position of the current week in the non-extended weeks list
-                    var weekIndex = nonExtendedWeeks.FindIndex(w => w.WeekNum == weekNumber);
-                    if (weekIndex < 0)
-                        continue; // Current week not found in non-extended weeks
+                    // If next week is extended, this week doesn't need primary
+                    // (This handles 3-week rotations where week 3 is extended)
+                    if (nextWeek?.ExtendedRotation == true)
+                        return false;
 
-                    // Position is 1-based (first week is position 1)
-                    var position = weekIndex + 1;
-
-                    // Check if this position requires evaluation based on WeekSize interval
-                    // For WeekSize=1: every position (1,2,3,4...)
-                    // For WeekSize=2: positions 2,4,6...
-                    // For WeekSize=3: positions 3,6,9...
-                    if (position % serviceWeekSize.Value == 0)
-                        return true;
+                    // Otherwise, this is week 2 of a 2-week block - needs primary
+                    return true;
                 }
-                else
-                {
-                    // Default logic: Only the last non-extended week requires evaluation
-                    var lastNonExtendedWeek = nonExtendedWeeks[nonExtendedWeeks.Count - 1];
-                    if (lastNonExtendedWeek.WeekNum == weekNumber)
-                        return true;
-                }
+
+                // If StartWeek = true, this is the first week of a block
+                // First weeks don't need primary evaluators
+                return false;
             }
 
+            // For any other WeekSize or missing configuration, default to no evaluation
             return false;
         }
     }

@@ -76,33 +76,10 @@ const createComponentLogic = () => {
         )
     }
 
-    const deduplicateRotations = (
-        rotations: RotationWithService[],
-        excludeRotationNames?: string[],
-    ): RotationWithService[] => {
-        const uniqueRotations = new Map<string, RotationWithService>()
-
-        for (const rotation of rotations) {
-            const rotationName = getRotationDisplayName(rotation)
-            // Skip if this rotation name is in the exclusion list
-            if (
-                (!excludeRotationNames || !excludeRotationNames.includes(rotationName)) &&
-                !uniqueRotations.has(rotationName)
-            ) {
-                uniqueRotations.set(rotationName, rotation)
-            }
-        }
-
-        return [...uniqueRotations.values()].sort((a, b) =>
-            getRotationDisplayName(a).localeCompare(getRotationDisplayName(b)),
-        )
-    }
-
     return {
         mockRotationsResponse,
         getRotationDisplayName,
         filterRotations,
-        deduplicateRotations,
     }
 }
 
@@ -128,7 +105,7 @@ describe("RotationSelector Helper Functions", () => {
                 subjectCode: "VM",
                 courseNumber: "999",
                 serviceId: 1,
-                service: null,
+                service: undefined,
             }
             expect(componentLogic.getRotationDisplayName(rotation)).toBe("(Test)")
         })
@@ -141,7 +118,7 @@ describe("RotationSelector Helper Functions", () => {
                 subjectCode: "VM",
                 courseNumber: "999",
                 serviceId: 1,
-                service: null,
+                service: undefined,
             }
             expect(componentLogic.getRotationDisplayName(rotation)).toBe("Spaced Name")
         })

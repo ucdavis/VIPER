@@ -59,17 +59,11 @@ namespace Viper.test.ClinicalScheduler
         }
 
         [Fact]
-        public void WeekService_HasRequiredDependencies()
+        public void WeekService_Constructor_ThrowsArgumentNullException_WhenContextIsNull()
         {
-            // Arrange & Act
-            var service = new WeekService(_mockLogger.Object, _context);
-
-            // Assert
-            // Service should be created successfully with required dependencies
-            Assert.NotNull(service);
-
-            // Verify logger was passed correctly - logger shouldn't be called during construction
-            // Note: Cannot verify logger usage without specific method calls
+            // Arrange & Act & Assert
+            // Service constructor should validate required context parameter
+            Assert.Throws<ArgumentNullException>(() => new WeekService(_mockLogger.Object, null!));
         }
 
         [Fact]
@@ -92,12 +86,11 @@ namespace Viper.test.ClinicalScheduler
         }
 
         [Fact]
-        public void WeekService_Constructor_AcceptsValidParameters()
+        public void WeekService_Constructor_ThrowsArgumentNullException_WhenLoggerIsNull()
         {
             // Arrange & Act & Assert
-            // Service should be created successfully with valid parameters
-            var service = new WeekService(_mockLogger.Object, _context);
-            Assert.NotNull(service);
+            // Service constructor should validate required parameters
+            Assert.Throws<ArgumentNullException>(() => new WeekService(null!, _context));
         }
 
         [Theory]

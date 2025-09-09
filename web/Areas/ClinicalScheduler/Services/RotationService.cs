@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Viper.Areas.ClinicalScheduler.Extensions;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 
@@ -21,40 +23,26 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// Gets all rotations with service information
         /// Replaces direct context access in controllers with centralized service logic
         /// </summary>
-        /// <param name="activeOnly">If true, filters to only active rotations (placeholder for future filtering)</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of rotations with their associated service data</returns>
-        public async Task<List<Rotation>> GetRotationsAsync(bool activeOnly = true, CancellationToken cancellationToken = default)
+        public async Task<List<RotationDto>> GetRotationsAsync(CancellationToken cancellationToken = default)
         {
             try
             {
-                _logger.LogInformation("Getting rotations from Clinical Scheduler (activeOnly: {ActiveOnly})", activeOnly);
+                _logger.LogInformation("Getting rotations from Clinical Scheduler");
 
                 var query = _context.Rotations
                     .AsNoTracking()
                     .Include(r => r.Service);
 
-                // Note: activeOnly parameter is kept for future implementation
-                // Currently no active/inactive flag exists in the rotation data
-                if (activeOnly)
-                {
-                    _logger.LogDebug("ActiveOnly filtering requested but no active flag available in rotation data");
-                }
-
                 var rotations = await query
+                    .OrderBy(r => r.Service != null ? r.Service.ServiceName : r.Name)
+                    .ThenBy(r => r.Name)
                     .ToListAsync(cancellationToken);
 
-                // Deduplicate rotations by RotId to avoid duplicates from database
-                var uniqueRotations = rotations
-                    .GroupBy(r => r.RotId)
-                    .Select(g => g.First()) // Take the first occurrence of each unique RotId
-                    .OrderBy(r => r.Service?.ServiceName ?? r.Name)
-                    .ThenBy(r => r.Name)
-                    .ToList();
-
-                _logger.LogInformation("Retrieved {TotalCount} rotations from Clinical Scheduler, deduplicated to {UniqueCount} unique rotations",
-                    rotations.Count, uniqueRotations.Count);
-                return uniqueRotations;
+                _logger.LogInformation("Retrieved {Count} rotations from Clinical Scheduler",
+                    rotations.Count);
+                return rotations.Select(r => r.ToDto()).ToList();
             }
             catch (Exception ex)
             {
@@ -69,7 +57,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="rotationId">The rotation ID to retrieve</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Rotation with service data or null if not found</returns>
-        public async Task<Rotation?> GetRotationAsync(int rotationId, CancellationToken cancellationToken = default)
+        public async Task<RotationDto?> GetRotationAsync(int rotationId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -91,7 +79,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         rotation.Name, rotation.Service?.ServiceName ?? "Unknown");
                 }
 
-                return rotation;
+                return rotation?.ToDto();
             }
             catch (Exception ex)
             {
@@ -126,7 +114,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 }
 
                 var rotations = await query
-                    .OrderBy(r => r.Service.ServiceName ?? r.Name)
+                    .OrderBy(r => r.Service != null ? r.Service.ServiceName : r.Name)
                     .ThenBy(r => r.Name)
                     .ToListAsync(cancellationToken);
 
@@ -149,7 +137,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="serviceId">Service ID to filter by</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of rotations for the specified service</returns>
-        public async Task<List<Rotation>> GetRotationsByServiceAsync(int serviceId, CancellationToken cancellationToken = default)
+        public async Task<List<RotationDto>> GetRotationsByServiceAsync(int serviceId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -163,7 +151,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .ToListAsync(cancellationToken);
 
                 _logger.LogInformation("Retrieved {Count} rotations for service ID: {ServiceId}", rotations.Count, serviceId);
-                return rotations;
+                return rotations.Select(r => r.ToDto()).ToList();
             }
             catch (Exception ex)
             {
@@ -177,7 +165,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of all services</returns>
-        public async Task<List<Service>> GetServicesAsync(CancellationToken cancellationToken = default)
+        public async Task<List<ServiceDto>> GetServicesAsync(CancellationToken cancellationToken = default)
         {
             try
             {
@@ -189,7 +177,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .ToListAsync(cancellationToken);
 
                 _logger.LogInformation("Retrieved {Count} services from Clinical Scheduler", services.Count);
-                return services;
+                return services.Select(s => s.ToDto()).ToList();
             }
             catch (Exception ex)
             {
@@ -204,7 +192,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="serviceId">Service ID to retrieve</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Service or null if not found</returns>
-        public async Task<Service?> GetServiceAsync(int serviceId, CancellationToken cancellationToken = default)
+        public async Task<ServiceDto?> GetServiceAsync(int serviceId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -224,7 +212,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     _logger.LogInformation("Found service: {ServiceName}", service.ServiceName);
                 }
 
-                return service;
+                return service?.ToDto();
             }
             catch (Exception ex)
             {

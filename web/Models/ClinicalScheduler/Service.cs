@@ -19,6 +19,5 @@ namespace Viper.Models.ClinicalScheduler
 
         // Navigation properties
         public virtual ICollection<Rotation> Rotations { get; set; } = new List<Rotation>();
-        public virtual ICollection<StudentSchedule> StudentSchedules { get; set; } = new List<StudentSchedule>();
     }
 }

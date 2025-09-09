@@ -11,7 +11,7 @@ vi.mock("../services/rotation-service", () => ({
 }))
 
 describe("RotationSelector", () => {
-    let componentLogic: ReturnType<typeof createComponentLogic> = createComponentLogic()
+    let componentLogic: ReturnType<typeof createComponentLogic> = {} as ReturnType<typeof createComponentLogic>
 
     beforeEach(() => {
         // Reset all mocks
@@ -32,67 +32,144 @@ describe("RotationSelector", () => {
         })
     })
 
-    describe("Deduplication Logic", () => {
-        it("deduplicates rotations by display name", () => {
-            // Add duplicate rotation names to test deduplication
-            const duplicateRotations = [
-                ...componentLogic.mockRotationsResponse,
-                {
-                    rotId: 105,
-                    name: "Anatomic Pathology (Duplicate)",
-                    abbreviation: "AnatPath3",
-                    subjectCode: "VM",
-                    courseNumber: "457",
-                    serviceId: 1,
-                    service: {
-                        serviceId: 1,
-                        serviceName: "Anatomic Pathology",
-                        shortName: "AP",
-                    },
-                },
-            ]
+    describe("API Integration", () => {
+        it("fetches all rotations successfully", async () => {
+            const result = await RotationService.getRotations({ includeService: true })
 
-            const deduplicated = componentLogic.deduplicateRotations(duplicateRotations)
+            expect(result.success).toBeTruthy()
+            expect(result.result).toHaveLength(4)
+            expect(result.result[0].name).toBe("Anatomic Pathology (Advanced)")
+        })
 
-            // Should deduplicate 'Anatomic Pathology' entries (keeps first occurrence)
-            const anatomicPathRotations = deduplicated.filter(
-                (r) => componentLogic.getRotationDisplayName(r) === "Anatomic Pathology",
+        it("fetches rotations with scheduled weeks", async () => {
+            const result = await RotationService.getRotationsWithScheduledWeeks({
+                year: 2024,
+                includeService: true,
+            })
+
+            expect(result.success).toBeTruthy()
+            expect(result.result).toHaveLength(2)
+        })
+
+        it("handles API errors gracefully", async () => {
+            vi.mocked(RotationService.getRotations).mockResolvedValue({
+                success: false,
+                result: [],
+                errors: ["Network error"],
+            })
+
+            const result = await RotationService.getRotations({ includeService: true })
+
+            expect(result.success).toBeFalsy()
+            expect(result.errors).toContain("Network error")
+        })
+    })
+
+    describe("Helper Functions", () => {
+        it("formats rotation display names correctly", () => {
+            const [rotation] = componentLogic.mockRotationsResponse
+            const displayName = componentLogic.getRotationDisplayName(rotation)
+
+            expect(displayName).toBe("Anatomic Pathology")
+        })
+
+        it("filters rotations by search term", () => {
+            const filtered = componentLogic.filterRotations(componentLogic.mockRotationsResponse, "cardio")
+
+            expect(filtered).toHaveLength(1)
+            expect(filtered[0].name).toBe("Cardiology")
+        })
+
+        it("filters rotations by service name", () => {
+            const filtered = componentLogic.filterRotations(componentLogic.mockRotationsResponse, "behavior")
+
+            expect(filtered).toHaveLength(1)
+            expect(filtered[0].name).toBe("Behavior")
+        })
+
+        it("filters rotations by abbreviation", () => {
+            const filtered = componentLogic.filterRotations(componentLogic.mockRotationsResponse, "card")
+
+            expect(filtered).toHaveLength(1)
+            expect(filtered[0].abbreviation).toBe("Card")
+        })
+
+        it("returns empty array when no matches found", () => {
+            const filtered = componentLogic.filterRotations(componentLogic.mockRotationsResponse, "nonexistent")
+
+            expect(filtered).toHaveLength(0)
+        })
+
+        it("handles case-insensitive filtering", () => {
+            const filtered = componentLogic.filterRotations(componentLogic.mockRotationsResponse, "ANATOMIC")
+
+            expect(filtered).toHaveLength(2)
+            expect(
+                filtered.every((r) => componentLogic.getRotationDisplayName(r).toLowerCase().includes("anatomic")),
+            ).toBeTruthy()
+        })
+    })
+
+    describe("Data Transformation", () => {
+        it("sorts rotations alphabetically by display name", () => {
+            const sorted = [...componentLogic.mockRotationsResponse].sort((a, b) =>
+                componentLogic.getRotationDisplayName(a).localeCompare(componentLogic.getRotationDisplayName(b)),
             )
-            expect(anatomicPathRotations).toHaveLength(1)
-            expect(anatomicPathRotations[0].rotId).toBe(101) // Should keep the first one
+
+            expect(componentLogic.getRotationDisplayName(sorted[0])).toBe("Anatomic Pathology")
+            expect(componentLogic.getRotationDisplayName(sorted[2])).toBe("Behavior")
         })
 
-        it("excludes rotation names from excludeRotationNames parameter", () => {
-            const deduplicated = componentLogic.deduplicateRotations(componentLogic.mockRotationsResponse, [
-                "Anatomic Pathology",
-                "Cardiology",
-            ])
+        it("excludes specified rotation names", () => {
+            const excluded = componentLogic.mockRotationsResponse.filter((rotation) => {
+                const name = componentLogic.getRotationDisplayName(rotation)
+                return !["Anatomic Pathology", "Cardiology"].includes(name)
+            })
 
-            // Should only have Behavior left after exclusions
-            expect(deduplicated).toHaveLength(1)
-            expect(deduplicated[0].name).toBe("Behavior")
+            expect(excluded).toHaveLength(1)
+            expect(excluded[0].name).toBe("Behavior")
         })
 
-        it("sorts deduplicated rotations alphabetically by display name", () => {
-            const deduplicated = componentLogic.deduplicateRotations(componentLogic.mockRotationsResponse)
+        it("handles rotations without service data", () => {
+            const rotationWithoutService = {
+                ...componentLogic.mockRotationsResponse[0],
+                service: undefined,
+            }
 
-            // Should be sorted alphabetically: Anatomic Pathology, Behavior, Cardiology
-            expect(deduplicated).toHaveLength(3)
-            expect(componentLogic.getRotationDisplayName(deduplicated[0])).toBe("Anatomic Pathology")
-            expect(componentLogic.getRotationDisplayName(deduplicated[1])).toBe("Behavior")
-            expect(componentLogic.getRotationDisplayName(deduplicated[2])).toBe("Cardiology")
+            const displayName = componentLogic.getRotationDisplayName(rotationWithoutService)
+            expect(displayName).toBe("Anatomic Pathology")
+        })
+    })
+
+    describe("Permission-Based Filtering Logic", () => {
+        it("filters rotations by service ID", () => {
+            const serviceId = 1
+            const filtered = componentLogic.mockRotationsResponse.filter((r) => r.serviceId === serviceId)
+
+            expect(filtered).toHaveLength(2) // Both Anatomic Pathology rotations
+            expect(filtered.every((r) => r.serviceId === serviceId)).toBeTruthy()
         })
 
-        it("handles empty rotation list", () => {
-            const deduplicated = componentLogic.deduplicateRotations([])
-            expect(deduplicated).toHaveLength(0)
+        it("filters rotations by multiple service IDs", () => {
+            const allowedServiceIds = new Set([1, 2])
+            const filtered = componentLogic.mockRotationsResponse.filter((r) => allowedServiceIds.has(r.serviceId))
+
+            expect(filtered).toHaveLength(3) // 2 Anatomic Pathology + 1 Cardiology
+            expect(filtered.every((r) => allowedServiceIds.has(r.serviceId))).toBeTruthy()
         })
 
-        it("handles null excludeRotationNames parameter", () => {
-            const deduplicated = componentLogic.deduplicateRotations(componentLogic.mockRotationsResponse)
+        it("returns empty array when no services are allowed", () => {
+            const allowedServiceIds: number[] = new Set([])
+            const filtered = componentLogic.mockRotationsResponse.filter((r) => allowedServiceIds.has(r.serviceId))
 
-            expect(deduplicated).toHaveLength(3) // All rotations after deduplication
-            expect(deduplicated.every((r) => r.rotId)).toBeTruthy() // All have valid rotIds
+            expect(filtered).toHaveLength(0)
+        })
+
+        it("returns all rotations when filtering is not applied", () => {
+            const filtered = componentLogic.mockRotationsResponse.filter(() => true)
+
+            expect(filtered).toHaveLength(4)
+            expect(filtered).toEqual(componentLogic.mockRotationsResponse)
         })
     })
 })

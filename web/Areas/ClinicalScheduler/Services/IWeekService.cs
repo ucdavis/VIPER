@@ -1,4 +1,4 @@
-using Viper.Models.ClinicalScheduler;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -15,7 +15,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="includeExtendedRotation">Include weeks marked as extended rotation</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of weeks with proper week numbers and grad year</returns>
-        Task<List<VWeek>> GetWeeksAsync(int gradYear, bool includeExtendedRotation = true, CancellationToken cancellationToken = default);
+        Task<List<WeekDto>> GetWeeksAsync(int gradYear, bool includeExtendedRotation = true, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get a specific week by its ID
@@ -24,7 +24,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="gradYear">Optional graduation year for context</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>The week or null if not found</returns>
-        Task<VWeek?> GetWeekAsync(int weekId, int? gradYear = null, CancellationToken cancellationToken = default);
+        Task<WeekDto?> GetWeekAsync(int weekId, int? gradYear = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get the current week based on today's date
@@ -32,7 +32,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="gradYear">Optional graduation year for context</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>The current week or null if not found</returns>
-        Task<VWeek?> GetCurrentWeekAsync(int? gradYear = null, CancellationToken cancellationToken = default);
+        Task<WeekDto?> GetCurrentWeekAsync(int? gradYear = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get weeks that fall within a specific date range
@@ -41,6 +41,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="endDate">End date of the range (optional)</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of weeks that overlap with the date range</returns>
-        Task<List<VWeek>> GetWeeksByDateRangeAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default);
+        Task<List<WeekDto>> GetWeeksByDateRangeAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default);
     }
 }

@@ -4,6 +4,7 @@ const fs = require("node:fs")
 const path = require("node:path")
 const { execFileSync } = require("node:child_process")
 const { createLogger } = require("./script-utils")
+const recursiveLastModified = require("recursive-last-modified")
 
 const logger = createLogger("Cache")
 
@@ -24,80 +25,36 @@ function ensureCacheDir() {
 }
 
 /**
- * Check if a directory should be skipped during build scanning
- * @param {string} dirName - Directory name to check
- * @returns {boolean} - True if directory should be skipped
- */
-function shouldSkipDirectory(dirName) {
-    return ["bin", "obj", "vue", "node_modules", ".git", ".vscode"].includes(dirName)
-}
-
-/**
- * Process a single file or directory entry during scanning
- * @param {string} file - File name
- * @param {string} filePath - Full path to the file
- * @param {string[]} extensions - File extensions to check
- * @param {number} latestTime - Current latest timestamp
- * @param {function} scanDirectory - Recursive scan function
- * @returns {number} - Updated latest timestamp
- */
-function processFileEntry(file, filePath, extensions, latestTime, scanDirectory) {
-    let stat = null
-    try {
-        stat = fs.lstatSync(filePath)
-    } catch (error) {
-        // Skip files we can't stat (permission issues, etc.)
-        logger.warning(`Could not stat file ${filePath}: ${error.message}`)
-        return latestTime
-    }
-
-    // Skip symlinks to prevent traversal attacks
-    if (stat.isSymbolicLink()) {
-        logger.warning(`Security: Skipping symlink: ${filePath}`)
-        return latestTime
-    }
-
-    if (stat.isDirectory()) {
-        // Skip directories that don't affect builds
-        if (!shouldSkipDirectory(file)) {
-            scanDirectory(filePath)
-        }
-        return latestTime
-    }
-
-    // Check if file matches target extensions
-    if (extensions.some((ext) => file.endsWith(ext))) {
-        return Math.max(latestTime, stat.mtime.getTime())
-    }
-
-    return latestTime
-}
-
-/**
  * Get the timestamp of the most recent file modification in a directory
+ * Uses recursive-last-modified package for reliable directory traversal
+ *
+ * NOTE: The recursive-last-modified library (v1.0.6) is synchronous and doesn't
+ * currently support exclusion lists for directories like node_modules, bin, or obj.
+ * This is a known limitation but acceptable for our use case since:
+ * 1. We're only scanning for specific extensions (.cs, .csproj) which naturally excludes most large folders
+ * 2. The library is synchronous and fast enough for our build caching needs
+ * 3. Future versions may add exclusion support per the package roadmap
+ *
  * @param {string} projectPath - Path to the project directory
  * @param {string[]} extensions - File extensions to check (e.g., ['.cs', '.csproj'])
- * @returns {number} - Latest modification timestamp
+ * @returns {number} - Latest modification timestamp (synchronously returned)
  */
 function getLatestFileTimestamp(projectPath, extensions = [".cs", ".csproj"]) {
-    let latestTime = 0
+    try {
+        const result = recursiveLastModified(projectPath, { extensions })
 
-    function scanDirectory(dir) {
-        try {
-            const files = fs.readdirSync(dir)
-
-            for (const file of files) {
-                const filePath = path.join(dir, file)
-                latestTime = processFileEntry(file, filePath, extensions, latestTime, scanDirectory)
-            }
-        } catch (error) {
-            // Ignore permission errors or missing directories
-            logger.warning(`Could not scan directory ${dir}: ${error.message}`)
+        // Coerce to number and validate
+        const timestamp = Number(result)
+        if (!Number.isFinite(timestamp) || timestamp <= 0) {
+            logger.warning(`Unexpected timestamp result from recursive-last-modified for ${projectPath}: ${result}`)
+            return 0
         }
-    }
 
-    scanDirectory(projectPath)
-    return latestTime
+        return timestamp
+    } catch (error) {
+        logger.warning(`Could not scan directory ${projectPath}: ${error.message}`)
+        return 0
+    }
 }
 
 /**

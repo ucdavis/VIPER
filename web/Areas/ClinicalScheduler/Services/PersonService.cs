@@ -10,22 +10,11 @@ namespace Viper.Areas.ClinicalScheduler.Services
         public string? FullName { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
-        public string? MiddleName { get; set; }
-        public string? MailId { get; set; }
-        public string Source { get; set; } = string.Empty;
-        public DateTime? LastScheduled { get; set; }
-    }
-
-    public class PersonSummary : ClinicianSummary
-    {
-        public int TotalSchedules { get; set; }
     }
 
     public class ClinicianYearSummary : ClinicianSummary
     {
         public int Year { get; set; }
-        public int ScheduleCount { get; set; }
-        public DateTime? FirstScheduled { get; set; }
     }
     /// <summary>
     /// Service for handling person and clinician data from Clinical Scheduler context
@@ -34,10 +23,12 @@ namespace Viper.Areas.ClinicalScheduler.Services
     public class PersonService : BaseClinicalSchedulerService, IPersonService
     {
         private readonly ILogger<PersonService> _logger;
+        private readonly AAUDContext _aaudContext;
 
-        public PersonService(ILogger<PersonService> logger, ClinicalSchedulerContext context) : base(context)
+        public PersonService(ILogger<PersonService> logger, ClinicalSchedulerContext context, AAUDContext aaudContext) : base(context)
         {
             _logger = logger;
+            _aaudContext = aaudContext;
         }
 
         /// <summary>
@@ -47,7 +38,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="mothraId">The MothraId to search for</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Person information or null if not found</returns>
-        public async Task<PersonSummary?> GetPersonAsync(string mothraId, CancellationToken cancellationToken = default)
+        public async Task<ClinicianSummary?> GetPersonAsync(string mothraId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -59,34 +50,23 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 _logger.LogInformation("Getting person data for MothraId: {MothraId} from Clinical Scheduler context", mothraId);
 
-                // Split into two steps to avoid complex LINQ translation issues
-                var instructorSchedules = await _context.InstructorSchedules
+                // Query the vPerson view directly - much more efficient than joining through InstructorSchedules
+                var personData = await _context.Persons
                     .AsNoTracking()
-                    .Include(i => i.Week)
-                    .Include(i => i.Person)
-                    .Where(i => i.MothraId == mothraId)
-                    .ToListAsync(cancellationToken);
+                    .Where(p => p.IdsMothraId == mothraId)
+                    .FirstOrDefaultAsync(cancellationToken);
 
-                var person = instructorSchedules
-                    .GroupBy(i => i.MothraId)
-                    .Select(g =>
+                ClinicianSummary? person = null;
+                if (personData != null)
+                {
+                    person = new ClinicianSummary
                     {
-                        var first = g.First();
-                        var personData = first.Person;
-                        return new PersonSummary
-                        {
-                            MothraId = g.Key,
-                            FullName = personData?.PersonDisplayFullName ?? "Unknown",
-                            FirstName = personData?.PersonDisplayFirstName ?? "Unknown",
-                            LastName = personData?.PersonDisplayLastName ?? "Unknown",
-                            MiddleName = "", // Person model doesn't have middle name display field
-                            MailId = personData?.IdsMailId ?? "",
-                            Source = "InstructorSchedule",
-                            LastScheduled = g.Max(x => x.Week.DateEnd),
-                            TotalSchedules = g.Count()
-                        };
-                    })
-                    .FirstOrDefault();
+                        MothraId = mothraId,
+                        FullName = personData.PersonDisplayFullName ?? "Unknown",
+                        FirstName = personData.PersonDisplayFirstName ?? "Unknown",
+                        LastName = personData.PersonDisplayLastName ?? "Unknown"
+                    };
+                }
 
                 if (person == null)
                 {
@@ -94,8 +74,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 }
                 else
                 {
-                    _logger.LogInformation("Found person for MothraId: {MothraId} with {TotalSchedules} schedule entries",
-                        mothraId, person.TotalSchedules);
+                    _logger.LogInformation("Found person for MothraId: {MothraId}", mothraId);
                 }
 
                 return person;
@@ -147,13 +126,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                             FullName = person?.PersonDisplayFullName,
                             FirstName = person?.PersonDisplayFirstName,
                             LastName = person?.PersonDisplayLastName,
-                            MiddleName = null, // vPerson doesn't have middle name separately
-                            MailId = person?.IdsMailId,
-                            Source = "InstructorSchedule+vPerson",
-                            Year = year,
-                            ScheduleCount = g.Count(),
-                            FirstScheduled = g.Min(x => x.Week.DateStart),
-                            LastScheduled = g.Max(x => x.Week.DateEnd)
+                            Year = year
                         };
                     })
                     .OrderBy(c => c.LastName)
@@ -194,8 +167,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .GroupBy(i => i.MothraId)
                     .Select(g => new
                     {
-                        MothraId = g.Key,
-                        LastScheduled = g.Max(i => i.Week.DateEnd)
+                        MothraId = g.Key
                     })
                     .ToListAsync(cancellationToken);
 
@@ -223,11 +195,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                             MothraId = m.MothraId,
                             FullName = person?.PersonDisplayFullName ?? $"Clinician {m.MothraId}",
                             FirstName = person?.PersonDisplayFirstName ?? "",
-                            LastName = person?.PersonDisplayLastName ?? "",
-                            MiddleName = "", // vPerson doesn't have middle name separately
-                            MailId = person?.IdsMailId ?? "",
-                            Source = $"GradYearRange_{startGradYear}-{endGradYear}_EF",
-                            LastScheduled = m.LastScheduled
+                            LastName = person?.PersonDisplayLastName ?? ""
                         };
                     })
                     .OrderBy(c => c.LastName ?? "")
@@ -272,6 +240,111 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogError(ex, "Error retrieving unique MothraIds");
                 throw new InvalidOperationException("Failed to retrieve unique MothraIds from database", ex);
             }
+        }
+
+        /// <summary>
+        /// Get all active employee affiliates from AAUD database
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of active employee affiliates</returns>
+        public async Task<List<ClinicianSummary>> GetAllActiveEmployeeAffiliatesAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                _logger.LogDebug("Fetching all active employee affiliates from AAUD database");
+
+                var allAffiliates = await _aaudContext.AaudUsers
+                    .AsNoTracking()
+                    .Where(u => !string.IsNullOrEmpty(u.MothraId) &&
+                               !string.IsNullOrEmpty(u.EmployeeId) &&
+                               (u.CurrentEmployee || u.FutureEmployee))
+                    .Select(u => new ClinicianSummary
+                    {
+                        MothraId = u.MothraId,
+                        FullName = u.DisplayFullName,
+                        FirstName = u.DisplayFirstName,
+                        LastName = u.DisplayLastName
+                    })
+                    .OrderBy(c => c.LastName)
+                    .ThenBy(c => c.FirstName)
+                    .ToListAsync(cancellationToken);
+
+                _logger.LogDebug("Found {Count} active employee affiliates from AAUD", allAffiliates.Count);
+                return allAffiliates;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving active employee affiliates from AAUD");
+                throw new InvalidOperationException("Failed to retrieve active employee affiliates from AAUD database", ex);
+            }
+        }
+
+        /// <summary>
+        /// Get clinician info from AAUD context as fallback
+        /// </summary>
+        /// <param name="mothraId">The MothraId to look up</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Clinician info or null if not found</returns>
+        public async Task<ClinicianSummary?> GetClinicianFromAaudAsync(string mothraId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(mothraId))
+                {
+                    _logger.LogWarning("GetClinicianFromAaudAsync called with empty MothraId");
+                    return null;
+                }
+
+                _logger.LogDebug("Getting clinician data for MothraId: {MothraId} from AAUD context", mothraId);
+
+                var clinician = await _aaudContext.VwVmthClinicians
+                    .AsNoTracking()
+                    .Where(c => c.IdsMothraid == mothraId)
+                    .Select(c => new ClinicianSummary
+                    {
+                        MothraId = mothraId,
+                        FullName = ResolveClinicianName(c.FullName, c.PersonDisplayFirstName, c.PersonDisplayLastName, mothraId),
+                        FirstName = c.PersonDisplayFirstName ?? "",
+                        LastName = c.PersonDisplayLastName ?? ""
+                    })
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (clinician == null)
+                {
+                    _logger.LogWarning("Clinician not found for MothraId: {MothraId} in AAUD data", mothraId);
+                }
+                else
+                {
+                    _logger.LogDebug("Found clinician for MothraId: {MothraId} in AAUD data", mothraId);
+                }
+
+                return clinician;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving clinician data for MothraId: {MothraId} from AAUD", mothraId);
+                throw new InvalidOperationException($"Failed to retrieve clinician data for MothraId {mothraId} from AAUD", ex);
+            }
+        }
+
+        /// <summary>
+        /// Helper method to resolve clinician full name with fallbacks
+        /// </summary>
+        /// <param name="fullName">Primary full name from data source</param>
+        /// <param name="firstName">First name to use as fallback</param>
+        /// <param name="lastName">Last name to use as fallback</param>
+        /// <param name="mothraId">MothraId to use as final fallback</param>
+        /// <returns>Resolved full name</returns>
+        private static string ResolveClinicianName(string? fullName, string? firstName, string? lastName, string mothraId)
+        {
+            var first = firstName?.Trim();
+            var last = lastName?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(last) && !string.IsNullOrWhiteSpace(first))
+                return $"{last}, {first}";
+
+            // Fallback to fullName (which is "First Last" format) or mothraId
+            return !string.IsNullOrWhiteSpace(fullName) ? fullName : $"Clinician {mothraId}";
         }
     }
 }

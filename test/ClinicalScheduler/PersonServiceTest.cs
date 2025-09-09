@@ -10,6 +10,7 @@ namespace Viper.test.ClinicalScheduler
     public class PersonServiceTest : IDisposable
     {
         private readonly ClinicalSchedulerContext _context;
+        private readonly Mock<AAUDContext> _mockAaudContext;
         private readonly Mock<ILogger<PersonService>> _mockLogger;
         private readonly PersonService _personService;
 
@@ -21,8 +22,9 @@ namespace Viper.test.ClinicalScheduler
                 .Options;
             _context = new ClinicalSchedulerContext(options);
 
+            _mockAaudContext = new Mock<AAUDContext>();
             _mockLogger = new Mock<ILogger<PersonService>>();
-            _personService = new PersonService(_mockLogger.Object, _context);
+            _personService = new PersonService(_mockLogger.Object, _context, _mockAaudContext.Object);
 
             // Seed test data
             SeedTestData();
@@ -30,12 +32,12 @@ namespace Viper.test.ClinicalScheduler
 
         private void SeedTestData()
         {
-            // Create test weeks - dates are needed for LastScheduled/FirstScheduled but not for grad year filtering
+            // Create test weeks - required as foreign keys for InstructorSchedule and WeekGradYear
             var testWeeks = new[]
             {
-        new Week { WeekId = 1, DateStart = new DateTime(2023, 1, 1), DateEnd = new DateTime(2023, 1, 7), TermCode = 202401 },
-        new Week { WeekId = 2, DateStart = new DateTime(2023, 6, 1), DateEnd = new DateTime(2023, 6, 7), TermCode = 202501 },
-        new Week { WeekId = 3, DateStart = new DateTime(2022, 1, 1), DateEnd = new DateTime(2022, 1, 7), TermCode = 202301 }
+        new Week { WeekId = 1, DateStart = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Unspecified), DateEnd = new DateTime(2023, 1, 7, 0, 0, 0, DateTimeKind.Unspecified), TermCode = 202401 },
+        new Week { WeekId = 2, DateStart = new DateTime(2023, 6, 1, 0, 0, 0, DateTimeKind.Unspecified), DateEnd = new DateTime(2023, 6, 7, 0, 0, 0, DateTimeKind.Unspecified), TermCode = 202501 },
+        new Week { WeekId = 3, DateStart = new DateTime(2022, 1, 1, 0, 0, 0, DateTimeKind.Unspecified), DateEnd = new DateTime(2022, 1, 7, 0, 0, 0, DateTimeKind.Unspecified), TermCode = 202301 }
     };
 
             _context.Weeks.AddRange(testWeeks);
@@ -152,16 +154,18 @@ namespace Viper.test.ClinicalScheduler
         }
 
         [Fact]
-        public async Task GetCliniciansAsync_WithoutHistorical_UsesDefaultRange()
+        public async Task GetCliniciansAsync_WithSpecificGradYearRange_ReturnsExpectedClinicians()
         {
             // Act
             var result = await _personService.GetCliniciansByGradYearRangeAsync(2023, 2024);
 
             // Assert
             Assert.NotNull(result);
-            // With includeHistorical: false, it uses a more limited range
-            // The exact results depend on the current date vs test data dates
-            // Just verify the method doesn't crash and returns a collection
+            // Should return clinicians scheduled in grad years 2023-2024
+            Assert.Equal(2, result.Count); // MothraIds 12345 and 67890
+            var mothraIds = result.Select(c => ((dynamic)c).MothraId).ToList();
+            Assert.Contains("12345", mothraIds);
+            Assert.Contains("67890", mothraIds);
         }
 
         [Fact]
@@ -176,7 +180,6 @@ namespace Viper.test.ClinicalScheduler
             // Assert
             Assert.NotNull(result);
             Assert.Equal("12345", ((dynamic)result).MothraId);
-            Assert.Equal(2, ((dynamic)result).TotalSchedules); // John Smith has 2 schedule entries
             // Note: FullName, FirstName, LastName may be null due to EF configuration for in-memory testing
         }
 
@@ -225,20 +228,23 @@ namespace Viper.test.ClinicalScheduler
             {
                 Assert.Equal("Doe, Jane", ((dynamic)clinician).FullName);
                 Assert.Equal(2023, ((dynamic)clinician).Year);
-                Assert.True(((dynamic)clinician).ScheduleCount > 0);
             }
         }
 
         [Fact]
-        public async Task GetCliniciansByYearAsync_WithOldYear_ReturnsHistoricalClinicians()
+        public async Task GetCliniciansByYearAsync_WithYear2022_ReturnsHistoricalClinician()
         {
-            // Act - Using 2023 to match the old test data
-            var result = await _personService.GetCliniciansByYearAsync(2023);
+            // Act - Test with 2022 where we have test data for MothraId 99999
+            var result = await _personService.GetCliniciansByYearAsync(2022);
 
             // Assert
             Assert.NotNull(result);
-            // May or may not have results depending on the test data year alignment
-            // This tests the method doesn't crash with historical years
+            Assert.True(result.Count >= 1); // Should have at least MothraId 99999 from 2022
+
+            // Verify we get the clinician from 2022
+            var clinician2022 = result.FirstOrDefault(c => ((dynamic)c).MothraId == "99999");
+            Assert.NotNull(clinician2022);
+            Assert.Equal(2022, ((dynamic)clinician2022).Year);
         }
 
         [Fact]
@@ -291,14 +297,12 @@ namespace Viper.test.ClinicalScheduler
 
             // Verify core properties exist (some may be null due to EF in-memory limitations)
             Assert.NotNull(clinician.MothraId);
-            Assert.Equal("GradYearRange_2023-2024_EF", clinician.Source);
-            Assert.NotNull(clinician.LastScheduled);
             // Note: FullName, FirstName, LastName may be null in tests due to EF configuration
         }
 
         [Theory]
         [InlineData(2022, 2022, 1)] // Only 2022 grad year - should include only clinician 99999
-        [InlineData(2023, 2023, 2)] // Only 2023 grad year - should include clinicians 12345 and 67890  
+        [InlineData(2023, 2023, 2)] // Only 2023 grad year - should include clinicians 12345 and 67890
         [InlineData(2024, 2024, 0)] // Only 2024 grad year - no clinicians in our test data
         [InlineData(2022, 2024, 3)] // Full range - should include all 3 clinicians
         public async Task GetCliniciansAsync_WithDifferentGradYearRanges_ReturnsAppropriateResults(int startYear, int endYear, int expectedCount)

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { setActivePinia, createPinia } from "pinia"
 import { usePermissionsStore } from "../stores/permissions"
-import { permissionService, createMockUserPermissions } from "./test-utils"
+import { createMockUserPermissions } from "./test-utils"
+import { permissionService } from "../services/permission-service"
 
 // Mock the permission service
 vi.mock("../services/permission-service", () => ({
@@ -287,6 +288,138 @@ describe("Permissions Store - Clinician View Access", () => {
             vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.canAccessClinicianView).toBeFalsy()
+        })
+    })
+})
+
+describe("Permissions Store - Clinician View Read-Only Access", () => {
+    beforeEach(() => {
+        // Create fresh pinia instance for each test
+        setActivePinia(createPinia())
+        vi.clearAllMocks()
+    })
+
+    describe("hasClinicianViewReadOnly Permission", () => {
+        it("hasClinicianViewReadOnly returns false for admin users", async () => {
+            const store = usePermissionsStore()
+            const mockPermissions = createMockUserPermissions({
+                permissions: {
+                    hasAdminPermission: true,
+                    hasManagePermission: false,
+                    hasEditClnSchedulesPermission: false,
+                    hasEditOwnSchedulePermission: false,
+                    servicePermissions: {},
+                    editableServiceCount: 0,
+                },
+            })
+
+            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            await store.fetchUserPermissions()
+            expect(store.hasClinicianViewReadOnly).toBeFalsy()
+        })
+
+        it("hasClinicianViewReadOnly returns false for manage users", async () => {
+            const store = usePermissionsStore()
+            const mockPermissions = createMockUserPermissions({
+                permissions: {
+                    hasAdminPermission: false,
+                    hasManagePermission: true,
+                    hasEditClnSchedulesPermission: false,
+                    hasEditOwnSchedulePermission: false,
+                    servicePermissions: {},
+                    editableServiceCount: 0,
+                },
+            })
+
+            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            await store.fetchUserPermissions()
+            expect(store.hasClinicianViewReadOnly).toBeFalsy()
+        })
+
+        it("hasClinicianViewReadOnly returns false for edit all users", async () => {
+            const store = usePermissionsStore()
+            const mockPermissions = createMockUserPermissions({
+                permissions: {
+                    hasAdminPermission: false,
+                    hasManagePermission: false,
+                    hasEditClnSchedulesPermission: true,
+                    hasEditOwnSchedulePermission: false,
+                    servicePermissions: {},
+                    editableServiceCount: 0,
+                },
+            })
+
+            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            await store.fetchUserPermissions()
+            expect(store.hasClinicianViewReadOnly).toBeFalsy()
+        })
+
+        it("hasClinicianViewReadOnly returns true for users with EditOwnSchedule + service permissions", async () => {
+            const store = usePermissionsStore()
+            const mockPermissions = createMockUserPermissions({
+                permissions: {
+                    hasAdminPermission: false,
+                    hasManagePermission: false,
+                    hasEditClnSchedulesPermission: false,
+                    hasEditOwnSchedulePermission: true,
+                    servicePermissions: { 1: true },
+                    editableServiceCount: 1,
+                },
+                editableServices: [
+                    {
+                        serviceId: 1,
+                        serviceName: "Cardiology",
+                        shortName: "Cardio",
+                    },
+                ],
+            })
+
+            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            await store.fetchUserPermissions()
+            expect(store.hasClinicianViewReadOnly).toBeTruthy()
+        })
+
+        it("hasClinicianViewReadOnly returns false for users with only service permissions", async () => {
+            const store = usePermissionsStore()
+            const mockPermissions = createMockUserPermissions({
+                permissions: {
+                    hasAdminPermission: false,
+                    hasManagePermission: false,
+                    hasEditClnSchedulesPermission: false,
+                    hasEditOwnSchedulePermission: false,
+                    servicePermissions: { 1: true },
+                    editableServiceCount: 1,
+                },
+                editableServices: [
+                    {
+                        serviceId: 1,
+                        serviceName: "Cardiology",
+                        shortName: "Cardio",
+                    },
+                ],
+            })
+
+            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            await store.fetchUserPermissions()
+            expect(store.hasClinicianViewReadOnly).toBeFalsy()
+        })
+
+        it("hasClinicianViewReadOnly returns false for users with only EditOwnSchedule permission", async () => {
+            const store = usePermissionsStore()
+            const mockPermissions = createMockUserPermissions({
+                permissions: {
+                    hasAdminPermission: false,
+                    hasManagePermission: false,
+                    hasEditClnSchedulesPermission: false,
+                    hasEditOwnSchedulePermission: true,
+                    servicePermissions: {},
+                    editableServiceCount: 0,
+                },
+            })
+
+            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            await store.fetchUserPermissions()
+            expect(store.hasClinicianViewReadOnly).toBeFalsy()
         })
     })
 })

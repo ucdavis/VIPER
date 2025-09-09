@@ -1,5 +1,6 @@
 import { useFetch } from "../../composables/ViperFetch"
 import type { ApiResult } from "./rotation-service"
+import type { ViewContext } from "../types"
 
 const { get } = useFetch()
 
@@ -27,9 +28,10 @@ class ClinicianService {
     static async getClinicians(options?: {
         year?: number
         includeAllAffiliates?: boolean
+        viewContext?: ViewContext
     }): Promise<ApiResult<Clinician[]>> {
         try {
-            const { year, includeAllAffiliates } = options || {}
+            const { year, includeAllAffiliates, viewContext } = options || {}
 
             const params: Record<string, string | number | boolean> = {}
             if (typeof year === "number") {
@@ -37,6 +39,9 @@ class ClinicianService {
             }
             if (typeof includeAllAffiliates === "boolean") {
                 params.includeAllAffiliates = includeAllAffiliates
+            }
+            if (typeof viewContext === "string") {
+                params.viewContext = viewContext
             }
 
             const url = this.buildUrl(this.BASE_URL, params)
@@ -117,7 +122,7 @@ class ClinicianService {
      */
     static async searchClinicians(
         query: string,
-        options?: { includeAllAffiliates?: boolean },
+        options?: { includeAllAffiliates?: boolean; viewContext?: ViewContext },
     ): Promise<ApiResult<Clinician[]>> {
         try {
             const cliniciansResult = await this.getClinicians(options)

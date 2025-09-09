@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.CTS.Models;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes;
@@ -17,11 +17,11 @@ namespace Viper.Areas.CTS.Controllers
     public class ClinicalScheduleController : ApiController
     {
         private readonly IClinicalScheduleService clinicalSchedule;
-        private readonly IClinicalScheduleSecurityService clinicalScheduleSecurity;
-        public ClinicalScheduleController(IClinicalScheduleService scheduleService, IClinicalScheduleSecurityService securityService)
+        private readonly ISchedulePermissionService schedulePermissionService;
+        public ClinicalScheduleController(IClinicalScheduleService scheduleService, ISchedulePermissionService permissionService)
         {
             clinicalSchedule = scheduleService;
-            clinicalScheduleSecurity = securityService;
+            schedulePermissionService = permissionService;
         }
 
         /// <summary>
@@ -39,7 +39,7 @@ namespace Viper.Areas.CTS.Controllers
         public async Task<ActionResult<List<ClinicalScheduledStudent>>> GetStudentSchedule(int? classYear, string? mothraId, int? rotationId, int? serviceId,
             int? weekId, DateTime? startDate, DateTime? endDate)
         {
-            if (!clinicalScheduleSecurity.CheckStudentScheduleParams(mothraId, rotationId, serviceId, weekId, startDate, endDate))
+            if (!await schedulePermissionService.CheckStudentScheduleParamsAsync(mothraId, rotationId, serviceId, weekId, startDate, endDate))
             {
                 return ForbidApi();
             }
@@ -61,7 +61,7 @@ namespace Viper.Areas.CTS.Controllers
         public async Task<ActionResult<List<InstructorSchedule>>> GetInstructorSchedule(int? classYear, string? mothraId, int? rotationId, int? serviceId,
                 int? weekId, DateTime? startDate, DateTime? endDate, bool active = true)
         {
-            if (!clinicalScheduleSecurity.CheckInstructorScheduleParams(mothraId, rotationId, serviceId, weekId, startDate, endDate))
+            if (!await schedulePermissionService.CheckInstructorScheduleParamsAsync(mothraId, rotationId, serviceId, weekId, startDate, endDate))
             {
                 return ForbidApi();
             }

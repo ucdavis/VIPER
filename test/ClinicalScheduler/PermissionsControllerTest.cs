@@ -54,6 +54,7 @@ namespace Viper.test.ClinicalScheduler
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
             var response = okResult.Value;
+            Assert.NotNull(response);
             dynamic dynamicResponse = response;
             Assert.Equal(serviceId, dynamicResponse.serviceId);
             Assert.True(dynamicResponse.canEdit);
@@ -82,6 +83,7 @@ namespace Viper.test.ClinicalScheduler
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
             var response = okResult.Value;
+            Assert.NotNull(response);
             dynamic dynamicResponse = response;
             Assert.Equal(serviceId, dynamicResponse.serviceId);
             Assert.False(dynamicResponse.canEdit);
@@ -107,6 +109,7 @@ namespace Viper.test.ClinicalScheduler
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
             var response = okResult.Value;
+            Assert.NotNull(response);
             dynamic dynamicResponse = response;
             Assert.Equal(rotationId, dynamicResponse.rotationId);
             Assert.True(dynamicResponse.canEdit);

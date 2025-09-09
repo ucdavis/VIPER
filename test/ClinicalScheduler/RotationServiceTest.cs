@@ -282,21 +282,6 @@ namespace Viper.test.ClinicalScheduler
         }
 
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task GetRotationsAsync_WithActiveOnlyParameter_DoesNotThrow(bool activeOnly)
-        {
-            // The activeOnly parameter is currently not implemented but should not cause errors
-
-            // Act & Assert - should not throw
-            var result = await _rotationService.GetRotationsAsync(activeOnly);
-
-            Assert.NotNull(result);
-            // For now, activeOnly doesn't affect the results since it's not implemented
-            Assert.True(result.Count > 0);
-        }
-
         [Fact]
         public async Task GetRotationsAsync_HandlesEmptyDatabase()
         {

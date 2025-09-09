@@ -2,9 +2,21 @@
     <div class="clinical-scheduler-container position-relative">
         <SchedulerNavigation />
 
+        <!-- Loading permissions state - show this until we have permission data -->
+        <div
+            v-if="permissionsStore.isLoading || !permissionsStore.userPermissions"
+            class="text-center q-my-lg"
+        >
+            <q-spinner-dots
+                size="3rem"
+                color="primary"
+            />
+            <div class="q-mt-md text-body1">Loading...</div>
+        </div>
+
         <!-- Access denied for users without rotation view permissions -->
         <AccessDeniedCard
-            v-if="!permissionsStore.isLoading && !permissionsStore.canAccessRotationView"
+            v-else-if="!permissionsStore.canAccessRotationView"
             :message="ACCESS_DENIED_MESSAGES.ROTATION_VIEW"
             :subtitle="ACCESS_DENIED_SUBTITLES.ROTATION_VIEW"
         >
@@ -16,18 +28,6 @@
                 />
             </template>
         </AccessDeniedCard>
-
-        <!-- Loading permissions state -->
-        <div
-            v-else-if="permissionsStore.isLoading"
-            class="text-center q-my-lg"
-        >
-            <q-spinner-dots
-                size="3rem"
-                color="primary"
-            />
-            <div class="q-mt-md text-body1">Loading permissions...</div>
-        </div>
 
         <!-- Main content when user has access -->
         <div v-else>
@@ -120,6 +120,7 @@
                         @update:include-all-affiliates="includeAllAffiliates = $event"
                         @change="onAddClinicianSelected"
                         :affiliates-toggle-label="'Include all affiliates'"
+                        view-context="rotation"
                         class="q-mt-none"
                         style="min-width: 280px"
                     />
@@ -128,127 +129,44 @@
 
             <!-- No weeks scheduled message -->
             <ScheduleBanner
-                v-if="selectedRotation && weeksBySeason.length === 0 && !isLoadingSchedule"
+                v-if="selectedRotation && weeksBySemester.length === 0 && !isLoadingSchedule"
                 type="no-entries"
                 :custom-message="`${selectedRotation.name} has no weeks scheduled for ${currentYear}.`"
             />
 
-            <!-- Season headers and week grids -->
-            <div v-if="selectedRotation && weeksBySeason.length > 0">
-                <div
-                    v-for="season in weeksBySeason"
-                    :key="season.name"
-                >
-                    <h3>{{ season.displayName }}</h3>
-                    <div class="row q-gutter-md q-mb-lg">
-                        <WeekScheduleCard
-                            v-for="week in season.weeks"
-                            :key="week.weekId"
-                            :week="week"
-                            :is-past-year="isPastYear"
-                            :additional-classes="{ 'requires-primary-card': requiresPrimaryEvaluator(week) }"
-                            @click="scheduleClinicianToWeek"
-                        >
-                            <template #week-icon="{ week: weekItem }">
-                                <q-icon
-                                    v-if="requiresPrimaryEvaluator(weekItem)"
-                                    name="warning"
-                                    size="xs"
-                                    color="orange"
-                                    title="Primary evaluator required for this week"
-                                />
-                            </template>
-
-                            <template #assignments="{ week: weekItem }">
-                                <div
-                                    v-if="getWeekAssignments(weekItem.weekId).length > 0"
-                                    class="q-gutter-xs"
-                                >
-                                    <div
-                                        v-for="assignment in getWeekAssignments(weekItem.weekId)"
-                                        :key="assignment.id"
-                                        class="assignment-item"
-                                    >
-                                        <div class="row items-center q-gutter-xs">
-                                            <!-- Remove button - only show for current year -->
-                                            <q-icon
-                                                v-if="!isPastYear && !assignment.isPrimary"
-                                                name="close"
-                                                size="xs"
-                                                color="negative"
-                                                class="cursor-pointer"
-                                                title="Remove this clinician from the schedule."
-                                                aria-label="Remove clinician from schedule"
-                                                @click.stop="removeAssignment(assignment.id, assignment.clinicianName)"
-                                            />
-                                            <q-icon
-                                                v-else-if="!isPastYear && canEditRotation"
-                                                name="close"
-                                                size="xs"
-                                                color="grey-4"
-                                                title="Cannot remove primary clinician. Make another clinician primary first."
-                                                aria-label="Cannot remove primary clinician"
-                                            />
-
-                                            <span class="col text-body2">{{ assignment.clinicianName }}</span>
-
-                                            <!-- Primary star - for past years, only show filled stars without click handler -->
-                                            <q-icon
-                                                v-if="isPastYear && assignment.isPrimary"
-                                                name="star"
-                                                size="xs"
-                                                color="amber"
-                                                title="Primary evaluator"
-                                                aria-label="Primary evaluator"
-                                            />
-                                            <q-icon
-                                                v-else-if="!isPastYear && canEditRotation"
-                                                :name="assignment.isPrimary ? 'star' : 'star_outline'"
-                                                size="xs"
-                                                :color="assignment.isPrimary ? 'amber' : 'grey-5'"
-                                                class="cursor-pointer"
-                                                :title="
-                                                    assignment.isPrimary
-                                                        ? 'Primary evaluator. To transfer primary status, click the star on another clinician.'
-                                                        : 'Click to make this clinician the primary evaluator.'
-                                                "
-                                                :aria-label="
-                                                    assignment.isPrimary
-                                                        ? 'Primary evaluator - click to transfer to another clinician'
-                                                        : 'Click to make this clinician the primary evaluator'
-                                                "
-                                                @click.stop="
-                                                    togglePrimary(
-                                                        assignment.id,
-                                                        assignment.isPrimary,
-                                                        assignment.clinicianName,
-                                                    )
-                                                "
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div
-                                    v-else
-                                    class="text-center q-py-sm"
-                                >
-                                    <div class="text-grey-6 text-caption">
-                                        {{
-                                            !isPastYear && canEditRotation ? "Click to add clinician" : "No assignments"
-                                        }}
-                                    </div>
-                                </div>
-                            </template>
-                        </WeekScheduleCard>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Legend -->
-            <ScheduleLegend
-                v-if="selectedRotation && weeksBySeason.length > 0"
-                :show-warning="true"
+            <!-- Unified schedule view -->
+            <ScheduleView
+                v-else-if="selectedRotation && weeksBySemester.length > 0"
+                :schedules-by-semester="weeksBySemester"
+                view-mode="rotation"
+                :is-past-year="isPastYear"
+                :is-loading="isLoadingSchedule"
+                :error="scheduleError"
+                :can-edit="canEditRotation"
+                :show-legend="true"
+                :show-warning-in-legend="true"
+                :show-warning-icon="true"
+                :show-primary-toggle="true"
+                :requires-primary-for-week="true"
+                :get-assignments="
+                    (week) =>
+                        getWeekAssignments(week.weekId).map((a) => ({
+                            id: a.id,
+                            displayName: a.clinicianName,
+                            isPrimary: a.isPrimary,
+                        }))
+                "
+                :requires-primary-evaluator="(week) => requiresPrimaryEvaluator(week)"
+                :get-week-additional-classes="(week) => ({ 'requires-primary-card': requiresPrimaryEvaluator(week) })"
+                empty-state-message="Click to add clinician"
+                read-only-empty-message="No assignments"
+                warning-icon-title="Primary evaluator required for this week"
+                primary-evaluator-title="Primary evaluator. To transfer primary status, click the star on another clinician."
+                make-primary-title="Click to make this clinician the primary evaluator."
+                primary-removal-disabled-message="Cannot remove primary clinician. Make another clinician primary first."
+                @week-click="scheduleClinicianToWeek"
+                @remove-assignment="(id, name) => removeAssignment(id, name)"
+                @toggle-primary="(id, isPrimary, name) => togglePrimary(id, isPrimary, name)"
             />
         </div>
     </div>
@@ -264,18 +182,19 @@ import { InstructorScheduleService } from "../services/instructor-schedule-servi
 import type { Clinician } from "../services/clinician-service"
 import { PageDataService } from "../services/page-data-service"
 import { usePermissionsStore } from "../stores/permissions"
-import { useScheduleStateUpdater } from "../composables/use-schedule-state-updater"
+import { useScheduleUpdatesWithRollback } from "../composables/use-optimistic-schedule-updates"
+import { useScheduleNormalization } from "../composables/use-schedule-normalization"
 import RotationSelector from "../components/RotationSelector.vue"
 import ClinicianSelector from "../components/ClinicianSelector.vue"
 import YearSelector from "../components/YearSelector.vue"
-import ScheduleLegend from "../components/ScheduleLegend.vue"
 import SchedulerNavigation from "../components/SchedulerNavigation.vue"
-import WeekScheduleCard, { type WeekItem } from "../components/WeekScheduleCard.vue"
+import type { WeekItem } from "../components/WeekScheduleCard.vue"
 import ScheduleBanner from "../components/ScheduleBanner.vue"
 import RecentSelections from "../components/RecentSelections.vue"
 import PermissionInfoBanner from "../components/PermissionInfoBanner.vue"
 import AccessDeniedCard from "../components/AccessDeniedCard.vue"
 import { ACCESS_DENIED_MESSAGES, ACCESS_DENIED_SUBTITLES } from "../constants/permission-messages"
+import ScheduleView from "../components/ScheduleView.vue"
 
 // Router and Quasar
 const route = useRoute()
@@ -285,8 +204,9 @@ const $q = useQuasar()
 // Permissions store
 const permissionsStore = usePermissionsStore()
 
-// Schedule state updater composable
-const { addScheduleToWeek, removeScheduleFromWeek, updateSchedulePrimaryStatus } = useScheduleStateUpdater()
+// Schedule updates with rollback and queue
+const { addScheduleWithRollback, removeScheduleWithRollback, togglePrimaryWithRollback } =
+    useScheduleUpdatesWithRollback()
 
 // Reactive data
 const selectedRotationId = ref<number | null>(null)
@@ -358,16 +278,13 @@ const selectedClinicianItem = computed(() => {
 
 // Use the semester data directly from the backend API
 // The backend already groups weeks by semester using TermCodeService.GetTermCodeDescription()
-const weeksBySeason = computed(() => {
-    if (!scheduleData.value || !scheduleData.value.schedulesBySemester) return []
+const { normalizeRotationSchedule } = useScheduleNormalization()
 
-    // Transform backend semester structure to match frontend expectations
-    return scheduleData.value.schedulesBySemester.map((semester) => ({
-        name: semester.semester.toLowerCase().replace(/\s+/g, "-"), // Convert "Spring Semester 2024" to "spring-semester-2024"
-        displayName: semester.semester, // Use exact semester name from TermCodeService
-        weeks: semester.weeks,
-    }))
+const weeksBySemester = computed(() => {
+    return normalizeRotationSchedule(scheduleData.value)
 })
+
+// isSemesterPast is handled inside ScheduleView
 
 // Watch for includeAllAffiliates changes (ClinicianSelector handles reloading automatically)
 watch(
@@ -620,53 +537,41 @@ async function scheduleClinicianToWeek(week: WeekItem) {
             }
         }
 
-        // Add the instructor to the schedule
-        const result = await InstructorScheduleService.addInstructor({
-            MothraId: clinician.mothraId,
-            RotationId: selectedRotation.value.rotId,
-            WeekIds: [week.weekId],
-            GradYear: currentYear.value!,
-            IsPrimaryEvaluator: requiresPrimaryEvaluator(week), // Set as primary if required and none exists
-        })
-
-        if (result.success) {
-            // Show success message with optional warning
-            let message = `✓ ${selectedClinician.value} successfully added to Week ${week.weekNumber}`
-
-            // Append warning message if instructor is scheduled for other rotations
-            if (result.result?.warningMessage) {
-                message += `\n\n${result.result.warningMessage}`
-            }
-
-            $q.notify({
-                type: result.result?.warningMessage ? "warning" : "positive",
-                message: message,
-                timeout: result.result?.warningMessage ? 6000 : 4000,
-                multiLine: result.result?.warningMessage ? true : false,
-                actions: [
-                    {
-                        icon: "close",
-                        color: "white",
-                        handler: () => {
-                            /* dismiss */
-                        },
-                    },
-                ],
-            })
-
-            // Update local state instead of refetching
-            if (scheduleData.value) {
-                addScheduleToWeek(scheduleData.value, week.weekId, {
-                    instructorScheduleId:
-                        result.result?.schedules?.[0]?.instructorScheduleId || result.result?.scheduleIds?.[0] || 0,
-                    mothraId: selectedClinicianData.value?.mothraId || "",
-                    clinicianName: selectedClinician.value || "",
-                    isPrimaryEvaluator: requiresPrimaryEvaluator(week),
-                })
-            }
-        } else {
-            throw new Error(result.errors.join(", "))
+        // Add the instructor using the queue-based composable
+        if (!scheduleData.value) {
+            throw new Error("Schedule data not available")
         }
+
+        addScheduleWithRollback(
+            {
+                scheduleData: scheduleData.value,
+                weekId: week.weekId,
+                assignmentData: {
+                    clinicianMothraId: clinician.mothraId,
+                    clinicianName: selectedClinician.value || "",
+                    isPrimary: requiresPrimaryEvaluator(week),
+                    gradYear: currentYear.value!,
+                },
+            },
+            {
+                onSuccess: () => {
+                    $q.notify({
+                        type: "positive",
+                        message: `✓ ${selectedClinician.value} successfully added to Week ${week.weekNumber}`,
+                        timeout: 4000,
+                    })
+                },
+                onError: (error) => {
+                    $q.notify({
+                        type: "negative",
+                        message:
+                            error ||
+                            "Failed to add clinician to schedule. Please try again or contact support if the problem persists.",
+                        timeout: 5000,
+                    })
+                },
+            },
+        )
     } catch {
         // Error notification removed - errors are now handled by GenericError component
     } finally {
@@ -675,12 +580,11 @@ async function scheduleClinicianToWeek(week: WeekItem) {
 }
 
 async function removeAssignment(scheduleId: number, clinicianName: string) {
-    if (!selectedRotation.value) return
+    if (!selectedRotation.value || !scheduleData.value) return
 
     // Check permissions
     if (selectedRotation.value.service && !permissionsStore.canEditService(selectedRotation.value.service.serviceId)) {
         // Error notification removed - errors are now handled by GenericError component
-
         return
     }
 
@@ -700,33 +604,27 @@ async function removeAssignment(scheduleId: number, clinicianName: string) {
 
     isRemovingClinician.value = true
 
-    try {
-        const result = await InstructorScheduleService.removeInstructor(scheduleId)
-
-        if (result.success) {
+    removeScheduleWithRollback(scheduleData.value, scheduleId, {
+        onSuccess: () => {
             $q.notify({
                 type: "positive",
                 message: `${clinicianName} removed from schedule`,
             })
-
-            // Update local state instead of refetching
-            if (scheduleData.value) {
-                removeScheduleFromWeek(scheduleData.value, scheduleId)
-            }
-        } else {
-            const errorMessage =
-                result.errors && result.errors.length > 0 ? result.errors.join(", ") : "Unknown error occurred"
-            throw new Error(errorMessage)
-        }
-    } catch {
-        // Error notification removed - errors are now handled by GenericError component
-    } finally {
-        isRemovingClinician.value = false
-    }
+            isRemovingClinician.value = false
+        },
+        onError: (error) => {
+            $q.notify({
+                type: "negative",
+                message: error || "Failed to remove clinician from schedule. Please try again.",
+                timeout: 5000,
+            })
+            isRemovingClinician.value = false
+        },
+    })
 }
 
 async function togglePrimary(scheduleId: number, currentIsPrimary: boolean, clinicianName: string) {
-    if (!selectedRotation.value) return
+    if (!selectedRotation.value || !scheduleData.value) return
 
     // Check permissions
     if (selectedRotation.value.service && !permissionsStore.canEditService(selectedRotation.value.service.serviceId)) {
@@ -753,30 +651,31 @@ async function togglePrimary(scheduleId: number, currentIsPrimary: boolean, clin
 
     isTogglingPrimary.value = true
 
-    try {
-        const result = await InstructorScheduleService.setPrimaryEvaluator(scheduleId, !currentIsPrimary)
-
-        if (result.success) {
-            const action = currentIsPrimary ? "removed as" : "set as"
-            $q.notify({
-                type: "positive",
-                message: `${clinicianName} ${action} primary evaluator`,
-            })
-
-            // Update local state instead of refetching
-            if (scheduleData.value) {
-                updateSchedulePrimaryStatus(scheduleData.value, scheduleId, !currentIsPrimary)
-            }
-        } else {
-            const errorMessage =
-                result.errors && result.errors.length > 0 ? result.errors.join(", ") : "Unknown error occurred"
-            throw new Error(errorMessage)
-        }
-    } catch {
-        // Error notification removed - errors are now handled by GenericError component
-    } finally {
-        isTogglingPrimary.value = false
-    }
+    togglePrimaryWithRollback(
+        {
+            scheduleData: scheduleData.value,
+            scheduleId: scheduleId,
+            isPrimary: !currentIsPrimary,
+        },
+        {
+            onSuccess: () => {
+                const action = currentIsPrimary ? "removed as" : "set as"
+                $q.notify({
+                    type: "positive",
+                    message: `${clinicianName} ${action} primary evaluator`,
+                })
+                isTogglingPrimary.value = false
+            },
+            onError: (error) => {
+                $q.notify({
+                    type: "negative",
+                    message: error || "Failed to update primary evaluator status. Please try again.",
+                    timeout: 5000,
+                })
+                isTogglingPrimary.value = false
+            },
+        },
+    )
 }
 
 function requiresPrimaryEvaluator(week: WeekItem): boolean {

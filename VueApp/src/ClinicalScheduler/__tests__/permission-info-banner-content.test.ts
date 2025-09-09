@@ -51,7 +51,7 @@ describe("PermissionInfoBanner - Content & Messages", () => {
 
             const wrapper = createWrapper()
 
-            expect(wrapper.text()).toContain("You can manage schedules for 1 rotation: Cardiology")
+            expect(wrapper.text()).toContain("You can manage schedules for 1 service: Cardiology")
         })
 
         it("displays correct message for service-specific permissions with multiple services", () => {
@@ -65,7 +65,7 @@ describe("PermissionInfoBanner - Content & Messages", () => {
             const wrapper = createWrapper()
 
             expect(wrapper.text()).toContain(
-                "You can manage schedules for 3 rotations: Cardiology, Surgery, and Internal Medicine",
+                "You can manage schedules for 3 services: Cardiology, Surgery, and Internal Medicine",
             )
         })
 
@@ -76,6 +76,39 @@ describe("PermissionInfoBanner - Content & Messages", () => {
             const wrapper = createWrapper()
 
             expect(wrapper.text()).toContain("You can only edit your own schedule entries")
+        })
+
+        it("displays correct combined message for service-specific and own-schedule permissions", () => {
+            // Test the specific case of users with both permissions
+            mockPermissionsStore.hasOnlyServiceSpecificPermissions = false
+            mockPermissionsStore.hasOnlyOwnSchedulePermission = false
+            mockPermissionsStore.hasLimitedPermissions = true
+            mockPermissionsStore.editableServiceCount = 1
+            mockPermissionsStore.hasEditOwnSchedulePermission = true
+            mockPermissionsStore.getEditableServicesDisplay = vi.fn().mockReturnValue("Internal Medicine")
+
+            const wrapper = createWrapper()
+
+            expect(wrapper.text()).toContain("Limited Access")
+            expect(wrapper.text()).toContain(
+                "You can manage schedules for 1 service (Internal Medicine) and edit your own schedule entries",
+            )
+        })
+
+        it("displays correct combined message with multiple services", () => {
+            mockPermissionsStore.hasOnlyServiceSpecificPermissions = false
+            mockPermissionsStore.hasOnlyOwnSchedulePermission = false
+            mockPermissionsStore.hasLimitedPermissions = true
+            mockPermissionsStore.editableServiceCount = 2
+            mockPermissionsStore.hasEditOwnSchedulePermission = true
+            mockPermissionsStore.getEditableServicesDisplay = vi.fn().mockReturnValue("Internal Medicine, Surgery")
+
+            const wrapper = createWrapper()
+
+            expect(wrapper.text()).toContain("Limited Access")
+            expect(wrapper.text()).toContain(
+                "You can manage schedules for 2 services (Internal Medicine, Surgery) and edit your own schedule entries",
+            )
         })
     })
 
@@ -112,6 +145,21 @@ describe("PermissionInfoBanner - Content & Messages", () => {
             expect(banner.props("rounded")).toBeTruthy()
             expect(banner.props("dense")).toBeTruthy()
         })
+
+        it("applies correct classes for combined permissions", () => {
+            // Users with both service-specific and own-schedule should show positive color (service takes precedence)
+            mockPermissionsStore.hasOnlyServiceSpecificPermissions = false
+            mockPermissionsStore.hasOnlyOwnSchedulePermission = false
+            mockPermissionsStore.hasLimitedPermissions = true
+            mockPermissionsStore.editableServiceCount = 1
+            mockPermissionsStore.hasEditOwnSchedulePermission = true
+
+            const wrapper = createWrapper()
+            const banner = wrapper.findComponent({ name: "QBanner" })
+
+            expect(banner.classes()).toContain("q-mb-md")
+            expect(banner.classes()).toContain("text-positive")
+        })
     })
 
     describe("Accessibility Features", () => {
@@ -145,7 +193,7 @@ describe("PermissionInfoBanner - Content & Messages", () => {
 
             const wrapper = createWrapper()
 
-            expect(wrapper.text()).toContain("You can manage schedules for 0 rotation: None")
+            expect(wrapper.text()).toContain("You can manage schedules for 0 service: None")
         })
 
         it("handles missing permissions store data gracefully", () => {

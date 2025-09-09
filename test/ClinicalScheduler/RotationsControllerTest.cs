@@ -1,225 +1,156 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.ClinicalScheduler.Controllers;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.ClinicalScheduler.Services;
-using Viper.Classes.SQLContext;
 
 namespace Viper.test.ClinicalScheduler
 {
-    public class RotationsControllerTest
+    public class RotationsControllerTest : ClinicalSchedulerTestBase
     {
-        private readonly ClinicalSchedulerContext _context;
         private readonly Mock<ILogger<RotationsController>> _mockLogger;
-        private readonly GradYearService _gradYearService;
-        private readonly WeekService _weekService;
+        private readonly Mock<IGradYearService> _mockGradYearService;
+        private readonly Mock<IWeekService> _mockWeekService;
+        private readonly Mock<IRotationService> _mockRotationService;
+        private readonly Mock<ISchedulePermissionService> _mockPermissionService;
+        private readonly Mock<IEvaluationPolicyService> _mockEvaluationPolicyService;
+        private RotationsController _controller = null!;
 
         public RotationsControllerTest()
         {
-            // Use in-memory database for testing instead of mocking the context
-            var options = new DbContextOptionsBuilder<ClinicalSchedulerContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-                .Options;
-            _context = new ClinicalSchedulerContext(options);
-
             _mockLogger = new Mock<ILogger<RotationsController>>();
+            _mockGradYearService = new Mock<IGradYearService>();
+            _mockWeekService = new Mock<IWeekService>();
+            _mockRotationService = new Mock<IRotationService>();
+            _mockPermissionService = new Mock<ISchedulePermissionService>();
+            _mockEvaluationPolicyService = new Mock<IEvaluationPolicyService>();
 
-            // Create real service instances for testing
-            var mockGradYearLogger = new Mock<ILogger<GradYearService>>();
-            var mockWeekLogger = new Mock<ILogger<WeekService>>();
-            _gradYearService = new GradYearService(mockGradYearLogger.Object, _context);
-            _weekService = new WeekService(mockWeekLogger.Object, _context);
+            SetupDefaultMockBehavior();
+            RecreateController();
         }
 
-        [Fact]
-        public void RotationsController_CanBeCreated()
+        private void RecreateController()
         {
-            // Arrange
-            var mockRotationLogger = new Mock<ILogger<RotationService>>();
-            var rotationService = new RotationService(mockRotationLogger.Object, _context);
-            var mockPermissionService = new Mock<ISchedulePermissionService>();
-
-            // Act
-            var controller = new RotationsController(
-                _context,
-                _gradYearService,
-                _weekService,
-                rotationService,
-                mockPermissionService.Object,
+            _controller = new RotationsController(
+                Context,
+                _mockGradYearService.Object,
+                _mockWeekService.Object,
+                _mockRotationService.Object,
+                _mockPermissionService.Object,
+                _mockEvaluationPolicyService.Object,
                 _mockLogger.Object);
-
-            // Assert
-            Assert.NotNull(controller);
+            var serviceProvider = new ServiceCollection().BuildServiceProvider();
+            TestDataBuilder.SetupControllerContext(_controller, serviceProvider);
         }
 
-        [Fact]
-        public void RotationsController_HasCorrectPermissionAttribute()
+        private void SetupDefaultMockBehavior()
         {
-            // Arrange
-            var controllerType = typeof(RotationsController);
-
-            // Act
-            var permissionAttribute = controllerType.GetCustomAttributes(typeof(Web.Authorization.PermissionAttribute), false)
-                .FirstOrDefault() as Web.Authorization.PermissionAttribute;
-
-            // Assert
-            Assert.NotNull(permissionAttribute);
-            Assert.Equal(ClinicalSchedulePermissions.Base, permissionAttribute.Allow);
+            SetupMockRotations();
         }
 
-        [Fact]
-        public void RotationsController_HasCorrectRouteAttribute()
+        private void SetupMockRotations()
         {
-            // Arrange
-            var controllerType = typeof(RotationsController);
-
-            // Act
-            var routeAttribute = controllerType.GetCustomAttributes(typeof(RouteAttribute), false)
-                .FirstOrDefault() as RouteAttribute;
-
-            // Assert
-            Assert.NotNull(routeAttribute);
-            Assert.Equal("api/clinicalscheduler/rotations", routeAttribute.Template);
-        }
-
-        [Fact]
-        public void RotationDto_HasRequiredProperties()
-        {
-            // Arrange
-            var dto = new RotationDto();
-
-            // Act & Assert
-            Assert.Equal(0, dto.RotId);
-            Assert.Equal(string.Empty, dto.Name);
-            Assert.Equal(string.Empty, dto.Abbreviation);
-            Assert.Equal(string.Empty, dto.SubjectCode);
-            Assert.Equal(string.Empty, dto.CourseNumber);
-            Assert.Equal(0, dto.ServiceId);
-            Assert.Null(dto.Service);
-        }
-
-        [Fact]
-        public void ServiceDto_HasRequiredProperties()
-        {
-            // Arrange
-            var dto = new ServiceDto();
-
-            // Act & Assert
-            Assert.Equal(0, dto.ServiceId);
-            Assert.Equal(string.Empty, dto.ServiceName);
-            Assert.Equal(string.Empty, dto.ShortName);
-            Assert.Null(dto.ScheduleEditPermission);
-            Assert.Null(dto.UserCanEdit);
-        }
-
-        [Fact]
-        public void ServiceDto_WithPermissionProperties_SetsCorrectly()
-        {
-            // Arrange
-            var dto = new ServiceDto
+            // Mock data: Two test rotations for permission filtering tests
+            // - Cardiology (ID: CardiologyRotationId, Service: CardiologyServiceId) 
+            // - Surgery (ID: SurgeryRotationId, Service: SurgeryServiceId)
+            // Used to test that users see only rotations they have permissions for
+            var allRotations = new List<RotationDto>
             {
-                ServiceId = 1,
-                ServiceName = "Cardiology",
-                ShortName = "Cardio",
-                ScheduleEditPermission = "SVMSecure.ClnSched.Edit.Cardio",
-                UserCanEdit = true
+                new RotationDto
+                {
+                    RotId = CardiologyRotationId,
+                    Name = "Cardiology",
+                    ServiceId = CardiologyServiceId,
+                    Service = new ServiceDto { ServiceId = CardiologyServiceId, ServiceName = "Cardiology Service", ShortName = "CARD" }
+                },
+                new RotationDto
+                {
+                    RotId = SurgeryRotationId,
+                    Name = "Surgery",
+                    ServiceId = SurgeryServiceId,
+                    Service = new ServiceDto { ServiceId = SurgeryServiceId, ServiceName = "Surgery Service", ShortName = "SURG" }
+                }
             };
+            _mockRotationService.Setup(s => s.GetRotationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(allRotations);
+        }
 
-            // Act & Assert
-            Assert.Equal(1, dto.ServiceId);
-            Assert.Equal("Cardiology", dto.ServiceName);
-            Assert.Equal("Cardio", dto.ShortName);
-            Assert.Equal("SVMSecure.ClnSched.Edit.Cardio", dto.ScheduleEditPermission);
-            Assert.True(dto.UserCanEdit);
+        private void SetupMockPermissions(bool hasFullPermissions = false, int? allowedServiceId = null)
+        {
+            if (hasFullPermissions)
+            {
+                _mockPermissionService.Setup(p => p.HasEditPermissionForServiceAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(true);
+            }
+            else if (allowedServiceId.HasValue)
+            {
+                _mockPermissionService.Setup(p => p.HasEditPermissionForServiceAsync(allowedServiceId.Value, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(true);
+                _mockPermissionService.Setup(p => p.HasEditPermissionForServiceAsync(It.Is<int>(id => id != allowedServiceId.Value), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(false);
+            }
+            else
+            {
+                _mockPermissionService.Setup(p => p.HasEditPermissionForServiceAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(false);
+            }
+        }
+
+        private static IEnumerable<RotationDto> ExtractRotationsFromResult(ActionResult<IEnumerable<RotationDto>> result)
+        {
+            // Handle both implicit and explicit ActionResult patterns
+            if (result.Result != null)
+            {
+                var okResult = Assert.IsType<OkObjectResult>(result.Result);
+                return Assert.IsAssignableFrom<IEnumerable<RotationDto>>(okResult.Value);
+            }
+            else
+            {
+                return Assert.IsAssignableFrom<IEnumerable<RotationDto>>(result.Value);
+            }
         }
 
         [Fact]
-        public void RotationDto_CanSetProperties()
+        public async Task GetRotations_ForUserWithFullPermissions_ReturnsAllRotations()
         {
-            // Arrange
-            var dto = new RotationDto();
-            var service = new ServiceDto { ServiceId = 1, ServiceName = "Test Service", ShortName = "TS" };
+            // Setup: User has edit permissions for all services
+            SetupMockPermissions(hasFullPermissions: true);
+            RecreateController();
 
-            // Act
-            dto.RotId = 123;
-            dto.Name = "Test Rotation";
-            dto.Abbreviation = "TR";
-            dto.SubjectCode = "TEST";
-            dto.CourseNumber = "101";
-            dto.ServiceId = 1;
-            dto.Service = service;
+            var result = await _controller.GetRotations();
 
-            // Assert
-            Assert.Equal(123, dto.RotId);
-            Assert.Equal("Test Rotation", dto.Name);
-            Assert.Equal("TR", dto.Abbreviation);
-            Assert.Equal("TEST", dto.SubjectCode);
-            Assert.Equal("101", dto.CourseNumber);
-            Assert.Equal(1, dto.ServiceId);
-            Assert.NotNull(dto.Service);
-            Assert.Equal("Test Service", dto.Service.ServiceName);
+            var rotations = ExtractRotationsFromResult(result);
+            Assert.Equal(2, rotations.Count()); // Should return both Cardiology and Surgery rotations
         }
 
         [Fact]
-        public void ServiceDto_CanSetProperties()
+        public async Task GetRotations_ForUserWithServicePermission_ReturnsFilteredRotations()
         {
-            // Arrange
-            var dto = new ServiceDto();
+            // Setup: User has edit permissions only for Cardiology service
+            SetupMockPermissions(allowedServiceId: CardiologyServiceId);
+            RecreateController();
 
-            // Act
-            dto.ServiceId = 456;
-            dto.ServiceName = "Another Service";
-            dto.ShortName = "AS";
+            var result = await _controller.GetRotations();
 
-            // Assert
-            Assert.Equal(456, dto.ServiceId);
-            Assert.Equal("Another Service", dto.ServiceName);
-            Assert.Equal("AS", dto.ShortName);
+            var rotations = ExtractRotationsFromResult(result);
+            var rotationList = rotations.ToList();
+            Assert.Single(rotationList); // Should return only Cardiology rotation
+            Assert.Equal(CardiologyRotationId, rotationList[0].RotId);
         }
 
-        [Theory]
-        [InlineData(1)]
-        [InlineData(100)]
-        [InlineData(999)]
-        public void RotationsController_AcceptsValidServiceIds(int serviceId)
+        [Fact]
+        public async Task GetRotations_ForUserWithNoPermissions_ReturnsEmptyList()
         {
-            // Arrange
-            var mockRotationLogger = new Mock<ILogger<RotationService>>();
-            var rotationService = new RotationService(mockRotationLogger.Object, _context);
-            var mockPermissionService = new Mock<ISchedulePermissionService>();
-            _ = new RotationsController(
-                _context,
-                _gradYearService,
-                _weekService,
-                rotationService,
-                mockPermissionService.Object,
-                _mockLogger.Object);
+            // Setup: User has no edit permissions for any service
+            SetupMockPermissions(); // Default is no permissions
+            RecreateController();
 
-            // Act & Assert
-            Assert.True(serviceId > 0); // Valid service IDs should be positive
-        }
+            var result = await _controller.GetRotations();
 
-        [Theory]
-        [InlineData(2024)]
-        [InlineData(2025)]
-        [InlineData(2026)]
-        public void RotationsController_AcceptsValidYears(int year)
-        {
-            // Arrange
-            var mockRotationLogger = new Mock<ILogger<RotationService>>();
-            var rotationService = new RotationService(mockRotationLogger.Object, _context);
-            var mockPermissionService = new Mock<ISchedulePermissionService>();
-            _ = new RotationsController(
-                _context,
-                _gradYearService,
-                _weekService,
-                rotationService,
-                mockPermissionService.Object,
-                _mockLogger.Object);
-
-            // Act & Assert
-            Assert.True(year >= 2010 && year <= 2030); // Reasonable year range
+            var rotations = ExtractRotationsFromResult(result);
+            Assert.Empty(rotations); // Should return empty list when no permissions
         }
     }
 }
