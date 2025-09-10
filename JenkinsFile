@@ -23,7 +23,7 @@ def copyOfflineOperations = [
 ]
 pipeline {
     agent any
-	tools { nodejs "NodeJS 20.6.1" }
+	tools { nodejs "NodeJS 20.19.4" }
     options {
         skipStagesAfterUnstable()
     }

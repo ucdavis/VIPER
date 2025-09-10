@@ -1,12 +1,13 @@
-using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Classes;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
 {
     /// <summary>
     /// Base controller for Clinical Scheduler providing shared functionality
+    /// Now inherits from ApiController to get standardized exception handling, response formatting, and filters
     /// </summary>
-    public abstract class BaseClinicalSchedulerController : ControllerBase
+    public abstract class BaseClinicalSchedulerController : ApiController
     {
         protected readonly IGradYearService _gradYearService;
         protected readonly ILogger<BaseClinicalSchedulerController> _logger;
@@ -47,32 +48,23 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         }
 
         /// <summary>
-        /// Handles exceptions and returns a standardized error response with structured logging
+        /// Stores contextual information for exception handling by ApiExceptionFilter
+        /// Call this before throwing exceptions to provide additional context for logging and debugging
         /// </summary>
-        /// <param name="ex">The exception that occurred</param>
-        /// <param name="message">The error message to return to the client</param>
-        /// <param name="contextProperty">Optional context property name for logging</param>
-        /// <param name="contextValue">Optional context value for logging</param>
-        /// <returns>A standardized 500 Internal Server Error response</returns>
-        protected ObjectResult HandleException(Exception ex, string message, string? contextProperty = null, object? contextValue = null)
+        /// <param name="contextInfo">Dictionary of key-value pairs providing context about the operation that failed</param>
+        protected void SetExceptionContext(Dictionary<string, object> contextInfo)
         {
-            var correlationId = Guid.NewGuid().ToString();
+            HttpContext.Items["ExceptionContext"] = contextInfo;
+        }
 
-            if (!string.IsNullOrEmpty(contextProperty) && contextValue != null)
-            {
-                _logger.LogError(ex, "{Message}. CorrelationId: {CorrelationId}. {ContextProperty}: {ContextValue}",
-                    message, correlationId, contextProperty, contextValue);
-            }
-            else
-            {
-                _logger.LogError(ex, "{Message}. CorrelationId: {CorrelationId}", message, correlationId);
-            }
-
-            return StatusCode(500, new
-            {
-                error = message,
-                correlationId
-            });
+        /// <summary>
+        /// Convenience method to set single context property for exception handling
+        /// </summary>
+        /// <param name="key">The context property name</param>
+        /// <param name="value">The context property value</param>
+        protected void SetExceptionContext(string key, object value)
+        {
+            SetExceptionContext(new Dictionary<string, object> { [key] = value });
         }
 
         /// <summary>

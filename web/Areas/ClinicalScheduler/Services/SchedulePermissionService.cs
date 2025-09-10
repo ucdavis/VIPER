@@ -269,19 +269,23 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <summary>
         /// Check access to student schedules with the given parameters
         /// </summary>
-        public async Task<bool> CheckStudentScheduleParamsAsync(string? mothraId, int? rotationId, int? serviceId, int? weekId, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken = default)
+        /// <remarks>
+        /// This method uses Task.FromResult as a synchronous fast-path optimization since it only performs
+        /// in-memory permission checks without any I/O operations. This avoids unnecessary async overhead.
+        /// </remarks>
+        public Task<bool> CheckStudentScheduleParamsAsync(string? mothraId, int? rotationId, int? serviceId, int? weekId, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken = default)
         {
             try
             {
                 var user = GetValidatedCurrentUser("checking student schedule access");
-                if (user == null) return false;
+                if (user == null) return Task.FromResult(false);
 
                 // Check if user has manage or view students permission
                 if (_userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.Manage) ||
                     _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.ViewStudents))
                 {
                     _logger.LogDebug("User {MothraId} has management or ViewStudents permission for student schedules", user.MothraId);
-                    return true;
+                    return Task.FromResult(true);
                 }
 
                 // Check if user is viewing their own schedule
@@ -289,7 +293,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.ViewOwn))
                 {
                     _logger.LogDebug("User {MothraId} is viewing their own schedule", user.MothraId);
-                    return true;
+                    return Task.FromResult(true);
                 }
 
                 // Additional access rules not implemented (as noted in original comments)
@@ -297,32 +301,36 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // - Accommodation users viewing marked students
 
                 _logger.LogDebug("User {MothraId} denied access to student schedules", user.MothraId);
-                return false;
+                return Task.FromResult(false);
             }
             catch (Exception ex)
             {
                 var user = _userHelper.GetCurrentUser();
                 _logger.LogError(ex, "Error checking student schedule access for user {MothraId}", user?.MothraId ?? "unknown");
-                return false;
+                return Task.FromResult(false);
             }
         }
 
         /// <summary>
         /// Check access to instructor schedules with the given parameters
         /// </summary>
-        public async Task<bool> CheckInstructorScheduleParamsAsync(string? mothraId, int? rotationId, int? serviceId, int? weekId, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken = default)
+        /// <remarks>
+        /// This method uses Task.FromResult as a synchronous fast-path optimization since it only performs
+        /// in-memory permission checks without any I/O operations. This avoids unnecessary async overhead.
+        /// </remarks>
+        public Task<bool> CheckInstructorScheduleParamsAsync(string? mothraId, int? rotationId, int? serviceId, int? weekId, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken = default)
         {
             try
             {
                 var user = GetValidatedCurrentUser("checking instructor schedule access");
-                if (user == null) return false;
+                if (user == null) return Task.FromResult(false);
 
                 // Check if user has manage or view clinicians permission
                 if (_userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.Manage) ||
                     _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.ViewClinicians))
                 {
                     _logger.LogDebug("User {MothraId} has management or ViewClinicians permission for instructor schedules", user.MothraId);
-                    return true;
+                    return Task.FromResult(true);
                 }
 
                 // Check if user is viewing their own schedule (either with ViewOwn or EditOwnSchedule permission)
@@ -331,17 +339,17 @@ namespace Viper.Areas.ClinicalScheduler.Services
                      _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule)))
                 {
                     _logger.LogDebug("User {MothraId} is viewing their own instructor schedule", user.MothraId);
-                    return true;
+                    return Task.FromResult(true);
                 }
 
                 _logger.LogDebug("User {MothraId} denied access to instructor schedules", user.MothraId);
-                return false;
+                return Task.FromResult(false);
             }
             catch (Exception ex)
             {
                 var user = _userHelper.GetCurrentUser();
                 _logger.LogError(ex, "Error checking instructor schedule access for user {MothraId}", user?.MothraId ?? "unknown");
-                return false;
+                return Task.FromResult(false);
             }
         }
     }

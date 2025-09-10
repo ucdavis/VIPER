@@ -139,6 +139,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 try
                 {
                     var createdSchedules = new List<InstructorSchedule>();
+                    var removedPrimarySchedules = new Dictionary<int, List<InstructorSchedule>>(); // WeekId -> removed schedules
 
                     foreach (var weekId in weekIds)
                     {
@@ -160,10 +161,14 @@ namespace Viper.Areas.ClinicalScheduler.Services
                             throw new InvalidOperationException($"Instructor {mothraId} is already scheduled for Week {weekId} in this rotation (detected during insertion)");
                         }
 
-                        // If setting as primary evaluator, clear existing primary first
+                        // If setting as primary evaluator, clear existing primary first (without saving or sending notifications)
                         if (isPrimaryEvaluator)
                         {
-                            await ClearPrimaryEvaluatorAsync(rotationId, weekId, currentUser.MothraId, cancellationToken);
+                            var removed = await ClearPrimaryEvaluatorAsync(rotationId, weekId, currentUser.MothraId, cancellationToken);
+                            if (removed.Any())
+                            {
+                                removedPrimarySchedules[weekId] = removed;
+                            }
                         }
 
                         // Create new instructor schedule
@@ -183,6 +188,19 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                     // Save all schedule entities at once for better performance
                     await _context.SaveChangesAsync(cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+
+                    // Send notifications and log audit entries AFTER successful transaction commit
+                    // This ensures we don't send emails for operations that were rolled back
+
+                    // Send notifications for any removed primary evaluators
+                    foreach (var (weekId, removedSchedules) in removedPrimarySchedules)
+                    {
+                        foreach (var removedSchedule in removedSchedules)
+                        {
+                            await HandlePrimaryEvaluatorRemovalAsync(removedSchedule, currentUser.MothraId, cancellationToken, mothraId);
+                        }
+                    }
 
                     // Log audit entries after successful save (so we have InstructorScheduleId)
 #pragma warning disable S3267 // Loop contains async operations that cannot be simplified to Select
@@ -203,7 +221,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     _logger.LogInformation("Added instructor {MothraId} to rotation {RotationId} for {WeekCount} weeks (Primary: {IsPrimary})",
                         mothraId, rotationId, weekIds.Length, isPrimaryEvaluator);
 
-                    await transaction.CommitAsync(cancellationToken);
                     return createdSchedules;
                 }
                 catch (Exception saveEx)
@@ -284,20 +301,19 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     // Remove the schedule
                     _context.InstructorSchedules.Remove(schedule);
                     await _context.SaveChangesAsync(cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
 
-                    // Log removal after successful deletion
+                    // Send notifications and log audit entries AFTER successful
+                    // transaction commit
+                    // This ensures we don't send emails for operations that were
+                    // rolled back
                     await _auditService.LogInstructorRemovedAsync(
                         schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
 
                     if (schedule.Evaluator)
                     {
-                        await _auditService.LogPrimaryEvaluatorUnsetAsync(
-                            schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
-
-                        await SendPrimaryEvaluatorRemovedNotificationAsync(schedule, cancellationToken);
+                        await HandlePrimaryEvaluatorRemovalAsync(schedule, currentUser.MothraId, cancellationToken);
                     }
-
-                    await transaction.CommitAsync(cancellationToken);
 
                     _logger.LogDebug("Removed instructor {MothraId} from rotation {RotationId}, week {WeekId} (WasPrimary: {WasPrimary})",
                         schedule.MothraId, schedule.RotationId, schedule.WeekId, schedule.Evaluator);
@@ -336,6 +352,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 var schedule = await _context.InstructorSchedules
                     .Include(s => s.Rotation)
+                    .Include(s => s.Person)
+                    .Include(s => s.Week)
                     .FirstOrDefaultAsync(s => s.InstructorScheduleId == instructorScheduleId, cancellationToken);
 
                 if (schedule == null)
@@ -357,6 +375,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 try
                 {
                     string? previousPrimaryName = null;
+                    List<InstructorSchedule> removedPrimarySchedules = [];
 
                     if (isPrimary)
                     {
@@ -372,8 +391,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
                                 $"{existingPrimary.Person.PersonDisplayLastName}, {existingPrimary.Person.PersonDisplayFirstName}";
                         }
 
-                        // Clear any existing primary evaluator for this rotation/week
-                        await ClearPrimaryEvaluatorAsync(schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
+                        // Clear any existing primary evaluator for this rotation/week (without saving or sending notifications)
+                        removedPrimarySchedules = await ClearPrimaryEvaluatorAsync(schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
 
                         schedule.Evaluator = true;
                         schedule.ModifiedBy = currentUser.MothraId;
@@ -387,19 +406,25 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     }
 
                     await _context.SaveChangesAsync(cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
 
-                    // Log audit entries after successful save
+                    // Send notifications and log audit entries AFTER successful transaction commit
+                    // This ensures we don't send emails for operations that were rolled back
                     if (isPrimary)
                     {
+                        // Send notifications for any removed primary evaluators
+                        foreach (var removedSchedule in removedPrimarySchedules)
+                        {
+                            await HandlePrimaryEvaluatorRemovalAsync(removedSchedule, currentUser.MothraId, cancellationToken, schedule.MothraId);
+                        }
+
                         await _auditService.LogPrimaryEvaluatorSetAsync(
                             schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
                     }
                     else
                     {
-                        await _auditService.LogPrimaryEvaluatorUnsetAsync(
-                            schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
+                        await HandlePrimaryEvaluatorRemovalAsync(schedule, currentUser.MothraId, cancellationToken);
                     }
-                    await transaction.CommitAsync(cancellationToken);
 
                     _logger.LogInformation("Set primary evaluator for {MothraId} on rotation {RotationId}, week {WeekId} to {IsPrimary}",
                         schedule.MothraId, schedule.RotationId, schedule.WeekId, isPrimary);
@@ -529,94 +554,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
             }
         }
 
-        /// <summary>
-        /// Sets an instructor as the primary evaluator for multiple weeks atomically within a single transaction.
-        /// Validates that the instructor is scheduled for all specified weeks and clears existing primary evaluators.
-        /// </summary>
-        /// <param name="mothraId">The MothraID of the instructor to set as primary evaluator</param>
-        /// <param name="rotationId">The rotation ID</param>
-        /// <param name="weekIds">Array of week IDs where the instructor should be set as primary</param>
-        /// <param name="modifiedByMothraId">MothraID of the user making the change</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>True if successful, throws exceptions for validation failures or conflicts</returns>
-        /// <exception cref="UnauthorizedAccessException">Thrown when user lacks edit permission for the rotation</exception>
-        /// <exception cref="InvalidOperationException">Thrown when instructor is not scheduled for all specified weeks</exception>
-        public async Task<bool> SetPrimaryEvaluatorForMultipleWeeksAsync(
-            string mothraId,
-            int rotationId,
-            int[] weekIds,
-            string modifiedByMothraId,
-            CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                // Check permissions
-                if (!await _permissionService.HasEditPermissionForRotationAsync(rotationId, cancellationToken))
-                {
-                    throw new UnauthorizedAccessException($"User does not have permission to edit rotation {rotationId}");
-                }
-
-                // Validate that the instructor is actually scheduled for these weeks
-                var instructorSchedules = await _context.InstructorSchedules
-                    .Where(s => s.MothraId == mothraId && s.RotationId == rotationId && weekIds.Contains(s.WeekId))
-                    .ToListAsync(cancellationToken);
-
-                if (instructorSchedules.Count != weekIds.Length)
-                {
-                    var scheduledWeeks = instructorSchedules.Select(s => s.WeekId).ToArray();
-                    var missingWeeks = weekIds.Except(scheduledWeeks).ToArray();
-                    throw new InvalidOperationException($"Instructor {mothraId} is not scheduled for weeks: {string.Join(", ", missingWeeks)}");
-                }
-
-                using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-                try
-                {
-                    // Clear existing primary evaluators for all affected weeks
-                    foreach (var weekId in weekIds)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        await ClearPrimaryEvaluatorAsync(rotationId, weekId, modifiedByMothraId, cancellationToken);
-                    }
-
-                    // Set the instructor as primary evaluator for all weeks
-                    foreach (var schedule in instructorSchedules)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        schedule.Evaluator = true;
-                        schedule.ModifiedBy = modifiedByMothraId;
-                        schedule.ModifiedDate = DateTime.UtcNow;
-                    }
-
-                    await _context.SaveChangesAsync(cancellationToken);
-
-                    // Log audit entries after successful save
-#pragma warning disable S3267 // Loop contains async operations that cannot be simplified to Select
-                    foreach (var schedule in instructorSchedules)
-                    {
-                        await _auditService.LogPrimaryEvaluatorSetAsync(
-                            mothraId, rotationId, schedule.WeekId, modifiedByMothraId, cancellationToken);
-                    }
-#pragma warning restore S3267
-                    await transaction.CommitAsync(cancellationToken);
-
-                    _logger.LogInformation("Set {MothraId} as primary evaluator for rotation {RotationId} across {WeekCount} weeks",
-                        mothraId, rotationId, weekIds.Length);
-
-                    return true;
-                }
-                catch
-                {
-                    await transaction.RollbackAsync(cancellationToken);
-                    throw;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error setting primary evaluator for {MothraId} on rotation {RotationId} for weeks {WeekIds}",
-                    mothraId, rotationId, string.Join(",", weekIds));
-                throw new InvalidOperationException($"Failed to set primary evaluator for instructor {mothraId}. Please try again or contact support if the problem persists.", ex);
-            }
-        }
 
         /// <summary>
         /// Validates that the current user has edit permissions for the specified rotation
@@ -647,10 +584,17 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// NOTE: Primary evaluator uniqueness is enforced at the application level (not database constraint).
         /// This method ensures only one primary evaluator exists per rotation/week by clearing existing primaries
         /// before setting a new one.
+        ///
+        /// IMPORTANT: This method does NOT save changes or send notifications. The caller is responsible for
+        /// saving changes within their transaction and sending notifications after commit.
         /// </summary>
-        private async Task ClearPrimaryEvaluatorAsync(int rotationId, int weekId, string modifiedByMothraId, CancellationToken cancellationToken)
+        /// <returns>List of schedules that had their primary evaluator flag removed</returns>
+        private async Task<List<InstructorSchedule>> ClearPrimaryEvaluatorAsync(int rotationId, int weekId, string modifiedByMothraId, CancellationToken cancellationToken)
         {
             var existingPrimary = await _context.InstructorSchedules
+                .Include(s => s.Person)
+                .Include(s => s.Rotation)
+                .Include(s => s.Week)
                 .Where(s => s.RotationId == rotationId && s.WeekId == weekId && s.Evaluator)
                 .ToListAsync(cancellationToken);
 
@@ -664,17 +608,36 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
             if (existingPrimary.Any())
             {
-                await _context.SaveChangesAsync(cancellationToken);
-                _logger.LogDebug("Cleared primary evaluator flag for {Count} instructors on rotation {RotationId}, week {WeekId}",
+                _logger.LogDebug("Clearing primary evaluator flag for {Count} instructors on rotation {RotationId}, week {WeekId}",
                     existingPrimary.Count, rotationId, weekId);
             }
+
+            return existingPrimary;
+        }
+
+        /// <summary>
+        /// Handles the complete process of removing a primary evaluator status,
+        /// including audit logging and email notifications
+        /// </summary>
+        private async Task HandlePrimaryEvaluatorRemovalAsync(
+            InstructorSchedule schedule,
+            string currentUserMothraId,
+            CancellationToken cancellationToken,
+            string? newPrimaryMothraId = null)
+        {
+            // Log the primary evaluator removal
+            await _auditService.LogPrimaryEvaluatorUnsetAsync(
+                schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUserMothraId, cancellationToken);
+
+            // Send email notification
+            await SendPrimaryEvaluatorRemovedNotificationAsync(schedule, currentUserMothraId, cancellationToken, newPrimaryMothraId);
         }
 
         /// <summary>
         /// Send email notification when a primary evaluator is removed
         /// Matches the ColdFusion system's notification format and recipients
         /// </summary>
-        private async Task SendPrimaryEvaluatorRemovedNotificationAsync(InstructorSchedule schedule, CancellationToken cancellationToken)
+        private async Task SendPrimaryEvaluatorRemovedNotificationAsync(InstructorSchedule schedule, string modifiedByMothraId, CancellationToken cancellationToken, string? newPrimaryMothraId = null)
         {
             try
             {
@@ -730,8 +693,61 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     _logger.LogWarning(ex, "Could not retrieve week number for {WeekId} in email notification", schedule.WeekId);
                 }
 
-                // Format email body to match ColdFusion system: "Primary evaluator (Name) removed from {rotation} week {weeknum}"
-                var emailBody = $"Primary evaluator {instructorText}removed from {rotationName} week {weekDisplay}";
+                // Get new primary evaluator name if this is a replacement
+                var newPrimaryText = "";
+                if (!string.IsNullOrEmpty(newPrimaryMothraId))
+                {
+                    try
+                    {
+                        var newPrimaryPerson = await _context.Persons
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(p => p.IdsMothraId == newPrimaryMothraId, cancellationToken);
+
+                        if (newPrimaryPerson != null)
+                        {
+                            newPrimaryText = newPrimaryPerson.PersonDisplayFullName ??
+                                $"{newPrimaryPerson.PersonDisplayLastName}, {newPrimaryPerson.PersonDisplayFirstName}";
+                        }
+                        else
+                        {
+                            newPrimaryText = newPrimaryMothraId; // Fallback to MothraId
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not retrieve new primary evaluator name for {MothraId} in email notification", newPrimaryMothraId);
+                        newPrimaryText = newPrimaryMothraId; // Fallback to MothraId
+                    }
+                }
+
+                // Get current user name for the email
+                var currentUserText = "";
+                try
+                {
+                    var currentUserPerson = await _context.Persons
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(p => p.IdsMothraId == modifiedByMothraId, cancellationToken);
+
+                    if (currentUserPerson != null)
+                    {
+                        currentUserText = currentUserPerson.PersonDisplayFullName ??
+                            $"{currentUserPerson.PersonDisplayLastName}, {currentUserPerson.PersonDisplayFirstName}";
+                    }
+                    else
+                    {
+                        currentUserText = modifiedByMothraId; // Fallback to MothraId
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not retrieve current user name for {MothraId} in email notification", modifiedByMothraId);
+                    currentUserText = modifiedByMothraId; // Fallback to MothraId
+                }
+
+                // Format email body - different message for replacement vs removal, including who made the change
+                var emailBody = !string.IsNullOrEmpty(newPrimaryMothraId)
+                    ? $"Primary evaluator {instructorText}removed from {rotationName} week {weekDisplay} and replaced by {newPrimaryText} by {currentUserText}"
+                    : $"Primary evaluator {instructorText}removed from {rotationName} week {weekDisplay} by {currentUserText}";
 
                 // Send email notifications to all configured recipients
                 var notificationConfig = _emailNotificationSettings.PrimaryEvaluatorRemoved;
