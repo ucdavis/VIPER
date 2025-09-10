@@ -86,9 +86,15 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogInformation("Retrieved {Count} rotations via RotationService", rotationDtos.Count);
                 return Ok(rotationDtos);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return HandleException(ex, "Failed to retrieve rotations", "ServiceId", serviceId);
+                // Store context for ApiExceptionFilter to use in logging
+                SetExceptionContext(new Dictionary<string, object>
+                {
+                    ["ServiceId"] = serviceId,
+                    ["Operation"] = "RetrieveRotations"
+                });
+                throw; // Let ApiExceptionFilter handle the response
             }
         }
 
@@ -135,9 +141,11 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogInformation("Retrieved rotation via RotationService: {RotationName}", rotation.Name);
                 return Ok(response);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return HandleException(ex, "Failed to retrieve rotation", "RotationId", id);
+                // Store context for ApiExceptionFilter to use in logging
+                SetExceptionContext("RotationId", id);
+                throw; // Let ApiExceptionFilter handle the response
             }
         }
 
@@ -228,9 +236,11 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 return Ok(BuildRotationScheduleResponse(rotation, targetYear, groupedSchedules, recentCliniciansList));
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return HandleException(ex, "Failed to retrieve rotation schedule", "RotationId", id);
+                // Store context for ApiExceptionFilter to use in logging
+                SetExceptionContext("RotationId", id);
+                throw; // Let ApiExceptionFilter handle the response
             }
         }
 
@@ -329,7 +339,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
             catch (Exception ex)
             {
-                return HandleException(ex, "Failed to retrieve rotations with scheduled weeks", "Year", year);
+                // Store context for ApiExceptionFilter to use in logging
+                SetExceptionContext("Year", year);
+                throw; // Let ApiExceptionFilter handle the response
             }
         }
 
@@ -342,46 +354,39 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> GetRotationSummary()
         {
-            try
-            {
-                _logger.LogInformation("Getting rotation summary");
+            _logger.LogInformation("Getting rotation summary");
 
-                var summary = await _context.Rotations
-                    .AsNoTracking()
-                    .Include(r => r.Service)
-                    .GroupBy(r => new { r.ServiceId, r.Service.ServiceName, r.Service.ShortName })
-                    .Select(g => new ServiceSummaryDto
-                    {
-                        ServiceId = g.Key.ServiceId,
-                        ServiceName = g.Key.ServiceName,
-                        ShortName = g.Key.ShortName,
-                        RotationCount = g.Count(),
-                        Rotations = g.Select(r => new RotationSummaryDto
-                        {
-                            RotId = r.RotId,
-                            Name = r.Name,
-                            Abbreviation = r.Abbreviation
-                        }).ToList()
-                    })
-                    .OrderBy(s => s.ServiceName)
-                    .ToListAsync();
-
-                var totalRotations = await _context.Rotations.CountAsync();
-
-                _logger.LogInformation("Retrieved summary for {ServiceCount} services with {TotalRotations} total rotations",
-                    summary.Count, totalRotations);
-
-                return Ok(new RotationSummaryResponse
+            var summary = await _context.Rotations
+                .AsNoTracking()
+                .Include(r => r.Service)
+                .GroupBy(r => new { r.ServiceId, r.Service.ServiceName, r.Service.ShortName })
+                .Select(g => new ServiceSummaryDto
                 {
-                    TotalRotations = totalRotations,
-                    ServiceCount = summary.Count,
-                    Services = summary
-                });
-            }
-            catch (Exception ex)
+                    ServiceId = g.Key.ServiceId,
+                    ServiceName = g.Key.ServiceName,
+                    ShortName = g.Key.ShortName,
+                    RotationCount = g.Count(),
+                    Rotations = g.Select(r => new RotationSummaryDto
+                    {
+                        RotId = r.RotId,
+                        Name = r.Name,
+                        Abbreviation = r.Abbreviation
+                    }).ToList()
+                })
+                .OrderBy(s => s.ServiceName)
+                .ToListAsync();
+
+            var totalRotations = await _context.Rotations.CountAsync();
+
+            _logger.LogInformation("Retrieved summary for {ServiceCount} services with {TotalRotations} total rotations",
+                summary.Count, totalRotations);
+
+            return Ok(new RotationSummaryResponse
             {
-                return HandleException(ex, "Failed to retrieve rotation summary");
-            }
+                TotalRotations = totalRotations,
+                ServiceCount = summary.Count,
+                Services = summary
+            });
         }
 
 
@@ -659,24 +664,16 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             {
                 return BadRequest(ModelState);
             }
+            _logger.LogInformation("Getting available years, publishedOnly: {PublishedOnly}", publishedOnly);
 
-            try
+            var currentGradYear = await GetCurrentGradYearAsync();
+            var availableGradYears = await _gradYearService.GetAvailableGradYearsAsync(publishedOnly);
+
+            return Ok(new
             {
-                _logger.LogInformation("Getting available years, publishedOnly: {PublishedOnly}", publishedOnly);
-
-                var currentGradYear = await GetCurrentGradYearAsync();
-                var availableGradYears = await _gradYearService.GetAvailableGradYearsAsync(publishedOnly);
-
-                return Ok(new
-                {
-                    CurrentGradYear = currentGradYear,
-                    AvailableGradYears = availableGradYears
-                });
-            }
-            catch (Exception ex)
-            {
-                return HandleException(ex, "Failed to retrieve available years");
-            }
+                CurrentGradYear = currentGradYear,
+                AvailableGradYears = availableGradYears
+            });
         }
 
         /// <summary>
@@ -694,24 +691,16 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             {
                 return BadRequest(ModelState);
             }
+            _logger.LogInformation("Getting initial page data, publishedOnly: {PublishedOnly}", publishedOnly);
 
-            try
+            var currentGradYear = await GetCurrentGradYearAsync();
+            var availableGradYears = await _gradYearService.GetAvailableGradYearsAsync(publishedOnly);
+
+            return Ok(new
             {
-                _logger.LogInformation("Getting initial page data, publishedOnly: {PublishedOnly}", publishedOnly);
-
-                var currentGradYear = await GetCurrentGradYearAsync();
-                var availableGradYears = await _gradYearService.GetAvailableGradYearsAsync(publishedOnly);
-
-                return Ok(new
-                {
-                    currentGradYear = currentGradYear,
-                    availableGradYears = availableGradYears,
-                });
-            }
-            catch (Exception ex)
-            {
-                return HandleException(ex, "Failed to retrieve initial page data");
-            }
+                currentGradYear = currentGradYear,
+                availableGradYears = availableGradYears,
+            });
         }
 
     }

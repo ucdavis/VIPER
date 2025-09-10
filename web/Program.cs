@@ -304,6 +304,10 @@ try
     });
 
     // Configure the HTTP request pipeline.
+
+    // Add correlation ID for all environments - must be early in pipeline
+    app.UseCorrelationId();
+
     if (!app.Environment.IsDevelopment())
     {
         app.UseForwardedHeaders();

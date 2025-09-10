@@ -145,7 +145,7 @@ namespace Viper.test.ClinicalScheduler
         }
 
         [Fact]
-        public async Task CanEditService_WithException_ReturnsInternalServerError()
+        public async Task CanEditService_WithException_ThrowsException()
         {
             // Arrange
             var testUser = CreateTestUser();
@@ -156,16 +156,13 @@ namespace Viper.test.ClinicalScheduler
             _mockPermissionService.Setup(s => s.HasEditPermissionForServiceAsync(serviceId, It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new Exception("Database error"));
 
-            // Act
-            var result = await _controller.CanEditService(serviceId);
-
-            // Assert
-            var objectResult = Assert.IsType<ObjectResult>(result.Result);
-            Assert.Equal(500, objectResult.StatusCode);
+            // Act & Assert - Controller throws exception, ApiExceptionFilter handles it in real scenarios
+            var exception = await Assert.ThrowsAsync<Exception>(() => _controller.CanEditService(serviceId));
+            Assert.Equal("Database error", exception.Message);
         }
 
         [Fact]
-        public async Task CanEditRotation_WithException_ReturnsInternalServerError()
+        public async Task CanEditRotation_WithException_ThrowsException()
         {
             // Arrange
             var testUser = CreateTestUser();
@@ -176,16 +173,13 @@ namespace Viper.test.ClinicalScheduler
             _mockPermissionService.Setup(s => s.HasEditPermissionForRotationAsync(rotationId, It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new Exception("Database error"));
 
-            // Act
-            var result = await _controller.CanEditRotation(rotationId);
-
-            // Assert
-            var objectResult = Assert.IsType<ObjectResult>(result.Result);
-            Assert.Equal(500, objectResult.StatusCode);
+            // Act & Assert - Controller throws exception, ApiExceptionFilter handles it in real scenarios
+            var exception = await Assert.ThrowsAsync<Exception>(() => _controller.CanEditRotation(rotationId));
+            Assert.Equal("Database error", exception.Message);
         }
 
         [Fact]
-        public async Task GetUserPermissions_WithException_ReturnsInternalServerError()
+        public async Task GetUserPermissions_WithException_ThrowsException()
         {
             // Arrange
             var testUser = CreateTestUser();
@@ -194,12 +188,9 @@ namespace Viper.test.ClinicalScheduler
             _mockPermissionService.Setup(s => s.GetUserServicePermissionsAsync(It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new Exception("Database error"));
 
-            // Act
-            var result = await _controller.GetUserPermissions();
-
-            // Assert
-            var objectResult = Assert.IsType<ObjectResult>(result.Result);
-            Assert.Equal(500, objectResult.StatusCode);
+            // Act & Assert - Controller throws exception, ApiExceptionFilter handles it in real scenarios
+            var exception = await Assert.ThrowsAsync<Exception>(() => _controller.GetUserPermissions());
+            Assert.Equal("Database error", exception.Message);
         }
     }
 }

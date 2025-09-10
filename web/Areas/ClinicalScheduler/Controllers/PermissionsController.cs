@@ -42,63 +42,56 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> GetUserPermissions()
         {
-            try
+            var user = _userHelper.GetCurrentUser();
+
+            if (user == null)
             {
-                var user = _userHelper.GetCurrentUser();
-
-                if (user == null)
-                {
-                    _logger.LogWarning("No current user found when getting user permissions");
-                    return Unauthorized(new { error = "User not authenticated" });
-                }
-
-                _logger.LogInformation("Getting permissions for user {MothraId}", user.MothraId);
-
-                // Get service permissions and editable services
-                var servicePermissions = await _permissionService.GetUserServicePermissionsAsync(HttpContext.RequestAborted);
-                var editableServices = await _permissionService.GetUserEditableServicesAsync(HttpContext.RequestAborted);
-
-                // Check for all permission levels
-                var rapsContext = HttpContext.RequestServices.GetRequiredService<RAPSContext>();
-                var hasAdminPermission = _userHelper.HasPermission(rapsContext, user, ClinicalSchedulePermissions.Admin);
-                var hasManagePermission = _userHelper.HasPermission(rapsContext, user, ClinicalSchedulePermissions.Manage);
-                var hasEditClnSchedulesPermission = _userHelper.HasPermission(rapsContext, user, ClinicalSchedulePermissions.EditClnSchedules);
-                var hasEditOwnSchedulePermission = _userHelper.HasPermission(rapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule);
-
-                var response = new
-                {
-                    user = new
-                    {
-                        mothraId = user.MothraId,
-                        displayName = user.DisplayFullName
-                    },
-                    permissions = new
-                    {
-                        hasAdminPermission = hasAdminPermission,
-                        hasManagePermission = hasManagePermission,
-                        hasEditClnSchedulesPermission = hasEditClnSchedulesPermission,
-                        hasEditOwnSchedulePermission = hasEditOwnSchedulePermission,
-                        servicePermissions = servicePermissions,
-                        editableServiceCount = editableServices.Count
-                    },
-                    editableServices = editableServices.Select(s => new
-                    {
-                        serviceId = s.ServiceId,
-                        serviceName = s.ServiceName,
-                        shortName = s.ShortName,
-                        scheduleEditPermission = s.ScheduleEditPermission
-                    }).ToList()
-                };
-
-                _logger.LogInformation("Retrieved permissions for user {MothraId}: hasManage={HasManage}, editableServices={EditableCount}",
-                    user.MothraId, hasManagePermission, editableServices.Count);
-
-                return Ok(response);
+                _logger.LogWarning("No current user found when getting user permissions");
+                return Unauthorized(new { error = "User not authenticated" });
             }
-            catch (Exception ex)
+
+            _logger.LogInformation("Getting permissions for user {MothraId}", user.MothraId);
+
+            // Get service permissions and editable services
+            var servicePermissions = await _permissionService.GetUserServicePermissionsAsync(HttpContext.RequestAborted);
+            var editableServices = await _permissionService.GetUserEditableServicesAsync(HttpContext.RequestAborted);
+
+            // Check for all permission levels
+            var rapsContext = HttpContext.RequestServices.GetRequiredService<RAPSContext>();
+            var hasAdminPermission = _userHelper.HasPermission(rapsContext, user, ClinicalSchedulePermissions.Admin);
+            var hasManagePermission = _userHelper.HasPermission(rapsContext, user, ClinicalSchedulePermissions.Manage);
+            var hasEditClnSchedulesPermission = _userHelper.HasPermission(rapsContext, user, ClinicalSchedulePermissions.EditClnSchedules);
+            var hasEditOwnSchedulePermission = _userHelper.HasPermission(rapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule);
+
+            var response = new
             {
-                return HandleException(ex, "Failed to retrieve user permissions");
-            }
+                user = new
+                {
+                    mothraId = user.MothraId,
+                    displayName = user.DisplayFullName
+                },
+                permissions = new
+                {
+                    hasAdminPermission = hasAdminPermission,
+                    hasManagePermission = hasManagePermission,
+                    hasEditClnSchedulesPermission = hasEditClnSchedulesPermission,
+                    hasEditOwnSchedulePermission = hasEditOwnSchedulePermission,
+                    servicePermissions = servicePermissions,
+                    editableServiceCount = editableServices.Count
+                },
+                editableServices = editableServices.Select(s => new
+                {
+                    serviceId = s.ServiceId,
+                    serviceName = s.ServiceName,
+                    shortName = s.ShortName,
+                    scheduleEditPermission = s.ScheduleEditPermission
+                }).ToList()
+            };
+
+            _logger.LogInformation("Retrieved permissions for user {MothraId}: hasManage={HasManage}, editableServices={EditableCount}",
+                user.MothraId, hasManagePermission, editableServices.Count);
+
+            return Ok(response);
         }
 
         /// <summary>
@@ -151,9 +144,11 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 return Ok(response);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return HandleException(ex, "Failed to check service edit permissions", "ServiceId", serviceId);
+                // Store context for ApiExceptionFilter to use in logging
+                SetExceptionContext("ServiceId", serviceId);
+                throw; // Let ApiExceptionFilter handle the response
             }
         }
 
@@ -205,9 +200,11 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 return Ok(response);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return HandleException(ex, "Failed to check rotation edit permissions", "RotationId", rotationId);
+                // Store context for ApiExceptionFilter to use in logging
+                SetExceptionContext("RotationId", rotationId);
+                throw; // Let ApiExceptionFilter handle the response
             }
         }
 
@@ -259,9 +256,11 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 return Ok(response);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return HandleException(ex, "Failed to check own schedule edit permissions", "InstructorScheduleId", instructorScheduleId);
+                // Store context for ApiExceptionFilter to use in logging
+                SetExceptionContext("InstructorScheduleId", instructorScheduleId);
+                throw; // Let ApiExceptionFilter handle the response
             }
         }
 
@@ -275,79 +274,72 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> GetPermissionSummary()
         {
-            try
+            var user = _userHelper.GetCurrentUser();
+
+            if (user == null)
             {
-                var user = _userHelper.GetCurrentUser();
+                _logger.LogWarning("No current user found when getting permission summary");
+                return Unauthorized(new { error = "User not authenticated" });
+            }
 
-                if (user == null)
-                {
-                    _logger.LogWarning("No current user found when getting permission summary");
-                    return Unauthorized(new { error = "User not authenticated" });
-                }
+            _logger.LogInformation("Getting permission summary for user {MothraId}", user.MothraId);
 
-                _logger.LogInformation("Getting permission summary for user {MothraId}", user.MothraId);
+            // Enforce elevated permission for full system-wide summary
+            var raps = HttpContext.RequestServices.GetRequiredService<RAPSContext>();
+            if (!_userHelper.HasPermission(raps, user, ClinicalSchedulePermissions.Manage))
+            {
+                _logger.LogWarning("User {MothraId} attempted to access full permission summary without manage permission", user.MothraId);
+                return Forbid();
+            }
 
-                // Enforce elevated permission for full system-wide summary
-                var raps = HttpContext.RequestServices.GetRequiredService<RAPSContext>();
-                if (!_userHelper.HasPermission(raps, user, ClinicalSchedulePermissions.Manage))
-                {
-                    _logger.LogWarning("User {MothraId} attempted to access full permission summary without manage permission", user.MothraId);
-                    return Forbid();
-                }
-
-                // Get all services and their permissions
-                var services = await _csContext.Services
-                    .AsNoTracking()
-                    .OrderBy(s => s.ServiceName)
-                    .Select(s => new
-                    {
-                        s.ServiceId,
-                        s.ServiceName,
-                        s.ShortName,
-                        s.ScheduleEditPermission
-                    })
-                    .ToListAsync(HttpContext.RequestAborted);
-
-                var userPermissions = await _permissionService.GetUserServicePermissionsAsync(HttpContext.RequestAborted);
-
-                var servicesWithPermissions = services.Select(s => new
+            // Get all services and their permissions
+            var services = await _csContext.Services
+                .AsNoTracking()
+                .OrderBy(s => s.ServiceName)
+                .Select(s => new
                 {
                     s.ServiceId,
                     s.ServiceName,
                     s.ShortName,
-                    hasCustomPermission = !string.IsNullOrEmpty(s.ScheduleEditPermission),
-                    userCanEdit = userPermissions.GetValueOrDefault(s.ServiceId, false)
-                }).ToList();
+                    s.ScheduleEditPermission
+                })
+                .ToListAsync(HttpContext.RequestAborted);
 
-                var totalEditableServices = servicesWithPermissions.Count(s => s.userCanEdit);
-                var servicesWithCustomPermissions = servicesWithPermissions.Count(s => s.hasCustomPermission);
+            var userPermissions = await _permissionService.GetUserServicePermissionsAsync(HttpContext.RequestAborted);
 
-                var response = new
-                {
-                    user = new
-                    {
-                        mothraId = user.MothraId,
-                        displayName = user.DisplayFullName
-                    },
-                    summary = new
-                    {
-                        totalServices = services.Count,
-                        editableServices = totalEditableServices,
-                        servicesWithCustomPermissions = servicesWithCustomPermissions,
-                        defaultPermission = ClinicalSchedulePermissions.Manage
-                    },
-                    services = servicesWithPermissions
-                };
-
-                _logger.LogInformation("Permission summary for user {MothraId}: total={Total}, editable={Editable}, custom={Custom}",
-                    user.MothraId, services.Count, totalEditableServices, servicesWithCustomPermissions);
-
-                return Ok(response);
-            }
-            catch (Exception ex)
+            var servicesWithPermissions = services.Select(s => new
             {
-                return HandleException(ex, "Failed to retrieve permission summary");
-            }
+                s.ServiceId,
+                s.ServiceName,
+                s.ShortName,
+                hasCustomPermission = !string.IsNullOrEmpty(s.ScheduleEditPermission),
+                userCanEdit = userPermissions.GetValueOrDefault(s.ServiceId, false)
+            }).ToList();
+
+            var totalEditableServices = servicesWithPermissions.Count(s => s.userCanEdit);
+            var servicesWithCustomPermissions = servicesWithPermissions.Count(s => s.hasCustomPermission);
+
+            var response = new
+            {
+                user = new
+                {
+                    mothraId = user.MothraId,
+                    displayName = user.DisplayFullName
+                },
+                summary = new
+                {
+                    totalServices = services.Count,
+                    editableServices = totalEditableServices,
+                    servicesWithCustomPermissions = servicesWithCustomPermissions,
+                    defaultPermission = ClinicalSchedulePermissions.Manage
+                },
+                services = servicesWithPermissions
+            };
+
+            _logger.LogInformation("Permission summary for user {MothraId}: total={Total}, editable={Editable}, custom={Custom}",
+                user.MothraId, services.Count, totalEditableServices, servicesWithCustomPermissions);
+
+            return Ok(response);
         }
     }
 }

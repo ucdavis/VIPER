@@ -222,12 +222,17 @@ namespace Viper.test.ClinicalScheduler.Integration
             // Setup authenticated HttpContext with required services
             SetupControllerContext(controller);
 
-            // Act & Assert - Verify error handling returns 500 ObjectResult instead of throwing
-            var result = await controller.GetRotation(999);
+            // Act & Assert - In unit tests, the ApiExceptionFilter doesn't run (not part of the pipeline)
+            // So we expect the exception to be thrown directly
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await controller.GetRotation(999)
+            );
 
-            // The controller catches exceptions and returns ObjectResult with 500 status
-            var objectResult = Assert.IsType<ObjectResult>(result.Result);
-            Assert.Equal(500, objectResult.StatusCode);
+            // Verify the exception message is as expected
+            Assert.Equal("Service error", exception.Message);
+
+            // Note: In production, the ApiExceptionFilter would catch this and return an ApiResponse
+            // with status code 500, but in unit tests we test the controller behavior directly
         }
 
         // NOTE: Removed PersonService_AAUDDataFetching_WorksCorrectly test

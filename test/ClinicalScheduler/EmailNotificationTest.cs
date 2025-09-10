@@ -456,5 +456,216 @@ namespace Viper.test.ClinicalScheduler
                 It.IsAny<string>()
             ), Times.Exactly(3));
         }
+
+        [Fact]
+        public async Task SetPrimaryEvaluatorAsync_ReplacingPrimaryEvaluator_SendsReplacementEmail()
+        {
+            // Arrange
+            var oldPrimaryMothraId = "oldprimary123";
+            var newPrimaryMothraId = "newprimary456";
+            var rotationId = 1;
+            var weekId = 1;
+            var weekNum = 15;
+
+            // Add test data
+            await AddTestPersonAsync(oldPrimaryMothraId, "Jane", "Smith");
+            await AddTestPersonAsync(newPrimaryMothraId, "John", "Doe");
+            // Add the current user person - need to manually set the display name to match expected output
+            if (!Context.Persons.Any(p => p.IdsMothraId == "currentuser"))
+            {
+                await Context.Persons.AddAsync(new Person
+                {
+                    IdsMothraId = "currentuser",
+                    PersonDisplayFullName = "Current User", // Set exact display name expected in test
+                    PersonDisplayLastName = "User",
+                    PersonDisplayFirstName = "Current"
+                });
+            }
+            await AddTestWeekGradYearAsync(weekId, 2025, weekNum);
+            await AddTestRotationAsync(rotationId, "Cardiology Rotation", "CARD");
+            await Context.SaveChangesAsync();
+
+            // Create existing primary evaluator and new instructor
+            var oldPrimarySchedule = TestDataBuilder.CreateInstructorSchedule(oldPrimaryMothraId, rotationId, weekId, true);
+            var newInstructorSchedule = TestDataBuilder.CreateInstructorSchedule(newPrimaryMothraId, rotationId, weekId, false);
+
+            await Context.InstructorSchedules.AddRangeAsync(oldPrimarySchedule, newInstructorSchedule);
+            await Context.SaveChangesAsync();
+
+            var user = TestDataBuilder.CreateUser("currentuser");
+            _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
+            _mockPermissionService.Setup(x => x.HasEditPermissionForRotationAsync(rotationId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorUnsetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ScheduleAudit());
+            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorSetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ScheduleAudit());
+
+            // Act - Set new instructor as primary evaluator (this should trigger replacement email)
+            var result = await _service.SetPrimaryEvaluatorAsync(newInstructorSchedule.InstructorScheduleId, true);
+
+            // Assert
+            Assert.True(result.success);
+
+            // Verify replacement email was sent with correct content including who made the change
+            _mockEmailService.Verify(x => x.SendEmailAsync(
+                It.Is<string>(to => to == _testEmailSettings.PrimaryEvaluatorRemoved.To[0]),
+                It.Is<string>(subject => subject == _testEmailSettings.PrimaryEvaluatorRemoved.Subject),
+                It.Is<string>(body => body.Contains("Primary evaluator") &&
+                                      body.Contains("(Jane Smith)") &&
+                                      body.Contains("removed from Cardiology Rotation week 15") &&
+                                      body.Contains("and replaced by Doe, John") &&
+                                      body.Contains("by Current User")),
+                It.Is<bool>(isHtml => !isHtml),
+                It.Is<string>(from => from == _testEmailSettings.PrimaryEvaluatorRemoved.From)
+            ), Times.Once);
+
+            // Verify audit logs were created for both unset and set
+            _mockAuditService.Verify(x => x.LogPrimaryEvaluatorUnsetAsync(oldPrimaryMothraId, rotationId, weekId,
+                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
+            _mockAuditService.Verify(x => x.LogPrimaryEvaluatorSetAsync(newPrimaryMothraId, rotationId, weekId,
+                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task AddInstructorAsync_AsPrimaryEvaluator_SendsReplacementEmail()
+        {
+            // Arrange
+            var oldPrimaryMothraId = "oldprimary789";
+            var newPrimaryMothraId = "newprimary012";
+            var rotationId = 50; // Use unique rotation ID to avoid conflict
+            var weekIds = new[] { 50 }; // Use unique week ID to avoid conflict
+            var weekNum = 15;
+            var testYear = 2025;
+
+            // Add test data
+            await AddTestPersonAsync(oldPrimaryMothraId, "Alice", "Johnson");
+            await AddTestPersonAsync(newPrimaryMothraId, "Bob", "Wilson");
+            // Add the current user person - need to manually set the display name to match expected output
+            if (!Context.Persons.Any(p => p.IdsMothraId == "currentuser"))
+            {
+                await Context.Persons.AddAsync(new Person
+                {
+                    IdsMothraId = "currentuser",
+                    PersonDisplayFullName = "Current User", // Set exact display name expected in test
+                    PersonDisplayLastName = "User",
+                    PersonDisplayFirstName = "Current"
+                });
+            }
+            await AddTestWeekGradYearAsync(weekIds[0], testYear, weekNum);
+            await AddTestRotationAsync(rotationId, "Surgery Rotation", "SURG");
+            await Context.SaveChangesAsync();
+
+            // Create existing primary evaluator
+            var oldPrimarySchedule = TestDataBuilder.CreateInstructorSchedule(oldPrimaryMothraId, rotationId, weekIds[0], true);
+            await Context.InstructorSchedules.AddAsync(oldPrimarySchedule);
+            await Context.SaveChangesAsync();
+
+            var user = TestDataBuilder.CreateUser("currentuser");
+            _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
+            _mockPermissionService.Setup(x => x.HasEditPermissionForRotationAsync(rotationId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            _mockAuditService.Setup(x => x.LogInstructorAddedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ScheduleAudit());
+            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorUnsetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ScheduleAudit());
+            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorSetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ScheduleAudit());
+
+            // Act - Add new instructor as primary evaluator (this should trigger replacement email)
+            var result = await _service.AddInstructorAsync(newPrimaryMothraId, rotationId, weekIds, testYear, true);
+
+            // Assert
+            Assert.NotEmpty(result);
+
+            // Verify replacement email was sent with correct content including who made the change
+            _mockEmailService.Verify(x => x.SendEmailAsync(
+                It.Is<string>(to => to == _testEmailSettings.PrimaryEvaluatorRemoved.To[0]),
+                It.Is<string>(subject => subject == _testEmailSettings.PrimaryEvaluatorRemoved.Subject),
+                It.Is<string>(body => body.Contains("Primary evaluator") &&
+                                      body.Contains("(Alice Johnson)") &&
+                                      body.Contains("removed from Surgery Rotation week 15") &&
+                                      body.Contains("and replaced by Wilson, Bob") &&
+                                      body.Contains("by Current User")),
+                It.Is<bool>(isHtml => !isHtml),
+                It.Is<string>(from => from == _testEmailSettings.PrimaryEvaluatorRemoved.From)
+            ), Times.Once);
+
+            // Verify audit logs were created
+            _mockAuditService.Verify(x => x.LogPrimaryEvaluatorUnsetAsync(oldPrimaryMothraId, rotationId, weekIds[0],
+                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
+            _mockAuditService.Verify(x => x.LogPrimaryEvaluatorSetAsync(newPrimaryMothraId, rotationId, weekIds[0],
+                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task SetPrimaryEvaluatorAsync_UnsettingPrimaryEvaluator_SendsRemovalOnlyEmail()
+        {
+            // Arrange
+            var primaryMothraId = "primary345";
+            var rotationId = 60; // Use unique rotation ID to avoid conflict
+            var weekId = 60; // Use unique week ID to avoid conflict
+            var weekNum = 15;
+
+            // Add test data
+            await AddTestPersonAsync(primaryMothraId, "Charlie", "Brown");
+            // Add the current user person - need to manually set the display name to match expected output
+            if (!Context.Persons.Any(p => p.IdsMothraId == "currentuser"))
+            {
+                await Context.Persons.AddAsync(new Person
+                {
+                    IdsMothraId = "currentuser",
+                    PersonDisplayFullName = "Current User", // Set exact display name expected in test
+                    PersonDisplayLastName = "User",
+                    PersonDisplayFirstName = "Current"
+                });
+            }
+            await AddTestWeekGradYearAsync(weekId, 2025, weekNum);
+            await AddTestRotationAsync(rotationId, "Neurology Rotation", "NEURO");
+            await Context.SaveChangesAsync();
+
+            // Create primary evaluator and another instructor (so unsetting is allowed)
+            var primarySchedule = TestDataBuilder.CreateInstructorSchedule(primaryMothraId, rotationId, weekId, true);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other789", rotationId, weekId, false);
+
+            await Context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
+            await Context.SaveChangesAsync();
+
+            var user = TestDataBuilder.CreateUser("currentuser");
+            _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
+            _mockPermissionService.Setup(x => x.HasEditPermissionForRotationAsync(rotationId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorUnsetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ScheduleAudit());
+
+            // Act - Unset primary evaluator (no replacement)
+            var result = await _service.SetPrimaryEvaluatorAsync(primarySchedule.InstructorScheduleId, false);
+
+            // Assert
+            Assert.True(result.success);
+
+            // Verify removal-only email was sent (without replacement text) but with who made the change
+            _mockEmailService.Verify(x => x.SendEmailAsync(
+                It.Is<string>(to => to == _testEmailSettings.PrimaryEvaluatorRemoved.To[0]),
+                It.Is<string>(subject => subject == _testEmailSettings.PrimaryEvaluatorRemoved.Subject),
+                It.Is<string>(body => body.Contains("Primary evaluator") &&
+                                      body.Contains("(Charlie Brown)") &&
+                                      body.Contains("removed from Neurology Rotation week 15") &&
+                                      !body.Contains("and replaced by") &&
+                                      body.Contains("by Current User")),
+                It.Is<bool>(isHtml => !isHtml),
+                It.Is<string>(from => from == _testEmailSettings.PrimaryEvaluatorRemoved.From)
+            ), Times.Once);
+
+            // Verify audit log was created
+            _mockAuditService.Verify(x => x.LogPrimaryEvaluatorUnsetAsync(primaryMothraId, rotationId, weekId,
+                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
+        }
     }
 }

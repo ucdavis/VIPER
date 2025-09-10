@@ -86,20 +86,5 @@ namespace Viper.Areas.ClinicalScheduler.Services
             int[] weekIds,
             CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Atomically set a primary evaluator for multiple weeks, clearing any existing primary evaluators
-        /// </summary>
-        /// <param name="mothraId">Instructor's MothraID to make primary</param>
-        /// <param name="rotationId">Rotation ID</param>
-        /// <param name="weekIds">Week IDs where this instructor should be primary</param>
-        /// <param name="modifiedByMothraId">User making the change</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>True if successfully updated</returns>
-        Task<bool> SetPrimaryEvaluatorForMultipleWeeksAsync(
-            string mothraId,
-            int rotationId,
-            int[] weekIds,
-            string modifiedByMothraId,
-            CancellationToken cancellationToken = default);
     }
 }

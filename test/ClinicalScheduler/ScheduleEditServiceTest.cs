@@ -323,6 +323,23 @@ namespace Viper.test.ClinicalScheduler
         public async Task SetPrimaryEvaluatorAsync_ValidSchedule_UpdatesSuccessfully()
         {
             // Arrange
+            // Add required test data first
+            await AddTestPersonAsync("test123");
+            await AddTestWeekGradYearAsync(1);
+
+            // Add rotation if it doesn't exist
+            if (!Context.Rotations.Any(r => r.RotId == 1))
+            {
+                await Context.Rotations.AddAsync(new Rotation
+                {
+                    RotId = 1,
+                    Name = "Test Rotation",
+                    Abbreviation = "TR",
+                    ServiceId = 1
+                });
+            }
+            await Context.SaveChangesAsync();
+
             var schedule = TestDataBuilder.CreateInstructorSchedule("test123", 1, 1, false);
             await Context.InstructorSchedules.AddAsync(schedule);
             await Context.SaveChangesAsync();
@@ -517,6 +534,24 @@ namespace Viper.test.ClinicalScheduler
             // Arrange
             var rotationId = 1;
             var weekId = 1;
+
+            // Add required test data first
+            await AddTestPersonAsync("test123");
+            await AddTestPersonAsync("test456");
+            await AddTestWeekGradYearAsync(weekId);
+
+            // Add rotation if it doesn't exist
+            if (!Context.Rotations.Any(r => r.RotId == rotationId))
+            {
+                await Context.Rotations.AddAsync(new Rotation
+                {
+                    RotId = rotationId,
+                    Name = "Test Rotation",
+                    Abbreviation = "TR",
+                    ServiceId = 1
+                });
+            }
+            await Context.SaveChangesAsync();
 
             // Create two instructor schedules for the same rotation/week
             var instructor1 = TestDataBuilder.CreateInstructorSchedule("test123", rotationId, weekId, true);  // Start as primary

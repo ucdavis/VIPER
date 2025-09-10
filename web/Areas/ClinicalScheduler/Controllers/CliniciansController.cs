@@ -51,69 +51,62 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetClinicians([FromQuery] int? year = null, [FromQuery] bool includeAllAffiliates = false, [FromQuery] string? viewContext = null)
         {
-            try
+            var currentGradYear = await GetCurrentGradYearAsync();
+            var targetYear = year ?? currentGradYear;
+
+            // Normalize and validate viewContext
+            var normalizedViewContext = NormalizeViewContext(viewContext);
+
+            _logger.LogDebug("GetClinicians endpoint called with year: {Year}, includeAllAffiliates: {IncludeAllAffiliates}, viewContext: {ViewContext} (normalized: {NormalizedViewContext})", targetYear, includeAllAffiliates, viewContext, normalizedViewContext);
+
+            if (targetYear >= currentGradYear)
             {
-                var currentGradYear = await GetCurrentGradYearAsync();
-                var targetYear = year ?? currentGradYear;
+                // Current or future year: use PersonService to get clinicians from Clinical Scheduler data
+                _logger.LogDebug("Using PersonService to get clinicians for current/future year {Year} (includeAllAffiliates: {IncludeAllAffiliates})", targetYear, includeAllAffiliates);
 
-                // Normalize and validate viewContext
-                var normalizedViewContext = NormalizeViewContext(viewContext);
+                // Fetch clinicians based on includeAllAffiliates flag
+                // true = all active employee affiliates from AAUD database
+                // false = only clinicians who have been scheduled (better data quality for scheduling purposes)
+                var clinicians = await GetAllCliniciansAsync(includeAllAffiliates);
 
-                _logger.LogDebug("GetClinicians endpoint called with year: {Year}, includeAllAffiliates: {IncludeAllAffiliates}, viewContext: {ViewContext} (normalized: {NormalizedViewContext})", targetYear, includeAllAffiliates, viewContext, normalizedViewContext);
+                // Filter clinicians based on user permissions and view context
+                var filteredClinicians = FilterCliniciansByPermissions(clinicians, normalizedViewContext);
 
-                if (targetYear >= currentGradYear)
+                // Convert to the expected response format
+                var result = filteredClinicians.Select(c => new
                 {
-                    // Current or future year: use PersonService to get clinicians from Clinical Scheduler data
-                    _logger.LogDebug("Using PersonService to get clinicians for current/future year {Year} (includeAllAffiliates: {IncludeAllAffiliates})", targetYear, includeAllAffiliates);
+                    MothraId = c.MothraId,
+                    FullName = c.FullName,
+                    FirstName = c.FirstName,
+                    LastName = c.LastName
+                }).ToList();
 
-                    // Fetch clinicians based on includeAllAffiliates flag
-                    // true = all active employee affiliates from AAUD database
-                    // false = only clinicians who have been scheduled (better data quality for scheduling purposes)
-                    var clinicians = await GetAllCliniciansAsync(includeAllAffiliates);
-
-                    // Filter clinicians based on user permissions and view context
-                    var filteredClinicians = FilterCliniciansByPermissions(clinicians, normalizedViewContext);
-
-                    // Convert to the expected response format
-                    var result = filteredClinicians.Select(c => new
-                    {
-                        MothraId = c.MothraId,
-                        FullName = c.FullName,
-                        FirstName = c.FirstName,
-                        LastName = c.LastName
-                    }).ToList();
-
-                    _logger.LogDebug("Retrieved {TotalClinicianCount} unique clinicians from PersonService (filtered to {FilteredCount} based on permissions for {ViewContext} view)",
-                        clinicians.Count, result.Count, viewContext ?? "default");
-                    return Ok(result);
-                }
-                else
-                {
-                    // Past year: use PersonService to get clinicians for specific year
-                    _logger.LogDebug("Using PersonService to get clinicians for past year {Year}", targetYear);
-
-                    var clinicians = await _personService.GetCliniciansByYearAsync(targetYear, HttpContext.RequestAborted);
-
-                    // Filter clinicians based on user permissions and view context
-                    var filteredClinicians = FilterCliniciansByPermissions(clinicians, normalizedViewContext);
-
-                    // Convert to the expected response format
-                    var result = filteredClinicians.Select(c => new
-                    {
-                        MothraId = c.MothraId,
-                        FullName = c.FullName,
-                        FirstName = c.FirstName,
-                        LastName = c.LastName
-                    }).ToList();
-
-                    _logger.LogDebug("Found {ClinicianCount} clinicians for year {Year} (filtered to {FilteredCount} based on permissions for {ViewContext} view)",
-                        clinicians.Count, targetYear, result.Count, viewContext ?? "default");
-                    return Ok(result);
-                }
+                _logger.LogDebug("Retrieved {TotalClinicianCount} unique clinicians from PersonService (filtered to {FilteredCount} based on permissions for {ViewContext} view)",
+                    clinicians.Count, result.Count, viewContext ?? "default");
+                return Ok(result);
             }
-            catch (Exception ex)
+            else
             {
-                return HandleException(ex, "An error occurred while fetching clinicians");
+                // Past year: use PersonService to get clinicians for specific year
+                _logger.LogDebug("Using PersonService to get clinicians for past year {Year}", targetYear);
+
+                var clinicians = await _personService.GetCliniciansByYearAsync(targetYear, HttpContext.RequestAborted);
+
+                // Filter clinicians based on user permissions and view context
+                var filteredClinicians = FilterCliniciansByPermissions(clinicians, normalizedViewContext);
+
+                // Convert to the expected response format
+                var result = filteredClinicians.Select(c => new
+                {
+                    MothraId = c.MothraId,
+                    FullName = c.FullName,
+                    FirstName = c.FirstName,
+                    LastName = c.LastName
+                }).ToList();
+
+                _logger.LogDebug("Found {ClinicianCount} clinicians for year {Year} (filtered to {FilteredCount} based on permissions for {ViewContext} view)",
+                    clinicians.Count, targetYear, result.Count, viewContext ?? "default");
+                return Ok(result);
             }
         }
 
@@ -342,7 +335,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
             catch (Exception ex)
             {
-                return HandleException(ex, "An error occurred while fetching the clinician schedule", "MothraId", mothraId);
+                // Store context for ApiExceptionFilter to use in logging
+                SetExceptionContext("MothraId", mothraId);
+                throw; // Let ApiExceptionFilter handle the response
             }
         }
 
@@ -387,7 +382,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
             catch (Exception ex)
             {
-                return HandleException(ex, "An error occurred while fetching clinician rotations", "MothraId", mothraId);
+                // Store context for ApiExceptionFilter to use in logging
+                SetExceptionContext("MothraId", mothraId);
+                throw; // Let ApiExceptionFilter handle the response
             }
         }
 

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.ClinicalScheduler.Controllers;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 
@@ -70,6 +71,10 @@ namespace Viper.test.ClinicalScheduler
             };
             _mockPersonService.Setup(x => x.GetCliniciansByYearAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(defaultCliniciansByYear);
+
+            // Setup WeekService to return empty list by default to avoid NullReferenceException
+            _mockWeekService.Setup(x => x.GetWeeksAsync(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new List<WeekDto>());
         }
 
         [Fact]
@@ -122,7 +127,7 @@ namespace Viper.test.ClinicalScheduler
 
             var result = await _controller.GetClinicianSchedule("67890"); // Requesting other user's schedule
 
-            Assert.IsType<ObjectResult>(result);
+            Assert.IsType<OkObjectResult>(result);
         }
 
         [Fact]
@@ -133,7 +138,7 @@ namespace Viper.test.ClinicalScheduler
 
             var result = await _controller.GetClinicianSchedule(TestUserMothraId);
 
-            Assert.IsType<ObjectResult>(result);
+            Assert.IsType<OkObjectResult>(result);
         }
 
         [Fact]
