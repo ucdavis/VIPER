@@ -159,7 +159,7 @@ namespace Viper.test.ClinicalScheduler
                 It.Is<string>(to => to == _testEmailSettings.PrimaryEvaluatorRemoved.To[0]),
                 It.Is<string>(subject => subject == _testEmailSettings.PrimaryEvaluatorRemoved.Subject),
                 It.Is<string>(body => body.Contains("Primary evaluator") &&
-                                      body.Contains("(John Doe)") &&
+                                      body.Contains("(Doe, John)") &&
                                       body.Contains("removed from Cardiology Rotation week 15")),
                 It.Is<bool>(isHtml => !isHtml),
                 It.Is<string>(from => from == _testEmailSettings.PrimaryEvaluatorRemoved.From)
@@ -356,7 +356,7 @@ namespace Viper.test.ClinicalScheduler
                 It.Is<string>(to => to == _testEmailSettings.PrimaryEvaluatorRemoved.To[0]),
                 It.Is<string>(subject => subject == _testEmailSettings.PrimaryEvaluatorRemoved.Subject),
                 It.Is<string>(body => body.Contains("Primary evaluator") &&
-                                      body.Contains("(Jane Smith)") &&
+                                      body.Contains("(Smith, Jane)") &&
                                       body.Contains("removed from Surgery Rotation week 99")), // Uses weekId as fallback
                 It.Is<bool>(isHtml => !isHtml),
                 It.Is<string>(from => from == _testEmailSettings.PrimaryEvaluatorRemoved.From)
@@ -514,7 +514,7 @@ namespace Viper.test.ClinicalScheduler
                 It.Is<string>(to => to == _testEmailSettings.PrimaryEvaluatorRemoved.To[0]),
                 It.Is<string>(subject => subject == _testEmailSettings.PrimaryEvaluatorRemoved.Subject),
                 It.Is<string>(body => body.Contains("Primary evaluator") &&
-                                      body.Contains("(Jane Smith)") &&
+                                      body.Contains("(Smith, Jane)") &&
                                       body.Contains("removed from Cardiology Rotation week 15") &&
                                       body.Contains("and replaced by Doe, John") &&
                                       body.Contains("by Current User")),
@@ -588,7 +588,7 @@ namespace Viper.test.ClinicalScheduler
                 It.Is<string>(to => to == _testEmailSettings.PrimaryEvaluatorRemoved.To[0]),
                 It.Is<string>(subject => subject == _testEmailSettings.PrimaryEvaluatorRemoved.Subject),
                 It.Is<string>(body => body.Contains("Primary evaluator") &&
-                                      body.Contains("(Alice Johnson)") &&
+                                      body.Contains("(Johnson, Alice)") &&
                                       body.Contains("removed from Surgery Rotation week 15") &&
                                       body.Contains("and replaced by Wilson, Bob") &&
                                       body.Contains("by Current User")),
@@ -655,7 +655,7 @@ namespace Viper.test.ClinicalScheduler
                 It.Is<string>(to => to == _testEmailSettings.PrimaryEvaluatorRemoved.To[0]),
                 It.Is<string>(subject => subject == _testEmailSettings.PrimaryEvaluatorRemoved.Subject),
                 It.Is<string>(body => body.Contains("Primary evaluator") &&
-                                      body.Contains("(Charlie Brown)") &&
+                                      body.Contains("(Brown, Charlie)") &&
                                       body.Contains("removed from Neurology Rotation week 15") &&
                                       !body.Contains("and replaced by") &&
                                       body.Contains("by Current User")),

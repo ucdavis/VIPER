@@ -7,8 +7,13 @@
         <q-card-section class="q-pa-sm">
             <!-- Week header -->
             <div class="text-center text-weight-medium text-grey-8 q-mb-sm row items-center justify-center q-gutter-xs">
+                <q-spinner-dots
+                    v-if="isLoading"
+                    size="1rem"
+                    color="primary"
+                />
                 <q-icon
-                    v-if="requiresPrimary && !hasPrimary"
+                    v-else-if="requiresPrimary && !hasPrimary"
                     name="warning"
                     size="xs"
                     color="orange"
@@ -154,6 +159,7 @@ interface Props {
     requiresPrimaryForWeek?: boolean
     showPrimaryToggle?: boolean
     additionalClasses?: string | string[] | Record<string, boolean>
+    isLoading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -163,6 +169,7 @@ const props = withDefaults(defineProps<Props>(), {
     requiresPrimaryForWeek: false,
     showPrimaryToggle: true,
     additionalClasses: "",
+    isLoading: false,
 })
 
 const emit = defineEmits<{
@@ -186,7 +193,7 @@ const emptyStateText = computed(() => {
 
 // Methods
 function handleClick() {
-    if (!props.isPastYear && props.canEdit) {
+    if (!props.isLoading && !props.isPastYear && props.canEdit) {
         emit("click", props.week)
     }
 }

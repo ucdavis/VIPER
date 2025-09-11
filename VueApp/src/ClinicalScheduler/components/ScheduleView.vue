@@ -49,6 +49,7 @@
                         :requires-primary-for-week="requiresPrimaryEvaluator(week)"
                         :show-primary-toggle="showPrimaryToggle"
                         :additional-classes="getWeekAdditionalClasses(week)"
+                        :is-loading="loadingWeekId === week.weekId"
                         @click="onWeekClick"
                         @remove-assignment="handleRemoveAssignment"
                         @toggle-primary="handleTogglePrimary"
@@ -134,6 +135,9 @@ interface Props {
     // Helper functions
     requiresPrimaryEvaluator?: WeekFn<boolean>
     getWeekAdditionalClasses?: WeekFn<string | string[] | Record<string, boolean>>
+
+    // Loading state
+    loadingWeekId?: number | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -156,6 +160,7 @@ const props = withDefaults(defineProps<Props>(), {
     getAssignments: undefined,
     requiresPrimaryEvaluator: undefined,
     getWeekAdditionalClasses: undefined,
+    loadingWeekId: null,
 })
 
 const emit = defineEmits<{

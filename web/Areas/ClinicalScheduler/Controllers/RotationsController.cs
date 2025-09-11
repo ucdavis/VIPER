@@ -529,7 +529,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         ? personData[i.MothraId].PersonDisplayFullName
                         : $"Person {i.MothraId}",
                     mothraId = i.MothraId,
-                    evaluator = i.Evaluator,
                     isPrimaryEvaluator = i.Evaluator
                 })
                 .ToList();

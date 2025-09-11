@@ -99,7 +99,8 @@
             <RecentSelections
                 v-if="selectedRotation && !isPastYear"
                 :items="clinicianItems"
-                :selected-item="selectedClinicianItem"
+                :selected-items="selectedClinicians"
+                :multi-select="true"
                 recent-label="Recent Clinicians:"
                 add-new-label="Add New Clinician:"
                 item-type="clinician"
@@ -109,7 +110,7 @@
                 selector-spacing="lg"
                 :is-loading="isLoadingSchedule"
                 empty-state-message="No recent clinicians. Please add a clinician below."
-                @select-item="selectClinicianItem"
+                @select-items="selectClinicianItems"
                 @clear-selection="clearClinicianSelection"
             >
                 <template #selector>
@@ -158,6 +159,7 @@
                 "
                 :requires-primary-evaluator="(week) => requiresPrimaryEvaluator(week)"
                 :get-week-additional-classes="(week) => ({ 'requires-primary-card': requiresPrimaryEvaluator(week) })"
+                :loading-week-id="loadingWeekId"
                 empty-state-message="Click to add clinician"
                 read-only-empty-message="No assignments"
                 warning-icon-title="Primary evaluator required for this week"
@@ -213,6 +215,7 @@ const selectedRotationId = ref<number | null>(null)
 const selectedRotation = ref<RotationWithService | null>(null)
 const selectedClinician = ref<string | null>(null)
 const selectedClinicianData = ref<{ fullName: string; mothraId: string } | null>(null)
+const selectedClinicians = ref<{ fullName: string; mothraId: string }[]>([])
 const rotations = ref<RotationWithService[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
@@ -232,6 +235,7 @@ const includeAllAffiliates = ref(false)
 const isAddingClinician = ref(false)
 const isRemovingClinician = ref(false)
 const isTogglingPrimary = ref(false)
+const loadingWeekId = ref<number | null>(null)
 
 // Year selection is now handled by YearSelector component
 
@@ -271,7 +275,7 @@ const clinicianItems = computed(() => {
     return items.sort((a, b) => a.fullName.localeCompare(b.fullName))
 })
 
-const selectedClinicianItem = computed(() => {
+const _selectedClinicianItem = computed(() => {
     if (!selectedClinician.value) return null
     return clinicianItems.value.find((item) => item.fullName === selectedClinician.value) || null
 })
@@ -320,6 +324,7 @@ function onRotationSelected(rotation: RotationWithService | null) {
     selectedRotationId.value = rotation ? rotation.rotId : null // Update rotation ID for URL
     selectedClinician.value = null // Reset clinician selection when rotation changes
     selectedClinicianData.value = null
+    selectedClinicians.value = []
 
     // Update URL with selected rotation
     void updateUrl()
@@ -405,14 +410,30 @@ async function loadScheduleData(rotationId: number) {
 }
 
 // Methods for RecentSelections component
-function selectClinicianItem(clinicianItem: { fullName: string; mothraId: string }) {
+function _selectClinicianItem(clinicianItem: { fullName: string; mothraId: string }) {
     selectedClinician.value = clinicianItem.fullName
     selectedClinicianData.value = clinicianItem
+}
+
+function selectClinicianItems(clinicianItems: { fullName: string; mothraId: string }[]) {
+    selectedClinicians.value = clinicianItems
+    // For backward compatibility, set single selection to the first item
+    if (clinicianItems.length > 0) {
+        const firstItem = clinicianItems[0]
+        if (firstItem) {
+            selectedClinician.value = firstItem.fullName
+            selectedClinicianData.value = firstItem
+        }
+    } else {
+        selectedClinician.value = null
+        selectedClinicianData.value = null
+    }
 }
 
 function clearClinicianSelection() {
     selectedClinician.value = null
     selectedClinicianData.value = null
+    selectedClinicians.value = []
 }
 
 function onAddClinicianSelected(clinician: Clinician | null) {
@@ -462,6 +483,18 @@ async function scheduleClinicianToWeek(week: WeekItem) {
         return // Silently ignore if no permission
     }
 
+    // Prevent multiple clicks while loading
+    if (loadingWeekId.value === week.weekId) {
+        return
+    }
+
+    // Handle multi-select mode
+    if (selectedClinicians.value.length > 0) {
+        await scheduleCliniciansToWeek(week)
+        return
+    }
+
+    // Backward compatibility: single clinician mode
     if (!selectedClinician.value) {
         $q.notify({
             type: "warning",
@@ -499,6 +532,7 @@ async function scheduleClinicianToWeek(week: WeekItem) {
     }
 
     isAddingClinician.value = true
+    loadingWeekId.value = week.weekId
 
     try {
         // Use the stored clinician data
@@ -549,7 +583,7 @@ async function scheduleClinicianToWeek(week: WeekItem) {
                 assignmentData: {
                     clinicianMothraId: clinician.mothraId,
                     clinicianName: selectedClinician.value || "",
-                    isPrimary: requiresPrimaryEvaluator(week),
+                    isPrimary: false,
                     gradYear: currentYear.value!,
                 },
             },
@@ -576,6 +610,181 @@ async function scheduleClinicianToWeek(week: WeekItem) {
         // Error notification removed - errors are now handled by GenericError component
     } finally {
         isAddingClinician.value = false
+        loadingWeekId.value = null
+    }
+}
+
+async function scheduleCliniciansToWeek(week: WeekItem) {
+    // Set loading state for this week
+    loadingWeekId.value = week.weekId
+
+    if (!selectedRotation.value) {
+        $q.notify({
+            type: "warning",
+            message: "Please select a rotation first",
+        })
+        loadingWeekId.value = null
+        return
+    }
+
+    if (selectedClinicians.value.length === 0) {
+        $q.notify({
+            type: "warning",
+            message: "Please select at least one clinician",
+        })
+        loadingWeekId.value = null
+        return
+    }
+
+    // Check permissions
+    if (selectedRotation.value.service && !permissionsStore.canEditService(selectedRotation.value.service.serviceId)) {
+        loadingWeekId.value = null
+        return
+    }
+
+    isAddingClinician.value = true
+
+    const existingAssignments = getWeekAssignments(week.weekId)
+    const alreadyScheduled: string[] = []
+    const toSchedule: { fullName: string; mothraId: string }[] = []
+
+    // Check for existing assignments
+    for (const clinician of selectedClinicians.value) {
+        const exists = existingAssignments.find((assignment) => assignment.clinicianName === clinician.fullName)
+        if (exists) {
+            alreadyScheduled.push(clinician.fullName)
+        } else {
+            toSchedule.push(clinician)
+        }
+    }
+
+    // Show info about already scheduled clinicians
+    if (alreadyScheduled.length > 0) {
+        $q.notify({
+            type: "info",
+            message: `${alreadyScheduled.join(" / ")} ${alreadyScheduled.length === 1 ? "is" : "are"} already scheduled for this week`,
+            timeout: 3000,
+        })
+    }
+
+    if (toSchedule.length === 0) {
+        isAddingClinician.value = false
+        loadingWeekId.value = null
+        return
+    }
+
+    try {
+        // Check for conflicts for all clinicians
+        const conflictPromises = toSchedule.map((clinician) =>
+            InstructorScheduleService.checkConflicts({
+                mothraId: clinician.mothraId,
+                rotationId: selectedRotation.value!.rotId,
+                weekIds: [week.weekId],
+                gradYear: currentYear.value!,
+            }),
+        )
+
+        const conflictResults = await Promise.all(conflictPromises)
+        const cliniciansWithConflicts: string[] = []
+
+        conflictResults.forEach((result, index) => {
+            if (result.result && result.result.length > 0 && result.result[0]) {
+                const clinician = toSchedule[index]
+                if (clinician) {
+                    cliniciansWithConflicts.push(clinician.fullName)
+                }
+            }
+        })
+
+        // If any have conflicts, show a single confirmation dialog
+        if (cliniciansWithConflicts.length > 0) {
+            const proceed = await new Promise<boolean>((resolve) => {
+                $q.dialog({
+                    title: "Other Rotation Assignments",
+                    message: `Note: ${cliniciansWithConflicts.join(" / ")} ${cliniciansWithConflicts.length === 1 ? "has" : "have"} other rotation assignments during this week. Do you want to add them to this rotation as well?`,
+                    persistent: true,
+                    ok: { label: "Yes, Add All", color: "primary" },
+                    cancel: { label: "Cancel", color: "grey" },
+                })
+                    .onOk(() => resolve(true))
+                    .onCancel(() => resolve(false))
+            })
+
+            if (!proceed) {
+                isAddingClinician.value = false
+                loadingWeekId.value = null
+                return
+            }
+        }
+
+        if (!scheduleData.value) {
+            throw new Error("Schedule data not available")
+        }
+
+        // Schedule all clinicians
+        let successCount = 0
+        let errorCount = 0
+        const schedulePromises: Promise<void>[] = []
+
+        for (const clinician of toSchedule) {
+            // Never automatically assign primary status - users must explicitly click the star
+            const shouldBePrimary = false
+
+            const promise = new Promise<void>((resolve) => {
+                addScheduleWithRollback(
+                    {
+                        scheduleData: scheduleData.value!,
+                        weekId: week.weekId,
+                        assignmentData: {
+                            clinicianMothraId: clinician.mothraId,
+                            clinicianName: clinician.fullName,
+                            isPrimary: shouldBePrimary,
+                            gradYear: currentYear.value!,
+                        },
+                    },
+                    {
+                        onSuccess: () => {
+                            successCount++
+                            resolve()
+                        },
+                        onError: () => {
+                            errorCount++
+                            resolve()
+                        },
+                    },
+                )
+            })
+
+            schedulePromises.push(promise)
+        }
+
+        // Wait for all operations to complete
+        await Promise.all(schedulePromises)
+
+        // Show summary notification
+        if (successCount > 0) {
+            $q.notify({
+                type: "positive",
+                message: `✓ Successfully scheduled ${successCount} clinician${successCount > 1 ? "s" : ""} to Week ${week.weekNumber}`,
+                timeout: 4000,
+            })
+        }
+        if (errorCount > 0) {
+            $q.notify({
+                type: "negative",
+                message: `Failed to schedule ${errorCount} clinician${errorCount > 1 ? "s" : ""}`,
+                timeout: 5000,
+            })
+        }
+    } catch (_error) {
+        $q.notify({
+            type: "negative",
+            message: "An error occurred while scheduling clinicians",
+            timeout: 5000,
+        })
+    } finally {
+        isAddingClinician.value = false
+        loadingWeekId.value = null
     }
 }
 

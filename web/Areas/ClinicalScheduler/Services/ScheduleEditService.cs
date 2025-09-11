@@ -651,7 +651,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                     if (person != null)
                     {
-                        instructorText = $"({person.PersonDisplayFirstName} {person.PersonDisplayLastName}) ";
+                        instructorText = $"({person.PersonDisplayLastName}, {person.PersonDisplayFirstName}) ";
                     }
                 }
                 catch (Exception ex)

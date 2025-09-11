@@ -11,10 +11,17 @@
                     <div class="row items-center q-gutter-sm q-mb-xs">
                         <div class="text-body2 text-weight-medium">
                             {{ recentLabel }}
+                            <q-badge
+                                v-if="selectedItemsSet.size > 1"
+                                color="primary"
+                                class="q-ml-sm"
+                            >
+                                {{ selectedItemsSet.size }} selected
+                            </q-badge>
                         </div>
                         <!-- Clear selection button -->
                         <q-btn
-                            v-if="selectedItem"
+                            v-if="selectedItemsSet.size > 0"
                             flat
                             color="grey-7"
                             size="xs"
@@ -30,13 +37,13 @@
                         <q-chip
                             v-for="item in items"
                             :key="getItemKey(item)"
-                            :color="isSelected(item) ? 'primary' : undefined"
-                            :text-color="isSelected(item) ? 'white' : 'dark'"
-                            :outline="!isSelected(item)"
+                            :color="isItemSelected(item) ? 'primary' : undefined"
+                            :text-color="isItemSelected(item) ? 'white' : 'dark'"
+                            :outline="!isItemSelected(item)"
                             clickable
                             size="sm"
                             class="q-mr-xs"
-                            @click="selectItem(item)"
+                            @click="toggleItemSelection(item)"
                         >
                             {{ getItemDisplayName(item) }}
                         </q-chip>
@@ -48,6 +55,15 @@
                         >
                             {{ emptyStateMessage }}
                         </div>
+                    </div>
+
+                    <!-- Helper text for multi-select -->
+                    <div
+                        v-if="selectedItemsSet.size > 0"
+                        class="text-body2 text-grey-7 q-mt-xs"
+                    >
+                        Click any week to schedule all {{ selectedItemsSet.size }} selected {{ itemType
+                        }}{{ selectedItemsSet.size > 1 ? "s" : "" }}
                     </div>
                 </div>
 
@@ -75,10 +91,14 @@
 </template>
 
 <script setup lang="ts" generic="T extends Record<string, any>">
+import { ref, watch } from "vue"
+
 const props = withDefaults(
     defineProps<{
         items: T[]
-        selectedItem: T | null
+        selectedItem?: T | null
+        localSelectedItems?: T[]
+        multiSelect?: boolean
         recentLabel: string
         addNewLabel: string
         itemType: string
@@ -90,6 +110,9 @@ const props = withDefaults(
         emptyStateMessage?: string
     }>(),
     {
+        selectedItem: null,
+        localSelectedItems: () => [],
+        multiSelect: false,
         labelSpacing: "xs",
         selectorSpacing: "none",
         isLoading: false,
@@ -99,8 +122,35 @@ const props = withDefaults(
 
 const emit = defineEmits<{
     "select-item": [item: T]
+    "select-items": [items: T[]]
     "clear-selection": []
 }>()
+
+const selectedItemsSet = ref<Set<string | number>>(new Set())
+
+watch(
+    () => props.selectedItem,
+    (newItem) => {
+        if (!props.multiSelect && newItem) {
+            selectedItemsSet.value.clear()
+            selectedItemsSet.value.add(getItemKey(newItem))
+        }
+    },
+    { immediate: true },
+)
+
+watch(
+    () => props.localSelectedItems,
+    (newItems) => {
+        if (props.multiSelect && newItems) {
+            selectedItemsSet.value.clear()
+            newItems.forEach((item) => {
+                selectedItemsSet.value.add(getItemKey(item))
+            })
+        }
+    },
+    { immediate: true, deep: true },
+)
 
 function getItemKey(item: T): string | number {
     return item[props.itemKeyField] as string | number
@@ -110,17 +160,38 @@ function getItemDisplayName(item: T): string {
     return String(item[props.itemDisplayField])
 }
 
-function isSelected(item: T): boolean {
-    if (!props.selectedItem) return false
-    return getItemKey(item) === getItemKey(props.selectedItem)
+function isItemSelected(item: T): boolean {
+    return selectedItemsSet.value.has(getItemKey(item))
 }
 
-function selectItem(item: T): void {
-    emit("select-item", item)
+function toggleItemSelection(item: T): void {
+    const key = getItemKey(item)
+
+    if (props.multiSelect) {
+        // Create a new Set for reactivity
+        const newSelectedItems = new Set(selectedItemsSet.value)
+        if (newSelectedItems.has(key)) {
+            newSelectedItems.delete(key)
+        } else {
+            newSelectedItems.add(key)
+        }
+        selectedItemsSet.value = newSelectedItems
+
+        const localSelectedItemsArray = props.items.filter((item) => selectedItemsSet.value.has(getItemKey(item)))
+        emit("select-items", localSelectedItemsArray)
+    } else {
+        selectedItemsSet.value.clear()
+        selectedItemsSet.value.add(key)
+        emit("select-item", item)
+    }
 }
 
 function clearSelection(): void {
+    selectedItemsSet.value = new Set()
     emit("clear-selection")
+    if (props.multiSelect) {
+        emit("select-items", [])
+    }
 }
 </script>
 

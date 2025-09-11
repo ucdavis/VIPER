@@ -97,7 +97,8 @@
                 <RecentSelections
                     v-if="!isPastYear"
                     :items="rotationItems"
-                    :selected-item="(selectedRotation as RotationWithService) || null"
+                    :selected-items="selectedRotations"
+                    :multi-select="true"
                     recent-label="Recent Rotations:"
                     add-new-label="Add New Rotation:"
                     item-type="rotation"
@@ -106,8 +107,8 @@
                     selector-spacing="none"
                     :is-loading="loadingSchedule"
                     empty-state-message="No recent rotations. Please add a rotation below."
-                    @select-item="selectRotation"
-                    @clear-selection="selectedRotation = null"
+                    @select-items="selectRotations"
+                    @clear-selection="clearRotationSelection"
                 >
                     <template #selector>
                         <RotationSelector
@@ -140,6 +141,7 @@
                     make-primary-title="Click to make this clinician the primary evaluator."
                     :get-assignments="getClinicianWeekAssignments"
                     :requires-primary-evaluator="() => false"
+                    :loading-week-id="loadingWeekId"
                     @week-click="onWeekClick"
                     @remove-assignment="handleRemoveRotation"
                     @toggle-primary="handleTogglePrimary"
@@ -207,6 +209,7 @@ const selectedClinician = ref<Clinician | null>(null)
 const clinicianSchedule = ref<ClinicianScheduleData | null>(null)
 const clinicianRotations = ref<ClinicianRotationItem[]>([])
 const selectedRotation = ref<ClinicianRotationItem | null>(null)
+const selectedRotations = ref<RotationWithService[]>([])
 const selectedNewRotationId = ref<number | null>(null)
 const additionalRotation = ref<RotationWithService | null>(null)
 const loadingSchedule = ref(false)
@@ -220,6 +223,7 @@ const urlMothraId = ref<string | null>(null)
 const isAddingRotation = ref(false)
 const isRemovingRotation = ref(false)
 const isTogglingPrimary = ref(false)
+const loadingWeekId = ref<number | null>(null)
 
 const isPastYear = computed(() => {
     return currentYear.value !== null && currentYear.value < currentGradYear.value
@@ -291,6 +295,9 @@ function getClinicianWeekAssignments(week: WeekItem): ScheduleAssignment[] {
         }))
 }
 
+// Alias for consistency with bulk scheduling function
+const getWeekAssignments = getClinicianWeekAssignments
+
 const fetchClinicianSchedule = async (mothraId: string) => {
     loadingSchedule.value = true
     scheduleError.value = null
@@ -352,6 +359,10 @@ const fetchClinicianSchedule = async (mothraId: string) => {
 }
 
 const onClinicianChange = (clinician: Clinician | null) => {
+    // Clear rotation selections when changing clinicians
+    selectedRotation.value = null
+    selectedRotations.value = []
+
     if (clinician) {
         const query: Record<string, string | number> = {}
         if (currentYear.value !== null && currentYear.value !== new Date().getFullYear()) {
@@ -477,11 +488,38 @@ const handleClinicianSelectorReady = (clinicians: Clinician[]) => {
     }
 }
 
-const selectRotation = (rotation: ClinicianRotationItem | RotationWithService) => {
+const _selectRotation = (rotation: ClinicianRotationItem | RotationWithService) => {
     selectedRotation.value = rotation as ClinicianRotationItem
 }
 
+const selectRotations = (rotations: RotationWithService[]) => {
+    selectedRotations.value = rotations
+    // For backward compatibility, set single selection to the first item
+    if (rotations.length > 0) {
+        selectedRotation.value = rotations[0] as ClinicianRotationItem
+    } else {
+        selectedRotation.value = null
+    }
+}
+
+const clearRotationSelection = () => {
+    selectedRotation.value = null
+    selectedRotations.value = []
+}
+
 const scheduleRotationToWeek = async (week: WeekItem) => {
+    // Prevent multiple clicks while loading
+    if (loadingWeekId.value === week.weekId) {
+        return
+    }
+
+    // Handle multi-select mode
+    if (selectedRotations.value.length > 0) {
+        await scheduleRotationsToWeek(week)
+        return
+    }
+
+    // Backward compatibility: single rotation mode
     if (!selectedRotation.value || !selectedClinician.value) return
     if (!clinicianSchedule.value) return
 
@@ -495,6 +533,7 @@ const scheduleRotationToWeek = async (week: WeekItem) => {
     }
 
     isAddingRotation.value = true
+    loadingWeekId.value = week.weekId
 
     const currentSelectedRotation = selectedRotation.value
     const currentAdditionalRotation = additionalRotation.value
@@ -584,6 +623,170 @@ const scheduleRotationToWeek = async (week: WeekItem) => {
         // Error already handled by onError callback
     } finally {
         isAddingRotation.value = false
+        loadingWeekId.value = null
+    }
+}
+
+const scheduleRotationsToWeek = async (week: WeekItem) => {
+    // Set loading state for this week
+    loadingWeekId.value = week.weekId
+
+    if (!selectedClinician.value || !clinicianSchedule.value) {
+        loadingWeekId.value = null
+        return
+    }
+
+    if (selectedRotations.value.length === 0) {
+        $q.notify({
+            type: "warning",
+            message: "Please select at least one rotation",
+        })
+        loadingWeekId.value = null
+        return
+    }
+
+    isAddingRotation.value = true
+
+    const existingAssignments = getWeekAssignments(week)
+    const alreadyScheduled: string[] = []
+    const toSchedule: RotationWithService[] = []
+
+    // Check for existing assignments
+    for (const rotation of selectedRotations.value) {
+        const exists = existingAssignments.some((assignment) => assignment.rotationId === rotation.rotId)
+        if (exists) {
+            alreadyScheduled.push(rotation.name || "Unknown rotation")
+        } else if (canEditRotation(rotation.rotId)) {
+            toSchedule.push(rotation)
+        }
+    }
+
+    // Show info about already scheduled rotations
+    if (alreadyScheduled.length > 0) {
+        $q.notify({
+            type: "info",
+            message: `${alreadyScheduled.join(" / ")} ${alreadyScheduled.length === 1 ? "is" : "are"} already scheduled for this week`,
+            timeout: 3000,
+        })
+    }
+
+    if (toSchedule.length === 0) {
+        isAddingRotation.value = false
+        loadingWeekId.value = null
+        return
+    }
+
+    try {
+        // Check for conflicts for all rotations
+        const conflictPromises = toSchedule.map((rotation) =>
+            InstructorScheduleService.checkConflicts({
+                mothraId: selectedClinician.value!.mothraId,
+                rotationId: rotation.rotId,
+                weekIds: [week.weekId],
+                gradYear: currentYear.value!,
+            }),
+        )
+
+        const conflictResults = await Promise.all(conflictPromises)
+        const rotationsWithConflicts: string[] = []
+
+        conflictResults.forEach((result, index) => {
+            if (result.result && result.result.length > 0) {
+                const rotation = toSchedule[index]
+                if (rotation) {
+                    const conflictNames = result.result.map((c) => c.name).join(", ")
+                    if (conflictNames && !conflictNames.includes(rotation.name || "")) {
+                        rotationsWithConflicts.push(rotation.name || "Unknown rotation")
+                    }
+                }
+            }
+        })
+
+        // If any have conflicts, show a single confirmation dialog
+        if (rotationsWithConflicts.length > 0) {
+            const proceed = await new Promise<boolean>((resolve) => {
+                $q.dialog({
+                    title: "Multiple Rotation Assignments",
+                    message: `${selectedClinician.value!.fullName} has other rotation assignments during this week. Do you want to add the selected rotations as additional assignments?`,
+                    persistent: true,
+                    ok: { label: "Yes, Add All", color: "primary" },
+                    cancel: { label: "Cancel", color: "grey" },
+                })
+                    .onOk(() => resolve(true))
+                    .onCancel(() => resolve(false))
+            })
+
+            if (!proceed) {
+                isAddingRotation.value = false
+                loadingWeekId.value = null
+                return
+            }
+        }
+
+        // Schedule all rotations
+        let successCount = 0
+        let errorCount = 0
+        const schedulePromises: Promise<void>[] = []
+
+        for (const rotation of toSchedule) {
+            const promise = new Promise<void>((resolve) => {
+                addScheduleWithRollback(
+                    {
+                        scheduleData: clinicianSchedule.value!,
+                        weekId: week.weekId,
+                        assignmentData: {
+                            rotationId: rotation.rotId,
+                            rotationName: rotation.name,
+                            rotationAbbreviation: rotation.abbreviation,
+                            serviceId: rotation.service?.serviceId,
+                            serviceName: rotation.service?.serviceName,
+                            isPrimary: false,
+                            gradYear: currentYear.value || currentGradYear.value,
+                        },
+                    },
+                    {
+                        onSuccess: () => {
+                            successCount++
+                            resolve()
+                        },
+                        onError: () => {
+                            errorCount++
+                            resolve()
+                        },
+                    },
+                )
+            })
+
+            schedulePromises.push(promise)
+        }
+
+        // Wait for all operations to complete
+        await Promise.all(schedulePromises)
+
+        // Show summary notification
+        if (successCount > 0) {
+            $q.notify({
+                type: "positive",
+                message: `✓ Successfully scheduled ${successCount} rotation${successCount > 1 ? "s" : ""} to Week ${week.weekNumber}`,
+                timeout: 4000,
+            })
+        }
+        if (errorCount > 0) {
+            $q.notify({
+                type: "negative",
+                message: `Failed to schedule ${errorCount} rotation${errorCount > 1 ? "s" : ""}`,
+                timeout: 5000,
+            })
+        }
+    } catch (_error) {
+        $q.notify({
+            type: "negative",
+            message: "An error occurred while scheduling rotations",
+            timeout: 5000,
+        })
+    } finally {
+        isAddingRotation.value = false
+        loadingWeekId.value = null
     }
 }
 
