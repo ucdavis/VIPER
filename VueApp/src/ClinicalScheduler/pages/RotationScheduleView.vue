@@ -99,7 +99,7 @@
             <RecentSelections
                 v-if="selectedRotation && !isPastYear"
                 :items="clinicianItems"
-                :selected-items="selectedClinicians"
+                :local-selected-items="selectedClinicians"
                 :multi-select="true"
                 recent-label="Recent Clinicians:"
                 add-new-label="Add New Clinician:"
@@ -117,6 +117,13 @@
                 @clear-selection="clearClinicianSelection"
                 @schedule-selected="scheduleBulkCliniciansToWeeks"
             >
+                <template #before-dropdown>
+                    <PrimaryEvaluatorToggle
+                        v-model="makePrimaryEvaluator"
+                        :selection-count="selectedClinicians.length"
+                        item-type="clinician"
+                    />
+                </template>
                 <template #selector>
                     <ClinicianSelector
                         :model-value="null"
@@ -195,6 +202,7 @@ import { useScheduleUpdatesWithRollback } from "../composables/use-optimistic-sc
 import { useScheduleNormalization } from "../composables/use-schedule-normalization"
 import RotationSelector from "../components/RotationSelector.vue"
 import ClinicianSelector from "../components/ClinicianSelector.vue"
+import PrimaryEvaluatorToggle from "../components/PrimaryEvaluatorToggle.vue"
 import YearSelector from "../components/YearSelector.vue"
 import SchedulerNavigation from "../components/SchedulerNavigation.vue"
 import type { WeekItem } from "../components/WeekScheduleCard.vue"
@@ -245,6 +253,9 @@ const isAddingClinician = ref(false)
 const isRemovingClinician = ref(false)
 const isTogglingPrimary = ref(false)
 const loadingWeekId = ref<number | null>(null)
+
+// Primary evaluator checkbox state
+const makePrimaryEvaluator = ref(false)
 
 // Year selection is now handled by YearSelector component
 
@@ -477,6 +488,9 @@ function onAddClinicianSelected(clinician: Clinician | null) {
         selectedClinician.value = clinician.fullName
         selectedClinicianData.value = clinicianData
 
+        // Also update the multi-select array to auto-select the newly added clinician
+        selectedClinicians.value = [clinicianData]
+
         // If we need to reload schedule data to get updated recent clinicians,
         // that will happen automatically after adding them to a week
     }
@@ -573,8 +587,7 @@ async function scheduleCliniciansToBulkWeeks() {
                         RotationId: selectedRotation.value!.rotId,
                         WeekIds: [weekId],
                         GradYear: currentYear.value!,
-                        IsPrimaryEvaluator:
-                            week.requiresPrimaryEvaluator === true && getWeekAssignments(weekId).length === 0,
+                        IsPrimaryEvaluator: makePrimaryEvaluator.value,
                     })
                     successCount++
                 } else {
@@ -728,7 +741,7 @@ async function scheduleClinicianToWeek(week: WeekItem) {
                 assignmentData: {
                     clinicianMothraId: clinician.mothraId,
                     clinicianName: selectedClinician.value || "",
-                    isPrimary: false,
+                    isPrimary: makePrimaryEvaluator.value,
                     gradYear: currentYear.value!,
                 },
             },
@@ -872,8 +885,8 @@ async function scheduleCliniciansToWeek(week: WeekItem) {
         const schedulePromises: Promise<void>[] = []
 
         for (const clinician of toSchedule) {
-            // Never automatically assign primary status - users must explicitly click the star
-            const shouldBePrimary = false
+            // Use checkbox value when single clinician is selected
+            const shouldBePrimary = selectedClinicians.value.length === 1 ? makePrimaryEvaluator.value : false
 
             const promise = new Promise<void>((resolve) => {
                 addScheduleWithRollback(

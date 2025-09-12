@@ -164,7 +164,6 @@ namespace Viper.test.ClinicalScheduler
                 RapsContext?.Dispose();
             }
             base.Dispose(disposing);
-            GC.SuppressFinalize(this);
         }
     }
 }

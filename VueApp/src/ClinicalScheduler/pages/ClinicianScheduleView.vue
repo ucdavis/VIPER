@@ -90,7 +90,7 @@
                 <RecentSelections
                     v-if="!isPastYear"
                     :items="rotationItems"
-                    :selected-items="selectedRotations"
+                    :local-selected-items="selectedRotations"
                     :multi-select="true"
                     :recent-label="SCHEDULE_LABELS.RECENT_ROTATIONS"
                     :add-new-label="SCHEDULE_LABELS.ADD_NEW_ROTATION"
@@ -107,6 +107,13 @@
                     @clear-selection="clearRotationSelection"
                     @schedule-selected="handleScheduleSelected"
                 >
+                    <template #before-dropdown>
+                        <PrimaryEvaluatorToggle
+                            v-model="makePrimaryEvaluator"
+                            :selection-count="selectedRotations.length"
+                            item-type="rotation"
+                        />
+                    </template>
                     <template #selector>
                         <RotationSelector
                             v-model="selectedNewRotationId"
@@ -156,6 +163,7 @@ import { ref, computed, watch, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
 import ClinicianSelector from "../components/ClinicianSelector.vue"
+import PrimaryEvaluatorToggle from "../components/PrimaryEvaluatorToggle.vue"
 import YearSelector from "../components/YearSelector.vue"
 import RotationSelector from "../components/RotationSelector.vue"
 import SchedulerNavigation from "../components/SchedulerNavigation.vue"
@@ -228,6 +236,9 @@ const isRemovingRotation = ref(false)
 const isTogglingPrimary = ref(false)
 const loadingWeekId = ref<number | null>(null)
 const selectedWeekIds = ref<number[]>([])
+
+// Primary evaluator checkbox state
+const makePrimaryEvaluator = ref(false)
 
 // Component refs
 const scheduleViewRef = ref<any>(null)
@@ -605,7 +616,7 @@ const scheduleRotationToWeek = async (week: WeekItem) => {
                     rotationAbbreviation: selectedRotation.value.abbreviation,
                     serviceId: selectedRotation.value.serviceId,
                     serviceName: selectedRotation.value.serviceName,
-                    isPrimary: false,
+                    isPrimary: makePrimaryEvaluator.value,
                     gradYear: currentYear.value || currentGradYear.value,
                 },
             },
@@ -754,7 +765,7 @@ const scheduleBulkRotationsToWeeks = async () => {
                                 rotationAbbreviation: rotation.abbreviation,
                                 serviceId: rotation.service?.serviceId,
                                 serviceName: rotation.service?.serviceName,
-                                isPrimary: false,
+                                isPrimary: makePrimaryEvaluator.value,
                                 gradYear: currentYear.value || currentGradYear.value,
                             },
                         },
@@ -926,7 +937,7 @@ const scheduleRotationsToWeek = async (week: WeekItem) => {
                             rotationAbbreviation: rotation.abbreviation,
                             serviceId: rotation.service?.serviceId,
                             serviceName: rotation.service?.serviceName,
-                            isPrimary: false,
+                            isPrimary: makePrimaryEvaluator.value,
                             gradYear: currentYear.value || currentGradYear.value,
                         },
                     },
@@ -1165,6 +1176,9 @@ const onAddRotationSelected = (rotation: RotationWithService | null) => {
 
         additionalRotation.value = rotationData
         selectedRotation.value = rotationData
+
+        // Also update the multi-select array to auto-select the newly added rotation
+        selectedRotations.value = [rotationData]
     }
 
     selectedNewRotationId.value = null
@@ -1211,6 +1225,7 @@ watch(
 )
 
 // Watch for changes to selectedClinician and fetch schedule data
+
 watch(
     selectedClinician,
     (newClinician, oldClinician) => {

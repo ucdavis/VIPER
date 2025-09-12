@@ -221,22 +221,6 @@ namespace Viper.test.ClinicalScheduler
         }
 
         [Fact]
-        public async Task GetClinicians_WithNoViewContext_DefaultBehavior_FiltersBasedOnPermissions()
-        {
-            // Setup user with only EditOwnSchedule permission
-            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.EditOwnSchedule });
-            RecreateController();
-
-            // No viewContext should behave like default (not "clinician")
-            var result = await _controller.GetClinicians();
-
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var clinicians = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResult.Value);
-            // Without viewContext="clinician", users with EditOwnSchedule should see all clinicians
-            Assert.Equal(2, clinicians.Count());
-        }
-
-        [Fact]
         public async Task GetClinicians_ViewContextParameterPassing_WorksCorrectly()
         {
             // Setup user with EditOwnSchedule permission

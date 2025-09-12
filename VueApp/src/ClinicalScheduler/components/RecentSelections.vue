@@ -64,6 +64,9 @@
                     </div>
                 </div>
 
+                <!-- Before dropdown section slot for additional controls like primary evaluator checkbox -->
+                <slot name="before-dropdown" />
+
                 <!-- Dropdown section -->
                 <div>
                     <div
@@ -72,6 +75,10 @@
                     >
                         {{ addNewLabel }}
                     </div>
+
+                    <!-- Before selector slot (kept for backward compatibility) -->
+                    <slot name="before-selector" />
+
                     <div
                         v-if="selectorSpacing !== 'none'"
                         :class="`q-mb-${selectorSpacing}`"
@@ -82,6 +89,9 @@
                         <slot name="selector" />
                     </div>
                 </div>
+
+                <!-- After selector slot (kept for backward compatibility) -->
+                <slot name="after-selector" />
             </div>
         </q-card-section>
 
