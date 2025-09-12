@@ -4,7 +4,7 @@
 
         <!-- Loading permissions state - show this until we have permission data -->
         <div
-            v-if="permissionsStore.isLoading || !permissionsStore.userPermissions"
+            v-if="isLoadingPermissions"
             class="text-center q-my-lg"
         >
             <q-spinner-dots
@@ -16,7 +16,7 @@
 
         <!-- Access denied for users with rotation-specific permissions -->
         <AccessDeniedCard
-            v-else-if="!permissionsStore.canAccessClinicianView"
+            v-else-if="!canAccessClinicianView"
             :message="ACCESS_DENIED_MESSAGES.CLINICIAN_VIEW"
             :subtitle="ACCESS_DENIED_SUBTITLES.CLINICIAN_VIEW"
         >
@@ -41,7 +41,7 @@
                                 :year="currentYear"
                                 :include-all-affiliates="includeAllAffiliates"
                                 :show-affiliates-toggle="true"
-                                :is-own-schedule-only="permissionsStore.hasClinicianViewReadOnly"
+                                :is-own-schedule-only="hasClinicianViewReadOnly"
                                 @change="onClinicianChange"
                                 @update:include-all-affiliates="includeAllAffiliates = $event"
                                 @clinicians-loaded="handleClinicianSelectorReady"
@@ -77,18 +77,11 @@
                 type="read-only"
             />
 
-            <!-- Instructions (only show when clinician is selected and not past year) -->
-            <ScheduleBanner
-                v-if="selectedClinician && !isPastYear && !hasNoAssignments"
-                type="instructions"
-                custom-message="This list of rotations should contain any rotations this clinician is scheduled for in the current or previous year. Click on a rotation to select it and then click on any week to schedule the clinician."
-            />
-
             <!-- No clinician selected -->
             <ScheduleBanner
                 v-if="!selectedClinician && !loadingSchedule"
                 type="info"
-                custom-message="Please select a clinician to view their schedule."
+                :custom-message="SCHEDULE_MESSAGES.SELECTION.NO_CLINICIAN"
             />
 
             <!-- Schedule display -->
@@ -99,16 +92,20 @@
                     :items="rotationItems"
                     :selected-items="selectedRotations"
                     :multi-select="true"
-                    recent-label="Recent Rotations:"
-                    add-new-label="Add New Rotation:"
-                    item-type="rotation"
+                    :recent-label="SCHEDULE_LABELS.RECENT_ROTATIONS"
+                    :add-new-label="SCHEDULE_LABELS.ADD_NEW_ROTATION"
+                    :item-type="SCHEDULE_LABELS.ITEM_TYPE.ROTATION"
                     item-key-field="rotId"
                     item-display-field="name"
                     selector-spacing="none"
                     :is-loading="loadingSchedule"
-                    empty-state-message="No recent rotations. Please add a rotation below."
+                    :empty-state-message="SCHEDULE_MESSAGES.RECENT.EMPTY_ROTATIONS"
+                    :selected-weeks-count="selectedWeekIds.length"
+                    :show-schedule-button="true"
+                    :is-alt-key-held="isAltKeyHeld"
                     @select-items="selectRotations"
                     @clear-selection="clearRotationSelection"
+                    @schedule-selected="handleScheduleSelected"
                 >
                     <template #selector>
                         <RotationSelector
@@ -125,6 +122,7 @@
 
                 <!-- Generic Schedule View Component -->
                 <ScheduleView
+                    ref="scheduleViewRef"
                     :schedules-by-semester="schedulesBySemester"
                     view-mode="clinician"
                     :is-past-year="isPastYear"
@@ -134,6 +132,7 @@
                     :show-legend="true"
                     :show-warning-icon="false"
                     :show-primary-toggle="true"
+                    :enable-week-selection="!isPastYear"
                     :no-data-message="`${selectedClinician?.fullName || 'This clinician'} has no rotation assignments for ${currentYear}.`"
                     empty-state-message="Click to add rotation"
                     read-only-empty-message="No assignment"
@@ -145,6 +144,7 @@
                     @week-click="onWeekClick"
                     @remove-assignment="handleRemoveRotation"
                     @toggle-primary="handleTogglePrimary"
+                    @selected-weeks-change="onSelectedWeeksChange"
                 />
             </div>
         </div>
@@ -179,6 +179,8 @@ import {
 } from "../constants/permission-messages"
 import { UI_CONFIG } from "../constants/app-constants"
 import { isRotationExcluded } from "../constants/rotation-constants"
+import { SCHEDULE_MESSAGES, SCHEDULE_LABELS } from "../constants/schedule-config"
+import { usePermissionChecks } from "../composables/use-permission-checks"
 
 // Interface for clinician rotation item
 interface ClinicianRotationItem {
@@ -196,7 +198,8 @@ const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
 
-// Permissions store
+// Permissions composable and store
+const { isLoadingPermissions, canAccessClinicianView, hasClinicianViewReadOnly, goToHome } = usePermissionChecks()
 const permissionsStore = usePermissionsStore()
 
 // Composables for optimistic updates
@@ -224,9 +227,18 @@ const isAddingRotation = ref(false)
 const isRemovingRotation = ref(false)
 const isTogglingPrimary = ref(false)
 const loadingWeekId = ref<number | null>(null)
+const selectedWeekIds = ref<number[]>([])
+
+// Component refs
+const scheduleViewRef = ref<any>(null)
 
 const isPastYear = computed(() => {
     return currentYear.value !== null && currentYear.value < currentGradYear.value
+})
+
+// Track Alt key state from ScheduleView
+const isAltKeyHeld = computed(() => {
+    return scheduleViewRef.value?.isAltKeyHeld || false
 })
 
 // Computed property for rotation items to show in RecentSelections
@@ -505,6 +517,18 @@ const selectRotations = (rotations: RotationWithService[]) => {
 const clearRotationSelection = () => {
     selectedRotation.value = null
     selectedRotations.value = []
+    // Also clear week selection when clearing rotation selection
+    selectedWeekIds.value = []
+    if (scheduleViewRef.value) {
+        scheduleViewRef.value.clearSelection()
+    }
+}
+
+const handleScheduleSelected = () => {
+    // Trigger bulk scheduling when button is clicked
+    if (selectedWeekIds.value.length > 0 && selectedRotations.value.length > 0) {
+        scheduleBulkRotationsToWeeks()
+    }
 }
 
 const scheduleRotationToWeek = async (week: WeekItem) => {
@@ -621,6 +645,168 @@ const scheduleRotationToWeek = async (week: WeekItem) => {
         )
     } catch {
         // Error already handled by onError callback
+    } finally {
+        isAddingRotation.value = false
+        loadingWeekId.value = null
+    }
+}
+
+const scheduleBulkRotationsToWeeks = async () => {
+    if (!selectedClinician.value || !clinicianSchedule.value) return
+    if (selectedRotations.value.length === 0 || selectedWeekIds.value.length === 0) return
+
+    isAddingRotation.value = true
+
+    try {
+        // Get all weeks from the schedule
+        const allWeeks = schedulesBySemester.value.flatMap((s: ScheduleSemester) => s.weeks)
+
+        // First, check what's already scheduled
+        let totalToSchedule = 0
+        let totalAlreadyScheduled = 0
+        const schedulingPlan: { week: any; rotations: typeof selectedRotations.value }[] = []
+
+        for (const weekId of selectedWeekIds.value) {
+            const week = allWeeks.find((w: any) => w.weekId === weekId)
+            if (!week) continue
+
+            const existingRotationIds = getClinicianWeekAssignments(week).map(
+                (r: ScheduleAssignment) => (r as any).rotationId,
+            )
+
+            const toSchedule = selectedRotations.value.filter(
+                (rotation) => !existingRotationIds.includes(rotation.rotId),
+            )
+
+            const alreadyScheduledForWeek = selectedRotations.value.length - toSchedule.length
+            totalAlreadyScheduled += alreadyScheduledForWeek
+            totalToSchedule += toSchedule.length
+
+            if (toSchedule.length > 0) {
+                schedulingPlan.push({ week, rotations: toSchedule })
+            }
+        }
+
+        // If everything is already scheduled, show a message and return
+        if (totalToSchedule === 0) {
+            $q.notify({
+                type: "info",
+                message: `All selected rotations are already scheduled for the selected weeks`,
+                timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
+            })
+            // Clear selections
+            clearRotationSelection()
+            selectedWeekIds.value = []
+            // Clear the selection in the ScheduleView component
+            if (scheduleViewRef.value) {
+                scheduleViewRef.value.clearSelection()
+            }
+            return
+        }
+
+        // Show confirmation with accurate counts
+        const rotationNames = selectedRotations.value.map((r) => r.name).join(" / ")
+        const weekCount = selectedWeekIds.value.length
+        let confirmMessage = `Schedule ${selectedRotations.value.length} rotation(s) (${rotationNames}) to ${weekCount} week(s)?`
+
+        if (totalAlreadyScheduled > 0) {
+            confirmMessage += ` ${totalToSchedule} new assignment(s) will be created (${totalAlreadyScheduled} already scheduled).`
+        } else {
+            confirmMessage += ` This will create ${totalToSchedule} assignment(s).`
+        }
+
+        const proceed = await new Promise<boolean>((resolve) => {
+            $q.dialog({
+                title: "Bulk Schedule Confirmation",
+                message: confirmMessage,
+                persistent: true,
+                ok: { label: "Schedule All", color: "primary" },
+                cancel: { label: "Cancel", color: "grey" },
+            })
+                .onOk(() => resolve(true))
+                .onCancel(() => resolve(false))
+        })
+
+        if (!proceed) {
+            isAddingRotation.value = false
+            return
+        }
+
+        // Process the scheduling plan
+        let totalSuccess = 0
+        let totalErrors = 0
+
+        for (const { week, rotations } of schedulingPlan) {
+            loadingWeekId.value = week.weekId
+
+            // Schedule rotations for this week
+            const schedulePromises: Promise<void>[] = []
+
+            for (const rotation of rotations) {
+                const promise = new Promise<void>((resolve) => {
+                    addScheduleWithRollback(
+                        {
+                            scheduleData: clinicianSchedule.value!,
+                            weekId: week.weekId,
+                            assignmentData: {
+                                rotationId: rotation.rotId,
+                                rotationName: rotation.name,
+                                rotationAbbreviation: rotation.abbreviation,
+                                serviceId: rotation.service?.serviceId,
+                                serviceName: rotation.service?.serviceName,
+                                isPrimary: false,
+                                gradYear: currentYear.value || currentGradYear.value,
+                            },
+                        },
+                        {
+                            onSuccess: () => {
+                                totalSuccess++
+                                resolve()
+                            },
+                            onError: () => {
+                                totalErrors++
+                                resolve()
+                            },
+                        },
+                    )
+                })
+                schedulePromises.push(promise)
+            }
+
+            await Promise.all(schedulePromises)
+        }
+
+        // Show results
+        const messages = []
+        if (totalSuccess > 0) {
+            messages.push(`${totalSuccess} assignment(s) created`)
+        }
+        if (totalAlreadyScheduled > 0) {
+            messages.push(`${totalAlreadyScheduled} already scheduled`)
+        }
+        if (totalErrors > 0) {
+            messages.push(`${totalErrors} failed`)
+        }
+
+        $q.notify({
+            type: totalErrors > 0 ? "warning" : totalSuccess > 0 ? "positive" : "info",
+            message: messages.join(", "),
+            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
+        })
+
+        // Clear selections after bulk operation
+        clearRotationSelection()
+        selectedWeekIds.value = []
+        // Clear the selection in the ScheduleView component
+        if (scheduleViewRef.value) {
+            scheduleViewRef.value.clearSelection()
+        }
+    } catch {
+        $q.notify({
+            type: "negative",
+            message: "An error occurred during bulk scheduling",
+            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
+        })
     } finally {
         isAddingRotation.value = false
         loadingWeekId.value = null
@@ -790,9 +976,30 @@ const scheduleRotationsToWeek = async (week: WeekItem) => {
     }
 }
 
+const onSelectedWeeksChange = (weekIds: number[]) => {
+    selectedWeekIds.value = weekIds
+}
+
 const onWeekClick = async (week: WeekItem) => {
     if (isPastYear.value) return
 
+    // If we have selected weeks and selected rotations, schedule all combinations
+    if (selectedWeekIds.value.length > 0 && selectedRotations.value.length > 0) {
+        // Check if this week is in the selection
+        if (!selectedWeekIds.value.includes(week.weekId)) {
+            // If not, this is a regular click - clear selection and handle normally
+            selectedWeekIds.value = []
+            return
+        }
+
+        // Schedule all selected rotations to all selected weeks
+        await scheduleBulkRotationsToWeeks()
+        // Clear selections after bulk operation
+        selectedWeekIds.value = []
+        return
+    }
+
+    // Original single-selection behavior
     if (selectedRotation.value && selectedClinician.value) {
         // Check if same rotation is already scheduled
         const rotationAlreadyScheduled = getClinicianWeekAssignments(week).some(
@@ -963,11 +1170,7 @@ const onAddRotationSelected = (rotation: RotationWithService | null) => {
     selectedNewRotationId.value = null
 }
 
-const goToHome = () => {
-    router.push("/ClinicalScheduler/").catch(() => {
-        /* handle navigation error */
-    })
-}
+// goToHome is now imported from usePermissionChecks composable
 
 // Lifecycle
 onMounted(async () => {

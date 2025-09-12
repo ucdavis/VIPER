@@ -149,12 +149,6 @@
             }
         },
         {
-            "files": ["VueApp/**/*.vue"],
-            "rules": {
-                "import/no-default-export": "off" // Vue components use default exports as standard practice
-            }
-        },
-        {
             "files": ["**/stores/**/*", "**/store/**/*"],
             "rules": {
                 "import/max-dependencies": "off" // Store files naturally coordinate between many modules and services
@@ -179,6 +173,6 @@
             }
         }
     ],
-    "ignore": ["node_modules/**", "bin/**", "obj/**", "dist/**", "wwwroot/**", "*.min.js", "*.bundle.js"],
+    "ignore": ["node_modules/**", "bin/**", "obj/**", "dist/**", "wwwroot/**", "*.min.js", "*.bundle.js", "**/*.vue"],
     "allowWarningErrors": false
 }

@@ -6,5 +6,9 @@
         "source.fixAll.eslint": "explicit"
     },
     "eslint.validate": ["vue"],
-    "eslint.workingDirectories": ["./VueApp", "."]
+    "eslint.workingDirectories": [
+        "./VueApp"
+    ],
+    "oxc.typeAware": true,
+    "oxc.unusedDisableDirectives": "warn",
 }

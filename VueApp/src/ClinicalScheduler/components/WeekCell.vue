@@ -3,6 +3,9 @@
         :class="cardClasses"
         clickable
         @click="handleClick"
+        @touchstart="handleTouchStart"
+        @touchend="handleTouchEnd"
+        @touchmove="handleTouchMove"
     >
         <q-card-section class="q-pa-sm">
             <!-- Week header -->
@@ -160,6 +163,8 @@ interface Props {
     showPrimaryToggle?: boolean
     additionalClasses?: string | string[] | Record<string, boolean>
     isLoading?: boolean
+    selectable?: boolean
+    selected?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -170,12 +175,15 @@ const props = withDefaults(defineProps<Props>(), {
     showPrimaryToggle: true,
     additionalClasses: "",
     isLoading: false,
+    selectable: false,
+    selected: false,
 })
 
 const emit = defineEmits<{
-    click: [week: Props["week"]]
+    click: [week: Props["week"], event?: MouseEvent]
     "remove-assignment": [assignmentId: number, displayName: string]
     "toggle-primary": [assignmentId: number, isPrimary: boolean, displayName: string]
+    "shift-click": [week: Props["week"]]
 }>()
 
 // Computed properties
@@ -191,38 +199,107 @@ const emptyStateText = computed(() => {
     return "No assignments"
 })
 
+// Long press timer for mobile
+let longPressTimer: ReturnType<typeof setTimeout> | null = null
+const longPressDuration = 500 // milliseconds
+
 // Methods
-function handleClick() {
-    if (!props.isLoading && !props.isPastYear && props.canEdit) {
-        emit("click", props.week)
+function handleClick(event?: MouseEvent) {
+    // Don't handle click during selection mode if just selecting
+    if (props.selectable && !props.canEdit) {
+        if (event?.shiftKey) {
+            emit("shift-click", props.week)
+        } else {
+            emit("click", props.week, event)
+        }
+        return
+    }
+
+    // Normal behavior for edit mode
+    if (!props.isLoading && !props.isPastYear) {
+        if (props.canEdit) {
+            emit("click", props.week, event)
+        } else if (props.selectable) {
+            // Selection mode when not editing
+            if (event?.shiftKey) {
+                emit("shift-click", props.week)
+            } else {
+                emit("click", props.week, event)
+            }
+        }
     }
 }
 
-// Computed property for card classes
-const cardClasses = computed(() => {
-    const baseClasses = "col-xs-12 col-sm-6 col-md-4 col-lg-3 col-xl-2 cursor-pointer week-schedule-card"
-
-    // Add the requires-primary class if needed
-    const requiresPrimaryClass = requiresPrimary.value && !hasPrimary.value ? "requires-primary-card" : ""
-
-    // Handle additional classes prop
-    let additional = ""
-    if (Array.isArray(props.additionalClasses)) {
-        additional = props.additionalClasses.join(" ")
-    } else if (typeof props.additionalClasses === "object") {
-        additional = Object.entries(props.additionalClasses)
-            .filter(([, value]) => value)
-            .map(([key]) => key)
-            .join(" ")
-    } else {
-        additional = props.additionalClasses || ""
+// Touch event handlers for mobile long-press
+function handleTouchStart() {
+    if (props.selectable && !props.isPastYear) {
+        longPressTimer = setTimeout(() => {
+            // Long press triggers selection mode
+            emit("click", props.week)
+            longPressTimer = null
+        }, longPressDuration)
     }
+}
 
-    return `${baseClasses} ${requiresPrimaryClass} ${additional}`.trim()
+function handleTouchEnd() {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer)
+        longPressTimer = null
+        // Short tap - handle as normal click
+        handleClick()
+    }
+}
+
+function handleTouchMove() {
+    // Cancel long press if user moves finger
+    if (longPressTimer) {
+        clearTimeout(longPressTimer)
+        longPressTimer = null
+    }
+}
+
+// Helper function to normalize additional classes
+function normalizeAdditionalClasses(classes: Props["additionalClasses"]): string {
+    if (!classes) return ""
+    if (typeof classes === "string") return classes
+    if (Array.isArray(classes)) return classes.join(" ")
+
+    // Handle object format
+    return Object.entries(classes)
+        .filter(([, value]) => value)
+        .map(([key]) => key)
+        .join(" ")
+}
+
+// Computed property for card classes - simplified
+const cardClasses = computed(() => {
+    const classes = [
+        // Base responsive classes
+        "col-xs-12",
+        "col-sm-6",
+        "col-md-4",
+        "col-lg-3",
+        "col-xl-2",
+        "cursor-pointer",
+        "week-schedule-card",
+
+        // Conditional classes
+        requiresPrimary.value && !hasPrimary.value && "requires-primary-card",
+        props.selectable && "week-selectable",
+        props.selected && "week-selected",
+
+        // Additional classes from props
+        normalizeAdditionalClasses(props.additionalClasses),
+    ]
+
+    // Filter out falsy values and join
+    return classes.filter(Boolean).join(" ")
 })
 </script>
 
 <style scoped>
+@import url("@/styles/colors.css");
+
 .week-schedule-card {
     max-width: 280px;
     min-width: 200px;
@@ -232,10 +309,10 @@ const cardClasses = computed(() => {
     height: 100%;
 }
 
-/* Style for weeks requiring primary evaluator */
+/* Style for weeks requiring primary evaluator - using UC Davis gold for warning */
 .requires-primary-card {
-    border: 2px solid #f44 !important;
-    background-color: #fff5f5;
+    border: 2px solid var(--ucdavis-gold-70) !important;
+    background-color: var(--ucdavis-gold-10);
 }
 
 /* Assignment item styling */
@@ -268,7 +345,7 @@ const cardClasses = computed(() => {
 .week-cell__clinician-name {
     flex: 1;
     font-size: 13px;
-    color: #333;
+    color: var(--ucdavis-black-80);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -287,11 +364,68 @@ const cardClasses = computed(() => {
 
 .week-cell__empty-text {
     font-size: 12px;
-    color: #999;
+    color: var(--ucdavis-black-40);
     font-style: italic;
 }
 
 .cursor-pointer {
     cursor: pointer;
+}
+
+/* Selection states - using UC Davis blue */
+@media screen and (prefers-reduced-motion: reduce) {
+    .week-selectable {
+        transition: none;
+        position: relative;
+    }
+}
+
+.week-selectable {
+    transition: all 0.2s ease-in-out;
+    position: relative;
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+    .week-selectable::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border: 2px solid transparent;
+        border-radius: 4px;
+        pointer-events: none;
+        transition: none;
+    }
+}
+
+.week-selectable::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    pointer-events: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.week-selectable:hover::before,
+.week-selectable:focus::before {
+    border-color: var(--ucdavis-blue-60);
+    opacity: 0.3;
+}
+
+.week-selected {
+    background-color: var(--ucdavis-blue-10) !important;
+    border: 2px solid var(--ucdavis-blue-60) !important;
+}
+
+.week-selected::before {
+    border-color: var(--ucdavis-blue-60) !important;
+    opacity: 1 !important;
+}
+
+/* Override requires-primary style when selected - combination of gold and blue */
+.week-selected.requires-primary-card {
+    background-color: var(--ucdavis-gold-10) !important;
+    border: 2px solid var(--ucdavis-gold-80) !important;
 }
 </style>

@@ -110,8 +110,12 @@
                 selector-spacing="lg"
                 :is-loading="isLoadingSchedule"
                 empty-state-message="No recent clinicians. Please add a clinician below."
+                :selected-weeks-count="selectedWeekIds.length"
+                :show-schedule-button="true"
+                :is-alt-key-held="scheduleViewRef?.isAltKeyHeld ?? false"
                 @select-items="selectClinicianItems"
                 @clear-selection="clearClinicianSelection"
+                @schedule-selected="scheduleBulkCliniciansToWeeks"
             >
                 <template #selector>
                     <ClinicianSelector
@@ -138,6 +142,7 @@
             <!-- Unified schedule view -->
             <ScheduleView
                 v-else-if="selectedRotation && weeksBySemester.length > 0"
+                ref="scheduleViewRef"
                 :schedules-by-semester="weeksBySemester"
                 view-mode="rotation"
                 :is-past-year="isPastYear"
@@ -149,6 +154,7 @@
                 :show-warning-icon="true"
                 :show-primary-toggle="true"
                 :requires-primary-for-week="true"
+                :enable-week-selection="!isPastYear"
                 :get-assignments="
                     (week) =>
                         getWeekAssignments(week.weekId).map((a) => ({
@@ -166,9 +172,10 @@
                 primary-evaluator-title="Primary evaluator. To transfer primary status, click the star on another clinician."
                 make-primary-title="Click to make this clinician the primary evaluator."
                 primary-removal-disabled-message="Cannot remove primary clinician. Make another clinician primary first."
-                @week-click="scheduleClinicianToWeek"
+                @week-click="handleWeekClick"
                 @remove-assignment="(id, name) => removeAssignment(id, name)"
                 @toggle-primary="(id, isPrimary, name) => togglePrimary(id, isPrimary, name)"
+                @selected-weeks-change="onSelectedWeeksChange"
             />
         </div>
     </div>
@@ -216,6 +223,8 @@ const selectedRotation = ref<RotationWithService | null>(null)
 const selectedClinician = ref<string | null>(null)
 const selectedClinicianData = ref<{ fullName: string; mothraId: string } | null>(null)
 const selectedClinicians = ref<{ fullName: string; mothraId: string }[]>([])
+const scheduleViewRef = ref<InstanceType<typeof ScheduleView> | null>(null)
+const selectedWeekIds = ref<number[]>([])
 const rotations = ref<RotationWithService[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
@@ -283,6 +292,18 @@ const _selectedClinicianItem = computed(() => {
 // Use the semester data directly from the backend API
 // The backend already groups weeks by semester using TermCodeService.GetTermCodeDescription()
 const { normalizeRotationSchedule } = useScheduleNormalization()
+
+// Get all weeks in a flat array for bulk operations
+const allWeeks = computed(() => {
+    const weeks: WeekItem[] = []
+    const semesters = weeksBySemester.value
+    if (semesters) {
+        for (const semester of semesters) {
+            weeks.push(...semester.weeks)
+        }
+    }
+    return weeks
+})
 
 const weeksBySemester = computed(() => {
     return normalizeRotationSchedule(scheduleData.value)
@@ -434,6 +455,11 @@ function clearClinicianSelection() {
     selectedClinician.value = null
     selectedClinicianData.value = null
     selectedClinicians.value = []
+    // Also clear week selection when clearing clinician selection
+    selectedWeekIds.value = []
+    if (scheduleViewRef.value) {
+        scheduleViewRef.value.clearSelection()
+    }
 }
 
 function onAddClinicianSelected(clinician: Clinician | null) {
@@ -475,6 +501,125 @@ function getWeekAssignments(weekId: number) {
     }
 
     return []
+}
+
+// Handle week click (either single week or with multiple selected weeks)
+async function handleWeekClick(week: WeekItem) {
+    // If weeks are selected, schedule to all selected weeks
+    if (selectedWeekIds.value.length > 0 && selectedClinicians.value.length > 0) {
+        await scheduleCliniciansToBulkWeeks()
+        return
+    }
+
+    // Otherwise use the original single-week behavior
+    await scheduleClinicianToWeek(week)
+}
+
+// Handle selected weeks change
+function onSelectedWeeksChange(weekIds: number[]) {
+    selectedWeekIds.value = weekIds
+}
+
+// Schedule multiple clinicians to multiple weeks
+async function scheduleCliniciansToBulkWeeks() {
+    if (!canEditRotation.value || selectedClinicians.value.length === 0 || selectedWeekIds.value.length === 0) {
+        return
+    }
+
+    const totalOperations = selectedClinicians.value.length * selectedWeekIds.value.length
+
+    // Show confirmation dialog for large operations
+    if (totalOperations > 10) {
+        const proceed = await new Promise<boolean>((resolve) => {
+            $q.dialog({
+                title: "Bulk Schedule Confirmation",
+                message: `This will create ${totalOperations} assignments (${selectedClinicians.value.length} clinician${selectedClinicians.value.length !== 1 ? "s" : ""} × ${selectedWeekIds.value.length} week${selectedWeekIds.value.length !== 1 ? "s" : ""}). Continue?`,
+                persistent: true,
+                ok: { label: "Yes, Schedule All", color: "primary" },
+                cancel: { label: "Cancel", color: "grey" },
+            })
+                .onOk(() => resolve(true))
+                .onCancel(() => resolve(false))
+        })
+
+        if (!proceed) return
+    }
+
+    // Temporarily disable selection during bulk operation
+    const originalSelectedClinicians = [...selectedClinicians.value]
+
+    try {
+        let successCount = 0
+        let alreadyScheduledCount = 0
+
+        // Process each week
+        for (const weekId of selectedWeekIds.value) {
+            const week = allWeeks.value.find((w) => w.weekId === weekId)
+            if (!week) continue
+
+            loadingWeekId.value = weekId
+
+            // Schedule each clinician to this week
+            for (const clinician of originalSelectedClinicians) {
+                // Check if already scheduled
+                const existingAssignment = getWeekAssignments(weekId).find(
+                    (assignment) => assignment.clinicianName === clinician.fullName,
+                )
+
+                if (!existingAssignment) {
+                    // Add the schedule
+                    await InstructorScheduleService.addInstructor({
+                        MothraId: clinician.mothraId,
+                        RotationId: selectedRotation.value!.rotId,
+                        WeekIds: [weekId],
+                        GradYear: currentYear.value!,
+                        IsPrimaryEvaluator:
+                            week.requiresPrimaryEvaluator === true && getWeekAssignments(weekId).length === 0,
+                    })
+                    successCount++
+                } else {
+                    alreadyScheduledCount++
+                }
+            }
+        }
+
+        // Show results
+        if (successCount > 0) {
+            $q.notify({
+                type: "positive",
+                message: `Successfully scheduled ${successCount} assignment${successCount !== 1 ? "s" : ""}`,
+            })
+        }
+
+        if (alreadyScheduledCount > 0) {
+            $q.notify({
+                type: "info",
+                message: `${alreadyScheduledCount} assignment${alreadyScheduledCount !== 1 ? "s were" : " was"} already scheduled`,
+            })
+        }
+
+        // Clear selections after successful bulk operation
+        clearClinicianSelection()
+        scheduleViewRef.value?.clearSelection()
+
+        // Reload schedule
+        if (selectedRotation.value) {
+            await loadScheduleData(selectedRotation.value.rotId)
+        }
+    } catch {
+        // ESLint: Remove console.error for production
+        $q.notify({
+            type: "negative",
+            message: "Failed to complete bulk scheduling. Some assignments may have been created.",
+        })
+    } finally {
+        loadingWeekId.value = null
+    }
+}
+
+// Alias for bulk scheduling from RecentSelections component
+function scheduleBulkCliniciansToWeeks() {
+    scheduleCliniciansToBulkWeeks()
 }
 
 async function scheduleClinicianToWeek(week: WeekItem) {

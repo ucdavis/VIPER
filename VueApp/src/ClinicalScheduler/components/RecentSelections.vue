@@ -43,7 +43,13 @@
                             clickable
                             size="sm"
                             class="q-mr-xs"
+                            tabindex="0"
+                            role="button"
+                            :aria-label="`${isItemSelected(item) ? 'Deselect' : 'Select'} ${getItemDisplayName(item)}`"
+                            :aria-pressed="isItemSelected(item).toString()"
                             @click="toggleItemSelection(item)"
+                            @keyup.enter="toggleItemSelection(item)"
+                            @keyup.space.prevent="toggleItemSelection(item)"
                         >
                             {{ getItemDisplayName(item) }}
                         </q-chip>
@@ -55,15 +61,6 @@
                         >
                             {{ emptyStateMessage }}
                         </div>
-                    </div>
-
-                    <!-- Helper text for multi-select -->
-                    <div
-                        v-if="selectedItemsSet.size > 0"
-                        class="text-body2 text-grey-7 q-mt-xs"
-                    >
-                        Click any week to schedule all {{ selectedItemsSet.size }} selected {{ itemType
-                        }}{{ selectedItemsSet.size > 1 ? "s" : "" }}
                     </div>
                 </div>
 
@@ -87,6 +84,46 @@
                 </div>
             </div>
         </q-card-section>
+
+        <!-- Multi-week selection mode indicator - shows when weeks are selected or Alt is held -->
+        <div
+            v-if="showScheduleButton && selectedItemsSet.size > 0 && (selectedWeeksCount > 0 || isAltKeyHeld)"
+            class="bg-green-2 text-green-9 q-pa-sm"
+        >
+            <div
+                v-if="selectedWeeksCount > 0"
+                class="row items-center justify-center q-gutter-sm"
+            >
+                <q-icon
+                    name="check_circle"
+                    size="sm"
+                />
+                <span class="text-weight-medium">
+                    {{ selectedItemsSet.size }} {{ itemType }}{{ selectedItemsSet.size !== 1 ? "s" : "" }} ×
+                    {{ selectedWeeksCount }} week{{ selectedWeeksCount !== 1 ? "s" : "" }} selected
+                </span>
+                <q-btn
+                    color="primary"
+                    label="Schedule Selected"
+                    icon="add_circle"
+                    size="sm"
+                    @click="emit('schedule-selected')"
+                />
+            </div>
+            <div
+                v-else
+                class="text-center"
+            >
+                <q-icon
+                    name="check_circle"
+                    size="xs"
+                    class="q-mr-xs"
+                />
+                <span class="text-weight-medium text-caption">
+                    Multi-week selection mode ON - Click weeks to select
+                </span>
+            </div>
+        </div>
     </q-card>
 </template>
 
@@ -108,6 +145,9 @@ const props = withDefaults(
         selectorSpacing?: "none" | "xs" | "sm" | "md" | "lg"
         isLoading?: boolean
         emptyStateMessage?: string
+        selectedWeeksCount?: number
+        showScheduleButton?: boolean
+        isAltKeyHeld?: boolean
     }>(),
     {
         selectedItem: null,
@@ -117,6 +157,9 @@ const props = withDefaults(
         selectorSpacing: "none",
         isLoading: false,
         emptyStateMessage: "",
+        selectedWeeksCount: 0,
+        showScheduleButton: false,
+        isAltKeyHeld: false,
     },
 )
 
@@ -124,6 +167,7 @@ const emit = defineEmits<{
     "select-item": [item: T]
     "select-items": [items: T[]]
     "clear-selection": []
+    "schedule-selected": []
 }>()
 
 const selectedItemsSet = ref<Set<string | number>>(new Set())
