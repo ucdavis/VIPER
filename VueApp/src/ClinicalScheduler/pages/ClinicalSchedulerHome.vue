@@ -13,7 +13,7 @@
             class="text-center q-my-lg"
         >
             <q-spinner-dots
-                :size="UI_CONFIG.LOADING_SPINNER_SIZE"
+                :size="LOADING_SPINNER_SIZE"
                 color="primary"
             />
             <div class="q-mt-md text-body1">Loading permissions...</div>
@@ -194,7 +194,8 @@ import { usePermissionsStore } from "../stores/permissions"
 import PermissionInfoBanner from "../components/PermissionInfoBanner.vue"
 import AccessDeniedCard from "../components/AccessDeniedCard.vue"
 import { ACCESS_DENIED_MESSAGES, ACCESS_DENIED_SUBTITLES } from "../constants/permission-messages"
-import { UI_CONFIG } from "../constants/app-constants"
+
+const LOADING_SPINNER_SIZE = "3rem"
 
 // Composables
 const router = useRouter()

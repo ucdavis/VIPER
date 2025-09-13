@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
+using Viper.Models.ClinicalScheduler;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -13,17 +15,92 @@ namespace Viper.test.ClinicalScheduler
     /// Provides pre-configured contexts and common setup methods to eliminate
     /// repetitive test data setup across integration test files.
     /// </summary>
-    public abstract class IntegrationTestBase : ClinicalSchedulerTestBase
+    public abstract class IntegrationTestBase : IDisposable
     {
+        // Test user constants (copied from ClinicalSchedulerTestBase)
+        public const string TestUserMothraId = "testuser";
+        public const string TestUserLoginId = "testuser";
+        public const string TestUserDisplayName = "Test User";
+
+        // Service ID constants
+        public const int CardiologyServiceId = 1;
+        public const int SurgeryServiceId = 2;
+        public const int InternalMedicineServiceId = 3;
+        public const int EmergencyMedicineServiceId = 4;
+
+        // Rotation ID constants
+        public const int CardiologyRotationId = 1;
+        public const int SurgeryRotationId = 2;
+
+        // Instructor Schedule ID constants
+        public const int TestInstructorScheduleId = 1;
+        public const int OtherInstructorScheduleId = 2;
+
+        // Permission constants
+        public const string CardiologyEditPermission = "SVMSecure.ClnSched.Edit.Cardio";
+        public const string InternalMedicineEditPermission = "SVMSecure.ClnSched.Edit.IM";
+
+        protected readonly ClinicalSchedulerContext Context;
         protected readonly AAUDContext AaudContext;
         protected readonly RAPSContext RapsContext;
+        protected readonly Mock<RAPSContext> MockRapsContext;
+        protected readonly Mock<IUserHelper> MockUserHelper;
 
         protected IntegrationTestBase()
         {
+            // Create real in-memory database for Entity Framework operations
+            var options = new DbContextOptionsBuilder<ClinicalSchedulerContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+            Context = new ClinicalSchedulerContext(options);
+
             // Create pre-configured contexts with standard test data
             AaudContext = TestDataBuilder.IntegrationHelpers.CreateAAUDContext();
             RapsContext = TestDataBuilder.IntegrationHelpers.CreateRAPSContext();
+            MockRapsContext = new Mock<RAPSContext>();
+
+            // Setup UserHelper mock
+            MockUserHelper = new Mock<IUserHelper>();
+
+            // Seed basic test data
+            SeedBasicTestData();
         }
+
+        /// <summary>
+        /// Seeds basic test data required for integration tests
+        /// </summary>
+        private void SeedBasicTestData()
+        {
+            // Add basic services
+            var services = new[]
+            {
+                new Service { ServiceId = CardiologyServiceId, ServiceName = "Cardiology", ShortName = "Cardio", ScheduleEditPermission = CardiologyEditPermission },
+                new Service { ServiceId = SurgeryServiceId, ServiceName = "Surgery", ShortName = "Surg", ScheduleEditPermission = null },
+                new Service { ServiceId = InternalMedicineServiceId, ServiceName = "Internal Medicine", ShortName = "IM", ScheduleEditPermission = InternalMedicineEditPermission },
+                new Service { ServiceId = EmergencyMedicineServiceId, ServiceName = "Emergency Medicine", ShortName = "ER", ScheduleEditPermission = "" }
+            };
+            Context.Services.AddRange(services);
+
+            // Add basic rotations
+            var rotations = new[]
+            {
+                new Rotation { RotId = CardiologyRotationId, ServiceId = CardiologyServiceId, Name = "Cardiology Rotation", Abbreviation = "CARD" },
+                new Rotation { RotId = SurgeryRotationId, ServiceId = SurgeryServiceId, Name = "Surgery Rotation", Abbreviation = "SURG" }
+            };
+            Context.Rotations.AddRange(rotations);
+
+            Context.SaveChanges();
+        }
+
+        /// <summary>
+        /// Creates a test user with standard properties
+        /// </summary>
+        protected static AaudUser CreateTestUser() => new()
+        {
+            MothraId = TestUserMothraId,
+            LoginId = TestUserLoginId,
+            DisplayFullName = TestUserDisplayName
+        };
 
         /// <summary>
         /// Sets up the test user with manage permission and all required RAPS data
@@ -156,14 +233,28 @@ namespace Viper.test.ClinicalScheduler
             Context.SaveChanges();
         }
 
-        protected override void Dispose(bool disposing)
+        /// <summary>
+        /// Sets up UserHelper mock to return null user
+        /// </summary>
+        protected void SetupNullUser()
+        {
+            MockUserHelper.Setup(x => x.GetCurrentUser()).Returns((AaudUser?)null);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
         {
             if (disposing)
             {
+                Context?.Dispose();
                 AaudContext?.Dispose();
                 RapsContext?.Dispose();
             }
-            base.Dispose(disposing);
         }
     }
 }

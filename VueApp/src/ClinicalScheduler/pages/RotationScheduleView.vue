@@ -113,6 +113,7 @@
                 :selected-weeks-count="selectedWeekIds.length"
                 :show-schedule-button="true"
                 :is-alt-key-held="scheduleViewRef?.isAltKeyHeld ?? false"
+                :is-delete-mode="isInDeleteMode"
                 @select-items="selectClinicianItems"
                 @clear-selection="clearClinicianSelection"
                 @schedule-selected="scheduleBulkCliniciansToWeeks"
@@ -180,7 +181,7 @@
                 make-primary-title="Click to make this clinician the primary evaluator."
                 primary-removal-disabled-message="Cannot remove primary clinician. Make another clinician primary first."
                 @week-click="handleWeekClick"
-                @remove-assignment="(id, name) => removeAssignment(id, name)"
+                @remove-assignment="(id, name, isPrimary) => removeAssignment(id, name, isPrimary)"
                 @toggle-primary="(id, isPrimary, name) => togglePrimary(id, isPrimary, name)"
                 @selected-weeks-change="onSelectedWeeksChange"
             />
@@ -199,7 +200,9 @@ import type { Clinician } from "../services/clinician-service"
 import { PageDataService } from "../services/page-data-service"
 import { usePermissionsStore } from "../stores/permissions"
 import { useScheduleUpdatesWithRollback } from "../composables/use-optimistic-schedule-updates"
+import { useBulkDeletionLogic } from "../composables/use-bulk-deletion-logic"
 import { useScheduleNormalization } from "../composables/use-schedule-normalization"
+import { useDeleteMode } from "../composables/use-delete-mode"
 import RotationSelector from "../components/RotationSelector.vue"
 import ClinicianSelector from "../components/ClinicianSelector.vue"
 import PrimaryEvaluatorToggle from "../components/PrimaryEvaluatorToggle.vue"
@@ -211,6 +214,7 @@ import RecentSelections from "../components/RecentSelections.vue"
 import PermissionInfoBanner from "../components/PermissionInfoBanner.vue"
 import AccessDeniedCard from "../components/AccessDeniedCard.vue"
 import { ACCESS_DENIED_MESSAGES, ACCESS_DENIED_SUBTITLES } from "../constants/permission-messages"
+import { UI_CONFIG } from "../constants/app-constants"
 import ScheduleView from "../components/ScheduleView.vue"
 
 // Router and Quasar
@@ -224,6 +228,8 @@ const permissionsStore = usePermissionsStore()
 // Schedule updates with rollback and queue
 const { addScheduleWithRollback, removeScheduleWithRollback, togglePrimaryWithRollback } =
     useScheduleUpdatesWithRollback()
+
+const { executeBulkDeletionLogic } = useBulkDeletionLogic()
 
 // Reactive data
 const selectedRotationId = ref<number | null>(null)
@@ -268,10 +274,6 @@ const canEditRotation = computed(() => {
     if (!selectedRotation.value || !selectedRotation.value.service) return false
     return permissionsStore.canEditService(selectedRotation.value.service.serviceId)
 })
-
-// ClinicianSelector component handles the clinician dropdown functionality
-
-// Recent clinicians from API response (includes current and previous year)
 
 // Computed properties for RecentSelections component
 const clinicianItems = computed(() => {
@@ -318,6 +320,16 @@ const allWeeks = computed(() => {
 
 const weeksBySemester = computed(() => {
     return normalizeRotationSchedule(scheduleData.value)
+})
+
+// Use shared delete mode logic
+const { isInDeleteMode } = useDeleteMode({
+    selectedItems: selectedClinicians,
+    selectedWeekIds,
+    schedulesBySemester: weeksBySemester,
+    getWeekAssignments: (week: any) => getWeekAssignments(week.weekId),
+    getItemIdentifier: (clinician: { fullName: string; mothraId: string }) => clinician.fullName,
+    getAssignmentIdentifier: (assignment: any) => assignment.clinicianName,
 })
 
 // isSemesterPast is handled inside ScheduleView
@@ -431,6 +443,8 @@ async function loadScheduleData(rotationId: number) {
 
         if (result.success) {
             scheduleData.value = result.result
+
+            // Debug logging for Week 18 issue
         } else {
             scheduleError.value = result.errors.join(", ") || "Failed to load schedule data"
         }
@@ -466,6 +480,7 @@ function clearClinicianSelection() {
     selectedClinician.value = null
     selectedClinicianData.value = null
     selectedClinicians.value = []
+    makePrimaryEvaluator.value = false
     // Also clear week selection when clearing clinician selection
     selectedWeekIds.value = []
     if (scheduleViewRef.value) {
@@ -508,6 +523,7 @@ function getWeekAssignments(weekId: number) {
             return week.instructorSchedules.map((schedule) => ({
                 id: schedule.instructorScheduleId,
                 clinicianName: schedule.fullName,
+                displayName: schedule.fullName,
                 isPrimary: schedule.isPrimaryEvaluator,
                 mothraId: schedule.mothraId,
             }))
@@ -582,13 +598,38 @@ async function scheduleCliniciansToBulkWeeks() {
 
                 if (!existingAssignment) {
                     // Add the schedule
-                    await InstructorScheduleService.addInstructor({
+                    const result = await InstructorScheduleService.addInstructor({
                         MothraId: clinician.mothraId,
                         RotationId: selectedRotation.value!.rotId,
                         WeekIds: [weekId],
                         GradYear: currentYear.value!,
                         IsPrimaryEvaluator: makePrimaryEvaluator.value,
                     })
+
+                    // Update local state if successful
+                    if (result.success && result.result?.scheduleIds?.[0] && scheduleData.value?.schedulesBySemester) {
+                        const scheduleId = result.result.scheduleIds[0]
+                        // Find the week in the schedule data and add the new assignment
+                        for (const semester of scheduleData.value.schedulesBySemester) {
+                            const targetWeek = semester.weeks.find((w) => w.weekId === weekId)
+                            if (targetWeek) {
+                                if (!targetWeek.instructorSchedules) {
+                                    targetWeek.instructorSchedules = []
+                                }
+                                targetWeek.instructorSchedules.push({
+                                    instructorScheduleId: scheduleId,
+                                    mothraId: clinician.mothraId,
+                                    fullName: clinician.fullName,
+                                    firstName: (clinician as any).firstName || "",
+                                    lastName: (clinician as any).lastName || "",
+                                    evaluator: true,
+                                    isPrimaryEvaluator: makePrimaryEvaluator.value,
+                                })
+                                break
+                            }
+                        }
+                    }
+
                     successCount++
                 } else {
                     alreadyScheduledCount++
@@ -614,13 +655,10 @@ async function scheduleCliniciansToBulkWeeks() {
         // Clear selections after successful bulk operation
         clearClinicianSelection()
         scheduleViewRef.value?.clearSelection()
+        makePrimaryEvaluator.value = false
 
-        // Reload schedule
-        if (selectedRotation.value) {
-            await loadScheduleData(selectedRotation.value.rotId)
-        }
+        // No need to reload - local state has been updated
     } catch {
-        // ESLint: Remove console.error for production
         $q.notify({
             type: "negative",
             message: "Failed to complete bulk scheduling. Some assignments may have been created.",
@@ -631,8 +669,41 @@ async function scheduleCliniciansToBulkWeeks() {
 }
 
 // Alias for bulk scheduling from RecentSelections component
-function scheduleBulkCliniciansToWeeks() {
-    scheduleCliniciansToBulkWeeks()
+async function scheduleBulkCliniciansToWeeks() {
+    // Check if we're in delete mode
+    if (isInDeleteMode.value) {
+        await deleteBulkAssignments()
+    } else {
+        await scheduleCliniciansToBulkWeeks()
+    }
+}
+
+async function deleteBulkAssignments() {
+    if (!selectedRotation.value || selectedClinicians.value.length === 0 || selectedWeekIds.value.length === 0) {
+        return
+    }
+
+    await executeBulkDeletionLogic(
+        {
+            selectedItems: selectedClinicians,
+            selectedWeekIds,
+            schedulesBySemester: weeksBySemester,
+            getWeekAssignments: (week: any) => getWeekAssignments(week.weekId),
+            matchAssignmentToItem: (assignment, clinician) => assignment.clinicianName === clinician.fullName,
+            getItemDisplayName: (clinician) => clinician.fullName,
+            getItemTypeName: () => "clinician",
+        },
+        {
+            scheduleData: scheduleData.value!,
+            removeScheduleWithRollback,
+            clearSelections: () => {
+                clearClinicianSelection()
+                scheduleViewRef.value?.clearSelection()
+                makePrimaryEvaluator.value = false
+            },
+            showManualConfirmation: true,
+        },
+    )
 }
 
 async function scheduleClinicianToWeek(week: WeekItem) {
@@ -750,7 +821,7 @@ async function scheduleClinicianToWeek(week: WeekItem) {
                     $q.notify({
                         type: "positive",
                         message: `✓ ${selectedClinician.value} successfully added to Week ${week.weekNumber}`,
-                        timeout: 4000,
+                        timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
                     })
                 },
                 onError: (error) => {
@@ -759,7 +830,7 @@ async function scheduleClinicianToWeek(week: WeekItem) {
                         message:
                             error ||
                             "Failed to add clinician to schedule. Please try again or contact support if the problem persists.",
-                        timeout: 5000,
+                        timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_ERROR,
                     })
                 },
             },
@@ -821,7 +892,7 @@ async function scheduleCliniciansToWeek(week: WeekItem) {
         $q.notify({
             type: "info",
             message: `${alreadyScheduled.join(" / ")} ${alreadyScheduled.length === 1 ? "is" : "are"} already scheduled for this week`,
-            timeout: 3000,
+            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
         })
     }
 
@@ -924,7 +995,7 @@ async function scheduleCliniciansToWeek(week: WeekItem) {
             $q.notify({
                 type: "positive",
                 message: `✓ Successfully scheduled ${successCount} clinician${successCount > 1 ? "s" : ""} to Week ${week.weekNumber}`,
-                timeout: 4000,
+                timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
             })
         }
         if (errorCount > 0) {
@@ -946,7 +1017,7 @@ async function scheduleCliniciansToWeek(week: WeekItem) {
     }
 }
 
-async function removeAssignment(scheduleId: number, clinicianName: string) {
+async function removeAssignment(scheduleId: number, clinicianName: string, isPrimary?: boolean) {
     if (!selectedRotation.value || !scheduleData.value) return
 
     // Check permissions
@@ -955,27 +1026,31 @@ async function removeAssignment(scheduleId: number, clinicianName: string) {
         return
     }
 
-    // Confirm removal
-    const confirmed = await new Promise<boolean>((resolve) => {
-        $q.dialog({
-            title: "Confirm Removal",
-            message: `Remove ${clinicianName} from this week's schedule?`,
-            cancel: true,
-            persistent: true,
+    // Only show confirmation dialog for primary evaluators
+    if (isPrimary) {
+        const confirmed = await new Promise<boolean>((resolve) => {
+            $q.dialog({
+                title: "Confirm Primary Evaluator Removal",
+                message: `${clinicianName} is the primary evaluator for this week. Are you sure you want to remove them?`,
+                cancel: true,
+                persistent: true,
+            })
+                .onOk(() => resolve(true))
+                .onCancel(() => resolve(false))
         })
-            .onOk(() => resolve(true))
-            .onCancel(() => resolve(false))
-    })
 
-    if (!confirmed) return
+        if (!confirmed) return
+    }
 
     isRemovingClinician.value = true
 
     removeScheduleWithRollback(scheduleData.value, scheduleId, {
         onSuccess: () => {
+            // Show success notification
             $q.notify({
                 type: "positive",
-                message: `${clinicianName} removed from schedule`,
+                message: `${clinicianName} has been removed from the schedule`,
+                timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
             })
             isRemovingClinician.value = false
         },
@@ -986,6 +1061,14 @@ async function removeAssignment(scheduleId: number, clinicianName: string) {
                 timeout: 5000,
             })
             isRemovingClinician.value = false
+        },
+        onNotification: (type, message, icon) => {
+            $q.notify({
+                type: type as any,
+                message,
+                icon,
+                timeout: type === "warning" ? UI_CONFIG.NOTIFICATION_TIMEOUT_WARNING : UI_CONFIG.NOTIFICATION_TIMEOUT,
+            })
         },
     })
 }

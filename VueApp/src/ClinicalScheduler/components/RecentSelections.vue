@@ -98,7 +98,7 @@
         <!-- Multi-week selection mode indicator - shows when weeks are selected or Alt is held -->
         <div
             v-if="showScheduleButton && selectedItemsSet.size > 0 && (selectedWeeksCount > 0 || isAltKeyHeld)"
-            class="bg-green-2 text-green-9 q-pa-sm"
+            class="bg-info text-white q-pa-sm"
         >
             <div
                 v-if="selectedWeeksCount > 0"
@@ -113,9 +113,14 @@
                     {{ selectedWeeksCount }} week{{ selectedWeeksCount !== 1 ? "s" : "" }} selected
                 </span>
                 <q-btn
-                    color="primary"
-                    label="Schedule Selected"
-                    icon="add_circle"
+                    :color="isDeleteMode ? 'negative' : 'primary'"
+                    :label="isDeleteMode ? 'Delete Selected' : 'Schedule Selected'"
+                    :icon="isDeleteMode ? 'delete' : 'add_circle'"
+                    :aria-label="
+                        isDeleteMode
+                            ? `Delete ${selectedItemsSet.size} selected ${itemType}${selectedItemsSet.size !== 1 ? 's' : ''} from ${selectedWeeksCount} week${selectedWeeksCount !== 1 ? 's' : ''}`
+                            : `Schedule ${selectedItemsSet.size} selected ${itemType}${selectedItemsSet.size !== 1 ? 's' : ''} to ${selectedWeeksCount} week${selectedWeeksCount !== 1 ? 's' : ''}`
+                    "
                     size="sm"
                     @click="emit('schedule-selected')"
                 />
@@ -129,9 +134,7 @@
                     size="xs"
                     class="q-mr-xs"
                 />
-                <span class="text-weight-medium text-caption">
-                    Multi-week selection mode ON - Click weeks to select
-                </span>
+                <span class="text-weight-medium"> Multi-week selection mode ON - Click weeks to select </span>
             </div>
         </div>
     </q-card>
@@ -158,6 +161,7 @@ const props = withDefaults(
         selectedWeeksCount?: number
         showScheduleButton?: boolean
         isAltKeyHeld?: boolean
+        isDeleteMode?: boolean
     }>(),
     {
         selectedItem: null,
@@ -170,6 +174,7 @@ const props = withDefaults(
         selectedWeeksCount: 0,
         showScheduleButton: false,
         isAltKeyHeld: false,
+        isDeleteMode: false,
     },
 )
 

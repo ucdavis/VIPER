@@ -28,34 +28,6 @@
 
         <!-- Schedule Display -->
         <div v-else>
-            <!-- Selection Mode Controls -->
-            <div
-                v-if="enableWeekSelection && selectedWeekIds.size > 0"
-                class="q-pa-md q-mb-md bg-blue-1 text-blue-10 rounded-borders"
-            >
-                <div class="row items-center justify-between">
-                    <div class="col-auto">
-                        <q-icon
-                            name="check_circle"
-                            size="sm"
-                            class="q-mr-sm"
-                        />
-                        <span class="text-weight-medium"
-                            >{{ selectedWeekIds.size }} week{{ selectedWeekIds.size !== 1 ? "s" : "" }} selected</span
-                        >
-                    </div>
-                    <div class="col-auto">
-                        <q-btn
-                            flat
-                            dense
-                            label="Clear Selection"
-                            size="sm"
-                            @click="clearSelection"
-                        />
-                    </div>
-                </div>
-            </div>
-
             <!-- Schedule by semester -->
             <q-expansion-item
                 v-for="semester in schedulesBySemester"
@@ -63,6 +35,7 @@
                 :model-value="shouldExpandSemester(semester)"
                 :label="semester.semester || semester.displayName"
                 header-class="text-h6"
+                switch-toggle-side
                 class="q-mb-md"
             >
                 <!-- Week grid -->
@@ -202,7 +175,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
     weekClick: [week: WeekItem]
-    removeAssignment: [assignmentId: number, displayName: string]
+    removeAssignment: [assignmentId: number, displayName: string, isPrimary?: boolean]
     togglePrimary: [assignmentId: number, isPrimary: boolean, displayName: string]
     selectedWeeksChange: [weekIds: number[]]
 }>()
@@ -328,9 +301,9 @@ function onWeekShiftClick(week: WeekItem) {
     }
 }
 
-function handleRemoveAssignment(assignmentId: number, displayName: string) {
+function handleRemoveAssignment(assignmentId: number, displayName: string, isPrimary?: boolean) {
     if (!props.isPastYear && props.canEdit) {
-        emit("removeAssignment", assignmentId, displayName)
+        emit("removeAssignment", assignmentId, displayName, isPrimary)
     }
 }
 

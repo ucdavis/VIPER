@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using MockQueryable.Moq;
 using Moq;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 using Viper.Models.AAUD;
+using Viper.test.ClinicalScheduler.Setup;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -36,57 +38,93 @@ namespace Viper.test.ClinicalScheduler
         public const string InternalMedicineEditPermission = "SVMSecure.ClnSched.Edit.IM";
 
         // Shared test infrastructure
-        protected readonly ClinicalSchedulerContext Context;
+        protected readonly Mock<ClinicalSchedulerContext> MockContext;
+        protected readonly ClinicalSchedulerContext Context; // For compatibility with existing tests
         protected readonly Mock<RAPSContext> MockRapsContext;
         protected readonly Mock<IUserHelper> MockUserHelper;
 
         protected ClinicalSchedulerTestBase()
         {
-            Context = CreateInMemoryContext();
-            MockRapsContext = new Mock<RAPSContext>();
-            MockUserHelper = new Mock<IUserHelper>();
-            SeedCommonTestData();
-        }
-
-        /// <summary>
-        /// Creates an in-memory database context for testing
-        /// </summary>
-        private static ClinicalSchedulerContext CreateInMemoryContext()
-        {
+            // Create real DbContextOptions for in-memory database (required for mock to work)
             var options = new DbContextOptionsBuilder<ClinicalSchedulerContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
                 .Options;
-            return new ClinicalSchedulerContext(options);
+            MockContext = new Mock<ClinicalSchedulerContext>(options);
+            Context = MockContext.Object; // Provide the mock object for compatibility
+            MockRapsContext = new Mock<RAPSContext>();
+            MockUserHelper = new Mock<IUserHelper>();
+            SetupMockDbSets();
         }
 
         /// <summary>
-        /// Seeds common test data used across multiple tests
+        /// Sets up mock DbSets for testing
         /// </summary>
-        private void SeedCommonTestData()
+        private void SetupMockDbSets()
         {
-            // Add test services
-            var services = new[]
+            // Setup mock DbSets with test data
+            SetupClinicalSchedulerPeople.SetupPersonsTable(MockContext);
+            SetupClinicalSchedulerRotations.SetupRotationsTable(MockContext);
+            SetupClinicalSchedulerRotations.SetupWeekGradYearsTable(MockContext);
+            SetupWeeks();
+            SetupInstructorSchedules();
+            SetupServices();
+            SetupScheduleAudits();
+        }
+
+        /// <summary>
+        /// Sets up weeks mock DbSet
+        /// </summary>
+        private void SetupWeeks()
+        {
+            var weeks = new List<Week>
             {
-                CreateCardiologyService(),
-                CreateSurgeryService(),
-                CreateInternalMedicineService(),
-                CreateEmergencyMedicineService()
+                new Week
+                {
+                    WeekId = 1,
+                    DateStart = DateTime.UtcNow.AddDays(-7),
+                    DateEnd = DateTime.UtcNow.AddDays(-1),
+                    TermCode = 202501
+                },
+                new Week
+                {
+                    WeekId = 2,
+                    DateStart = DateTime.UtcNow.AddDays(0),
+                    DateEnd = DateTime.UtcNow.AddDays(6),
+                    TermCode = 202501
+                },
+                new Week
+                {
+                    WeekId = 10,
+                    DateStart = DateTime.UtcNow.AddDays(63),
+                    DateEnd = DateTime.UtcNow.AddDays(69),
+                    TermCode = 202501
+                },
+                new Week
+                {
+                    WeekId = 15,
+                    DateStart = DateTime.UtcNow.AddDays(98),
+                    DateEnd = DateTime.UtcNow.AddDays(104),
+                    TermCode = 202501
+                },
+                new Week
+                {
+                    WeekId = 20,
+                    DateStart = DateTime.UtcNow.AddDays(133),
+                    DateEnd = DateTime.UtcNow.AddDays(139),
+                    TermCode = 202501
+                }
             };
 
-            Context.Services.AddRange(services);
+            var mockDbSet = weeks.AsQueryable().BuildMockDbSet();
+            MockContext.Setup(c => c.Weeks).Returns(mockDbSet.Object);
+        }
 
-            // Add test rotations
-            var rotations = new[]
-            {
-                CreateCardiologyRotation(),
-                CreateSurgeryRotation()
-            };
-
-            Context.Rotations.AddRange(rotations);
-
-            // Add test instructor schedules for own schedule permission testing
-            var instructorSchedules = new[]
+        /// <summary>
+        /// Sets up instructor schedules mock DbSet
+        /// </summary>
+        private void SetupInstructorSchedules()
+        {
+            var instructorSchedules = new List<InstructorSchedule>
             {
                 new InstructorSchedule
                 {
@@ -106,8 +144,36 @@ namespace Viper.test.ClinicalScheduler
                 }
             };
 
-            Context.InstructorSchedules.AddRange(instructorSchedules);
-            Context.SaveChanges();
+            var mockDbSet = instructorSchedules.AsQueryable().BuildMockDbSet();
+            MockContext.Setup(c => c.InstructorSchedules).Returns(mockDbSet.Object);
+        }
+
+        /// <summary>
+        /// Sets up services mock DbSet
+        /// </summary>
+        private void SetupServices()
+        {
+            var services = new List<Service>
+            {
+                CreateCardiologyService(),
+                CreateSurgeryService(),
+                CreateInternalMedicineService(),
+                CreateEmergencyMedicineService()
+            };
+
+            var mockDbSet = services.AsQueryable().BuildMockDbSet();
+            MockContext.Setup(c => c.Services).Returns(mockDbSet.Object);
+        }
+
+        /// <summary>
+        /// Sets up schedule audits mock DbSet
+        /// </summary>
+        private void SetupScheduleAudits()
+        {
+            var scheduleAudits = new List<ScheduleAudit>();
+
+            var mockDbSet = scheduleAudits.AsQueryable().BuildMockDbSet();
+            MockContext.Setup(c => c.ScheduleAudits).Returns(mockDbSet.Object);
         }
 
         /// <summary>
@@ -224,22 +290,6 @@ namespace Viper.test.ClinicalScheduler
             ScheduleEditPermission = "" // Empty string, uses default
         };
 
-        private static Rotation CreateCardiologyRotation() => new()
-        {
-            RotId = CardiologyRotationId,
-            ServiceId = CardiologyServiceId,
-            Name = "Cardiology Rotation",
-            Abbreviation = "CARD"
-        };
-
-        private static Rotation CreateSurgeryRotation() => new()
-        {
-            RotId = SurgeryRotationId,
-            ServiceId = SurgeryServiceId,
-            Name = "Surgery Rotation",
-            Abbreviation = "SURG"
-        };
-
         public void Dispose()
         {
             Dispose(true);
@@ -248,10 +298,7 @@ namespace Viper.test.ClinicalScheduler
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
-            {
-                Context?.Dispose();
-            }
+            // No resources to dispose when using mocks
         }
     }
 }

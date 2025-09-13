@@ -103,6 +103,7 @@
                     :selected-weeks-count="selectedWeekIds.length"
                     :show-schedule-button="true"
                     :is-alt-key-held="isAltKeyHeld"
+                    :is-delete-mode="isInDeleteMode"
                     @select-items="selectRotations"
                     @clear-selection="clearRotationSelection"
                     @schedule-selected="handleScheduleSelected"
@@ -174,7 +175,9 @@ import { InstructorScheduleService } from "../services/instructor-schedule-servi
 import { PageDataService } from "../services/page-data-service"
 import { usePermissionsStore } from "../stores/permissions"
 import { useScheduleUpdatesWithRollback } from "../composables/use-optimistic-schedule-updates"
+import { useBulkDeletionLogic } from "../composables/use-bulk-deletion-logic"
 import { useScheduleNormalization } from "../composables/use-schedule-normalization"
+import { useDeleteMode } from "../composables/use-delete-mode"
 import type { RotationWithService } from "../types/rotation-types"
 import ScheduleBanner from "../components/ScheduleBanner.vue"
 import RecentSelections from "../components/RecentSelections.vue"
@@ -213,6 +216,8 @@ const permissionsStore = usePermissionsStore()
 // Composables for optimistic updates
 const { addScheduleWithRollback, removeScheduleWithRollback, togglePrimaryWithRollback } =
     useScheduleUpdatesWithRollback()
+
+const { executeBulkDeletionLogic } = useBulkDeletionLogic()
 const { normalizeClinicianSchedule, getAssignedRotationNames } = useScheduleNormalization()
 
 // Component state
@@ -273,6 +278,19 @@ const rotationItems = computed(() => {
 })
 
 const canEditRotation = (rotationId: number) => {
+    // First check if user has EditOwnSchedule permission and is editing their own schedule
+    if (permissionsStore.hasEditOwnSchedulePermission && selectedClinician.value) {
+        // Check if the current user is editing their own schedule
+        const currentUserMothraId = permissionsStore.user?.mothraId
+        if (
+            currentUserMothraId &&
+            currentUserMothraId.toLowerCase() === selectedClinician.value.mothraId.toLowerCase()
+        ) {
+            return true // User can edit their own schedule
+        }
+    }
+
+    // Otherwise, check service-level permissions
     let rotation = clinicianRotations.value.find((r) => r.rotId === rotationId)
 
     if (!rotation && additionalRotation.value && additionalRotation.value.rotId === rotationId) {
@@ -285,6 +303,16 @@ const canEditRotation = (rotationId: number) => {
 
 const schedulesBySemester = computed<ScheduleSemester[]>(() => {
     return normalizeClinicianSchedule(clinicianSchedule.value)
+})
+
+// Use shared delete mode logic
+const { isInDeleteMode } = useDeleteMode({
+    selectedItems: selectedRotations,
+    selectedWeekIds,
+    schedulesBySemester,
+    getWeekAssignments: getClinicianWeekAssignments,
+    getItemIdentifier: (rotation: ClinicianRotationItem) => rotation.rotId,
+    getAssignmentIdentifier: (assignment: ScheduleAssignment) => (assignment as any).rotationId,
 })
 
 const assignedRotationNames = computed(() => {
@@ -528,6 +556,7 @@ const selectRotations = (rotations: RotationWithService[]) => {
 const clearRotationSelection = () => {
     selectedRotation.value = null
     selectedRotations.value = []
+    makePrimaryEvaluator.value = false
     // Also clear week selection when clearing rotation selection
     selectedWeekIds.value = []
     if (scheduleViewRef.value) {
@@ -535,10 +564,15 @@ const clearRotationSelection = () => {
     }
 }
 
-const handleScheduleSelected = () => {
-    // Trigger bulk scheduling when button is clicked
-    if (selectedWeekIds.value.length > 0 && selectedRotations.value.length > 0) {
-        scheduleBulkRotationsToWeeks()
+const handleScheduleSelected = async () => {
+    // Check if we're in delete mode
+    if (isInDeleteMode.value) {
+        await deleteBulkAssignments()
+    } else {
+        // Trigger bulk scheduling when button is clicked
+        if (selectedWeekIds.value.length > 0 && selectedRotations.value.length > 0) {
+            await scheduleBulkRotationsToWeeks()
+        }
     }
 }
 
@@ -562,7 +596,7 @@ const scheduleRotationToWeek = async (week: WeekItem) => {
         $q.notify({
             type: "negative",
             message: SCHEDULE_OPERATION_ERRORS.NO_PERMISSION_EDIT_ROTATION,
-            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
+            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_ERROR,
         })
         return
     }
@@ -626,7 +660,7 @@ const scheduleRotationToWeek = async (week: WeekItem) => {
                     $q.notify({
                         type: "positive",
                         message: message,
-                        timeout: 4000,
+                        timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
                     })
 
                     // Keep the rotation selected for quick adding to other weeks but clear dropdown
@@ -649,7 +683,7 @@ const scheduleRotationToWeek = async (week: WeekItem) => {
                     $q.notify({
                         type: "negative",
                         message: userMessage,
-                        timeout: 4000,
+                        timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_ERROR,
                     })
                 },
             },
@@ -808,6 +842,7 @@ const scheduleBulkRotationsToWeeks = async () => {
         // Clear selections after bulk operation
         clearRotationSelection()
         selectedWeekIds.value = []
+        makePrimaryEvaluator.value = false
         // Clear the selection in the ScheduleView component
         if (scheduleViewRef.value) {
             scheduleViewRef.value.clearSelection()
@@ -816,11 +851,46 @@ const scheduleBulkRotationsToWeeks = async () => {
         $q.notify({
             type: "negative",
             message: "An error occurred during bulk scheduling",
-            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
+            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_ERROR,
         })
     } finally {
         isAddingRotation.value = false
         loadingWeekId.value = null
+    }
+}
+
+const deleteBulkAssignments = async () => {
+    if (!selectedClinician.value || !clinicianSchedule.value) return
+    if (selectedRotations.value.length === 0 || selectedWeekIds.value.length === 0) return
+
+    isRemovingRotation.value = true
+
+    try {
+        await executeBulkDeletionLogic(
+            {
+                selectedItems: selectedRotations,
+                selectedWeekIds,
+                schedulesBySemester,
+                getWeekAssignments: getClinicianWeekAssignments,
+                matchAssignmentToItem: (assignment, rotation) => assignment.rotationId === rotation.rotId,
+                getItemDisplayName: (rotation) => rotation.name || "",
+                getItemTypeName: () => "rotation",
+                canDeleteAssignment: (_assignment, rotation) => canEditRotation(rotation.rotId),
+            },
+            {
+                scheduleData: clinicianSchedule.value!,
+                removeScheduleWithRollback,
+                clearSelections: () => {
+                    clearRotationSelection()
+                    selectedWeekIds.value = []
+                    makePrimaryEvaluator.value = false
+                    scheduleViewRef.value?.clearSelection()
+                },
+                showManualConfirmation: true, // Show manual confirmation before bulk deletion
+            },
+        )
+    } finally {
+        isRemovingRotation.value = false
     }
 }
 
@@ -837,6 +907,7 @@ const scheduleRotationsToWeek = async (week: WeekItem) => {
         $q.notify({
             type: "warning",
             message: "Please select at least one rotation",
+            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_WARNING,
         })
         loadingWeekId.value = null
         return
@@ -972,14 +1043,14 @@ const scheduleRotationsToWeek = async (week: WeekItem) => {
             $q.notify({
                 type: "negative",
                 message: `Failed to schedule ${errorCount} rotation${errorCount > 1 ? "s" : ""}`,
-                timeout: 5000,
+                timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_ERROR,
             })
         }
     } catch (_error) {
         $q.notify({
             type: "negative",
             message: "An error occurred while scheduling rotations",
-            timeout: 5000,
+            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_ERROR,
         })
     } finally {
         isAddingRotation.value = false
@@ -1003,8 +1074,12 @@ const onWeekClick = async (week: WeekItem) => {
             return
         }
 
-        // Schedule all selected rotations to all selected weeks
-        await scheduleBulkRotationsToWeeks()
+        // Handle bulk operation based on current mode
+        if (isInDeleteMode.value) {
+            await deleteBulkAssignments()
+        } else {
+            await scheduleBulkRotationsToWeeks()
+        }
         // Clear selections after bulk operation
         selectedWeekIds.value = []
         return
@@ -1030,11 +1105,12 @@ const onWeekClick = async (week: WeekItem) => {
         $q.notify({
             type: "warning",
             message: "Please select a rotation first",
+            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_WARNING,
         })
     }
 }
 
-const handleRemoveRotation = async (scheduleId: number, displayName: string) => {
+const handleRemoveRotation = async (scheduleId: number, displayName: string, isPrimary?: boolean) => {
     if (isPastYear.value || !clinicianSchedule.value) return
 
     // Find the rotation to check permissions
@@ -1049,38 +1125,53 @@ const handleRemoveRotation = async (scheduleId: number, displayName: string) => 
         $q.notify({
             type: "negative",
             message: SCHEDULE_OPERATION_ERRORS.NO_PERMISSION_EDIT_ROTATION,
-            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
+            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_ERROR,
         })
         return
     }
 
-    const confirmed = await new Promise<boolean>((resolve) => {
-        $q.dialog({
-            title: "Confirm Removal",
-            message: `Remove ${displayName} from this week's schedule?`,
-            cancel: true,
-            persistent: true,
+    // Show confirmation dialog only for primary evaluator removals
+    if (isPrimary) {
+        const clinicianName = selectedClinician.value?.fullName || "This clinician"
+        const confirmed = await new Promise<boolean>((resolve) => {
+            $q.dialog({
+                title: "Confirm Primary Evaluator Removal",
+                message: `${clinicianName} is the primary evaluator for ${displayName}. Are you sure you want to remove them?`,
+                cancel: true,
+                persistent: true,
+            })
+                .onOk(() => resolve(true))
+                .onCancel(() => resolve(false))
         })
-            .onOk(() => resolve(true))
-            .onCancel(() => resolve(false))
-    })
 
-    if (!confirmed) return
+        if (!confirmed) return
+    }
 
     isRemovingRotation.value = true
 
     try {
         await removeScheduleWithRollback(clinicianSchedule.value, scheduleId, {
             onSuccess: () => {
+                // Show success notification
                 $q.notify({
                     type: "positive",
-                    message: `${displayName} removed from schedule`,
+                    message: `${displayName} has been removed from the schedule`,
+                    timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
                 })
             },
             onError: (error) => {
                 $q.notify({
                     type: "negative",
                     message: error || "Failed to remove rotation",
+                    timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_ERROR,
+                })
+            },
+            onNotification: (type, message, icon) => {
+                // Handle special notifications (e.g., primary evaluator removal warnings)
+                $q.notify({
+                    type: type as any,
+                    message,
+                    icon,
                     timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
                 })
             },
@@ -1107,7 +1198,7 @@ const handleTogglePrimary = async (scheduleId: number, currentIsPrimary: boolean
         $q.notify({
             type: "negative",
             message: SCHEDULE_OPERATION_ERRORS.NO_PERMISSION_EDIT_ROTATION,
-            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
+            timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_ERROR,
         })
         return
     }
@@ -1151,7 +1242,7 @@ const handleTogglePrimary = async (scheduleId: number, currentIsPrimary: boolean
                     $q.notify({
                         type: "negative",
                         message: error || "Failed to toggle primary evaluator",
-                        timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
+                        timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_ERROR,
                     })
                 },
             },

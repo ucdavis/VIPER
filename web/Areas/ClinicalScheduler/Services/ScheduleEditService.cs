@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
-using Viper.Models.AAUD;
 using Viper.Services;
 
 namespace Viper.Areas.ClinicalScheduler.Services
@@ -13,6 +12,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
     public class ScheduleEditService : IScheduleEditService
     {
         private readonly ClinicalSchedulerContext _context;
+        private readonly RAPSContext _rapsContext;
         private readonly ISchedulePermissionService _permissionService;
         private readonly IScheduleAuditService _auditService;
         private readonly ILogger<ScheduleEditService> _logger;
@@ -20,24 +20,29 @@ namespace Viper.Areas.ClinicalScheduler.Services
         private readonly IEmailService _emailService;
         private readonly EmailNotificationSettings _emailNotificationSettings;
         private readonly IGradYearService _gradYearService;
+        private readonly IPermissionValidator _permissionValidator;
 
         public ScheduleEditService(
             ClinicalSchedulerContext context,
+            RAPSContext rapsContext,
             ISchedulePermissionService permissionService,
             IScheduleAuditService auditService,
             ILogger<ScheduleEditService> logger,
             IEmailService emailService,
             IOptions<EmailNotificationSettings> emailNotificationOptions,
             IGradYearService gradYearService,
+            IPermissionValidator permissionValidator,
             IUserHelper? userHelper = null)
         {
             _context = context;
+            _rapsContext = rapsContext;
             _permissionService = permissionService;
             _auditService = auditService;
             _logger = logger;
             _emailService = emailService;
             _emailNotificationSettings = emailNotificationOptions.Value;
             _gradYearService = gradYearService;
+            _permissionValidator = permissionValidator;
             _userHelper = userHelper ?? new UserHelper();
         }
 
@@ -49,10 +54,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
             bool isPrimaryEvaluator = false,
             CancellationToken cancellationToken = default)
         {
+            _logger.LogInformation("Starting AddInstructorAsync for {WeekCount} weeks", weekIds.Length);
+
             try
             {
                 // Validate permissions and get current user
-                var currentUser = await ValidatePermissionsAndGetUserAsync(rotationId, cancellationToken);
+                // For adding, check if user is adding themselves with EditOwnSchedule permission
+                var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(rotationId, mothraId ?? "", cancellationToken);
 
                 // Validate grad year - only allow current or future years
                 var currentGradYear = await _gradYearService.GetCurrentGradYearAsync();
@@ -128,15 +136,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .Select(s => new { s.WeekId, s.RotationId, s.InstructorScheduleId })
                     .ToListAsync(cancellationToken);
 
-                _logger.LogInformation("Found {Count} total existing schedules for MothraId='{MothraId}' in weeks [{WeekIds}]: {Details}",
+                _logger.LogDebug("Found {Count} total existing schedules for MothraId='{MothraId}' in weeks [{WeekIds}]: {Details}",
                     allExistingForWeeks.Count, mothraId, string.Join(",", weekIds),
                     string.Join(", ", allExistingForWeeks.Select(s => $"Week {s.WeekId} in Rotation {s.RotationId} (ID: {s.InstructorScheduleId})")));
 
 
                 // Use Serializable isolation level to prevent race conditions
-                using var transaction = await _context.Database.BeginTransactionAsync(
-                    System.Data.IsolationLevel.Serializable, cancellationToken);
-                try
+                var result = await ExecuteInTransactionAsync(async (cancellationToken) =>
                 {
                     var createdSchedules = new List<InstructorSchedule>();
                     var removedPrimarySchedules = new Dictionary<int, List<InstructorSchedule>>(); // WeekId -> removed schedules
@@ -145,7 +151,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
-                        _logger.LogInformation("Preparing to add InstructorSchedule: MothraId='{MothraId}' (length={Length}), RotationId={RotationId}, WeekId={WeekId}, IsPrimary={IsPrimary}, GradYear={GradYear}",
+                        _logger.LogDebug("Preparing to add InstructorSchedule: MothraId='{MothraId}' (length={Length}), RotationId={RotationId}, WeekId={WeekId}, IsPrimary={IsPrimary}, GradYear={GradYear}",
                             mothraId, mothraId?.Length ?? 0, rotationId, weekId, isPrimaryEvaluator, gradYear);
 
                         // Double-check for duplicates right before insertion (within transaction)
@@ -188,11 +194,17 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                     // Save all schedule entities at once for better performance
                     await _context.SaveChangesAsync(cancellationToken);
-                    await transaction.CommitAsync(cancellationToken);
 
-                    // Send notifications and log audit entries AFTER successful transaction commit
-                    // This ensures we don't send emails for operations that were rolled back
+                    return (createdSchedules, removedPrimarySchedules);
+                }, System.Data.IsolationLevel.Serializable, cancellationToken);
 
+                var (createdSchedules, removedPrimarySchedules) = result;
+
+                // Send notifications and log audit entries AFTER successful transaction commit
+                // This ensures we don't send emails for operations that were rolled back
+                // Post-transaction operations are wrapped in try-catch to prevent perceived failures
+                try
+                {
                     // Send notifications for any removed primary evaluators
                     foreach (var (weekId, removedSchedules) in removedPrimarySchedules)
                     {
@@ -216,33 +228,18 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         }
                     }
 #pragma warning restore S3267
-
-                    // Log summary instead of per-week logs
-                    _logger.LogInformation("Added instructor {MothraId} to rotation {RotationId} for {WeekCount} weeks (Primary: {IsPrimary})",
-                        mothraId, rotationId, weekIds.Length, isPrimaryEvaluator);
-
-                    return createdSchedules;
                 }
-                catch (Exception saveEx)
+                catch (Exception postTransactionEx)
                 {
-                    await transaction.RollbackAsync(cancellationToken);
-
-                    _logger.LogError(saveEx, "Database save failed for MothraId='{MothraId}', RotationId={RotationId}, WeekIds=[{WeekIds}]",
-                        mothraId, rotationId, string.Join(",", weekIds));
-
-                    // Check if this is a database constraint violation (typically a duplicate key error)
-                    var errorMessage = saveEx.Message?.ToLower();
-                    var innerMessage = saveEx.InnerException?.Message?.ToLower();
-
-                    if ((errorMessage != null && (errorMessage.Contains("duplicate") || errorMessage.Contains("unique") || errorMessage.Contains("constraint") || errorMessage.Contains("violation of primary key"))) ||
-                        (innerMessage != null && (innerMessage.Contains("duplicate") || innerMessage.Contains("unique") || innerMessage.Contains("constraint") || innerMessage.Contains("violation of primary key"))))
-                    {
-                        throw new InvalidOperationException($"Instructor {mothraId} appears to already be scheduled for one or more of the specified weeks. Please refresh the page and try again.", saveEx);
-                    }
-
-                    // For other database errors, wrap with context
-                    throw new InvalidOperationException($"Database operation failed while adding instructor {mothraId} to rotation {rotationId}. Please try again or contact support if the problem persists.", saveEx);
+                    // Log warning but don't fail the operation - the database changes were successful
+                    _logger.LogWarning(postTransactionEx, "Post-transaction operations failed for instructor {MothraId} in rotation {RotationId}, but database changes were successful",
+                        mothraId, rotationId);
                 }
+
+                _logger.LogInformation("Successfully added instructor {MothraId} to rotation {RotationId} for {WeekCount} weeks (Primary: {IsPrimary})",
+                    mothraId, rotationId, weekIds.Length, isPrimaryEvaluator);
+
+                return createdSchedules;
             }
             catch (UnauthorizedAccessException)
             {
@@ -254,77 +251,112 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // Re-throw InvalidOperationException without wrapping (includes "already scheduled" messages)
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception saveEx)
             {
-                _logger.LogError(ex, "Error adding instructor {MothraId} to rotation {RotationId} for weeks {WeekIds}",
+                _logger.LogError(saveEx, "Database save failed for MothraId='{MothraId}', RotationId={RotationId}, WeekIds=[{WeekIds}]",
                     mothraId, rotationId, string.Join(",", weekIds));
-                throw new InvalidOperationException($"Failed to add instructor {mothraId} to rotation {rotationId}. Please try again or contact support if the problem persists.", ex);
+
+                // Check if this is a database constraint violation (typically a duplicate key error)
+                var errorMessage = saveEx.Message?.ToLower();
+                var innerMessage = saveEx.InnerException?.Message?.ToLower();
+
+                if ((errorMessage != null && (errorMessage.Contains("duplicate") || errorMessage.Contains("unique") || errorMessage.Contains("constraint") || errorMessage.Contains("violation of primary key"))) ||
+                    (innerMessage != null && (innerMessage.Contains("duplicate") || innerMessage.Contains("unique") || innerMessage.Contains("constraint") || innerMessage.Contains("violation of primary key"))))
+                {
+                    throw new InvalidOperationException($"Instructor {mothraId} appears to already be scheduled for one or more of the specified weeks. Please refresh the page and try again.", saveEx);
+                }
+
+                // For other database errors, wrap with context
+                throw new InvalidOperationException($"Database operation failed while adding instructor {mothraId} to rotation {rotationId}. Please try again or contact support if the problem persists.", saveEx);
             }
         }
 
-        public async Task<bool> RemoveInstructorScheduleAsync(
+        public async Task<(bool success, bool wasPrimaryEvaluator, string? instructorName)> RemoveInstructorScheduleAsync(
             int instructorScheduleId,
             CancellationToken cancellationToken = default)
         {
+            _logger.LogInformation("Starting RemoveInstructorScheduleAsync for schedule {ScheduleId}", instructorScheduleId);
+
             try
             {
                 var schedule = await _context.InstructorSchedules
                     .Include(s => s.Rotation)
+                    .Include(s => s.Person)
                     .FirstOrDefaultAsync(s => s.InstructorScheduleId == instructorScheduleId, cancellationToken);
 
                 if (schedule == null)
                 {
                     _logger.LogWarning("InstructorSchedule {ScheduleId} not found for removal", instructorScheduleId);
-                    return false;
+                    return (false, false, null);
                 }
 
                 // Validate permissions and get current user
-                var currentUser = await ValidatePermissionsAndGetUserAsync(schedule.RotationId, cancellationToken);
+                // For removal, check if user is editing their own schedule
+                var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(schedule.RotationId, schedule.MothraId, cancellationToken);
 
-                // Check if can be removed (not primary evaluator, or there are other instructors for this rotation/week)
-                if (schedule.Evaluator)
+                // Capture whether this was a primary evaluator and instructor name before removal
+                var wasPrimaryEvaluator = schedule.Evaluator;
+
+                // Handle instructor name retrieval - if Person is null, try to get it from the MothraId
+                string? instructorName = null;
+                if (schedule.Person != null)
                 {
-                    var otherInstructors = await _context.InstructorSchedules
-                        .Where(s => s.RotationId == schedule.RotationId && s.WeekId == schedule.WeekId &&
-                                   s.InstructorScheduleId != instructorScheduleId)
-                        .AnyAsync(cancellationToken);
+                    instructorName = !string.IsNullOrEmpty(schedule.Person.PersonDisplayFullName)
+                        ? schedule.Person.PersonDisplayFullName
+                        : $"{schedule.Person.PersonDisplayLastName}, {schedule.Person.PersonDisplayFirstName}";
+                }
+                else
+                {
+                    // If Person wasn't loaded, try to fetch it separately
+                    var person = await _context.Persons
+                        .FirstOrDefaultAsync(p => p.IdsMothraId == schedule.MothraId, cancellationToken);
 
-                    if (!otherInstructors)
+                    if (person != null)
                     {
-                        throw new InvalidOperationException($"Cannot remove primary evaluator {schedule.MothraId} - they are the only instructor for this rotation/week. Assign another instructor as primary first.");
+                        instructorName = !string.IsNullOrEmpty(person.PersonDisplayFullName)
+                            ? person.PersonDisplayFullName
+                            : $"{person.PersonDisplayLastName}, {person.PersonDisplayFirstName}";
+                    }
+                    else
+                    {
+                        // Fallback to MothraId if we can't find the person
+                        instructorName = schedule.MothraId;
+                        _logger.LogWarning("Could not load Person data for MothraId {MothraId} during removal", schedule.MothraId);
                     }
                 }
 
-                using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-                try
+                await ExecuteInTransactionAsync(async (cancellationToken) =>
                 {
                     // Remove the schedule
                     _context.InstructorSchedules.Remove(schedule);
                     await _context.SaveChangesAsync(cancellationToken);
-                    await transaction.CommitAsync(cancellationToken);
+                    return true;
+                }, cancellationToken);
 
-                    // Send notifications and log audit entries AFTER successful
-                    // transaction commit
-                    // This ensures we don't send emails for operations that were
-                    // rolled back
+                // Send notifications and log audit entries AFTER successful transaction commit
+                // This ensures we don't send emails for operations that were rolled back
+                // Post-transaction operations are wrapped in try-catch to prevent perceived failures
+                try
+                {
                     await _auditService.LogInstructorRemovedAsync(
                         schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
 
-                    if (schedule.Evaluator)
+                    if (wasPrimaryEvaluator)
                     {
                         await HandlePrimaryEvaluatorRemovalAsync(schedule, currentUser.MothraId, cancellationToken);
                     }
-
-                    _logger.LogDebug("Removed instructor {MothraId} from rotation {RotationId}, week {WeekId} (WasPrimary: {WasPrimary})",
-                        schedule.MothraId, schedule.RotationId, schedule.WeekId, schedule.Evaluator);
-
-                    return true;
                 }
-                catch
+                catch (Exception postTransactionEx)
                 {
-                    await transaction.RollbackAsync(cancellationToken);
-                    throw;
+                    // Log warning but don't fail the operation - the database changes were successful
+                    _logger.LogWarning(postTransactionEx, "Post-transaction operations failed for instructor removal {ScheduleId}, but database changes were successful",
+                        instructorScheduleId);
                 }
+
+                _logger.LogInformation("Successfully removed instructor {MothraId} from rotation {RotationId}, week {WeekId} (WasPrimary: {WasPrimary})",
+                    schedule.MothraId, schedule.RotationId, schedule.WeekId, wasPrimaryEvaluator);
+
+                return (true, wasPrimaryEvaluator, instructorName);
             }
             catch (UnauthorizedAccessException)
             {
@@ -363,7 +395,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 }
 
                 // Validate permissions and get current user
-                var currentUser = await ValidatePermissionsAndGetUserAsync(schedule.RotationId, cancellationToken);
+                var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(schedule.RotationId, schedule.MothraId, cancellationToken);
 
                 // If already in the desired state, no action needed
                 if (schedule.Evaluator == isPrimary)
@@ -371,8 +403,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return (true, null);
                 }
 
-                using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-                try
+                var result = await ExecuteInTransactionAsync(async (cancellationToken) =>
                 {
                     string? previousPrimaryName = null;
                     List<InstructorSchedule> removedPrimarySchedules = [];
@@ -406,10 +437,17 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     }
 
                     await _context.SaveChangesAsync(cancellationToken);
-                    await transaction.CommitAsync(cancellationToken);
 
-                    // Send notifications and log audit entries AFTER successful transaction commit
-                    // This ensures we don't send emails for operations that were rolled back
+                    return (previousPrimaryName, removedPrimarySchedules);
+                }, cancellationToken);
+
+                var (previousPrimaryName, removedPrimarySchedules) = result;
+
+                // Send notifications and log audit entries AFTER successful transaction commit
+                // This ensures we don't send emails for operations that were rolled back
+                // Post-transaction operations are wrapped in try-catch to prevent perceived failures
+                try
+                {
                     if (isPrimary)
                     {
                         // Send notifications for any removed primary evaluators
@@ -425,17 +463,18 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     {
                         await HandlePrimaryEvaluatorRemovalAsync(schedule, currentUser.MothraId, cancellationToken);
                     }
-
-                    _logger.LogInformation("Set primary evaluator for {MothraId} on rotation {RotationId}, week {WeekId} to {IsPrimary}",
-                        schedule.MothraId, schedule.RotationId, schedule.WeekId, isPrimary);
-
-                    return (true, previousPrimaryName);
                 }
-                catch
+                catch (Exception postTransactionEx)
                 {
-                    await transaction.RollbackAsync(cancellationToken);
-                    throw;
+                    // Log warning but don't fail the operation - the database changes were successful
+                    _logger.LogWarning(postTransactionEx, "Post-transaction operations failed for primary evaluator update {ScheduleId}, but database changes were successful",
+                        instructorScheduleId);
                 }
+
+                _logger.LogInformation("Set primary evaluator for {MothraId} on rotation {RotationId}, week {WeekId} to {IsPrimary}",
+                    schedule.MothraId, schedule.RotationId, schedule.WeekId, isPrimary);
+
+                return (true, previousPrimaryName);
             }
             catch (Exception ex)
             {
@@ -459,20 +498,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return false;
                 }
 
-                // If not a primary evaluator, can always remove
-                if (!schedule.Evaluator)
-                {
-                    return true;
-                }
-
-                // If primary evaluator, check if there are other instructors for this rotation/week
-                var hasOtherInstructors = await _context.InstructorSchedules
-                    .AsNoTracking()
-                    .Where(s => s.RotationId == schedule.RotationId && s.WeekId == schedule.WeekId &&
-                               s.InstructorScheduleId != instructorScheduleId)
-                    .AnyAsync(cancellationToken);
-
-                return hasOtherInstructors;
+                // All instructors can now be removed, including primary evaluators
+                return true;
             }
             catch (Exception ex)
             {
@@ -503,14 +530,11 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 var query = _context.InstructorSchedules
                     .AsNoTracking()
                     .Include(s => s.Rotation)  // Include rotation data for name lookup
-                    .Join(_context.WeekGradYears,
-                        schedule => schedule.WeekId,
-                        weekGradYear => weekGradYear.WeekId,
-                        (schedule, weekGradYear) => new { schedule, weekGradYear })
-                    .Where(joined => joined.schedule.MothraId == mothraId &&
-                                   weekIds.Contains(joined.schedule.WeekId) &&
-                                   joined.weekGradYear.GradYear == gradYear)
-                    .Select(joined => joined.schedule);
+                    .Include(s => s.Week)
+                        .ThenInclude(w => w.WeekGradYears)
+                    .Where(s => s.MothraId == mothraId &&
+                                weekIds.Contains(s.WeekId) &&
+                                s.Week.WeekGradYears.Any(wgy => wgy.GradYear == gradYear));
 
                 if (excludeRotationId.HasValue)
                 {
@@ -554,29 +578,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
             }
         }
 
-
-        /// <summary>
-        /// Validates that the current user has edit permissions for the specified rotation
-        /// </summary>
-        /// <param name="rotationId">Rotation ID to check</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>The current authenticated user</returns>
-        /// <exception cref="UnauthorizedAccessException">Thrown when user lacks permission or is not authenticated</exception>
-        private async Task<AaudUser> ValidatePermissionsAndGetUserAsync(int rotationId, CancellationToken cancellationToken)
-        {
-            if (!await _permissionService.HasEditPermissionForRotationAsync(rotationId, cancellationToken))
-            {
-                throw new UnauthorizedAccessException($"User does not have permission to edit rotation {rotationId}");
-            }
-
-            var currentUser = _userHelper.GetCurrentUser();
-            if (currentUser == null)
-            {
-                throw new UnauthorizedAccessException("No authenticated user found");
-            }
-
-            return currentUser;
-        }
 
         /// <summary>
         /// Clear the primary evaluator flag for all instructors on a specific rotation/week
@@ -663,7 +664,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 string rotationName;
                 if (schedule.Rotation != null)
                 {
-                    rotationName = schedule.Rotation.Name;
+                    rotationName = schedule.Rotation.Name ?? "Unknown Rotation";
                 }
                 else
                 {
@@ -763,14 +764,57 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 }
 
                 _logger.LogInformation("Primary evaluator removal notification sent for {MothraId} from {RotationName} week {WeekDisplay}",
-                    schedule.MothraId, rotationName, weekDisplay);
+                    schedule.MothraId, rotationName ?? "Unknown Rotation", weekDisplay);
             }
             catch (Exception ex)
             {
                 // Log error but don't fail the transaction - email is secondary to the schedule removal
-                _logger.LogError(ex, "Failed to send primary evaluator removal notification for {MothraId} from rotation {RotationId} week {WeekId}",
-                    schedule.MothraId, schedule.RotationId, schedule.WeekId);
+                _logger.LogError(ex, "Failed to send primary evaluator removal notification for {MothraId} from rotation {RotationId} week {WeekId} (rotation: {RotationName})",
+                    schedule.MothraId, schedule.RotationId, schedule.WeekId, schedule.Rotation?.Name ?? "Unknown");
             }
+        }
+
+        /// <summary>
+        /// Executes an operation within a database transaction.
+        /// This method can be overridden in tests to bypass transaction handling.
+        /// </summary>
+        /// <typeparam name="T">The return type of the operation</typeparam>
+        /// <param name="operation">The operation to execute within the transaction</param>
+        /// <param name="isolationLevel">The isolation level for the transaction</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The result of the operation</returns>
+        protected virtual async Task<T> ExecuteInTransactionAsync<T>(
+            Func<CancellationToken, Task<T>> operation,
+            System.Data.IsolationLevel isolationLevel,
+            CancellationToken cancellationToken)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync(isolationLevel, cancellationToken);
+            try
+            {
+                var result = await operation(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return result;
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Executes an operation within a database transaction using the default isolation level.
+        /// This method can be overridden in tests to bypass transaction handling.
+        /// </summary>
+        /// <typeparam name="T">The return type of the operation</typeparam>
+        /// <param name="operation">The operation to execute within the transaction</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The result of the operation</returns>
+        protected virtual async Task<T> ExecuteInTransactionAsync<T>(
+            Func<CancellationToken, Task<T>> operation,
+            CancellationToken cancellationToken)
+        {
+            return await ExecuteInTransactionAsync(operation, System.Data.IsolationLevel.Unspecified, cancellationToken);
         }
     }
 }

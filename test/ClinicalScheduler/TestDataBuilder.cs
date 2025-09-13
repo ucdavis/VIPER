@@ -114,6 +114,7 @@ namespace Viper.test.ClinicalScheduler
         {
             return new InstructorSchedule
             {
+                // Don't set InstructorScheduleId - let Entity Framework assign it
                 MothraId = mothraId,
                 RotationId = rotationId,
                 WeekId = weekId,

@@ -54,15 +54,18 @@ namespace Viper.test.ClinicalScheduler.Integration
             mockEmailSettings.Setup(x => x.Value).Returns(new EmailNotificationSettings());
             var mockUserHelper = new Mock<IUserHelper>();
             var mockGradYearService = new Mock<IGradYearService>();
+            var mockPermissionValidator = new Mock<IPermissionValidator>();
 
             _scheduleEditService = new ScheduleEditService(
                 Context,
+                MockRapsContext.Object,
                 _permissionService,
                 mockAuditService.Object,
                 scheduleEditLogger.Object,
                 mockEmailService.Object,
                 mockEmailSettings.Object,
                 mockGradYearService.Object,
+                mockPermissionValidator.Object,
                 mockUserHelper.Object);
 
             _evaluationPolicyService = new EvaluationPolicyService();
@@ -249,6 +252,7 @@ namespace Viper.test.ClinicalScheduler.Integration
             // Arrange - Controller that uses EvaluationPolicyService
             var mockScheduleEditService = new Mock<IScheduleEditService>();
             var mockAuditService = new Mock<IScheduleAuditService>();
+            var mockUserHelper = new Mock<IUserHelper>();
             var mockGradYearService = new Mock<IGradYearService>();
 
             // Setup mock to verify EvaluationPolicyService is injected
@@ -262,13 +266,13 @@ namespace Viper.test.ClinicalScheduler.Integration
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new List<CS.InstructorSchedule> { new CS.InstructorSchedule { InstructorScheduleId = 1 } });
 
-            var validatorLogger = new Mock<ILogger<AddInstructorValidator>>();
-
             var controllerLogger = new Mock<ILogger<InstructorScheduleController>>();
+            var validatorLogger = new Mock<ILogger<AddInstructorValidator>>();
             var controller = new InstructorScheduleController(
                 mockScheduleEditService.Object,
                 mockAuditService.Object,
                 _permissionService,
+                mockUserHelper.Object,
                 mockGradYearService.Object,
                 controllerLogger.Object,
                 validatorLogger.Object
@@ -296,16 +300,17 @@ namespace Viper.test.ClinicalScheduler.Integration
             SetupUserWithPermissionsForIntegration(TestUserMothraId, new[] { CardiologyEditPermission });
 
             var mockAuditService = new Mock<IScheduleAuditService>();
+            var mockUserHelper = new Mock<IUserHelper>();
             var mockGradYearService = new Mock<IGradYearService>();
             mockGradYearService.Setup(x => x.GetCurrentGradYearAsync()).ReturnsAsync(2024);
 
-            var validatorLogger = new Mock<ILogger<AddInstructorValidator>>();
-
             var controllerLogger = new Mock<ILogger<InstructorScheduleController>>();
+            var validatorLogger = new Mock<ILogger<AddInstructorValidator>>();
             var controller = new InstructorScheduleController(
                 _scheduleEditService,
                 mockAuditService.Object,
                 _permissionService,
+                mockUserHelper.Object,
                 mockGradYearService.Object,
                 controllerLogger.Object,
                 validatorLogger.Object

@@ -19,8 +19,9 @@ import type {
 } from "../utils/schedule-update-helpers"
 
 interface OptimisticUpdateOptions {
-    onSuccess?: () => void
+    onSuccess?: (wasPrimary?: boolean, instructorName?: string) => void
     onError?: (error: string) => void
+    onNotification?: (type: string, message: string, icon?: string) => void
 }
 
 async function addClinicianToRotation(
@@ -121,6 +122,7 @@ interface RemoveScheduleParams {
 async function handleRemoveSchedule(params: RemoveScheduleParams, options: OptimisticUpdateOptions) {
     const { scheduleData, scheduleId, removeScheduleFromWeek } = params
 
+    // Perform optimistic UI update immediately
     if (isRotationSchedule(scheduleData)) {
         removeScheduleFromWeek(scheduleData, scheduleId)
     } else {
@@ -143,7 +145,24 @@ async function handleRemoveSchedule(params: RemoveScheduleParams, options: Optim
         throw new Error(result.errors.join(", "))
     }
 
-    options.onSuccess?.()
+    // Prepare notification data
+    const wasPrimary = result.result?.wasPrimaryEvaluator || false
+    const instructorName = result.result?.instructorName || "Instructor"
+
+    // Send notification through callback
+    if (options.onNotification) {
+        if (wasPrimary) {
+            options.onNotification(
+                "warning",
+                `Primary evaluator ${instructorName} has been removed. This week may need a new primary evaluator.`,
+                "star_outline",
+            )
+        } else {
+            options.onNotification("positive", `${instructorName} removed from schedule`)
+        }
+    }
+
+    options.onSuccess?.(wasPrimary, instructorName)
 }
 
 async function handleTogglePrimary(

@@ -1,5 +1,5 @@
 {
-    "{VueApp,scripts}/**/*.{js,jsx,ts,tsx}": [
+    "{VueApp,scripts}/**/*.{js,ts,tsx}": [
         "node scripts/lint-staged-ts.js --fix",
         "prettier --write"
     ],

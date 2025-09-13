@@ -27,14 +27,20 @@
 
             <!-- Assignments -->
             <div>
-                <div
-                    v-if="assignments.length > 0"
+                <transition-group
+                    name="assignment-list"
+                    tag="div"
                     class="week-cell__assignment-list"
+                    leave-active-class="animated fadeOutLeft"
+                    move-class="assignment-list-move"
                 >
                     <div
                         v-for="assignment in assignments"
                         :key="assignment.id"
-                        class="week-cell__assignment-item"
+                        :class="[
+                            'week-cell__assignment-item',
+                            { 'week-cell__assignment-item--newly-added': isNewlyAdded(assignment.id) },
+                        ]"
                     >
                         <div class="week-cell__assignment-content">
                             <!-- Remove button -->
@@ -48,7 +54,14 @@
                                 color="negative"
                                 class="week-cell__remove-btn"
                                 aria-label="Remove this clinician from the schedule"
-                                @click.stop="$emit('remove-assignment', assignment.id, assignment.displayName)"
+                                @click.stop="
+                                    $emit(
+                                        'remove-assignment',
+                                        assignment.id,
+                                        assignment.displayName,
+                                        assignment.isPrimary,
+                                    )
+                                "
                             >
                                 <q-tooltip :delay="600">Remove {{ assignment.displayName }} from schedule</q-tooltip>
                             </q-btn>
@@ -118,27 +131,38 @@
                             </q-btn>
                         </div>
                     </div>
-                </div>
-
-                <!-- Empty state -->
-                <div
-                    v-else
-                    class="week-cell__empty"
-                >
-                    <div class="week-cell__empty-text">
-                        {{ emptyStateText }}
+                    <!-- Empty state as part of transition group -->
+                    <div
+                        v-if="assignments.length === 0"
+                        key="empty-state"
+                        class="week-cell__empty"
+                    >
+                        <div class="week-cell__empty-text">
+                            {{ emptyStateText }}
+                        </div>
                     </div>
-                </div>
+                </transition-group>
             </div>
         </q-card-section>
     </q-card>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref, watch } from "vue"
 import { useDateFunctions } from "@/composables/DateFunctions"
 
 const { formatDate } = useDateFunctions()
+
+// Animation constants
+const HIGHLIGHT_ANIMATION_DURATION = 2000 // milliseconds - keep in sync with CSS animation
+
+// Track newly added assignments for animation
+const newlyAddedAssignments = ref<Set<number>>(new Set())
+
+// Function to check if assignment is newly added
+function isNewlyAdded(assignmentId: number): boolean {
+    return newlyAddedAssignments.value.has(assignmentId)
+}
 
 export interface WeekAssignment {
     id: number
@@ -181,7 +205,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
     click: [week: Props["week"], event?: MouseEvent]
-    "remove-assignment": [assignmentId: number, displayName: string]
+    "remove-assignment": [assignmentId: number, displayName: string, isPrimary?: boolean]
     "toggle-primary": [assignmentId: number, isPrimary: boolean, displayName: string]
     "shift-click": [week: Props["week"]]
 }>()
@@ -198,6 +222,32 @@ const emptyStateText = computed(() => {
     if (props.canEdit) return "Click to add assignment"
     return "No assignments"
 })
+
+// Watch for new assignments and trigger highlight animation
+watch(
+    () => props.assignments,
+    (newAssignments, oldAssignments) => {
+        if (!oldAssignments || !newAssignments) return
+
+        // Find newly added assignments
+        const oldIds = new Set(oldAssignments.map((a) => a.id))
+        const newlyAdded = newAssignments.filter((a) => !oldIds.has(a.id))
+
+        newlyAdded.forEach((assignment) => {
+            // Create new Set to trigger reactivity
+            newlyAddedAssignments.value = new Set([...newlyAddedAssignments.value, assignment.id])
+
+            // Remove highlight after animation duration
+            setTimeout(() => {
+                // Create new Set without the item to trigger reactivity
+                const updated = new Set(newlyAddedAssignments.value)
+                updated.delete(assignment.id)
+                newlyAddedAssignments.value = updated
+            }, HIGHLIGHT_ANIMATION_DURATION)
+        })
+    },
+    { deep: true },
+)
 
 // Long press timer for mobile
 let longPressTimer: ReturnType<typeof setTimeout> | null = null
@@ -322,9 +372,56 @@ const cardClasses = computed(() => {
     gap: 4px;
 }
 
+@media screen and (prefers-reduced-motion: reduce) {
+    .week-cell__assignment-item {
+        display: flex;
+        align-items: center;
+        transition: none;
+    }
+}
+
 .week-cell__assignment-item {
     display: flex;
     align-items: center;
+    transition: background-color 0.3s ease-out;
+}
+
+/* Newly added item highlighting - using UC Davis gold for confirmation */
+@media screen and (prefers-reduced-motion: reduce) {
+    .week-cell__assignment-item--newly-added {
+        background-color: var(--ucdavis-gold-20);
+        border-radius: 4px;
+        padding: 2px 4px;
+        animation: none;
+    }
+}
+
+.week-cell__assignment-item--newly-added {
+    background-color: var(--ucdavis-gold-20);
+    border-radius: 4px;
+    padding: 2px 4px;
+    animation: fadeToBackground 2s ease-out forwards; /* Duration: keep in sync with HIGHLIGHT_ANIMATION_DURATION */
+}
+
+@keyframes fadeToBackground {
+    0% {
+        background-color: var(--ucdavis-gold-30);
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* Move transition for reordering */
+@media screen and (prefers-reduced-motion: reduce) {
+    .assignment-list-move {
+        transition: none;
+    }
+}
+
+.assignment-list-move {
+    transition: transform 0.3s ease;
 }
 
 .week-cell__assignment-content {

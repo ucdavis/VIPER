@@ -4,7 +4,7 @@
             <q-card-section class="text-center">
                 <q-icon
                     name="block"
-                    :size="UI_CONFIG.ACCESS_DENIED_ICON_SIZE"
+                    :size="ACCESS_DENIED_ICON_SIZE"
                     color="negative"
                     class="q-mb-md"
                 />
@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { UI_CONFIG } from "../constants/app-constants"
+const ACCESS_DENIED_ICON_SIZE = "48px"
 
 interface Props {
     message: string

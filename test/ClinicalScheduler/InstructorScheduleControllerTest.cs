@@ -35,13 +35,15 @@ namespace Viper.test.ClinicalScheduler
             _mockGradYearService.Setup(x => x.GetCurrentGradYearAsync())
                 .ReturnsAsync(currentYear);
 
-            // Create mock logger for validator
+            // Create mock user helper and validator logger
+            var mockUserHelper = new Mock<IUserHelper>();
             var mockValidatorLogger = new Mock<ILogger<AddInstructorValidator>>();
 
             _controller = new InstructorScheduleController(
                 _mockScheduleEditService.Object,
                 _mockAuditService.Object,
                 _mockPermissionService.Object,
+                mockUserHelper.Object,
                 _mockGradYearService.Object,
                 _mockLogger.Object,
                 mockValidatorLogger.Object
