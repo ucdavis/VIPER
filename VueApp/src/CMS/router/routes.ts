@@ -17,6 +17,12 @@ const routes = [
         name: "CmsHome"
     },
     {
+        path: '/CMS/ManageLinkCollections',
+        name: 'ManageLinkCollections',
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.ManageContentBlocks"] },
+        component: () => import('@/CMS/pages/ManageLinkCollections.vue'),
+    },
+    {
         path: '/CMS/LinkCollections',
         name: 'LinkCollections',
         meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.ManageContentBlocks"] },
