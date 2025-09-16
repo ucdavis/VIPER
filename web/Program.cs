@@ -259,7 +259,8 @@ try
                 .AddRewrite(@"(?i)^CTS", "/vue/src/cts/index.html", true)
                 .AddRewrite(@"(?i)^Computing", "/vue/src/computing/index.html", true)
                 .AddRewrite(@"(?i)^Students", "/vue/src/students/index.html", true)
-                .AddRewrite(@"(?i)^CMS", "/vue/src/cms/index.html", true);
+                .AddRewrite(@"(?i)^CMS", "/vue/src/cms/index.html", true)
+                .AddRewrite(@"(?i)^CAHFS", "/vue/src/cahfs/index.html", true);
     app.UseRewriter(rewriteOptions);
 
     //for the vue src files, use directories in the url but serve index.html

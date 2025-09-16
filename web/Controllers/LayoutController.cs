@@ -13,7 +13,7 @@ namespace Viper.Controllers
     public class LayoutController : ApiController
     {
         private RAPSContext _context;
-        private readonly string oldViperURL = HttpHelper.GetOldViperRootURL();
+        
         private readonly List<string[]> links = new()
         {
             new string[] { "/", "1.0", "SVMSecure", "VIPER 1.0" },
@@ -21,6 +21,7 @@ namespace Viper.Controllers
             new string[] { "/Accreditation/default.cfm", "Accreditation", "SVMSecure.Accreditation" },
             new string[] { "/Admin/default.cfm", "Admin", "SVMSecure.admin" },
             new string[] { "/Analytics/default.cfm", "Analytics", "SVMSecure.Analytics" },
+            new string[] { "~/CAHFS/", "CAHFS", "SVMSecure.CAHFS" },
             new string[] { "/cats/default.cfm", "Computing", "SVMSecure.CATS" },
             new string[] { "/curriculum/default.cfm", "Curriculum", "SVMSecure.Curriculum" },
             new string[] { "/Development/default.cfm", "Development", "SVMSecure.Development" },

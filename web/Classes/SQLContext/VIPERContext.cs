@@ -1338,7 +1338,7 @@ public partial class VIPERContext : DbContext
 			entity.Property(e => e.SortOrder).IsRequired();
 
 			entity.HasOne(e => e.LinkCollection)
-				.WithMany(lc => lc.TagCategories)
+				.WithMany(lc => lc.LinkCollectionTagCategories)
 				.HasForeignKey(e => e.LinkCollectionId)
 				.HasConstraintName("FK_LinkCollectionTagCategory_LinkCollection")
 				.OnDelete(DeleteBehavior.Cascade);

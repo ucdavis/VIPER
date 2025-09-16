@@ -6,6 +6,6 @@ public class LinkCollectionDto
 {
 	public int LinkCollectionId { get; set; }
 	public string LinkCollection { get; set; } = string.Empty;
-	public List<LinkCollectionTagCategoryDto> TagCategories { get; set; } = new();
+	public List<LinkCollectionTagCategoryDto> LinkCollectionTagCategories { get; set; } = new();
 }
 

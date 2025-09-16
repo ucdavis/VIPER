@@ -20,6 +20,7 @@ namespace Viper.Views.Shared.Components.MainNav
             new string[] { "/Accreditation/default.cfm", "Accreditation", "SVMSecure.Accreditation" },
             new string[] { "/Admin/default.cfm", "Admin", "SVMSecure.admin" },
             new string[] { "/Analytics/default.cfm", "Analytics", "SVMSecure.Analytics" },
+            new string[] { "/CAHFS/", "CAHFS", "SVMSecure.CAHFS" },
             new string[] { "/cats/default.cfm", "Computing", "SVMSecure.CATS" },
             new string[] { "/curriculum/default.cfm", "Curriculum", "SVMSecure.Curriculum" },
             new string[] { "/Development/default.cfm", "Development", "SVMSecure.Development" },

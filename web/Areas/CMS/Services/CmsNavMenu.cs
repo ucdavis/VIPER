@@ -21,7 +21,7 @@ namespace Viper.Areas.CMS.Services
 
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CMS.ManageContentBlocks"))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "Link Collections", MenuItemURL = "LinkCollections" });
+                nav.Add(new NavMenuItem() { MenuItemText = "Manage Link Collections", MenuItemURL = "ManageLinkCollections" });
             }
             
             return new NavMenu("Content Management System", nav);

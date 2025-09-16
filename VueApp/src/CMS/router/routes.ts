@@ -23,12 +23,6 @@ const routes = [
         component: () => import('@/CMS/pages/ManageLinkCollections.vue'),
     },
     {
-        path: '/CMS/LinkCollections',
-        name: 'LinkCollections',
-        meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.ManageContentBlocks"] },
-        component: () => import('@/CMS/pages/LinkCollections.vue'),
-    },
-    {
         path: '/:catchAll(.*)*',
         meta: { layout: ViperLayout },
         component: () => import('@/pages/Error404.vue')

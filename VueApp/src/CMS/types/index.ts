@@ -1,3 +1,9 @@
+export type ContentBlock = {
+    contentBlockId: number,
+    content: string,
+    title: string | null,
+}
+
 export type LinkCollection = {
     linkCollectionId: number,
     linkCollection: string,

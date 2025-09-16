@@ -22,6 +22,6 @@ namespace Areas.CMS.Models
 
 		// Navigation properties
 		public virtual ICollection<Link> Links { get; set; } = new List<Link>();
-		public virtual ICollection<LinkCollectionTagCategory> TagCategories { get; set; } = new List<LinkCollectionTagCategory>();
+		public virtual ICollection<LinkCollectionTagCategory> LinkCollectionTagCategories { get; set; } = new List<LinkCollectionTagCategory>();
 	}
 }

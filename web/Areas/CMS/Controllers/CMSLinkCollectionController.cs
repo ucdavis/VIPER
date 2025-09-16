@@ -19,17 +19,19 @@ namespace Viper.Areas.CMS.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<LinkCollectionDto>>> GetLinkCollections()
+        public async Task<ActionResult<IEnumerable<LinkCollectionDto>>> GetLinkCollections(string? linkCollectionName = null)
         {
             var collections = await _context.LinkCollections
-                .Include(lc => lc.TagCategories.OrderBy(tc => tc.SortOrder))
+                .Include(lc => lc.LinkCollectionTagCategories.OrderBy(tc => tc.SortOrder))
+                .Where(lc => linkCollectionName == null || lc.LinkCollectionName.ToLower() == linkCollectionName.ToLower())
+                .OrderBy(lc => lc.LinkCollectionName)
                 .ToListAsync();
 
             var result = collections.Select(lc => new LinkCollectionDto
             {
                 LinkCollectionId = lc.LinkCollectionId,
                 LinkCollection = lc.LinkCollectionName,
-                TagCategories = lc.TagCategories.Select(tc => new LinkCollectionTagCategoryDto
+                LinkCollectionTagCategories = lc.LinkCollectionTagCategories.Select(tc => new LinkCollectionTagCategoryDto
                 {
                     LinkCollectionTagCategoryId = tc.LinkCollectionTagCategoryId,
                     LinkCollectionId = tc.LinkCollectionId,
@@ -40,7 +42,6 @@ namespace Viper.Areas.CMS.Controllers
 
             return Ok(result);
         }
-
 
         [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
         [HttpPost]
@@ -65,7 +66,7 @@ namespace Viper.Areas.CMS.Controllers
             {
                 LinkCollectionId = linkCollection.LinkCollectionId,
                 LinkCollection = linkCollection.LinkCollectionName,
-                TagCategories = new List<LinkCollectionTagCategoryDto>()
+                LinkCollectionTagCategories = new List<LinkCollectionTagCategoryDto>()
             };
 
             return CreatedAtAction(nameof(linkCollection), new { id = linkCollection.LinkCollectionId }, result);
