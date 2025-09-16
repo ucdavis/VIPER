@@ -15,6 +15,7 @@ import 'quasar/dist/quasar.css'
 import { useQuasarConfig } from '@/composables/QuasarConfig'
 
 //import our css
+import '@/assets/site.css'
 
 const { quasarConfig } = useQuasarConfig()
 const pinia = createPinia()
