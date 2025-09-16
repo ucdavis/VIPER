@@ -139,7 +139,7 @@ namespace Viper.Areas.CMS.Controllers
         }
 
         [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
-        [HttpPost("{collectionId}/tag")]
+        [HttpPost("{collectionId}/tags")]
         public async Task<ActionResult<CreateLinkCollectionTagCategoryDto>> CreateLinkCollectionTagCategory(int collectionId, CreateLinkCollectionTagCategoryDto createLinkTagCategoryDto)
         {
             if(_context.LinkCollections.FirstOrDefault(lc => lc.LinkCollectionId == collectionId) == null)
@@ -167,7 +167,7 @@ namespace Viper.Areas.CMS.Controllers
         }
 
         [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
-        [HttpDelete("{collectionId}/tag/{tagCategoryId}")]
+        [HttpDelete("{collectionId}/tags/{tagCategoryId}")]
         public async Task<IActionResult> DeleteLinkCollectionTagCategory(int collectionId, int tagCategoryId)
         {
             if (_context.LinkCollections.FirstOrDefault(lc => lc.LinkCollectionId == collectionId) == null)

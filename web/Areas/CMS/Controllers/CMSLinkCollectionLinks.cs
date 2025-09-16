@@ -1,7 +1,9 @@
 ﻿using Areas.CMS.Models;
 using Areas.CMS.Models.DTOs;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Polly;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
@@ -56,9 +58,14 @@ namespace Viper.Areas.CMS.Controllers
         }
 
         [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
-        [HttpPost("links")]
-        public async Task<ActionResult<LinkDto>> PostLink(CreateLinkDto createDto)
+        [HttpPost("{collectionId}/links")]
+        public async Task<ActionResult<LinkDto>> PostLink(int collectionId, CreateLinkDto createDto)
         {
+            if(collectionId != createDto.LinkCollectionId)
+            {
+                return BadRequest();
+            }
+
             var link = new Link
             {
                 LinkCollectionId = createDto.LinkCollectionId,
@@ -84,13 +91,18 @@ namespace Viper.Areas.CMS.Controllers
         }
 
         [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
-        [HttpPut("links/{id}")]
-        public async Task<IActionResult> PutLink(int id, CreateLinkDto updateDto)
+        [HttpPut("{collectionId}/links/{id}")]
+        public async Task<IActionResult> PutLink(int id, int collectionId, CreateLinkDto updateDto)
         {
             var link = await _context.Links.FindAsync(id);
             if (link == null)
             {
                 return NotFound();
+            }
+
+            if (collectionId != updateDto.LinkCollectionId || collectionId != link.LinkCollectionId)
+            {
+                return BadRequest();
             }
 
             link.LinkCollectionId = updateDto.LinkCollectionId;
@@ -104,8 +116,8 @@ namespace Viper.Areas.CMS.Controllers
         }
 
         [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
-        [HttpDelete("links/{id}")]
-        public async Task<IActionResult> DeleteLink(int id)
+        [HttpDelete("{collectionId}/links/{id}")]
+        public async Task<IActionResult> DeleteLink(int collectionId, int id)
         {
             var link = await _context.Links.FindAsync(id);
             if (link == null)
@@ -113,6 +125,12 @@ namespace Viper.Areas.CMS.Controllers
                 return NotFound();
             }
 
+            if (collectionId != link.LinkCollectionId)
+            {
+                return BadRequest();
+            }
+
+            _context.LinkTags.RemoveRange(_context.LinkTags.Where(lt => lt.LinkId == id));
             _context.Links.Remove(link);
             await _context.SaveChangesAsync();
 
@@ -121,50 +139,65 @@ namespace Viper.Areas.CMS.Controllers
 
         //Tags:
         [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
-        [HttpPost("links/{linkId}/tags")]
-        public async Task<ActionResult<LinkTagDto>> PostLinkTag(int linkId, CreateLinkTagDto createDto)
+        [HttpPut("{collectionId}/links/{linkId}/tags")]
+        public async Task<ActionResult> SaveLinkTags(int linkId, int collectionId, Dictionary<int, string> tagValues)
         {
             var link = await _context.Links.FindAsync(linkId);
             if (link == null)
             {
                 return NotFound();
             }
-            var tagCategory = await _context.LinkCollectionTagCategories.FindAsync(createDto.LinkCollectionTagCategoryId);
-            if (tagCategory == null || tagCategory.LinkCollectionId != link.LinkCollectionId)
-            {
-                return BadRequest("Invalid tag category for this link's collection.");
-            }
-            var linkTag = new LinkTag
-            {
-                LinkId = linkId,
-                LinkCollectionTagCategoryId = createDto.LinkCollectionTagCategoryId,
-                SortOrder = createDto.SortOrder,
-                Value = createDto.Value
-            };
-            _context.LinkTags.Add(linkTag);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(linkTag), new { id = linkTag.LinkTagId }, new LinkTagDto
-            {
-                LinkTagId = linkTag.LinkTagId,
-                LinkId = linkTag.LinkId,
-                LinkCollectionTagCategoryId = linkTag.LinkCollectionTagCategoryId,
-                SortOrder = linkTag.SortOrder,
-                Value = linkTag.Value,
-                CategoryName = tagCategory.LinkCollectionTagCategoryName
-            });
-        }
 
-        [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
-        [HttpDelete("links/{linkId}/tags/{id}")]
-        public async Task<IActionResult> DeleteLinkTag(int linkId, int id)
-        {
-            var linkTag = await _context.LinkTags.FindAsync(id);
-            if (linkTag == null || linkTag.LinkId != linkId)
+            if (collectionId != link.LinkCollectionId)
             {
-                return NotFound();
+                return BadRequest();
             }
-            _context.LinkTags.Remove(linkTag);
+
+            var tagCategories = await _context.LinkCollectionTagCategories
+                .Where(tc => tc.LinkCollectionId == link.LinkCollectionId)
+                .OrderBy(tc => tc.SortOrder)
+                .Select(tc => tc.LinkCollectionTagCategoryId)
+                .ToListAsync();
+
+            foreach(var key in tagValues.Keys)
+            {
+                if(!tagCategories.Contains(key))
+                {
+                    return BadRequest("Invalid tag category id");
+                }
+            }
+
+            //remove tags and recreate
+            using var trans = _context.Database.BeginTransaction();
+            _context.LinkTags.RemoveRange(_context.LinkTags.Where(lt => lt.LinkId == linkId));
             await _context.SaveChangesAsync();
+
+            int i = 1;
+            List<LinkTag> tagsAdded = new List<LinkTag>();
+            foreach(var tcId in tagCategories)
+            {
+                if (tagValues.ContainsKey(tcId))
+                {
+                    foreach (var v in tagValues[tcId].Split(","))
+                    {
+                        if (v != null)
+                        {
+                            var linkTag = new LinkTag
+                            {
+                                LinkId = linkId,
+                                LinkCollectionTagCategoryId = tcId,
+                                SortOrder = i++,
+                                Value = v
+                            };
+                            _context.LinkTags.Add(linkTag);
+                            tagsAdded.Add(linkTag);
+                        }
+                    }
+                }
+            }
+            await _context.SaveChangesAsync();
+            await trans.CommitAsync();
+
             return NoContent();
         }
     }

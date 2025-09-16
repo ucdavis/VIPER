@@ -15,7 +15,7 @@ export type Link = {
     url: string,
     title: string,
     description: string,
-    tags: LinkTag[],
+    linkTags: LinkTag[],
     order: number
 }
 
@@ -23,8 +23,8 @@ export type LinkTag = {
     linkTagId: number,
     linkId: number,
     linkCollectionTagCategoryId: number,
-    order: number,
-    values: string
+    sortOrder: number,
+    value: string
 }
 
 export type LinkTagFilter = {
@@ -32,4 +32,13 @@ export type LinkTagFilter = {
     linkCollectionTagCategory: string,
     options: string[],
     selected: string | null
+}
+
+export type LinkWithTags = {
+    linkId: number,
+    url: string,
+    title: string,
+    description: string,
+    tags: Record<number, string>,
+    sortOrder: number
 }
