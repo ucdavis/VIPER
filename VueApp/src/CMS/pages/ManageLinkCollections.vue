@@ -227,8 +227,10 @@
         collections.value = res.result
         
         if (collections.value.length > 0) {
-            collection.value = collections.value[0]
-            collectionId.value = collections.value[0].linkCollectionId
+            if (collections.value[0] !== undefined) {
+                collection.value = collections.value[0]
+                collectionId.value = collections.value[0].linkCollectionId
+            }
         }
     }
 
