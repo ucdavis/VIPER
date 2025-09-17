@@ -337,10 +337,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogInformation("Retrieved {Count} rotations with scheduled weeks for year {Year} (filtered to {FilteredCount})", rotationsWithSchedules.Count, targetYear, filteredRotations.Count);
                 return Ok(filteredRotations);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Store context for ApiExceptionFilter to use in logging
-                SetExceptionContext("Year", year);
+                SetExceptionContext("Year", year?.ToString() ?? "null");
                 throw; // Let ApiExceptionFilter handle the response
             }
         }
@@ -529,15 +529,14 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         ? personData[i.MothraId].PersonDisplayFullName
                         : $"Person {i.MothraId}",
                     mothraId = i.MothraId,
-                    evaluator = i.Evaluator,
                     isPrimaryEvaluator = i.Evaluator
                 })
                 .ToList();
 
-            // Get all weeks for this rotation (ordered by week number)
-            var rotationWeeks = allWeeks.Where(w =>
-                allSchedules.Any(s => s.WeekId == w.WeekId)
-            ).OrderBy(w => w.WeekNum).ToList();
+            // Pass all weeks to evaluation service for complete rotation block analysis
+            // Don't filter by scheduled clinicians - the evaluation logic needs to see
+            // adjacent weeks to properly determine primary evaluator requirements
+            var rotationWeeks = allWeeks.OrderBy(w => w.WeekNum).ToList();
 
             // Check if this specific week is closed for this rotation
             var rotationClosed = rotationWeeklyPrefs.TryGetValue(week.WeekId, out var closed) && closed;
@@ -645,7 +644,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 {
                     rotation.Service.ServiceId,
                     rotation.Service.ServiceName,
-                    rotation.Service.ShortName
+                    rotation.Service.ShortName,
+                    rotation.Service.WeekSize
                 } : null
             };
         }
@@ -655,6 +655,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// </summary>
         /// <param name="publishedOnly">If true, only return years where PublishSchedule is true</param>
         /// <returns>Available graduation years with current year highlighted</returns>
+
         [HttpGet("years")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(object), StatusCodes.Status500InternalServerError)]

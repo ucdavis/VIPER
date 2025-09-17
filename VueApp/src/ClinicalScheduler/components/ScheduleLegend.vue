@@ -15,11 +15,44 @@
                     <div class="text-subtitle1 text-weight-medium">Quick Guide</div>
                 </div>
 
+                <!-- How to schedule instructions -->
+                <div
+                    class="bulk-scheduling-guide q-mb-md"
+                    v-if="showBulkGuide"
+                >
+                    <div class="text-caption text-weight-medium q-mb-xs">How to schedule:</div>
+                    <div class="text-caption text-grey-8">
+                        <div class="q-mb-xs"><strong>Single week:</strong> Select {{ itemType }}(s) → Click a week</div>
+                        <div v-if="!isTouchDevice">
+                            <div class="q-mb-xs">
+                                <strong>Multiple weeks:</strong> Select {{ itemType }}(s) → Hold
+                                <kbd>{{ isMac ? "Option" : "Alt" }}</kbd> → Click first week → Click last week → Click
+                                "Schedule Selected" button to apply
+                            </div>
+                        </div>
+                        <div v-else>
+                            <div class="q-mb-xs">
+                                <strong>Multiple weeks:</strong> Select {{ itemType }}(s) → Long-press a week → Tap
+                                other weeks
+                            </div>
+                            <div class="q-ml-md">→ Click "Schedule Selected" button to apply</div>
+                        </div>
+                        <div
+                            class="q-mb-xs q-mt-xs text-caption"
+                            style="color: var(--ucdavis-poppy)"
+                        >
+                            <strong>Tip:</strong> When selecting weeks that already contain your selected
+                            {{ itemType }}(s), the button changes to "Delete Selected" for bulk removal
+                        </div>
+                    </div>
+                    <q-separator class="q-mt-sm" />
+                </div>
+
                 <div class="legend-items">
                     <div class="legend-item">
                         <q-icon
                             name="close"
-                            size="sm"
+                            size="xs"
                             color="negative"
                             class="legend-icon"
                             aria-hidden="true"
@@ -30,20 +63,20 @@
                     <div class="legend-item">
                         <q-icon
                             name="star_outline"
-                            size="sm"
+                            size="xs"
                             color="grey-8"
                             class="legend-icon"
                             aria-hidden="true"
                         />
                         <span class="legend-text"
-                            >Makes them the primary evaluator (replacing the current one, if there is one)</span
+                            >Makes them the primary evaluator <br />(replacing the current one, if there is one)</span
                         >
                     </div>
 
                     <div class="legend-item">
                         <q-icon
                             name="star"
-                            size="sm"
+                            size="xs"
                             color="amber"
                             class="legend-icon"
                             aria-hidden="true"
@@ -57,8 +90,8 @@
                     >
                         <q-icon
                             name="warning"
-                            size="sm"
-                            color="orange"
+                            size="xs"
+                            style="color: var(--ucdavis-poppy)"
                             class="legend-icon"
                             aria-hidden="true"
                         />
@@ -71,12 +104,31 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue"
+import { useQuasar } from "quasar"
+
 interface Props {
     showWarning?: boolean
+    showBulkGuide?: boolean
+    itemType?: "rotation" | "clinician"
 }
 
 withDefaults(defineProps<Props>(), {
     showWarning: false,
+    showBulkGuide: false,
+    itemType: "rotation",
+})
+
+const $q = useQuasar()
+
+// Detect if user is on a touch device
+const isTouchDevice = computed(() => {
+    return $q.platform.is.mobile || "ontouchstart" in window
+})
+
+// Detect if on Mac for showing correct key name
+const isMac = computed(() => {
+    return $q.platform.is.mac
 })
 </script>
 

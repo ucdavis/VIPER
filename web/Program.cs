@@ -199,10 +199,14 @@ try
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IInstructorScheduleService, Viper.Areas.ClinicalScheduler.Services.InstructorScheduleService>();
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IClinicalScheduleService, Viper.Areas.ClinicalScheduler.Services.ClinicalScheduleService>();
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.ISchedulePermissionService, Viper.Areas.ClinicalScheduler.Services.SchedulePermissionService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IPermissionValidator, Viper.Areas.ClinicalScheduler.Services.PermissionValidator>();
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IScheduleEditService, Viper.Areas.ClinicalScheduler.Services.ScheduleEditService>();
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IScheduleAuditService, Viper.Areas.ClinicalScheduler.Services.ScheduleAuditService>();
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IEvaluationPolicyService, Viper.Areas.ClinicalScheduler.Services.EvaluationPolicyService>();
     builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Validators.AddInstructorValidator>();
+
+    // Register UserHelper service
+    builder.Services.AddScoped<Viper.IUserHelper, Viper.UserHelper>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();

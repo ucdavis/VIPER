@@ -35,6 +35,7 @@
                 :model-value="shouldExpandSemester(semester)"
                 :label="semester.semester || semester.displayName"
                 header-class="text-h6"
+                switch-toggle-side
                 class="q-mb-md"
             >
                 <!-- Week grid -->
@@ -49,7 +50,11 @@
                         :requires-primary-for-week="requiresPrimaryEvaluator(week)"
                         :show-primary-toggle="showPrimaryToggle"
                         :additional-classes="getWeekAdditionalClasses(week)"
+                        :is-loading="loadingWeekId === week.weekId"
+                        :selectable="enableWeekSelection"
+                        :selected="isWeekSelected(week.weekId)"
                         @click="onWeekClick"
+                        @shift-click="onWeekShiftClick"
                         @remove-assignment="handleRemoveAssignment"
                         @toggle-primary="handleTogglePrimary"
                     />
@@ -61,12 +66,14 @@
         <ScheduleLegend
             v-if="showLegend && schedulesBySemester && schedulesBySemester.length > 0"
             :show-warning="showWarningInLegend"
+            :show-bulk-guide="enableWeekSelection"
+            :item-type="viewMode === 'rotation' ? 'clinician' : 'rotation'"
         />
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref, onMounted, onUnmounted } from "vue"
 import WeekCell from "./WeekCell.vue"
 
 export interface WeekItem {
@@ -119,6 +126,9 @@ interface Props {
     showPrimaryToggle?: boolean
     requiresPrimaryForWeek?: boolean
 
+    // Selection mode
+    enableWeekSelection?: boolean
+
     // Custom messages
     noDataMessage?: string
     emptyStateMessage?: string
@@ -134,6 +144,9 @@ interface Props {
     // Helper functions
     requiresPrimaryEvaluator?: WeekFn<boolean>
     getWeekAdditionalClasses?: WeekFn<string | string[] | Record<string, boolean>>
+
+    // Loading state
+    loadingWeekId?: number | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -146,6 +159,7 @@ const props = withDefaults(defineProps<Props>(), {
     showWarningIcon: false,
     showPrimaryToggle: true,
     requiresPrimaryForWeek: false,
+    enableWeekSelection: false,
     noDataMessage: "No schedule data available",
     emptyStateMessage: "Click to add assignment",
     readOnlyEmptyMessage: "No assignments",
@@ -156,13 +170,84 @@ const props = withDefaults(defineProps<Props>(), {
     getAssignments: undefined,
     requiresPrimaryEvaluator: undefined,
     getWeekAdditionalClasses: undefined,
+    loadingWeekId: null,
 })
 
 const emit = defineEmits<{
     weekClick: [week: WeekItem]
-    removeAssignment: [assignmentId: number, displayName: string]
+    removeAssignment: [assignmentId: number, displayName: string, isPrimary?: boolean]
     togglePrimary: [assignmentId: number, isPrimary: boolean, displayName: string]
+    selectedWeeksChange: [weekIds: number[]]
 }>()
+
+// Week selection state
+const selectedWeekIds = ref<Set<number>>(new Set())
+const lastSelectedWeekId = ref<number | null>(null)
+const selectionMode = ref(false)
+const isAltKeyHeld = ref(false)
+
+// Get all weeks in a flat array for range selection
+const allWeeks = computed(() => {
+    const weeks: WeekItem[] = []
+    if (props.schedulesBySemester) {
+        for (const semester of props.schedulesBySemester) {
+            weeks.push(...semester.weeks)
+        }
+    }
+    return weeks
+})
+
+// Check if a week is selected
+function isWeekSelected(weekId: number): boolean {
+    return selectedWeekIds.value.has(weekId)
+}
+
+// Toggle week selection
+function toggleWeekSelection(week: WeekItem) {
+    const newSet = new Set(selectedWeekIds.value)
+    if (newSet.has(week.weekId)) {
+        newSet.delete(week.weekId)
+    } else {
+        newSet.add(week.weekId)
+    }
+    selectedWeekIds.value = newSet
+    lastSelectedWeekId.value = week.weekId
+    emit("selectedWeeksChange", Array.from(newSet))
+}
+
+// Handle range selection with Shift+Click
+function selectWeekRange(week: WeekItem) {
+    if (!lastSelectedWeekId.value) {
+        toggleWeekSelection(week)
+        return
+    }
+
+    const weeks = allWeeks.value
+    const startIndex = weeks.findIndex((w) => w.weekId === lastSelectedWeekId.value)
+    const endIndex = weeks.findIndex((w) => w.weekId === week.weekId)
+
+    if (startIndex === -1 || endIndex === -1) {
+        toggleWeekSelection(week)
+        return
+    }
+
+    const newSet = new Set(selectedWeekIds.value)
+    const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex]
+
+    for (let i = from; i <= to; i++) {
+        newSet.add(weeks[i]!.weekId)
+    }
+
+    selectedWeekIds.value = newSet
+    emit("selectedWeeksChange", Array.from(newSet))
+}
+
+// Clear all selections
+function clearSelection() {
+    selectedWeekIds.value = new Set()
+    lastSelectedWeekId.value = null
+    emit("selectedWeeksChange", [])
+}
 
 // Check if a semester/term has ended
 function isSemesterPast(semester: { weeks: { dateEnd: string }[] }): boolean {
@@ -190,15 +275,35 @@ function shouldExpandSemester(semester: { weeks: { dateEnd: string }[] }): boole
 }
 
 // Event handlers
-function onWeekClick(week: WeekItem) {
-    if (!props.isPastYear && props.canEdit) {
+function onWeekClick(week: WeekItem, event?: MouseEvent) {
+    if (props.isPastYear) return
+
+    // Check for Alt+Click first - this enables range selection even in edit mode
+    if (props.enableWeekSelection && event?.altKey) {
+        selectWeekRange(week)
+        return
+    }
+
+    // In selection mode, handle week selection
+    if (props.enableWeekSelection && (selectionMode.value || selectedWeekIds.value.size > 0)) {
+        toggleWeekSelection(week)
+    }
+    // In edit mode, emit week click for adding assignments
+    else if (props.canEdit) {
         emit("weekClick", week)
     }
 }
 
-function handleRemoveAssignment(assignmentId: number, displayName: string) {
+// Handle shift-click event from WeekCell
+function onWeekShiftClick(week: WeekItem) {
+    if (props.enableWeekSelection && !props.isPastYear) {
+        selectWeekRange(week)
+    }
+}
+
+function handleRemoveAssignment(assignmentId: number, displayName: string, isPrimary?: boolean) {
     if (!props.isPastYear && props.canEdit) {
-        emit("removeAssignment", assignmentId, displayName)
+        emit("removeAssignment", assignmentId, displayName, isPrimary)
     }
 }
 
@@ -227,6 +332,47 @@ const getWeekAdditionalClasses = computed(() => {
     return (week: WeekItem) => {
         return props.getWeekAdditionalClasses?.(week) ?? ""
     }
+})
+
+// Keyboard event handlers
+function handleKeyDown(event: KeyboardEvent) {
+    // Note: event.altKey detects both Alt (Windows/Linux) and Option (Mac) keys
+    if (event.altKey && props.enableWeekSelection) {
+        event.preventDefault() // Prevent default Alt key behavior
+        isAltKeyHeld.value = true
+    }
+}
+
+function handleKeyUp(event: KeyboardEvent) {
+    if (!event.altKey) {
+        isAltKeyHeld.value = false
+    }
+}
+
+// Also handle blur to reset when window loses focus
+function handleWindowBlur() {
+    isAltKeyHeld.value = false
+}
+
+// Set up keyboard listeners
+onMounted(() => {
+    window.addEventListener("keydown", handleKeyDown)
+    window.addEventListener("keyup", handleKeyUp)
+    window.addEventListener("blur", handleWindowBlur)
+})
+
+onUnmounted(() => {
+    window.removeEventListener("keydown", handleKeyDown)
+    window.removeEventListener("keyup", handleKeyUp)
+    window.removeEventListener("blur", handleWindowBlur)
+})
+
+// Expose methods and state for parent components
+defineExpose({
+    selectedWeekIds,
+    clearSelection,
+    selectionMode,
+    isAltKeyHeld,
 })
 </script>
 

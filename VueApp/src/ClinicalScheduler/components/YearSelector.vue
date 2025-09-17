@@ -9,6 +9,7 @@
         emit-value
         map-options
         dense
+        options-dense
         option-label="label"
         option-value="value"
         class="year-selector"

@@ -30,8 +30,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// </summary>
         /// <param name="instructorScheduleId">InstructorSchedule ID to remove</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>True if successfully removed</returns>
-        Task<bool> RemoveInstructorScheduleAsync(
+        /// <returns>Tuple with success flag, whether removed instructor was primary evaluator, and instructor name</returns>
+        Task<(bool success, bool wasPrimaryEvaluator, string? instructorName)> RemoveInstructorScheduleAsync(
             int instructorScheduleId,
             CancellationToken cancellationToken = default);
 

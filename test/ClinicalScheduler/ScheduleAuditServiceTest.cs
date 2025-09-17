@@ -1,19 +1,30 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.ClinicalScheduler.Constants;
 using Viper.Models.ClinicalScheduler;
+using Viper.Classes.SQLContext;
 
 namespace Viper.test.ClinicalScheduler
 {
-    public class ScheduleAuditServiceTest : ClinicalSchedulerTestBase
+    public class ScheduleAuditServiceTest : IDisposable
     {
         private readonly Mock<ILogger<ScheduleAuditService>> _mockLogger;
         private readonly ScheduleAuditService _service;
+        private readonly ClinicalSchedulerContext _context;
+        private bool _disposed = false;
+
         public ScheduleAuditServiceTest()
         {
+            // Create real in-memory database for Entity Framework operations
+            var options = new DbContextOptionsBuilder<ClinicalSchedulerContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            _context = new ClinicalSchedulerContext(options);
             _mockLogger = new Mock<ILogger<ScheduleAuditService>>();
-            _service = new ScheduleAuditService(Context, _mockLogger.Object);
+            _service = new ScheduleAuditService(_context, _mockLogger.Object);
         }
 
         [Fact]
@@ -38,7 +49,7 @@ namespace Viper.test.ClinicalScheduler
             Assert.True(result.TimeStamp > DateTime.MinValue);
 
             // Verify entry was saved to database
-            var savedEntry = await Context.ScheduleAudits.FindAsync(result.ScheduleAuditId);
+            var savedEntry = await _context.ScheduleAudits.FindAsync(result.ScheduleAuditId);
             Assert.NotNull(savedEntry);
             Assert.Equal(result.Action, savedEntry.Action);
         }
@@ -111,11 +122,21 @@ namespace Viper.test.ClinicalScheduler
             var auditEntry2 = CreateAuditEntry("test123", 1, 1, "modifier", ScheduleAuditActions.PrimaryEvaluatorSet);
             var auditEntry3 = CreateAuditEntry("other456", 2, 1, "modifier", ScheduleAuditActions.InstructorAdded); // Different rotation
 
-            await Context.ScheduleAudits.AddRangeAsync(auditEntry1, auditEntry2, auditEntry3);
-            await Context.SaveChangesAsync();
+            // Create an InstructorSchedule record first since the method looks it up
+            await _context.InstructorSchedules.AddAsync(new InstructorSchedule
+            {
+                InstructorScheduleId = 1,
+                MothraId = "test123",
+                RotationId = 1,
+                WeekId = 1,
+                Evaluator = false
+            });
+
+            await _context.ScheduleAudits.AddRangeAsync(auditEntry1, auditEntry2, auditEntry3);
+            await _context.SaveChangesAsync();
 
             // Act
-            var result = await _service.GetRotationWeekAuditHistoryAsync(1, 1);
+            var result = await _service.GetInstructorScheduleAuditHistoryAsync(1);
 
             // Assert
             Assert.Equal(2, result.Count);
@@ -137,8 +158,8 @@ namespace Viper.test.ClinicalScheduler
             var auditEntry3 = CreateAuditEntry("test789", 2, weekId, "modifier", ScheduleAuditActions.InstructorAdded); // Different rotation
             var auditEntry4 = CreateAuditEntry("test321", rotationId, 2, "modifier", ScheduleAuditActions.InstructorAdded); // Different week
 
-            await Context.ScheduleAudits.AddRangeAsync(auditEntry1, auditEntry2, auditEntry3, auditEntry4);
-            await Context.SaveChangesAsync();
+            await _context.ScheduleAudits.AddRangeAsync(auditEntry1, auditEntry2, auditEntry3, auditEntry4);
+            await _context.SaveChangesAsync();
 
             // Act
             var result = await _service.GetRotationWeekAuditHistoryAsync(rotationId, weekId);
@@ -191,17 +212,26 @@ namespace Viper.test.ClinicalScheduler
                 Action = action,
                 ModifiedBy = modifiedBy,
                 TimeStamp = DateTime.UtcNow,
-                Area = "ClinicalScheduler"
+                Area = "Clinicians"
             };
         }
 
-        protected override void Dispose(bool disposing)
+        public void Dispose()
         {
-            if (disposing)
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
             {
-                Context?.Dispose();
+                if (disposing)
+                {
+                    _context?.Dispose();
+                }
+                _disposed = true;
             }
-            base.Dispose(disposing);
         }
     }
 }

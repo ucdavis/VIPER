@@ -6,6 +6,7 @@ using Viper.Areas.ClinicalScheduler.Models;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Requests;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.ClinicalScheduler.Validators;
+using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
 
@@ -23,21 +24,24 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         private readonly IScheduleEditService _scheduleEditService;
         private readonly IScheduleAuditService _auditService;
         private readonly ISchedulePermissionService _permissionService;
+        private readonly IUserHelper _userHelper;
         private readonly AddInstructorValidator _validator;
 
         public InstructorScheduleController(
             IScheduleEditService scheduleEditService,
             IScheduleAuditService auditService,
             ISchedulePermissionService permissionService,
+            IUserHelper userHelper,
             IGradYearService gradYearService,
             ILogger<InstructorScheduleController> logger,
-            ILogger<AddInstructorValidator> validatorLogger)
+            AddInstructorValidator validator)
             : base(gradYearService, logger)
         {
             _scheduleEditService = scheduleEditService;
             _auditService = auditService;
             _permissionService = permissionService;
-            _validator = new AddInstructorValidator(validatorLogger, gradYearService);
+            _userHelper = userHelper;
+            _validator = validator;
         }
 
         /// <summary>
@@ -69,8 +73,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         correlationId));
                 }
 
-                // Step 2: Check permissions
-                if (!await CheckPermissionsAsync(request.RotationId!.Value, correlationId, cancellationToken))
+                // Step 2: Check permissions - include own schedule check
+                if (!await CheckPermissionsForAddAsync(request.RotationId!.Value, request.MothraId!, correlationId, cancellationToken))
                 {
                     return Forbid();
                 }
@@ -107,18 +111,36 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
         }
 
-        private async Task<bool> CheckPermissionsAsync(
+        private async Task<bool> CheckPermissionsForAddAsync(
             int rotationId,
+            string targetMothraId,
             string correlationId,
             CancellationToken cancellationToken)
         {
-            if (!await _permissionService.HasEditPermissionForRotationAsync(rotationId, cancellationToken))
+            // First check regular rotation edit permissions
+            if (await _permissionService.HasEditPermissionForRotationAsync(rotationId, cancellationToken))
             {
-                _logger.LogWarning("User attempted to add instructor to rotation {RotationId} without permission (CorrelationId: {CorrelationId})",
-                    rotationId, correlationId);
-                return false;
+                return true;
             }
-            return true;
+
+            // Check if user has EditOwnSchedule permission and is adding themselves
+            var currentUser = _userHelper.GetCurrentUser();
+            if (currentUser != null)
+            {
+                // Check if user has EditOwnSchedule permission
+                var rapsContext = HttpContext.RequestServices.GetService<RAPSContext>();
+                if (_userHelper.HasPermission(rapsContext, currentUser, ClinicalSchedulePermissions.EditOwnSchedule) &&
+                    currentUser.MothraId.Equals(targetMothraId, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation("User {MothraId} is adding their own schedule with EditOwnSchedule permission (CorrelationId: {CorrelationId})",
+                        currentUser.MothraId, correlationId);
+                    return true;
+                }
+            }
+
+            _logger.LogWarning("User attempted to add instructor {TargetMothraId} to rotation {RotationId} without permission (CorrelationId: {CorrelationId})",
+                targetMothraId, rotationId, correlationId);
+            return false;
         }
 
         private async Task<string?> BuildConflictWarningAsync(
@@ -246,9 +268,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// </summary>
         /// <param name="instructorScheduleId">Instructor schedule ID to remove</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>Success or failure result</returns>
+        /// <returns>200 OK with RemoveInstructorResponse containing removal details, or error response</returns>
         [HttpDelete("{instructorScheduleId:int}")]
-        [ProducesResponseType(204)] // No Content for successful deletion
+        [ProducesResponseType(typeof(RemoveInstructorResponse), 200)]
         [ProducesResponseType(typeof(ErrorResponse), 400)]
         [ProducesResponseType(403)]
         [ProducesResponseType(typeof(ErrorResponse), 404)]
@@ -269,7 +291,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         correlationId));
                 }
 
-                var success = await _scheduleEditService.RemoveInstructorScheduleAsync(instructorScheduleId, cancellationToken);
+                var (success, wasPrimaryEvaluator, instructorName) = await _scheduleEditService.RemoveInstructorScheduleAsync(instructorScheduleId, cancellationToken);
 
                 if (!success)
                 {
@@ -279,9 +301,15 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         correlationId));
                 }
 
-                _logger.LogInformation("Successfully removed instructor schedule {ScheduleId} (CorrelationId: {CorrelationId})",
-                    instructorScheduleId, correlationId);
-                return NoContent(); // Return 204 No Content for successful deletion
+                _logger.LogInformation("Successfully removed instructor schedule {ScheduleId} (Primary: {WasPrimary}) (CorrelationId: {CorrelationId})",
+                    instructorScheduleId, wasPrimaryEvaluator, correlationId);
+
+                return Ok(new RemoveInstructorResponse
+                {
+                    Success = true,
+                    WasPrimaryEvaluator = wasPrimaryEvaluator,
+                    InstructorName = instructorName
+                });
             }
             catch (UnauthorizedAccessException ex)
             {

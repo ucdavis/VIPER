@@ -35,7 +35,7 @@ class InstructorScheduleService {
      * Remove an instructor from a scheduled week
      * Returns TypedApiResult with structured error information
      */
-    static async removeInstructor(scheduleId: number): Promise<TypedApiResult<boolean>> {
+    static async removeInstructor(scheduleId: number): Promise<TypedApiResult<RemoveInstructorResult>> {
         try {
             const { del } = useFetch()
             const response = await del(`${this.BASE_URL}/${scheduleId}`)
@@ -43,13 +43,21 @@ class InstructorScheduleService {
             // Check if the response indicates success
             if (response && response.success !== false) {
                 return {
-                    result: true,
+                    result: {
+                        success: response.result?.success ?? true,
+                        wasPrimaryEvaluator: response.result?.wasPrimaryEvaluator ?? false,
+                        instructorName: response.result?.instructorName,
+                    },
                     success: true,
                     errors: [],
                 }
             }
             return {
-                result: false,
+                result: {
+                    success: false,
+                    wasPrimaryEvaluator: false,
+                    instructorName: null,
+                },
                 success: false,
                 errors: response?.errors || ["Failed to remove instructor from schedule"],
             }
@@ -58,7 +66,11 @@ class InstructorScheduleService {
             const errorMessage = getScheduleErrorMessage(error, "remove")
 
             return {
-                result: false,
+                result: {
+                    success: false,
+                    wasPrimaryEvaluator: false,
+                    instructorName: null,
+                },
                 success: false,
                 error: apiError,
                 errors: [errorMessage], // Keep for backward compatibility
@@ -226,6 +238,12 @@ interface SetPrimaryEvaluatorRequest {
     IsPrimary: boolean
 }
 
+interface RemoveInstructorResult {
+    success: boolean
+    wasPrimaryEvaluator: boolean
+    instructorName: string | null
+}
+
 interface AuditEntry {
     auditId: number
     action: string
@@ -242,6 +260,7 @@ export {
     InstructorScheduleService,
     type InstructorScheduleRequest,
     type InstructorScheduleResponse,
+    type RemoveInstructorResult,
     type ScheduleConflict,
     type SetPrimaryEvaluatorRequest,
     type AuditEntry,

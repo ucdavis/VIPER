@@ -3,15 +3,23 @@
         :class="cardClasses"
         clickable
         @click="handleClick"
+        @touchstart="handleTouchStart"
+        @touchend="handleTouchEnd"
+        @touchmove="handleTouchMove"
     >
         <q-card-section class="q-pa-sm">
             <!-- Week header -->
             <div class="text-center text-weight-medium text-grey-8 q-mb-sm row items-center justify-center q-gutter-xs">
+                <q-spinner-dots
+                    v-if="isLoading"
+                    size="1rem"
+                    color="primary"
+                />
                 <q-icon
-                    v-if="requiresPrimary && !hasPrimary"
+                    v-else-if="requiresPrimary && !hasPrimary"
                     name="warning"
                     size="xs"
-                    color="orange"
+                    style="color: var(--ucdavis-poppy)"
                     title="Primary evaluator required for this week"
                 />
                 <span>Week {{ week.weekNumber }} ({{ formatDate(week.dateStart) }})</span>
@@ -19,14 +27,21 @@
 
             <!-- Assignments -->
             <div>
-                <div
-                    v-if="assignments.length > 0"
+                <transition-group
+                    name="assignment-list"
+                    tag="div"
                     class="week-cell__assignment-list"
+                    leave-active-class="animated fadeOutLeft"
+                    move-class="assignment-list-move"
                 >
                     <div
                         v-for="assignment in assignments"
                         :key="assignment.id"
-                        class="week-cell__assignment-item"
+                        :class="[
+                            'week-cell__assignment-item',
+                            { 'week-cell__assignment-item--newly-added': isNewlyAdded(assignment.id) },
+                        ]"
+                        :style="isNewlyAdded(assignment.id) ? { '--highlight-duration': animationDuration } : {}"
                     >
                         <div class="week-cell__assignment-content">
                             <!-- Remove button -->
@@ -40,7 +55,14 @@
                                 color="negative"
                                 class="week-cell__remove-btn"
                                 aria-label="Remove this clinician from the schedule"
-                                @click.stop="$emit('remove-assignment', assignment.id, assignment.displayName)"
+                                @click.stop="
+                                    $emit(
+                                        'remove-assignment',
+                                        assignment.id,
+                                        assignment.displayName,
+                                        assignment.isPrimary,
+                                    )
+                                "
                             >
                                 <q-tooltip :delay="600">Remove {{ assignment.displayName }} from schedule</q-tooltip>
                             </q-btn>
@@ -110,27 +132,39 @@
                             </q-btn>
                         </div>
                     </div>
-                </div>
-
-                <!-- Empty state -->
-                <div
-                    v-else
-                    class="week-cell__empty"
-                >
-                    <div class="week-cell__empty-text">
-                        {{ emptyStateText }}
+                    <!-- Empty state as part of transition group -->
+                    <div
+                        v-if="assignments.length === 0"
+                        key="empty-state"
+                        class="week-cell__empty"
+                    >
+                        <div class="week-cell__empty-text">
+                            {{ emptyStateText }}
+                        </div>
                     </div>
-                </div>
+                </transition-group>
             </div>
         </q-card-section>
     </q-card>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref, watch } from "vue"
 import { useDateFunctions } from "@/composables/DateFunctions"
+import { ANIMATIONS } from "../constants/app-constants"
 
 const { formatDate } = useDateFunctions()
+
+// Animation constants - single source of truth from app-constants.ts
+const animationDuration = `${ANIMATIONS.HIGHLIGHT_DURATION_MS}ms`
+
+// Track newly added assignments for animation
+const newlyAddedAssignments = ref<Set<number>>(new Set())
+
+// Function to check if assignment is newly added
+function isNewlyAdded(assignmentId: number): boolean {
+    return newlyAddedAssignments.value.has(assignmentId)
+}
 
 export interface WeekAssignment {
     id: number
@@ -154,6 +188,9 @@ interface Props {
     requiresPrimaryForWeek?: boolean
     showPrimaryToggle?: boolean
     additionalClasses?: string | string[] | Record<string, boolean>
+    isLoading?: boolean
+    selectable?: boolean
+    selected?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -163,12 +200,16 @@ const props = withDefaults(defineProps<Props>(), {
     requiresPrimaryForWeek: false,
     showPrimaryToggle: true,
     additionalClasses: "",
+    isLoading: false,
+    selectable: false,
+    selected: false,
 })
 
 const emit = defineEmits<{
-    click: [week: Props["week"]]
-    "remove-assignment": [assignmentId: number, displayName: string]
+    click: [week: Props["week"], event?: MouseEvent]
+    "remove-assignment": [assignmentId: number, displayName: string, isPrimary?: boolean]
     "toggle-primary": [assignmentId: number, isPrimary: boolean, displayName: string]
+    "shift-click": [week: Props["week"]]
 }>()
 
 // Computed properties
@@ -184,38 +225,133 @@ const emptyStateText = computed(() => {
     return "No assignments"
 })
 
+// Watch for new assignments and trigger highlight animation
+watch(
+    () => props.assignments,
+    (newAssignments, oldAssignments) => {
+        if (!oldAssignments || !newAssignments) return
+
+        // Find newly added assignments
+        const oldIds = new Set(oldAssignments.map((a) => a.id))
+        const newlyAdded = newAssignments.filter((a) => !oldIds.has(a.id))
+
+        newlyAdded.forEach((assignment) => {
+            // Create new Set to trigger reactivity
+            newlyAddedAssignments.value = new Set([...newlyAddedAssignments.value, assignment.id])
+
+            // Remove highlight after animation duration
+            setTimeout(() => {
+                // Create new Set without the item to trigger reactivity
+                const updated = new Set(newlyAddedAssignments.value)
+                updated.delete(assignment.id)
+                newlyAddedAssignments.value = updated
+            }, ANIMATIONS.HIGHLIGHT_DURATION_MS)
+        })
+    },
+    { deep: true },
+)
+
+// Long press timer for mobile
+let longPressTimer: ReturnType<typeof setTimeout> | null = null
+const longPressDuration = 500 // milliseconds
+
 // Methods
-function handleClick() {
-    if (!props.isPastYear && props.canEdit) {
-        emit("click", props.week)
+function handleClick(event?: MouseEvent) {
+    // Don't handle click during selection mode if just selecting
+    if (props.selectable && !props.canEdit) {
+        if (event?.shiftKey) {
+            emit("shift-click", props.week)
+        } else {
+            emit("click", props.week, event)
+        }
+        return
+    }
+
+    // Normal behavior for edit mode
+    if (!props.isLoading && !props.isPastYear) {
+        if (props.canEdit) {
+            emit("click", props.week, event)
+        } else if (props.selectable) {
+            // Selection mode when not editing
+            if (event?.shiftKey) {
+                emit("shift-click", props.week)
+            } else {
+                emit("click", props.week, event)
+            }
+        }
     }
 }
 
-// Computed property for card classes
-const cardClasses = computed(() => {
-    const baseClasses = "col-xs-12 col-sm-6 col-md-4 col-lg-3 col-xl-2 cursor-pointer week-schedule-card"
-
-    // Add the requires-primary class if needed
-    const requiresPrimaryClass = requiresPrimary.value && !hasPrimary.value ? "requires-primary-card" : ""
-
-    // Handle additional classes prop
-    let additional = ""
-    if (Array.isArray(props.additionalClasses)) {
-        additional = props.additionalClasses.join(" ")
-    } else if (typeof props.additionalClasses === "object") {
-        additional = Object.entries(props.additionalClasses)
-            .filter(([, value]) => value)
-            .map(([key]) => key)
-            .join(" ")
-    } else {
-        additional = props.additionalClasses || ""
+// Touch event handlers for mobile long-press
+function handleTouchStart() {
+    if (props.selectable && !props.isPastYear) {
+        longPressTimer = setTimeout(() => {
+            // Long press triggers selection mode
+            emit("click", props.week)
+            longPressTimer = null
+        }, longPressDuration)
     }
+}
 
-    return `${baseClasses} ${requiresPrimaryClass} ${additional}`.trim()
+function handleTouchEnd() {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer)
+        longPressTimer = null
+        // Short tap - handle as normal click
+        handleClick()
+    }
+}
+
+function handleTouchMove() {
+    // Cancel long press if user moves finger
+    if (longPressTimer) {
+        clearTimeout(longPressTimer)
+        longPressTimer = null
+    }
+}
+
+// Helper function to normalize additional classes
+function normalizeAdditionalClasses(classes: Props["additionalClasses"]): string {
+    if (!classes) return ""
+    if (typeof classes === "string") return classes
+    if (Array.isArray(classes)) return classes.join(" ")
+
+    // Handle object format
+    return Object.entries(classes)
+        .filter(([, value]) => value)
+        .map(([key]) => key)
+        .join(" ")
+}
+
+// Computed property for card classes - simplified
+const cardClasses = computed(() => {
+    const classes = [
+        // Base responsive classes
+        "col-xs-12",
+        "col-sm-6",
+        "col-md-4",
+        "col-lg-3",
+        "col-xl-2",
+        "cursor-pointer",
+        "week-schedule-card",
+
+        // Conditional classes
+        requiresPrimary.value && !hasPrimary.value && "requires-primary-card",
+        props.selectable && "week-selectable",
+        props.selected && "week-selected",
+
+        // Additional classes from props
+        normalizeAdditionalClasses(props.additionalClasses),
+    ]
+
+    // Filter out falsy values and join
+    return classes.filter(Boolean).join(" ")
 })
 </script>
 
 <style scoped>
+@import url("@/styles/colors.css");
+
 .week-schedule-card {
     max-width: 280px;
     min-width: 200px;
@@ -225,10 +361,10 @@ const cardClasses = computed(() => {
     height: 100%;
 }
 
-/* Style for weeks requiring primary evaluator */
+/* Style for weeks requiring primary evaluator - using UC Davis gold for warning */
 .requires-primary-card {
-    border: 2px solid #f44 !important;
-    background-color: #fff5f5;
+    border: 2px solid var(--ucdavis-gold-70) !important;
+    background-color: var(--ucdavis-gold-10);
 }
 
 /* Assignment item styling */
@@ -238,9 +374,56 @@ const cardClasses = computed(() => {
     gap: 4px;
 }
 
+@media screen and (prefers-reduced-motion: reduce) {
+    .week-cell__assignment-item {
+        display: flex;
+        align-items: center;
+        transition: none;
+    }
+}
+
 .week-cell__assignment-item {
     display: flex;
     align-items: center;
+    transition: background-color 0.3s ease-out;
+}
+
+/* Newly added item highlighting - using UC Davis gold for confirmation */
+@media screen and (prefers-reduced-motion: reduce) {
+    .week-cell__assignment-item--newly-added {
+        background-color: var(--ucdavis-gold-20);
+        border-radius: 4px;
+        padding: 2px 4px;
+        animation: none;
+    }
+}
+
+.week-cell__assignment-item--newly-added {
+    background-color: var(--ucdavis-gold-20);
+    border-radius: 4px;
+    padding: 2px 4px;
+    animation: fadeToBackground var(--highlight-duration) ease-out forwards; /* Duration from ANIMATIONS.HIGHLIGHT_DURATION_MS */
+}
+
+@keyframes fadeToBackground {
+    0% {
+        background-color: var(--ucdavis-gold-30);
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* Move transition for reordering */
+@media screen and (prefers-reduced-motion: reduce) {
+    .assignment-list-move {
+        transition: none;
+    }
+}
+
+.assignment-list-move {
+    transition: transform 0.3s ease;
 }
 
 .week-cell__assignment-content {
@@ -261,7 +444,7 @@ const cardClasses = computed(() => {
 .week-cell__clinician-name {
     flex: 1;
     font-size: 13px;
-    color: #333;
+    color: var(--ucdavis-black-80);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -280,11 +463,68 @@ const cardClasses = computed(() => {
 
 .week-cell__empty-text {
     font-size: 12px;
-    color: #999;
+    color: var(--ucdavis-black-40);
     font-style: italic;
 }
 
 .cursor-pointer {
     cursor: pointer;
+}
+
+/* Selection states - using UC Davis blue */
+@media screen and (prefers-reduced-motion: reduce) {
+    .week-selectable {
+        transition: none;
+        position: relative;
+    }
+}
+
+.week-selectable {
+    transition: all 0.2s ease-in-out;
+    position: relative;
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+    .week-selectable::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border: 2px solid transparent;
+        border-radius: 4px;
+        pointer-events: none;
+        transition: none;
+    }
+}
+
+.week-selectable::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    pointer-events: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.week-selectable:hover::before,
+.week-selectable:focus::before {
+    border-color: var(--ucdavis-blue-60);
+    opacity: 0.3;
+}
+
+.week-selected {
+    background-color: var(--ucdavis-blue-10) !important;
+    border: 2px solid var(--ucdavis-blue-60) !important;
+}
+
+.week-selected::before {
+    border-color: var(--ucdavis-blue-60) !important;
+    opacity: 1 !important;
+}
+
+/* Override requires-primary style when selected - combination of gold and blue */
+.week-selected.requires-primary-card {
+    background-color: var(--ucdavis-gold-10) !important;
+    border: 2px solid var(--ucdavis-gold-80) !important;
 }
 </style>

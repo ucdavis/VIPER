@@ -19,7 +19,10 @@ import type {
 } from "../utils/schedule-update-helpers"
 
 interface OptimisticUpdateOptions {
-    onSuccess?: () => void
+    // Called after operation completes successfully. Receives
+    // (wasPrimary?: boolean, instructorName?: string) so callers
+    // can present contextual notifications (e.g. primary evaluator removed).
+    onSuccess?: (wasPrimary?: boolean, instructorName?: string) => void
     onError?: (error: string) => void
 }
 
@@ -33,7 +36,7 @@ async function addClinicianToRotation(
         RotationId: rotationData.rotation?.rotId || 0,
         WeekIds: [weekId],
         GradYear: assignmentData.gradYear,
-        IsPrimaryEvaluator: assignmentData.isPrimary,
+        IsPrimaryEvaluator: assignmentData.isPrimary ?? false,
     })
 
     if (!result.success) {
@@ -61,7 +64,7 @@ async function addRotationToClinician(
         RotationId: assignmentData.rotationId!,
         WeekIds: [weekId],
         GradYear: assignmentData.gradYear,
-        IsPrimaryEvaluator: assignmentData.isPrimary,
+        IsPrimaryEvaluator: assignmentData.isPrimary ?? false,
     })
 
     if (!result.success) {
@@ -93,7 +96,7 @@ async function handleAddSchedule(params: AddScheduleParams, options: OptimisticU
             instructorScheduleId: newScheduleId,
             mothraId: assignmentData.clinicianMothraId,
             clinicianName: assignmentData.clinicianName,
-            isPrimaryEvaluator: assignmentData.isPrimary,
+            isPrimaryEvaluator: assignmentData.isPrimary ?? false,
         })
     } else {
         if (!assignmentData.rotationId) {
@@ -121,6 +124,7 @@ interface RemoveScheduleParams {
 async function handleRemoveSchedule(params: RemoveScheduleParams, options: OptimisticUpdateOptions) {
     const { scheduleData, scheduleId, removeScheduleFromWeek } = params
 
+    // Perform optimistic UI update immediately
     if (isRotationSchedule(scheduleData)) {
         removeScheduleFromWeek(scheduleData, scheduleId)
     } else {
@@ -143,7 +147,12 @@ async function handleRemoveSchedule(params: RemoveScheduleParams, options: Optim
         throw new Error(result.errors.join(", "))
     }
 
-    options.onSuccess?.()
+    // Prepare data for the view to handle notifications
+    const wasPrimary = result.result?.wasPrimaryEvaluator || false
+    const instructorName = result.result?.instructorName || "Instructor"
+
+    // Let the view handle all notifications through onSuccess callback
+    options.onSuccess?.(wasPrimary, instructorName)
 }
 
 async function handleTogglePrimary(

@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { computed } from "vue"
 import { usePermissionsStore } from "../stores/permissions"
 import ClinicalSchedulerHome from "../pages/ClinicalSchedulerHome.vue"
 import { setupTest, createTestWrapper, createMockPermissionsStore } from "./test-utils"
@@ -8,20 +7,6 @@ import { setupTest, createTestWrapper, createMockPermissionsStore } from "./test
 vi.mock("../stores/permissions")
 
 // Mock child components with inline definitions to avoid import hoisting issues
-vi.mock("../components/PermissionInfoBanner.vue", () => ({
-    default: {
-        name: "PermissionInfoBanner",
-        template: `<div v-if="shouldShow">Permission Info Banner</div>`,
-        setup() {
-            const permissionsStore = usePermissionsStore()
-            const shouldShow = computed(
-                () =>
-                    permissionsStore.hasOnlyServiceSpecificPermissions || permissionsStore.hasOnlyOwnSchedulePermission,
-            )
-            return { shouldShow }
-        },
-    },
-}))
 vi.mock("../components/AccessDeniedCard.vue", () => ({
     default: {
         name: "AccessDeniedCard",
@@ -49,6 +34,7 @@ describe("ClinicalSchedulerHome - Display & Layout", () => {
             mockPermissionsStore.hasFullAccessPermission = true
             mockPermissionsStore.canAccessClinicianView = true
             mockPermissionsStore.canAccessRotationView = true
+            mockPermissionsStore.clinicianViewLabel = "Schedule by Clinician" // Full access users see generic label
 
             const wrapper = createTestWrapper({
                 component: ClinicalSchedulerHome,
@@ -68,6 +54,7 @@ describe("ClinicalSchedulerHome - Display & Layout", () => {
             mockPermissionsStore.hasOnlyServiceSpecificPermissions = true
             mockPermissionsStore.canAccessClinicianView = false
             mockPermissionsStore.canAccessRotationView = true
+            mockPermissionsStore.clinicianViewLabel = "Schedule by Clinician" // Disabled view still shows generic label
 
             const wrapper = createTestWrapper({
                 component: ClinicalSchedulerHome,
@@ -88,14 +75,15 @@ describe("ClinicalSchedulerHome - Display & Layout", () => {
             mockPermissionsStore.hasAnyEditPermission = true
             mockPermissionsStore.hasOnlyOwnSchedulePermission = true
             mockPermissionsStore.canAccessClinicianView = true
+            mockPermissionsStore.clinicianViewLabel = "Edit My Schedule" // Own schedule users see personal label
 
             const wrapper = createTestWrapper({
                 component: ClinicalSchedulerHome,
                 router,
             })
 
-            // Should show clinician view
-            expect(wrapper.text()).toContain("Schedule by Clinician")
+            // Should show clinician view with personal label
+            expect(wrapper.text()).toContain("Edit My Schedule")
             expect(wrapper.text()).toContain("Your schedule only")
 
             // Should NOT show rotation view (own schedule users can't access rotation view)
@@ -134,37 +122,6 @@ describe("ClinicalSchedulerHome - Display & Layout", () => {
             // Both view cards should be visible
             const viewCards = wrapper.findAll(".view-card-custom")
             expect(viewCards.length).toBeGreaterThanOrEqual(2)
-        })
-    })
-
-    describe("Permission Indicators", () => {
-        it("displays permission info banner for limited users", () => {
-            mockPermissionsStore.hasAnyEditPermission = true
-            mockPermissionsStore.hasOnlyServiceSpecificPermissions = true
-
-            const wrapper = createTestWrapper({
-                component: ClinicalSchedulerHome,
-                router,
-            })
-
-            const permissionBanner = wrapper.findComponent({ name: "PermissionInfoBanner" })
-            expect(permissionBanner.exists()).toBeTruthy()
-        })
-
-        it("hides permission banner for full access users", () => {
-            mockPermissionsStore.hasAnyEditPermission = true
-            mockPermissionsStore.hasFullAccessPermission = true
-            // Ensure the limited permission flags are false to hide the banner
-            mockPermissionsStore.hasOnlyServiceSpecificPermissions = false
-            mockPermissionsStore.hasOnlyOwnSchedulePermission = false
-
-            const wrapper = createTestWrapper({
-                component: ClinicalSchedulerHome,
-                router,
-            })
-
-            // Check that the banner text is not present in the DOM for full access users
-            expect(wrapper.text()).not.toContain("Permission Info Banner")
         })
     })
 

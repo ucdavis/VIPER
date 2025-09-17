@@ -233,13 +233,13 @@ namespace Viper.test.ClinicalScheduler
         [InlineData(29, true)]  // Second week of block
         [InlineData(30, false)] // First week of block
         [InlineData(31, true)]  // Second week of block
-        [InlineData(32, false)] // Week 2 of 3-week block with extended week 3
-        [InlineData(33, false)] // First week of new block
-        [InlineData(34, true)]  // Second week of block
-        [InlineData(35, false)] // First week of block
-        [InlineData(36, true)]  // Second week of block
-        [InlineData(37, false)] // Week 2 of 3-week block with extended week 3
-        [InlineData(38, false)] // First week of new block
+        [InlineData(32, false)] // First week of block
+        [InlineData(33, false)] // Extended week - no evaluation
+        [InlineData(34, false)] // First week of block
+        [InlineData(35, true)]  // Second week of block
+        [InlineData(36, false)] // First week of block
+        [InlineData(37, false)] // Extended week - no evaluation
+        [InlineData(38, false)] // First week of block
         [InlineData(39, true)]  // Second week of block
         [InlineData(40, false)] // First week of block
         [InlineData(41, true)]  // Second week of block
@@ -248,43 +248,39 @@ namespace Viper.test.ClinicalScheduler
         public void RequiresPrimaryEvaluator_Rotation603Year2026_CorrectEvaluation(int weekNum, bool shouldRequireEvaluator)
         {
             // Arrange - Recreate the rotation 603 year 2026 scenario
+            // Note: This represents a single rotation schedule where weeks may overlap
+            // but the logic should pick the right context based on the specific week being evaluated
             var weeks = new List<TestRotationWeekInfo>
             {
                 // Block 1: Weeks 28-29 (regular 2-week)
                 new() { WeekNum = 28, ExtendedRotation = false, StartWeek = true },
                 new() { WeekNum = 29, ExtendedRotation = false, StartWeek = false },
-                
+
                 // Block 2: Weeks 30-31 (regular 2-week)
                 new() { WeekNum = 30, ExtendedRotation = false, StartWeek = true },
                 new() { WeekNum = 31, ExtendedRotation = false, StartWeek = false },
-                
-                // Block 3: Weeks 31-33 (3-week with extended)
-                new() { WeekNum = 31, ExtendedRotation = false, StartWeek = true },
-                new() { WeekNum = 32, ExtendedRotation = false, StartWeek = false },
+
+                // Block 3: Weeks 32-33 (2-week with week 33 extended)
+                new() { WeekNum = 32, ExtendedRotation = false, StartWeek = true },
                 new() { WeekNum = 33, ExtendedRotation = true, StartWeek = false },
-                
-                // Block 4: Weeks 33-34 (regular 2-week)
-                new() { WeekNum = 33, ExtendedRotation = false, StartWeek = true },
-                new() { WeekNum = 34, ExtendedRotation = false, StartWeek = false },
-                
-                // Block 5: Weeks 35-36 (regular 2-week)
-                new() { WeekNum = 35, ExtendedRotation = false, StartWeek = true },
-                new() { WeekNum = 36, ExtendedRotation = false, StartWeek = false },
-                
-                // Block 6: Weeks 36-38 (3-week with extended)
+
+                // Block 4: Weeks 34-35 (regular 2-week)
+                new() { WeekNum = 34, ExtendedRotation = false, StartWeek = true },
+                new() { WeekNum = 35, ExtendedRotation = false, StartWeek = false },
+
+                // Block 5: Weeks 36-37 (2-week with week 37 extended)
                 new() { WeekNum = 36, ExtendedRotation = false, StartWeek = true },
-                new() { WeekNum = 37, ExtendedRotation = false, StartWeek = false },
-                new() { WeekNum = 38, ExtendedRotation = true, StartWeek = false },
-                
-                // Block 7: Weeks 38-39 (regular 2-week)
+                new() { WeekNum = 37, ExtendedRotation = true, StartWeek = false },
+
+                // Block 6: Weeks 38-39 (regular 2-week)
                 new() { WeekNum = 38, ExtendedRotation = false, StartWeek = true },
                 new() { WeekNum = 39, ExtendedRotation = false, StartWeek = false },
-                
-                // Block 8: Weeks 40-41 (regular 2-week)
+
+                // Block 7: Weeks 40-41 (regular 2-week)
                 new() { WeekNum = 40, ExtendedRotation = false, StartWeek = true },
                 new() { WeekNum = 41, ExtendedRotation = false, StartWeek = false },
-                
-                // Block 9: Weeks 42-43 (regular 2-week)
+
+                // Block 8: Weeks 42-43 (regular 2-week)
                 new() { WeekNum = 42, ExtendedRotation = false, StartWeek = true },
                 new() { WeekNum = 43, ExtendedRotation = false, StartWeek = false }
             };
@@ -319,8 +315,10 @@ namespace Viper.test.ClinicalScheduler
             Assert.False(result); // Default behavior when no weekSize
         }
 
-        [Fact]
-        public void RequiresPrimaryEvaluator_WeekSizeZero_ReturnsFalse()
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void RequiresPrimaryEvaluator_InvalidWeekSize_ReturnsFalse(int weekSize)
         {
             // Arrange
             var weeks = new List<TestRotationWeekInfo>
@@ -329,26 +327,31 @@ namespace Viper.test.ClinicalScheduler
             };
 
             // Act
-            var result = _service.RequiresPrimaryEvaluator(5, weeks, serviceWeekSize: 0);
+            var result = _service.RequiresPrimaryEvaluator(5, weeks, serviceWeekSize: weekSize);
 
             // Assert
-            Assert.False(result); // Invalid weekSize defaults to false
+            Assert.False(result); // Invalid weekSize (0, negative) defaults to false
         }
 
+
         [Fact]
-        public void RequiresPrimaryEvaluator_WeekSizeOtherValue_ReturnsFalse()
+        public void RequiresPrimaryEvaluator_WeekSize4_OnlyLastWeekRequiresEvaluation()
         {
-            // Arrange
+            // Arrange - 4-week rotation blocks
             var weeks = new List<TestRotationWeekInfo>
             {
-                new() { WeekNum = 5, ExtendedRotation = false }
+                new() { WeekNum = 10, ExtendedRotation = false, StartWeek = true },   // Week 1 of block
+                new() { WeekNum = 11, ExtendedRotation = false, StartWeek = false },  // Week 2 of block
+                new() { WeekNum = 12, ExtendedRotation = false, StartWeek = false },  // Week 3 of block
+                new() { WeekNum = 13, ExtendedRotation = false, StartWeek = false },  // Week 4 of block (last)
+                new() { WeekNum = 14, ExtendedRotation = false, StartWeek = true }    // Week 1 of next block
             };
 
-            // Act - WeekSize = 3 (not 1 or 2)
-            var result = _service.RequiresPrimaryEvaluator(5, weeks, serviceWeekSize: 3);
-
-            // Assert
-            Assert.False(result); // Unsupported weekSize defaults to false
+            // Act & Assert - For 4-week blocks, only the last week (4th) should require evaluation
+            Assert.False(_service.RequiresPrimaryEvaluator(10, weeks, serviceWeekSize: 4)); // First week
+            Assert.False(_service.RequiresPrimaryEvaluator(11, weeks, serviceWeekSize: 4)); // Second week
+            Assert.False(_service.RequiresPrimaryEvaluator(12, weeks, serviceWeekSize: 4)); // Third week
+            Assert.True(_service.RequiresPrimaryEvaluator(13, weeks, serviceWeekSize: 4));  // Fourth week (last)
         }
 
         #endregion

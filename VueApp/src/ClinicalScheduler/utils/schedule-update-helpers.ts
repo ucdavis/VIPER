@@ -9,7 +9,7 @@ interface ScheduleAssignmentData {
     serviceName?: string
     clinicianMothraId?: string
     clinicianName?: string
-    isPrimary: boolean
+    isPrimary?: boolean
     gradYear: number
 }
 

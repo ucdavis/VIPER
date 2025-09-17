@@ -42,6 +42,7 @@
             option-value="mothraId"
             clearable
             dense
+            options-dense
             :input-debounce="100"
             @filter="onFilter"
             @popup-show="onPopupShow"

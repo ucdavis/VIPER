@@ -11,10 +11,17 @@
                     <div class="row items-center q-gutter-sm q-mb-xs">
                         <div class="text-body2 text-weight-medium">
                             {{ recentLabel }}
+                            <q-badge
+                                v-if="selectedItemsSet.size > 1"
+                                color="primary"
+                                class="q-ml-sm"
+                            >
+                                {{ selectedItemsSet.size }} selected
+                            </q-badge>
                         </div>
                         <!-- Clear selection button -->
                         <q-btn
-                            v-if="selectedItem"
+                            v-if="selectedItemsSet.size > 0"
                             flat
                             color="grey-7"
                             size="xs"
@@ -30,13 +37,19 @@
                         <q-chip
                             v-for="item in items"
                             :key="getItemKey(item)"
-                            :color="isSelected(item) ? 'primary' : undefined"
-                            :text-color="isSelected(item) ? 'white' : 'dark'"
-                            :outline="!isSelected(item)"
+                            :color="isItemSelected(item) ? 'primary' : undefined"
+                            :text-color="isItemSelected(item) ? 'white' : 'dark'"
+                            :outline="!isItemSelected(item)"
                             clickable
                             size="sm"
                             class="q-mr-xs"
-                            @click="selectItem(item)"
+                            tabindex="0"
+                            role="button"
+                            :aria-label="`${isItemSelected(item) ? 'Deselect' : 'Select'} ${getItemDisplayName(item)}`"
+                            :aria-pressed="isItemSelected(item).toString()"
+                            @click="toggleItemSelection(item)"
+                            @keyup.enter="toggleItemSelection(item)"
+                            @keyup.space.prevent="toggleItemSelection(item)"
                         >
                             {{ getItemDisplayName(item) }}
                         </q-chip>
@@ -51,6 +64,9 @@
                     </div>
                 </div>
 
+                <!-- Before dropdown section slot for additional controls like primary evaluator checkbox -->
+                <slot name="before-dropdown" />
+
                 <!-- Dropdown section -->
                 <div>
                     <div
@@ -59,6 +75,10 @@
                     >
                         {{ addNewLabel }}
                     </div>
+
+                    <!-- Before selector slot (kept for backward compatibility) -->
+                    <slot name="before-selector" />
+
                     <div
                         v-if="selectorSpacing !== 'none'"
                         :class="`q-mb-${selectorSpacing}`"
@@ -69,16 +89,66 @@
                         <slot name="selector" />
                     </div>
                 </div>
+
+                <!-- After selector slot (kept for backward compatibility) -->
+                <slot name="after-selector" />
             </div>
         </q-card-section>
+
+        <!-- Multi-week selection mode indicator - shows when weeks are selected or Alt is held -->
+        <div
+            v-if="showScheduleButton && selectedItemsSet.size > 0 && (selectedWeeksCount > 0 || isAltKeyHeld)"
+            class="bg-info text-white q-pa-sm"
+        >
+            <div
+                v-if="selectedWeeksCount > 0"
+                class="row items-center justify-center q-gutter-sm"
+            >
+                <q-icon
+                    name="check_circle"
+                    size="sm"
+                />
+                <span class="text-weight-medium">
+                    {{ selectedItemsSet.size }} {{ itemType }}{{ selectedItemsSet.size !== 1 ? "s" : "" }} ×
+                    {{ selectedWeeksCount }} week{{ selectedWeeksCount !== 1 ? "s" : "" }} selected
+                </span>
+                <q-btn
+                    :color="isDeleteMode ? 'negative' : 'primary'"
+                    :label="isDeleteMode ? 'Delete Selected' : 'Schedule Selected'"
+                    :icon="isDeleteMode ? 'delete' : 'add_circle'"
+                    :aria-label="
+                        isDeleteMode
+                            ? `Delete ${selectedItemsSet.size} selected ${itemType}${selectedItemsSet.size !== 1 ? 's' : ''} from ${selectedWeeksCount} week${selectedWeeksCount !== 1 ? 's' : ''}`
+                            : `Schedule ${selectedItemsSet.size} selected ${itemType}${selectedItemsSet.size !== 1 ? 's' : ''} to ${selectedWeeksCount} week${selectedWeeksCount !== 1 ? 's' : ''}`
+                    "
+                    size="sm"
+                    @click="emit('schedule-selected')"
+                />
+            </div>
+            <div
+                v-else
+                class="text-center"
+            >
+                <q-icon
+                    name="check_circle"
+                    size="xs"
+                    class="q-mr-xs"
+                />
+                <span class="text-weight-medium"> Multi-week selection mode ON - Click weeks to select </span>
+            </div>
+        </div>
     </q-card>
 </template>
 
 <script setup lang="ts" generic="T extends Record<string, any>">
+import { ref, watch } from "vue"
+
 const props = withDefaults(
     defineProps<{
         items: T[]
-        selectedItem: T | null
+        selectedItem?: T | null
+        localSelectedItems?: T[]
+        multiSelect?: boolean
         recentLabel: string
         addNewLabel: string
         itemType: string
@@ -88,19 +158,58 @@ const props = withDefaults(
         selectorSpacing?: "none" | "xs" | "sm" | "md" | "lg"
         isLoading?: boolean
         emptyStateMessage?: string
+        selectedWeeksCount?: number
+        showScheduleButton?: boolean
+        isAltKeyHeld?: boolean
+        isDeleteMode?: boolean
     }>(),
     {
+        selectedItem: null,
+        localSelectedItems: () => [],
+        multiSelect: false,
         labelSpacing: "xs",
         selectorSpacing: "none",
         isLoading: false,
         emptyStateMessage: "",
+        selectedWeeksCount: 0,
+        showScheduleButton: false,
+        isAltKeyHeld: false,
+        isDeleteMode: false,
     },
 )
 
 const emit = defineEmits<{
     "select-item": [item: T]
+    "select-items": [items: T[]]
     "clear-selection": []
+    "schedule-selected": []
 }>()
+
+const selectedItemsSet = ref<Set<string | number>>(new Set())
+
+watch(
+    () => props.selectedItem,
+    (newItem) => {
+        if (!props.multiSelect && newItem) {
+            selectedItemsSet.value.clear()
+            selectedItemsSet.value.add(getItemKey(newItem))
+        }
+    },
+    { immediate: true },
+)
+
+watch(
+    () => props.localSelectedItems,
+    (newItems) => {
+        if (props.multiSelect && newItems) {
+            selectedItemsSet.value.clear()
+            newItems.forEach((item) => {
+                selectedItemsSet.value.add(getItemKey(item))
+            })
+        }
+    },
+    { immediate: true, deep: true },
+)
 
 function getItemKey(item: T): string | number {
     return item[props.itemKeyField] as string | number
@@ -110,24 +219,45 @@ function getItemDisplayName(item: T): string {
     return String(item[props.itemDisplayField])
 }
 
-function isSelected(item: T): boolean {
-    if (!props.selectedItem) return false
-    return getItemKey(item) === getItemKey(props.selectedItem)
+function isItemSelected(item: T): boolean {
+    return selectedItemsSet.value.has(getItemKey(item))
 }
 
-function selectItem(item: T): void {
-    emit("select-item", item)
+function toggleItemSelection(item: T): void {
+    const key = getItemKey(item)
+
+    if (props.multiSelect) {
+        // Create a new Set for reactivity
+        const newSelectedItems = new Set(selectedItemsSet.value)
+        if (newSelectedItems.has(key)) {
+            newSelectedItems.delete(key)
+        } else {
+            newSelectedItems.add(key)
+        }
+        selectedItemsSet.value = newSelectedItems
+
+        const localSelectedItemsArray = props.items.filter((item) => selectedItemsSet.value.has(getItemKey(item)))
+        emit("select-items", localSelectedItemsArray)
+    } else {
+        selectedItemsSet.value.clear()
+        selectedItemsSet.value.add(key)
+        emit("select-item", item)
+    }
 }
 
 function clearSelection(): void {
+    selectedItemsSet.value = new Set()
     emit("clear-selection")
+    if (props.multiSelect) {
+        emit("select-items", [])
+    }
 }
 </script>
 
 <style scoped>
 .recent-selections-card {
     position: sticky;
-    top: 130px; /* Desktop: Blue header + yellow navigation + padding (35px + 60px + 35px) */
+    top: 100px; /* Desktop: Blue header + yellow navigation + padding */
     z-index: 100;
     background-color: #f8f9fa; /* Light gray to make the box stand out from white week boxes */
 }
