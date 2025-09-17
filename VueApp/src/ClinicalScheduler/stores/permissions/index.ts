@@ -1,10 +1,4 @@
-export {
-    hasFullAccess,
-    hasAnyEditing,
-    hasOnlyServicePermissions,
-    hasOnlyOwnPermission,
-    hasLimitedPermissions,
-} from "../permissions-helpers"
+export { hasFullAccess, hasAnyEditing, hasOnlyServicePermissions, hasOnlyOwnPermission } from "../permissions-helpers"
 
 export type { PermissionsState } from "../permissions-actions"
 export { createPermissionActions } from "../permissions-actions"

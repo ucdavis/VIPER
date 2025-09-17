@@ -61,9 +61,6 @@
                 </div>
             </div>
 
-            <!-- Permission info banner -->
-            <PermissionInfoBanner />
-
             <!-- Helper message for clinicians with no assignments - moved to top -->
             <ScheduleBanner
                 v-if="selectedClinician && hasNoAssignments && !loadingSchedule"
@@ -108,13 +105,6 @@
                     @clear-selection="clearRotationSelection"
                     @schedule-selected="handleScheduleSelected"
                 >
-                    <template #before-dropdown>
-                        <PrimaryEvaluatorToggle
-                            v-model="makePrimaryEvaluator"
-                            :selection-count="selectedRotations.length"
-                            item-type="rotation"
-                        />
-                    </template>
                     <template #selector>
                         <RotationSelector
                             v-model="selectedNewRotationId"
@@ -164,7 +154,6 @@ import { ref, computed, watch, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
 import ClinicianSelector from "../components/ClinicianSelector.vue"
-import PrimaryEvaluatorToggle from "../components/PrimaryEvaluatorToggle.vue"
 import YearSelector from "../components/YearSelector.vue"
 import RotationSelector from "../components/RotationSelector.vue"
 import SchedulerNavigation from "../components/SchedulerNavigation.vue"
@@ -181,7 +170,6 @@ import { useDeleteMode } from "../composables/use-delete-mode"
 import type { RotationWithService } from "../types/rotation-types"
 import ScheduleBanner from "../components/ScheduleBanner.vue"
 import RecentSelections from "../components/RecentSelections.vue"
-import PermissionInfoBanner from "../components/PermissionInfoBanner.vue"
 import AccessDeniedCard from "../components/AccessDeniedCard.vue"
 import {
     ACCESS_DENIED_MESSAGES,
@@ -243,7 +231,6 @@ const loadingWeekId = ref<number | null>(null)
 const selectedWeekIds = ref<number[]>([])
 
 // Primary evaluator checkbox state
-const makePrimaryEvaluator = ref(false)
 
 // Component refs
 const scheduleViewRef = ref<any>(null)
@@ -556,7 +543,6 @@ const selectRotations = (rotations: RotationWithService[]) => {
 const clearRotationSelection = () => {
     selectedRotation.value = null
     selectedRotations.value = []
-    makePrimaryEvaluator.value = false
     // Also clear week selection when clearing rotation selection
     selectedWeekIds.value = []
     if (scheduleViewRef.value) {
@@ -650,7 +636,6 @@ const scheduleRotationToWeek = async (week: WeekItem) => {
                     rotationAbbreviation: selectedRotation.value.abbreviation,
                     serviceId: selectedRotation.value.serviceId,
                     serviceName: selectedRotation.value.serviceName,
-                    isPrimary: makePrimaryEvaluator.value,
                     gradYear: currentYear.value || currentGradYear.value,
                 },
             },
@@ -799,7 +784,6 @@ const scheduleBulkRotationsToWeeks = async () => {
                                 rotationAbbreviation: rotation.abbreviation,
                                 serviceId: rotation.service?.serviceId,
                                 serviceName: rotation.service?.serviceName,
-                                isPrimary: makePrimaryEvaluator.value,
                                 gradYear: currentYear.value || currentGradYear.value,
                             },
                         },
@@ -842,7 +826,6 @@ const scheduleBulkRotationsToWeeks = async () => {
         // Clear selections after bulk operation
         clearRotationSelection()
         selectedWeekIds.value = []
-        makePrimaryEvaluator.value = false
         // Clear the selection in the ScheduleView component
         if (scheduleViewRef.value) {
             scheduleViewRef.value.clearSelection()
@@ -883,7 +866,6 @@ const deleteBulkAssignments = async () => {
                 clearSelections: () => {
                     clearRotationSelection()
                     selectedWeekIds.value = []
-                    makePrimaryEvaluator.value = false
                     scheduleViewRef.value?.clearSelection()
                 },
                 showManualConfirmation: true, // Show manual confirmation before bulk deletion
@@ -1008,7 +990,6 @@ const scheduleRotationsToWeek = async (week: WeekItem) => {
                             rotationAbbreviation: rotation.abbreviation,
                             serviceId: rotation.service?.serviceId,
                             serviceName: rotation.service?.serviceName,
-                            isPrimary: makePrimaryEvaluator.value,
                             gradYear: currentYear.value || currentGradYear.value,
                         },
                     },
@@ -1151,28 +1132,29 @@ const handleRemoveRotation = async (scheduleId: number, displayName: string, isP
 
     try {
         await removeScheduleWithRollback(clinicianSchedule.value, scheduleId, {
-            onSuccess: () => {
-                // Show success notification
+            onSuccess: (wasPrimary, instructorName) => {
+                // Show context-appropriate success notification
                 $q.notify({
                     type: "positive",
                     message: `${displayName} has been removed from the schedule`,
                     timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
                 })
+
+                // Show primary evaluator warning if applicable
+                if (wasPrimary) {
+                    $q.notify({
+                        type: "warning",
+                        message: `Primary evaluator ${instructorName} has been removed. This week may need a new primary evaluator.`,
+                        icon: "star_outline",
+                        timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
+                    })
+                }
             },
             onError: (error) => {
                 $q.notify({
                     type: "negative",
                     message: error || "Failed to remove rotation",
                     timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_ERROR,
-                })
-            },
-            onNotification: (type, message, icon) => {
-                // Handle special notifications (e.g., primary evaluator removal warnings)
-                $q.notify({
-                    type: type as any,
-                    message,
-                    icon,
-                    timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
                 })
             },
         })
@@ -1279,7 +1261,7 @@ const onAddRotationSelected = (rotation: RotationWithService | null) => {
 
 // Lifecycle
 onMounted(async () => {
-    document.title = "VIPER - Schedule by Clinician"
+    document.title = `VIPER - ${permissionsStore.clinicianViewLabel}`
 
     try {
         currentGradYear.value = await PageDataService.getCurrentGradYear()

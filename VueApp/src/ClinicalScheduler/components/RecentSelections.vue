@@ -257,7 +257,7 @@ function clearSelection(): void {
 <style scoped>
 .recent-selections-card {
     position: sticky;
-    top: 130px; /* Desktop: Blue header + yellow navigation + padding (35px + 60px + 35px) */
+    top: 100px; /* Desktop: Blue header + yellow navigation + padding */
     z-index: 100;
     background-color: #f8f9fa; /* Light gray to make the box stand out from white week boxes */
 }

@@ -13,16 +13,13 @@ namespace Viper.test.ClinicalScheduler
     {
         public TestableScheduleEditService(
             ClinicalSchedulerContext context,
-            RAPSContext rapsContext,
-            ISchedulePermissionService permissionService,
             IScheduleAuditService auditService,
             ILogger<ScheduleEditService> logger,
             IEmailService emailService,
             IOptions<EmailNotificationSettings> emailNotificationOptions,
             IGradYearService gradYearService,
-            IPermissionValidator permissionValidator,
-            IUserHelper? userHelper = null)
-            : base(context, rapsContext, permissionService, auditService, logger, emailService, emailNotificationOptions, gradYearService, permissionValidator, userHelper)
+            IPermissionValidator permissionValidator)
+            : base(context, auditService, logger, emailService, emailNotificationOptions, gradYearService, permissionValidator)
         {
         }
 

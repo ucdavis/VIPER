@@ -9,4 +9,9 @@ const UI_CONFIG = {
     NOTIFICATION_TIMEOUT_ERROR: 5000,
 } as const
 
-export { UI_CONFIG }
+// Animation Configuration
+const ANIMATIONS = {
+    HIGHLIGHT_DURATION_MS: 2000, // Duration for newly added assignment highlight animation
+} as const
+
+export { UI_CONFIG, ANIMATIONS }

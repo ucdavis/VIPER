@@ -55,9 +55,6 @@
                 </div>
             </div>
 
-            <!-- Permission info banner -->
-            <PermissionInfoBanner />
-
             <!-- Error display for rotation loading -->
             <ScheduleBanner
                 v-if="error"
@@ -118,13 +115,6 @@
                 @clear-selection="clearClinicianSelection"
                 @schedule-selected="scheduleBulkCliniciansToWeeks"
             >
-                <template #before-dropdown>
-                    <PrimaryEvaluatorToggle
-                        v-model="makePrimaryEvaluator"
-                        :selection-count="selectedClinicians.length"
-                        item-type="clinician"
-                    />
-                </template>
                 <template #selector>
                     <ClinicianSelector
                         :model-value="null"
@@ -205,13 +195,11 @@ import { useScheduleNormalization } from "../composables/use-schedule-normalizat
 import { useDeleteMode } from "../composables/use-delete-mode"
 import RotationSelector from "../components/RotationSelector.vue"
 import ClinicianSelector from "../components/ClinicianSelector.vue"
-import PrimaryEvaluatorToggle from "../components/PrimaryEvaluatorToggle.vue"
 import YearSelector from "../components/YearSelector.vue"
 import SchedulerNavigation from "../components/SchedulerNavigation.vue"
 import type { WeekItem } from "../components/WeekScheduleCard.vue"
 import ScheduleBanner from "../components/ScheduleBanner.vue"
 import RecentSelections from "../components/RecentSelections.vue"
-import PermissionInfoBanner from "../components/PermissionInfoBanner.vue"
 import AccessDeniedCard from "../components/AccessDeniedCard.vue"
 import { ACCESS_DENIED_MESSAGES, ACCESS_DENIED_SUBTITLES } from "../constants/permission-messages"
 import { UI_CONFIG } from "../constants/app-constants"
@@ -259,9 +247,6 @@ const isAddingClinician = ref(false)
 const isRemovingClinician = ref(false)
 const isTogglingPrimary = ref(false)
 const loadingWeekId = ref<number | null>(null)
-
-// Primary evaluator checkbox state
-const makePrimaryEvaluator = ref(false)
 
 // Year selection is now handled by YearSelector component
 
@@ -480,7 +465,6 @@ function clearClinicianSelection() {
     selectedClinician.value = null
     selectedClinicianData.value = null
     selectedClinicians.value = []
-    makePrimaryEvaluator.value = false
     // Also clear week selection when clearing clinician selection
     selectedWeekIds.value = []
     if (scheduleViewRef.value) {
@@ -603,7 +587,6 @@ async function scheduleCliniciansToBulkWeeks() {
                         RotationId: selectedRotation.value!.rotId,
                         WeekIds: [weekId],
                         GradYear: currentYear.value!,
-                        IsPrimaryEvaluator: makePrimaryEvaluator.value,
                     })
 
                     // Update local state if successful
@@ -623,7 +606,7 @@ async function scheduleCliniciansToBulkWeeks() {
                                     firstName: (clinician as any).firstName || "",
                                     lastName: (clinician as any).lastName || "",
                                     evaluator: true,
-                                    isPrimaryEvaluator: makePrimaryEvaluator.value,
+                                    isPrimaryEvaluator: false,
                                 })
                                 break
                             }
@@ -655,7 +638,6 @@ async function scheduleCliniciansToBulkWeeks() {
         // Clear selections after successful bulk operation
         clearClinicianSelection()
         scheduleViewRef.value?.clearSelection()
-        makePrimaryEvaluator.value = false
 
         // No need to reload - local state has been updated
     } catch {
@@ -699,7 +681,6 @@ async function deleteBulkAssignments() {
             clearSelections: () => {
                 clearClinicianSelection()
                 scheduleViewRef.value?.clearSelection()
-                makePrimaryEvaluator.value = false
             },
             showManualConfirmation: true,
         },
@@ -812,7 +793,6 @@ async function scheduleClinicianToWeek(week: WeekItem) {
                 assignmentData: {
                     clinicianMothraId: clinician.mothraId,
                     clinicianName: selectedClinician.value || "",
-                    isPrimary: makePrimaryEvaluator.value,
                     gradYear: currentYear.value!,
                 },
             },
@@ -956,9 +936,6 @@ async function scheduleCliniciansToWeek(week: WeekItem) {
         const schedulePromises: Promise<void>[] = []
 
         for (const clinician of toSchedule) {
-            // Use checkbox value when single clinician is selected
-            const shouldBePrimary = selectedClinicians.value.length === 1 ? makePrimaryEvaluator.value : false
-
             const promise = new Promise<void>((resolve) => {
                 addScheduleWithRollback(
                     {
@@ -967,7 +944,6 @@ async function scheduleCliniciansToWeek(week: WeekItem) {
                         assignmentData: {
                             clinicianMothraId: clinician.mothraId,
                             clinicianName: clinician.fullName,
-                            isPrimary: shouldBePrimary,
                             gradYear: currentYear.value!,
                         },
                     },
@@ -1045,13 +1021,24 @@ async function removeAssignment(scheduleId: number, clinicianName: string, isPri
     isRemovingClinician.value = true
 
     removeScheduleWithRollback(scheduleData.value, scheduleId, {
-        onSuccess: () => {
-            // Show success notification
+        onSuccess: (wasPrimary, instructorName) => {
+            // Show context-appropriate success notification
             $q.notify({
                 type: "positive",
                 message: `${clinicianName} has been removed from the schedule`,
                 timeout: UI_CONFIG.NOTIFICATION_TIMEOUT,
             })
+
+            // Show primary evaluator warning if applicable
+            if (wasPrimary) {
+                $q.notify({
+                    type: "warning",
+                    message: `Primary evaluator ${instructorName} has been removed. This week may need a new primary evaluator.`,
+                    icon: "star_outline",
+                    timeout: UI_CONFIG.NOTIFICATION_TIMEOUT_WARNING,
+                })
+            }
+
             isRemovingClinician.value = false
         },
         onError: (error) => {
@@ -1061,14 +1048,6 @@ async function removeAssignment(scheduleId: number, clinicianName: string, isPri
                 timeout: 5000,
             })
             isRemovingClinician.value = false
-        },
-        onNotification: (type, message, icon) => {
-            $q.notify({
-                type: type as any,
-                message,
-                icon,
-                timeout: type === "warning" ? UI_CONFIG.NOTIFICATION_TIMEOUT_WARNING : UI_CONFIG.NOTIFICATION_TIMEOUT,
-            })
         },
     })
 }

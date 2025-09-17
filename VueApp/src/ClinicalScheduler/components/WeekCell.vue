@@ -19,7 +19,7 @@
                     v-else-if="requiresPrimary && !hasPrimary"
                     name="warning"
                     size="xs"
-                    color="orange"
+                    style="color: var(--ucdavis-poppy)"
                     title="Primary evaluator required for this week"
                 />
                 <span>Week {{ week.weekNumber }} ({{ formatDate(week.dateStart) }})</span>
@@ -41,6 +41,7 @@
                             'week-cell__assignment-item',
                             { 'week-cell__assignment-item--newly-added': isNewlyAdded(assignment.id) },
                         ]"
+                        :style="isNewlyAdded(assignment.id) ? { '--highlight-duration': animationDuration } : {}"
                     >
                         <div class="week-cell__assignment-content">
                             <!-- Remove button -->
@@ -150,11 +151,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import { useDateFunctions } from "@/composables/DateFunctions"
+import { ANIMATIONS } from "../constants/app-constants"
 
 const { formatDate } = useDateFunctions()
 
-// Animation constants
-const HIGHLIGHT_ANIMATION_DURATION = 2000 // milliseconds - keep in sync with CSS animation
+// Animation constants - single source of truth from app-constants.ts
+const animationDuration = `${ANIMATIONS.HIGHLIGHT_DURATION_MS}ms`
 
 // Track newly added assignments for animation
 const newlyAddedAssignments = ref<Set<number>>(new Set())
@@ -243,7 +245,7 @@ watch(
                 const updated = new Set(newlyAddedAssignments.value)
                 updated.delete(assignment.id)
                 newlyAddedAssignments.value = updated
-            }, HIGHLIGHT_ANIMATION_DURATION)
+            }, ANIMATIONS.HIGHLIGHT_DURATION_MS)
         })
     },
     { deep: true },
@@ -400,7 +402,7 @@ const cardClasses = computed(() => {
     background-color: var(--ucdavis-gold-20);
     border-radius: 4px;
     padding: 2px 4px;
-    animation: fadeToBackground 2s ease-out forwards; /* Duration: keep in sync with HIGHLIGHT_ANIMATION_DURATION */
+    animation: fadeToBackground var(--highlight-duration) ease-out forwards; /* Duration from ANIMATIONS.HIGHLIGHT_DURATION_MS */
 }
 
 @keyframes fadeToBackground {

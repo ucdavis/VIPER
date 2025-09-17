@@ -19,9 +19,11 @@ import type {
 } from "../utils/schedule-update-helpers"
 
 interface OptimisticUpdateOptions {
+    // Called after operation completes successfully. Receives
+    // (wasPrimary?: boolean, instructorName?: string) so callers
+    // can present contextual notifications (e.g. primary evaluator removed).
     onSuccess?: (wasPrimary?: boolean, instructorName?: string) => void
     onError?: (error: string) => void
-    onNotification?: (type: string, message: string, icon?: string) => void
 }
 
 async function addClinicianToRotation(
@@ -34,7 +36,7 @@ async function addClinicianToRotation(
         RotationId: rotationData.rotation?.rotId || 0,
         WeekIds: [weekId],
         GradYear: assignmentData.gradYear,
-        IsPrimaryEvaluator: assignmentData.isPrimary,
+        IsPrimaryEvaluator: assignmentData.isPrimary ?? false,
     })
 
     if (!result.success) {
@@ -62,7 +64,7 @@ async function addRotationToClinician(
         RotationId: assignmentData.rotationId!,
         WeekIds: [weekId],
         GradYear: assignmentData.gradYear,
-        IsPrimaryEvaluator: assignmentData.isPrimary,
+        IsPrimaryEvaluator: assignmentData.isPrimary ?? false,
     })
 
     if (!result.success) {
@@ -94,7 +96,7 @@ async function handleAddSchedule(params: AddScheduleParams, options: OptimisticU
             instructorScheduleId: newScheduleId,
             mothraId: assignmentData.clinicianMothraId,
             clinicianName: assignmentData.clinicianName,
-            isPrimaryEvaluator: assignmentData.isPrimary,
+            isPrimaryEvaluator: assignmentData.isPrimary ?? false,
         })
     } else {
         if (!assignmentData.rotationId) {
@@ -145,23 +147,11 @@ async function handleRemoveSchedule(params: RemoveScheduleParams, options: Optim
         throw new Error(result.errors.join(", "))
     }
 
-    // Prepare notification data
+    // Prepare data for the view to handle notifications
     const wasPrimary = result.result?.wasPrimaryEvaluator || false
     const instructorName = result.result?.instructorName || "Instructor"
 
-    // Send notification through callback
-    if (options.onNotification) {
-        if (wasPrimary) {
-            options.onNotification(
-                "warning",
-                `Primary evaluator ${instructorName} has been removed. This week may need a new primary evaluator.`,
-                "star_outline",
-            )
-        } else {
-            options.onNotification("positive", `${instructorName} removed from schedule`)
-        }
-    }
-
+    // Let the view handle all notifications through onSuccess callback
     options.onSuccess?.(wasPrimary, instructorName)
 }
 

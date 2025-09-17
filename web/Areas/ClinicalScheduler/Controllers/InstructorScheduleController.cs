@@ -34,14 +34,14 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             IUserHelper userHelper,
             IGradYearService gradYearService,
             ILogger<InstructorScheduleController> logger,
-            ILogger<AddInstructorValidator> validatorLogger)
+            AddInstructorValidator validator)
             : base(gradYearService, logger)
         {
             _scheduleEditService = scheduleEditService;
             _auditService = auditService;
             _permissionService = permissionService;
             _userHelper = userHelper;
-            _validator = new AddInstructorValidator(validatorLogger, gradYearService);
+            _validator = validator;
         }
 
         /// <summary>
@@ -129,14 +129,12 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             {
                 // Check if user has EditOwnSchedule permission
                 var rapsContext = HttpContext.RequestServices.GetService<RAPSContext>();
-                if (_userHelper.HasPermission(rapsContext, currentUser, ClinicalSchedulePermissions.EditOwnSchedule))
+                if (_userHelper.HasPermission(rapsContext, currentUser, ClinicalSchedulePermissions.EditOwnSchedule) &&
+                    currentUser.MothraId.Equals(targetMothraId, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (currentUser.MothraId.Equals(targetMothraId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        _logger.LogInformation("User {MothraId} is adding their own schedule with EditOwnSchedule permission (CorrelationId: {CorrelationId})",
-                            currentUser.MothraId, correlationId);
-                        return true;
-                    }
+                    _logger.LogInformation("User {MothraId} is adding their own schedule with EditOwnSchedule permission (CorrelationId: {CorrelationId})",
+                        currentUser.MothraId, correlationId);
+                    return true;
                 }
             }
 

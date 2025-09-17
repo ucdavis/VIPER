@@ -5,22 +5,27 @@ namespace Viper.Areas.ClinicalScheduler.Services
     /// </summary>
     public class EvaluationPolicyService : IEvaluationPolicyService
     {
+        public EvaluationPolicyService()
+        {
+        }
 
         /// <summary>
         /// Determines if a week requires a primary evaluator based on simple business rules:
         ///
         /// 1. If RotationWeeklyPref.Closed = 1 for the rotation and week, no primary needed
         /// 2. If weekSize = 1, every week needs a primary
-        /// 3. If weekSize = 2, the last week of the rotation needs a primary:
-        ///    - Usually this is the second week
-        ///    - For 3-week rotations where week 3 is ExtendedRotation=true, no evaluation needed
+        /// 3. If weekSize > 1 (2, 3, 4, etc.), the last week of each block needs a primary:
+        ///    - For weekSize=2: usually the second week
+        ///    - For weekSize=3: usually the third week
+        ///    - For weekSize=4: usually the fourth week
+        ///    - For blocks with ExtendedRotation=true weeks, no evaluation needed
         ///    - Logic: For StartWeek=false, check next week:
         ///      * If next week has ExtendedRotation=true, no primary needed
         ///      * Otherwise, primary is needed
         /// </summary>
         /// <param name="weekNumber">The week number to check</param>
         /// <param name="rotationWeeks">All weeks for the rotation in the year</param>
-        /// <param name="serviceWeekSize">The WeekSize from the Service table (1 or 2)</param>
+        /// <param name="serviceWeekSize">The WeekSize from the Service table (1, 2, 3, 4, etc.)</param>
         /// <param name="rotationClosed">Whether the rotation is closed this week (from RotationWeeklyPref)</param>
         /// <returns>True if the week requires a primary evaluator</returns>
         public bool RequiresPrimaryEvaluator(
@@ -56,41 +61,45 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 return false;
             }
 
-            // Rule 2: For single-week rotations, every non-extended week needs a primary evaluator
-            // This is because each week is a complete rotation cycle requiring evaluation
-            if (serviceWeekSize == 1)
+            // Handle null or invalid WeekSize values
+            if (!serviceWeekSize.HasValue || serviceWeekSize.Value <= 0)
             {
-                return true;
-            }
-
-            // Rule 3: For two-week rotations, only the final week of each block needs evaluation
-            // This implements the evaluation policy where students are assessed at rotation completion
-            if (serviceWeekSize == 2)
-            {
-                // Check if this is the second week of a two-week block
-                if (!currentWeek.StartWeek)
-                {
-                    // Look ahead to handle special cases (e.g., 3-week rotations with extended final week)
-                    var nextWeek = rotationWeeks.FirstOrDefault(w => w.WeekNum == weekNumber + 1);
-
-                    // Special case: If next week is extended, this week is actually the end of the evaluated portion
-                    // No primary needed since the extended week doesn't count for evaluation purposes
-                    if (nextWeek?.ExtendedRotation == true)
-                    {
-                        return false;
-                    }
-
-                    // Standard case: This is week 2 of a 2-week block - requires primary evaluator
-                    return true;
-                }
-
-                // This is the first week of a two-week block
-                // First weeks are for orientation/learning, not evaluation
+                // NULL or 0 WeekSize indicates undefined rotation structure
+                // Default to no evaluation requirement for safety
                 return false;
             }
 
-            // For any other WeekSize configuration or missing data, err on the side of no evaluation requirement
-            // This provides a safe default for edge cases or new rotation configurations
+            // Handle different WeekSize values
+            if (serviceWeekSize == 1)
+            {
+                // Single-week rotations: every week is a complete block requiring evaluation
+                return true;
+            }
+
+            // Multi-week rotations (2, 3, 4, etc.): only evaluate at the end of each block
+            // A week is the last week of a block when:
+            // 1. It's not a StartWeek (StartWeek=false), AND
+            // 2. Either the next week is a StartWeek OR there is no next week
+            if (!currentWeek.StartWeek)
+            {
+                var nextWeek = rotationWeeks.FirstOrDefault(w => w.WeekNum == weekNumber + 1);
+
+                // Special case: If next week is extended, this week doesn't need evaluation
+                // Extended weeks are continuation weeks that don't count for evaluation
+                if (nextWeek?.ExtendedRotation == true)
+                {
+                    return false;
+                }
+
+                // This is the last week of the block if:
+                // - There is no next week (end of schedule), OR
+                // - The next week starts a new block (StartWeek=true)
+                bool isLastWeekOfBlock = nextWeek == null || nextWeek.StartWeek;
+
+                return isLastWeekOfBlock;
+            }
+
+            // This is a StartWeek (first week of block) - no evaluation needed yet
             return false;
         }
     }

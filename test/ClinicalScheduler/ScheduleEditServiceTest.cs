@@ -18,7 +18,6 @@ namespace Viper.test.ClinicalScheduler
         private readonly Mock<IOptions<EmailNotificationSettings>> _mockEmailNotificationOptions;
         private readonly Mock<IGradYearService> _mockGradYearService;
         private readonly Mock<IPermissionValidator> _mockPermissionValidator;
-        private readonly Mock<RAPSContext> _mockRapsContext;
         private readonly Mock<IUserHelper> _mockUserHelper;
         private readonly ClinicalSchedulerContext _context;
         private readonly TestableScheduleEditService _service;
@@ -38,7 +37,6 @@ namespace Viper.test.ClinicalScheduler
             _mockEmailService = new Mock<IEmailService>();
             _mockEmailNotificationOptions = new Mock<IOptions<EmailNotificationSettings>>();
             _mockPermissionValidator = new Mock<IPermissionValidator>();
-            _mockRapsContext = new Mock<RAPSContext>();
             _mockUserHelper = new Mock<IUserHelper>();
 
             // Setup default email notification configuration for tests
@@ -88,15 +86,12 @@ namespace Viper.test.ClinicalScheduler
 
             _service = new TestableScheduleEditService(
                 _context,
-                _mockRapsContext.Object,
-                _mockPermissionService.Object,
                 _mockAuditService.Object,
                 _mockLogger.Object,
                 _mockEmailService.Object,
                 _mockEmailNotificationOptions.Object,
                 _mockGradYearService.Object,
-                _mockPermissionValidator.Object,
-                _mockUserHelper.Object);
+                _mockPermissionValidator.Object);
         }
 
         private void SeedTestData()

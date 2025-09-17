@@ -337,10 +337,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogInformation("Retrieved {Count} rotations with scheduled weeks for year {Year} (filtered to {FilteredCount})", rotationsWithSchedules.Count, targetYear, filteredRotations.Count);
                 return Ok(filteredRotations);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Store context for ApiExceptionFilter to use in logging
-                SetExceptionContext("Year", year);
+                SetExceptionContext("Year", year?.ToString() ?? "null");
                 throw; // Let ApiExceptionFilter handle the response
             }
         }

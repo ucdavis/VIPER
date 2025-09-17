@@ -40,13 +40,11 @@ public class PermissionValidator : IPermissionValidator
         }
 
         // Check if user has EditOwnSchedule permission and is editing their own schedule
-        if (_userHelper.HasPermission(_rapsContext, currentUser, ClinicalSchedulePermissions.EditOwnSchedule))
+        if (_userHelper.HasPermission(_rapsContext, currentUser, ClinicalSchedulePermissions.EditOwnSchedule) &&
+            currentUser.MothraId.Equals(targetMothraId, StringComparison.OrdinalIgnoreCase))
         {
-            if (currentUser.MothraId.Equals(targetMothraId, StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.LogDebug("User {MothraId} is editing their own schedule with EditOwnSchedule permission", currentUser.MothraId);
-                return currentUser;
-            }
+            _logger.LogDebug("User {MothraId} is editing their own schedule with EditOwnSchedule permission", currentUser.MothraId);
+            return currentUser;
         }
 
         throw new UnauthorizedAccessException($"User {currentUser.MothraId} does not have permission to edit rotation {rotationId} or their own schedule (target: {targetMothraId})");

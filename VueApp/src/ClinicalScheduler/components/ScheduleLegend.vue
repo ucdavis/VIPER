@@ -37,6 +37,13 @@
                             </div>
                             <div class="q-ml-md">→ Click "Schedule Selected" button to apply</div>
                         </div>
+                        <div
+                            class="q-mb-xs q-mt-xs text-caption"
+                            style="color: var(--ucdavis-poppy)"
+                        >
+                            <strong>Tip:</strong> When selecting weeks that already contain your selected
+                            {{ itemType }}(s), the button changes to "Delete Selected" for bulk removal
+                        </div>
                     </div>
                     <q-separator class="q-mt-sm" />
                 </div>
@@ -62,7 +69,7 @@
                             aria-hidden="true"
                         />
                         <span class="legend-text"
-                            >Makes them the primary evaluator (replacing the current one, if there is one)</span
+                            >Makes them the primary evaluator <br />(replacing the current one, if there is one)</span
                         >
                     </div>
 
@@ -84,7 +91,7 @@
                         <q-icon
                             name="warning"
                             size="xs"
-                            color="orange"
+                            style="color: var(--ucdavis-poppy)"
                             class="legend-icon"
                             aria-hidden="true"
                         />

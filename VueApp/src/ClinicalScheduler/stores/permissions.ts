@@ -5,7 +5,6 @@ import {
     hasAnyEditing,
     hasOnlyServicePermissions,
     hasOnlyOwnPermission,
-    hasLimitedPermissions,
     hasClinicianViewReadOnly as helperHasClinicianViewReadOnly,
 } from "./permissions-helpers"
 import { createPermissionActions } from "./permissions-actions"
@@ -75,12 +74,6 @@ function createPermissionLevelGetters(state: PermissionsState) {
             const perms = state.userPermissions.value?.permissions
             const serviceCount = state.userPermissions.value?.editableServices?.length || 0
             return hasOnlyOwnPermission(perms, serviceCount)
-        }),
-
-        hasLimitedPermissions: computed<boolean>(() => {
-            const perms = state.userPermissions.value?.permissions
-            const serviceCount = state.userPermissions.value?.editableServices?.length || 0
-            return hasLimitedPermissions(perms, serviceCount)
         }),
 
         hasClinicianViewReadOnly: computed<boolean>(() => {
@@ -157,6 +150,20 @@ function createViewAccessGetters(state: PermissionsState) {
 
             return "none"
         }),
+
+        /**
+         * Returns the appropriate label for the clinician view based on user permissions.
+         * Shows "Edit My Schedule" for users with only EditOwnSchedule permission,
+         * "Schedule by Clinician" for users with full access permissions.
+         */
+        clinicianViewLabel: computed<string>(() => {
+            const perms = state.userPermissions.value?.permissions
+
+            // Show personal label only for users with EditOwnSchedule but no full access
+            return perms?.hasEditOwnSchedulePermission && !hasFullAccess(perms)
+                ? "Edit My Schedule"
+                : "Schedule by Clinician"
+        }),
     }
 }
 
@@ -202,11 +209,11 @@ export const usePermissionsStore = defineStore("permissions", () => {
         hasAnyEditPermission,
         hasOnlyServiceSpecificPermissions,
         hasOnlyOwnSchedulePermission,
-        hasLimitedPermissions,
         hasClinicianViewReadOnly,
         canAccessClinicianView,
         canAccessRotationView,
         permissionLevel,
+        clinicianViewLabel,
     } = getters
 
     // Actions
@@ -238,11 +245,11 @@ export const usePermissionsStore = defineStore("permissions", () => {
         hasAnyEditPermission,
         hasOnlyServiceSpecificPermissions,
         hasOnlyOwnSchedulePermission,
-        hasLimitedPermissions,
         hasClinicianViewReadOnly,
         canAccessClinicianView,
         canAccessRotationView,
         permissionLevel,
+        clinicianViewLabel,
 
         // Actions
         ...actions,

@@ -14,6 +14,7 @@
             hide-selected
             clearable
             dense
+            options-dense
             :input-debounce="INPUT_DEBOUNCE_MS"
             @filter="onFilter"
             @update:model-value="onRotationChange"
@@ -58,17 +59,6 @@
                 </div>
             </template>
         </q-select>
-
-        <div class="permission-chip-spacing">
-            <PermissionFeedbackChip
-                v-if="shouldShowPermissionInfo"
-                :filtered-count="filteredRotations.length"
-                :total-count="totalRotations"
-                :visible="shouldShowPermissionInfo"
-                :show-service-specific="true"
-                :show-full-access="true"
-            />
-        </div>
     </div>
 </template>
 
@@ -76,7 +66,6 @@
 import { ref, computed, onMounted, watch } from "vue"
 import { RotationService } from "../services/rotation-service"
 import { usePermissionsStore } from "../stores/permissions"
-import PermissionFeedbackChip from "./PermissionFeedbackChip.vue"
 import type { RotationWithService } from "../types/rotation-types"
 import { EXCLUDED_ROTATION_NAMES } from "../constants/rotation-constants"
 
@@ -144,14 +133,6 @@ const permissionFilteredRotations = computed(() => {
         // Check if user has permission to edit this rotation's service
         return permissionsStore.canEditService(rotation.serviceId)
     })
-})
-
-// Permission info computed properties
-const totalRotations = computed(() => rotations.value.length)
-
-const shouldShowPermissionInfo = computed(() => {
-    // Show permission info when rotations are loaded and not in error state
-    return !isLoading.value && !error.value && rotations.value.length > 0
 })
 
 // Methods
@@ -304,35 +285,10 @@ onMounted(async () => {
     position: relative;
 }
 
-/* Permission info positioned absolutely like ClinicianSelector checkbox */
-.rotation-permission-info {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    margin-top: -18px;
-    margin-left: 12px;
-    padding: 2px 4px;
-    font-size: 12px;
-    z-index: 1;
-    background: white;
-}
-
 /* Responsive adjustments */
 @media (width <= 600px) {
     .rotation-selector {
         max-width: 100%;
     }
-}
-
-/* Reduce spacing around the field with bottom area (like error messages, helper text) */
-.q-field--with-bottom {
-    padding-bottom: 0;
-    margin-bottom: 0;
-}
-
-/* Add spacing between q-select and permission chip without affecting year dropdown alignment */
-.permission-chip-spacing {
-    margin-top: 8px;
-    margin-bottom: -8px;
 }
 </style>

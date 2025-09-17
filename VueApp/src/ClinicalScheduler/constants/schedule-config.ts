@@ -3,7 +3,7 @@
  * Reduces duplication between ClinicianScheduleView and RotationScheduleView
  */
 
-export const SCHEDULE_MESSAGES = {
+const SCHEDULE_MESSAGES = {
     // Empty state messages
     EMPTY_STATE: {
         EDITABLE: "Click to add assignment",
@@ -45,7 +45,7 @@ export const SCHEDULE_MESSAGES = {
     },
 } as const
 
-export const SCHEDULE_LABELS = {
+const SCHEDULE_LABELS = {
     // Section labels
     RECENT_CLINICIANS: "Recent Clinicians:",
     RECENT_ROTATIONS: "Recent Rotations:",
@@ -59,7 +59,7 @@ export const SCHEDULE_LABELS = {
     },
 } as const
 
-export const SCHEDULE_VIEW_CONFIG = {
+const SCHEDULE_VIEW_CONFIG = {
     // Common view props
     DEFAULT_PROPS: {
         showLegend: true,
@@ -86,6 +86,11 @@ export const SCHEDULE_VIEW_CONFIG = {
 } as const
 
 // Type helpers for the constants
-export type ScheduleMessageKey = keyof typeof SCHEDULE_MESSAGES
-export type ScheduleLabelKey = keyof typeof SCHEDULE_LABELS
-export type ViewConfigKey = keyof typeof SCHEDULE_VIEW_CONFIG
+type ScheduleMessageKey = keyof typeof SCHEDULE_MESSAGES
+type ScheduleLabelKey = keyof typeof SCHEDULE_LABELS
+type ViewConfigKey = keyof typeof SCHEDULE_VIEW_CONFIG
+
+// Consolidated exports - types and constants at end of file
+export { SCHEDULE_MESSAGES, SCHEDULE_LABELS, SCHEDULE_VIEW_CONFIG }
+
+export type { ScheduleMessageKey, ScheduleLabelKey, ViewConfigKey }

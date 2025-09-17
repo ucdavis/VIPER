@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { computed } from "vue"
 import { usePermissionsStore } from "../stores/permissions"
 import ClinicalSchedulerHome from "../pages/ClinicalSchedulerHome.vue"
 import { setupTest, createTestWrapper, waitForAsync, createMockPermissionsStore } from "./test-utils"
@@ -7,21 +6,6 @@ import { setupTest, createTestWrapper, waitForAsync, createMockPermissionsStore 
 // Mock the permissions store
 vi.mock("../stores/permissions")
 
-// Mock child components with inline definitions to avoid import hoisting issues
-vi.mock("../components/PermissionInfoBanner.vue", () => ({
-    default: {
-        name: "PermissionInfoBanner",
-        template: `<div v-if="shouldShow">Permission Info Banner</div>`,
-        setup() {
-            const permissionsStore = usePermissionsStore()
-            const shouldShow = computed(
-                () =>
-                    permissionsStore.hasOnlyServiceSpecificPermissions || permissionsStore.hasOnlyOwnSchedulePermission,
-            )
-            return { shouldShow }
-        },
-    },
-}))
 vi.mock("../components/AccessDeniedCard.vue", () => ({
     default: {
         name: "AccessDeniedCard",

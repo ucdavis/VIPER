@@ -31,7 +31,7 @@
         <q-route-tab
             v-if="permissionsStore.canAccessClinicianView"
             name="clinician"
-            label="Schedule by Clinician"
+            :label="permissionsStore.clinicianViewLabel"
             :to="{ name: 'ClinicianSchedule' }"
             :class="clinicianTabClass"
             :aria-controls="`clinician-panel`"

@@ -12,11 +12,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
     public class ScheduleEditService : IScheduleEditService
     {
         private readonly ClinicalSchedulerContext _context;
-        private readonly RAPSContext _rapsContext;
-        private readonly ISchedulePermissionService _permissionService;
         private readonly IScheduleAuditService _auditService;
         private readonly ILogger<ScheduleEditService> _logger;
-        private readonly IUserHelper _userHelper;
         private readonly IEmailService _emailService;
         private readonly EmailNotificationSettings _emailNotificationSettings;
         private readonly IGradYearService _gradYearService;
@@ -24,26 +21,20 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
         public ScheduleEditService(
             ClinicalSchedulerContext context,
-            RAPSContext rapsContext,
-            ISchedulePermissionService permissionService,
             IScheduleAuditService auditService,
             ILogger<ScheduleEditService> logger,
             IEmailService emailService,
             IOptions<EmailNotificationSettings> emailNotificationOptions,
             IGradYearService gradYearService,
-            IPermissionValidator permissionValidator,
-            IUserHelper? userHelper = null)
+            IPermissionValidator permissionValidator)
         {
             _context = context;
-            _rapsContext = rapsContext;
-            _permissionService = permissionService;
             _auditService = auditService;
             _logger = logger;
             _emailService = emailService;
             _emailNotificationSettings = emailNotificationOptions.Value;
             _gradYearService = gradYearService;
             _permissionValidator = permissionValidator;
-            _userHelper = userHelper ?? new UserHelper();
         }
 
         public async Task<List<InstructorSchedule>> AddInstructorAsync(
@@ -206,7 +197,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 try
                 {
                     // Send notifications for any removed primary evaluators
-                    foreach (var (weekId, removedSchedules) in removedPrimarySchedules)
+                    foreach (var (_, removedSchedules) in removedPrimarySchedules)
                     {
                         foreach (var removedSchedule in removedSchedules)
                         {

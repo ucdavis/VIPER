@@ -28,9 +28,6 @@
 
         <!-- Main content for users with permissions -->
         <div v-else>
-            <!-- Permission info banner for limited access users -->
-            <PermissionInfoBanner />
-
             <div>
                 <h2 class="text-h5 text-grey-8 q-mb-md">Select Scheduling View:</h2>
 
@@ -114,7 +111,9 @@
                         >
                             <q-card-section>
                                 <div class="row items-center justify-between q-mb-sm">
-                                    <h3 class="text-h6 text-primary q-my-none">Schedule by Clinician</h3>
+                                    <h3 class="text-h6 text-primary q-my-none">
+                                        {{ permissionsStore.clinicianViewLabel }}
+                                    </h3>
                                     <q-icon
                                         name="person"
                                         size="24px"
@@ -156,7 +155,9 @@
                         >
                             <q-card-section class="opacity-60">
                                 <div class="row items-center justify-between q-mb-sm">
-                                    <h3 class="text-h6 text-grey-6 q-my-none">Schedule by Clinician</h3>
+                                    <h3 class="text-h6 text-grey-6 q-my-none">
+                                        {{ permissionsStore.clinicianViewLabel }}
+                                    </h3>
                                     <q-icon
                                         name="person_off"
                                         size="24px"
@@ -191,7 +192,6 @@
 import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { usePermissionsStore } from "../stores/permissions"
-import PermissionInfoBanner from "../components/PermissionInfoBanner.vue"
 import AccessDeniedCard from "../components/AccessDeniedCard.vue"
 import { ACCESS_DENIED_MESSAGES, ACCESS_DENIED_SUBTITLES } from "../constants/permission-messages"
 

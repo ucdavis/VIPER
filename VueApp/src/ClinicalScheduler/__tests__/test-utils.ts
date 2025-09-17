@@ -7,7 +7,6 @@ import { nextTick, computed } from "vue"
 import { usePermissionsStore } from "../stores/permissions"
 import { permissionService } from "../services/permission-service"
 import ClinicalSchedulerHome from "../pages/ClinicalSchedulerHome.vue"
-import PermissionInfoBanner from "../components/PermissionInfoBanner.vue"
 import type { UserPermissions } from "../types"
 
 /**
@@ -56,6 +55,7 @@ function createMockPermissionsStore() {
         hasOnlyOwnSchedulePermission: false,
         canAccessClinicianView: false,
         canAccessRotationView: false,
+        clinicianViewLabel: "Schedule by Clinician", // Default to generic label
         userPermissions: null,
         isLoading: false,
         editableServiceCount: 0,
@@ -66,18 +66,6 @@ function createMockPermissionsStore() {
 
 // Mock component factories
 const mockComponents = {
-    PermissionInfoBanner: {
-        name: "PermissionInfoBanner",
-        template: `<div v-if="shouldShow">Permission Info Banner</div>`,
-        setup() {
-            const permissionsStore = usePermissionsStore()
-            const shouldShow = computed(
-                () =>
-                    permissionsStore.hasOnlyServiceSpecificPermissions || permissionsStore.hasOnlyOwnSchedulePermission,
-            )
-            return { shouldShow }
-        },
-    },
     AccessDeniedCard: {
         name: "AccessDeniedCard",
         props: ["message", "subtitle"],
@@ -87,7 +75,6 @@ const mockComponents = {
 
 // Note: Component mocks need to be done at the test file level, not in a function
 // Each test file should include these mocks at the top level:
-// vi.mock("../components/PermissionInfoBanner.vue", () => ({ default: mockComponents.PermissionInfoBanner }))
 // vi.mock("../components/AccessDeniedCard.vue", () => ({ default: mockComponents.AccessDeniedCard }))
 
 // Generic wrapper factory
@@ -165,7 +152,6 @@ export {
     Quasar,
     // Components
     ClinicalSchedulerHome,
-    PermissionInfoBanner,
     // Stores
     usePermissionsStore,
     // Services

@@ -333,7 +333,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     schedules.Count, mothraId, targetYear);
                 return Ok(result);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext("MothraId", mothraId);
@@ -380,7 +380,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogDebug("Found {RotationCount} unique rotations for clinician {MothraId}", rotations.Count, mothraId);
                 return Ok(rotations);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext("MothraId", mothraId);

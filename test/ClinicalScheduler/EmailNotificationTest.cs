@@ -15,14 +15,12 @@ namespace Viper.test.ClinicalScheduler
     /// </summary>
     public class EmailNotificationTest : IDisposable
     {
-        private readonly Mock<ISchedulePermissionService> _mockPermissionService;
         private readonly Mock<IScheduleAuditService> _mockAuditService;
         private readonly Mock<ILogger<ScheduleEditService>> _mockLogger;
         private readonly Mock<IEmailService> _mockEmailService;
         private readonly Mock<IOptions<EmailNotificationSettings>> _mockEmailNotificationOptions;
         private readonly Mock<IGradYearService> _mockGradYearService;
         private readonly Mock<IPermissionValidator> _mockPermissionValidator;
-        private readonly Mock<RAPSContext> _mockRapsContext;
         private readonly Mock<IUserHelper> _mockUserHelper;
         private readonly TestableScheduleEditService _service;
         private readonly ClinicalSchedulerContext _context;
@@ -37,13 +35,11 @@ namespace Viper.test.ClinicalScheduler
 
             _context = new ClinicalSchedulerContext(options);
 
-            _mockPermissionService = new Mock<ISchedulePermissionService>();
             _mockAuditService = new Mock<IScheduleAuditService>();
             _mockLogger = new Mock<ILogger<ScheduleEditService>>();
             _mockEmailService = new Mock<IEmailService>();
             _mockEmailNotificationOptions = new Mock<IOptions<EmailNotificationSettings>>();
             _mockPermissionValidator = new Mock<IPermissionValidator>();
-            _mockRapsContext = new Mock<RAPSContext>();
             _mockUserHelper = new Mock<IUserHelper>();
 
             // Setup default email notification configuration for tests
@@ -70,15 +66,12 @@ namespace Viper.test.ClinicalScheduler
 
             _service = new TestableScheduleEditService(
                 _context,
-                _mockRapsContext.Object,
-                _mockPermissionService.Object,
                 _mockAuditService.Object,
                 _mockLogger.Object,
                 _mockEmailService.Object,
                 _mockEmailNotificationOptions.Object,
                 _mockGradYearService.Object,
-                _mockPermissionValidator.Object,
-                _mockUserHelper.Object);
+                _mockPermissionValidator.Object);
         }
 
         private async Task AddTestPersonAsync(string mothraId, string firstName = "Test", string lastName = "User")
@@ -546,15 +539,12 @@ namespace Viper.test.ClinicalScheduler
             // Create a new service instance with the updated configuration
             var serviceWithMultipleRecipients = new TestableScheduleEditService(
                 _context,
-                _mockRapsContext.Object,
-                _mockPermissionService.Object,
                 _mockAuditService.Object,
                 _mockLogger.Object,
                 _mockEmailService.Object,
                 _mockEmailNotificationOptions.Object,
                 _mockGradYearService.Object,
-                _mockPermissionValidator.Object,
-                _mockUserHelper.Object);
+                _mockPermissionValidator.Object);
 
             await AddTestPersonAsync(mothraId, "John", "Doe");
             await AddTestWeekGradYearAsync(weekId, 2025);

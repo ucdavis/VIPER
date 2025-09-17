@@ -10,25 +10,15 @@ export function usePermissionChecks() {
     const router = useRouter()
 
     // Common computed properties
-    const isLoadingPermissions = computed(() => {
-        return permissionsStore.isLoading || !permissionsStore.userPermissions
-    })
+    const isLoadingPermissions = computed(() => permissionsStore.isLoading || !permissionsStore.userPermissions)
 
-    const canAccessClinicianView = computed(() => {
-        return permissionsStore.canAccessClinicianView
-    })
+    const canAccessClinicianView = computed(() => permissionsStore.canAccessClinicianView)
 
-    const canAccessRotationView = computed(() => {
-        return permissionsStore.canAccessRotationView
-    })
+    const canAccessRotationView = computed(() => permissionsStore.canAccessRotationView)
 
-    const hasClinicianViewReadOnly = computed(() => {
-        return permissionsStore.hasClinicianViewReadOnly
-    })
+    const hasClinicianViewReadOnly = computed(() => permissionsStore.hasClinicianViewReadOnly)
 
-    const hasOnlyServiceSpecificPermissions = computed(() => {
-        return permissionsStore.hasOnlyServiceSpecificPermissions
-    })
+    const hasOnlyServiceSpecificPermissions = computed(() => permissionsStore.hasOnlyServiceSpecificPermissions)
 
     // Navigation helpers
     function goToHome() {
