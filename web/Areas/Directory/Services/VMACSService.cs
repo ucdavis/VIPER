@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using System.DirectoryServices.AccountManagement;
 using System.DirectoryServices;
 using Viper.Areas.RAPS.Models;
@@ -15,9 +15,7 @@ namespace Viper.Areas.Directory.Services
         //private const string _ldapUsername = "uid=vetmed,ou=Special Users,dc=ucdavis,dc=edu";
         private static HttpClient sharedClient = new()
         {
-            BaseAddress = new Uri(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development"
-                ? "https://vmacs-qa.vetmed.ucdavis.edu/"
-                : "https://vmacs-vmth.vetmed.ucdavis.edu"),
+            BaseAddress = new Uri("https://vmacs-vmth.vetmed.ucdavis.edu"),
         };
 
         public VMACSService() { }
