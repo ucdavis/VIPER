@@ -16,7 +16,7 @@ namespace Viper.Areas.Directory.Services
         private static HttpClient sharedClient = new()
         {
             BaseAddress = new Uri(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development"
-                ? "https://vmacs-qa.vetmed.ucdavis.edu/"
+                ? "https://vmacs-qa.vetmed.ucdavis.edu"
                 : "https://vmacs-vmth.vetmed.ucdavis.edu"),
         };
 
