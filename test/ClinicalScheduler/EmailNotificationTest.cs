@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,7 @@ namespace Viper.test.ClinicalScheduler
         private readonly Mock<IGradYearService> _mockGradYearService;
         private readonly Mock<IPermissionValidator> _mockPermissionValidator;
         private readonly Mock<IUserHelper> _mockUserHelper;
+        private readonly Mock<IConfiguration> _mockConfiguration;
         private readonly TestableScheduleEditService _service;
         private readonly ClinicalSchedulerContext _context;
 
@@ -41,6 +43,7 @@ namespace Viper.test.ClinicalScheduler
             _mockEmailNotificationOptions = new Mock<IOptions<EmailNotificationSettings>>();
             _mockPermissionValidator = new Mock<IPermissionValidator>();
             _mockUserHelper = new Mock<IUserHelper>();
+            _mockConfiguration = new Mock<IConfiguration>();
 
             // Setup default email notification configuration for tests
             var emailNotificationSettings = new EmailNotificationSettings
@@ -48,8 +51,7 @@ namespace Viper.test.ClinicalScheduler
                 PrimaryEvaluatorRemoved = new PrimaryEvaluatorRemovedNotificationSettings
                 {
                     To = new List<string> { "test@ucdavis.edu" },
-                    From = "testfrom@ucdavis.edu",
-                    Subject = "Test Primary Evaluator Removed"
+                    From = "testfrom@ucdavis.edu"
                 }
             };
             _mockEmailNotificationOptions.Setup(x => x.Value).Returns(emailNotificationSettings);
@@ -71,7 +73,8 @@ namespace Viper.test.ClinicalScheduler
                 _mockEmailService.Object,
                 _mockEmailNotificationOptions.Object,
                 _mockGradYearService.Object,
-                _mockPermissionValidator.Object);
+                _mockPermissionValidator.Object,
+                _mockConfiguration.Object);
         }
 
         private async Task AddTestPersonAsync(string mothraId, string firstName = "Test", string lastName = "User")
@@ -171,14 +174,16 @@ namespace Viper.test.ClinicalScheduler
             // Assert
             Assert.True(result.success);
 
-            // Verify email was sent with correct content
+            // Verify email was sent with correct content (now HTML format)
             _mockEmailService.Verify(x => x.SendEmailAsync(
                 It.Is<string>(to => to == "test@ucdavis.edu"),
-                It.Is<string>(subject => subject == "Test Primary Evaluator Removed"),
-                It.Is<string>(body => body.Contains("Primary evaluator") &&
-                                      body.Contains("(Doe, John)") &&
-                                      body.Contains("removed from Cardiology Rotation week 15")),
-                It.Is<bool>(isHtml => !isHtml),
+                It.Is<string>(subject => subject == "Primary Evaluator Removed - Cardiology Rotation - Week 15"),
+                It.Is<string>(body => body.Contains("Primary Evaluator Removed") &&
+                                      body.Contains("Doe, John") &&
+                                      body.Contains("Cardiology Rotation") &&
+                                      body.Contains("Week 15") &&
+                                      body.Contains("</html>")),
+                It.Is<bool>(isHtml => isHtml),
                 It.Is<string>(from => from == "testfrom@ucdavis.edu")
             ), Times.Once);
 
@@ -457,12 +462,15 @@ namespace Viper.test.ClinicalScheduler
             // Assert
             Assert.True(result.success);
 
-            // Verify email was sent with fallback to empty name format (shows as ", ")
+            // Verify email was sent with fallback to "Unknown Instructor" format (HTML)
             _mockEmailService.Verify(x => x.SendEmailAsync(
                 It.Is<string>(to => to == "test@ucdavis.edu"),
-                It.Is<string>(subject => subject == "Test Primary Evaluator Removed"),
-                It.Is<string>(body => body.Contains("Primary evaluator (, ) removed from Internal Medicine week 20")), // Fallback to empty names shows as (, )
-                It.Is<bool>(isHtml => !isHtml),
+                It.Is<string>(subject => subject == "Primary Evaluator Removed - Internal Medicine - Week 20"),
+                It.Is<string>(body => body.Contains("Unknown Instructor") &&
+                                      body.Contains("Internal Medicine") &&
+                                      body.Contains("Week 20") &&
+                                      body.Contains("</html>")), // HTML format with graceful fallback
+                It.Is<bool>(isHtml => isHtml),
                 It.Is<string>(from => from == "testfrom@ucdavis.edu")
             ), Times.Once);
         }
@@ -504,14 +512,15 @@ namespace Viper.test.ClinicalScheduler
             // Assert
             Assert.True(result.success);
 
-            // Verify email was sent with weekId as fallback
+            // Verify email was sent with weekId as fallback (HTML format)
             _mockEmailService.Verify(x => x.SendEmailAsync(
                 It.Is<string>(to => to == "test@ucdavis.edu"),
-                It.Is<string>(subject => subject == "Test Primary Evaluator Removed"),
-                It.Is<string>(body => body.Contains("Primary evaluator") &&
-                                      body.Contains("(Smith, Jane)") &&
-                                      body.Contains("removed from Surgery Rotation week 99")), // Uses weekId as fallback
-                It.Is<bool>(isHtml => !isHtml),
+                It.Is<string>(subject => subject == "Primary Evaluator Removed - Surgery Rotation - Week 99"),
+                It.Is<string>(body => body.Contains("Smith, Jane") &&
+                                      body.Contains("Surgery Rotation") &&
+                                      body.Contains("Week 99") && // Uses weekId as fallback
+                                      body.Contains("</html>")),
+                It.Is<bool>(isHtml => isHtml),
                 It.Is<string>(from => from == "testfrom@ucdavis.edu")
             ), Times.Once);
         }
@@ -530,8 +539,7 @@ namespace Viper.test.ClinicalScheduler
                 PrimaryEvaluatorRemoved = new PrimaryEvaluatorRemovedNotificationSettings
                 {
                     To = new List<string> { "test-recipient1@test.edu", "test-recipient2@test.edu", "test-recipient3@test.edu" },
-                    From = "test-sender@test.edu",
-                    Subject = "Test - Clinical Scheduler - Primary Evaluator Removed"
+                    From = "test-sender@test.edu"
                 }
             };
             _mockEmailNotificationOptions.Setup(x => x.Value).Returns(emailNotificationSettings);
@@ -544,7 +552,8 @@ namespace Viper.test.ClinicalScheduler
                 _mockEmailService.Object,
                 _mockEmailNotificationOptions.Object,
                 _mockGradYearService.Object,
-                _mockPermissionValidator.Object);
+                _mockPermissionValidator.Object,
+                _mockConfiguration.Object);
 
             await AddTestPersonAsync(mothraId, "John", "Doe");
             await AddTestWeekGradYearAsync(weekId, 2025);
@@ -661,16 +670,18 @@ namespace Viper.test.ClinicalScheduler
             // Assert
             Assert.True(result.success);
 
-            // Verify replacement email was sent with correct content including who made the change
+            // Verify replacement email was sent with correct content (HTML format)
             _mockEmailService.Verify(x => x.SendEmailAsync(
                 It.Is<string>(to => to == "test@ucdavis.edu"),
-                It.Is<string>(subject => subject == "Test Primary Evaluator Removed"),
-                It.Is<string>(body => body.Contains("Primary evaluator") &&
-                                      body.Contains("(Smith, Jane)") &&
-                                      body.Contains("removed from Cardiology Rotation week 15") &&
-                                      body.Contains("and replaced by Doe, John") &&
-                                      body.Contains("by Current User")),
-                It.Is<bool>(isHtml => !isHtml),
+                It.Is<string>(subject => subject == "Primary Evaluator Replaced - Cardiology Rotation - Week 15"),
+                It.Is<string>(body => body.Contains("Primary Evaluator Replaced") &&
+                                      body.Contains("Smith, Jane") &&
+                                      body.Contains("Cardiology Rotation") &&
+                                      body.Contains("Replaced by:") &&
+                                      body.Contains("Doe, John") &&
+                                      body.Contains("Current User") &&
+                                      body.Contains("</html>")),
+                It.Is<bool>(isHtml => isHtml),
                 It.Is<string>(from => from == "testfrom@ucdavis.edu")
             ), Times.Once);
 
@@ -735,16 +746,18 @@ namespace Viper.test.ClinicalScheduler
             // Assert
             Assert.NotEmpty(result);
 
-            // Verify replacement email was sent with correct content including who made the change
+            // Verify replacement email was sent with correct content (HTML format)
             _mockEmailService.Verify(x => x.SendEmailAsync(
                 It.Is<string>(to => to == "test@ucdavis.edu"),
-                It.Is<string>(subject => subject == "Test Primary Evaluator Removed"),
-                It.Is<string>(body => body.Contains("Primary evaluator") &&
-                                      body.Contains("(Johnson, Alice)") &&
-                                      body.Contains("removed from Surgery Rotation week 15") &&
-                                      body.Contains("and replaced by Wilson, Bob") &&
-                                      body.Contains("by Current User")),
-                It.Is<bool>(isHtml => !isHtml),
+                It.Is<string>(subject => subject == "Primary Evaluator Replaced - Surgery Rotation - Week 15"),
+                It.Is<string>(body => body.Contains("Primary Evaluator Replaced") &&
+                                      body.Contains("Johnson, Alice") &&
+                                      body.Contains("Surgery Rotation") &&
+                                      body.Contains("Replaced by:") &&
+                                      body.Contains("Wilson, Bob") &&
+                                      body.Contains("Current User") &&
+                                      body.Contains("</html>")),
+                It.Is<bool>(isHtml => isHtml),
                 It.Is<string>(from => from == "testfrom@ucdavis.edu")
             ), Times.Once);
 
@@ -802,16 +815,18 @@ namespace Viper.test.ClinicalScheduler
             // Assert
             Assert.True(result.success);
 
-            // Verify removal-only email was sent (without replacement text) but with who made the change
+            // Verify removal-only email was sent (HTML format, without replacement)
             _mockEmailService.Verify(x => x.SendEmailAsync(
                 It.Is<string>(to => to == "test@ucdavis.edu"),
-                It.Is<string>(subject => subject == "Test Primary Evaluator Removed"),
-                It.Is<string>(body => body.Contains("Primary evaluator") &&
-                                      body.Contains("(Brown, Charlie)") &&
-                                      body.Contains("removed from Neurology Rotation week 15") &&
-                                      !body.Contains("and replaced by") &&
-                                      body.Contains("by Current User")),
-                It.Is<bool>(isHtml => !isHtml),
+                It.Is<string>(subject => subject == "Primary Evaluator Removed - Neurology Rotation - Week 15"),
+                It.Is<string>(body => body.Contains("Primary Evaluator Removed") &&
+                                      body.Contains("Brown, Charlie") &&
+                                      body.Contains("Neurology Rotation") &&
+                                      body.Contains("Week 15") &&
+                                      !body.Contains("Replaced by:") &&
+                                      body.Contains("Current User") &&
+                                      body.Contains("</html>")),
+                It.Is<bool>(isHtml => isHtml),
                 It.Is<string>(from => from == "testfrom@ucdavis.edu")
             ), Times.Once);
 

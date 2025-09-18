@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Net;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 using Viper.Services;
@@ -18,6 +19,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         private readonly EmailNotificationSettings _emailNotificationSettings;
         private readonly IGradYearService _gradYearService;
         private readonly IPermissionValidator _permissionValidator;
+        private readonly IConfiguration _configuration;
 
         public ScheduleEditService(
             ClinicalSchedulerContext context,
@@ -26,7 +28,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
             IEmailService emailService,
             IOptions<EmailNotificationSettings> emailNotificationOptions,
             IGradYearService gradYearService,
-            IPermissionValidator permissionValidator)
+            IPermissionValidator permissionValidator,
+            IConfiguration configuration)
         {
             _context = context;
             _auditService = auditService;
@@ -35,6 +38,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             _emailNotificationSettings = emailNotificationOptions.Value;
             _gradYearService = gradYearService;
             _permissionValidator = permissionValidator;
+            _configuration = configuration;
         }
 
         public async Task<List<InstructorSchedule>> AddInstructorAsync(
@@ -369,7 +373,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
         public async Task<(bool success, string? previousPrimaryName)> SetPrimaryEvaluatorAsync(
             int instructorScheduleId,
             bool isPrimary,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            bool requiresPrimaryEvaluator = false)
         {
             try
             {
@@ -444,7 +449,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         // Send notifications for any removed primary evaluators
                         foreach (var removedSchedule in removedPrimarySchedules)
                         {
-                            await HandlePrimaryEvaluatorRemovalAsync(removedSchedule, currentUser.MothraId, cancellationToken, schedule.MothraId);
+                            await HandlePrimaryEvaluatorRemovalAsync(removedSchedule, currentUser.MothraId, cancellationToken, schedule.MothraId, requiresPrimaryEvaluator);
                         }
 
                         await _auditService.LogPrimaryEvaluatorSetAsync(
@@ -452,7 +457,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     }
                     else
                     {
-                        await HandlePrimaryEvaluatorRemovalAsync(schedule, currentUser.MothraId, cancellationToken);
+                        await HandlePrimaryEvaluatorRemovalAsync(schedule, currentUser.MothraId, cancellationToken, null, requiresPrimaryEvaluator);
                     }
                 }
                 catch (Exception postTransactionEx)
@@ -615,35 +620,47 @@ namespace Viper.Areas.ClinicalScheduler.Services
             InstructorSchedule schedule,
             string currentUserMothraId,
             CancellationToken cancellationToken,
-            string? newPrimaryMothraId = null)
+            string? newPrimaryMothraId = null,
+            bool requiresPrimaryEvaluator = false)
         {
             // Log the primary evaluator removal
             await _auditService.LogPrimaryEvaluatorUnsetAsync(
                 schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUserMothraId, cancellationToken);
 
             // Send email notification
-            await SendPrimaryEvaluatorRemovedNotificationAsync(schedule, currentUserMothraId, cancellationToken, newPrimaryMothraId);
+            await SendPrimaryEvaluatorRemovedNotificationAsync(schedule, currentUserMothraId, cancellationToken, newPrimaryMothraId, requiresPrimaryEvaluator);
         }
 
         /// <summary>
         /// Send email notification when a primary evaluator is removed
         /// Matches the ColdFusion system's notification format and recipients
         /// </summary>
-        private async Task SendPrimaryEvaluatorRemovedNotificationAsync(InstructorSchedule schedule, string modifiedByMothraId, CancellationToken cancellationToken, string? newPrimaryMothraId = null)
+        private async Task SendPrimaryEvaluatorRemovedNotificationAsync(InstructorSchedule schedule, string modifiedByMothraId, CancellationToken cancellationToken, string? newPrimaryMothraId = null, bool requiresPrimaryEvaluator = false)
         {
             try
             {
-                // Get instructor name - attempt to lookup, but gracefully handle if not found
-                var instructorText = "";
+                // Get base URL for links
+                var configuredBaseUrl = _configuration["BaseUrl"];
+                var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl) ? null : configuredBaseUrl;
+
+                // Get instructor information
+                var instructorName = "Unknown Instructor";
                 try
                 {
-                    var person = await _context.Persons
+                    var instructorPerson = await _context.Persons
                         .AsNoTracking()
                         .FirstOrDefaultAsync(p => p.IdsMothraId == schedule.MothraId, cancellationToken);
 
-                    if (person != null)
+                    if (instructorPerson != null)
                     {
-                        instructorText = $"({person.PersonDisplayLastName}, {person.PersonDisplayFirstName}) ";
+                        var fullName = instructorPerson.PersonDisplayFullName ??
+                            $"{instructorPerson.PersonDisplayLastName}, {instructorPerson.PersonDisplayFirstName}";
+
+                        // If the constructed name is empty or just ", ", fall back to "Unknown Instructor"
+                        if (!string.IsNullOrWhiteSpace(fullName) && fullName.Trim() != ",")
+                        {
+                            instructorName = fullName;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -651,7 +668,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     _logger.LogWarning(ex, "Could not retrieve instructor name for {MothraId} in email notification", schedule.MothraId);
                 }
 
-                // Get rotation name - explicitly load if not already loaded
+                // Get rotation information - explicitly load if not already loaded
                 string rotationName;
                 if (schedule.Rotation != null)
                 {
@@ -659,15 +676,14 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 }
                 else
                 {
-                    // Lazy-load rotation if navigation property is null
                     await _context.Entry(schedule)
                         .Reference(s => s.Rotation)
                         .LoadAsync(cancellationToken);
                     rotationName = schedule.Rotation?.Name ?? "Unknown Rotation";
                 }
 
-                // Get week information - use week start date to find week number from WeekGradYear
-                var weekDisplay = schedule.WeekId.ToString(); // Default fallback
+                // Get week information
+                var weekNumber = schedule.WeekId.ToString(); // Default fallback
                 try
                 {
                     var weekGradYear = await _context.WeekGradYears
@@ -677,7 +693,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                     if (weekGradYear != null)
                     {
-                        weekDisplay = weekGradYear.WeekNum.ToString();
+                        weekNumber = weekGradYear.WeekNum.ToString();
                     }
                 }
                 catch (Exception ex)
@@ -685,8 +701,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     _logger.LogWarning(ex, "Could not retrieve week number for {WeekId} in email notification", schedule.WeekId);
                 }
 
-                // Get new primary evaluator name if this is a replacement
-                var newPrimaryText = "";
+                // Get replacement primary evaluator name if this is a replacement
+                var newPrimaryName = "";
                 if (!string.IsNullOrEmpty(newPrimaryMothraId))
                 {
                     try
@@ -697,65 +713,146 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                         if (newPrimaryPerson != null)
                         {
-                            newPrimaryText = newPrimaryPerson.PersonDisplayFullName ??
+                            newPrimaryName = newPrimaryPerson.PersonDisplayFullName ??
                                 $"{newPrimaryPerson.PersonDisplayLastName}, {newPrimaryPerson.PersonDisplayFirstName}";
                         }
                         else
                         {
-                            newPrimaryText = newPrimaryMothraId; // Fallback to MothraId
+                            newPrimaryName = newPrimaryMothraId; // Fallback to MothraId
                         }
                     }
                     catch (Exception ex)
                     {
                         _logger.LogWarning(ex, "Could not retrieve new primary evaluator name for {MothraId} in email notification", newPrimaryMothraId);
-                        newPrimaryText = newPrimaryMothraId; // Fallback to MothraId
+                        newPrimaryName = newPrimaryMothraId; // Fallback to MothraId
                     }
                 }
 
-                // Get current user name for the email
-                var currentUserText = "";
+                // Get modifier information with email
+                var modifierName = modifiedByMothraId; // Fallback
+                var modifierEmail = "";
                 try
                 {
-                    var currentUserPerson = await _context.Persons
+                    var modifierPerson = await _context.Persons
                         .AsNoTracking()
                         .FirstOrDefaultAsync(p => p.IdsMothraId == modifiedByMothraId, cancellationToken);
 
-                    if (currentUserPerson != null)
+                    if (modifierPerson != null)
                     {
-                        currentUserText = currentUserPerson.PersonDisplayFullName ??
-                            $"{currentUserPerson.PersonDisplayLastName}, {currentUserPerson.PersonDisplayFirstName}";
-                    }
-                    else
-                    {
-                        currentUserText = modifiedByMothraId; // Fallback to MothraId
+                        modifierName = modifierPerson.PersonDisplayFullName ??
+                            $"{modifierPerson.PersonDisplayLastName}, {modifierPerson.PersonDisplayFirstName}";
+                        modifierEmail = modifierPerson.IdsMailId;
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Could not retrieve current user name for {MothraId} in email notification", modifiedByMothraId);
-                    currentUserText = modifiedByMothraId; // Fallback to MothraId
+                    _logger.LogWarning(ex, "Could not retrieve modifier information for {MothraId} in email notification", modifiedByMothraId);
                 }
 
-                // Format email body - different message for replacement vs removal, including who made the change
-                var emailBody = !string.IsNullOrEmpty(newPrimaryMothraId)
-                    ? $"Primary evaluator {instructorText}removed from {rotationName} week {weekDisplay} and replaced by {newPrimaryText} by {currentUserText}"
-                    : $"Primary evaluator {instructorText}removed from {rotationName} week {weekDisplay} by {currentUserText}";
+                // Use the passed requiresPrimaryEvaluator parameter (determined by frontend)
+
+                // Build HTML email body with output encoding
+                var rotationLinkRaw = baseUrl is null
+                    ? $"/ClinicalScheduler/rotation/{schedule.RotationId}"
+                    : $"{baseUrl}/ClinicalScheduler/rotation/{schedule.RotationId}";
+                var instructorNameHtml = WebUtility.HtmlEncode(instructorName);
+                var rotationNameHtml = WebUtility.HtmlEncode(rotationName);
+                var weekNumberHtml = WebUtility.HtmlEncode(weekNumber);
+                var modifierNameHtml = WebUtility.HtmlEncode(modifierName);
+                var modifierEmailHtml = WebUtility.HtmlEncode(modifierEmail);
+                var newPrimaryNameHtml = WebUtility.HtmlEncode(newPrimaryName);
+                var rotationLinkHtml = WebUtility.HtmlEncode(rotationLinkRaw);
+
+                var modifierDisplay = !string.IsNullOrEmpty(modifierEmail)
+                    ? $"<a href=\"mailto:{modifierEmailHtml}\">{modifierNameHtml}</a>"
+                    : modifierNameHtml;
+
+                var replacementRow = !string.IsNullOrEmpty(newPrimaryMothraId)
+                    ? $@"<tr>
+                            <td style=""font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;"">Replaced by:</td>
+                            <td style=""color: #212529; border-bottom: 1px solid #e9ecef;"">{newPrimaryNameHtml}</td>
+                        </tr>"
+                    : "";
+
+                var warningDiv = requiresPrimaryEvaluator && string.IsNullOrEmpty(newPrimaryMothraId)
+                    ? @"<table cellpadding=""12"" cellspacing=""0"" border=""0"" style=""background-color: #fff3cd; border: 2px solid #ffc107; margin-top: 16px;"">
+                        <tr><td style=""color: #856404; font-size: 14px;""><b>⚠️ Note: This week requires a primary evaluator.</b></td></tr>
+                      </table>"
+                    : "";
+
+                // Create dynamic subject and title
+                var action = !string.IsNullOrEmpty(newPrimaryMothraId) ? "Replaced" : "Removed";
+                var emailSubject = $"Primary Evaluator {action} - {rotationName} - Week {weekNumber}"; // subject is plain text
+                var emailTitle = $"Primary Evaluator {action}";
+                var emailTitleHtml = WebUtility.HtmlEncode(emailTitle);
+
+                var emailBody = $@"
+<html>
+<head>
+    <title>{emailTitle}</title>
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+</head>
+<body style=""margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.6; color: #333333; background-color: #f8f9fa;"">
+    <table cellpadding=""0"" cellspacing=""0"" border=""0"" width=""100%"" style=""background-color: #f8f9fa;"">
+        <tr>
+            <td style=""padding: 20px;"">
+                <table cellpadding=""0"" cellspacing=""0"" border=""0"" width=""100%"" style=""max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"">
+                    <tr>
+                        <td style=""padding: 30px;"">
+                            <h3 style=""margin: 0 0 20px 0; color: #022851; font-size: 20px; font-weight: bold;"">{emailTitleHtml}</h3>
+
+                            <table cellpadding=""12"" cellspacing=""0"" border=""0"" width=""100%"" style=""background-color: #ffffff; border: 1px solid #e9ecef; border-radius: 4px;"">
+                                <tr style=""background-color: #f8f9fa;"">
+                                    <td style=""font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;"">Instructor:</td>
+                                    <td style=""color: #212529; border-bottom: 1px solid #e9ecef;"">{instructorNameHtml}</td>
+                                </tr>
+                                {replacementRow}
+                                <tr style=""background-color: #f8f9fa;"">
+                                    <td style=""font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;"">Rotation:</td>
+                                    <td style=""color: #212529; border-bottom: 1px solid #e9ecef;""><a href=""{rotationLinkHtml}"" style=""color: #007bff; text-decoration: none;"">{rotationNameHtml}</a></td>
+                                </tr>
+                                <tr>
+                                    <td style=""font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;"">Week:</td>
+                                    <td style=""color: #212529; border-bottom: 1px solid #e9ecef;"">Week {weekNumberHtml}</td>
+                                </tr>
+                                <tr style=""background-color: #f8f9fa;"">
+                                    <td style=""font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;"">Modified by:</td>
+                                    <td style=""color: #212529; border-bottom: 1px solid #e9ecef;"">{modifierDisplay}</td>
+                                </tr>
+                            </table>
+
+                            {warningDiv}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>";
 
                 // Send email notifications to all configured recipients
                 var notificationConfig = _emailNotificationSettings.PrimaryEvaluatorRemoved;
-                foreach (var recipient in notificationConfig.To)
+                var recipients = notificationConfig.To ?? new List<string>();
+                if (recipients.Any())
                 {
-                    await _emailService.SendEmailAsync(
-                        to: recipient,
-                        subject: notificationConfig.Subject,
-                        body: emailBody,
-                        isHtml: false,
-                        from: notificationConfig.From
-                    );
+                    foreach (var recipient in recipients)
+                    {
+                        await _emailService.SendEmailAsync(
+                            to: recipient,
+                            subject: emailSubject,
+                            body: emailBody,
+                            isHtml: true,
+                            from: notificationConfig.From
+                        );
+                    }
+                    _logger.LogInformation("Primary evaluator removal notification sent to {Count} recipient(s) for {MothraId} from {RotationName} week {WeekNumber}",
+                        recipients.Count, schedule.MothraId, rotationName, weekNumber);
                 }
-
-                _logger.LogInformation("Primary evaluator removal notification sent for {MothraId} from {RotationName} week {WeekDisplay}",
-                    schedule.MothraId, rotationName ?? "Unknown Rotation", weekDisplay);
+                else
+                {
+                    _logger.LogInformation("No notification recipients configured for Primary Evaluator {Action}; skipped email. Rotation={RotationName}, Week={WeekNumber}", action, rotationName, weekNumber);
+                }
             }
             catch (Exception ex)
             {
@@ -808,4 +905,5 @@ namespace Viper.Areas.ClinicalScheduler.Services
             return await ExecuteInTransactionAsync(operation, System.Data.IsolationLevel.Unspecified, cancellationToken);
         }
     }
+
 }

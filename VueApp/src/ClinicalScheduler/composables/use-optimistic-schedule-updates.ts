@@ -160,7 +160,7 @@ async function handleTogglePrimary(
     options: OptimisticUpdateOptions,
     updateSchedulePrimaryStatus: any,
 ) {
-    const { scheduleData, scheduleId, isPrimary } = params
+    const { scheduleData, scheduleId, isPrimary, requiresPrimaryEvaluator } = params
 
     if (isRotationSchedule(scheduleData)) {
         updateSchedulePrimaryStatus(scheduleData, scheduleId, isPrimary)
@@ -168,7 +168,7 @@ async function handleTogglePrimary(
         updatePrimaryInClinicianSchedule(scheduleData, scheduleId, isPrimary)
     }
 
-    const result = await InstructorScheduleService.setPrimaryEvaluator(scheduleId, isPrimary)
+    const result = await InstructorScheduleService.setPrimaryEvaluator(scheduleId, isPrimary, requiresPrimaryEvaluator)
     if (!result.success) {
         // Enhanced error handling with typed errors
         if (result.error) {

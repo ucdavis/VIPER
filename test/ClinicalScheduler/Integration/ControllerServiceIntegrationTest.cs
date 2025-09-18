@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -54,6 +55,7 @@ namespace Viper.test.ClinicalScheduler.Integration
             mockEmailSettings.Setup(x => x.Value).Returns(new EmailNotificationSettings());
             var mockGradYearService = new Mock<IGradYearService>();
             var mockPermissionValidator = new Mock<IPermissionValidator>();
+            var mockConfiguration = new Mock<IConfiguration>();
 
             _scheduleEditService = new ScheduleEditService(
                 Context,
@@ -62,7 +64,8 @@ namespace Viper.test.ClinicalScheduler.Integration
                 mockEmailService.Object,
                 mockEmailSettings.Object,
                 mockGradYearService.Object,
-                mockPermissionValidator.Object);
+                mockPermissionValidator.Object,
+                mockConfiguration.Object);
 
             _evaluationPolicyService = new EvaluationPolicyService();
         }
