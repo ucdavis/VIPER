@@ -1209,6 +1209,7 @@ const handleTogglePrimary = async (scheduleId: number, currentIsPrimary: boolean
                 scheduleData: clinicianSchedule.value,
                 scheduleId: scheduleId,
                 isPrimary: !currentIsPrimary,
+                requiresPrimaryEvaluator: getRequiresPrimaryEvaluatorForSchedule(scheduleId),
             },
             {
                 onSuccess: () => {
@@ -1234,6 +1235,24 @@ const handleTogglePrimary = async (scheduleId: number, currentIsPrimary: boolean
     } finally {
         isTogglingPrimary.value = false
     }
+}
+
+function getRequiresPrimaryEvaluatorForSchedule(scheduleId: number): boolean {
+    if (!clinicianSchedule.value || !clinicianSchedule.value.schedulesBySemester) return false
+
+    // Find the week that contains this schedule assignment
+    for (const semester of clinicianSchedule.value.schedulesBySemester) {
+        for (const week of semester.weeks) {
+            if (week.rotations) {
+                const rotation = week.rotations.find((rotation) => rotation.scheduleId === scheduleId)
+                if (rotation) {
+                    // Return true if this week requires a primary evaluator
+                    return week.requiresPrimaryEvaluator ?? false
+                }
+            }
+        }
+    }
+    return false
 }
 
 const onAddRotationSelected = (rotation: RotationWithService | null) => {

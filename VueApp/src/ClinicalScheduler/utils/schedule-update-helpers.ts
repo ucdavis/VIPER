@@ -23,6 +23,7 @@ interface TogglePrimaryParams {
     scheduleData: RotationScheduleData | ClinicianScheduleData
     scheduleId: number
     isPrimary: boolean
+    requiresPrimaryEvaluator?: boolean
 }
 
 type ScheduleData = RotationScheduleData | ClinicianScheduleData

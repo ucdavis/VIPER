@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -19,6 +20,7 @@ namespace Viper.test.ClinicalScheduler
         private readonly Mock<IGradYearService> _mockGradYearService;
         private readonly Mock<IPermissionValidator> _mockPermissionValidator;
         private readonly Mock<IUserHelper> _mockUserHelper;
+        private readonly Mock<IConfiguration> _mockConfiguration;
         private readonly ClinicalSchedulerContext _context;
         private readonly TestableScheduleEditService _service;
         private bool _disposed = false;
@@ -38,6 +40,7 @@ namespace Viper.test.ClinicalScheduler
             _mockEmailNotificationOptions = new Mock<IOptions<EmailNotificationSettings>>();
             _mockPermissionValidator = new Mock<IPermissionValidator>();
             _mockUserHelper = new Mock<IUserHelper>();
+            _mockConfiguration = new Mock<IConfiguration>();
 
             // Setup default email notification configuration for tests
             var emailNotificationSettings = new EmailNotificationSettings
@@ -45,8 +48,7 @@ namespace Viper.test.ClinicalScheduler
                 PrimaryEvaluatorRemoved = new PrimaryEvaluatorRemovedNotificationSettings
                 {
                     To = new List<string> { "test@ucdavis.edu" },
-                    From = "testfrom@ucdavis.edu",
-                    Subject = "Test Primary Evaluator Removed"
+                    From = "testfrom@ucdavis.edu"
                 }
             };
             _mockEmailNotificationOptions.Setup(x => x.Value).Returns(emailNotificationSettings);
@@ -91,7 +93,8 @@ namespace Viper.test.ClinicalScheduler
                 _mockEmailService.Object,
                 _mockEmailNotificationOptions.Object,
                 _mockGradYearService.Object,
-                _mockPermissionValidator.Object);
+                _mockPermissionValidator.Object,
+                _mockConfiguration.Object);
         }
 
         private void SeedTestData()

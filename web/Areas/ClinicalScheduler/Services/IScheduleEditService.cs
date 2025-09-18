@@ -45,7 +45,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
         Task<(bool success, string? previousPrimaryName)> SetPrimaryEvaluatorAsync(
             int instructorScheduleId,
             bool isPrimary,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default,
+            bool requiresPrimaryEvaluator = false);
 
         /// <summary>
         /// Check if an instructor can be removed from a schedule (not primary evaluator)

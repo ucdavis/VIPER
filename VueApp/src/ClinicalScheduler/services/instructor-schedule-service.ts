@@ -84,9 +84,13 @@ class InstructorScheduleService {
     static async setPrimaryEvaluator(
         scheduleId: number,
         isPrimary: boolean,
+        requiresPrimaryEvaluator?: boolean,
     ): Promise<TypedApiResult<{ isPrimaryEvaluator: boolean; previousPrimaryName?: string | undefined }>> {
         try {
-            const request: SetPrimaryEvaluatorRequest = { IsPrimary: isPrimary }
+            const request: SetPrimaryEvaluatorRequest = {
+                IsPrimary: isPrimary,
+                RequiresPrimaryEvaluator: requiresPrimaryEvaluator,
+            }
             const { put } = useFetch()
             const response = await put(`${this.BASE_URL}/${scheduleId}/primary`, request)
 
@@ -125,8 +129,9 @@ class InstructorScheduleService {
     static updatePrimaryEvaluator(
         scheduleId: number,
         isPrimary: boolean,
+        requiresPrimaryEvaluator?: boolean,
     ): Promise<TypedApiResult<{ isPrimaryEvaluator: boolean; previousPrimaryName?: string | undefined }>> {
-        return this.setPrimaryEvaluator(scheduleId, isPrimary)
+        return this.setPrimaryEvaluator(scheduleId, isPrimary, requiresPrimaryEvaluator)
     }
 
     /**
@@ -236,6 +241,7 @@ interface ScheduleConflict {
 
 interface SetPrimaryEvaluatorRequest {
     IsPrimary: boolean
+    RequiresPrimaryEvaluator?: boolean
 }
 
 interface RemoveInstructorResult {

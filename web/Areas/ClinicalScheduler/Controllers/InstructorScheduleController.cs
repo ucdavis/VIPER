@@ -386,7 +386,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 }
 
                 var (success, previousPrimaryName) = await _scheduleEditService.SetPrimaryEvaluatorAsync(
-                    instructorScheduleId, request.IsPrimary!.Value, cancellationToken);
+                    instructorScheduleId, request.IsPrimary!.Value, cancellationToken, request.RequiresPrimaryEvaluator);
 
                 if (!success)
                 {

@@ -202,6 +202,7 @@ interface ScheduleWeek {
     dateStart: string
     dateEnd: string
     rotations: ScheduleRotation[]
+    requiresPrimaryEvaluator?: boolean
 }
 
 interface ScheduleBySemester {

@@ -1085,6 +1085,7 @@ async function togglePrimary(scheduleId: number, currentIsPrimary: boolean, clin
             scheduleData: scheduleData.value,
             scheduleId: scheduleId,
             isPrimary: !currentIsPrimary,
+            requiresPrimaryEvaluator: getRequiresPrimaryEvaluatorForSchedule(scheduleId),
         },
         {
             onSuccess: () => {
@@ -1117,6 +1118,26 @@ function requiresPrimaryEvaluator(week: WeekItem): boolean {
 
     // Return true if backend says it's required but none is assigned
     return !hasPrimaryEvaluator
+}
+
+function getRequiresPrimaryEvaluatorForSchedule(scheduleId: number): boolean {
+    if (!scheduleData.value || !scheduleData.value.schedulesBySemester) return false
+
+    // Find the week that contains this schedule assignment
+    for (const semester of scheduleData.value.schedulesBySemester) {
+        for (const week of semester.weeks) {
+            if (week.instructorSchedules) {
+                const assignment = week.instructorSchedules.find(
+                    (schedule) => schedule.instructorScheduleId === scheduleId,
+                )
+                if (assignment) {
+                    // Return true if this week requires a primary evaluator
+                    return week.requiresPrimaryEvaluator ?? false
+                }
+            }
+        }
+    }
+    return false
 }
 
 // Watch for URL changes (browser back/forward)

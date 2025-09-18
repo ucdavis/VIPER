@@ -1,4 +1,3 @@
-using System.Net;
 using System.Net.Mail;
 using System.Net.Sockets;
 using Microsoft.Extensions.Options;
@@ -118,11 +117,6 @@ namespace Viper.Services
                 UseDefaultCredentials = _emailSettings.UseDefaultCredentials
             };
 
-            if (!_emailSettings.UseDefaultCredentials && !string.IsNullOrEmpty(_emailSettings.Username))
-            {
-                smtpClient.Credentials = new NetworkCredential(_emailSettings.Username, _emailSettings.Password);
-            }
-
             return smtpClient;
         }
 
@@ -151,8 +145,6 @@ namespace Viper.Services
         public int SmtpPort { get; set; } = 25;
         public bool EnableSsl { get; set; } = false;
         public bool UseDefaultCredentials { get; set; } = true;
-        public string? Username { get; set; }
-        public string? Password { get; set; }
         public string DefaultFromAddress { get; set; } = "noreply@example.com";
         public bool UseMailpit { get; set; } = false;
     }
@@ -180,9 +172,5 @@ namespace Viper.Services
         /// </summary>
         public string From { get; set; } = "svmithelp@ucdavis.edu";
 
-        /// <summary>
-        /// Subject line for the notification email
-        /// </summary>
-        public string Subject { get; set; } = "Primary Evaluator Removed";
     }
 }

@@ -27,11 +27,6 @@ namespace Viper.Services
                 return ValidateOptionsResult.Fail("PrimaryEvaluatorRemoved.From must contain a valid email address");
             }
 
-            // Validate Subject
-            if (string.IsNullOrWhiteSpace(options.PrimaryEvaluatorRemoved.Subject))
-            {
-                return ValidateOptionsResult.Fail("PrimaryEvaluatorRemoved.Subject must not be empty");
-            }
 
             return ValidateOptionsResult.Success;
         }
