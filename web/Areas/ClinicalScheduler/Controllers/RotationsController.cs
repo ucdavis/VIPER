@@ -70,15 +70,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 }
 
                 // Filter rotations based on user permissions
-                var filteredRotations = new List<RotationDto>();
-                foreach (var rotation in rotations)
-                {
-                    // Check if user can edit this rotation's service
-                    if (await _permissionService.HasEditPermissionForServiceAsync(rotation.ServiceId, HttpContext.RequestAborted))
-                    {
-                        filteredRotations.Add(rotation);
-                    }
-                }
+                var allowedServiceIds = await GetAllowedServiceIdsAsync(HttpContext.RequestAborted);
+                var filteredRotations = rotations.Where(r => allowedServiceIds.Contains(r.ServiceId)).ToList();
 
                 // Rotations are already DTOs from the service
                 var rotationDtos = filteredRotations;
@@ -135,6 +128,13 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     return NotFound(new RotationErrorResponse("Rotation not found", id));
                 }
 
+                // Check if user has permission to view this rotation
+                if (!await _permissionService.HasEditPermissionForRotationAsync(id, HttpContext.RequestAborted))
+                {
+                    _logger.LogWarning("User denied access to rotation {RotationId}", id);
+                    return Forbid();
+                }
+
                 // Build response object
                 var response = BuildRotationResponse(rotation, includeService);
 
@@ -184,6 +184,13 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 if (rotation == null)
                 {
                     return NotFound(new RotationErrorResponse("Rotation not found", id));
+                }
+
+                // Check if user has permission to view this rotation's schedule
+                if (!await _permissionService.HasEditPermissionForRotationAsync(id, HttpContext.RequestAborted))
+                {
+                    _logger.LogWarning("User denied access to rotation {RotationId} schedule", id);
+                    return Forbid();
                 }
 
                 // Get weeks for the target year
@@ -325,14 +332,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 }
 
                 // Filter results based on user permissions
-                var filteredRotations = new List<RotationDto>();
-                foreach (var rotation in rotationsWithSchedules)
-                {
-                    if (await _permissionService.HasEditPermissionForServiceAsync(rotation.ServiceId, HttpContext.RequestAborted))
-                    {
-                        filteredRotations.Add(rotation);
-                    }
-                }
+                var allowedServiceIds = await GetAllowedServiceIdsAsync(HttpContext.RequestAborted);
+                var filteredRotations = rotationsWithSchedules.Where(r => allowedServiceIds.Contains(r.ServiceId)).ToList();
 
                 _logger.LogInformation("Retrieved {Count} rotations with scheduled weeks for year {Year} (filtered to {FilteredCount})", rotationsWithSchedules.Count, targetYear, filteredRotations.Count);
                 return Ok(filteredRotations);
@@ -356,9 +357,14 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         {
             _logger.LogInformation("Getting rotation summary");
 
+            // Get allowed service IDs upfront
+            var allowedServiceIds = await GetAllowedServiceIdsAsync(HttpContext.RequestAborted);
+
+            // Filter at database level before grouping for better performance
             var summary = await _context.Rotations
                 .AsNoTracking()
                 .Include(r => r.Service)
+                .Where(r => allowedServiceIds.Contains(r.ServiceId))  // Filter BEFORE grouping
                 .GroupBy(r => new { r.ServiceId, r.Service.ServiceName, r.Service.ShortName })
                 .Select(g => new ServiceSummaryDto
                 {
@@ -376,7 +382,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 .OrderBy(s => s.ServiceName)
                 .ToListAsync();
 
-            var totalRotations = await _context.Rotations.CountAsync();
+            var totalRotations = summary.Sum(s => s.RotationCount);
 
             _logger.LogInformation("Retrieved summary for {ServiceCount} services with {TotalRotations} total rotations",
                 summary.Count, totalRotations);
@@ -389,8 +395,16 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             });
         }
 
-
-
+        /// <summary>
+        /// Get service IDs that the current user has edit permissions for
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>HashSet of allowed service IDs for O(1) lookup performance</returns>
+        private async Task<HashSet<int>> GetAllowedServiceIdsAsync(CancellationToken cancellationToken)
+        {
+            var editableServices = await _permissionService.GetUserEditableServicesAsync(cancellationToken);
+            return editableServices?.Select(s => s.ServiceId).ToHashSet() ?? new HashSet<int>();
+        }
 
         /// <summary>
         /// Builds a rotation response object with optional service details

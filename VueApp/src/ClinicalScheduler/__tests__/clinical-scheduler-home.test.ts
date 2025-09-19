@@ -102,18 +102,19 @@ describe("ClinicalSchedulerHome Component - View Visibility", () => {
             mockPermissionsStore.hasOnlyServiceSpecificPermissions = true
             mockPermissionsStore.canAccessClinicianView = false
             mockPermissionsStore.canAccessRotationView = true
-            mockPermissionsStore.clinicianViewLabel = "Schedule by Clinician" // Disabled view still shows generic label
+            mockPermissionsStore.clinicianViewLabel = "Schedule by Clinician"
 
             const wrapper = createWrapper()
 
             // Should show rotation view
             expect(wrapper.text()).toContain("Schedule by Rotation")
-            expect(wrapper.text()).toContain("Limited to your authorized rotations")
 
-            // Should show disabled clinician view with explanation
-            expect(wrapper.text()).toContain("Schedule by Clinician")
-            expect(wrapper.text()).toContain("Not available with rotation-specific permissions")
-            expect(wrapper.find(".bg-grey-1").exists()).toBeTruthy()
+            // Should NOT show clinician view since user doesn't have access
+            expect(wrapper.text()).not.toContain("Schedule by Clinician")
+
+            // Only one view card should be visible
+            const viewCards = wrapper.findAll(".view-card-custom")
+            expect(viewCards).toHaveLength(1)
         })
 
         it("shows only clinician view for own schedule users", () => {
@@ -209,20 +210,18 @@ describe("ClinicalSchedulerHome Component - Navigation", () => {
             expect(routerPush).toHaveBeenCalledWith("/ClinicalScheduler/clinician")
         })
 
-        it("does not navigate when disabled card is clicked", async () => {
+        it("does not show clinician card when user lacks access", async () => {
             mockPermissionsStore.hasAnyEditPermission = true
             mockPermissionsStore.hasOnlyServiceSpecificPermissions = true
             mockPermissionsStore.canAccessClinicianView = false
             mockPermissionsStore.canAccessRotationView = true
 
             const wrapper = createWrapper()
-            const routerPush = vi.spyOn(router, "push")
 
-            // Click the disabled clinician card
-            const disabledCard = wrapper.find(".bg-grey-1")
-            await disabledCard.trigger("click")
-
-            expect(routerPush).not.toHaveBeenCalled()
+            // Only rotation card should be visible
+            const viewCards = wrapper.findAll(".view-card-custom")
+            expect(viewCards).toHaveLength(1)
+            expect(wrapper.text()).not.toContain("Schedule by Clinician")
         })
     })
 

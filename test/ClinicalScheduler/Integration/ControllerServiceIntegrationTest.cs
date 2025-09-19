@@ -96,7 +96,6 @@ namespace Viper.test.ClinicalScheduler.Integration
                 MockUserHelper.Object
             );
 
-            // Setup authenticated HttpContext with required services
             SetupControllerContext(controller);
 
             // Act - Call controller method that should use PersonService
@@ -110,12 +109,6 @@ namespace Viper.test.ClinicalScheduler.Integration
             Assert.Equal(2, clinicians.Count());
         }
 
-        // NOTE: Removed InstructorScheduleController_WithAllInjectedServices_WorksTogether test
-        // This functionality is fully covered by unit tests in InstructorScheduleControllerTest.cs:
-        // - AddInstructor_ValidRequest_ReturnsOkWithResponse
-        // - AddInstructor_PermissionDenied_ReturnsForbid
-        // - AddInstructor_InvalidRequest_ReturnsBadRequest
-        // The PermissionAttribute architecture prevents true integration testing with mocked permissions.
 
         [Fact]
         public async Task RotationsController_UsesDTO_NoAnonymousObjects()
@@ -125,6 +118,11 @@ namespace Viper.test.ClinicalScheduler.Integration
             var mockGradYearService = new Mock<IGradYearService>();
             var mockWeekService = new Mock<IWeekService>();
             var mockPermissionService = new Mock<ISchedulePermissionService>();
+
+            mockPermissionService
+                .Setup(p => p.HasEditPermissionForRotationAsync(100, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
             var controller = new RotationsController(
                 Context,
                 mockGradYearService.Object,
@@ -221,7 +219,6 @@ namespace Viper.test.ClinicalScheduler.Integration
                 mockLogger.Object
             );
 
-            // Setup authenticated HttpContext with required services
             SetupControllerContext(controller);
 
             // Act & Assert - In unit tests, the ApiExceptionFilter doesn't run (not part of the pipeline)
@@ -233,28 +230,17 @@ namespace Viper.test.ClinicalScheduler.Integration
             // Verify the exception message is as expected
             Assert.Equal("Service error", exception.Message);
 
-            // Note: In production, the ApiExceptionFilter would catch this and return an ApiResponse
-            // with status code 500, but in unit tests we test the controller behavior directly
         }
 
-        // NOTE: Removed PersonService_AAUDDataFetching_WorksCorrectly test
-        // This functionality is fully covered by unit tests in CliniciansControllerTest.cs:
-        // - GetClinicianSchedule_ForAdminUser_ReturnsSchedule
-        // - GetClinicianSchedule_ForOwnScheduleUser_ReturnsOwnSchedule
-        // - GetClinicianSchedule_ForOwnScheduleUser_ReturnsForbidForOtherSchedule
-        // - GetClinicianSchedule_WithNoAuthenticatedUser_ReturnsForbid
-        // The PermissionAttribute architecture prevents true integration testing with mocked permissions.
 
         [Fact]
         public Task EvaluationPolicyService_AsDependencyInjected_NotStatic()
         {
-            // Arrange - Controller that uses EvaluationPolicyService
             var mockScheduleEditService = new Mock<IScheduleEditService>();
             var mockAuditService = new Mock<IScheduleAuditService>();
             var mockUserHelper = new Mock<IUserHelper>();
             var mockGradYearService = new Mock<IGradYearService>();
 
-            // Setup mock to verify EvaluationPolicyService is injected
             mockScheduleEditService
                 .Setup(x => x.AddInstructorAsync(
                     It.IsAny<string>(),
@@ -278,15 +264,12 @@ namespace Viper.test.ClinicalScheduler.Integration
                 validator
             );
 
-            // Act - Verify service is not static by checking it's injected
             var controllerType = controller.GetType();
             var constructorParams = controllerType.GetConstructors()[0].GetParameters();
 
-            // Assert - Verify services are injected, not static
             Assert.Contains(constructorParams, p => p.ParameterType == typeof(IScheduleEditService));
             Assert.Contains(constructorParams, p => p.ParameterType == typeof(ISchedulePermissionService));
 
-            // Verify EvaluationPolicyService can be instantiated (not static)
             Assert.NotNull(_evaluationPolicyService);
             Assert.IsType<EvaluationPolicyService>(_evaluationPolicyService);
 
@@ -296,7 +279,6 @@ namespace Viper.test.ClinicalScheduler.Integration
         [Fact]
         public Task CompleteRequestFlow_WithDTOValidation_WorksEndToEnd()
         {
-            // Arrange
             SetupUserWithPermissionsForIntegration(TestUserMothraId, new[] { CardiologyEditPermission });
 
             var mockAuditService = new Mock<IScheduleAuditService>();
@@ -317,10 +299,8 @@ namespace Viper.test.ClinicalScheduler.Integration
                 validator
             );
 
-            // Setup authenticated HttpContext with required services
             SetupControllerContext(controller);
 
-            // Invalid request (duplicate week IDs)
             var invalidRequest = new AddInstructorRequest
             {
                 MothraId = "testuser",
@@ -330,11 +310,9 @@ namespace Viper.test.ClinicalScheduler.Integration
                 IsPrimaryEvaluator = false
             };
 
-            // Act - Try with invalid request
             var validationContext = new System.ComponentModel.DataAnnotations.ValidationContext(invalidRequest);
             var validationResults = invalidRequest.Validate(validationContext);
 
-            // Assert - Validation should catch the error (using actual error message from validation)
             Assert.NotEmpty(validationResults);
             Assert.Contains(validationResults, v => v.ErrorMessage == "Week IDs must be unique");
 

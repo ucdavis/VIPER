@@ -29,8 +29,23 @@
             </template>
         </AccessDeniedCard>
 
+        <!-- Access denied for specific rotation -->
+        <AccessDeniedCard
+            v-else-if="showUnauthorizedRotationError"
+            :message="ACCESS_DENIED_MESSAGES.UNAUTHORIZED_ROTATION"
+            :subtitle="ACCESS_DENIED_SUBTITLES.UNAUTHORIZED_ROTATION"
+        >
+            <template #actions>
+                <q-btn
+                    color="primary"
+                    label="Select Available Rotation"
+                    @click="clearUnauthorizedRotation"
+                />
+            </template>
+        </AccessDeniedCard>
+
         <!-- Main content when user has access -->
-        <div v-else>
+        <div v-else-if="!showUnauthorizedRotationError">
             <div class="schedule-header">
                 <div class="row items-center q-mb-md q-gutter-md mobile-column">
                     <div class="row items-center mobile-column q-gutter-md">
@@ -230,6 +245,7 @@ const selectedWeekIds = ref<number[]>([])
 const rotations = ref<RotationWithService[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
+const unauthorizedRotationId = ref<number | null>(null)
 
 // Real data from database
 const scheduleData = ref<RotationScheduleData | null>(null)
@@ -258,6 +274,10 @@ const isPastYear = computed(() => {
 const canEditRotation = computed(() => {
     if (!selectedRotation.value || !selectedRotation.value.service) return false
     return permissionsStore.canEditService(selectedRotation.value.service.serviceId)
+})
+
+const showUnauthorizedRotationError = computed(() => {
+    return unauthorizedRotationId.value !== null && !selectedRotation.value
 })
 
 // Computed properties for RecentSelections component
@@ -367,8 +387,20 @@ function onRotationSelected(rotation: RotationWithService | null) {
 
 function onRotationChange() {
     const rotationId = selectedRotationId.value ? Number(selectedRotationId.value) : null
-    selectedRotation.value = rotations.value.find((r: RotationWithService) => r.rotId === rotationId) || null
-    onRotationSelected(selectedRotation.value)
+    const foundRotation = rotations.value.find((r: RotationWithService) => r.rotId === rotationId) || null
+
+    // Check if user tried to access a rotation they don't have permission for
+    if (rotationId && !foundRotation) {
+        // User doesn't have permission for this rotation
+        unauthorizedRotationId.value = rotationId
+        selectedRotation.value = null
+        selectedRotationId.value = null
+    } else {
+        // Clear any previous unauthorized rotation error
+        unauthorizedRotationId.value = null
+        selectedRotation.value = foundRotation
+        onRotationSelected(selectedRotation.value)
+    }
 }
 
 async function updateUrl() {
@@ -470,6 +502,13 @@ function clearClinicianSelection() {
     if (scheduleViewRef.value) {
         scheduleViewRef.value.clearSelection()
     }
+}
+
+function clearUnauthorizedRotation() {
+    unauthorizedRotationId.value = null
+    selectedRotationId.value = null
+    // Clear the rotation ID from the URL
+    void router.replace({ name: "RotationSchedule" })
 }
 
 function onAddClinicianSelected(clinician: Clinician | null) {

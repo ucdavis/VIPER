@@ -7,6 +7,7 @@ const ACCESS_DENIED_MESSAGES = {
     CLINICAL_SCHEDULER: "You do not have permission to access the Clinical Scheduler.",
     ROTATION_VIEW: "You do not have permission to access the Schedule by Rotation view.",
     CLINICIAN_VIEW: "You do not have permission to access the Schedule by Clinician view.",
+    UNAUTHORIZED_ROTATION: "You do not have permission to view this rotation.",
 } as const
 
 // Subtitle messages for access denied components
@@ -16,6 +17,7 @@ const ACCESS_DENIED_SUBTITLES = {
         "This feature is not available with your current permission level. Contact your administrator if you need access to rotation scheduling features.",
     CLINICIAN_VIEW:
         "This feature is not available with rotation-specific permissions. Contact your administrator if you need full access to scheduling features.",
+    UNAUTHORIZED_ROTATION: "You can only access rotations that you have been granted permission to edit.",
 } as const
 
 // Error messages for schedule operations

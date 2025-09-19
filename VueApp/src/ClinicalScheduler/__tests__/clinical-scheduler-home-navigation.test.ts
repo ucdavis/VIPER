@@ -68,7 +68,7 @@ describe("ClinicalSchedulerHome - Navigation", () => {
             expect(routerPush).toHaveBeenCalledWith("/ClinicalScheduler/clinician")
         })
 
-        it("does not navigate when disabled card is clicked", async () => {
+        it("does not show clinician card when user lacks access", async () => {
             mockPermissionsStore.hasAnyEditPermission = true
             mockPermissionsStore.hasOnlyServiceSpecificPermissions = true
             mockPermissionsStore.canAccessClinicianView = false
@@ -78,13 +78,11 @@ describe("ClinicalSchedulerHome - Navigation", () => {
                 component: ClinicalSchedulerHome,
                 router,
             })
-            const routerPush = spyOnRouterPush(router)
 
-            // Click the disabled clinician card
-            const disabledCard = wrapper.find("[disable]")
-            await disabledCard.trigger("click")
-
-            expect(routerPush).not.toHaveBeenCalled()
+            // Only rotation card should be visible, no clinician card
+            const viewCards = wrapper.findAll(".view-card-custom")
+            expect(viewCards).toHaveLength(1)
+            expect(wrapper.text()).not.toContain("Schedule by Clinician")
         })
     })
 
@@ -144,7 +142,7 @@ describe("ClinicalSchedulerHome - Navigation", () => {
             expect(routerPush).not.toHaveBeenCalled()
         })
 
-        it("does not navigate on keyboard for disabled cards", async () => {
+        it("only shows rotation card for users without clinician access", async () => {
             mockPermissionsStore.hasAnyEditPermission = true
             mockPermissionsStore.hasOnlyServiceSpecificPermissions = true
             mockPermissionsStore.canAccessClinicianView = false
@@ -154,13 +152,12 @@ describe("ClinicalSchedulerHome - Navigation", () => {
                 component: ClinicalSchedulerHome,
                 router,
             })
-            const routerPush = spyOnRouterPush(router)
 
-            const disabledCard = wrapper.find("[disable]")
-            await disabledCard.trigger("keydown.enter")
-            await disabledCard.trigger("keydown.space")
-
-            expect(routerPush).not.toHaveBeenCalled()
+            // Only rotation card should be visible
+            const viewCards = wrapper.findAll(".view-card-custom")
+            expect(viewCards).toHaveLength(1)
+            expect(wrapper.text()).toContain("Schedule by Rotation")
+            expect(wrapper.text()).not.toContain("Schedule by Clinician")
         })
     })
 

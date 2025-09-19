@@ -67,20 +67,6 @@
                                     />
                                 </div>
                                 <p class="text-grey-7 q-mb-sm">Schedule clinicians for a specific rotation</p>
-                                <q-banner
-                                    v-if="permissionsStore.hasOnlyServiceSpecificPermissions"
-                                    dense
-                                    inline-actions
-                                    class="text-primary bg-primary-1 rounded-borders"
-                                >
-                                    <template #avatar>
-                                        <q-icon
-                                            name="info"
-                                            size="14px"
-                                        />
-                                    </template>
-                                    <span class="text-caption">Limited to your authorized rotations</span>
-                                </q-banner>
                             </q-card-section>
                         </q-card>
                     </div>
@@ -135,49 +121,6 @@
                                         />
                                     </template>
                                     <span class="text-caption">Your schedule only</span>
-                                </q-banner>
-                            </q-card-section>
-                        </q-card>
-                    </div>
-
-                    <!-- Disabled card explanation for rotation-specific users -->
-                    <div
-                        v-if="permissionsStore.hasOnlyServiceSpecificPermissions"
-                        class="col-12 col-sm-auto"
-                        style="min-width: 300px; max-width: 400px; flex: 1"
-                    >
-                        <q-card
-                            flat
-                            bordered
-                            disable
-                            class="cursor-not-allowed bg-grey-1"
-                            tabindex="0"
-                        >
-                            <q-card-section class="opacity-60">
-                                <div class="row items-center justify-between q-mb-sm">
-                                    <h3 class="text-h6 text-grey-6 q-my-none">
-                                        {{ permissionsStore.clinicianViewLabel }}
-                                    </h3>
-                                    <q-icon
-                                        name="person_off"
-                                        size="24px"
-                                        color="grey-6"
-                                        class="opacity-70"
-                                    />
-                                </div>
-                                <p class="text-grey-6 q-mb-sm">Not available with rotation-specific permissions</p>
-                                <q-banner
-                                    dense
-                                    inline-actions
-                                    class="text-grey-7 bg-grey-3 rounded-borders"
-                                >
-                                    <template #avatar>
-                                        <q-icon
-                                            name="lock"
-                                            size="14px"
-                                        />
-                                    </template>
-                                    <span class="text-caption">Contact admin for full access</span>
                                 </q-banner>
                             </q-card-section>
                         </q-card>

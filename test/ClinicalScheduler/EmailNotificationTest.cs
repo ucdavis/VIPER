@@ -619,7 +619,7 @@ namespace Viper.test.ClinicalScheduler
         }
 
         [Fact]
-        public async Task SetPrimaryEvaluatorAsync_ReplacingPrimaryEvaluator_SendsReplacementEmail()
+        public async Task SetPrimaryEvaluatorAsync_ReplacingPrimaryEvaluator_DoesNotSendEmail()
         {
             // Arrange
             var oldPrimaryMothraId = "oldprimary123";
@@ -664,28 +664,22 @@ namespace Viper.test.ClinicalScheduler
                 It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ScheduleAudit());
 
-            // Act - Set new instructor as primary evaluator (this should trigger replacement email)
+            // Act - Set new instructor as primary evaluator (should NOT trigger email for replacement)
             var result = await _service.SetPrimaryEvaluatorAsync(newInstructorSchedule.InstructorScheduleId, true);
 
             // Assert
             Assert.True(result.success);
 
-            // Verify replacement email was sent with correct content (HTML format)
+            // Verify NO email was sent for primary evaluator replacement
             _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.Is<string>(to => to == "test@ucdavis.edu"),
-                It.Is<string>(subject => subject == "Primary Evaluator Replaced - Cardiology Rotation - Week 15"),
-                It.Is<string>(body => body.Contains("Primary Evaluator Replaced") &&
-                                      body.Contains("Smith, Jane") &&
-                                      body.Contains("Cardiology Rotation") &&
-                                      body.Contains("Replaced by:") &&
-                                      body.Contains("Doe, John") &&
-                                      body.Contains("Current User") &&
-                                      body.Contains("</html>")),
-                It.Is<bool>(isHtml => isHtml),
-                It.Is<string>(from => from == "testfrom@ucdavis.edu")
-            ), Times.Once);
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>()
+            ), Times.Never);
 
-            // Verify audit logs were created for both unset and set
+            // Verify audit logs were still created for both unset and set
             _mockAuditService.Verify(x => x.LogPrimaryEvaluatorUnsetAsync(oldPrimaryMothraId, rotationId, weekId,
                 user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
             _mockAuditService.Verify(x => x.LogPrimaryEvaluatorSetAsync(newPrimaryMothraId, rotationId, weekId,
@@ -693,7 +687,7 @@ namespace Viper.test.ClinicalScheduler
         }
 
         [Fact]
-        public async Task AddInstructorAsync_AsPrimaryEvaluator_SendsReplacementEmail()
+        public async Task AddInstructorAsync_AsPrimaryEvaluator_DoesNotSendReplacementEmail()
         {
             // Arrange
             var oldPrimaryMothraId = "oldprimary789";
@@ -740,28 +734,22 @@ namespace Viper.test.ClinicalScheduler
                 It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ScheduleAudit());
 
-            // Act - Add new instructor as primary evaluator (this should trigger replacement email)
+            // Act - Add new instructor as primary evaluator (should NOT trigger email for replacement)
             var result = await _service.AddInstructorAsync(newPrimaryMothraId, rotationId, weekIds, testYear, true);
 
             // Assert
             Assert.NotEmpty(result);
 
-            // Verify replacement email was sent with correct content (HTML format)
+            // Verify NO email was sent for primary evaluator replacement
             _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.Is<string>(to => to == "test@ucdavis.edu"),
-                It.Is<string>(subject => subject == "Primary Evaluator Replaced - Surgery Rotation - Week 15"),
-                It.Is<string>(body => body.Contains("Primary Evaluator Replaced") &&
-                                      body.Contains("Johnson, Alice") &&
-                                      body.Contains("Surgery Rotation") &&
-                                      body.Contains("Replaced by:") &&
-                                      body.Contains("Wilson, Bob") &&
-                                      body.Contains("Current User") &&
-                                      body.Contains("</html>")),
-                It.Is<bool>(isHtml => isHtml),
-                It.Is<string>(from => from == "testfrom@ucdavis.edu")
-            ), Times.Once);
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>()
+            ), Times.Never);
 
-            // Verify audit logs were created
+            // Verify audit logs were still created
             _mockAuditService.Verify(x => x.LogPrimaryEvaluatorUnsetAsync(oldPrimaryMothraId, rotationId, weekIds[0],
                 user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
             _mockAuditService.Verify(x => x.LogPrimaryEvaluatorSetAsync(newPrimaryMothraId, rotationId, weekIds[0],

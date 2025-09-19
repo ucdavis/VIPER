@@ -639,6 +639,14 @@ namespace Viper.Areas.ClinicalScheduler.Services
         {
             try
             {
+                // Only send email notification if primary evaluator is removed without replacement
+                // Do not send email when primary evaluator is replaced by another instructor
+                if (!string.IsNullOrEmpty(newPrimaryMothraId))
+                {
+                    _logger.LogDebug("Skipping email notification for primary evaluator replacement. Old: {OldMothraId}, New: {NewMothraId}, Rotation: {RotationId}, Week: {WeekId}",
+                        schedule.MothraId, newPrimaryMothraId, schedule.RotationId, schedule.WeekId);
+                    return;
+                }
                 // Get base URL for links
                 var configuredBaseUrl = _configuration["BaseUrl"];
                 var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl) ? null : configuredBaseUrl;
@@ -701,32 +709,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     _logger.LogWarning(ex, "Could not retrieve week number for {WeekId} in email notification", schedule.WeekId);
                 }
 
-                // Get replacement primary evaluator name if this is a replacement
-                var newPrimaryName = "";
-                if (!string.IsNullOrEmpty(newPrimaryMothraId))
-                {
-                    try
-                    {
-                        var newPrimaryPerson = await _context.Persons
-                            .AsNoTracking()
-                            .FirstOrDefaultAsync(p => p.IdsMothraId == newPrimaryMothraId, cancellationToken);
-
-                        if (newPrimaryPerson != null)
-                        {
-                            newPrimaryName = newPrimaryPerson.PersonDisplayFullName ??
-                                $"{newPrimaryPerson.PersonDisplayLastName}, {newPrimaryPerson.PersonDisplayFirstName}";
-                        }
-                        else
-                        {
-                            newPrimaryName = newPrimaryMothraId; // Fallback to MothraId
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Could not retrieve new primary evaluator name for {MothraId} in email notification", newPrimaryMothraId);
-                        newPrimaryName = newPrimaryMothraId; // Fallback to MothraId
-                    }
-                }
 
                 // Get modifier information with email
                 var modifierName = modifiedByMothraId; // Fallback
@@ -760,36 +742,26 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 var weekNumberHtml = WebUtility.HtmlEncode(weekNumber);
                 var modifierNameHtml = WebUtility.HtmlEncode(modifierName);
                 var modifierEmailHtml = WebUtility.HtmlEncode(modifierEmail);
-                var newPrimaryNameHtml = WebUtility.HtmlEncode(newPrimaryName);
                 var rotationLinkHtml = WebUtility.HtmlEncode(rotationLinkRaw);
 
                 var modifierDisplay = !string.IsNullOrEmpty(modifierEmail)
                     ? $"<a href=\"mailto:{modifierEmailHtml}\">{modifierNameHtml}</a>"
                     : modifierNameHtml;
 
-                var replacementRow = !string.IsNullOrEmpty(newPrimaryMothraId)
-                    ? $@"<tr>
-                            <td style=""font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;"">Replaced by:</td>
-                            <td style=""color: #212529; border-bottom: 1px solid #e9ecef;"">{newPrimaryNameHtml}</td>
-                        </tr>"
-                    : "";
-
-                var warningDiv = requiresPrimaryEvaluator && string.IsNullOrEmpty(newPrimaryMothraId)
+                var replacementRow = "";
+                var warningDiv = requiresPrimaryEvaluator
                     ? @"<table cellpadding=""12"" cellspacing=""0"" border=""0"" style=""background-color: #fff3cd; border: 2px solid #ffc107; margin-top: 16px;"">
                         <tr><td style=""color: #856404; font-size: 14px;""><b>⚠️ Note: This week requires a primary evaluator.</b></td></tr>
                       </table>"
                     : "";
 
-                // Create dynamic subject and title
-                var action = !string.IsNullOrEmpty(newPrimaryMothraId) ? "Replaced" : "Removed";
-                var emailSubject = $"Primary Evaluator {action} - {rotationName} - Week {weekNumber}"; // subject is plain text
-                var emailTitle = $"Primary Evaluator {action}";
-                var emailTitleHtml = WebUtility.HtmlEncode(emailTitle);
+                var emailSubject = $"Primary Evaluator Removed - {rotationName} - Week {weekNumber}";
+                var emailTitleHtml = WebUtility.HtmlEncode("Primary Evaluator Removed");
 
                 var emailBody = $@"
 <html>
 <head>
-    <title>{emailTitle}</title>
+    <title>Primary Evaluator Removed</title>
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
 </head>
 <body style=""margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.6; color: #333333; background-color: #f8f9fa;"">
@@ -851,7 +823,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 }
                 else
                 {
-                    _logger.LogInformation("No notification recipients configured for Primary Evaluator {Action}; skipped email. Rotation={RotationName}, Week={WeekNumber}", action, rotationName, weekNumber);
+                    _logger.LogInformation("No notification recipients configured for Primary Evaluator Removal; skipped email. Rotation={RotationName}, Week={WeekNumber}", rotationName, weekNumber);
                 }
             }
             catch (Exception ex)
