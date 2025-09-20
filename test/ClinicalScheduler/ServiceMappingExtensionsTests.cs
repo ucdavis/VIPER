@@ -24,7 +24,6 @@ namespace Test.ClinicalScheduler
             // Assert
             Assert.Equal(service.ServiceId, dto.ServiceId);
             Assert.Equal(service.ServiceName, dto.ServiceName);
-            Assert.Equal(service.ShortName, dto.ShortName);
             Assert.Equal(service.WeekSize, dto.WeekSize);
             Assert.Equal(service.ScheduleEditPermission, dto.ScheduleEditPermission);
             Assert.Null(dto.UserCanEdit); // Should be null when not explicitly set

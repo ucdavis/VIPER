@@ -140,7 +140,6 @@ namespace Viper.test.ClinicalScheduler
             Assert.NotNull(anatomicPathRotation);
             Assert.NotNull(anatomicPathRotation.Service);
             Assert.Equal("Anatomic Pathology", anatomicPathRotation.Service.ServiceName);
-            Assert.Equal("AP", anatomicPathRotation.Service.ShortName);
         }
 
         [Fact]
@@ -268,7 +267,6 @@ namespace Viper.test.ClinicalScheduler
             Assert.NotNull(result);
             Assert.Equal(1, result.ServiceId);
             Assert.Equal("Anatomic Pathology", result.ServiceName);
-            Assert.Equal("AP", result.ShortName);
         }
 
         [Fact]

@@ -83,7 +83,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 {
                     serviceId = s.ServiceId,
                     serviceName = s.ServiceName,
-                    shortName = s.ShortName,
                     scheduleEditPermission = s.ScheduleEditPermission
                 }).ToList()
             };
@@ -300,7 +299,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 {
                     s.ServiceId,
                     s.ServiceName,
-                    s.ShortName,
                     s.ScheduleEditPermission
                 })
                 .ToListAsync(HttpContext.RequestAborted);
@@ -311,7 +309,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             {
                 s.ServiceId,
                 s.ServiceName,
-                s.ShortName,
                 hasCustomPermission = !string.IsNullOrEmpty(s.ScheduleEditPermission),
                 userCanEdit = userPermissions.GetValueOrDefault(s.ServiceId, false)
             }).ToList();

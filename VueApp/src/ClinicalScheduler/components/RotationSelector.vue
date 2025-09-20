@@ -147,13 +147,11 @@ async function loadRotations() {
             // Use the new API that only returns rotations with scheduled weeks
             result = await RotationService.getRotationsWithScheduledWeeks({
                 year: props.year || undefined,
-                includeService: true,
             })
         } else {
             // Use the original API that returns all rotations
             result = await RotationService.getRotations({
                 serviceId: props.serviceFilter || undefined,
-                includeService: true,
             })
         }
 

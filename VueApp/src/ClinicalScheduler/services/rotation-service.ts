@@ -25,14 +25,11 @@ class RotationService {
     /**
      * Get all rotations with optional filtering
      */
-    static async getRotations(options?: {
-        serviceId?: number
-        includeService?: boolean
-    }): Promise<ApiResult<RotationWithService[]>> {
+    static async getRotations(options?: { serviceId?: number }): Promise<ApiResult<RotationWithService[]>> {
         try {
-            const { serviceId, includeService = true } = options || {}
+            const { serviceId } = options || {}
 
-            const params: Record<string, string | number | boolean> = { includeService }
+            const params: Record<string, string | number | boolean> = {}
             if (typeof serviceId === "number") {
                 params.serviceId = serviceId
             }
@@ -54,12 +51,11 @@ class RotationService {
      */
     static async getRotationsWithScheduledWeeks(options?: {
         year?: number
-        includeService?: boolean
     }): Promise<ApiResult<RotationWithService[]>> {
         try {
-            const { year, includeService = true } = options || {}
+            const { year } = options || {}
 
-            const params: Record<string, string | number | boolean> = { includeService }
+            const params: Record<string, string | number | boolean> = {}
             if (typeof year === "number") {
                 params.year = year
             }
@@ -79,13 +75,9 @@ class RotationService {
     /**
      * Get a single rotation by ID
      */
-    static async getRotation(
-        id: number,
-        includeService: boolean = true,
-    ): Promise<ApiResult<RotationWithService | null>> {
+    static async getRotation(id: number): Promise<ApiResult<RotationWithService | null>> {
         try {
-            const params = includeService ? "?includeService=true" : "?includeService=false"
-            const url = `${this.BASE_URL}/${id}${params}`
+            const url = `${this.BASE_URL}/${id}`
             const { get } = useFetch()
             return await get(url)
         } catch (error) {

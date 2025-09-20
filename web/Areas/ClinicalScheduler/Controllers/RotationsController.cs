@@ -41,12 +41,11 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// Get all rotations with optional filtering
         /// </summary>
         /// <param name="serviceId">Optional service ID to filter by</param>
-        /// <param name="includeService">Include service details (default: true)</param>
         /// <returns>List of rotations</returns>
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<RotationDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<RotationDto>>> GetRotations(int? serviceId = null, bool includeService = true)
+        public async Task<ActionResult<IEnumerable<RotationDto>>> GetRotations(int? serviceId = null)
         {
             if (!ModelState.IsValid)
             {
@@ -55,7 +54,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
             try
             {
-                _logger.LogInformation("Getting rotations. ServiceId: {ServiceId}, IncludeService: {IncludeService}", serviceId, includeService);
+                _logger.LogInformation("Getting rotations. ServiceId: {ServiceId}", serviceId);
 
                 // Get rotations through service layer
                 List<RotationDto> rotations;
@@ -95,14 +94,13 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// Get a specific rotation by ID
         /// </summary>
         /// <param name="id">Rotation ID</param>
-        /// <param name="includeService">Include service details (default: true)</param>
         /// <returns>Single rotation</returns>
         [HttpGet("{id:int}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<object>> GetRotation(int id, bool includeService = true)
+        public async Task<ActionResult<object>> GetRotation(int id)
         {
             if (!ModelState.IsValid)
             {
@@ -117,7 +115,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
             try
             {
-                _logger.LogInformation("Getting rotation with ID: {RotationId}, IncludeService: {IncludeService}", id, includeService);
+                _logger.LogInformation("Getting rotation with ID: {RotationId}", id);
 
                 // Get rotations through service layer
                 var rotation = await _rotationService.GetRotationAsync(id, HttpContext.RequestAborted);
@@ -136,7 +134,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 }
 
                 // Build response object
-                var response = BuildRotationResponse(rotation, includeService);
+                var response = BuildRotationResponse(rotation);
 
                 _logger.LogInformation("Retrieved rotation via RotationService: {RotationName}", rotation.Name);
                 return Ok(response);
@@ -255,12 +253,11 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// Get rotations that have scheduled weeks for a specific year
         /// </summary>
         /// <param name="year">Year to filter by (optional, defaults to current year)</param>
-        /// <param name="includeService">Include service details (default: true)</param>
         /// <returns>List of rotations with scheduled weeks</returns>
         [HttpGet("with-scheduled-weeks")]
         [ProducesResponseType(typeof(IEnumerable<RotationDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<RotationDto>>> GetRotationsWithScheduledWeeks([FromQuery] int? year = null, [FromQuery] bool includeService = true)
+        public async Task<ActionResult<IEnumerable<RotationDto>>> GetRotationsWithScheduledWeeks([FromQuery] int? year = null)
         {
             if (!ModelState.IsValid)
             {
@@ -270,7 +267,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             try
             {
                 var targetYear = await GetTargetYearAsync(year);
-                _logger.LogInformation("Getting rotations with scheduled weeks for year {Year}, IncludeService: {IncludeService}", targetYear, includeService);
+                _logger.LogInformation("Getting rotations with scheduled weeks for year {Year}", targetYear);
 
                 // Get rotations that have instructor schedules for the specified year
                 // Use join-based approach for better performance instead of nested Any() calls
@@ -282,54 +279,26 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 var rotationIdsWithSchedules = await rotationsWithSchedulesQuery.Distinct().ToListAsync();
 
-                var query = _context.Rotations.AsNoTracking()
-                    .Where(r => rotationIdsWithSchedules.Contains(r.RotId));
-
-                if (includeService)
-                {
-                    query = query.Include(r => r.Service);
-                }
-
-                List<RotationDto> rotationsWithSchedules;
-
-                if (includeService)
-                {
-                    rotationsWithSchedules = await query
-                        .OrderBy(r => r.Service.ServiceName ?? r.Name)
-                        .ThenBy(r => r.Name)
-                        .Select(r => new RotationDto
+                var rotationsWithSchedules = await _context.Rotations.AsNoTracking()
+                    .Where(r => rotationIdsWithSchedules.Contains(r.RotId))
+                    .Include(r => r.Service)
+                    .OrderBy(r => r.Service.ServiceName ?? r.Name)
+                    .ThenBy(r => r.Name)
+                    .Select(r => new RotationDto
+                    {
+                        RotId = r.RotId,
+                        Name = r.Name,
+                        Abbreviation = r.Abbreviation,
+                        SubjectCode = r.SubjectCode,
+                        CourseNumber = r.CourseNumber,
+                        ServiceId = r.ServiceId,
+                        Service = new ServiceDto
                         {
-                            RotId = r.RotId,
-                            Name = r.Name,
-                            Abbreviation = r.Abbreviation,
-                            SubjectCode = r.SubjectCode,
-                            CourseNumber = r.CourseNumber,
-                            ServiceId = r.ServiceId,
-                            Service = new ServiceDto
-                            {
-                                ServiceId = r.Service.ServiceId,
-                                ServiceName = r.Service.ServiceName,
-                                ShortName = r.Service.ShortName
-                            }
-                        })
-                        .ToListAsync();
-                }
-                else
-                {
-                    rotationsWithSchedules = await query
-                        .OrderBy(r => r.Name)
-                        .Select(r => new RotationDto
-                        {
-                            RotId = r.RotId,
-                            Name = r.Name,
-                            Abbreviation = r.Abbreviation,
-                            SubjectCode = r.SubjectCode,
-                            CourseNumber = r.CourseNumber,
-                            ServiceId = r.ServiceId,
-                            Service = null
-                        })
-                        .ToListAsync();
-                }
+                            ServiceId = r.Service.ServiceId,
+                            ServiceName = r.Service.ServiceName
+                        }
+                    })
+                    .ToListAsync();
 
                 // Filter results based on user permissions
                 var allowedServiceIds = await GetAllowedServiceIdsAsync(HttpContext.RequestAborted);
@@ -407,12 +376,11 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         }
 
         /// <summary>
-        /// Builds a rotation response object with optional service details
+        /// Builds a rotation response object with service details
         /// </summary>
         /// <param name="rotation">The rotation entity</param>
-        /// <param name="includeService">Whether to include service details</param>
         /// <returns>Anonymous object representing the rotation</returns>
-        private object BuildRotationResponse(RotationDto rotation, bool includeService = true)
+        private object BuildRotationResponse(RotationDto rotation)
         {
             return new
             {
@@ -422,11 +390,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 rotation.SubjectCode,
                 rotation.CourseNumber,
                 rotation.ServiceId,
-                Service = includeService && rotation.Service != null ? new
+                Service = rotation.Service != null ? new
                 {
                     rotation.Service.ServiceId,
-                    rotation.Service.ServiceName,
-                    rotation.Service.ShortName
+                    rotation.Service.ServiceName
                 } : null
             };
         }
@@ -658,7 +625,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 {
                     rotation.Service.ServiceId,
                     rotation.Service.ServiceName,
-                    rotation.Service.ShortName,
                     rotation.Service.WeekSize
                 } : null
             };
