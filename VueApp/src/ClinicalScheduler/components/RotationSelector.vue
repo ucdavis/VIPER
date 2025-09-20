@@ -118,23 +118,6 @@ const selectedRotation = computed({
     },
 })
 
-// Filter rotations based on user permissions
-const permissionFilteredRotations = computed(() => {
-    return rotations.value.filter((rotation) => {
-        // If user has admin or manage permissions, show all rotations
-        if (
-            permissionsStore.hasAdminPermission ||
-            permissionsStore.hasManagePermission ||
-            permissionsStore.hasEditClnSchedulesPermission
-        ) {
-            return true
-        }
-
-        // Check if user has permission to edit this rotation's service
-        return permissionsStore.canEditService(rotation.serviceId)
-    })
-})
-
 // Methods
 async function loadRotations() {
     isLoading.value = true
@@ -174,8 +157,7 @@ async function loadRotations() {
                 .sort((a, b) => getRotationDisplayName(a).localeCompare(getRotationDisplayName(b)))
 
             rotations.value = filteredResult
-            // Use permission-filtered rotations as the base for filtering
-            filteredRotations.value = permissionFilteredRotations.value
+            filteredRotations.value = filteredResult
         } else {
             error.value = result.errors.join(", ") || "Failed to load rotations"
         }
@@ -207,7 +189,7 @@ function filterRotations(items: RotationWithService[], searchTerm: string): Rota
 function onFilter(val: string, update: (fn: () => void) => void) {
     searchQuery.value = val
     update(() => {
-        const baseRotations = permissionFilteredRotations.value
+        const baseRotations = rotations.value
         filteredRotations.value = val === "" ? baseRotations : filterRotations(baseRotations, val)
     })
 }
@@ -247,24 +229,9 @@ watch(
     (newValue) => {
         if (newValue === null) {
             searchQuery.value = ""
-            // Reset filtered rotations when cleared
-            filteredRotations.value = permissionFilteredRotations.value
+            filteredRotations.value = rotations.value
         }
     },
-)
-
-// Watch for permission changes to update filtered rotations
-watch(
-    () => permissionsStore.servicePermissions,
-    () => {
-        // Update filtered rotations when permissions change
-        if (searchQuery.value === "") {
-            filteredRotations.value = permissionFilteredRotations.value
-        } else {
-            filteredRotations.value = filterRotations(permissionFilteredRotations.value, searchQuery.value)
-        }
-    },
-    { deep: true },
 )
 
 // Lifecycle

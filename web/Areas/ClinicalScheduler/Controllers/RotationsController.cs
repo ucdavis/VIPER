@@ -72,11 +72,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 var allowedServiceIds = await GetAllowedServiceIdsAsync(HttpContext.RequestAborted);
                 var filteredRotations = rotations.Where(r => allowedServiceIds.Contains(r.ServiceId)).ToList();
 
-                // Rotations are already DTOs from the service
-                var rotationDtos = filteredRotations;
-
-                _logger.LogInformation("Retrieved {Count} rotations via RotationService", rotationDtos.Count);
-                return Ok(rotationDtos);
+                _logger.LogDebug("Retrieved {Count} rotations, filtered to {FilteredCount} based on permissions",
+                    rotations.Count, filteredRotations.Count);
+                return Ok(filteredRotations);
             }
             catch (Exception)
             {

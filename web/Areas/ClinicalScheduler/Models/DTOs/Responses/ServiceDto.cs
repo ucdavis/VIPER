@@ -9,6 +9,5 @@ namespace Viper.Areas.ClinicalScheduler.Models.DTOs.Responses
         public string ServiceName { get; set; } = string.Empty;
         public int? WeekSize { get; set; }
         public string? ScheduleEditPermission { get; set; }
-        public bool? UserCanEdit { get; set; }
     }
 }
