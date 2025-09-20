@@ -26,28 +26,8 @@ namespace Test.ClinicalScheduler
             Assert.Equal(service.ServiceName, dto.ServiceName);
             Assert.Equal(service.WeekSize, dto.WeekSize);
             Assert.Equal(service.ScheduleEditPermission, dto.ScheduleEditPermission);
-            Assert.Null(dto.UserCanEdit); // Should be null when not explicitly set
         }
 
-        [Fact]
-        public void ToDto_WithUserCanEdit_SetsPermissionFlag()
-        {
-            // Arrange
-            var service = new Service
-            {
-                ServiceId = 10,
-                ServiceName = "Surgery Service",
-                ShortName = "Surgery"
-            };
-
-            // Act
-            var dtoCanEdit = service.ToDto(userCanEdit: true);
-            var dtoCannotEdit = service.ToDto(userCanEdit: false);
-
-            // Assert
-            Assert.True(dtoCanEdit.UserCanEdit);
-            Assert.False(dtoCannotEdit.UserCanEdit);
-        }
 
         [Fact]
         public void ToDto_CollectionMapping_MapsAllServices()
@@ -68,32 +48,8 @@ namespace Test.ClinicalScheduler
             Assert.Equal(10, dtos[0].ServiceId);
             Assert.Equal(20, dtos[1].ServiceId);
             Assert.Equal(30, dtos[2].ServiceId);
-            Assert.All(dtos, dto => Assert.Null(dto.UserCanEdit));
         }
 
-        [Fact]
-        public void ToDto_CollectionWithPermissionLookup_AppliesPermissionsCorrectly()
-        {
-            // Arrange
-            var services = new List<Service>
-            {
-                new Service { ServiceId = 10, ServiceName = "Surgery", ShortName = "SURG" },
-                new Service { ServiceId = 20, ServiceName = "Medicine", ShortName = "MED" },
-                new Service { ServiceId = 30, ServiceName = "Anesthesia", ShortName = "ANES" }
-            };
-
-            // User can edit services 10 and 30, but not 20
-            Func<int, bool> userCanEditLookup = serviceId => serviceId == 10 || serviceId == 30;
-
-            // Act
-            var dtos = services.ToDto(userCanEditLookup).ToList();
-
-            // Assert
-            Assert.Equal(3, dtos.Count);
-            Assert.True(dtos[0].UserCanEdit);
-            Assert.False(dtos[1].UserCanEdit);
-            Assert.True(dtos[2].UserCanEdit);
-        }
 
         [Fact]
         public void ToDto_EmptyCollection_ReturnsEmptyResult()

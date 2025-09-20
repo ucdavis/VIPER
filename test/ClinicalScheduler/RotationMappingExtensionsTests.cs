@@ -55,7 +55,7 @@ namespace Test.ClinicalScheduler
             };
 
             // Act
-            var dto = rotation.ToDto(includeService: false);
+            var dto = rotation.ToDto(false);
 
             // Assert
             Assert.Null(dto.Service);
@@ -81,29 +81,6 @@ namespace Test.ClinicalScheduler
             Assert.Null(dto.Service);
         }
 
-        [Fact]
-        public void ToDto_WithUserPermissions_IncludesEditFlag()
-        {
-            // Arrange
-            var rotation = new Rotation
-            {
-                RotId = 1,
-                Name = "Surgery",
-                ServiceId = 10,
-                Service = new Service
-                {
-                    ServiceId = 10,
-                    ServiceName = "Surgery Service"
-                }
-            };
-
-            // Act
-            var dto = rotation.ToDto(includeService: true, userCanEdit: true);
-
-            // Assert
-            Assert.NotNull(dto.Service);
-            Assert.True(dto.Service.UserCanEdit);
-        }
 
         [Fact]
         public void ToDto_CollectionMapping_MapsAllRotations()
@@ -117,7 +94,7 @@ namespace Test.ClinicalScheduler
             };
 
             // Act
-            var dtos = rotations.ToDto(includeService: false).ToList();
+            var dtos = rotations.ToDto(false).ToList();
 
             // Assert
             Assert.Equal(3, dtos.Count);
@@ -126,39 +103,6 @@ namespace Test.ClinicalScheduler
             Assert.Equal(3, dtos[2].RotId);
         }
 
-        [Fact]
-        public void ToDto_CollectionWithPermissionLookup_AppliesPermissionsCorrectly()
-        {
-            // Arrange
-            var rotations = new List<Rotation>
-            {
-                new Rotation
-                {
-                    RotId = 1,
-                    Name = "Surgery",
-                    ServiceId = 10,
-                    Service = new Service { ServiceId = 10, ServiceName = "Surgery" }
-                },
-                new Rotation
-                {
-                    RotId = 2,
-                    Name = "Medicine",
-                    ServiceId = 20,
-                    Service = new Service { ServiceId = 20, ServiceName = "Medicine" }
-                }
-            };
-
-            // User can only edit service 10
-            Func<int, bool> userCanEditLookup = serviceId => serviceId == 10;
-
-            // Act
-            var dtos = rotations.ToDto(includeService: true, userCanEditLookup).ToList();
-
-            // Assert
-            Assert.Equal(2, dtos.Count);
-            Assert.True(dtos[0].Service?.UserCanEdit);
-            Assert.False(dtos[1].Service?.UserCanEdit);
-        }
 
         [Fact]
         public void ToDto_EmptyCollection_ReturnsEmptyResult()

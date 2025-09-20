@@ -54,7 +54,7 @@
                             <RotationSelector
                                 v-model="selectedRotationId"
                                 :year="currentYear"
-                                :only-with-scheduled-weeks="true"
+                                :only-with-scheduled-weeks="isPastYear"
                                 @rotation-selected="onRotationSelected"
                                 style="min-width: 300px"
                             />
