@@ -33,6 +33,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 var query = _context.Rotations
                     .AsNoTracking()
+                    .Where(r => r.Active)
                     .Include(r => r.Service);
 
                 var rotations = await query
@@ -106,7 +107,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 var query = _context.Rotations
                     .AsNoTracking()
                     .Include(r => r.Service)
-                    .Where(r => r.CourseNumber == courseNumber);
+                    .Where(r => r.CourseNumber == courseNumber && r.Active);
 
                 if (!string.IsNullOrEmpty(subjectCode))
                 {
@@ -146,7 +147,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 var rotations = await _context.Rotations
                     .AsNoTracking()
                     .Include(r => r.Service)
-                    .Where(r => r.ServiceId == serviceId)
+                    .Where(r => r.ServiceId == serviceId && r.Active)
                     .OrderBy(r => r.Name)
                     .ToListAsync(cancellationToken);
 

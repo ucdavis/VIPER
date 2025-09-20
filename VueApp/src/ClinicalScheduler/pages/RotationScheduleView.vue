@@ -354,7 +354,7 @@ async function loadRotations() {
     error.value = null
 
     try {
-        const result = await RotationService.getRotations({ includeService: true })
+        const result = await RotationService.getRotations()
 
         if (result.success) {
             rotations.value = result.result

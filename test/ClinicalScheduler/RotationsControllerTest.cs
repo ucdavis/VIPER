@@ -66,14 +66,14 @@ namespace Viper.test.ClinicalScheduler
                     RotId = CardiologyRotationId,
                     Name = "Cardiology",
                     ServiceId = CardiologyServiceId,
-                    Service = new ServiceDto { ServiceId = CardiologyServiceId, ServiceName = "Cardiology Service", ShortName = "CARD" }
+                    Service = new ServiceDto { ServiceId = CardiologyServiceId, ServiceName = "Cardiology Service" }
                 },
                 new RotationDto
                 {
                     RotId = SurgeryRotationId,
                     Name = "Surgery",
                     ServiceId = SurgeryServiceId,
-                    Service = new ServiceDto { ServiceId = SurgeryServiceId, ServiceName = "Surgery Service", ShortName = "SURG" }
+                    Service = new ServiceDto { ServiceId = SurgeryServiceId, ServiceName = "Surgery Service" }
                 }
             };
             _mockRotationService.Setup(s => s.GetRotationsAsync(It.IsAny<CancellationToken>()))
@@ -88,7 +88,7 @@ namespace Viper.test.ClinicalScheduler
                 RotId = CardiologyRotationId,
                 Name = "Cardiology",
                 ServiceId = CardiologyServiceId,
-                Service = new ServiceDto { ServiceId = CardiologyServiceId, ServiceName = "Cardiology Service", ShortName = "CARD" }
+                Service = new ServiceDto { ServiceId = CardiologyServiceId, ServiceName = "Cardiology Service" }
             };
 
             var surgeryRotation = new RotationDto
@@ -96,7 +96,7 @@ namespace Viper.test.ClinicalScheduler
                 RotId = SurgeryRotationId,
                 Name = "Surgery",
                 ServiceId = SurgeryServiceId,
-                Service = new ServiceDto { ServiceId = SurgeryServiceId, ServiceName = "Surgery Service", ShortName = "SURG" }
+                Service = new ServiceDto { ServiceId = SurgeryServiceId, ServiceName = "Surgery Service" }
             };
 
             _mockRotationService.Setup(s => s.GetRotationAsync(CardiologyRotationId, It.IsAny<CancellationToken>()))
