@@ -1,0 +1,99 @@
+/* Shared styles for Clinical Scheduler schedule views */
+
+.clinical-scheduler-container {
+    font-family: Arial, sans-serif;
+    margin: 0 auto;
+    position: relative;
+}
+
+/* Shared permission badge positioning */
+.content-area-badge {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    z-index: 10;
+}
+
+/* Shared typography for schedule pages */
+h3 {
+    color: var(--ucdavis-black-80);
+    font-size: 16px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.schedule-note {
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--ucdavis-black-40);
+    font-style: italic;
+}
+
+/* Permission badge positioning */
+.permission-badge-positioned {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+/* Mobile responsiveness for main headers */
+@media (max-width: 768px) {
+    h2 {
+        font-size: 18px;
+    }
+
+    /* Shared mobile badge positioning */
+    .content-area-badge {
+        position: static;
+        display: block;
+        width: fit-content;
+        margin: 8px 0 16px 0;
+    }
+
+    /* Shared mobile layout helpers */
+    .schedule-header .row.mobile-column {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .schedule-header .mobile-full-width {
+        width: 100%;
+    }
+
+    .mobile-no-margin {
+        margin-left: 0;
+        padding-left: 16px;
+    }
+
+    /* Stack elements vertically on mobile */
+    .schedule-header .row.items-center:first-child {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    /* Move badge below everything on mobile */
+    .permission-badge-positioned {
+        position: static;
+        margin-top: 8px;
+        align-self: flex-start;
+    }
+
+    /* Ensure parent container stacks properly on mobile */
+    .schedule-header .row.position-relative {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 600px) {
+    .dropdown-selector {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    h2 {
+        font-size: 16px;
+    }
+}

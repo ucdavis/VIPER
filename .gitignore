@@ -31,6 +31,7 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+dist/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
@@ -385,7 +386,6 @@ FodyWeavers.xsd
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-*.code-workspace
 
 # Local History for Visual Studio Code
 .history/
@@ -476,3 +476,12 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 web/wwwroot/vue/
+
+#Credentials
+awscredentials.xml
+
+# Local environment variables for multiple instances
+.env.local
+
+# Used to reduce unnecessary dotnet builds
+.build-cache/

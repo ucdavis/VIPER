@@ -1,0 +1,19 @@
+<Project>
+  <!-- Build performance optimizations -->
+  <PropertyGroup>
+    <!-- Enable shared compilation server for faster builds -->
+    <UseSharedCompilation>true</UseSharedCompilation>
+    
+    <!-- Enable parallel builds -->
+    <BuildInParallel>true</BuildInParallel>
+    
+    <!-- Set maximum CPU count for parallel builds (adjust based on your system) -->
+    <MaxCpuCount>4</MaxCpuCount>
+    
+    <!-- Enable incremental builds -->
+    <EnableIncrementalBuild>true</EnableIncrementalBuild>
+    
+    <!-- Enable faster up-to-date checking -->
+    <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+  </PropertyGroup>
+</Project>

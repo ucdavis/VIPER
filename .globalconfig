@@ -1,0 +1,33 @@
+# Global analyzer configuration for SonarAnalyzer and .NET analyzers
+is_global = true
+
+# =============================================================================
+# SONAR ANALYZER RULES - ENABLE BY DEFAULT
+# =============================================================================
+# Enable all SonarAnalyzer rules by default
+dotnet_analyzer_diagnostic.category-sonarway.severity = warning
+
+# =============================================================================
+# SECURITY RULES - COMPREHENSIVE COVERAGE (BLOCK BUILD)
+# =============================================================================
+# Enable ALL security rules to prevent deployment of unsafe code.
+# This provides comprehensive coverage of OWASP Top 10, ASVS 4.0, and CWE Top 25.
+
+# .NET Security analyzer category - covers injection, XSS, CSRF, etc.
+dotnet_analyzer_diagnostic.category-security.severity = error
+
+# SonarAnalyzer comprehensive security coverage
+# These category rules enable ALL vulnerability and security hotspot rules automatically
+dotnet_analyzer_diagnostic.category-vulnerability.severity = error
+dotnet_analyzer_diagnostic.category-security-hotspot.severity = warning
+
+# =============================================================================
+# SUPPRESSED NON-SECURITY RULES
+# =============================================================================
+# These are code quality/style rules that don't impact security or functionality
+
+# S101: Class naming conventions
+dotnet_diagnostic.S101.severity = none
+
+# S1135: TODO comments (used for future work tracking)
+dotnet_diagnostic.S1135.severity = none
