@@ -23,9 +23,16 @@ const routes = [
         component: () => import('@/CAHFS/pages/WebReports.vue'),
     },
     {
+        path: '/CAHFS/Section',
+        name: 'CAHFSSection',
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CAHFS"] },
+        component: () => import('@/CAHFS/pages/CAHFSSection.vue'),
+    },
+    {
         path: '/:catchAll(.*)*',
         meta: { layout: ViperLayout },
-        component: () => import('@/pages/Error404.vue')
+        //component: () => import('@/pages/Error404.vue')
+        component: () => import('@/CAHFS/pages/CAHFSHome.vue'),
     }
 ]
 
