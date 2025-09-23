@@ -74,6 +74,11 @@ const routes = [
         component: () => import('@/CTS/pages/ManageCompetencies.vue'),
     },
     {
+        path: '/CTS/CompetenciesBundleReport',
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
+        component: () => import('@/CTS/pages/CompetenciesBundleReport.vue'),
+    },
+    {
         path: '/CTS/ManageDomains',
         meta: { layout: ViperLayout, permissions: ["SVMSecure.CTS.Manage"] },
         component: () => import('@/CTS/pages/ManageDomains.vue'),

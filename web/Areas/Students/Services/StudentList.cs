@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Models;
 using Viper.Classes.SQLContext;
@@ -109,10 +110,13 @@ namespace Viper.Areas.Students.Services
         /// <returns></returns>
         public async Task<List<Student>> GetStudentsByTermCodeAndClassLevel(int termCode, string classLevel)
         {
+            var studentsByTerm= await _context.AaudStudents
+                .Where(h => h.TermCode == termCode && h.ClassLevel == classLevel)
+                .Select(h => h.SpridenId)
+                .ToListAsync();
             //Get students based on AAUD Student info for the given term
             var students = _context.People
-                .Include(p => p.StudentHistory)
-                .Where(p => p.StudentHistory != null && p.StudentHistory.Any(h => h.TermCode == termCode && h.ClassLevel == classLevel))
+                .Where(p => p.SpridenId != null && studentsByTerm.Contains(p.SpridenId))
                 .OrderBy(p => p.LastName)
                 .ThenBy(p => p.FirstName);
             var studentList = await students

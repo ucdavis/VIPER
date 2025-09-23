@@ -26,6 +26,7 @@
         { name: "role", label: "Role", field: "roleName", align: "left", sortable: true },
         { name: "action", label: "", field: "", align: "left" },
     ]) as Ref<QTableProps['columns']>
+    const paging = ref({ page: 1, sortBy: "enteredOn", descending: true, rowsPerPage: 0 }) as Ref<any>
 
     //for editing groups
     const defaultGroup: BundleCompetencyGroup = { bundleCompetencyGroupId: null, name: "", order: 1 }
@@ -100,8 +101,8 @@
         var result = await post(apiUrl + "cts/bundles/" + bundleId + "/competencies", bundleCompetency.value)
         if (result.success) {
             await loadBundleComps()
+            clearComp()
         }
-        clearComp()
     }
     async function updateBundleCompetency() {
         var result = await put(apiUrl + "cts/bundles/" + bundleId + "/competencies/" + bundleCompetency.value.bundleCompetencyId, bundleCompetency.value)
@@ -117,7 +118,7 @@
         }
     }
     function clearComp() {
-        bundleCompetency.value = defaultBundleCompetency
+        bundleCompetency.value = structuredClone(defaultBundleCompetency)
         showCompForm.value = false
     }
     function editComp(comp: BundleCompetency) {
@@ -238,6 +239,8 @@
              :rows="getCompsByGroup(group.bundleCompetencyGroupId)"
              :columns="columns"
              class="q-my-md"
+             v-model:pagination="paging"
+             :rows-per-page-options="[5, 10, 15, 25, 50, 100]"
              v-for="group in bundleCompetencyGroups">
         <template v-slot:top="props">
             <div v-if="group.bundleCompetencyGroupId != null">
