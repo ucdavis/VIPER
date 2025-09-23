@@ -7,12 +7,24 @@
                 <div class="bg-negative text-white q-pa-sm rounded" v-if="rolesTable.errors?.message?.length > 0">{{rolesTable.errors.message}}</div>
             </q-card-section>
             <q-card-section>
-                <q-input outlined v-model="rolesTable.object.role" label="Role"
-                         :error="rolesTable.errors?.Role?.error"
-                         :error-message="rolesTable.errors?.Role?.message"></q-input>
-                <q-input outlined v-model="rolesTable.object.description" label="Description" type="textarea"></q-input>
-                <q-checkbox v-model="rolesTable.object.application" :true-value="1" :false-value="0" label="Application Role"></q-checkbox>
-                <q-select dense options-dense outlined clearable v-model="rolesTable.object.viewName" :options="views" label="View"></q-select>
+                <div class="row">
+                    <q-input dense outlined v-model="rolesTable.object.role" label="Role"
+                             :error="rolesTable.errors?.Role?.error"
+                             :error-message="rolesTable.errors?.Role?.message"
+                             class="col-12"></q-input>
+                </div>
+                <div class="row">
+                    <q-input dense outlined v-model="rolesTable.object.description" label="Description" type="textarea" class="col-12"></q-input>
+                </div>
+                <div class="row">
+                    <q-select dense options-dense outlined clearable v-model="rolesTable.object.viewName" :options="views" label="View" class="col-12"></q-select>
+                </div>
+                <div class="row" v-if="inVMACSInstance">
+                    <q-input dense outlined v-model="rolesTable.object.accessCode" label="Access Code" class="col col-md-3" typeof="text"></q-input>
+                </div>
+                <div class="row">
+                    <q-checkbox v-model="rolesTable.object.application" :true-value="1" :false-value="0" label="Application Role" dense size="sm"></q-checkbox>
+                </div>
             </q-card-section>
             <q-card-actions align="evenly">
                 <q-btn no-caps :label="rolesTable.editing ? 'Update Role' : 'Add Role'" type="submit" padding="xs sm" color="primary"></q-btn>
@@ -89,15 +101,20 @@
                         ],
                         //create object with limited properties to do insert/update
                         createBody: function (vueApp, data) {
-                            return {
+                            var obj = {
                                 roleId: data.roleId,
                                 role: data.role,
                                 application: data.application == 1 ? 1 : 0,
                                 description: data.description,
-                                viewName: data.viewName
+                                viewName: data.viewName,
                             }
+                            if(this.inVMACSInstance || (data.accessCode != null && data.accessCode != "")) {
+                                obj.accessCode = data.accessCode
+                            }
+                            return obj
                         }
-                    })
+                    }),
+                    inVMACSInstance: false
                 }
             },
             async mounted() {
@@ -109,6 +126,13 @@
                 if (p) {
                     this.rolesTable.pagination = p
                 }
+
+                this.inVMACSInstance = this.urlPath.indexOf("/VMACS.") > 0
+                if(this.inVMACSInstance) {
+                    //Add access code
+                    this.rolesTable.columns.splice(1, 0, { name: "accessCode", label: "AC", field: "accessCode", align: "left", sortable: true })
+                }
+
                 this.rolesTable.load()
                 this.views = await viperFetch(this, "Roles/Views")
             },
