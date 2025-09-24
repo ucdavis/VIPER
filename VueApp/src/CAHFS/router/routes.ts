@@ -7,7 +7,7 @@ const routes = [
     {
         path: '/CAHFS/',
         meta: { layout: ViperLayout, allowUnAuth: true },
-        component: () => import('@/CAHFS/pages/CAHFSHome.vue'),
+        component: () => import('@/CAHFS/pages/CAHFSAuth.vue'),
         name: 'CAHFSAuth',
     },
     {
