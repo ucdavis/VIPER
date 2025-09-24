@@ -23,6 +23,10 @@
         contentBlock.value = r.result
     }
 
+    watch(() => props, () => {
+        loadContentBlock()
+    }, { immediate: true, deep: true })
+
     loadContentBlock()
 </script>
 

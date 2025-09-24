@@ -11,7 +11,8 @@
     const route = useRoute()
     const blockname: Ref<string | null> = ref(route.query.section as string | null)
 
-    watch(route.query, () => {
+    watch(route, () => {
+        console.log(route.query)
         blockname.value = route.query.section == null ? "" : route.query.section.toString()
-    }, {immediate: true})
+    }, {immediate: true, deep: true})
 </script>
