@@ -497,6 +497,7 @@ awscredentials.xml
 # Used to reduce unnecessary dotnet builds
 .build-cache/
 
+<<<<<<< HEAD
 # Precommit build artifacts (isolated from dev server)
 .artifacts-precommit/
 .artifacts-lint/
@@ -515,3 +516,4 @@ inspect-report/
 
 # Agent folders
 .claude
+CLAUDE.md
