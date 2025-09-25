@@ -476,3 +476,14 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 web/wwwroot/vue/
+
+#Credentials
+awscredentials.xml
+
+# Local environment variables for multiple instances
+.env.local
+
+# Used to reduce unnecessary dotnet builds
+.build-cache/
+
+CLAUDE.md
