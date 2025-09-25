@@ -9,8 +9,15 @@
 </q-dialog>
 
 <script asp-add-nonce="true">
-    for (idx in vueApps) {
-        vueApps[idx].create()
+    /* global vueApps, createApp, vueSetupActions, vueSetupObjects, vueObjects, vueMethods, vueWatchers, vueEmits, vueProps, computed, vueBeforeCreateActions, vueCreatedActions, vueBeforeMountActions, vueMountedActions, vueBeforeUpdateActions, vueUpdatedActions, vueBeforeUnmountActions, vueUnmountedActions, Quasar, URLSearchParams, window */
+    
+    // Initialize all vue apps
+    if (Array.isArray(vueApps)) {
+        vueApps.forEach(function(app) {
+            if (app && typeof app.create === 'function') {
+                app.create();
+            }
+        });
     }
 
     // initialize VUE and Quasar using global objects
@@ -75,19 +82,7 @@
         }
     }).use(Quasar, {
         config: {
-            brand: {
-                primary: '#022851',
-                secondary: '#295687',
-                accent: '#ffc519',
-
-                dark: '#1d1d1d',
-                'dark-page': '#121212',
-
-                positive: '#226e34',
-                negative: '#6e2222',
-                info: '#289094',
-                warning: '#ffc519'
-            },
+            brand: window.UCDavisBrandColors,
             loading: {
                 delay: 100,
                 message: "Loading",

@@ -1,0 +1,169 @@
+{
+    "plugins": ["import", "promise", "unicorn"],
+    "categories": {
+        "correctness": "error",
+        "pedantic": "warn",
+        "perf": "warn",
+        "restriction": "error",
+        "style": "warn",
+        "suspicious": "warn"
+    },
+    "rules": {
+        "import/no-cycle": "error",
+        "import/no-duplicates": "error",
+        "import/no-self-import": "error",
+        "import/prefer-default-export": "off", // Conflicts with no-default-export
+        "import/max-dependencies": [
+            "warn",
+            {
+                "max": 10,
+                "ignoreTypeImports": true
+            }
+        ],
+        "id-length": "off",
+        "max-lines-per-function": [
+            "warn",
+            {
+                "max": 100,
+                "skipBlankLines": true,
+                "skipComments": true
+            }
+        ],
+        "max-lines": [
+            "warn",
+            {
+                "max": 350,
+                "skipBlankLines": true,
+                "skipComments": true
+            }
+        ],
+        "no-magic-numbers": [
+            "warn",
+            {
+                "ignore": [
+                    -1,
+                    0,
+                    1,
+                    2
+                ], // Universal programming constants
+                "ignoreArrayIndexes": true, // array[0] is self-documenting
+                "ignoreEnums": true // Enum values are often self-documenting sequences
+            }
+        ],
+        "sort-keys": "off",
+        "sort-imports": "off",
+        "no-ternary": "off",
+        "func-style": "off",
+        "unicorn/no-null": "off", // Vue.js ecosystem uses null extensively - keep both null and undefined for semantic clarity
+        "no-eq-null": "off", // Vue.js community standard - != null is widely accepted for null/undefined checks
+        "no-undefined": "off", // Vue.js apps commonly check for undefined explicitly (props, refs, route params)
+        "unicorn/filename-case": [
+            "warn",
+            {
+                "cases": {
+                    "kebabCase": true
+                }
+            }
+        ],
+        "unicorn/catch-error-name": [
+            "warn",
+            {
+                "ignore": [
+                    "^(err|error)$"
+                ]
+            }
+        ]
+    },
+    "overrides": [
+        {
+            "files": ["scripts/**/*"],
+            "plugins": ["node"],
+            "rules": {
+                "no-console": "off",
+                "import/no-commonjs": "off",
+                "import/unambiguous": "off",
+                "import/no-default-export": "off",
+                "unicorn/prefer-module": "off",
+                "unicorn/no-process-exit": "off",
+                "max-lines": "off",
+                "max-params": "off",
+                "promise/avoid-new": "off",
+                "promise/prefer-await-to-callbacks": "off"
+            }
+        },
+        {
+            "files": ["**/__tests__/**/*"],
+            "plugins": ["vitest"],
+            "rules": {
+                "no-console": "off",
+                "no-magic-numbers": "off",
+                "import/max-dependencies": "off",
+                "max-lines-per-function": [
+                    "warn",
+                    {
+                        "max": 200
+                    }
+                ],
+                "max-lines": [
+                    "warn",
+                    {
+                        "max": 500
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["VueApp/src/**/*"],
+            "rules": {
+                "no-console": "error"
+            }
+        },
+        {
+            "files": [
+                "VueApp/**/*.config.*",
+                "VueApp/vite-watch.js"
+            ],
+            "rules": {
+                "import/no-default-export": "off", // Config files often require default exports
+                "no-console": "off",
+                "import/max-dependencies": "off", // Build scripts may need multiple dependencies
+                "max-lines-per-function": "off", // Build scripts may have longer functions
+                "promise/prefer-await-to-callbacks": "off", // Callback pattern needed for tree-kill integration
+                "import/unambiguous": "off" // Node.js scripts don't need module indicators
+            }
+        },
+        {
+            "files": ["VueApp/**/*"],
+            "rules": {
+                "no-duplicate-imports": "off" // Allow separate type-only imports for better tree-shaking in Vue 3 TypeScript projects
+            }
+        },
+        {
+            "files": ["**/stores/**/*", "**/store/**/*"],
+            "rules": {
+                "import/max-dependencies": "off" // Store files naturally coordinate between many modules and services
+            }
+        },
+        {
+            "files": [
+                "**/*.d.ts"
+            ],
+            "rules": {
+                "import/unambiguous": "off" // TypeScript declaration files are ambient, not modules
+            }
+        },
+        {
+            "files": [
+                "VueApp/src/**/composables/use-schedule-operations.ts",
+                "VueApp/src/**/composables/use-schedule-crud.ts",
+                "VueApp/src/**/composables/use-schedule-dialogs.ts",
+                "VueApp/src/**/utils/confirmation-dialog.ts"
+            ],
+            "rules": {
+                "promise/avoid-new": "off", // Quasar dialogs require Promise wrapper for async/await
+            }
+        }
+    ],
+    "ignore": ["node_modules/**", "bin/**", "obj/**", "dist/**", "wwwroot/**", "*.min.js", "*.bundle.js", "**/*.vue"],
+    "allowWarningErrors": false
+}

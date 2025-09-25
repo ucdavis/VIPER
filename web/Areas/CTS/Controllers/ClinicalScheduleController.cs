@@ -1,8 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.CTS.Models;
-using Viper.Areas.CTS.Services;
+using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes;
-using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
 using Web.Authorization;
 
@@ -14,15 +13,15 @@ namespace Viper.Areas.CTS.Controllers
     /// </summary>
     [Route("/api/cts/clinicalschedule/")]
     //most people have this. each function will have more complex permission checking.
-    [Permission(Allow = "SVMSecure.ClnSched")]
+    [Permission(Allow = ClinicalSchedulePermissions.Base)]
     public class ClinicalScheduleController : ApiController
     {
-        private readonly ClinicalScheduleService clinicalSchedule;
-        private readonly ClinicalScheduleSecurityService clinicalScheduleSecurity;
-        public ClinicalScheduleController(VIPERContext context, RAPSContext rapsContext)
+        private readonly IClinicalScheduleService clinicalSchedule;
+        private readonly ISchedulePermissionService schedulePermissionService;
+        public ClinicalScheduleController(IClinicalScheduleService scheduleService, ISchedulePermissionService permissionService)
         {
-            clinicalSchedule = new(context, rapsContext);
-            clinicalScheduleSecurity = new(rapsContext);
+            clinicalSchedule = scheduleService;
+            schedulePermissionService = permissionService;
         }
 
         /// <summary>
@@ -40,7 +39,7 @@ namespace Viper.Areas.CTS.Controllers
         public async Task<ActionResult<List<ClinicalScheduledStudent>>> GetStudentSchedule(int? classYear, string? mothraId, int? rotationId, int? serviceId,
             int? weekId, DateTime? startDate, DateTime? endDate)
         {
-            if (!clinicalScheduleSecurity.CheckStudentScheduleParams(mothraId, rotationId, serviceId, weekId, startDate, endDate))
+            if (!await schedulePermissionService.CheckStudentScheduleParamsAsync(mothraId, rotationId, serviceId, weekId, startDate, endDate))
             {
                 return ForbidApi();
             }
@@ -62,7 +61,7 @@ namespace Viper.Areas.CTS.Controllers
         public async Task<ActionResult<List<InstructorSchedule>>> GetInstructorSchedule(int? classYear, string? mothraId, int? rotationId, int? serviceId,
                 int? weekId, DateTime? startDate, DateTime? endDate, bool active = true)
         {
-            if (!clinicalScheduleSecurity.CheckInstructorScheduleParams(mothraId, rotationId, serviceId, weekId, startDate, endDate))
+            if (!await schedulePermissionService.CheckInstructorScheduleParamsAsync(mothraId, rotationId, serviceId, weekId, startDate, endDate))
             {
                 return ForbidApi();
             }

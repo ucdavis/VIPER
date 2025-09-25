@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.CMS.Data;
 using Viper.Areas.CTS.Services;
+using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
@@ -11,8 +12,7 @@ namespace Viper.Controllers
     [Permission(Allow = "SVMSecure")]
     public class LayoutController : ApiController
     {
-        private RAPSContext _context;
-        private readonly string oldViperURL = HttpHelper.GetOldViperRootURL();
+        private readonly RAPSContext _context;
         private readonly List<string[]> links = new()
         {
             new string[] { "/", "1.0", "SVMSecure", "VIPER 1.0" },
@@ -84,6 +84,10 @@ namespace Viper.Controllers
                 {
                     case "cts":
                         menu = new CtsNavMenu(_context).Nav();
+                        break;
+                    case "viper-clinical-scheduler":
+                    case "clinicalscheduler":
+                        menu = new ClinicalSchedulerNavMenu().Nav();
                         break;
                 }
                 if (menu != null)
