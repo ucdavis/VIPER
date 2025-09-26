@@ -58,7 +58,7 @@
                     <q-input dense v-model="addTag" class="col-auto "/>
                     <q-btn flat label="Add" dense no-caps color="green" class="q-ml-lg q-pr-md" icon="add" @click="createTag" />
                 </div>
-                <template v-for="tag in collectionTags">
+                <template v-for="tag in collectionTags" v-bind:key="tag.linkCollectionTagCategoryId">
                     <div class="row">
                         <q-input dense readonly v-model="tag.linkCollectionTagCategory" />
                         <q-btn flat label="Delete" dense no-caps color="red-5" class="q-ml-lg q-pr-md" icon="delete" @click="deleteTag(tag.linkCollectionTagCategoryId)" />
@@ -122,7 +122,7 @@
                              type="textarea"
                              class="col-12 col-lg-3"
                              label="Description" />
-                    <template v-for="tag in collectionTags">
+                    <template v-for="tag in collectionTags" v-bind:key="tag.linkCollectionTagCategoryId">
                         {{ tag.linkCollectionTagCategory }}:
                         <q-input dense
                                  outlined
@@ -166,7 +166,7 @@
                 <div class="col-lg-4">Description</div>
                 <div class="col-lg-3">Tags</div>
             </div>
-            <template v-for="li in links">
+            <template v-for="li in links" v-bind:key="li.linkId">
                 <div class="row link-row">
                     <div class="col-auto q-mr-md">
                         <q-btn dense
@@ -174,19 +174,19 @@
                                size="sm"
                                color="secondary"
                                icon="edit"
-                               @click="link = li;showLinkDialog = true" />
+                               @click="clickLink(li)" />
                     </div>
                     <div class="col-lg-2 link-url">{{ li.url }}</div>
                     <div class="col-lg-2">{{ li.title }}</div>
                     <div class="col-lg-4">{{ li.description }}</div>
                     <div class="col-lg-3">
-                        <template v-for="tag in collectionTags">
+                        <template v-for="tag in collectionTags" v-bind:key="tag.linkCollectionTagCategoryId">
                             <div v-if="li.tags !== undefined" class="row">
                                 <div class="col-3">
                                     <strong>{{ tag.linkCollectionTagCategory }}:</strong>
                                 </div>
                                 <div class="col-9">
-                                    <span v-for="t in li.tags[tag.linkCollectionTagCategoryId] || ''">
+                                    <span v-for="t in li.tags[tag.linkCollectionTagCategoryId] || ''" :key="tag.linkCollectionTagCategoryId.toString() + ' ' + t.toString()">
                                         {{ t }}
                                     </span>
                                 </div>
@@ -202,7 +202,7 @@
 <script setup lang="ts">
     import { ref, inject, watch } from 'vue'
     import type { Ref } from 'vue'
-    import type { LinkCollection, Link, LinkCollectionTagCategory, LinkTag, LinkTagFilter, LinkWithTags } from '@/CMS/types/'
+    import type { LinkCollection, Link, LinkCollectionTagCategory, LinkWithTags } from '@/CMS/types/'
     import { useFetch } from '@/composables/ViperFetch'
 
     const apiURL = inject('apiURL') + 'cms/linkCollections/' as string
@@ -227,8 +227,8 @@
         collections.value = res.result
         
         if (collections.value.length > 0) {
-            collection.value = collections.value[0]
-            collectionId.value = collections.value[0].linkCollectionId
+            collection.value = collections.value[0] !== undefined ? collections.value[0] : null
+            collectionId.value = collections.value[0] !== undefined ? collections.value[0].linkCollectionId : null
         }
     }
 
@@ -301,7 +301,7 @@
             link.value.linkId = res.result.linkId
         }
         else {
-            const res = await put(apiURL + collectionId.value + "/links/" + link.value.linkId, {
+            await put(apiURL + collectionId.value + "/links/" + link.value.linkId, {
                 linkCollectionId: collectionId.value,
                 url: link.value.url,
                 title: link.value.title,
@@ -318,6 +318,11 @@
         loadLinks()
     }
 
+	function clickLink(li: LinkWithTags) {
+		link.value = li;
+		showLinkDialog.value = true
+	}
+
     function cancelLinkDialog() {
         link.value = { linkId: 0, url: "", title: "", description: "", tags: {}, sortOrder: 0 }
         showLinkDialog.value = false
@@ -325,16 +330,17 @@
     
     async function deleteLink() {
         const { del } = useFetch()
-        const res = del(apiURL + collectionId.value + "/links/" + link.value.linkId)
+        del(apiURL + collectionId.value + "/links/" + link.value.linkId)
         link.value = { linkId: 0, url: "", title: "", description: "", tags: {}, sortOrder: 0 }
         showLinkDialog.value = false
         loadLinks()
     }
 
+	/*
     async function setLinkOrder() {
 
     }
-
+	*/
     //tags
     async function loadTags() {
         const { get } = useFetch()
@@ -349,7 +355,7 @@
     async function createTag() {
         const { post } = useFetch()
         if (collectionId.value && addTag.value.trim() != "") {
-            const res = await post(apiURL + collectionId.value + '/tags', {
+            await post(apiURL + collectionId.value + '/tags', {
                 linkCollectionId: collectionId.value,
                 linkCollectionTagCategory: addTag.value,
                 sortOrder: collectionTags.value.length + 1
@@ -362,7 +368,7 @@
     async function deleteTag(tagId: number) {
         const { del } = useFetch()
         if (collectionId.value && tagId) {
-            const res = await del(apiURL + collectionId.value + '/tags/' + tagId)
+            await del(apiURL + collectionId.value + '/tags/' + tagId)
             loadTags()
         }
     }

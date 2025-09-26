@@ -1,6 +1,6 @@
 import { createApp } from "vue"
 import { createPinia } from "pinia"
-import router from "./router"
+import { CAHFSRouter as router } from "./router"
 import App from "./App.vue"
 import { initializeQuasar } from "@/composables/QuasarConfig"
 // Import icon libraries
@@ -11,7 +11,7 @@ import "@quasar/extras/material-symbols-outlined/material-symbols-outlined.css"
 import "quasar/dist/quasar.css"
 
 //import our css
-import "@/assets/site.css"
+import "@/styles/index.css"
 
 const pinia = createPinia()
 const app = createApp(App)
