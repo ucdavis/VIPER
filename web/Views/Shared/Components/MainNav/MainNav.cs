@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Polly;
-using System.Collections.Generic;
+using Microsoft.AspNetCore.Mvc;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 
@@ -9,7 +7,7 @@ namespace Viper.Views.Shared.Components.MainNav
     [ViewComponent(Name = "MainNav")]
     public class MainNavViewComponent : ViewComponent
     {
-        private RAPSContext _context;
+        private readonly RAPSContext _context;
         private readonly string oldViperURL = HttpHelper.GetOldViperRootURL();
         //I want to iterate over a list of links to show instead of copying/pasting the link
         //[href, label, permission, tooltip?]
@@ -20,7 +18,7 @@ namespace Viper.Views.Shared.Components.MainNav
             new string[] { "/Accreditation/default.cfm", "Accreditation", "SVMSecure.Accreditation" },
             new string[] { "/Admin/default.cfm", "Admin", "SVMSecure.admin" },
             new string[] { "/Analytics/default.cfm", "Analytics", "SVMSecure.Analytics" },
-            new string[] { "/CAHFS/", "CAHFS", "SVMSecure.CAHFS" },
+            new string[] { "~/CAHFS/", "CAHFS", "SVMSecure.CAHFS" },
             new string[] { "/cats/default.cfm", "Computing", "SVMSecure.CATS" },
             new string[] { "/curriculum/default.cfm", "Curriculum", "SVMSecure.Curriculum" },
             new string[] { "/Development/default.cfm", "Development", "SVMSecure.Development" },
@@ -48,11 +46,11 @@ namespace Viper.Views.Shared.Components.MainNav
             var userHelper = new UserHelper();
             var userLinks = links.Where(l => l[2] == "" || userHelper.HasPermission(_context, user, l[2]))
                 .ToList();
-            
+
             //for local development in debugging mode, turn the absolute links to external localhost links to use port 80
             if (HttpHelper.Environment?.EnvironmentName == "Development")
             {
-                foreach(var link in userLinks)
+                foreach (var link in userLinks)
                 {
                     if (link[0].Substring(0, 1) == "/")
                     {

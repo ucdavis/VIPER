@@ -115,6 +115,14 @@ export default defineConfig(({ mode }) => {
                     target,
                     secure: false,
                 },
+                "^/CMS": {
+                    target,
+                    secure: false,
+                },
+                "^/CAHFS": {
+                    target,
+                    secure: false,
+                },
                 "^/api": {
                     target,
                     secure: false,
@@ -141,8 +149,8 @@ export default defineConfig(({ mode }) => {
                     cts: resolve(__dirname, "src/cts/index.html"),
                     computing: resolve(__dirname, "src/computing/index.html"),
                     students: resolve(__dirname, "src/students/index.html"),
-                cms: resolve(__dirname, 'src/cms/index.html'),
-                cahfs: resolve(__dirname, 'src/cahfs/index.html'),
+                    cms: resolve(__dirname, "src/cms/index.html"),
+                    cahfs: resolve(__dirname, "src/cahfs/index.html"),
                     clinicalscheduler: resolve(__dirname, "src/clinicalscheduler/index.html"),
                 },
             },

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.CMS.Data;
 using Viper.Areas.CMS.Services;
 using Viper.Areas.CTS.Services;
@@ -14,6 +14,7 @@ namespace Viper.Controllers
     public class LayoutController : ApiController
     {
         private readonly RAPSContext _context;
+
         private readonly List<string[]> links = new()
         {
             new string[] { "/", "1.0", "SVMSecure", "VIPER 1.0" },
@@ -79,7 +80,7 @@ namespace Viper.Controllers
         public ActionResult<NavMenu> GetLeftNav(bool area = true, string nav = "viper-home")
         {
             //var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}/";
-            var baseUrl = $"{Request.PathBase}/";
+            _ = $"{Request.PathBase}/";
             NavMenu? menu = null;
             if (area)
             {
@@ -98,7 +99,7 @@ namespace Viper.Controllers
                 }
                 if (menu != null)
                 {
-                    AdjustBasePath(menu, baseUrl);
+                    AdjustBasePath(menu);
                 }
             }
             if (menu == null)
@@ -107,7 +108,7 @@ namespace Viper.Controllers
                 if (menu != null)
                 {
                     ConvertNavLinksForDevelopment(menu);
-                    AdjustBasePath(menu, baseUrl);
+                    AdjustBasePath(menu);
                 }
                 else
                 {
@@ -129,13 +130,13 @@ namespace Viper.Controllers
             }
         }
 
-        private static void AdjustBasePath(NavMenu menu, string baseUrl)
+        private static void AdjustBasePath(NavMenu menu)
         {
             if (menu.MenuItems != null)
             {
                 foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 0 && item.MenuItemURL.Substring(0, 2) == "~/"))
                 {
-                    item.MenuItemURL = item.MenuItemURL.Replace("~/", baseUrl);
+                    item.MenuItemURL = item.MenuItemURL.Replace("~/", "/");
                 }
             }
         }

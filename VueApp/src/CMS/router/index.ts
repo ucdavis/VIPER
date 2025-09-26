@@ -1,7 +1,7 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import routes from './routes'
-import { useRequireLogin } from '@/composables/RequireLogin'
-import checkHasOnePermission from '@/composables/CheckPagePermission'
+import { createRouter, createWebHistory } from "vue-router"
+import routes from "./routes"
+import { useRequireLogin } from "@/composables/RequireLogin"
+import checkHasOnePermission from "@/composables/CheckPagePermission"
 
 const baseUrl = import.meta.env.VITE_VIPER_HOME
 const router = createRouter({
@@ -24,4 +24,4 @@ router.beforeEach(async (to) => {
     }
 })
 
-export default router
+export { router as cmsRouter }
