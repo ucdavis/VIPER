@@ -17,20 +17,33 @@ using NLog.Web;
 using Polly;
 using Polly.Extensions.Http;
 using Polly.Timeout;
-using System;
 using System.Net;
 using System.Security.Claims;
 using System.Xml.Linq;
 using Viper;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Web;
 using Web.Authorization;
+
+// Load .env.local for local development only (multiple-instance support)
+// Avoid loading in production - guard by ASPNETCORE_ENVIRONMENT.
+var envPath = Path.Combine(Directory.GetCurrentDirectory(), "../.env.local");
+var aspNetEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+if (string.Equals(aspNetEnv, "Development", StringComparison.OrdinalIgnoreCase)
+    && File.Exists(envPath))
+{
+    DotNetEnv.Env.Load(envPath);
+}
+
+// Centralized SPA application names to avoid duplication
+string[] VueAppNames = { "ClinicalScheduler", "CTS", "Computing", "Students", "CMS", "CAHFS" };
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
 
 // Early init of NLog to allow startup and exception logging, before host is built
-var logger = NLog.LogManager.Setup().SetupExtensions(s => s.RegisterLayoutRenderer("currentEnviroment", (logevent) => builder.Environment.EnvironmentName)).LoadConfigurationFromAppSettings().GetCurrentClassLogger();
+var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
 try
 {
@@ -52,20 +65,13 @@ try
         {
             Region = RegionEndpoint.USWest1
         };
-        /*
-        if(builder.Environment.EnvironmentName == "Test")
-        {
-            awsOptions.ProfilesLocation = builder.Configuration.GetValue<string>("AWS:ProfilesLocation");
-            awsOptions.Profile = builder.Configuration.GetValue<string>("AWS:Profile");
-        }
-        */
         builder.Configuration
             .AddSystemsManager("/" + builder.Environment.EnvironmentName, awsOptions)
             .AddSystemsManager("/Shared", awsOptions);
     }
     catch (Exception ex)
     {
-        logger.Fatal("Failed to get secrets from AWS. Error: " + ex.InnerException);
+        logger.Fatal(ex, "Failed to get secrets from AWS");
     }
 
     //Use forwarded for headers on test and prod
@@ -167,16 +173,39 @@ try
     });
 
 
-    builder.Services.AddDbContext<AAUDContext>();
-    builder.Services.AddDbContext<CoursesContext>();
-    builder.Services.AddDbContext<RAPSContext>();
-    builder.Services.AddDbContext<VIPERContext>(opt =>
+    // Enable detailed errors in non-production environments.
+    void ConfigureDbContextOptions(DbContextOptionsBuilder options)
     {
         if (builder.Environment.EnvironmentName != "Production")
         {
-            opt.EnableDetailedErrors(true);
+            options.EnableDetailedErrors(true);
         }
-    });
+    }
+
+    builder.Services.AddDbContext<AAUDContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<CoursesContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<RAPSContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<VIPERContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<ClinicalSchedulerContext>(ConfigureDbContextOptions);
+
+    // Clinical Scheduler services
+    builder.Services.AddScoped<Viper.Areas.Curriculum.Services.TermCodeService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IGradYearService, Viper.Areas.ClinicalScheduler.Services.GradYearService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IWeekService, Viper.Areas.ClinicalScheduler.Services.WeekService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IPersonService, Viper.Areas.ClinicalScheduler.Services.PersonService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IRotationService, Viper.Areas.ClinicalScheduler.Services.RotationService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IStudentScheduleService, Viper.Areas.ClinicalScheduler.Services.StudentScheduleService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IInstructorScheduleService, Viper.Areas.ClinicalScheduler.Services.InstructorScheduleService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IClinicalScheduleService, Viper.Areas.ClinicalScheduler.Services.ClinicalScheduleService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.ISchedulePermissionService, Viper.Areas.ClinicalScheduler.Services.SchedulePermissionService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IPermissionValidator, Viper.Areas.ClinicalScheduler.Services.PermissionValidator>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IScheduleEditService, Viper.Areas.ClinicalScheduler.Services.ScheduleEditService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IScheduleAuditService, Viper.Areas.ClinicalScheduler.Services.ScheduleAuditService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IEvaluationPolicyService, Viper.Areas.ClinicalScheduler.Services.EvaluationPolicyService>();
+    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Validators.AddInstructorValidator>();
+
+    // Register UserHelper service
+    builder.Services.AddScoped<Viper.IUserHelper, Viper.UserHelper>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
@@ -193,6 +222,28 @@ try
     // Add automapper
     builder.Services.AddAutoMapper(typeof(Program));
 
+    // Add email services
+    builder.Services.Configure<Viper.Services.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+    builder.Services.Configure<Viper.Services.EmailNotificationSettings>(builder.Configuration.GetSection("EmailNotifications"));
+    builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<Viper.Services.EmailNotificationSettings>, Viper.Services.EmailNotificationSettingsValidator>();
+    builder.Services.AddTransient<Viper.Services.IEmailService, Viper.Services.EmailService>();
+
+    // Add HttpClient for Vite proxy (development only)
+    if (builder.Environment.IsDevelopment())
+    {
+        builder.Services.AddHttpClient("ViteProxy", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
+        {
+#pragma warning disable S4830 // Disable SSL validation for development to allow self-signed certificates
+            ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+#pragma warning restore S4830
+        });
+    }
+
+
     var app = builder.Build();
 
     // Add Content Security Policy
@@ -203,6 +254,24 @@ try
             .FromSelf() // This domain
             .AddNonce() // Inline scripts only with Nonce
             .AllowUnsafeEval(); // allow JS eval command (must also fit within other restrictions)
+
+        // Allow connections for WebSocket HMR and legacy systems in development
+        if (app.Environment.IsDevelopment())
+        {
+            // In development, be permissive to avoid CSP console noise
+            // ASP.NET Core browser refresh uses random ports that CSP can't predict
+            csp.AllowConnections
+                .ToSelf()
+                .ToAnywhere(); // Allow all external connections in development
+        }
+        else
+        {
+            // In production, be restrictive - only allow self and specific external services
+            csp.AllowConnections
+                .ToSelf()
+                .To("http://localhost") // Still need legacy ColdFusion in production
+                .To("https://localhost"); // Secure localhost connections
+        }
 
         // Contained iframes can be sourced from:
         csp.AllowFrames
@@ -232,12 +301,17 @@ try
         csp.AllowPlugins
             .FromNowhere(); // Plugins not allowed
 
+        // Allow styles
         csp.AllowStyles
             .FromSelf() // This domain
             .AllowUnsafeInline(); // Allows inline CSS
     });
 
     // Configure the HTTP request pipeline.
+
+    // Add correlation ID for all environments - must be early in pipeline
+    app.UseCorrelationId();
+
     if (!app.Environment.IsDevelopment())
     {
         app.UseForwardedHeaders();
@@ -250,17 +324,64 @@ try
     else
     {
         app.UseDeveloperExceptionPage(); // Development error / exception page
+
     }
 
-    app.UseSitemapMiddleware();
+    // In development, set up Vite proxy BEFORE rewrite rules so it can handle .ts/.js files
+    if (app.Environment.IsDevelopment())
+    {
+        // Development: Proxy Vue.js assets to Vite dev server for hot module replacement (HMR)
+        // This middleware intercepts requests for Vue assets and forwards them to the Vite dev server
+        app.Use(async (context, next) =>
+        {
+            if (ViteProxyHelpers.ShouldProxyToVite(context, VueAppNames))
+            {
+                try
+                {
+                    // Use the registered HttpClient from dependency injection
+                    var httpClientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();
+                    var httpClient = httpClientFactory.CreateClient("ViteProxy");
 
-    var baseUrl = app.Environment.IsDevelopment() ? "" : "2/";
-    RewriteOptions rewriteOptions = new RewriteOptions()
-                .AddRewrite(@"(?i)^CTS", "/vue/src/cts/index.html", true)
-                .AddRewrite(@"(?i)^Computing", "/vue/src/computing/index.html", true)
-                .AddRewrite(@"(?i)^Students", "/vue/src/students/index.html", true)
-                .AddRewrite(@"(?i)^CMS", "/vue/src/cms/index.html", true)
-                .AddRewrite(@"(?i)^CAHFS", "/vue/src/cahfs/index.html", true);
+                    // Build the Vite server URL and try to proxy directly
+                    var viteUrl = ViteProxyHelpers.BuildViteUrl(context.Request.Path, context.Request.QueryString, VueAppNames);
+                    var requestMessage = ViteProxyHelpers.CreateProxyRequest(context, viteUrl);
+                    using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
+
+                    // Copy the response back to the client
+                    await ViteProxyHelpers.CopyProxyResponse(context, response);
+                    return; // Successfully proxied, don't continue to static files
+                }
+                catch (Exception ex)
+                {
+                    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+                    logger.LogDebug("Vite server not available ({Message}), falling back to static files for {Path}",
+                        ex.Message,
+                        Uri.EscapeDataString(context.Request.Path.Value ?? "unknown"));
+                    // Fall through to static file serving
+                }
+            }
+
+            // Continue to static file serving (either Vite not needed or not available)
+            await next();
+        });
+    }
+
+    var rewriteOptions = new RewriteOptions();
+
+    // Add redirects and rewrites for each SPA using centralized app names
+    foreach (var appName in VueAppNames)
+    {
+        var lowerAppName = appName.ToLower();
+        var escapedLowerAppName = System.Text.RegularExpressions.Regex.Escape(lowerAppName);
+        var escapedAppName = System.Text.RegularExpressions.Regex.Escape(appName);
+
+        // Redirect lowercase to proper case
+        rewriteOptions.AddRedirect($@"^{escapedLowerAppName}(/.*)?$", $"{appName}$1", 301);
+
+        // Rewrite SPA routes to /2/vue paths
+        rewriteOptions.AddRewrite($@"(?i)^{escapedAppName}", $"/2/vue/src/{lowerAppName}/index.html", true);
+    }
+
     app.UseRewriter(rewriteOptions);
 
     //for the vue src files, use directories in the url but serve index.html
@@ -273,23 +394,21 @@ try
         RedirectToAppendTrailingSlash = true
     });
 
-    // allow static file serving
-    if (app.Environment.IsDevelopment())
+    // Static file serving configuration
+    // Serve built Vue files - in development proxy middleware runs first,
+    // in production these files are served directly
+    app.UseStaticFiles(new StaticFileOptions
     {
-        //In development, make sure files can be found when the vue app
-        //uses /2/vue/....
-        app.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = new PhysicalFileProvider(
+        FileProvider = new PhysicalFileProvider(
             Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
-            RequestPath = "/2/vue"
-        });
-        app.UseStaticFiles();
-    }
-    else
-    {
-        app.UseStaticFiles();
-    }
+        RequestPath = "/2/vue"
+    });
+
+    // Serve other static files
+    app.UseStaticFiles();
+
+    // Add sitemap middleware after static file handling
+    app.UseSitemapMiddleware();
 
     // apply settings define earlier
     app.UseRouting();
@@ -310,21 +429,21 @@ try
             name: "default",
             pattern: "{controller=Home}/{action=Index}").RequireAuthorization();
 
-        // DefaultPolicy not applied, as authorization not required
-        //endpoints.MapHealthChecks("/public");
     });
 #pragma warning restore ASP0014
 
     // Setup the memory cache so we can use it via a simple static method
     HttpHelper.Configure(app.Services.GetService<IMemoryCache>(), app.Services.GetService<IConfiguration>(), app.Environment, app.Services.GetService<IHttpContextAccessor>(), app.Services.GetService<IAuthorizationService>(), app.Services.GetService<IDataProtectionProvider>());
 
+#pragma warning disable S6966 // app.Run() is appropriate for main entry point, not app.RunAsync()
     app.Run();
+#pragma warning restore S6966
 }
 catch (Exception exception)
 {
     // NLog: catch setup errors
     logger.Fatal(exception, "Stopped program because of exception");
-    throw;
+    throw new InvalidOperationException("Application startup failed. See logs for details.", exception);
 }
 finally
 {
@@ -367,9 +486,10 @@ void SetAwsCredentials(Logger logger)
         {
             File.Delete(awsCredentialsFilePath);
         }
-        catch
+        catch (Exception ex)
         {
-            logger.Error($"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
+            logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
+            logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
         }
     }
     else

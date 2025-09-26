@@ -1,0 +1,18 @@
+{
+    "recommendations": [
+        // Essential Vue.js Development
+        "Vue.volar",
+
+        // Essential Linting & Formatting
+        "dbaeumer.vscode-eslint",
+        "oxc.oxc-vscode",
+        "esbenp.prettier-vscode",
+        "stylelint.vscode-stylelint",
+
+        // Essential .NET Development
+        "ms-dotnettools.csharp",
+
+        // Debug Support
+        "rioj7.command-variable"
+    ]
+}

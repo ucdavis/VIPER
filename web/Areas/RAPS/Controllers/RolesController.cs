@@ -261,7 +261,14 @@ namespace Viper.Areas.RAPS.Controllers
 
         private static TblRole CreateTblRoleFromDTO(RoleCreateUpdate role)
         {
-            var tblRole = new TblRole() { Role = role.Role, Description = role.Description, ViewName = role.ViewName, Application = (byte)role.Application };
+            var tblRole = new TblRole() 
+            { 
+                Role = role.Role, 
+                Description = role.Description, 
+                ViewName = role.ViewName, 
+                Application = (byte)role.Application, 
+                AccessCode = role.AccessCode 
+            };
             if (role.RoleId != null && role.RoleId > 0)
             {
                 tblRole.RoleId = (int)role.RoleId;

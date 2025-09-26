@@ -2,6 +2,7 @@
 using Viper.Areas.CMS.Data;
 using Viper.Areas.CMS.Services;
 using Viper.Areas.CTS.Services;
+using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
@@ -12,7 +13,7 @@ namespace Viper.Controllers
     [Permission(Allow = "SVMSecure")]
     public class LayoutController : ApiController
     {
-        private RAPSContext _context;
+        private readonly RAPSContext _context;
         
         private readonly List<string[]> links = new()
         {
@@ -90,6 +91,10 @@ namespace Viper.Controllers
                         break;
                     case "cms":
                         menu = new CmsNavMenu(_context).Nav();
+                        break;
+                    case "viper-clinical-scheduler":
+                    case "clinicalscheduler":
+                        menu = new ClinicalSchedulerNavMenu().Nav();
                         break;
                 }
                 if (menu != null)

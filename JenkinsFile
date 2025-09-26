@@ -23,7 +23,7 @@ def copyOfflineOperations = [
 ]
 pipeline {
     agent any
-	tools { nodejs "NodeJS 20.6.1" }
+	tools { nodejs "NodeJS 20.19.4" }
     options {
         skipStagesAfterUnstable()
     }
@@ -62,6 +62,7 @@ pipeline {
 			steps {
                 bat 'type NUL > app_offline.htm'
 				bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit" --configuration release --nologo'
+				bat 'npm run --prefix VueApp test:run'
             }
 		}
 		stage('Deploy to test') {

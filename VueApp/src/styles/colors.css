@@ -1,0 +1,44 @@
+/* UC Davis Brand Colors - Complete Official Palette */
+/* SINGLE SOURCE OF TRUTH: Edit colors here, TypeScript will read from CSS variables */
+/* Source: https://communicationsguide.ucdavis.edu/brand-guide/colors */
+
+:root {
+    /* UC Davis Blue Shades (10-100%) */
+    --ucdavis-blue-100: #022851;
+    --ucdavis-blue-90: #033266;
+    --ucdavis-blue-80: #1d4776;
+    --ucdavis-blue-70: #355b85;
+    --ucdavis-blue-60: #4f7094;
+    --ucdavis-blue-50: #6884a3;
+    --ucdavis-blue-40: #8198b2;
+    --ucdavis-blue-30: #9aadc2;
+    --ucdavis-blue-20: #b3c1d1;
+    --ucdavis-blue-10: #cdd6e0;
+
+    /* UC Davis Gold Shades (10-100%) */
+    --ucdavis-gold-100: #ffbf00;
+    --ucdavis-gold-90: #ffc519;
+    --ucdavis-gold-80: #ffcc33;
+    --ucdavis-gold-70: #ffd24c;
+    --ucdavis-gold-60: #ffd966;
+    --ucdavis-gold-50: #ffdf80;
+    --ucdavis-gold-40: #ffe599;
+    --ucdavis-gold-30: #ffecb2;
+    --ucdavis-gold-20: #fff2cc;
+    --ucdavis-gold-10: #fff9e5;
+
+    /* UC Davis Black/Grey Shades (10-100%) */
+    --ucdavis-black-100: #000000;
+    --ucdavis-black-90: #191919;
+    --ucdavis-black-80: #333333;
+    --ucdavis-black-70: #4c4c4c;
+    --ucdavis-black-60: #666666;
+    --ucdavis-black-50: #7f7f7f;
+    --ucdavis-black-40: #999999;
+    --ucdavis-black-30: #b2b2b2;
+    --ucdavis-black-20: #cccccc;
+    --ucdavis-black-10: #e5e5e5;
+
+    /* UC Davis Extended Brand Colors */
+    --ucdavis-poppy: #f18a00; /* For Tips/Highlights */
+}

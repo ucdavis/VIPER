@@ -7,5 +7,6 @@
         public string? Description { get; set; } = null!;
         public int Application { get; set; } = 0;
         public string? ViewName { get; set; } = null!;
+        public string? AccessCode { get; set; } = null;
     }
 }

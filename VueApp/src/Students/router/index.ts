@@ -1,6 +1,6 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import routes from './routes'
-import useRequireLogin from '@/composables/RequireLogin'
+import { createRouter, createWebHistory } from "vue-router"
+import routes from "./routes"
+import { useRequireLogin } from "@/composables/RequireLogin"
 
 const baseUrl = import.meta.env.VITE_VIPER_HOME
 const router = createRouter({
@@ -14,4 +14,4 @@ router.beforeEach(async (to) => {
     return requireLogin(true, "SVMSecure.Students")
 })
 
-export default router
+export { router }
