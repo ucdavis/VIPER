@@ -115,6 +115,14 @@ export default defineConfig(({ mode }) => {
                     target,
                     secure: false,
                 },
+				"^/CMS": {
+                    target,
+                    secure: false,
+                },
+				"^/CAHFS": {
+                    target,
+                    secure: false,
+                },
                 "^/api": {
                     target,
                     secure: false,

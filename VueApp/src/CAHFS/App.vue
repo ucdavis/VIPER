@@ -1,8 +1,8 @@
 <template>
     <main>
         <component :is="$route.meta.layout || 'div'"
-                   nav="cahfs-nav" navarea="false" highlightedTopNav="CAHFS"
-                   :breadcrumbs="$route.meta?.breadcrumbs">
+				nav="cahfs-nav" navarea="false" highlightedTopNav="CAHFS"
+				:breadcrumbs="$route.meta?.breadcrumbs">
         </component>
     </main>
     <GenericError></GenericError>
