@@ -66,35 +66,43 @@ pipeline {
             }
 		}
 		stage('Deploy to test') {
+			environment {
+				NETWORK_SHARE_CRED = credentials('ViperNetworkShare')
+			}
 			when {
 				expression { params.Branch == 'development' }
 			}
 			steps {
+				networkShares()
 				filecopy copyOfflineOperations, 'test', env.WORKSPACE
 				filecopy copyOperations, 'test', env.WORKSPACE
 			}
 		}
 		stage('Deploy to prod') {
+			environment {
+				NETWORK_SHARE_CRED = credentials('ViperNetworkShare')
+			}
 			when {
 				expression { params.Branch == 'master' || params.Branch == "main" }
 			}
 			steps {
+				networkShares()
 				filecopy copyOfflineOperations, 'prod', env.WORKSPACE
 				filecopy copyOperations, 'prod', env.WORKSPACE
 			}
 		}
     }
 	post {
-			always {
-				//Run junit on the test report to build output
-				script {
-					if(fileExists('test/TestResults/TestResults.xml')) {
-						junit testResults: 'test/TestResults/TestResults.xml', skipPublishingChecks: true
-					}
+		always {
+			//Run junit on the test report to build output
+			script {
+				if(fileExists('test/TestResults/TestResults.xml')) {
+					junit testResults: 'test/TestResults/TestResults.xml', skipPublishingChecks: true
 				}
-
-				//Archive the artifacts - in this case, all files - so that the restore job can re-deploy them.
-				archiveArtifacts artifacts: 'web/bin/Release/net8.0/publish/**/*', fingerprint: true, onlyIfSuccessful: true
 			}
+
+			//Archive the artifacts - in this case, all files - so that the restore job can re-deploy them.
+			archiveArtifacts artifacts: 'web/bin/Release/net8.0/publish/**/*', fingerprint: true, onlyIfSuccessful: true
 		}
+	}
 }
