@@ -180,7 +180,7 @@ GET /Areas/Effort/api/instructors
 {
   "data": [
     {
-      "mothraId": "12345678",
+      "personId": 12345,
       "termCode": 202501,
       "firstName": "John",
       "lastName": "Smith",
@@ -205,14 +205,14 @@ GET /Areas/Effort/api/instructors
 
 ### Get Instructor Detail
 ```http
-GET /Areas/Effort/api/instructors/{mothraId}/terms/{termCode}
+GET /Areas/Effort/api/instructors/{personId}/terms/{termCode}
 ```
 
 **Response:**
 ```json
 {
   "data": {
-    "mothraId": "12345678",
+    "personId": "12345678",
     "termCode": 202501,
     "firstName": "John",
     "lastName": "Smith",
@@ -259,7 +259,7 @@ POST /Areas/Effort/api/instructors
 **Request Body:**
 ```json
 {
-  "mothraId": "12345678",
+  "personId": "12345678",
   "termCode": 202501,
   "firstName": "John",
   "lastName": "Smith",
@@ -270,7 +270,7 @@ POST /Areas/Effort/api/instructors
 
 ### Update Instructor
 ```http
-PUT /Areas/Effort/api/instructors/{mothraId}/terms/{termCode}
+PUT /Areas/Effort/api/instructors/{personId}/terms/{termCode}
 ```
 
 **Required Permission:** EditEffort
@@ -331,7 +331,7 @@ GET /Areas/Effort/api/courses/{courseId}
       {
         "effortId": 1001,
         "instructor": {
-          "mothraId": "12345678",
+          "personId": 12345,
           "firstName": "John",
           "lastName": "Smith"
         },
@@ -379,7 +379,7 @@ GET /Areas/Effort/api/efforts
 ```
 
 **Query Parameters:**
-- `mothraId` (optional): Filter by instructor
+- `personId` (optional): Filter by instructor
 - `courseId` (optional): Filter by course
 - `termCode` (required): Academic term
 - `department` (optional): Department filter
@@ -395,7 +395,7 @@ POST /Areas/Effort/api/efforts
 ```json
 {
   "courseId": 501,
-  "mothraId": "12345678",
+  "personId": "12345678",
   "sessionType": "LEC",
   "role": "I",
   "hours": 40,
@@ -425,7 +425,7 @@ DELETE /Areas/Effort/api/efforts/{effortId}
 
 ### Verify Effort Records
 ```http
-POST /Areas/Effort/api/instructors/{mothraId}/terms/{termCode}/verify
+POST /Areas/Effort/api/instructors/{personId}/terms/{termCode}/verify
 ```
 
 **Request Body:**
@@ -440,7 +440,7 @@ POST /Areas/Effort/api/instructors/{mothraId}/terms/{termCode}/verify
 
 ### Get Instructor Percentages
 ```http
-GET /Areas/Effort/api/instructors/{mothraId}/percentages
+GET /Areas/Effort/api/instructors/{personId}/percentages
 ```
 
 **Query Parameters:**
@@ -452,7 +452,7 @@ GET /Areas/Effort/api/instructors/{mothraId}/percentages
   "data": [
     {
       "id": 101,
-      "mothraId": "12345678",
+      "personId": 12345,
       "termCode": 202501,
       "effortType": "Admin",
       "percentage": 25.0,
@@ -466,7 +466,7 @@ GET /Areas/Effort/api/instructors/{mothraId}/percentages
 
 ### Create Percentage Assignment
 ```http
-POST /Areas/Effort/api/instructors/{mothraId}/percentages
+POST /Areas/Effort/api/instructors/{personId}/percentages
 ```
 
 **Request Body:**
@@ -494,7 +494,7 @@ DELETE /Areas/Effort/api/percentages/{percentageId}
 
 ### Verify Instructor Effort
 ```http
-PUT /Areas/Effort/api/instructors/{mothraId}/terms/{termCode}/verify
+PUT /Areas/Effort/api/instructors/{personId}/terms/{termCode}/verify
 ```
 
 **Required Permission:** Self or VerifyEffort
@@ -508,7 +508,7 @@ PUT /Areas/Effort/api/instructors/{mothraId}/terms/{termCode}/verify
 
 ### Get Verification Status
 ```http
-GET /Areas/Effort/api/instructors/{mothraId}/terms/{termCode}/verification
+GET /Areas/Effort/api/instructors/{personId}/terms/{termCode}/verification
 ```
 
 ## 7. Course Relationships
@@ -544,7 +544,7 @@ POST /Areas/Effort/api/notifications/effort
 ```json
 {
   "termCode": 202501,
-  "mothraIds": ["12345678", "87654321"],
+  "personIds": ["12345678", "87654321"],
   "notificationType": "verification_reminder",
   "customMessage": "Please verify your effort assignments"
 }
@@ -560,7 +560,7 @@ GET /Areas/Effort/api/audit
 
 **Query Parameters:**
 - `termCode` (optional): Filter by term
-- `mothraId` (optional): Filter by user
+- `personId` (optional): Filter by user
 - `action` (optional): Filter by action type
 - `startDate` (optional): Date range start
 - `endDate` (optional): Date range end
@@ -748,7 +748,7 @@ GET /Areas/Effort/api/user/permissions
 #### Instructor (Person) DTO
 ```typescript
 interface InstructorDto {
-  mothraId: string
+  personId: string
   termCode: number
   firstName: string
   lastName: string
@@ -786,7 +786,7 @@ interface CourseDto {
 interface EffortDto {
   effortId: number
   courseId: number
-  mothraId: string
+  personId: string
   termCode: number
   sessionType: string
   role: string
@@ -818,7 +818,7 @@ interface TermDto {
 ```typescript
 interface CreateEffortDto {
   courseId: number
-  mothraId: string
+  personId: string
   sessionType: string
   role: string
   hours?: number

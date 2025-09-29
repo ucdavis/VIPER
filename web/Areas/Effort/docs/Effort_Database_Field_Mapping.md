@@ -20,17 +20,17 @@ This document details the transformation from the legacy Efforts database schema
 |-----------|------|-----------|------|----------|-----------|
 | `effort_ID` | `int IDENTITY(1,1)` | `Id` | `int IDENTITY(1,1)` | ✅ Name only | Simplified naming convention |
 | `effort_CourseID` | `int NOT NULL` | `CourseId` | `int NOT NULL` | ✅ Name only | Simplified naming convention |
-| `effort_MothraID` | `char(8) NOT NULL` | `MothraId` | `char(8) NOT NULL` | ⚠️ Type updated | Type updated for consistency |
+| `effort_MothraID` | `char(8) NOT NULL` | `PersonId` | `int NOT NULL` | 🔄 **Modernized** | **FK to [VIPER].[users].[Person] table** |
 | `effort_termCode` | `int NOT NULL` | `TermCode` | `int NOT NULL` | ✅ Name only | Simplified naming convention |
 | `effort_SessionType` | `char(3) NOT NULL` | `SessionType` | `varchar(3) NOT NULL` | 🔄 **Modernized** | **Type consistency with VIPER + FK to SessionTypes table** |
 | `effort_Role` | `char(1) NOT NULL` | `Role` | `int NOT NULL` | 🔄 **Modernized** | **Changed to INT with FK to Roles table** |
 | `effort_Hours` | `int NULL` | `Hours` | `int NULL` | ✅ Name only | Simplified naming convention |
 | `effort_Weeks` | `int NULL` | `Weeks` | `int NULL` | ✅ Name only | Simplified naming convention |
-| `effort_ClientID` | `char(9) NULL` | `ClientId` | `char(9) NULL` | ⚠️ Type updated | **UC Davis Student/Employee ID - maintains consistency** |
+| `effort_ClientID` | `char(9) NULL` | *(removed)* | *(none)* | 🔄 **Removed** | **Obsolete field - no longer used** |
 | `effort_CRN` | `char(5) NOT NULL` | `Crn` | `varchar(5) NOT NULL` | ⚠️ Type updated | Type consistency with VIPER + variable length efficiency |
 | *(none)* | *(none)* | `CreatedDate` | `datetime2(7) NOT NULL` | ➕ **New field** | Audit trail - record creation timestamp |
 | *(none)* | *(none)* | `ModifiedDate` | `datetime2(7) NOT NULL` | ➕ **New field** | Audit trail - last modification timestamp |
-| *(none)* | *(none)* | `ModifiedBy` | `char(8) NOT NULL` | ➕ **New field** | **Audit trail - MothraId of person who made the change** |
+| *(none)* | *(none)* | `ModifiedBy` | `int NOT NULL` | ➕ **New field** | **Audit trail - PersonId from [VIPER].[users].[Person]** |
 
 ### Key Changes Explained:
 
@@ -56,7 +56,7 @@ This document details the transformation from the legacy Efforts database schema
 
 | Old Field | Type | New Field | Type | Changed? | Rationale |
 |-----------|------|-----------|------|----------|-----------|
-| `person_MothraID` | `char(8) NOT NULL` | `MothraId` | `char(8) NOT NULL` | ⚠️ Type updated | Type consistency with VIPER |
+| `person_MothraID` | `char(8) NOT NULL` | `PersonId` | `int NOT NULL` | 🔄 **Modernized** | **FK to [VIPER].[users].[Person] table** |
 | `person_TermCode` | `int NOT NULL` | `TermCode` | `int NOT NULL` | ✅ Name only | Simplified naming convention |
 | `person_FirstName` | `varchar(50) NOT NULL` | `FirstName` | `varchar(50) NOT NULL` | ⚠️ Type updated | Type consistency with VIPER for international names |
 | `person_LastName` | `varchar(50) NOT NULL` | `LastName` | `varchar(50) NOT NULL` | ⚠️ Type updated | Type consistency with VIPER for international names |
@@ -67,7 +67,7 @@ This document details the transformation from the legacy Efforts database schema
 | `person_JobGrpID` | `char(3) NULL` | `JobGroupId` | `char(3) NULL` | ⚠️ Type updated | **Fixed 3-character job classification code - maintains consistency** |
 | `person_Title` | `varchar(255) NULL` | `Title` | `varchar(50) NULL` | ⚠️ Type + size | Type consistency with VIPER + reasonable size limit |
 | `person_AdminUnit` | `varchar(255) NULL` | `AdminUnit` | `varchar(25) NULL` | ⚠️ Type + size | Type consistency with VIPER + reasonable size limit |
-| `person_ClientID` | `varchar(9) NULL` | `ClientId` | `char(9) NULL` | ⚠️ Type updated | **UC Davis Student/Employee ID - maintains consistency + fixed length** |
+| `person_ClientID` | `varchar(9) NULL` | *(removed)* | *(none)* | 🔄 **Removed** | **Obsolete field - no longer used** |
 | `person_EffortVerified` | `datetime NULL` | `EffortVerified` | `datetime2(7) NULL` | ⚠️ Type updated | Higher precision datetime |
 | `person_ReportUnit` | `varchar(50) NULL` | `ReportUnit` | `varchar(50) NULL` | ⚠️ Type updated | Type consistency with VIPER |
 | `person_Volunteer_WOS` | `bit NULL` | `VolunteerWos` | `tinyint NULL` | ⚠️ Type updated | More explicit null handling |
@@ -113,6 +113,13 @@ This document details the transformation from the legacy Efforts database schema
 - **New**: `decimal(4,2)` for course units
 - **Why**: Academic units require precise decimal arithmetic (e.g., 3.5 units, 1.25 units)
 
+**🔑 Unique Constraint - Variable-Unit Course Support:**
+- **Constraint**: `UNIQUE (Crn, TermCode, Units)`
+- **Why**: The legacy system intentionally allows multiple course records with the same CRN and TermCode for different unit values
+- **Use Case**: Variable-unit courses (research, independent study, clinical rotations) where students can enroll for different credit amounts
+- **Example**: VME 299R (Graduate Research) might have separate records for 1 unit, 2 units, and 4 units in the same term
+- **Legacy Behavior**: All course queries in the legacy system include `course_units` in the WHERE clause to identify the specific course variant
+
 ---
 
 ## Table 4: tblPercent → [effort].[Percentages]
@@ -122,7 +129,7 @@ This document details the transformation from the legacy Efforts database schema
 | Old Field | Type | New Field | Type | Changed? | Rationale |
 |-----------|------|-----------|------|----------|-----------|
 | `percent_ID` | `int IDENTITY(1,1)` | `Id` | `int IDENTITY(1,1)` | ✅ Name only | Simplified naming convention |
-| `percent_MothraID` | `char(8) NOT NULL` | `MothraId` | `char(8) NOT NULL` | ⚠️ Type updated | Type consistency with VIPER |
+| `percent_MothraID` | `char(8) NOT NULL` | `PersonId` | `int NOT NULL` | 🔄 **Modernized** | **FK to [VIPER].[users].[Person] table** |
 | `percent_AcademicYear` | `char(9) NULL` | *(removed)* | *(none)* | 🔄 **Normalized** | **Redundant - derivable from TermCode** |
 | `percent_Percent` | `float NOT NULL` | `Percentage` | `decimal(5,2) NOT NULL` | 🔄 **Modernized** | **Precise decimal arithmetic for percentages** |
 | `percent_TypeID` | `int NOT NULL` | `EffortTypeId` | `int NOT NULL` | ✅ Name only | Clearer field name |
@@ -130,7 +137,7 @@ This document details the transformation from the legacy Efforts database schema
 | `percent_Modifier` | `varchar(50) NULL` | *(removed)* | *(none)* | 🔄 **Simplified** | **Unused field - eliminate complexity** |
 | `percent_Comment` | `varchar(100) NULL` | *(removed)* | *(none)* | 🔄 **Simplified** | **Moved to separate AdditionalQuestions table** |
 | `percent_modifiedOn` | `datetime NULL` | `ModifiedDate` | `datetime2(7) NOT NULL` | ⚠️ Type + nullability | Higher precision + required for audit trail |
-| `percent_modifiedBy` | `varchar(50) NULL` | `ModifiedBy` | `char(8) NOT NULL` | 🔄 **Modernized** | **Changed to MothraId + required for audit trail** |
+| `percent_modifiedBy` | `varchar(50) NULL` | `ModifiedBy` | `int NOT NULL` | 🔄 **Modernized** | **Changed to PersonId from [VIPER].[users].[Person]** |
 | `percent_start` | `datetime NULL` | `StartDate` | `datetime2(7) NOT NULL` | ⚠️ Type + nullability | Higher precision + clearer field name |
 | `percent_end` | `datetime NULL` | `EndDate` | `datetime2(7) NULL` | ⚠️ Type updated | Higher precision datetime |
 | `percent_compensated` | `bit NOT NULL` | *(removed)* | *(none)* | 🔄 **Simplified** | **Business rule no longer applicable** |
@@ -150,7 +157,39 @@ This document details the transformation from the legacy Efforts database schema
 
 ---
 
-## Table 5: tblStatus → [effort].[Terms]
+## Table 5: tblSabbatic → [effort].[Sabbaticals]
+
+**Purpose:** Faculty leave and sabbatical term exclusions
+
+| Old Field | Type | New Field | Type | Changed? | Rationale |
+|-----------|------|-----------|------|----------|-----------|
+| `sab_ID` | `int IDENTITY(1,1)` | `Id` | `int IDENTITY(1,1)` | ✅ Name only | Simplified naming convention |
+| `sab_MothraID` | `varchar(8) NOT NULL` | `PersonId` | `int NOT NULL` | 🔄 **Modernized** | **FK to [VIPER].[users].[Person] table** |
+| `sab_ExcludeClinTerms` | `varchar(2000) NULL` | `ExcludeClinicalTerms` | `varchar(2000) NULL` | ✅ Name only | Clearer field name |
+| `sab_ExcludeDidacticTerms` | `varchar(2000) NULL` | `ExcludeDidacticTerms` | `varchar(2000) NULL` | ✅ Name only | Clearer field name |
+| *(none)* | *(none)* | `CreatedDate` | `datetime2(7) NOT NULL` | ➕ **New field** | Audit trail - record creation timestamp |
+| *(none)* | *(none)* | `ModifiedDate` | `datetime2(7) NOT NULL` | ➕ **New field** | Audit trail - last modification timestamp |
+| *(none)* | *(none)* | `ModifiedBy` | `int NOT NULL` | ➕ **New field** | **Audit trail - PersonId from [VIPER].[users].[Person]** |
+
+### Key Changes Explained:
+
+**🔄 PersonId Integration:**
+- **Old**: `sab_MothraID` as varchar(8)
+- **New**: `PersonId` as int with FK to [VIPER].[users].[Person]
+- **Why**: Consistent user identification across VIPER systems
+
+**➕ Audit Fields:**
+- **New**: CreatedDate, ModifiedDate, ModifiedBy
+- **Why**: Track when and who modifies sabbatical records for compliance
+
+**Business Logic Notes:**
+- Stores comma-separated term codes for exclusions (preserved from legacy)
+- Critical for merit & promotion reports to exclude sabbatical terms from metrics
+- Used by multiple stored procedures for adjusted calculations
+
+---
+
+## Table 6: tblStatus → [effort].[Terms]
 
 **Purpose:** Term status and lifecycle management
 
@@ -261,7 +300,7 @@ This document details the transformation from the legacy Efforts database schema
 | `Action` | `varchar(10) NOT NULL` | INSERT, UPDATE, DELETE |
 | `OldValues` | `varchar(max) NULL` | JSON of old values |
 | `NewValues` | `varchar(max) NULL` | JSON of new values |
-| `ChangedBy` | `char(8) NOT NULL` | **MothraId of person who made the change** |
+| `ChangedBy` | `int NOT NULL` | **PersonId from [VIPER].[users].[Person]** |
 | `ChangedDate` | `datetime2(7) NOT NULL` | When change occurred |
 | `UserAgent` | `varchar(500) NULL` | Browser/client info |
 | `IpAddress` | `varchar(50) NULL` | IP address |
@@ -272,9 +311,9 @@ This document details the transformation from the legacy Efforts database schema
 
 ## Global Design Principles Applied
 
-### 1. **Type Consistency**
-- **Change**: Maintain `char`/`varchar` types throughout
-- **Rationale**: Consistent with existing VIPER database patterns
+### 1. **Type Consistency & Person Integration**
+- **Change**: Replace MothraId (char(8)) with PersonId (int) throughout
+- **Rationale**: Integration with existing [VIPER].[users].[Person] table for unified user management
 
 ### 2. **Precise Arithmetic**
 - **Change**: `float` → `decimal` for percentages and units

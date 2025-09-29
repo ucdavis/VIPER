@@ -31,13 +31,174 @@ This master plan outlines an agile, feature-driven migration strategy for transf
 
 ---
 
-## Agile Sprint Structure
+## Database Access Strategy - Hybrid Approach
 
-### Sprint Planning Overview
+### Overview
+The migration will use a **hybrid approach** optimized for performance and maintainability:
+- **Entity Framework with LINQ** will replace simple CRUD stored procedures (~37 SPs)
+- **Complex reporting SPs** will be migrated and modernized (~16 SPs)
+- **Unused procedures** will not be migrated (~30 SPs)
+- **Term Management**: Leverage existing VIPER vwTerms view for term data, create [effort].[TermStatus] for workflow tracking
+
+### Rationale
+- Simple CRUD operations: EF/LINQ provides better maintainability and type safety
+- Complex reporting: Stored procedures are 10-30x faster for aggregations with temp tables
+- Term data reuse: Avoid duplicating term reference data that already exists in VIPER
+- This approach balances modern development practices with proven performance
+
+### Term Management Strategy
+Instead of creating a duplicate [effort].[Terms] table, we will:
+1. **Use existing vwTerms** for term reference data (TermCode, Description, StartDate, EndDate, etc.)
+2. **Create [effort].[TermStatus]** table for Effort-specific workflow tracking:
+   - TermCode (PK, references vwTerms.TermCode)
+   - Status (Harvested/Opened/Closed)
+   - HarvestedDate, OpenedDate, ClosedDate
+   - ModifiedBy, ModifiedDate for audit trail
+3. **Benefits**:
+   - No duplication of term data
+   - Leverages existing VIPER infrastructure
+   - Maintains Effort-specific workflow tracking
+   - Better integration with other VIPER modules
+
+### Migration Approach by Category
+
+#### 1. CRUD Operations (37 SPs) → Entity Framework Repositories
+Replace with repository pattern and services:
+- **Term Management:** OpenTermAsync(), CloseTermAsync(), etc.
+- **Instructor Operations:** Standard CRUD via EF repositories
+- **Course Operations:** Standard CRUD via EF repositories
+- **Effort Operations:** Standard CRUD via EF repositories
+- **Benefits:** Type safety, easier testing, better maintainability
+
+#### 2. Complex Reporting (16 Active SPs) → Migrate & Modernize
+Keep as stored procedures but update to new schema:
+
+**Merit & Promotion Reports (6 SPs to migrate):**
+- `usp_getEffortReportMeritSummaryForLairmore` → `[effort].[sp_merit_summary_report]`
+- `usp_getEffortReportMeritSummary` → `[effort].[sp_merit_summary]`
+- `usp_getEffortReportMerit` → `[effort].[sp_merit_report]`
+- `usp_getEffortReportMeritMultiYearWithExcludeTerms` → `[effort].[sp_merit_multiyear]`
+- `usp_getEffortReportMeritAverage` → `[effort].[sp_merit_average]`
+- `usp_getEffortReportMeritWithClinPercent` → `[effort].[sp_merit_clinical_percent]`
+
+**Department Analysis (3 SPs to migrate):**
+- `usp_getEffortDeptActivityTotalWithExcludeTerms` → `[effort].[sp_dept_activity_summary]`
+- `usp_getDepartmentCountByJobGroupWithExcludeTerms` → `[effort].[sp_dept_job_group_count]`
+- `usp_getEffortReportDeptSummary` → `[effort].[sp_dept_summary]`
+
+**Instructor Reports (5 SPs to migrate):**
+- `usp_getEffortInstructorActivity` → `[effort].[sp_instructor_activity]`
+- `usp_getEffortInstructorActivityWithExcludeTerms` → `[effort].[sp_instructor_activity_exclude]`
+- `usp_getInstructorEvals` → `[effort].[sp_instructor_evals]`
+- `usp_getInstructorEvalsMultiYearWithExclude` → `[effort].[sp_instructor_evals_multiyear]`
+- `usp_getInstructorEvalsAverageWithExcludeTerms` → `[effort].[sp_instructor_evals_average]`
+
+**Other Reports (2 SPs to migrate):**
+- `usp_getEffortReport` → `[effort].[sp_effort_general_report]`
+- `usp_getZeroEffortInstructors` → `[effort].[sp_zero_effort_check]`
+
+**Benefits:** Proven performance (10-30x faster), maintains complex logic, optimized for large datasets
+
+#### 3. Service Layer Wrapper Pattern
+All stored procedures will be wrapped in service classes:
+```csharp
+public class MeritReportingService
+{
+    public async Task<List<MeritSummaryDto>> GetMeritSummaryAsync(string termCode, string dept)
+    {
+        return await _context.Set<MeritSummaryDto>()
+            .FromSqlRaw("EXEC effort.sp_merit_summary_report @p0, @p1", termCode, dept)
+            .ToListAsync();
+    }
+}
+```
+
+#### 4. Unused SPs (~30 SPs) - NOT MIGRATING
+Development artifacts and unused procedures will not be migrated
+
+### Migration Summary
+
+**Total Stored Procedures in Legacy System:** 83
+
+**Hybrid Approach - Best of Both Worlds:**
+- **Replace with EF Repositories:** ~37 CRUD operation SPs
+- **Migrate & Modernize:** 16 complex reporting SPs (for performance)
+- **Not Migrating (Unused):** ~30 development iterations and unused SPs
+
+**Key Benefits:**
+- **Performance:** Complex reports remain 10-30x faster with SPs
+- **Maintainability:** CRUD operations use modern EF patterns
+- **Type Safety:** Service layer provides strongly-typed interfaces
+- **Testability:** Repository pattern enables unit testing
+- **Proven Logic:** Critical reporting logic remains optimized
+
+### Migration Naming Convention
+| Old Name Pattern | New Name Pattern | Example |
+|-----------------|------------------|---------|
+| usp_get*Report* | sp_effort_* | usp_getEffortReportMeritSummaryForLairmore → sp_effort_merit_summary_report |
+| usp_insert/update/delete* | (Remove - use EF) | usp_insertInstructor → InstructorRepository.Add() |
+| WithExcludeTerms | _exclude | usp_getEffortInstructorActivityWithExcludeTerms → sp_effort_instructor_activity_exclude |
+
+---
+
+## Implementation Phases & Sprint Structure
+
+### Phase 1: Database Updates (Sprint 0 - Pre-Development)
+**Timeline:** Prior to Sprint 1 start
+**Focus:** Database preparation and schema migration
+
+#### Database Migration Decisions
+- [x] Validate table usage in codebase (COMPLETED)
+- [ ] Tables NOT to migrate (leave in legacy database):
+  - [ ] AdditionalQuestion (no references found)
+  - [ ] Months (no references found)
+  - [ ] Sheet1 (no references found)
+  - [ ] Workdays (no references found)
+  - [ ] tblReviewYears (referenced but appears unused)
+  - [ ] userAccess (disabled in UI, replaced by VIPER Application Approvers)
+- [ ] Tables TO MIGRATE to new schema:
+  - [ ] tblSabbatic → [effort].[Sabbaticals] (ACTIVELY USED for faculty leave tracking - critical for merit reports)
+  - [ ] tblEffort → [effort].[Records]
+  - [ ] tblPerson → [effort].[Persons]
+  - [ ] tblCourses → [effort].[Courses]
+  - [ ] tblPercent → [effort].[Percentages]
+  - [ ] tblStatus → [effort].[Terms]
+  - [ ] tblEffortType_LU → [effort].[EffortTypes]
+  - [ ] tblRoles → [effort].[Roles]
+- [ ] Create VIPER.effort schema in VIPER database
+- [ ] Migrate tables with PersonId integration to [VIPER].[users].[Person]
+- [ ] Rename tblEffortType_LU to PercentType
+- [ ] Create foreign key constraints and unique constraints
+- [ ] Replace MothraId with PersonId throughout (FK to [VIPER].[users].[Person])
+
+#### Stored Procedure Migration Preparation
+- [ ] Analyze and categorize all 83 stored procedures
+- [ ] Create migration script templates for reporting SPs
+- [ ] Document table/field name mappings for SP updates:
+  - tblEffort → [effort].[Records]
+  - effort_MothraID → PersonId
+  - tblPerson → [effort].[Persons]
+  - person_MothraID → PersonId
+  - tblSabbatic → [effort].[Sabbaticals]
+  - sab_MothraID → PersonId
+- [ ] Migrate helper functions to new schema:
+  - [ ] getFirstTermInYear - Converts year to first term code
+  - [ ] getLastTermInYear - Converts year to last term code
+- [ ] Create test harness for validating SP migrations
+- [ ] Identify SP dependencies on external databases (AAUD, Banner)
+
+#### Data Migration Requirements
+- [ ] Map effort_MothraID → PersonId (int FK to [VIPER].[users].[Person])
+- [ ] Map person_MothraID → PersonId (int FK to [VIPER].[users].[Person])
+- [ ] Map percent_MothraID → PersonId (int FK to [VIPER].[users].[Person])
+- [ ] Map ModifiedBy fields → PersonId references
+- [ ] Create repeatable migration scripts (RedGate or SQL scripts)
+
+### Agile Sprint Structure
 
 Each 2-week sprint delivers a complete, testable feature with database, API, and UI components. This vertical slicing approach enables continuous stakeholder feedback and reduces integration risk.
 
-## Sprint 1: Foundation & Core Data Model
+## Sprint 1: Foundation & Core Data Model (Phase 2)
 
 ### Objectives
 - Create Effort area in VIPER2 project structure
@@ -53,9 +214,9 @@ Each 2-week sprint delivers a complete, testable feature with database, API, and
 
 - [ ] **Core Data Models**
   - [ ] EffortTerm entity with status management
-  - [ ] EffortPerson entity with department relationships
+  - [ ] EffortPerson entity with PersonId FK to [VIPER].[users].[Person]
   - [ ] EffortCourse entity with enrollment tracking
-  - [ ] EffortRecord entity for effort assignments
+  - [ ] EffortRecord entity with PersonId references
 
 - [ ] **Database Infrastructure**
   - [ ] EffortDbContext configuration
@@ -72,10 +233,16 @@ Each 2-week sprint delivers a complete, testable feature with database, API, and
   - [ ] Basic navigation in VIPER2 structure
   - [ ] Quasar components integration
 
+- [ ] **Stored Procedure Replacements**
+  - [ ] Replace usp_getAllTerms with TermRepository.GetAllAsync()
+  - [ ] Replace usp_getTermByCode with TermRepository.GetByCodeAsync()
+  - [ ] Replace usp_getCurrentTerm with TermService.GetCurrentTermAsync()
+
 ### Success Criteria
 - ✅ Can view existing terms in the system
 - ✅ VIPER2 recognizes Effort area
 - ✅ Entity Framework successfully connects and queries
+- ✅ Basic CRUD SPs replaced with EF repositories
 
 ---
 
@@ -120,7 +287,7 @@ Each 2-week sprint delivers a complete, testable feature with database, API, and
 
 ---
 
-## Sprint 3: Instructor Management
+## Sprint 3: Core Operations - Instructors (Phase 3)
 
 ### Objectives
 - Enable comprehensive instructor data management
@@ -148,14 +315,22 @@ Each 2-week sprint delivers a complete, testable feature with database, API, and
   - [ ] InstructorDetail.vue showing effort history
   - [ ] Basic instructor editing interface
 
+- [ ] **Stored Procedure Replacements**
+  - [ ] Replace usp_insertInstructor with InstructorRepository.AddAsync()
+  - [ ] Replace usp_updateInstructor with InstructorRepository.UpdateAsync()
+  - [ ] Replace usp_deleteInstructor with InstructorRepository.DeleteAsync()
+  - [ ] Replace usp_getInstructorByID with InstructorRepository.GetByIdAsync()
+  - [ ] Replace usp_getInstructorsByDept with InstructorRepository.GetByDepartmentAsync()
+
 ### Success Criteria
 - ✅ View and manage instructor records by department
 - ✅ Role-based access working correctly
 - ✅ Basic instructor import functional
+- ✅ Instructor CRUD SPs replaced with EF repositories
 
 ---
 
-## Sprint 4: Course Management
+## Sprint 4: Core Operations - Courses & Relationships (Phase 3)
 
 ### Objectives
 - Complete course catalog management
@@ -185,7 +360,7 @@ Each 2-week sprint delivers a complete, testable feature with database, API, and
 
 ---
 
-## Sprint 5: Basic Effort Entry
+## Sprint 5: Basic Effort Entry (Phase 4)
 
 ### Objectives
 - Enable core effort recording functionality
@@ -215,49 +390,60 @@ Each 2-week sprint delivers a complete, testable feature with database, API, and
 
 ---
 
-## Sprint 6: Data Import - Phase 1
+## Sprint 6: Import Processes (Phase 5)
 
 ### Objectives
 - Automate course and instructor data synchronization
 - Implement comprehensive import validation
 - Support bulk data operations
+- Replace loop-based imports with efficient bulk operations
 
 ### Deliverables
-- [ ] **CREST Integration**
-  - [ ] Course session offering import
-  - [ ] Personnel data synchronization
-  - [ ] Import scheduling and automation
+- [ ] **CREST Integration Service**
+  - [ ] Course session offering import from CREST database
+  - [ ] Personnel data synchronization from AAUD
+  - [ ] Replace Import.cfm with .NET service
+  - [ ] Bulk insert operations (replace individual usp_createCourse calls)
 
-- [ ] **Import Validation**
-  - [ ] Data integrity checks
-  - [ ] Duplicate detection and resolution
-  - [ ] Error reporting and logging
+- [ ] **Clinical Scheduler Integration**
+  - [ ] Clinical rotation import service
+  - [ ] Replace importClinical.cfm with .NET service
+  - [ ] Weekly schedule synchronization
+  - [ ] Unmatched rotation handling
+
+- [ ] **Import Infrastructure**
+  - [ ] Staging tables for validation
+  - [ ] Bulk operations with EF Core
+  - [ ] Transaction rollback capability
+  - [ ] Import orchestration service
 
 - [ ] **Import UI**
   - [ ] Import status dashboard
   - [ ] Manual import triggers
-  - [ ] Import history and logs
+  - [ ] Import history and audit logs
+  - [ ] Validation error reporting
 
 ### Success Criteria
 - ✅ Import courses and instructors from external systems
 - ✅ Data validation prevents corruption
 - ✅ Import process is reliable and auditable
+- ✅ Bulk operations improve performance over legacy loop-based approach
 
 ---
 
 ## Remaining Sprints Summary
 
-**Sprint 7:** Effort Verification Workflow
+**Sprint 7: Effort Verification (Phase 6)**
 - Self-service verification portal
 - Email notifications and deadlines
 - Verification status tracking
 
-**Sprint 8:** Permission & Access Control
+**Sprint 8: Permission & Access Control**
 - RAPS integration and claims
 - Department-based restrictions
 - Role enforcement across all features
 
-**Sprint 9:** Percentage Assignments
+**Sprint 9: Percent Assignment (Phase 7)**
 - Admin/Clinical percentage allocation
 - Academic year tracking
 - Historical percentage management
@@ -267,20 +453,35 @@ Each 2-week sprint delivers a complete, testable feature with database, API, and
 - Guest instructor support
 - Additional questions and comments
 
-**Sprint 11:** Basic Reporting Suite
-- Instructor effort summary
-- Department reports
+**Sprint 11: Basic Reports with LINQ (Phase 8)**
+- Instructor effort summary reports
+- Department comparison reports
 - Zero effort validation
+- **Create Reporting Services:**
+  - `InstructorReportingService` with LINQ queries
+  - `DepartmentReportingService` with optimized queries
+  - Implement caching strategy for expensive reports
+  - Add performance monitoring
 
-**Sprint 12:** Clinical Integration
+**Sprint 12: Clinical Integration**
 - Clinical scheduler import
 - Clinical effort tracking
 - Volunteer and clinical percentages
+- **Clinical Reporting Services:**
+  - Clinical effort calculations using LINQ
+  - Integration with evaluation data
+  - Volunteer hour tracking
 
-**Sprint 13:** Advanced Reporting - Merit & Evaluation
-- Merit review reports
-- Multi-year analysis
-- Complex aggregations
+**Sprint 13: Merit and Promotion Multi-Year Reports (Phase 9)**
+- Merit review reports with sabbatical exclusions
+- Multi-year analysis spanning academic periods
+- Complex aggregations and comparisons
+- **Create MeritReportingService:**
+  - Implement complex merit calculations with LINQ
+  - Use compiled queries for performance
+  - Add sabbatical term exclusion logic
+  - Implement year-to-term conversions using TermCodeService
+  - Consider raw SQL for most complex aggregations if needed
 
 **Sprint 14:** Data Migration & Parallel Running
 - Historical data migration

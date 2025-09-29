@@ -177,21 +177,20 @@ public class EffortRecord
     public int Id { get; set; }
 
     public int CourseId { get; set; }
-    public string MothraId { get; set; } = null!;
+    public int PersonId { get; set; }  // FK to [VIPER].[users].[Person]
     public int TermCode { get; set; }
     public string SessionType { get; set; } = null!;
     public string Role { get; set; } = null!;
     public int? Hours { get; set; }
     public int? Weeks { get; set; }
-    public string? ClientId { get; set; }
     public string Crn { get; set; } = null!;
     public DateTime CreatedDate { get; set; }
     public DateTime ModifiedDate { get; set; }
-    public string ModifiedBy { get; set; } = null!;
+    public int ModifiedBy { get; set; }  // FK to [VIPER].[users].[Person]
 
     // Navigation properties
     public virtual EffortCourse Course { get; set; } = null!;
-    public virtual EffortPerson Person { get; set; } = null!;
+    public virtual Person Person { get; set; } = null!;  // From [VIPER].[users].[Person]
     public virtual EffortRole RoleNavigation { get; set; } = null!;
     public virtual ICollection<EffortAdditionalQuestion> AdditionalQuestions { get; set; } = new List<EffortAdditionalQuestion>();
 }
@@ -201,7 +200,7 @@ public class EffortRecord
 public class EffortPerson
 {
     [Key]
-    public string MothraId { get; set; } = null!;
+    public int PersonId { get; set; }  // FK to [VIPER].[users].[Person]
 
     [Key]
     public int TermCode { get; set; }
@@ -215,7 +214,6 @@ public class EffortPerson
     public string? JobGroupId { get; set; }
     public string? Title { get; set; }
     public string? AdminUnit { get; set; }
-    public string? ClientId { get; set; }
     public DateTime? EffortVerified { get; set; }
     public string? ReportUnit { get; set; }
     public byte? VolunteerWos { get; set; }
@@ -295,10 +293,11 @@ public class EffortDbContext : DbContext
             .OnDelete(DeleteBehavior.Restrict);
 
         // Configure unique constraints
+        // Note: Includes Units to support variable-unit courses (research, independent study)
         modelBuilder.Entity<EffortCourse>()
-            .HasIndex(c => new { c.Crn, c.TermCode })
+            .HasIndex(c => new { c.Crn, c.TermCode, c.Units })
             .IsUnique()
-            .HasDatabaseName("IX_EffortCourses_CRN_Term");
+            .HasDatabaseName("IX_EffortCourses_CRN_Term_Units");
 
         // Configure indexes for performance
         modelBuilder.Entity<EffortRecord>()
@@ -405,21 +404,23 @@ SELECT course_id, course_CRN, course_TermCode, course_SubjCode, course_CrseNumb,
        course_SeqNumb, course_Enrollment, course_Units, course_CustDept
 FROM [Effort].[dbo].[tblCourses];
 
--- Step 4: Migrate persons
-INSERT INTO [VIPER].[Effort].[EffortPersons] (MothraId, TermCode, FirstName, LastName, MiddleInitial,
+-- Step 4: Migrate persons (mapping MothraId to PersonId from VIPER.users.Person)
+INSERT INTO [VIPER].[Effort].[EffortPersons] (PersonId, TermCode, FirstName, LastName, MiddleInitial,
                                                EffortTitleCode, EffortDept, PercentAdmin, JobGroupId, Title,
-                                               AdminUnit, ClientId, EffortVerified, ReportUnit, VolunteerWos, PercentClinical)
-SELECT person_MothraID, person_TermCode, person_FirstName, person_LastName, person_MiddleIni,
-       person_EffortTitleCode, person_EffortDept, person_PercentAdmin, person_JobGrpID, person_Title,
-       person_AdminUnit, person_ClientID, person_EffortVerified, person_ReportUnit, person_Volunteer_WOS, person_PercentClinical
-FROM [Effort].[dbo].[tblPerson];
+                                               AdminUnit, EffortVerified, ReportUnit, VolunteerWos, PercentClinical)
+SELECT p.PersonId, ep.person_TermCode, ep.person_FirstName, ep.person_LastName, ep.person_MiddleIni,
+       ep.person_EffortTitleCode, ep.person_EffortDept, ep.person_PercentAdmin, ep.person_JobGrpID, ep.person_Title,
+       ep.person_AdminUnit, ep.person_EffortVerified, ep.person_ReportUnit, ep.person_Volunteer_WOS, ep.person_PercentClinical
+FROM [Effort].[dbo].[tblPerson] ep
+INNER JOIN [VIPER].[users].[Person] p ON ep.person_MothraID = p.MothraId;
 
--- Step 5: Migrate effort records
-INSERT INTO [VIPER].[Effort].[EffortRecords] (Id, CourseId, MothraId, TermCode, SessionType, Role, Hours, Weeks, ClientId, Crn, CreatedDate, ModifiedDate, ModifiedBy)
-SELECT effort_ID, effort_CourseID, effort_MothraID, effort_termCode, effort_SessionType, effort_Role,
-       effort_Hours, effort_Weeks, effort_ClientID, effort_CRN,
-       GETDATE(), GETDATE(), 'MIGRATION'
-FROM [Effort].[dbo].[tblEffort];
+-- Step 5: Migrate effort records (mapping MothraId to PersonId from VIPER.users.Person)
+INSERT INTO [VIPER].[Effort].[EffortRecords] (Id, CourseId, PersonId, TermCode, SessionType, Role, Hours, Weeks, Crn, CreatedDate, ModifiedDate, ModifiedBy)
+SELECT e.effort_ID, e.effort_CourseID, p.PersonId, e.effort_termCode, e.effort_SessionType, e.effort_Role,
+       e.effort_Hours, e.effort_Weeks, e.effort_CRN,
+       GETDATE(), GETDATE(), (SELECT PersonId FROM [VIPER].[users].[Person] WHERE MothraId = 'MIGRATION')
+FROM [Effort].[dbo].[tblEffort] e
+INNER JOIN [VIPER].[users].[Person] p ON e.effort_MothraID = p.MothraId;
 ```
 
 #### 2.2 Data Validation Scripts
@@ -667,10 +668,10 @@ public class ReportingService : IReportingService
         }
 
         var result = await query
-            .GroupBy(e => new { e.Person.MothraId, e.Person.LastName, e.Person.FirstName })
+            .GroupBy(e => new { e.Person.PersonId, e.Person.LastName, e.Person.FirstName })
             .Select(g => new InstructorMeritSummary
             {
-                MothraId = g.Key.MothraId,
+                PersonId = g.Key.PersonId,
                 LastName = g.Key.LastName,
                 FirstName = g.Key.FirstName,
                 TotalHours = g.Sum(e => e.Hours ?? 0),
@@ -795,6 +796,57 @@ else
 - **Rollback Time**: < 30 minutes if needed
 - **Validation**: All tests pass post-migration
 
+## Variable-Unit Course Support
+
+### Design Decision: Units in Unique Constraint
+
+**Decision**: Include `Units` field in the unique constraint for courses: `UNIQUE (Crn, TermCode, Units)`
+
+**Rationale**: The legacy Effort system intentionally supports variable-unit courses where the same course (CRN) in the same term can have multiple records with different unit values.
+
+### Use Cases for Variable-Unit Courses
+
+**Common Examples**:
+- **Research Courses**: VME 299R, VET 199R (students enroll for 1-4 units)
+- **Independent Study**: Course 192, 199, 299 (flexible credit amounts)
+- **Clinical Rotations**: Variable duration = variable units
+- **Thesis/Dissertation**: Students register for different unit amounts based on progress
+
+### Legacy System Behavior
+
+**All course queries in the legacy system include three fields**:
+1. `course_CRN`
+2. `course_TermCode`
+3. `course_units`
+
+**Example from legacy stored procedure `usp_createCourse`**:
+```sql
+IF NOT EXISTS
+    (SELECT Course_ID
+    FROM tblCourses
+    WHERE course_CRN = @CRN AND course_TermCode = @TermCode
+        AND course_Units = @Units)
+```
+
+**Migration data shows**: 6,719 course records would be falsely flagged as "duplicates" if we only used (CRN, TermCode) as the unique key.
+
+### Implementation in New Schema
+
+**Entity Framework Configuration**:
+```csharp
+modelBuilder.Entity<EffortCourse>()
+    .HasIndex(c => new { c.Crn, c.TermCode, c.Units })
+    .IsUnique()
+    .HasDatabaseName("IX_EffortCourses_CRN_Term_Units");
+```
+
+**SQL Schema Constraint**:
+```sql
+CONSTRAINT [UQ_Courses_CRN_TermCode_Units] UNIQUE ([Crn], [TermCode], [Units])
+```
+
+This preserves the legacy system's support for variable-unit courses while ensuring data integrity during migration.
+
 ---
 
 **Migration Approach**: Database consolidation with Entity Framework Code First
@@ -802,4 +854,4 @@ else
 **Implementation**: Agile sprint-based approach with incremental delivery
 **Dependencies**: VIPER2 environment setup, database access permissions
 **Integration**: Aligns with 16-sprint VIPER2 migration plan
-**Last Updated**: September 18, 2025 - Updated for agile sprint approach
+**Last Updated**: September 26, 2025 - Added variable-unit course support documentation

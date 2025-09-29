@@ -247,13 +247,13 @@ PRINT '=================================================='
 
 PRINT 'Migrating Persons...'
 INSERT INTO [effort].[Persons] (
-    MothraId, TermCode, FirstName, LastName, MiddleInitial,
+    PersonId, TermCode, FirstName, LastName, MiddleInitial,
     EffortTitleCode, EffortDept, PercentAdmin, JobGroupId, Title,
     AdminUnit, ClientId, EffortVerified, ReportUnit, VolunteerWos,
     PercentClinical, CreatedDate, ModifiedDate
 )
 SELECT
-    person_MothraID,
+    p.PersonId,  -- Map MothraID to PersonId from VIPER.users.Person
     person_TermCode,
     person_FirstName,
     person_LastName,
@@ -271,11 +271,12 @@ SELECT
     person_PercentClinical,
     GETDATE() as CreatedDate,
     GETDATE() as ModifiedDate
-FROM [Effort].[dbo].[tblPerson]
+FROM [Effort].[dbo].[tblPerson] ep
+INNER JOIN [VIPER].[users].[Person] p ON ep.person_MothraID = p.MothraId
 WHERE NOT EXISTS (
-    SELECT 1 FROM [effort].[Persons]
-    WHERE MothraId = person_MothraID
-      AND TermCode = person_TermCode
+    SELECT 1 FROM [effort].[Persons] per
+    WHERE per.PersonId = p.PersonId
+      AND per.TermCode = ep.person_TermCode
 );
 
 DECLARE @PersonCount INT = @@ROWCOUNT
@@ -294,27 +295,27 @@ PRINT '=================================================='
 
 PRINT 'Migrating Effort Records...'
 INSERT INTO [effort].[Records] (
-    Id, CourseId, MothraId, TermCode, SessionType, Role,
+    Id, CourseId, PersonId, TermCode, SessionType, Role,
     Hours, Weeks, ClientId, Crn, CreatedDate, ModifiedDate, ModifiedBy
 )
 SELECT
-    effort_ID,
-    effort_CourseID,
-    effort_MothraID,
+    e.effort_ID,
+    e.effort_CourseID,
+    p.PersonId,  -- Map MothraID to PersonId from VIPER.users.Person
     effort_termCode,
     effort_SessionType,
     effort_Role,
     effort_Hours,
     effort_Weeks,
-    effort_ClientID,
     effort_CRN,
     GETDATE() as CreatedDate,
     GETDATE() as ModifiedDate,
-    'DATA_MIGRATION' as ModifiedBy
-FROM [Effort].[dbo].[tblEffort]
+    (SELECT PersonId FROM [VIPER].[users].[Person] WHERE MothraId = 'DATAMIGR') as ModifiedBy  -- Use migration user PersonId
+FROM [Effort].[dbo].[tblEffort] e
+INNER JOIN [VIPER].[users].[Person] p ON e.effort_MothraID = p.MothraId
 WHERE NOT EXISTS (
-    SELECT 1 FROM [effort].[Records]
-    WHERE Id = effort_ID
+    SELECT 1 FROM [effort].[Records] r
+    WHERE r.Id = e.effort_ID
 );
 
 DECLARE @EffortCount INT = @@ROWCOUNT
@@ -335,12 +336,12 @@ PRINT 'Migrating Percentage Assignments...'
 IF EXISTS (SELECT * FROM [Effort].[INFORMATION_SCHEMA].[TABLES] WHERE TABLE_NAME = 'tblPercent')
 BEGIN
     INSERT INTO [effort].[Percentages] (
-        Id, MothraId, TermCode, EffortType, Percentage, Unit,
+        Id, PersonId, TermCode, EffortType, Percentage, Unit,
         StartDate, EndDate, CreatedDate, ModifiedDate
     )
     SELECT
         percent_ID,
-        percent_MothraID,
+        p.PersonId,  -- Map MothraID to PersonId from VIPER.users.Person
         percent_TermCode,
         percent_EffortType,
         percent_Percent,
@@ -349,21 +350,61 @@ BEGIN
         percent_EndDate,
         GETDATE() as CreatedDate,
         GETDATE() as ModifiedDate
-    FROM [Effort].[dbo].[tblPercent]
+    FROM [Effort].[dbo].[tblPercent] perc
+    INNER JOIN [VIPER].[users].[Person] p ON perc.percent_MothraID = p.MothraId
     WHERE NOT EXISTS (
         SELECT 1 FROM [effort].[Percentages]
-        WHERE Id = percent_ID
+        WHERE Id = perc.percent_ID
     );
 
     PRINT '✓ Migrated ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' percentage assignments'
 END
 
 -- =================================================================
--- SPRINT 14 STEP 7: ADDITIONAL DATA MIGRATION
+-- SPRINT 14 STEP 7: SABBATICAL DATA MIGRATION
 -- =================================================================
 
 PRINT '=================================================='
-PRINT 'SPRINT 14 STEP 7: ADDITIONAL DATA MIGRATION'
+PRINT 'SPRINT 14 STEP 7: SABBATICAL DATA MIGRATION'
+PRINT '=================================================='
+
+PRINT 'Migrating Sabbatical Records...'
+IF EXISTS (SELECT * FROM [Effort].[INFORMATION_SCHEMA].[TABLES] WHERE TABLE_NAME = 'tblSabbatic')
+BEGIN
+    INSERT INTO [effort].[Sabbaticals] (
+        PersonId, ExcludeClinicalTerms, ExcludeDidacticTerms,
+        CreatedDate, ModifiedDate, ModifiedBy
+    )
+    SELECT
+        p.PersonId,  -- Map MothraID to PersonId from VIPER.users.Person
+        sab.sab_ExcludeClinTerms,
+        sab.sab_ExcludeDidacticTerms,
+        GETDATE() as CreatedDate,
+        GETDATE() as ModifiedDate,
+        (SELECT PersonId FROM [VIPER].[users].[Person] WHERE MothraId = 'DATAMIGR') as ModifiedBy
+    FROM [Effort].[dbo].[tblSabbatic] sab
+    INNER JOIN [VIPER].[users].[Person] p ON sab.sab_MothraID = p.MothraId
+    WHERE NOT EXISTS (
+        SELECT 1 FROM [effort].[Sabbaticals] s
+        WHERE s.PersonId = p.PersonId
+    );
+
+    PRINT '✓ Migrated ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' sabbatical records'
+END
+ELSE
+BEGIN
+    PRINT 'tblSabbatic table not found - skipping sabbatical migration'
+END
+
+PRINT 'Sprint 14 Step 7 Complete: Sabbatical Data Migration'
+PRINT ''
+
+-- =================================================================
+-- SPRINT 14 STEP 8: ADDITIONAL DATA MIGRATION
+-- =================================================================
+
+PRINT '=================================================='
+PRINT 'SPRINT 14 STEP 8: ADDITIONAL DATA MIGRATION'
 PRINT '=================================================='
 
 -- Migrate Additional Questions
@@ -538,8 +579,8 @@ ELSE
 DECLARE @OrphanedPersons INT
 SELECT @OrphanedPersons = COUNT(*)
 FROM [effort].[Records] e
-LEFT JOIN [effort].[Persons] p ON e.MothraId = p.MothraId AND e.TermCode = p.TermCode
-WHERE p.MothraId IS NULL
+LEFT JOIN [effort].[Persons] p ON e.PersonId = p.PersonId AND e.TermCode = p.TermCode
+WHERE p.PersonId IS NULL
 
 IF @OrphanedPersons > 0
     PRINT 'WARNING: ' + CAST(@OrphanedPersons AS VARCHAR(10)) + ' effort records have missing persons'
