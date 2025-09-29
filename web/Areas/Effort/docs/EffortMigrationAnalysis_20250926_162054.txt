@@ -277,3 +277,47 @@ COURSES WITH BLANK CRN THAT CAN BE SKIPPED:
 
 CourseId: 44776, Term: 201210, Subject: DVM      , Units: 15, Dept: VMD
 
+
+
+=======================
+Suggested Remeditation
+=======================
+Busines Rules:
+	tblCourses - Key Values: CRN 83036 Term 201010 Units 15 (2 duplicates); CRN 53040 Term 201103 Units 15 (2 duplicates)
+		=> Update records to keep one course
+	tblPerson effortDept null/empty
+		=> Look up most recent effort dept for person and update
+		Procedure TBD
+		We should fix the import process so this doesn't happen if possible
+	course_CRN
+		=> create a CRN starting with 9
+
+tblEffort - effort hours < 0
+	=> Delete this record
+
+Unmapped Person:
+	=> DELETE
+		MothraID: #URL.Mot
+		MothraID: 00476734
+			Name: GRACE  BRANSFORD
+			
+	=> ADD PERSON
+		For these, we can add a fake user with mothraID VETGUEST and update records to point to VETGUEST
+		MothraID: UNKGuest
+		MothraID: VETGuest
+		MothraID: VMDOGues
+
+	=> ADD PERSON (if possible, probably not a lot of harm deleting these records)
+		MothraID: 00297319
+		  Name: IAIN A GRANT  
+		MothraID: 00352428
+		  Name: REGINA M SCHROEDER
+
+	=> UPDATE
+		Switch Karina's records to point to her other MothraId / PersonId
+		MothraID: 01655578
+		  Name: KARINA M SNAPP
+	  
+	  
+Blank CRNs
+	=> Create a CRN starting with 9, or remove course if no effort attached
