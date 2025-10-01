@@ -176,6 +176,8 @@ try
 
     // Enable detailed errors in non-production environments.
     void ConfigureDbContextOptions(DbContextOptionsBuilder options)
+
+    builder.Services.AddDbContext<VIPERContext>(opt =>
     {
         if (builder.Environment.EnvironmentName != "Production")
         {
@@ -186,8 +188,11 @@ try
     builder.Services.AddDbContext<AAUDContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<CoursesContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<RAPSContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<VIPERContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<ClinicalSchedulerContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<EquipmentLoanContext>();
+    builder.Services.AddDbContext<PPSContext>();
+    builder.Services.AddDbContext<IDCardsContext>();
+    builder.Services.AddDbContext<KeysContext>();
 
     // Clinical Scheduler services
     builder.Services.AddScoped<Viper.Areas.Curriculum.Services.TermCodeService>();
@@ -207,6 +212,9 @@ try
 
     // Register UserHelper service
     builder.Services.AddScoped<Viper.IUserHelper, Viper.UserHelper>();
+
+    // Add HttpClient support
+    builder.Services.AddHttpClient();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();

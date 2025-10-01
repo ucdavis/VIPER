@@ -12,7 +12,7 @@
 
     <title>@ViewData["Title"] - VIPER(2.0)</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    @if (HttpHelper.HttpContext != null && HttpHelper.HttpContext.Request.Path.ToString().ToLower().Contains("/directory"))
+    @if (HttpHelper.HttpContext != null && (HttpHelper.HttpContext.Request.Path.ToString().ToLower().Contains("/directory") || HttpHelper.HttpContext.Request.Path.ToString().ToLower().Contains("/userinfo")))
         {
         <text>
             <link rel="stylesheet" href="~/css/directory.css" asp-append-version="true" />
