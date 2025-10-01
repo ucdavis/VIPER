@@ -1,4 +1,4 @@
-﻿using Areas.CMS.Models;
+using Areas.CMS.Models;
 using Areas.CMS.Models.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -116,7 +116,7 @@ namespace Viper.Areas.CMS.Controllers
         [HttpGet("{collectionId}/tags")]
         public async Task<ActionResult<IEnumerable<LinkCollectionTagCategoryDto>>> GetLinkCollectionTagCategories(int collectionId)
         {
-            if (_context.LinkCollections.FirstOrDefault(lc => lc.LinkCollectionId == collectionId) == null)
+            if (await _context.LinkCollections.FirstOrDefaultAsync(lc => lc.LinkCollectionId == collectionId) == null)
             {
                 return NotFound();
             }
@@ -131,7 +131,7 @@ namespace Viper.Areas.CMS.Controllers
                 {
                     LinkCollectionTagCategoryId = c.LinkCollectionTagCategoryId,
                     LinkCollectionId = c.LinkCollectionId,
-                    LinkCollectionTagCategory= c.LinkCollectionTagCategoryName,
+                    LinkCollectionTagCategory = c.LinkCollectionTagCategoryName,
                     SortOrder = c.SortOrder
                 })
                 .ToList();
@@ -143,7 +143,7 @@ namespace Viper.Areas.CMS.Controllers
         [HttpPost("{collectionId}/tags")]
         public async Task<ActionResult<CreateLinkCollectionTagCategoryDto>> CreateLinkCollectionTagCategory(int collectionId, CreateLinkCollectionTagCategoryDto createLinkTagCategoryDto)
         {
-            if(_context.LinkCollections.FirstOrDefault(lc => lc.LinkCollectionId == collectionId) == null)
+            if (await _context.LinkCollections.FirstOrDefaultAsync(lc => lc.LinkCollectionId == collectionId) == null)
             {
                 return NotFound();
             }
@@ -168,10 +168,38 @@ namespace Viper.Areas.CMS.Controllers
         }
 
         [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
+        [HttpPut("{collectionId}/tags/order")]
+        public async Task<IActionResult> UpdateLinkCollectionTagCategoryOrder(int collectionId, List<UpdateLinkCollectionTagCategoryOrderDto> updateDto)
+        {
+            if (await _context.LinkCollections.FirstOrDefaultAsync(lc => lc.LinkCollectionId == collectionId) == null)
+            {
+                return NotFound();
+            }
+
+            var tagCategories = await _context.LinkCollectionTagCategories
+                .Where(tc => tc.LinkCollectionId == collectionId)
+                .ToListAsync();
+
+            if (tagCategories.Count != updateDto.Count)
+            {
+                return BadRequest("Mismatch in number of tag categories.");
+            }
+
+            foreach (var dto in updateDto)
+            {
+                var tagCategory = tagCategories.First(tc => tc.LinkCollectionTagCategoryId == dto.LinkCollectionTagCategoryId);
+                tagCategory.SortOrder = dto.SortOrder;
+            }
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
         [HttpDelete("{collectionId}/tags/{tagCategoryId}")]
         public async Task<IActionResult> DeleteLinkCollectionTagCategory(int collectionId, int tagCategoryId)
         {
-            if (_context.LinkCollections.FirstOrDefault(lc => lc.LinkCollectionId == collectionId) == null)
+            if (await _context.LinkCollections.FirstOrDefaultAsync(lc => lc.LinkCollectionId == collectionId) == null)
             {
                 return NotFound();
             }
