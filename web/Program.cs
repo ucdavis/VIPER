@@ -176,8 +176,6 @@ try
 
     // Enable detailed errors in non-production environments.
     void ConfigureDbContextOptions(DbContextOptionsBuilder options)
-
-    builder.Services.AddDbContext<VIPERContext>(opt =>
     {
         if (builder.Environment.EnvironmentName != "Production")
         {
@@ -185,14 +183,15 @@ try
         }
     }
 
+    builder.Services.AddDbContext<VIPERContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<AAUDContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<CoursesContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<RAPSContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<ClinicalSchedulerContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<EquipmentLoanContext>();
-    builder.Services.AddDbContext<PPSContext>();
-    builder.Services.AddDbContext<IDCardsContext>();
-    builder.Services.AddDbContext<KeysContext>();
+    builder.Services.AddDbContext<EquipmentLoanContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<PPSContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<IDCardsContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<KeysContext>(ConfigureDbContextOptions);
 
     // Clinical Scheduler services
     builder.Services.AddScoped<Viper.Areas.Curriculum.Services.TermCodeService>();
