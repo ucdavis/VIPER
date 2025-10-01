@@ -167,9 +167,6 @@ try
     });
 
 
-    builder.Services.AddDbContext<AAUDContext>();
-    builder.Services.AddDbContext<CoursesContext>();
-    builder.Services.AddDbContext<RAPSContext>();
     builder.Services.AddDbContext<VIPERContext>(opt =>
     {
         if (builder.Environment.EnvironmentName != "Production")
@@ -177,6 +174,16 @@ try
             opt.EnableDetailedErrors(true);
         }
     });
+    builder.Services.AddDbContext<AAUDContext>();
+    builder.Services.AddDbContext<CoursesContext>();
+    builder.Services.AddDbContext<RAPSContext>();
+    builder.Services.AddDbContext<EquipmentLoanContext>();
+    builder.Services.AddDbContext<PPSContext>();
+    builder.Services.AddDbContext<IDCardsContext>();
+    builder.Services.AddDbContext<KeysContext>();
+
+    // Add HttpClient support
+    builder.Services.AddHttpClient();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();

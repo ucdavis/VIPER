@@ -98,3 +98,175 @@
     .directory .top_button:hover {
         color: #fff;
     }
+.userinfo div, .userinfo ul, .userinfo p, .userinfo h1, .userinfo h2, .userinfo h3, .userinfo h4 {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.userinfo {
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 11pt;
+    color: #212529;
+}
+
+    .userinfo h1, .userinfo h2, .userinfo h3, .userinfo h4, .userinfo h5 {
+        font-weight: bold;
+        color: #212529;
+        margin-top: 1rem;
+    }
+
+        .userinfo h1 a, .userinfo h2 a, .userinfo h1 a:visited, .userinfo h2 a:visited {
+            color: #1864ab;
+            text-decoration: underline #adb5bd;
+        }
+
+            .userinfo h1 a:hover, .userinfo h2 a:hover {
+                color: #1864ab;
+                text-decoration: underline;
+            }
+
+        .userinfo h1:first-child, .userinfo h2:first-child, .userinfo h3:first-child, .userinfo h4:first-child, .userinfo h5:first-child {
+            margin-top: 0;
+        }
+
+    .userinfo h2 {
+        font-size: 16pt;
+        font-weight: bold;
+    }
+
+    .userinfo h3 {
+        font-size: 13pt;
+        font-weight: bold;
+    }
+
+    .userinfo p.note {
+        color: #495057;
+        font-size: 10pt;
+        font-style: italic;
+        margin: 0.5rem 0 1rem 0;
+    }
+
+    .userinfo div + div {
+        margin-top: 1em;
+        padding-top: 1em;
+        border-top: 1px solid #888;
+    }
+
+.direct {
+    position: relative;
+    min-height: 17rem;
+}
+
+    .direct span.photo {
+        position: absolute;
+        top: 3rem;
+        left: 25rem;
+    }
+
+    .direct span.photo2 {
+        position: absolute;
+        top: 10.5rem;
+        left: 25rem;
+    }
+
+    .direct ul {
+        width: 23rem;
+    }
+
+.userinfo table {
+    width: 75%;
+    min-width: 40rem;
+}
+
+    .userinfo table thead {
+        background-color: #495057;
+        color: #f8f9fa;
+        font-weight: bold;
+    }
+
+    .userinfo table th {
+        text-align: center;
+        padding: 0.2rem;
+    }
+
+    .userinfo table td {
+        text-align: center;
+        padding: 0.2rem;
+    }
+
+        .userinfo table td:first-child {
+            text-align: left;
+        }
+
+        .userinfo table td.center {
+            text-align: center;
+        }
+
+        .userinfo table td.just {
+            text-align: left;
+        }
+
+.userinfo .roles table {
+    width: 100%;
+}
+
+.userinfo .roles td {
+    text-align: left;
+    width: 20%;
+    min-width: 20%;
+    max-width: 20%;
+}
+
+.userinfo table tbody tr:nth-child(odd) {
+    background-color: #f1f3f5;
+}
+
+.userinfo ul + ul {
+    margin-top: 0.5rem;
+}
+
+.userinfo ul li {
+    padding: 0.2rem;
+    margin-left: -0.2rem;
+}
+
+    .userinfo ul li:nth-child(odd) {
+        background-color: #f1f3f5;
+    }
+
+    .userinfo ul li ul li {
+        padding-left: -0.2rem;
+        margin-left: 2.2rem;
+    }
+
+    .userinfo ul li:nth-child(odd) ul li:nth-child(odd) {
+        background-color: #fff;
+    }
+
+    .userinfo ul li:nth-child(odd) ul li:nth-child(even) {
+        background-color: #f1f3f5;
+    }
+
+    .userinfo ul li:nth-child(even) ul li:nth-child(even) {
+        background-color: #fff;
+    }
+
+    .userinfo ul li:nth-child(even) ul li:nth-child(odd) {
+        background-color: #f1f3f5;
+    }
+
+.userinfo .closed {
+    display: none;
+}
+
+.userinfo .disclose {
+    cursor: pointer;
+    font-size: 10pt;
+    color: #4dabf7;
+    user-select: none;
+    -moz-user-select: none;
+    -khtml-user-select: none;
+    -webkit-user-select: none;
+    -o-user-select: none;
+}
