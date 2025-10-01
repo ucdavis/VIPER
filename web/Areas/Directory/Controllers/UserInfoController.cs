@@ -11,134 +11,138 @@ using System.Runtime.Versioning;
 using System.Collections.Generic;
 using Viper.Areas.Directory.Services;
 using Viper.Classes.Utilities;
-using Newtonsoft.Json.Linq;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Viper.Areas.Directory.Controllers
 {
-    [Area("userinfo")]
+    [Area("Directory")]
     [Permission(Allow = "SVMSecure")]
-    [Authorize(Roles = "VMDO SVM-IT")] 
     public class UserInfoController : AreaController
     {
         public Classes.SQLContext.AAUDContext _aaud;
-        public Models.DirectoryUser User;
-        private readonly RAPSContext? _rapsContext;
+        private UserInfoService _userInfo;
         public IUserHelper UserHelper;
+        private readonly RAPSContext _rapsContext;
 
-        public UserInfoController(Classes.SQLContext.RAPSContext context)
+        public UserInfoController(RAPSContext rapsContext)
         {
             _aaud = new AAUDContext();
-            this._rapsContext = (RAPSContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(RAPSContext));
+            _rapsContext = rapsContext;
             UserHelper = new UserHelper();
+            
+            // Manually instantiate UserInfoService following project pattern
+            var aaudContext = new AAUDContext();
+            var coursesContext = new CoursesContext();
+            var equipmentLoanContext = new EquipmentLoanContext();
+            var ppsContext = new PPSContext();
+            var idCardsContext = new IDCardsContext();
+            var keysContext = new KeysContext();
+            
+            // Get services from DI container
+            var httpClientFactory = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IHttpClientFactory)) as IHttpClientFactory;
+            var memoryCache = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IMemoryCache)) as IMemoryCache;
+            var configuration = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IConfiguration)) as IConfiguration;
+            
+            _userInfo = new UserInfoService(
+                aaudContext,
+                rapsContext,
+                coursesContext,
+                equipmentLoanContext,
+                ppsContext,
+                idCardsContext,
+                keysContext,
+                configuration!,
+                httpClientFactory!,
+                memoryCache!
+            );
         }
 
         /// <summary>
         /// Redirect if we don't have a mothraID
         /// </summary>
-        [Route("/[area]/")]
-        public async Task<ActionResult> Index()
+        [Route("/userinfo/")]
+        public ActionResult Index()
         {
-            return await Task.Run<ActionResult>(() => Redirect(string.Format("~/directory")));
+            return Redirect("/Directory");
+        }
+
+        /// <summary>
+        /// UserInfo Page
+        /// </summary>
+        /// <param name="id">MothraID</param>
+        /// <returns></returns>
+        [Route("/userinfo/{mothraID}")]
+        public async Task<ActionResult> UserInfo(string? mothraID)
+        {
+            // Validate required parameters
+            if (string.IsNullOrWhiteSpace(mothraID))
+            {
+                return Redirect("/Directory");
+            }
+            else
+            {
+                // Check if user is viewing their own page
+                var currentUser = UserHelper.GetCurrentUser();
+                bool ownPage = mothraID == currentUser.MothraId;
+                var individual = await _aaud.AaudUsers.Where(u => (u.MothraId == mothraID)).FirstOrDefaultAsync();
+                string? iamId = null;
+                if (individual != null) iamId = individual.IamId;
+
+                // Get user information
+                var userInfo = await _userInfo.GetUserInfoAsync(iamId, mothraID);
+                if (userInfo == null)
+                {
+                    return Redirect("/Directory");
+                }
+
+                // Set permissions for the view
+                userInfo.CanViewDirectoryDetail = ownPage || UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryDetail");
+                userInfo.CanViewStudentID = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.studentID");
+                userInfo.CanViewIAM = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.iam");
+                userInfo.CanViewRoles = ownPage || UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.raps");
+                userInfo.CanViewUCPath = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryUCPathInfo");
+                userInfo.CanViewUCPathDetail = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryUCPathInfoAllDetail");
+                userInfo.CanViewIDCards = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.idcards");
+                userInfo.CanViewKeys = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.keys");
+                userInfo.CanViewLoans = ownPage || UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.loans");
+                userInfo.CanViewInstinct = ownPage || UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.instinct");
+                userInfo.CanViewADGroups = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.ADGroups");
+
+                /*
+                userInfo.CanViewDirectoryDetail = true;
+                userInfo.CanViewStudentID = true;
+                userInfo.CanViewIAM = true;
+                userInfo.CanViewRoles = true;
+                userInfo.CanViewUCPath = true;
+                userInfo.CanViewUCPathDetail = true;
+                userInfo.CanViewIDCards = true;
+                userInfo.CanViewKeys = true;
+                userInfo.CanViewLoans = true;
+                userInfo.CanViewInstinct = true;
+                userInfo.CanViewADGroups = true;
+                */
+
+                return View("~/Areas/Directory/Views/UserInfo.cshtml", userInfo);
+            }
+        }
+
+        /// <summary>
+        /// Get user photo, stubbed for now
+        /// </summary>
+        /// <param name="mailID">Mail ID</param>
+        /// <param name="altphoto">Use alternative photo</param>
+        /// <returns></returns>
+        [Route("/userPhoto")]
+        public async Task<ActionResult> UserPhoto(string mailID, bool altphoto = false)
+        {
+            return NotFound();
         }
 
         [Route("/[area]/nav")]
         public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav()
         {
-            var nav = new List<NavMenuItem>
-            {
-            };
+            var nav = new List<NavMenuItem>();
             return await Task.Run(() => nav);
-        }
-
-
-        /// <summary>
-        /// UserInfo Page
-        /// </summary>
-        /// <param name="MothraID">MothraID</param>
-        /// <returns></returns>
-        [SupportedOSPlatform("windows")]
-        [Route("/[area]/{MothraID}")]
-        public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> Get(string MothraID)
-        {
-            // Validate MothraID
-            /*
-            var individuals = await _aaud.AaudUsers
-                     .Where(u => (u.DisplayFirstName + " " + u.DisplayLastName).Contains(search)
-                         || (u.MailId != null && u.MailId.Contains(search))
-                         || (u.LoginId != null && u.LoginId.Contains(search))
-                         || (u.SpridenId != null && u.SpridenId.Contains(search))
-                         || (u.Pidm != null && u.Pidm.Contains(search))
-                         || (u.MothraId != null && u.MothraId.Contains(search))
-                         || (u.EmployeeId != null && u.EmployeeId.Contains(search))
-                         || (u.IamId != null && u.IamId.Contains(search))
-            )
-            .Where(u => u.Current != 0)
-            .OrderBy(u => u.DisplayLastName)
-            .ThenBy(u => u.DisplayFirstName)
-                     .ToListAsync();
-            List<IndividualSearchResult> results = new();
-            AaudUser? currentUser = UserHelper.GetCurrentUser();
-            bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
-            individuals.ForEach(m =>
-            {
-                LdapUserContact? l = new LdapService().GetUserByID(m.IamId);
-                results.Add(hasDetailPermission
-                    ? new IndividualSearchResultWithIDs(m, l)
-                    : new IndividualSearchResult(m, l));
-
-                var vmsearch = VMACSService.Search(results.Last().LoginId);
-                var vm = vmsearch.Result;
-                if (vm != null && vm.item != null && vm.item.Nextel != null) results.Last().Nextel = vm.item.Nextel[0];
-                if (vm != null && vm.item != null && vm.item.LDPager != null) results.Last().LDPager = vm.item.LDPager[0];
-                if (vm != null && vm.item != null && vm.item.Unit != null) results.Last().Department = vm.item.Unit[0];
-
-            });
-            return results;
-        }
-
-        /// <summary>
-        /// Directory list
-        /// </summary>
-        /// <param name="search">search string</param>
-        /// <returns></returns>
-        [SupportedOSPlatform("windows")]
-        [Route("/[area]/search/{search}/ucd")]
-        public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> GetUCD(string search)
-        {
-            List<IndividualSearchResult> results = new();
-            List<LdapUserContact> ldap = LdapService.GetUsersContact(search);
-            var individuals = await _aaud.AaudUsers
-                    .Where(u => (u.DisplayFirstName + " " + u.DisplayLastName).Contains(search)
-                        || (u.MailId != null && u.MailId.Contains(search))
-                        || (u.LoginId != null && u.LoginId.Contains(search))
-                        || (u.SpridenId != null && u.SpridenId.Contains(search))
-                        || (u.Pidm != null && u.Pidm.Contains(search))
-                        || (u.MothraId != null && u.MothraId.Contains(search))
-                        || (u.EmployeeId != null && u.EmployeeId.Contains(search))
-                        || (u.IamId != null && u.IamId.Contains(search))
-           )
-           .Where(u => u.Current != 0)
-           .OrderBy(u => u.DisplayLastName)
-           .ThenBy(u => u.DisplayFirstName)
-                    .ToListAsync();
-            AaudUser? currentUser = UserHelper.GetCurrentUser();
-            bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
-            foreach (var l in ldap)
-            {
-                AaudUser? userInfo = individuals.Find(m => m.IamId == l.IamId);
-                results.Add(hasDetailPermission
-                    ? new IndividualSearchResultWithIDs(userInfo, l)
-                    : new IndividualSearchResult(userInfo, l));
-
-                var vmsearch = VMACSService.Search(results.Last().LoginId);
-                var vm = vmsearch.Result;
-                if (vm != null && vm.item != null && vm.item.Nextel != null) results.Last().Nextel = vm.item.Nextel[0];
-                if (vm != null && vm.item != null && vm.item.LDPager != null) results.Last().LDPager = vm.item.LDPager[0];
-                if (vm != null && vm.item != null && vm.item.Unit != null) results.Last().Department = vm.item.Unit[0];
-            };
-            */
-            UserInfoResult u = new UserInfoResult();
-            return await Task.Run(() => View("~/Areas/Directory/Views/UserInfo.cshtml", u));
         }
     }
 }

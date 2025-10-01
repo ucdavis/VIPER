@@ -285,6 +285,14 @@ public partial class PPSContext : DbContext
 
     public virtual DbSet<VwUserinfoUser> VwUserinfoUsers { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (HttpHelper.Settings != null)
+        {
+            optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:PPS"]);
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AbsenceCalendarDV>(entity =>
