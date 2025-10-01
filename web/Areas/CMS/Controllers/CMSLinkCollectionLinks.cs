@@ -1,9 +1,7 @@
-﻿using Areas.CMS.Models;
+using Areas.CMS.Models;
 using Areas.CMS.Models.DTOs;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Polly;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
@@ -21,9 +19,9 @@ namespace Viper.Areas.CMS.Controllers
         }
 
         [HttpGet("{collectionId}/links")]
-        public async Task<ActionResult<IEnumerable<LinkDto>>> GetLinks(int collectionId)
+        public async Task<ActionResult<IEnumerable<LinkDto>>> GetLinks(int collectionId, string? groupByTagCategory = null)
         {
-            if (_context.LinkCollections.FirstOrDefault(lc => lc.LinkCollectionId == collectionId) == null)
+            if (await _context.LinkCollections.FirstOrDefaultAsync(lc => lc.LinkCollectionId == collectionId) == null)
             {
                 return NotFound();
             }
@@ -54,6 +52,40 @@ namespace Viper.Areas.CMS.Controllers
                 }).ToList()
             });
 
+            if (!string.IsNullOrEmpty(groupByTagCategory))
+            {
+                var tagCategories = await _context.LinkCollectionTagCategories
+                    .Where(tc => tc.LinkCollectionId == collectionId)
+                    .Where(tc => tc.LinkCollectionTagCategoryName.ToLower() == groupByTagCategory.ToLower())
+                    .FirstOrDefaultAsync();
+                if (tagCategories == null)
+                {
+                    return BadRequest("Invalid tag category to group by.");
+                }
+
+                var allValues = await _context.LinkTags
+                    .Where(lt => lt.LinkCollectionTagCategoryId == tagCategories.LinkCollectionTagCategoryId)
+                    .Select(lt => lt.Value)
+                    .Distinct()
+                    .ToListAsync();
+
+                var orderedGroupedResult = new List<LinkDto>();
+                var added = new HashSet<int>();
+                foreach (var v in allValues)
+                {
+                    foreach (var r in result)
+                    {
+                        if (r.LinkTags.Any(lt => lt.Value == v && lt.LinkCollectionTagCategoryId == tagCategories.LinkCollectionTagCategoryId) && !added.Contains(r.LinkId))
+                        {
+                            added.Add(r.LinkId);
+                            orderedGroupedResult.Add(r);
+                        }
+                    }
+                }
+
+                return Ok(orderedGroupedResult);
+            }
+
             return Ok(result);
         }
 
@@ -61,7 +93,7 @@ namespace Viper.Areas.CMS.Controllers
         [HttpPost("{collectionId}/links")]
         public async Task<ActionResult<LinkDto>> PostLink(int collectionId, CreateLinkDto createDto)
         {
-            if(collectionId != createDto.LinkCollectionId)
+            if (collectionId != createDto.LinkCollectionId)
             {
                 return BadRequest();
             }
@@ -137,6 +169,36 @@ namespace Viper.Areas.CMS.Controllers
             return NoContent();
         }
 
+        [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
+        [HttpPut("{collectionId}/links-order")]
+        public async Task<IActionResult> UpdateLinkOrder(int collectionId, List<UpdateLinkOrderDto> updateDto)
+        {
+            var linkCollection = await _context.LinkCollections.FindAsync(collectionId);
+            if (linkCollection == null)
+            {
+                return NotFound();
+            }
+
+            var links = await _context.Links
+                .Where(l => l.LinkCollectionId == collectionId)
+                .ToListAsync();
+
+            if (links.Count != updateDto.Count)
+            {
+                return BadRequest("One or more LinkIds are invalid.");
+            }
+
+            foreach (var li in updateDto)
+            {
+                var link = links.First(l => l.LinkId == li.LinkId);
+                link.SortOrder = li.SortOrder;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
         //Tags:
         [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
         [HttpPut("{collectionId}/links/{linkId}/tags")]
@@ -159,9 +221,9 @@ namespace Viper.Areas.CMS.Controllers
                 .Select(tc => tc.LinkCollectionTagCategoryId)
                 .ToListAsync();
 
-            foreach(var key in tagValues.Keys)
+            foreach (var key in tagValues.Keys)
             {
-                if(!tagCategories.Contains(key))
+                if (!tagCategories.Contains(key))
                 {
                     return BadRequest("Invalid tag category id");
                 }
@@ -174,7 +236,7 @@ namespace Viper.Areas.CMS.Controllers
 
             int i = 1;
             List<LinkTag> tagsAdded = new List<LinkTag>();
-            foreach(var tcId in tagCategories)
+            foreach (var tcId in tagCategories)
             {
                 if (tagValues.ContainsKey(tcId))
                 {
