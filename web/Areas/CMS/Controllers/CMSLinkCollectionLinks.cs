@@ -27,7 +27,7 @@ namespace Viper.Areas.CMS.Controllers
             }
 
             var links = await _context.Links
-                .Include(l => l.LinkTags.OrderBy(lt => lt.SortOrder))
+                .Include(l => l.LinkTags.OrderBy(lt => lt.LinkCollectionTagCategory.SortOrder).ThenBy(lt => lt.SortOrder).ThenBy(lt => lt.Value))
                     .ThenInclude(lt => lt.LinkCollectionTagCategory)
                 .Where(l => l.LinkCollectionId == collectionId)
                 .OrderBy(l => l.SortOrder)
@@ -49,7 +49,7 @@ namespace Viper.Areas.CMS.Controllers
                     SortOrder = lt.SortOrder,
                     Value = lt.Value,
                     CategoryName = lt.LinkCollectionTagCategory.LinkCollectionTagCategoryName
-                }).ToList()
+                }).OrderBy(lt => lt.Value).ToList()
             });
 
             if (!string.IsNullOrEmpty(groupByTagCategory))

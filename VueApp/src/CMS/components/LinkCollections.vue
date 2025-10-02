@@ -159,6 +159,10 @@ function loadFilters() {
                 }
             }
         }
+        for (var tf of tagFilters.value) {
+            tf.options = tf.options.sort()
+        }
+
         for (var tagOptions of tagFilters.value) {
             tagOptions.options = [...new Set(tagOptions.options)]
             if (props.groupByTagCategory != null && props.groupByTagCategory == tagOptions.linkCollectionTagCategory) {
