@@ -56,6 +56,11 @@ interface GalleryMenu {
     }[]
 }
 
+interface ClassYear {
+    year: number
+    classLevel: string
+}
+
 class PhotoGalleryService {
     private baseUrl = `${import.meta.env.VITE_API_URL}students/photos`
 
@@ -114,6 +119,12 @@ class PhotoGalleryService {
         return response.result as StudentPhoto[]
     }
 
+    getClassYears = async (): Promise<ClassYear[]> => {
+        const { get } = useFetch()
+        const response = await get(`${this.baseUrl}/metadata/classyears`)
+        return response.result as ClassYear[]
+    }
+
     downloadFile = (blob: Blob, filename: string): void => {
         const url = globalThis.URL.createObjectURL(blob)
         const link = document.createElement("a")
@@ -129,4 +140,12 @@ class PhotoGalleryService {
 const photoGalleryService = new PhotoGalleryService()
 
 export { photoGalleryService }
-export type { StudentPhoto, PhotoGalleryViewModel, GroupingInfo, ExportOptions, PhotoExportRequest, GalleryMenu }
+export type {
+    StudentPhoto,
+    PhotoGalleryViewModel,
+    GroupingInfo,
+    ExportOptions,
+    PhotoExportRequest,
+    GalleryMenu,
+    ClassYear,
+}
