@@ -192,6 +192,7 @@ try
     builder.Services.AddDbContext<PPSContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<IDCardsContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<KeysContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<SISContext>(ConfigureDbContextOptions);
 
     // Clinical Scheduler services
     builder.Services.AddScoped<Viper.Areas.Curriculum.Services.TermCodeService>();
@@ -214,6 +215,11 @@ try
 
     // Add HttpClient support
     builder.Services.AddHttpClient();
+
+    // Photo Gallery services
+    builder.Services.AddScoped<Viper.Areas.Students.Services.IPhotoService, Viper.Areas.Students.Services.PhotoService>();
+    builder.Services.AddScoped<Viper.Areas.Students.Services.IStudentGroupService, Viper.Areas.Students.Services.StudentGroupService>();
+    builder.Services.AddScoped<Viper.Areas.Students.Services.IPhotoExportService, Viper.Areas.Students.Services.PhotoExportService>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
