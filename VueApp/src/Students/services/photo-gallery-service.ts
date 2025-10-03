@@ -57,7 +57,7 @@ interface GalleryMenu {
 }
 
 class PhotoGalleryService {
-    private baseUrl = "/api/students/photos"
+    private baseUrl = `${import.meta.env.VITE_API_URL}students/photos`
 
     getClassGallery = async (classLevel: string, includeRossStudents = false): Promise<PhotoGalleryViewModel> => {
         const { get } = useFetch()

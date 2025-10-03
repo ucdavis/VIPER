@@ -416,7 +416,7 @@ function loadFromUrlParams() {
 
 async function fetchClassYears() {
     try {
-        const response = await fetch("/api/students/photos/metadata/classyears")
+        const response = await fetch(`${import.meta.env.VITE_API_URL}students/photos/metadata/classyears`)
         if (response.ok) {
             classYears.value = await response.json()
         }
