@@ -236,6 +236,8 @@ import { ref, computed, onMounted, watch, nextTick } from "vue"
 import { useQuasar } from "quasar"
 import { useRoute, useRouter } from "vue-router"
 import { usePhotoGalleryStore } from "../stores/photo-gallery-store"
+import { photoGalleryService } from "../services/photo-gallery-service"
+import type { ClassYear } from "../services/photo-gallery-service"
 import PhotoGrid from "../components/PhotoGallery/PhotoGrid.vue"
 import PhotoList from "../components/PhotoGallery/PhotoList.vue"
 import PhotoSheet from "../components/PhotoGallery/PhotoSheet.vue"
@@ -249,7 +251,7 @@ const selectedClassLevel = ref<string | null>(null)
 const selectedGroupType = ref<string | null>(null)
 const selectedGroup = ref<string | null>(null)
 
-const classYears = ref<Array<{ year: number; classLevel: string }>>([])
+const classYears = ref<ClassYear[]>([])
 
 const classLevelOptions = computed(() => [
     { label: "Select Class Year", value: null },
@@ -416,10 +418,11 @@ function loadFromUrlParams() {
 
 async function fetchClassYears() {
     try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}students/photos/metadata/classyears`)
-        if (response.ok) {
-            classYears.value = await response.json()
+        const years = await photoGalleryService.getClassYears()
+        if (!Array.isArray(years)) {
+            throw new Error("Invalid class year response")
         }
+        classYears.value = years
     } catch {
         $q.notify({
             type: "negative",
