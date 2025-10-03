@@ -187,6 +187,7 @@ try
     builder.Services.AddDbContext<RAPSContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<VIPERContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<ClinicalSchedulerContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<SISContext>(ConfigureDbContextOptions);
 
     // Clinical Scheduler services
     builder.Services.AddScoped<Viper.Areas.Curriculum.Services.TermCodeService>();
@@ -206,6 +207,11 @@ try
 
     // Register UserHelper service
     builder.Services.AddScoped<Viper.IUserHelper, Viper.UserHelper>();
+
+    // Photo Gallery services
+    builder.Services.AddScoped<Viper.Areas.Students.Services.IPhotoService, Viper.Areas.Students.Services.PhotoService>();
+    builder.Services.AddScoped<Viper.Areas.Students.Services.IStudentGroupService, Viper.Areas.Students.Services.StudentGroupService>();
+    builder.Services.AddScoped<Viper.Areas.Students.Services.IPhotoExportService, Viper.Areas.Students.Services.PhotoExportService>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();

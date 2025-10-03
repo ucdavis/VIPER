@@ -162,6 +162,14 @@
             "rules": {
                 "promise/avoid-new": "off", // Quasar dialogs require Promise wrapper for async/await
             }
+        },
+        {
+            "files": [
+                "VueApp/src/composables/ViperFetch.ts"
+            ],
+            "rules": {
+                "unicorn/filename-case": "off" // Legacy core file - keep PascalCase naming for backwards compatibility
+            }
         }
     ],
     "ignore": ["node_modules/**", "bin/**", "obj/**", "dist/**", "wwwroot/**", "*.min.js", "*.bundle.js", "**/*.vue"],
