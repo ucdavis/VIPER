@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.Students.Models;
 using Viper.Areas.Students.Services;
@@ -9,8 +8,8 @@ using Web.Authorization;
 namespace Viper.Areas.Students.Controller
 {
     [Route("/api/students/photos")]
-    [Authorize(Policy = "2faAuthentication")]
-    [Permission(Allow = "SVMSecure.Students")]
+    [Permission(Allow = "SVMSecure.Students.PhotoGallery")]
+    [Permission(Allow = "SVMSecure.Students.StudentGroup")]
     public class PhotoGalleryController : ApiController
     {
         private readonly IPhotoService _photoService;
