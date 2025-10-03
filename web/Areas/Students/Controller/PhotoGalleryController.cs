@@ -8,7 +8,7 @@ using Web.Authorization;
 namespace Viper.Areas.Students.Controller
 {
     [Area("Students")]
-    [Route("api/students/photos")]
+    [Route("/api/students/photos")]
     [ApiController]
     [Authorize(Policy = "2faAuthentication")]
     [Permission(Allow = "SVMSecure.Students")]
