@@ -18,7 +18,6 @@ namespace Viper.Areas.Students.Services
         private readonly ILogger<PhotoService> _logger;
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly string _idCardPhotoPath;
-        private readonly string _profilePhotoPath;
         private readonly string _defaultPhotoFile;
         private readonly int _cacheDurationHours;
 
@@ -30,7 +29,6 @@ namespace Viper.Areas.Students.Services
             _webHostEnvironment = webHostEnvironment;
 
             _idCardPhotoPath = _configuration["PhotoGallery:IDCardPhotoPath"] ?? @"S:\Files\IDCardPhotos\";
-            _profilePhotoPath = _configuration["PhotoGallery:ProfilePhotoPath"] ?? @"S:\Files\ProfilePhotos\";
             _defaultPhotoFile = _configuration["PhotoGallery:DefaultPhotoFile"] ?? "nopic.jpg";
             _cacheDurationHours = int.Parse(_configuration["PhotoGallery:CacheDurationHours"] ?? "24");
         }
@@ -121,12 +119,6 @@ namespace Viper.Areas.Students.Services
             if (File.Exists(idCardPhotoPath) && IsUnderRoot(idCardPhotoPath, _idCardPhotoPath))
             {
                 return idCardPhotoPath;
-            }
-
-            var profilePhotoPath = Path.Combine(_profilePhotoPath, fileName);
-            if (File.Exists(profilePhotoPath) && IsUnderRoot(profilePhotoPath, _profilePhotoPath))
-            {
-                return profilePhotoPath;
             }
 
             return null;
