@@ -26,15 +26,9 @@ pipeline {
 	tools { nodejs "NodeJS 20.19.4" }
     options {
         skipStagesAfterUnstable()
-        skipDefaultCheckout()
     }
     stages {
-        stage('Checkout') {
-		  steps {
-			checkout scm
-		  }
-		}
-        stage('Clean Workspace Selectively') {
+        stage('Clean Previous Build') {
 		  steps {
 			bat 'git clean -fdx -e node_modules/ -e VueApp/node_modules/'
 		  }
