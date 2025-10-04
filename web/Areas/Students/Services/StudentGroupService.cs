@@ -234,28 +234,35 @@ includeRossStudents = false)
 
                 _logger.LogInformation("Found {Count} latest AAUD records for Ross students", latestAaudRecords.Count());
 
-                // Then query AAUD for student details using the latest records
-                var latestRecordKeys = latestAaudRecords.Where(r => r != null).Select(r => r.IdsPKey).ToList();
-                var rossStudents = await _aaudContext.Ids
-                    .Where(ids => latestRecordKeys.Contains(ids.IdsPKey))
-                    .Join(_aaudContext.People,
-                          ids => ids.IdsPKey,
-                          person => person.PersonPKey,
-                          (ids, person) => new
-                          {
-                              MailId = ids.IdsMailid,
-                              FirstName = person.PersonDisplayFirstName ?? person.PersonFirstName,
-                              LastName = person.PersonLastName,
-                              MiddleName = person.PersonMiddleName,
-                              IamId = ids.IdsIamId,
-                              TermCode = ids.IdsTermCode
-                          })
+                // Then fetch People records for the latest AAUD records and join in-memory
+                var latestPersonPKeys = latestAaudRecords.Where(r => r != null).Select(r => r.IdsPKey).Distinct().ToList();
+                var peopleDict = (await _aaudContext.People
+                    .Where(person => latestPersonPKeys.Contains(person.PersonPKey))
+                    .ToListAsync())
+                    .ToDictionary(p => p.PersonPKey, p => p);
+
+                var rossStudents = latestAaudRecords
+                    .Where(ids => ids != null && peopleDict.ContainsKey(ids.IdsPKey))
+                    .Select(ids =>
+                    {
+                        var person = peopleDict[ids.IdsPKey];
+                        return new
+                        {
+                            MailId = ids.IdsMailid,
+                            FirstName = person.PersonDisplayFirstName ?? person.PersonFirstName,
+                            LastName = person.PersonLastName,
+                            MiddleName = person.PersonMiddleName,
+                            IamId = ids.IdsIamId,
+                            TermCode = ids.IdsTermCode
+                        };
+                    })
                     .OrderBy(s => s.LastName)
                     .ThenBy(s => s.FirstName)
-                    .ToListAsync();
+                    .ToList();
 
                 _logger.LogInformation("Found {Count} Ross students in AAUD using latest available records", rossStudents.Count);
-                _logger.LogDebug("Ross students: {Students}", string.Join(", ", rossStudents.Select(s => $"{s.MailId} ({s.IamId}, term {s.TermCode})")));
+                var rossStudentsDebug = string.Join(", ", rossStudents.Select(s => $"{s.MailId} ({s.IamId}, term {s.TermCode})"));
+                _logger.LogDebug("Ross students: {Students}", rossStudentsDebug);
 
                 var photoStudents = new List<StudentPhoto>();
                 foreach (var student in rossStudents)

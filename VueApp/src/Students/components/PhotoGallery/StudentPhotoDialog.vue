@@ -3,7 +3,7 @@
         v-model="show"
         @keydown="handleKeydown"
     >
-        <q-card style="min-width: 400px">
+        <q-card :style="cardStyle">
             <q-card-section class="q-px-none">
                 <div
                     class="row items-center justify-center q-gutter-xs"
@@ -24,7 +24,7 @@
                         :src="currentPhotoUrl"
                         :ratio="3 / 4"
                         fit="contain"
-                        style="width: 350px; flex-shrink: 0"
+                        :style="photoStyle"
                     >
                         <template #error>
                             <div class="absolute-full flex flex-center bg-grey-3">
@@ -149,6 +149,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
+import { useQuasar } from "quasar"
 import type { StudentPhoto } from "../../services/photo-gallery-service"
 import { getPhotoUrl } from "../../composables/use-photo-url"
 
@@ -162,6 +163,7 @@ const emit = defineEmits<{
     "update:modelValue": [value: boolean]
 }>()
 
+const $q = useQuasar()
 const dialogIndex = ref(props.initialIndex)
 
 const show = computed({
@@ -187,6 +189,24 @@ const currentPhotoUrl = computed(() => (currentStudent.value ? getPhotoUrl(curre
 
 const hasPrevious = computed(() => dialogIndex.value > 0)
 const hasNext = computed(() => dialogIndex.value < props.students.length - 1)
+
+const cardStyle = computed(() => {
+    if ($q.screen.lt.sm) {
+        // Mobile: < 600px
+        return { minWidth: "90vw", maxWidth: "90vw", width: "90vw" }
+    }
+    // Desktop: >= 600px
+    return { minWidth: "400px", maxWidth: "600px" }
+})
+
+const photoStyle = computed(() => {
+    if ($q.screen.lt.sm) {
+        // Mobile: < 600px
+        return { width: "60vw", maxWidth: "250px", flexShrink: 0 }
+    }
+    // Desktop: >= 600px
+    return { width: "350px", flexShrink: 0 }
+})
 
 const goToPrevious = () => {
     if (hasPrevious.value) {

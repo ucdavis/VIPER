@@ -20,6 +20,9 @@ namespace Viper.Areas.Students.Controller
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly ILogger<PhotoGalleryController> _logger;
 
+        private static readonly HashSet<string> ValidClassLevels = new() { "V1", "V2", "V3", "V4" };
+        private static readonly HashSet<string> ValidGroupTypes = new() { "eighths", "twentieths", "teams", "v3specialty" };
+
         public PhotoGalleryController(
             IPhotoService photoService,
             IStudentGroupService studentGroupService,
@@ -41,6 +44,11 @@ namespace Viper.Areas.Students.Controller
         [HttpGet("gallery/class/{classLevel}")]
         public async Task<IActionResult> GetClassGallery(string classLevel, [FromQuery] bool includeRossStudents = false)
         {
+            if (!ValidClassLevels.Contains(classLevel))
+            {
+                return BadRequest($"Invalid class level. Must be one of: {string.Join(", ", ValidClassLevels)}");
+            }
+
             try
             {
                 var students = await _studentGroupService.GetStudentsByClassLevelAsync(classLevel, includeRossStudents);
@@ -68,6 +76,21 @@ namespace Viper.Areas.Students.Controller
         [HttpGet("gallery/group/{groupType}/{groupId}")]
         public async Task<IActionResult> GetGroupGallery(string groupType, string groupId, [FromQuery] string? classLevel = null)
         {
+            if (!ValidGroupTypes.Contains(groupType?.ToLower()))
+            {
+                return BadRequest($"Invalid group type. Must be one of: {string.Join(", ", ValidGroupTypes)}");
+            }
+
+            if (string.IsNullOrWhiteSpace(groupId) || groupId.Length > 50)
+            {
+                return BadRequest("Invalid group ID. Must be non-empty and less than 50 characters");
+            }
+
+            if (!string.IsNullOrEmpty(classLevel) && !ValidClassLevels.Contains(classLevel))
+            {
+                return BadRequest($"Invalid class level. Must be one of: {string.Join(", ", ValidClassLevels)}");
+            }
+
             try
             {
                 var students = await _studentGroupService.GetStudentsByGroupAsync(groupType, groupId, classLevel);
@@ -145,25 +168,9 @@ namespace Viper.Areas.Students.Controller
         {
             try
             {
-                var idCardPhotoPath = _configuration["PhotoGallery:IDCardPhotoPath"];
-                var defaultPhotoFile = _configuration["PhotoGallery:DefaultPhotoFile"] ?? "nopic.jpg";
-
-                // Try configured path first (e.g., S:\Files\IDCardPhotos\ in production)
-                if (!string.IsNullOrEmpty(idCardPhotoPath))
+                var photoData = await _photoService.GetStudentPhotoAsync(string.Empty);
+                if (photoData != null && photoData.Length > 0)
                 {
-                    var defaultPhotoPath = Path.Combine(idCardPhotoPath, defaultPhotoFile);
-                    if (System.IO.File.Exists(defaultPhotoPath))
-                    {
-                        var photoData = await System.IO.File.ReadAllBytesAsync(defaultPhotoPath);
-                        return File(photoData, "image/jpeg");
-                    }
-                }
-
-                // Fallback to wwwroot/images/nopic.jpg
-                var wwwrootPath = Path.Combine(_webHostEnvironment.WebRootPath, "images", defaultPhotoFile);
-                if (System.IO.File.Exists(wwwrootPath))
-                {
-                    var photoData = await System.IO.File.ReadAllBytesAsync(wwwrootPath);
                     return File(photoData, "image/jpeg");
                 }
 
@@ -179,6 +186,21 @@ namespace Viper.Areas.Students.Controller
         [HttpPost("export/word")]
         public async Task<IActionResult> ExportToWord([FromBody] PhotoExportRequest request)
         {
+            if (!string.IsNullOrEmpty(request.ClassLevel) && !ValidClassLevels.Contains(request.ClassLevel))
+            {
+                return BadRequest($"Invalid class level. Must be one of: {string.Join(", ", ValidClassLevels)}");
+            }
+
+            if (!string.IsNullOrEmpty(request.GroupType) && !ValidGroupTypes.Contains(request.GroupType?.ToLower()))
+            {
+                return BadRequest($"Invalid group type. Must be one of: {string.Join(", ", ValidGroupTypes)}");
+            }
+
+            if (!string.IsNullOrEmpty(request.GroupId) && (string.IsNullOrWhiteSpace(request.GroupId) || request.GroupId.Length > 50))
+            {
+                return BadRequest("Invalid group ID. Must be non-empty and less than 50 characters");
+            }
+
             try
             {
                 var result = await _photoExportService.ExportToWordAsync(request);
@@ -200,6 +222,21 @@ namespace Viper.Areas.Students.Controller
         [HttpPost("export/pdf")]
         public async Task<IActionResult> ExportToPdf([FromBody] PhotoExportRequest request)
         {
+            if (!string.IsNullOrEmpty(request.ClassLevel) && !ValidClassLevels.Contains(request.ClassLevel))
+            {
+                return BadRequest($"Invalid class level. Must be one of: {string.Join(", ", ValidClassLevels)}");
+            }
+
+            if (!string.IsNullOrEmpty(request.GroupType) && !ValidGroupTypes.Contains(request.GroupType?.ToLower()))
+            {
+                return BadRequest($"Invalid group type. Must be one of: {string.Join(", ", ValidGroupTypes)}");
+            }
+
+            if (!string.IsNullOrEmpty(request.GroupId) && (string.IsNullOrWhiteSpace(request.GroupId) || request.GroupId.Length > 50))
+            {
+                return BadRequest("Invalid group ID. Must be non-empty and less than 50 characters");
+            }
+
             try
             {
                 var result = await _photoExportService.ExportToPdfAsync(request);
@@ -221,6 +258,11 @@ namespace Viper.Areas.Students.Controller
         [HttpGet("export/status/{exportId}")]
         public async Task<IActionResult> GetExportStatus(string exportId)
         {
+            if (!Guid.TryParse(exportId, out _))
+            {
+                return BadRequest("Invalid export ID. Must be a valid GUID");
+            }
+
             try
             {
                 var status = await _photoExportService.GetExportStatusAsync(exportId);
@@ -257,6 +299,11 @@ namespace Viper.Areas.Students.Controller
         [HttpGet("metadata/students/{classLevel}")]
         public async Task<IActionResult> GetStudentsInClass(string classLevel)
         {
+            if (!ValidClassLevels.Contains(classLevel))
+            {
+                return BadRequest($"Invalid class level. Must be one of: {string.Join(", ", ValidClassLevels)}");
+            }
+
             try
             {
                 var students = await _studentGroupService.GetStudentsByClassLevelAsync(classLevel, false);
