@@ -26,24 +26,30 @@ pipeline {
 	tools { nodejs "NodeJS 20.19.4" }
     options {
         skipStagesAfterUnstable()
+        skipDefaultCheckout()
     }
-    stages { 
+    stages {
+        stage('Checkout') {
+		  steps {
+			checkout scm
+		  }
+		}
+        stage('Clean Workspace Selectively') {
+		  steps {
+			bat 'git clean -fdx -e node_modules/ -e VueApp/node_modules/'
+		  }
+		}
         stage('Restore packages') {
 		  steps {
 			bat '"C:\\Program Files\\dotnet\\dotnet" restore Viper.sln'
 		  }
-		}
-        stage('Clean Previous Build') {
-			steps {
-				bat '"C:\\Program Files\\dotnet\\dotnet" clean Viper.sln'
-			}
 		}
 		stage('Build for test') {
 			when {
 				expression { params.Branch == 'development' }
 			}
 			steps {
-				bat 'pushd VueApp && npm install && popd'
+				bat 'pushd VueApp && npm ci && popd'
 				bat 'npm run --prefix VueApp build-test'
 				bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Test'
 			}
@@ -53,7 +59,7 @@ pipeline {
 				expression { params.Branch == 'master' || params.Branch == "main" }
 			}
 			steps {
-				bat 'pushd VueApp && npm install && popd'
+				bat 'pushd VueApp && npm ci && popd'
 				bat 'npm run --prefix VueApp build'
 				bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Production'
 			}
@@ -61,8 +67,14 @@ pipeline {
 		stage('Tests') {
 			steps {
                 bat 'type NUL > app_offline.htm'
-				bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit" --configuration release --nologo'
-				bat 'npm run --prefix VueApp test:run'
+				parallel(
+					backend: {
+						bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit" --configuration release --nologo'
+					},
+					frontend: {
+						bat 'npm run --prefix VueApp test:run'
+					}
+				)
             }
 		}
 		stage('Deploy to test') {
