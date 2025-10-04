@@ -67,14 +67,16 @@ pipeline {
 		stage('Tests') {
 			steps {
                 bat 'type NUL > app_offline.htm'
-				parallel(
-					backend: {
-						bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit" --configuration release --nologo'
-					},
-					frontend: {
-						bat 'npm run --prefix VueApp test:run'
-					}
-				)
+				script {
+					parallel(
+						backend: {
+							bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit" --configuration release --nologo'
+						},
+						frontend: {
+							bat 'npm run --prefix VueApp test:run'
+						}
+					)
+				}
             }
 		}
 		stage('Deploy to test') {
