@@ -31,14 +31,17 @@ pipeline {
     stages {
         stage('Clean Previous Build') {
 		  steps {
-			checkout scm
+			checkout([$class: 'GitSCM',
+				branches: scm.branches,
+				extensions: [[$class: 'CleanCheckout']],
+				userRemoteConfigs: scm.userRemoteConfigs])
 			script {
 				if (params.ClearCache) {
 					echo 'ClearCache enabled - performing full clean (including node_modules)'
 					bat 'git clean -fdx'
 				} else {
 					echo 'Preserving caches (node_modules with .tsbuildinfo inside)'
-					bat 'git clean -fdx -e node_modules/ -e VueApp/node_modules/'
+					bat 'git clean -fdx -e VueApp/node_modules/'
 				}
 			}
 		  }
