@@ -91,6 +91,7 @@ namespace Viper.Areas.Students.Services
                     ));
 
                     const int photosPerRow = 4;
+                    uint imageId = 1;
                     for (int i = 0; i < students.Count; i += photosPerRow)
                     {
                         var row = table.AppendChild(new TableRow());
@@ -115,35 +116,37 @@ namespace Viper.Areas.Students.Services
                                     imagePart.FeedData(photoStream);
                                 }
 
-                                var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing(
-                                    new DocumentFormat.OpenXml.Drawing.Wordprocessing.Inline(
-                                        new DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent() { Cx = 950000L, Cy = 1267000L },
-                                        new DocumentFormat.OpenXml.Drawing.Wordprocessing.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
-                                        new DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties() { Id = (UInt32Value)1U, Name = $"Photo{i}" },
-                                        new DocumentFormat.OpenXml.Drawing.Wordprocessing.NonVisualGraphicFrameDrawingProperties(
-                                            new DocumentFormat.OpenXml.Drawing.GraphicFrameLocks() { NoChangeAspect = true }),
-                                        new DocumentFormat.OpenXml.Drawing.Graphic(
-                                            new DocumentFormat.OpenXml.Drawing.GraphicData(
-                                                new DocumentFormat.OpenXml.Drawing.Pictures.Picture(
-                                                    new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureProperties(
-                                                        new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties() { Id = (UInt32Value)0U, Name = $"Photo{i}.jpg" },
-                                                        new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureDrawingProperties()),
-                                                    new DocumentFormat.OpenXml.Drawing.Pictures.BlipFill(
-                                                        new DocumentFormat.OpenXml.Drawing.Blip() { Embed = mainPart.GetIdOfPart(imagePart) },
-                                                        new DocumentFormat.OpenXml.Drawing.Stretch(
-                                                            new DocumentFormat.OpenXml.Drawing.FillRectangle())),
-                                                    new DocumentFormat.OpenXml.Drawing.Pictures.ShapeProperties(
-                                                        new DocumentFormat.OpenXml.Drawing.Transform2D(
-                                                            new DocumentFormat.OpenXml.Drawing.Offset() { X = 0L, Y = 0L },
-                                                            new DocumentFormat.OpenXml.Drawing.Extents() { Cx = 950000L, Cy = 1267000L }),
-                                                        new DocumentFormat.OpenXml.Drawing.PresetGeometry(
-                                                            new DocumentFormat.OpenXml.Drawing.AdjustValueList())
-                                                        { Preset = DocumentFormat.OpenXml.Drawing.ShapeTypeValues.Rectangle }))
-                                            )
-                                            { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" })
-                                    )
-                                    { DistanceFromTop = (UInt32Value)0U, DistanceFromBottom = (UInt32Value)0U, DistanceFromLeft = (UInt32Value)0U, DistanceFromRight = (UInt32Value)0U }
-                                );
+                                imageId++; // Increment before use to avoid duplicate IDs
+
+                                var inline = new DocumentFormat.OpenXml.Drawing.Wordprocessing.Inline(
+                                    new DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent() { Cx = 950000L, Cy = 1267000L },
+                                    new DocumentFormat.OpenXml.Drawing.Wordprocessing.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+                                    new DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties() { Id = (UInt32Value)imageId, Name = $"Photo{imageId}" },
+                                    new DocumentFormat.OpenXml.Drawing.Wordprocessing.NonVisualGraphicFrameDrawingProperties(
+                                        new DocumentFormat.OpenXml.Drawing.GraphicFrameLocks() { NoChangeAspect = true }),
+                                    new DocumentFormat.OpenXml.Drawing.Graphic(
+                                        new DocumentFormat.OpenXml.Drawing.GraphicData(
+                                            new DocumentFormat.OpenXml.Drawing.Pictures.Picture(
+                                                new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureProperties(
+                                                    new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties() { Id = (UInt32Value)imageId, Name = $"Photo{imageId}.jpg" },
+                                                    new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureDrawingProperties()),
+                                                new DocumentFormat.OpenXml.Drawing.Pictures.BlipFill(
+                                                    new DocumentFormat.OpenXml.Drawing.Blip() { Embed = mainPart.GetIdOfPart(imagePart) },
+                                                    new DocumentFormat.OpenXml.Drawing.Stretch(
+                                                        new DocumentFormat.OpenXml.Drawing.FillRectangle())),
+                                                new DocumentFormat.OpenXml.Drawing.Pictures.ShapeProperties(
+                                                    new DocumentFormat.OpenXml.Drawing.Transform2D(
+                                                        new DocumentFormat.OpenXml.Drawing.Offset() { X = 0L, Y = 0L },
+                                                        new DocumentFormat.OpenXml.Drawing.Extents() { Cx = 950000L, Cy = 1267000L }),
+                                                    new DocumentFormat.OpenXml.Drawing.PresetGeometry(
+                                                        new DocumentFormat.OpenXml.Drawing.AdjustValueList())
+                                                    { Preset = DocumentFormat.OpenXml.Drawing.ShapeTypeValues.Rectangle }))
+                                        )
+                                        { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" })
+                                )
+                                { DistanceFromTop = (UInt32Value)0U, DistanceFromBottom = (UInt32Value)0U, DistanceFromLeft = (UInt32Value)0U, DistanceFromRight = (UInt32Value)0U };
+
+                                var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing(inline);
 
                                 photoRun.AppendChild(drawing);
                             }
