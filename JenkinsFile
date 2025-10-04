@@ -32,12 +32,29 @@ pipeline {
         stage('Clean Previous Build') {
 		  steps {
 			checkout scm
-			bat 'git clean -fdx -e node_modules/ -e VueApp/node_modules/'
+			script {
+				if (params.ClearCache) {
+					echo 'ClearCache enabled - performing full clean (including node_modules)'
+					bat 'git clean -fdx'
+				} else {
+					echo 'Preserving caches (node_modules with .tsbuildinfo inside)'
+					bat 'git clean -fdx -e node_modules/ -e VueApp/node_modules/'
+				}
+			}
 		  }
 		}
         stage('Restore packages') {
 		  steps {
-			bat '"C:\\Program Files\\dotnet\\dotnet" restore Viper.sln'
+			script {
+				parallel(
+					npm: {
+						bat 'pushd VueApp && npm ci && popd'
+					},
+					dotnet: {
+						bat '"C:\\Program Files\\dotnet\\dotnet" restore Viper.sln'
+					}
+				)
+			}
 		  }
 		}
 		stage('Build for test') {
@@ -45,9 +62,8 @@ pipeline {
 				expression { params.Branch == 'development' }
 			}
 			steps {
-				bat 'pushd VueApp && npm ci && popd'
 				bat 'npm run --prefix VueApp build-test'
-				bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Test'
+				bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Test --nologo -v:minimal'
 			}
 		}
 		stage('Build for prod') {
@@ -55,9 +71,8 @@ pipeline {
 				expression { params.Branch == 'master' || params.Branch == "main" }
 			}
 			steps {
-				bat 'pushd VueApp && npm ci && popd'
 				bat 'npm run --prefix VueApp build'
-				bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Production'
+				bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Production --nologo -v:minimal'
 			}
 		}
 		stage('Tests') {
