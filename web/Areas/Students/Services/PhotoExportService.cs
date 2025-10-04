@@ -204,19 +204,35 @@ namespace Viper.Areas.Students.Services
                     return null;
                 }
 
-                // Pre-load all photos
+                // Pre-load all photos in parallel with throttling
                 _logger.LogInformation("Pre-loading photos for {Count} students", students.Count);
                 var photoCache = new Dictionary<string, byte[]>();
-                foreach (var student in students)
+                var semaphore = new SemaphoreSlim(10); // Limit to 10 concurrent I/O operations
+
+                var photoTasks = students.Select(async student =>
                 {
-                    var photoBytes = await _photoService.GetStudentPhotoAsync(student.MailId);
-                    _logger.LogDebug("Student {MailId}: photoBytes is {Status}, Length = {Length}",
-                        student.MailId,
-                        photoBytes == null ? "null" : "not null",
-                        photoBytes?.Length ?? -1);
-                    if (photoBytes != null && photoBytes.Length > 0)
+                    await semaphore.WaitAsync();
+                    try
                     {
-                        photoCache[student.MailId] = photoBytes;
+                        var photoBytes = await _photoService.GetStudentPhotoAsync(student.MailId);
+                        _logger.LogDebug("Student {MailId}: photoBytes is {Status}, Length = {Length}",
+                            student.MailId,
+                            photoBytes == null ? "null" : "not null",
+                            photoBytes?.Length ?? -1);
+                        return new { student.MailId, photoBytes };
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                }).ToList();
+
+                var photoResults = await Task.WhenAll(photoTasks);
+                foreach (var result in photoResults)
+                {
+                    if (result.photoBytes != null && result.photoBytes.Length > 0)
+                    {
+                        photoCache[result.MailId] = result.photoBytes;
                     }
                 }
                 _logger.LogInformation("Loaded {Count} photos into cache", photoCache.Count);
