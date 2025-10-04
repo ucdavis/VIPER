@@ -21,6 +21,10 @@ namespace Viper.Areas.Students.Services
         private readonly string _defaultPhotoFile;
         private readonly int _cacheDurationHours;
 
+        private const int MinCacheDurationHours = 1;
+        private const int MaxCacheDurationHours = 168; // 1 week
+        private const int DefaultCacheDurationHours = 24;
+
         public PhotoService(IConfiguration configuration, IMemoryCache cache, ILogger<PhotoService> logger, IWebHostEnvironment webHostEnvironment)
         {
             _configuration = configuration;
@@ -30,7 +34,12 @@ namespace Viper.Areas.Students.Services
 
             _idCardPhotoPath = _configuration["PhotoGallery:IDCardPhotoPath"] ?? @"S:\Files\IDCardPhotos\";
             _defaultPhotoFile = _configuration["PhotoGallery:DefaultPhotoFile"] ?? "nopic.jpg";
-            _cacheDurationHours = int.Parse(_configuration["PhotoGallery:CacheDurationHours"] ?? "24");
+
+            if (!int.TryParse(_configuration["PhotoGallery:CacheDurationHours"], out var cacheHours) || cacheHours < MinCacheDurationHours || cacheHours > MaxCacheDurationHours)
+            {
+                cacheHours = DefaultCacheDurationHours;
+            }
+            _cacheDurationHours = cacheHours;
         }
 
         public async Task<byte[]> GetStudentPhotoAsync(string mailId)

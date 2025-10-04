@@ -46,7 +46,7 @@ function addHeader(options: any, headerName: string, headerValue: string) {
     if (options.headers === undefined) {
         options.headers = {}
     }
-    if (typeof headerName === "string" && !Object.hasOwn(options.headers, headerName)) {
+    if (typeof headerName === "string" && !(headerName in options.headers)) {
         Object.defineProperty(options.headers, headerName, {
             value: headerValue,
             enumerable: true,
@@ -117,6 +117,7 @@ async function fetchWrapper(url: string, options: any = {}) {
                 errors = errorHandler.errors.value
             } else {
                 errorHandler.handleAuthError(error?.message, error.status)
+                errors = [error?.message || "Authentication error"]
             }
         })
     const resultObj: Result = {

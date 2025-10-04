@@ -13,7 +13,7 @@ public class SISContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        if (HttpHelper.Settings != null)
+        if (!optionsBuilder.IsConfigured && HttpHelper.Settings != null)
         {
             optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:SIS"]);
         }
