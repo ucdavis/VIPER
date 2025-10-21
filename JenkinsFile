@@ -1,4 +1,4 @@
-@Library('AdminAppsSharedLibrary') _
+@Library('AdminAppsSharedLibraryDev') _
 def copyOperations = [
 	[
 		source: ".\\web\\bin\\Release\\net8.0\\publish",
