@@ -9,6 +9,7 @@ using Viper.Areas.ClinicalScheduler.Validators;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
+using VIPER.Areas.ClinicalScheduler.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
 {
@@ -133,13 +134,13 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     currentUser.MothraId.Equals(targetMothraId, StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogInformation("User {MothraId} is adding their own schedule with EditOwnSchedule permission (CorrelationId: {CorrelationId})",
-                        currentUser.MothraId, correlationId);
+                        LogSanitizer.SanitizeId(currentUser.MothraId), correlationId);
                     return true;
                 }
             }
 
             _logger.LogWarning("User attempted to add instructor {TargetMothraId} to rotation {RotationId} without permission (CorrelationId: {CorrelationId})",
-                targetMothraId, rotationId, correlationId);
+                LogSanitizer.SanitizeId(targetMothraId), rotationId, correlationId);
             return false;
         }
 
@@ -166,7 +167,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             var warningMessage = $"Note: This instructor is also scheduled for {string.Join(", ", rotationNames)}";
 
             _logger.LogInformation("Instructor {MothraId} has other rotation assignments (CorrelationId: {CorrelationId}): {Details}",
-                mothraId, correlationId, warningMessage);
+                LogSanitizer.SanitizeId(mothraId), correlationId, warningMessage);
 
             return warningMessage;
         }
@@ -508,7 +509,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking schedule conflicts for {MothraId}", mothraId);
+                _logger.LogError(ex, "Error checking schedule conflicts for {MothraId}", LogSanitizer.SanitizeId(mothraId));
                 return StatusCode(500, "An error occurred while checking for schedule conflicts");
             }
         }

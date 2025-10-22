@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
+using VIPER.Areas.ClinicalScheduler.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -48,7 +49,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return null;
                 }
 
-                _logger.LogInformation("Getting person data for MothraId: {MothraId} from Clinical Scheduler context", mothraId);
+                _logger.LogInformation("Getting person data for MothraId: {MothraId} from Clinical Scheduler context", LogSanitizer.SanitizeId(mothraId));
 
                 // Query the vPerson view directly - much more efficient than joining through InstructorSchedules
                 var personData = await _context.Persons
@@ -70,19 +71,19 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 if (person == null)
                 {
-                    _logger.LogWarning("Person not found for MothraId: {MothraId} in Clinical Scheduler data", mothraId);
+                    _logger.LogWarning("Person not found for MothraId: {MothraId} in Clinical Scheduler data", LogSanitizer.SanitizeId(mothraId));
                 }
                 else
                 {
-                    _logger.LogInformation("Found person for MothraId: {MothraId}", mothraId);
+                    _logger.LogInformation("Found person for MothraId: {MothraId}", LogSanitizer.SanitizeId(mothraId));
                 }
 
                 return person;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving person data for MothraId: {MothraId}", mothraId);
-                throw new InvalidOperationException($"Failed to retrieve person data for MothraId {mothraId}", ex);
+                _logger.LogError(ex, "Error retrieving person data for MothraId: {MothraId}", LogSanitizer.SanitizeId(mothraId));
+                throw new InvalidOperationException($"Failed to retrieve person data for MothraId {LogSanitizer.SanitizeId(mothraId)}", ex);
             }
         }
 
@@ -295,7 +296,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return null;
                 }
 
-                _logger.LogDebug("Getting clinician data for MothraId: {MothraId} from AAUD context", mothraId);
+                _logger.LogDebug("Getting clinician data for MothraId: {MothraId} from AAUD context", LogSanitizer.SanitizeId(mothraId));
 
                 var clinician = await _aaudContext.VwVmthClinicians
                     .AsNoTracking()
@@ -311,19 +312,19 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 if (clinician == null)
                 {
-                    _logger.LogWarning("Clinician not found for MothraId: {MothraId} in AAUD data", mothraId);
+                    _logger.LogWarning("Clinician not found for MothraId: {MothraId} in AAUD data", LogSanitizer.SanitizeId(mothraId));
                 }
                 else
                 {
-                    _logger.LogDebug("Found clinician for MothraId: {MothraId} in AAUD data", mothraId);
+                    _logger.LogDebug("Found clinician for MothraId: {MothraId} in AAUD data", LogSanitizer.SanitizeId(mothraId));
                 }
 
                 return clinician;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving clinician data for MothraId: {MothraId} from AAUD", mothraId);
-                throw new InvalidOperationException($"Failed to retrieve clinician data for MothraId {mothraId} from AAUD", ex);
+                _logger.LogError(ex, "Error retrieving clinician data for MothraId: {MothraId} from AAUD", LogSanitizer.SanitizeId(mothraId));
+                throw new InvalidOperationException($"Failed to retrieve clinician data for MothraId {LogSanitizer.SanitizeId(mothraId)} from AAUD", ex);
             }
         }
 

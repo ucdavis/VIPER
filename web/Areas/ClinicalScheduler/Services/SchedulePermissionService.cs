@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 using Viper.Models.ClinicalScheduler;
+using VIPER.Areas.ClinicalScheduler.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -73,7 +74,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 if (HasFullAccessPermission(user))
                 {
-                    _logger.LogDebug("User {MothraId} has full access permission for service {ServiceId}", user.MothraId, serviceId);
+                    _logger.LogDebug("User {MothraId} has full access permission for service {ServiceId}", LogSanitizer.SanitizeId(user.MothraId), serviceId);
                     return true;
                 }
 
@@ -82,14 +83,14 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 var hasPermission = _userHelper.HasPermission(_rapsContext, user, requiredPermission);
 
                 _logger.LogDebug("User {MothraId} permission check for service {ServiceId}: required='{RequiredPermission}', hasPermission={HasPermission}",
-                    user.MothraId, serviceId, requiredPermission, hasPermission);
+                    LogSanitizer.SanitizeId(user.MothraId), serviceId, requiredPermission, hasPermission);
 
                 return hasPermission;
             }
             catch (Exception ex)
             {
                 var currentUser = _userHelper.GetCurrentUser();
-                _logger.LogError(ex, "Error checking edit permissions for user {MothraId} and service {ServiceId}", currentUser?.MothraId ?? "unknown", serviceId);
+                _logger.LogError(ex, "Error checking edit permissions for user {MothraId} and service {ServiceId}", LogSanitizer.SanitizeId(currentUser?.MothraId), serviceId);
                 return false;
             }
         }
@@ -116,7 +117,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 var user = _userHelper.GetCurrentUser();
-                _logger.LogError(ex, "Error checking edit permissions for user {MothraId} and rotation {RotationId}", user?.MothraId ?? "unknown", rotationId);
+                _logger.LogError(ex, "Error checking edit permissions for user {MothraId} and rotation {RotationId}", LogSanitizer.SanitizeId(user?.MothraId), rotationId);
                 return false;
             }
         }
@@ -135,7 +136,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 if (HasFullAccessPermission(user))
                 {
-                    _logger.LogDebug("User {MothraId} has full access permission, returning all services", user.MothraId);
+                    _logger.LogDebug("User {MothraId} has full access permission, returning all services", LogSanitizer.SanitizeId(user.MothraId));
                     return allServices;
                 }
 
@@ -145,14 +146,14 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .ToList();
 
                 _logger.LogDebug("User {MothraId} can edit {EditableCount} out of {TotalCount} services",
-                    user.MothraId, editableServices.Count, allServices.Count);
+                    LogSanitizer.SanitizeId(user.MothraId), editableServices.Count, allServices.Count);
 
                 return editableServices;
             }
             catch (Exception ex)
             {
                 var user = _userHelper.GetCurrentUser();
-                _logger.LogError(ex, "Error getting editable services for user {MothraId}", user?.MothraId ?? "unknown");
+                _logger.LogError(ex, "Error getting editable services for user {MothraId}", LogSanitizer.SanitizeId(user?.MothraId));
                 return new List<Service>();
             }
         }
@@ -178,14 +179,14 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 var editableCount = permissions.Count(kvp => kvp.Value);
                 _logger.LogDebug("User {MothraId} can edit {EditableCount} out of {TotalCount} services (hasFullAccess: {HasFullAccess})",
-                    user.MothraId, editableCount, permissions.Count, hasFullAccess);
+                    LogSanitizer.SanitizeId(user.MothraId), editableCount, permissions.Count, hasFullAccess);
 
                 return permissions;
             }
             catch (Exception ex)
             {
                 var user = _userHelper.GetCurrentUser();
-                _logger.LogError(ex, "Error getting service permissions for user {MothraId}", user?.MothraId ?? "unknown");
+                _logger.LogError(ex, "Error getting service permissions for user {MothraId}", LogSanitizer.SanitizeId(user?.MothraId));
                 return new Dictionary<int, bool>();
             }
         }
@@ -234,7 +235,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // First check if user has EditOwnSchedule permission
                 if (!_userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule))
                 {
-                    _logger.LogDebug("User {MothraId} does not have EditOwnSchedule permission", user.MothraId);
+                    _logger.LogDebug("User {MothraId} does not have EditOwnSchedule permission", LogSanitizer.SanitizeId(user.MothraId));
                     return false;
                 }
 
@@ -253,7 +254,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 var canEdit = instructorSchedule.MothraId == user.MothraId;
 
                 _logger.LogDebug("User {MothraId} own schedule edit check for instructor schedule {InstructorScheduleId}: scheduleOwner={ScheduleOwner}, canEdit={CanEdit}",
-                    user.MothraId, instructorScheduleId, instructorSchedule.MothraId, canEdit);
+                    LogSanitizer.SanitizeId(user.MothraId), instructorScheduleId, LogSanitizer.SanitizeId(instructorSchedule.MothraId), canEdit);
 
                 return canEdit;
             }
@@ -261,7 +262,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 var user = _userHelper.GetCurrentUser();
                 _logger.LogError(ex, "Error checking own schedule permissions for user {MothraId} and instructor schedule {InstructorScheduleId}",
-                    user?.MothraId ?? "unknown", instructorScheduleId);
+                    LogSanitizer.SanitizeId(user?.MothraId), instructorScheduleId);
                 return false;
             }
         }
@@ -284,7 +285,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 if (_userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.Manage) ||
                     _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.ViewStudents))
                 {
-                    _logger.LogDebug("User {MothraId} has management or ViewStudents permission for student schedules", user.MothraId);
+                    _logger.LogDebug("User {MothraId} has management or ViewStudents permission for student schedules", LogSanitizer.SanitizeId(user.MothraId));
                     return Task.FromResult(true);
                 }
 
@@ -292,7 +293,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 if (mothraId != null && mothraId == user.MothraId &&
                     _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.ViewOwn))
                 {
-                    _logger.LogDebug("User {MothraId} is viewing their own schedule", user.MothraId);
+                    _logger.LogDebug("User {MothraId} is viewing their own schedule", LogSanitizer.SanitizeId(user.MothraId));
                     return Task.FromResult(true);
                 }
 
@@ -300,13 +301,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // - Students viewing schedules for rotations/weeks they are on
                 // - Accommodation users viewing marked students
 
-                _logger.LogDebug("User {MothraId} denied access to student schedules", user.MothraId);
+                _logger.LogDebug("User {MothraId} denied access to student schedules", LogSanitizer.SanitizeId(user.MothraId));
                 return Task.FromResult(false);
             }
             catch (Exception ex)
             {
                 var user = _userHelper.GetCurrentUser();
-                _logger.LogError(ex, "Error checking student schedule access for user {MothraId}", user?.MothraId ?? "unknown");
+                _logger.LogError(ex, "Error checking student schedule access for user {MothraId}", LogSanitizer.SanitizeId(user?.MothraId));
                 return Task.FromResult(false);
             }
         }
@@ -329,7 +330,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 if (_userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.Manage) ||
                     _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.ViewClinicians))
                 {
-                    _logger.LogDebug("User {MothraId} has management or ViewClinicians permission for instructor schedules", user.MothraId);
+                    _logger.LogDebug("User {MothraId} has management or ViewClinicians permission for instructor schedules", LogSanitizer.SanitizeId(user.MothraId));
                     return Task.FromResult(true);
                 }
 
@@ -338,17 +339,17 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     (_userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.ViewOwn) ||
                      _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule)))
                 {
-                    _logger.LogDebug("User {MothraId} is viewing their own instructor schedule", user.MothraId);
+                    _logger.LogDebug("User {MothraId} is viewing their own instructor schedule", LogSanitizer.SanitizeId(user.MothraId));
                     return Task.FromResult(true);
                 }
 
-                _logger.LogDebug("User {MothraId} denied access to instructor schedules", user.MothraId);
+                _logger.LogDebug("User {MothraId} denied access to instructor schedules", LogSanitizer.SanitizeId(user.MothraId));
                 return Task.FromResult(false);
             }
             catch (Exception ex)
             {
                 var user = _userHelper.GetCurrentUser();
-                _logger.LogError(ex, "Error checking instructor schedule access for user {MothraId}", user?.MothraId ?? "unknown");
+                _logger.LogError(ex, "Error checking instructor schedule access for user {MothraId}", LogSanitizer.SanitizeId(user?.MothraId));
                 return Task.FromResult(false);
             }
         }

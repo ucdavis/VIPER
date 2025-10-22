@@ -1,5 +1,6 @@
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
+using VIPER.Areas.ClinicalScheduler.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Services;
 
@@ -43,10 +44,10 @@ public class PermissionValidator : IPermissionValidator
         if (_userHelper.HasPermission(_rapsContext, currentUser, ClinicalSchedulePermissions.EditOwnSchedule) &&
             currentUser.MothraId.Equals(targetMothraId, StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogDebug("User {MothraId} is editing their own schedule with EditOwnSchedule permission", currentUser.MothraId);
+            _logger.LogDebug("User {MothraId} is editing their own schedule with EditOwnSchedule permission", LogSanitizer.SanitizeId(currentUser.MothraId));
             return currentUser;
         }
 
-        throw new UnauthorizedAccessException($"User {currentUser.MothraId} does not have permission to edit rotation {rotationId} or their own schedule (target: {targetMothraId})");
+        throw new UnauthorizedAccessException($"User {LogSanitizer.SanitizeId(currentUser.MothraId)} does not have permission to edit rotation {rotationId} or their own schedule (target: {LogSanitizer.SanitizeId(targetMothraId)})");
     }
 }

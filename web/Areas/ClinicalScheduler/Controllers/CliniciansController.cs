@@ -5,6 +5,7 @@ using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.Curriculum.Services;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
+using VIPER.Areas.ClinicalScheduler.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
 {
@@ -131,12 +132,12 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 var hasPermission = CheckClinicianScheduleViewPermission(mothraId);
                 if (!hasPermission)
                 {
-                    _logger.LogWarning("User does not have permission to view schedule for clinician {MothraId}", mothraId);
+                    _logger.LogWarning("User does not have permission to view schedule for clinician {MothraId}", LogSanitizer.SanitizeId(mothraId));
                     return Forbid("You do not have permission to view this clinician's schedule.");
                 }
                 // Use grad year logic instead of calendar year
                 var targetYear = await GetTargetYearAsync(year);
-                _logger.LogDebug("Fetching schedule for clinician {MothraId}, grad year: {Year}", mothraId, targetYear);
+                _logger.LogDebug("Fetching schedule for clinician {MothraId}, grad year: {Year}", LogSanitizer.SanitizeId(mothraId), targetYear);
 
                 // Get weeks for the grad year using vWeek view (contains correct week numbers)
                 var vWeeks = await _weekService.GetWeeksAsync(targetYear, includeExtendedRotation: true);
@@ -181,7 +182,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 if (!schedules.Any())
                 {
-                    _logger.LogDebug("No schedules found for clinician {MothraId} - returning empty schedule", mothraId);
+                    _logger.LogDebug("No schedules found for clinician {MothraId} - returning empty schedule", LogSanitizer.SanitizeId(mothraId));
 
                     // Use PersonService to get clinician info (same data source as GetClinicians endpoint)
                     clinicianInfo = await BuildClinicianInfoAsync(mothraId);
@@ -193,7 +194,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     if (firstSchedule == null)
                     {
                         // Defensive fallback - this shouldn't happen given the Any() check above
-                        _logger.LogWarning("Unexpected: No schedules found for clinician {MothraId} for year {Year} after confirming schedules exist. CorrelationId: {CorrelationId}", mothraId, targetYear, correlationId);
+                        _logger.LogWarning("Unexpected: No schedules found for clinician {MothraId} for year {Year} after confirming schedules exist. CorrelationId: {CorrelationId}", LogSanitizer.SanitizeId(mothraId), targetYear, correlationId);
                         clinicianInfo = new
                         {
                             mothraId = mothraId,
@@ -229,14 +230,14 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 // Always show ALL weeks for the grad year with assignments where they exist
                 // Create a lookup for existing schedules by weekId (should be unique now after grad year filtering)
-                _logger.LogDebug("Retrieved {ScheduleCount} schedules for clinician {MothraId}", schedules.Count, mothraId);
+                _logger.LogDebug("Retrieved {ScheduleCount} schedules for clinician {MothraId}", schedules.Count, LogSanitizer.SanitizeId(mothraId));
 
                 // Debug: Check for duplicate WeekIds in schedules
                 var weekIdCounts = schedules.GroupBy(s => s.WeekId).Where(g => g.Count() > 1).ToList();
                 if (weekIdCounts.Any())
                 {
                     _logger.LogWarning("Found duplicate WeekIds in schedules for clinician {MothraId}: {DuplicateWeekIds}",
-                        mothraId, string.Join(", ", weekIdCounts.Select(g => $"WeekId {g.Key} appears {g.Count()} times")));
+                        LogSanitizer.SanitizeId(mothraId), string.Join(", ", weekIdCounts.Select(g => $"WeekId {g.Key} appears {g.Count()} times")));
 
                     // Log detailed info about duplicates
                     foreach (var group in weekIdCounts)
@@ -254,7 +255,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     .ToDictionary(g => g.Key, g => g.ToList());
 
                 _logger.LogDebug("Grouped {ScheduleCount} schedules into {WeekCount} weeks for clinician {MothraId}",
-                    schedules.Count, schedulesByWeekId.Count, mothraId);
+                    schedules.Count, schedulesByWeekId.Count, LogSanitizer.SanitizeId(mothraId));
 
                 // Pre-calculate semester names for all weeks to avoid repeated calls
                 var weeksWithSemester = vWeeks.Select(w =>
@@ -330,7 +331,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 };
 
                 _logger.LogDebug("Found {ScheduleCount} schedule entries for clinician {MothraId} (grad year {Year})",
-                    schedules.Count, mothraId, targetYear);
+                    schedules.Count, LogSanitizer.SanitizeId(mothraId), targetYear);
                 return Ok(result);
             }
             catch (Exception)
@@ -353,7 +354,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         {
             try
             {
-                _logger.LogDebug("Fetching rotations for clinician {MothraId}", mothraId);
+                _logger.LogDebug("Fetching rotations for clinician {MothraId}", LogSanitizer.SanitizeId(mothraId));
 
                 // Get unique rotation IDs for this clinician
                 var rotationIds = await _context.InstructorSchedules
@@ -377,7 +378,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     .ThenBy(r => r.RotationName)
                     .ToList();
 
-                _logger.LogDebug("Found {RotationCount} unique rotations for clinician {MothraId}", rotations.Count, mothraId);
+                _logger.LogDebug("Found {RotationCount} unique rotations for clinician {MothraId}", rotations.Count, LogSanitizer.SanitizeId(mothraId));
                 return Ok(rotations);
             }
             catch (Exception)
@@ -560,7 +561,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     !hasEditClnSchedulesPermission &&
                     viewContext == "clinician")
                 {
-                    _logger.LogDebug("Filtering clinicians for own-schedule user {MothraId} in clinician view", currentUser.MothraId);
+                    _logger.LogDebug("Filtering clinicians for own-schedule user {MothraId} in clinician view", LogSanitizer.SanitizeId(currentUser.MothraId));
 
                     // Filter to only the current user in clinician view
                     var filteredClinicians = clinicians.Where(c => c.MothraId == currentUser.MothraId).ToList();
@@ -632,7 +633,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 if (hasAdminPermission || hasManagePermission || hasEditClnSchedulesPermission)
                 {
                     _logger.LogDebug("User {MothraId} has elevated permissions, allowing access to view schedule for {TargetMothraId}",
-                        currentUser.MothraId, targetMothraId);
+                        LogSanitizer.SanitizeId(currentUser.MothraId), LogSanitizer.SanitizeId(targetMothraId));
                     return true;
                 }
 
@@ -641,7 +642,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 {
                     var canViewOwnSchedule = currentUser.MothraId.Equals(targetMothraId, StringComparison.OrdinalIgnoreCase);
                     _logger.LogDebug("User {MothraId} has EditOwnSchedule permission. Can view schedule for {TargetMothraId}: {CanView}",
-                        currentUser.MothraId, targetMothraId, canViewOwnSchedule);
+                        LogSanitizer.SanitizeId(currentUser.MothraId), LogSanitizer.SanitizeId(targetMothraId), canViewOwnSchedule);
                     return canViewOwnSchedule;
                 }
 
@@ -649,12 +650,12 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 // This would be handled by existing service-level permission logic (if implemented)
                 // For now, deny access if no specific permissions are found
                 _logger.LogDebug("User {MothraId} has no applicable permissions to view schedule for {TargetMothraId}",
-                    currentUser.MothraId, targetMothraId);
+                    LogSanitizer.SanitizeId(currentUser.MothraId), LogSanitizer.SanitizeId(targetMothraId));
                 return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking clinician schedule view permission for target {TargetMothraId}", targetMothraId);
+                _logger.LogError(ex, "Error checking clinician schedule view permission for target {TargetMothraId}", LogSanitizer.SanitizeId(targetMothraId));
                 return false; // Deny access on error
             }
         }
