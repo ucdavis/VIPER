@@ -32,6 +32,6 @@ public static class LogSanitizer
     /// <returns>An array of sanitized strings.</returns>
     public static string?[] SanitizeId(params string?[] values)
     {
-        return values == null ? [] : [.. values.Select(SanitizeId)];
+        return [.. values.Select(SanitizeId)];
     }
 }

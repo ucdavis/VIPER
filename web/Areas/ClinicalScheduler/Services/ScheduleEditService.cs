@@ -54,7 +54,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
             try
             {
-                // Validate that the rotation exists BEFORE permission check (CodeQL security requirement)
+                // Validate permissions first to avoid information disclosure
+                // The permission validator will check if the rotation exists internally
+                // For adding, check if user is adding themselves with EditOwnSchedule permission
+                var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(rotationId, mothraId ?? "", cancellationToken);
+
+                // After permission check, validate that the rotation exists
+                // This is now safe because we've already verified the user has permission
                 var rotationExists = await _context.Rotations
                     .AnyAsync(r => r.RotId == rotationId, cancellationToken);
 
@@ -62,10 +68,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 {
                     throw new InvalidOperationException($"Rotation with ID {rotationId} not found in the system");
                 }
-
-                // Validate permissions and get current user
-                // For adding, check if user is adding themselves with EditOwnSchedule permission
-                var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(rotationId, mothraId ?? "", cancellationToken);
 
                 // Validate grad year - only allow current or future years
                 var currentGradYear = await _gradYearService.GetCurrentGradYearAsync();
@@ -286,8 +288,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return (false, false, null);
                 }
 
-                // Validate that rotation exists BEFORE permission check (CodeQL security requirement)
-                // This validation is defensive - the schedule.Rotation should exist via FK constraint
+                // Validate permissions first to avoid information disclosure
+                // For removal, check if user is editing their own schedule
+                var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(schedule.RotationId, schedule.MothraId, cancellationToken);
+
+                // After permission check, validate that rotation exists (defensive check for data integrity)
+                // This is now safe because we've already verified the user has permission
+                // The schedule.Rotation should exist via FK constraint
                 var rotationExists = await _context.Rotations
                     .AnyAsync(r => r.RotId == schedule.RotationId, cancellationToken);
 
@@ -297,10 +304,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         instructorScheduleId, schedule.RotationId);
                     throw new InvalidOperationException($"Associated rotation not found for instructor schedule {instructorScheduleId}");
                 }
-
-                // Validate permissions and get current user
-                // For removal, check if user is editing their own schedule
-                var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(schedule.RotationId, schedule.MothraId, cancellationToken);
 
                 // Capture whether this was a primary evaluator and instructor name before removal
                 var wasPrimaryEvaluator = schedule.Evaluator;
