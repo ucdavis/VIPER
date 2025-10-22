@@ -123,6 +123,17 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     return Unauthorized(new { error = "User not authenticated" });
                 }
 
+                // Validate service exists before performing permission check (CodeQL security requirement)
+                var serviceExists = await _csContext.Services
+                    .AsNoTracking()
+                    .AnyAsync(s => s.ServiceId == serviceId, HttpContext.RequestAborted);
+
+                if (!serviceExists)
+                {
+                    _logger.LogWarning("Service {ServiceId} not found for permission check", serviceId);
+                    return NotFound(new { error = "Service not found", serviceId });
+                }
+
                 _logger.LogInformation("Checking edit permission for user {MothraId} and service {ServiceId}", LogSanitizer.SanitizeId(user.MothraId), serviceId);
 
                 var canEdit = await _permissionService.HasEditPermissionForServiceAsync(serviceId, HttpContext.RequestAborted);
@@ -181,6 +192,17 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     return Unauthorized(new { error = "User not authenticated" });
                 }
 
+                // Validate rotation exists before performing permission check (CodeQL security requirement)
+                var rotationExists = await _csContext.Rotations
+                    .AsNoTracking()
+                    .AnyAsync(r => r.RotId == rotationId, HttpContext.RequestAborted);
+
+                if (!rotationExists)
+                {
+                    _logger.LogWarning("Rotation {RotationId} not found for permission check", rotationId);
+                    return NotFound(new { error = "Rotation not found", rotationId });
+                }
+
                 _logger.LogInformation("Checking edit permission for user {MothraId} and rotation {RotationId}", LogSanitizer.SanitizeId(user.MothraId), rotationId);
 
                 var canEdit = await _permissionService.HasEditPermissionForRotationAsync(rotationId, HttpContext.RequestAborted);
@@ -235,6 +257,17 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 {
                     _logger.LogWarning("No current user found when checking own schedule edit permission for instructor schedule {InstructorScheduleId}", instructorScheduleId);
                     return Unauthorized(new { error = "User not authenticated" });
+                }
+
+                // Validate instructor schedule exists before performing permission check (CodeQL security requirement)
+                var scheduleExists = await _csContext.InstructorSchedules
+                    .AsNoTracking()
+                    .AnyAsync(s => s.InstructorScheduleId == instructorScheduleId, HttpContext.RequestAborted);
+
+                if (!scheduleExists)
+                {
+                    _logger.LogWarning("Instructor schedule {InstructorScheduleId} not found for permission check", instructorScheduleId);
+                    return NotFound(new { error = "Instructor schedule not found", instructorScheduleId });
                 }
 
                 _logger.LogInformation("Checking own schedule edit permission for user {MothraId} and instructor schedule {InstructorScheduleId}", LogSanitizer.SanitizeId(user.MothraId), instructorScheduleId);

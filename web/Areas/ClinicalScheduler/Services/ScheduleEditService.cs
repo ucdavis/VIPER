@@ -54,6 +54,15 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
             try
             {
+                // Validate that the rotation exists BEFORE permission check (CodeQL security requirement)
+                var rotationExists = await _context.Rotations
+                    .AnyAsync(r => r.RotId == rotationId, cancellationToken);
+
+                if (!rotationExists)
+                {
+                    throw new InvalidOperationException($"Rotation with ID {rotationId} not found in the system");
+                }
+
                 // Validate permissions and get current user
                 // For adding, check if user is adding themselves with EditOwnSchedule permission
                 var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(rotationId, mothraId ?? "", cancellationToken);
@@ -87,15 +96,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 if (!personExists)
                 {
                     throw new InvalidOperationException($"Person with MothraId {mothraId} not found in the system");
-                }
-
-                // Validate that the rotation exists
-                var rotationExists = await _context.Rotations
-                    .AnyAsync(r => r.RotId == rotationId, cancellationToken);
-
-                if (!rotationExists)
-                {
-                    throw new InvalidOperationException($"Rotation with ID {rotationId} not found in the system");
                 }
 
                 // Validate that all weeks exist and are valid for the grad year
@@ -284,6 +284,18 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 {
                     _logger.LogWarning("InstructorSchedule {ScheduleId} not found for removal", instructorScheduleId);
                     return (false, false, null);
+                }
+
+                // Validate that rotation exists BEFORE permission check (CodeQL security requirement)
+                // This validation is defensive - the schedule.Rotation should exist via FK constraint
+                var rotationExists = await _context.Rotations
+                    .AnyAsync(r => r.RotId == schedule.RotationId, cancellationToken);
+
+                if (!rotationExists)
+                {
+                    _logger.LogError("Data integrity issue: InstructorSchedule {ScheduleId} references non-existent rotation {RotationId}",
+                        instructorScheduleId, schedule.RotationId);
+                    throw new InvalidOperationException($"Associated rotation not found for instructor schedule {instructorScheduleId}");
                 }
 
                 // Validate permissions and get current user
