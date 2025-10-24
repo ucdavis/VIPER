@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
-using VIPER.Areas.ClinicalScheduler.Utilities;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
 {
@@ -135,7 +135,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 if (string.IsNullOrEmpty(requiredPermission))
                 {
                     _logger.LogWarning("Service {ServiceId} not found or user {MothraId} lacks permission", serviceId, LogSanitizer.SanitizeId(user.MothraId));
-                    return NotFound(new { error = "Service not found or access denied", serviceId });
+                    return NotFound(new { error = "Service not found or access denied" });
                 }
 
                 var response = new
@@ -205,7 +205,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 if (!rotationExists)
                 {
                     _logger.LogWarning("Rotation {RotationId} not found or user {MothraId} lacks permission", rotationId, LogSanitizer.SanitizeId(user.MothraId));
-                    return NotFound(new { error = "Rotation not found or access denied", rotationId });
+                    return NotFound(new { error = "Rotation not found or access denied" });
                 }
 
                 var response = new
@@ -274,7 +274,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 if (!scheduleExists)
                 {
                     _logger.LogWarning("Instructor schedule {InstructorScheduleId} not found or user {MothraId} lacks permission", instructorScheduleId, LogSanitizer.SanitizeId(user.MothraId));
-                    return NotFound(new { error = "Instructor schedule not found or access denied", instructorScheduleId });
+                    return NotFound(new { error = "Instructor schedule not found or access denied" });
                 }
 
                 var response = new

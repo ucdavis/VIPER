@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
-using VIPER.Areas.ClinicalScheduler.Utilities;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {

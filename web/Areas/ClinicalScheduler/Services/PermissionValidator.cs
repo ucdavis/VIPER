@@ -1,6 +1,6 @@
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
-using VIPER.Areas.ClinicalScheduler.Utilities;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Services;
 

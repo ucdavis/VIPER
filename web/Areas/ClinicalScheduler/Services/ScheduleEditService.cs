@@ -4,7 +4,7 @@ using System.Net;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 using Viper.Services;
-using VIPER.Areas.ClinicalScheduler.Utilities;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -54,20 +54,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
             try
             {
-                // Validate permissions first to avoid information disclosure
-                // The permission validator will check if the rotation exists internally
-                // For adding, check if user is adding themselves with EditOwnSchedule permission
+                // Validate permissions (rotation existence is verified internally to prevent information disclosure)
                 var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(rotationId, mothraId ?? "", cancellationToken);
-
-                // After permission check, validate that the rotation exists
-                // This is now safe because we've already verified the user has permission
-                var rotationExists = await _context.Rotations
-                    .AnyAsync(r => r.RotId == rotationId, cancellationToken);
-
-                if (!rotationExists)
-                {
-                    throw new InvalidOperationException($"Rotation with ID {rotationId} not found in the system");
-                }
 
                 // Validate grad year - only allow current or future years
                 var currentGradYear = await _gradYearService.GetCurrentGradYearAsync();
@@ -288,22 +276,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return (false, false, null);
                 }
 
-                // Validate permissions first to avoid information disclosure
-                // For removal, check if user is editing their own schedule
+                // Validate permissions (rotation existence is verified internally to prevent information disclosure)
                 var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(schedule.RotationId, schedule.MothraId, cancellationToken);
-
-                // After permission check, validate that rotation exists (defensive check for data integrity)
-                // This is now safe because we've already verified the user has permission
-                // The schedule.Rotation should exist via FK constraint
-                var rotationExists = await _context.Rotations
-                    .AnyAsync(r => r.RotId == schedule.RotationId, cancellationToken);
-
-                if (!rotationExists)
-                {
-                    _logger.LogError("Data integrity issue: InstructorSchedule {ScheduleId} references non-existent rotation {RotationId}",
-                        instructorScheduleId, schedule.RotationId);
-                    throw new InvalidOperationException($"Associated rotation not found for instructor schedule {instructorScheduleId}");
-                }
 
                 // Capture whether this was a primary evaluator and instructor name before removal
                 var wasPrimaryEvaluator = schedule.Evaluator;

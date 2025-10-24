@@ -9,7 +9,7 @@ using Viper.Areas.ClinicalScheduler.Validators;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
-using VIPER.Areas.ClinicalScheduler.Utilities;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
 {

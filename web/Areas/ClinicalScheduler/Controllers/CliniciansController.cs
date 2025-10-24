@@ -5,7 +5,7 @@ using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.Curriculum.Services;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
-using VIPER.Areas.ClinicalScheduler.Utilities;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
 {
@@ -58,12 +58,12 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             // Normalize and validate viewContext
             var normalizedViewContext = NormalizeViewContext(viewContext);
 
-            _logger.LogDebug("GetClinicians endpoint called with year: {Year}, includeAllAffiliates: {IncludeAllAffiliates}, viewContext: {ViewContext} (normalized: {NormalizedViewContext})", targetYear, includeAllAffiliates, viewContext, normalizedViewContext);
+            _logger.LogDebug("GetClinicians endpoint called with year: {Year}, includeAllAffiliates: {IncludeAllAffiliates}, viewContext: {ViewContext} (normalized: {NormalizedViewContext})", LogSanitizer.SanitizeYear(targetYear), includeAllAffiliates, viewContext, normalizedViewContext);
 
             if (targetYear >= currentGradYear)
             {
                 // Current or future year: use PersonService to get clinicians from Clinical Scheduler data
-                _logger.LogDebug("Using PersonService to get clinicians for current/future year {Year} (includeAllAffiliates: {IncludeAllAffiliates})", targetYear, includeAllAffiliates);
+                _logger.LogDebug("Using PersonService to get clinicians for current/future year {Year} (includeAllAffiliates: {IncludeAllAffiliates})", LogSanitizer.SanitizeYear(targetYear), includeAllAffiliates);
 
                 // Fetch clinicians based on includeAllAffiliates flag
                 // true = all active employee affiliates from AAUD database
@@ -89,7 +89,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             else
             {
                 // Past year: use PersonService to get clinicians for specific year
-                _logger.LogDebug("Using PersonService to get clinicians for past year {Year}", targetYear);
+                _logger.LogDebug("Using PersonService to get clinicians for past year {Year}", LogSanitizer.SanitizeYear(targetYear));
 
                 var clinicians = await _personService.GetCliniciansByYearAsync(targetYear, HttpContext.RequestAborted);
 
@@ -106,7 +106,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 }).ToList();
 
                 _logger.LogDebug("Found {ClinicianCount} clinicians for year {Year} (filtered to {FilteredCount} based on permissions for {ViewContext} view)",
-                    clinicians.Count, targetYear, result.Count, viewContext ?? "default");
+                    clinicians.Count, LogSanitizer.SanitizeYear(targetYear), result.Count, viewContext ?? "default");
                 return Ok(result);
             }
         }
@@ -137,17 +137,17 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 }
                 // Use grad year logic instead of calendar year
                 var targetYear = await GetTargetYearAsync(year);
-                _logger.LogDebug("Fetching schedule for clinician {MothraId}, grad year: {Year}", LogSanitizer.SanitizeId(mothraId), targetYear);
+                _logger.LogDebug("Fetching schedule for clinician {MothraId}, grad year: {Year}", LogSanitizer.SanitizeId(mothraId), LogSanitizer.SanitizeYear(targetYear));
 
                 // Get weeks for the grad year using vWeek view (contains correct week numbers)
                 var vWeeks = await _weekService.GetWeeksAsync(targetYear, includeExtendedRotation: true);
 
                 _logger.LogDebug("Retrieved {WeekCount} weeks for year {Year}, unique WeekIds: {UniqueCount}",
-                    vWeeks.Count, targetYear, vWeeks.Select(w => w.WeekId).Distinct().Count());
+                    vWeeks.Count, LogSanitizer.SanitizeYear(targetYear), vWeeks.Select(w => w.WeekId).Distinct().Count());
 
                 if (!vWeeks.Any())
                 {
-                    _logger.LogWarning("No weeks found for grad year {Year}", targetYear);
+                    _logger.LogWarning("No weeks found for grad year {Year}", LogSanitizer.SanitizeYear(targetYear));
 
                     // Use PersonService to get clinician info (consistent with GetClinicians endpoint)
                     var clinicianResult = await BuildClinicianInfoAsync(mothraId);
@@ -194,7 +194,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     if (firstSchedule == null)
                     {
                         // Defensive fallback - this shouldn't happen given the Any() check above
-                        _logger.LogWarning("Unexpected: No schedules found for clinician {MothraId} for year {Year} after confirming schedules exist. CorrelationId: {CorrelationId}", LogSanitizer.SanitizeId(mothraId), targetYear, correlationId);
+                        _logger.LogWarning("Unexpected: No schedules found for clinician {MothraId} for year {Year} after confirming schedules exist. CorrelationId: {CorrelationId}", LogSanitizer.SanitizeId(mothraId), LogSanitizer.SanitizeYear(targetYear), correlationId);
                         clinicianInfo = new
                         {
                             mothraId = mothraId,
@@ -331,7 +331,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 };
 
                 _logger.LogDebug("Found {ScheduleCount} schedule entries for clinician {MothraId} (grad year {Year})",
-                    schedules.Count, LogSanitizer.SanitizeId(mothraId), targetYear);
+                    schedules.Count, LogSanitizer.SanitizeId(mothraId), LogSanitizer.SanitizeYear(targetYear));
                 return Ok(result);
             }
             catch (Exception)
