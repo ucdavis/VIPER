@@ -260,26 +260,24 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     return Unauthorized(new { error = "User not authenticated" });
                 }
 
-                // Check permission first to avoid information disclosure
-                // The permission check will internally verify the schedule exists
+                // Atomically check for schedule existence and permission to avoid timing-based information disclosure
                 _logger.LogInformation("Checking own schedule edit permission for user {MothraId} and instructor schedule {InstructorScheduleId}", LogSanitizer.SanitizeId(user.MothraId), instructorScheduleId);
 
-                var canEdit = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId, HttpContext.RequestAborted);
-
-                // Verify schedule exists - if not, return generic error to avoid information disclosure
-                var scheduleExists = await _csContext.InstructorSchedules
+                var schedule = await _csContext.InstructorSchedules
                     .AsNoTracking()
-                    .AnyAsync(s => s.InstructorScheduleId == instructorScheduleId, HttpContext.RequestAborted);
+                    .FirstOrDefaultAsync(s => s.InstructorScheduleId == instructorScheduleId, HttpContext.RequestAborted);
 
-                if (!scheduleExists)
+                if (schedule == null)
                 {
                     _logger.LogWarning("Instructor schedule {InstructorScheduleId} not found or user {MothraId} lacks permission", instructorScheduleId, LogSanitizer.SanitizeId(user.MothraId));
                     return NotFound(new { error = "Instructor schedule not found or access denied" });
                 }
 
+                var canEdit = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId, HttpContext.RequestAborted);
+
                 var response = new
                 {
-                    instructorScheduleId = instructorScheduleId,
+                    instructorScheduleId,
                     canEditOwn = canEdit,
                     user = new
                     {

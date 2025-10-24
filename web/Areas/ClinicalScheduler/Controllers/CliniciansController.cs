@@ -76,10 +76,10 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 // Convert to the expected response format
                 var result = filteredClinicians.Select(c => new
                 {
-                    MothraId = c.MothraId,
-                    FullName = c.FullName,
-                    FirstName = c.FirstName,
-                    LastName = c.LastName
+                    c.MothraId,
+                    c.FullName,
+                    c.FirstName,
+                    c.LastName
                 }).ToList();
 
                 _logger.LogDebug("Retrieved {TotalClinicianCount} unique clinicians from PersonService (filtered to {FilteredCount} based on permissions for {ViewContext} view)",
@@ -99,14 +99,14 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 // Convert to the expected response format
                 var result = filteredClinicians.Select(c => new
                 {
-                    MothraId = c.MothraId,
-                    FullName = c.FullName,
-                    FirstName = c.FirstName,
-                    LastName = c.LastName
+                    c.MothraId,
+                    c.FullName,
+                    c.FirstName,
+                    c.LastName
                 }).ToList();
 
                 _logger.LogDebug("Found {ClinicianCount} clinicians for year {Year} (filtered to {FilteredCount} based on permissions for {ViewContext} view)",
-                    clinicians.Count, LogSanitizer.SanitizeYear(targetYear), result.Count, viewContext ?? "default");
+                    clinicians.Count, LogSanitizer.SanitizeYear(targetYear), result.Count, LogSanitizer.SanitizeString(viewContext ?? "default"));
                 return Ok(result);
             }
         }
@@ -370,9 +370,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     {
                         RotationId = r.RotId,
                         RotationName = r.Name,
-                        Abbreviation = r.Abbreviation,
-                        ServiceId = r.ServiceId,
-                        ServiceName = r.Service!.ServiceName
+                        r.Abbreviation,
+                        r.ServiceId,
+                        r.Service!.ServiceName
                     })
                     .OrderBy(r => r.ServiceName)
                     .ThenBy(r => r.RotationName)

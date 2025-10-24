@@ -60,7 +60,7 @@ public static class LogSanitizer
         if (year < MinYear || year > maxYear)
         {
             // Return a safe placeholder that indicates an invalid year without exposing the actual value
-            return $"INVALID({year})";
+            return "INVALID";
         }
 
         return year.ToString();
@@ -74,5 +74,30 @@ public static class LogSanitizer
     public static string SanitizeYear(int? year)
     {
         return year.HasValue ? SanitizeYear(year.Value) : "null";
+    }
+
+    /// <summary>
+    /// Sanitizes a general string for safe logging by removing newlines, carriage returns,
+    /// and other control characters that could be used for log injection attacks.
+    /// </summary>
+    /// <param name="value">The string to sanitize. Can be null.</param>
+    /// <returns>A sanitized string with control characters removed, or null if input was null.</returns>
+    public static string? SanitizeString(string? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        // Remove newlines, carriage returns, and other control characters
+        // that could be used for log injection attacks
+        var sanitized = new string([.. value.Where(c => !char.IsControl(c))]);
+
+        return sanitized;
     }
 }
