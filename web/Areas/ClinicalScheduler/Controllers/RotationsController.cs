@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.Curriculum.Services;
@@ -172,7 +173,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             try
             {
                 var targetYear = await GetTargetYearAsync(year);
-                _logger.LogInformation("Getting schedule for rotation {RotationId} for grad year {Year}", id, targetYear);
+                _logger.LogInformation("Getting schedule for rotation {RotationId} for grad year {Year}", id, LogSanitizer.SanitizeYear(targetYear));
 
                 // Get rotation details through service layer
                 var rotation = await _rotationService.GetRotationAsync(id, HttpContext.RequestAborted);
@@ -194,7 +195,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 if (!vWeeks.Any())
                 {
-                    _logger.LogWarning("No weeks found for grad year {Year}", targetYear);
+                    _logger.LogWarning("No weeks found for grad year {Year}", LogSanitizer.SanitizeYear(targetYear));
                     return Ok(BuildEmptyScheduleResponse(rotation, targetYear));
                 }
 
@@ -235,7 +236,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 var recentCliniciansList = BuildRecentCliniciansList(recentClinicianMothraIds, personData);
 
                 _logger.LogInformation("Retrieved schedule for rotation {RotationName} (grad year {Year}) grouped into {SemesterCount} semesters, {RecentClinicianCount} recent clinicians",
-                    rotation.Name, targetYear, groupedSchedules.Count, recentCliniciansList.Count);
+                    rotation.Name, LogSanitizer.SanitizeYear(targetYear), groupedSchedules.Count, recentCliniciansList.Count);
 
                 return Ok(BuildRotationScheduleResponse(rotation, targetYear, groupedSchedules, recentCliniciansList));
             }
@@ -265,7 +266,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             try
             {
                 var targetYear = await GetTargetYearAsync(year);
-                _logger.LogInformation("Getting rotations with scheduled weeks for year {Year}", targetYear);
+                _logger.LogInformation("Getting rotations with scheduled weeks for year {Year}", LogSanitizer.SanitizeYear(targetYear));
 
                 // Get rotations that have instructor schedules for the specified year
                 // Use join-based approach for better performance instead of nested Any() calls
@@ -302,7 +303,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 var allowedServiceIds = await GetAllowedServiceIdsAsync(HttpContext.RequestAborted);
                 var filteredRotations = rotationsWithSchedules.Where(r => allowedServiceIds.Contains(r.ServiceId)).ToList();
 
-                _logger.LogInformation("Retrieved {Count} rotations with scheduled weeks for year {Year} (filtered to {FilteredCount})", rotationsWithSchedules.Count, targetYear, filteredRotations.Count);
+                _logger.LogInformation("Retrieved {Count} rotations with scheduled weeks for year {Year} (filtered to {FilteredCount})", rotationsWithSchedules.Count, LogSanitizer.SanitizeYear(targetYear), filteredRotations.Count);
                 return Ok(filteredRotations);
             }
             catch (Exception)
