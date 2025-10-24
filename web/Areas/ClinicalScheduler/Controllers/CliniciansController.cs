@@ -58,7 +58,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             // Normalize and validate viewContext
             var normalizedViewContext = NormalizeViewContext(viewContext);
 
-            _logger.LogDebug("GetClinicians endpoint called with year: {Year}, includeAllAffiliates: {IncludeAllAffiliates}, viewContext: {ViewContext} (normalized: {NormalizedViewContext})", LogSanitizer.SanitizeYear(targetYear), includeAllAffiliates, viewContext, normalizedViewContext);
+            _logger.LogDebug("GetClinicians endpoint called with year: {Year}, includeAllAffiliates: {IncludeAllAffiliates}, viewContext: {ViewContext} (normalized: {NormalizedViewContext})", LogSanitizer.SanitizeYear(targetYear), includeAllAffiliates, LogSanitizer.SanitizeString(viewContext), LogSanitizer.SanitizeString(normalizedViewContext));
 
             if (targetYear >= currentGradYear)
             {
@@ -83,7 +83,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 }).ToList();
 
                 _logger.LogDebug("Retrieved {TotalClinicianCount} unique clinicians from PersonService (filtered to {FilteredCount} based on permissions for {ViewContext} view)",
-                    clinicians.Count, result.Count, viewContext ?? "default");
+                    clinicians.Count, result.Count, LogSanitizer.SanitizeString(viewContext ?? "default"));
                 return Ok(result);
             }
             else
