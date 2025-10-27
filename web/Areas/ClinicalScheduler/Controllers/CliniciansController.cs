@@ -197,7 +197,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         _logger.LogWarning("Unexpected: No schedules found for clinician {MothraId} for year {Year} after confirming schedules exist. CorrelationId: {CorrelationId}", LogSanitizer.SanitizeId(mothraId), LogSanitizer.SanitizeYear(targetYear), correlationId);
                         clinicianInfo = new
                         {
-                            mothraId = mothraId,
+                            mothraId,
                             fullName = $"Clinician {mothraId}",
                             firstName = "",
                             lastName = "",
@@ -218,7 +218,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                             // Fallback to schedule Person data
                             clinicianInfo = new
                             {
-                                mothraId = mothraId,
+                                mothraId,
                                 fullName = firstSchedule.Person?.PersonDisplayFullName ?? "Unknown",
                                 firstName = firstSchedule.Person?.PersonDisplayFirstName ?? "Unknown",
                                 lastName = firstSchedule.Person?.PersonDisplayLastName ?? "Unknown",
@@ -372,7 +372,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         RotationName = r.Name,
                         r.Abbreviation,
                         r.ServiceId,
-                        r.Service!.ServiceName
+                        ServiceName = r.Service!.ServiceName
                     })
                     .OrderBy(r => r.ServiceName)
                     .ThenBy(r => r.RotationName)
@@ -481,11 +481,11 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         {
             return new
             {
-                mothraId = mothraId,
+                mothraId,
                 fullName = clinician.FullName,
                 firstName = clinician.FirstName,
                 lastName = clinician.LastName,
-                role = role
+                role
             };
         }
 
@@ -519,11 +519,11 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         {
             return new
             {
-                mothraId = mothraId,
+                mothraId,
                 fullName = $"Clinician {mothraId}",
                 firstName = "",
                 lastName = "",
-                role = role
+                role
             };
         }
 

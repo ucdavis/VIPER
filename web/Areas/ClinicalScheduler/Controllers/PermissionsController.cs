@@ -73,18 +73,24 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 },
                 permissions = new
                 {
-                    hasAdminPermission = hasAdminPermission,
-                    hasManagePermission = hasManagePermission,
-                    hasEditClnSchedulesPermission = hasEditClnSchedulesPermission,
-                    hasEditOwnSchedulePermission = hasEditOwnSchedulePermission,
-                    servicePermissions = servicePermissions,
+                    hasAdminPermission,
+                    hasManagePermission,
+                    hasEditClnSchedulesPermission,
+                    hasEditOwnSchedulePermission,
+                    servicePermissions,
                     editableServiceCount = editableServices.Count
                 },
-                editableServices = editableServices.Select(s => new
+                editableServices = editableServices.Select(s =>
                 {
-                    serviceId = s.ServiceId,
-                    serviceName = s.ServiceName,
-                    scheduleEditPermission = s.ScheduleEditPermission
+                    var serviceId = s.ServiceId;
+                    var serviceName = s.ServiceName;
+                    var scheduleEditPermission = s.ScheduleEditPermission;
+                    return new
+                    {
+                        serviceId,
+                        serviceName,
+                        scheduleEditPermission
+                    };
                 }).ToList()
             };
 
@@ -140,9 +146,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 var response = new
                 {
-                    serviceId = serviceId,
-                    canEdit = canEdit,
-                    requiredPermission = requiredPermission,
+                    serviceId,
+                    canEdit,
+                    requiredPermission,
                     user = new
                     {
                         mothraId = user.MothraId
@@ -210,8 +216,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 var response = new
                 {
-                    rotationId = rotationId,
-                    canEdit = canEdit,
+                    rotationId,
+                    canEdit,
                     user = new
                     {
                         mothraId = user.MothraId
@@ -340,12 +346,19 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
             var userPermissions = await _permissionService.GetUserServicePermissionsAsync(HttpContext.RequestAborted);
 
-            var servicesWithPermissions = services.Select(s => new
+            var servicesWithPermissions = services.Select(s =>
             {
-                s.ServiceId,
-                s.ServiceName,
-                hasCustomPermission = !string.IsNullOrEmpty(s.ScheduleEditPermission),
-                userCanEdit = userPermissions.GetValueOrDefault(s.ServiceId, false)
+                var ServiceId = s.ServiceId;
+                var ServiceName = s.ServiceName;
+                var hasCustomPermission = !string.IsNullOrEmpty(s.ScheduleEditPermission);
+                var userCanEdit = userPermissions.GetValueOrDefault(s.ServiceId, false);
+                return new
+                {
+                    ServiceId,
+                    ServiceName,
+                    hasCustomPermission,
+                    userCanEdit
+                };
             }).ToList();
 
             var totalEditableServices = servicesWithPermissions.Count(s => s.userCanEdit);
@@ -362,7 +375,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 {
                     totalServices = services.Count,
                     editableServices = totalEditableServices,
-                    servicesWithCustomPermissions = servicesWithCustomPermissions,
+                    servicesWithCustomPermissions,
                     defaultPermission = ClinicalSchedulePermissions.Manage
                 },
                 services = servicesWithPermissions
