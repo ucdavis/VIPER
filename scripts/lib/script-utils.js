@@ -126,6 +126,34 @@ async function killProcess(name) {
     }
 }
 
+// Helper function to wait for a process to fully terminate (Windows-specific)
+async function waitForProcessTermination(pid, maxWaitMs = 5000) {
+    const isWindows = os.platform() === "win32"
+    if (!isWindows) {
+        return true // Non-Windows doesn't need explicit waiting
+    }
+
+    const startTime = Date.now()
+    const checkInterval = 100 // Check every 100ms
+
+    while (Date.now() - startTime < maxWaitMs) {
+        try {
+            // Check if process still exists using tasklist
+            const { stdout } = await execAsync(`tasklist /FI "PID eq ${pid}" /NH`)
+            // If the process is gone, tasklist will show "INFO: No tasks are running"
+            if (stdout.includes("No tasks") || !stdout.includes(pid)) {
+                return true // Process is terminated
+            }
+        } catch {
+            // If tasklist fails, assume process is gone
+            return true
+        }
+        // Wait before checking again
+        await new Promise((resolve) => setTimeout(resolve, checkInterval))
+    }
+    return false // Timeout reached, process may still be terminating
+}
+
 // Kill a process by the port it's listening on (cross-platform)
 const MAX_PORT_NUMBER = 65_535
 async function killProcessOnPort(port) {
@@ -158,6 +186,8 @@ async function killProcessOnPort(port) {
             const killPromises = pids.map(async (pid) => {
                 try {
                     await execAsync(`taskkill /F /PID ${pid}`)
+                    // Wait for the process to fully terminate before continuing
+                    await waitForProcessTermination(pid, 3000) // Wait up to 3 seconds
                     return true
                 } catch (error) {
                     // taskkill throws an error if the process doesn't exist, which is fine.
