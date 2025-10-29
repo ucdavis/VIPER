@@ -532,7 +532,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error checking other rotation schedules for {MothraId} on weeks {WeekIds} for grad year {GradYear}",
-                    mothraId, string.Join(",", weekIds), gradYear);
+                    LogSanitizer.SanitizeId(mothraId), string.Join(",", weekIds), LogSanitizer.SanitizeYear(gradYear));
                 throw new InvalidOperationException($"Failed to retrieve other rotation schedules. Please try again or contact support if the problem persists.", ex);
             }
         }

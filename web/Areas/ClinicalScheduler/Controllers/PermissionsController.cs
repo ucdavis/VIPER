@@ -116,7 +116,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             if (serviceId <= 0)
             {
                 _logger.LogWarning("Invalid service ID provided for permission check: {ServiceId}", serviceId);
-                return BadRequest(new { error = "Service ID must be a positive integer", serviceId });
+                return BadRequest(new { error = "Service ID must be a positive integer" });
             }
 
             try
@@ -184,7 +184,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             if (rotationId <= 0)
             {
                 _logger.LogWarning("Invalid rotation ID provided for permission check: {RotationId}", rotationId);
-                return BadRequest(new { error = "Rotation ID must be a positive integer", rotationId });
+                return BadRequest(new { error = "Rotation ID must be a positive integer" });
             }
 
             try
@@ -253,7 +253,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             if (instructorScheduleId <= 0)
             {
                 _logger.LogWarning("Invalid instructor schedule ID provided for own schedule permission check: {InstructorScheduleId}", instructorScheduleId);
-                return BadRequest(new { error = "Instructor schedule ID must be a positive integer", instructorScheduleId });
+                return BadRequest(new { error = "Instructor schedule ID must be a positive integer" });
             }
 
             try
