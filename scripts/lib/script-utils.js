@@ -138,10 +138,11 @@ async function waitForProcessTermination(pid, maxWaitMs = 5000) {
 
     while (Date.now() - startTime < maxWaitMs) {
         try {
-            // Check if process still exists using tasklist
+            // Check if process still exists using tasklist with exact PID filter
+            // The /FI "PID eq ${pid}" filter ensures exact PID matching (no false positives)
             const { stdout } = await execAsync(`tasklist /FI "PID eq ${pid}" /NH`)
             // If the process is gone, tasklist will show "INFO: No tasks are running"
-            if (stdout.includes("No tasks") || !stdout.includes(pid)) {
+            if (stdout.includes("No tasks")) {
                 return true // Process is terminated
             }
         } catch {
