@@ -8,8 +8,8 @@
             >
                 <StudentPhotoCard
                     :student="student"
-                    :students="students"
                     :current-index="index"
+                    @click="handleStudentCardClick(index)"
                 />
             </div>
         </div>
@@ -23,6 +23,14 @@ import StudentPhotoCard from "./StudentPhotoCard.vue"
 defineProps<{
     students: StudentPhoto[]
 }>()
+
+const emit = defineEmits<{
+    "student-click": [index: number]
+}>()
+
+function handleStudentCardClick(index: number) {
+    emit("student-click", index)
+}
 </script>
 
 <style scoped>

@@ -6,7 +6,7 @@
             spinner-color="primary"
             no-default-spinner
             class="cursor-pointer"
-            @click="openDialog"
+            @click="handleClick"
         >
             <template #error>
                 <div class="absolute-full flex flex-center bg-grey-3">
@@ -29,6 +29,12 @@
             >
                 {{ line }}
             </div>
+            <div
+                v-if="student.priorClassYear"
+                class="text-body2 text-grey-7 q-mt-xs"
+            >
+                Prior Class: {{ student.priorClassYear }}
+            </div>
             <div class="badge-container">
                 <q-badge
                     v-if="student.isRossStudent"
@@ -39,36 +45,29 @@
                 </q-badge>
             </div>
         </q-card-section>
-
-        <StudentPhotoDialog
-            v-if="students"
-            v-model="showDialog"
-            :students="students"
-            :initial-index="dialogIndex"
-        />
     </q-card>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue"
+import { computed } from "vue"
 import type { StudentPhoto } from "../../services/photo-gallery-service"
 import { getPhotoUrl } from "../../composables/use-photo-url"
-import StudentPhotoDialog from "./StudentPhotoDialog.vue"
 
 const props = defineProps<{
     student: StudentPhoto
-    students?: StudentPhoto[]
     currentIndex?: number
 }>()
 
-const showDialog = ref(false)
-const dialogIndex = ref(0)
+const emit = defineEmits<{
+    click: []
+}>()
 
 const photoUrl = computed(() => getPhotoUrl(props.student))
 
-const openDialog = () => {
-    dialogIndex.value = props.currentIndex ?? 0
-    showDialog.value = true
+function handleClick(event: Event) {
+    event.stopPropagation()
+    event.preventDefault()
+    emit("click")
 }
 </script>
 

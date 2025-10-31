@@ -24,6 +24,7 @@ namespace Viper.Areas.Students.Models
         public string? V3SpecialtyGroup { get; set; }
         public bool HasPhoto { get; set; }
         public bool IsRossStudent { get; set; }
+        public int? PriorClassYear { get; set; }
 
         // Computed properties for consistent display across UI and exports
         [JsonInclude]
@@ -41,8 +42,6 @@ namespace Viper.Areas.Students.Models
                     lines.Add($"Team {TeamNumber}");
                 if (!string.IsNullOrEmpty(V3SpecialtyGroup))
                     lines.Add(V3SpecialtyGroup);
-                if (IsRossStudent)
-                    lines.Add("Ross Student");
                 return lines;
             }
         }
@@ -79,5 +78,11 @@ namespace Viper.Areas.Students.Models
         public byte[] FileData { get; set; }
         public string FileName { get; set; }
         public string ContentType { get; set; }
+    }
+
+    public class StudentDetailInfo
+    {
+        public int? PriorClassYear { get; set; }
+        public int? CurrentClassYear { get; set; }
     }
 }

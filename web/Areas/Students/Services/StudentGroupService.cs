@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using Viper.Classes.SQLContext;
 using Viper.Areas.Students.Models;
 
@@ -14,6 +15,7 @@ false);
         Task<List<string>> GetTeamsAsync(string classLevel);
         Task<List<string>> GetV3SpecialtyGroupsAsync();
         Task<GroupingInfo> GetGroupingInfoAsync(string groupType);
+        Task<StudentDetailInfo?> GetStudentDetailsAsync(string mailId);
     }
 
     public class StudentGroupService : IStudentGroupService
@@ -41,19 +43,26 @@ includeRossStudents = false)
                 var currentTerm = GetCurrentTerm().ToString();
                 var currentTermInt = int.Parse(currentTerm);
 
-                // Get list of Ross student IamIds to exclude from regular query
+                // Get list of Ross student IamIds to ALWAYS exclude from regular query
+                // This prevents duplicates - Ross students are added separately with IsRossStudent=true
                 List<string> rossIamIds = new List<string>();
-                if (includeRossStudents)
+                var rossGradYear = GradYearClassLevel.GetGradYear(classLevel, currentTermInt);
+                if (rossGradYear.HasValue)
                 {
-                    var gradYear = GradYearClassLevel.GetGradYear(classLevel, currentTermInt);
-                    if (gradYear.HasValue)
+                    try
                     {
                         var rossDesignations = await _sisContext.StudentDesignations
-                            .Where(sd => sd.DesignationType == "Ross" && sd.ClassYear1 == gradYear)
+                            .Where(sd => sd.DesignationType == "Ross" && sd.ClassYear1 == rossGradYear)
                             .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
                                         (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
                             .ToListAsync();
+
                         rossIamIds = rossDesignations.Select(rd => rd.IamId).ToList();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error querying SIS context for Ross students");
+                        // Continue with empty rossIamIds list - no Ross students will be excluded/added
                     }
                 }
 
@@ -72,6 +81,8 @@ includeRossStudents = false)
                                 FirstName = p.PersonDisplayFirstName ?? p.PersonFirstName,
                                 LastName = p.PersonLastName,
                                 MiddleName = p.PersonMiddleName,
+                                IamId = i.IdsIamId,
+                                BannerId = i.IdsClientid,
                                 ClassLevel = s.StudentsClassLevel,
                                 EighthsGroup = sg != null ? sg.StudentgrpGrp : null,
                                 TwentiethsGroup = sg != null ? sg.Studentgrp20 : null,
@@ -80,6 +91,9 @@ includeRossStudents = false)
                             };
 
                 var students = await query.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
+
+                // Get the graduation year for this class level to check for prior class years
+                var gradYear = GradYearClassLevel.GetGradYear(classLevel, currentTermInt);
 
                 var photoStudents = new List<StudentPhoto>();
                 foreach (var student in students)
@@ -107,6 +121,13 @@ includeRossStudents = false)
                         groupAssignment = student.TwentiethsGroup;
                     }
 
+                    // Get the prior class year using stored procedures (like legacy system)
+                    int? priorClassYear = null;
+                    if (gradYear.HasValue)
+                    {
+                        priorClassYear = await GetPriorClassYearForStudentAsync(student.BannerId, gradYear.Value, student.MailId);
+                    }
+
                     var photoStudent = new StudentPhoto
                     {
                         MailId = student.MailId,
@@ -120,7 +141,8 @@ includeRossStudents = false)
                         TeamNumber = student.ClassLevel == "V3" ? student.TeamNumber?.Trim() : null,
                         V3SpecialtyGroup = student.ClassLevel == "V3" ? student.V3SpecialtyGroup?.Trim() : null,
                         HasPhoto = hasPhoto,
-                        IsRossStudent = false
+                        IsRossStudent = false,
+                        PriorClassYear = priorClassYear
                     };
 
                     photoStudents.Add(photoStudent);
@@ -130,14 +152,12 @@ includeRossStudents = false)
                 if (includeRossStudents)
                 {
                     _logger.LogInformation("Including Ross students for class level {ClassLevel}", classLevel);
-                    var termCode = int.Parse(currentTerm);
-                    var gradYear = GradYearClassLevel.GetGradYear(classLevel, termCode);
                     _logger.LogInformation("Calculated grad year: {GradYear} for class level {ClassLevel} and term {TermCode}",
-                        gradYear, classLevel, termCode);
+                        rossGradYear, classLevel, currentTermInt);
 
-                    if (gradYear.HasValue)
+                    if (rossGradYear.HasValue)
                     {
-                        var rossStudents = await GetRossStudentsByGradYearAsync(gradYear.Value);
+                        var rossStudents = await GetRossStudentsByGradYearAsync(rossGradYear.Value);
                         _logger.LogInformation("Adding {Count} Ross students to {TotalStudents} regular students",
                             rossStudents.Count, photoStudents.Count);
                         photoStudents.AddRange(rossStudents);
@@ -158,25 +178,24 @@ includeRossStudents = false)
         {
             try
             {
-                _logger.LogInformation("Searching for Ross students with grad year {GradYear}", gradYear);
-
-                // Get current term
-                var currentTerm = GetCurrentTerm().ToString();
-                _logger.LogInformation("Current term: {CurrentTerm}", currentTerm);
+                // Get current term for filtering
+                var currentTerm = GetCurrentTerm();
+                var currentTermInt = int.Parse(currentTerm.ToString());
 
                 // Query StudentDesignation table in SIS database
+                // Filter by ClassYear1 (ClassYear2 is always NULL per database data)
+                // Also filter by StartTerm/EndTerm to only include active Ross students
+                _logger.LogInformation("Querying Ross students with gradYear={GradYear} and currentTerm={CurrentTerm}", gradYear, currentTermInt);
                 var rossDesignations = await _sisContext.StudentDesignations
                     .Where(sd => sd.DesignationType == "Ross" && sd.ClassYear1 == gradYear)
+                    .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
+                                (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
                     .ToListAsync();
-
-                _logger.LogInformation("Found {Count} Ross student designations", rossDesignations.Count);
-                foreach (var rd in rossDesignations)
-                {
-                    _logger.LogDebug("  Ross Student: IamId={IamId}, Name={FirstName} {LastName}, StartTerm={StartTerm}, EndTerm={EndTerm}",
-                        rd.IamId, rd.FirstName, rd.LastName, rd.StartTerm, rd.EndTerm);
-                }
+                _logger.LogInformation("Found {Count} Ross designations for gradYear={GradYear}", rossDesignations.Count, gradYear);
 
                 var rossIamIds = rossDesignations.Select(sd => sd.IamId).ToList();
+                // Create a dictionary to look up designations by IamId for PriorClassYear info
+                var rossDesignationDict = rossDesignations.ToDictionary(sd => sd.IamId, sd => sd);
 
                 if (!rossIamIds.Any())
                 {
@@ -207,28 +226,18 @@ includeRossStudents = false)
 
                 // Get the most recent AAUD record for each Ross student
                 // Only include terms <= current term and validate against StudentDesignation date range
-                var currentTermInt = int.Parse(currentTerm);
+                var currentTermString = currentTermInt.ToString();
 
                 // Get all AAUD records for Ross students (any term <= current term)
                 var allAaudRecords = await _aaudContext.Ids
                     .Where(ids => ids.IdsIamId != null && rossIamIds.Contains(ids.IdsIamId))
-                    .Where(ids => ids.IdsTermCode.CompareTo(currentTerm) <= 0)
+                    .Where(ids => ids.IdsTermCode.CompareTo(currentTermString) <= 0)
                     .ToListAsync();
 
-                // Filter and get latest record for each student, validating date ranges
+                // Filter and get latest record for each student
                 var latestAaudRecords = allAaudRecords
                     .GroupBy(ids => ids.IdsIamId)
-                    .Select(g =>
-                    {
-                        var designation = rossDesignations.First(rd => rd.IamId == g.Key);
-                        // Only include if current term is within the designation date range
-                        if ((designation.EndTerm == null || currentTermInt <= designation.EndTerm) &&
-                            (designation.StartTerm == null || designation.StartTerm <= currentTermInt))
-                        {
-                            return g.OrderByDescending(x => x.IdsTermCode).FirstOrDefault();
-                        }
-                        return null;
-                    })
+                    .Select(g => g.OrderByDescending(x => x.IdsTermCode).FirstOrDefault())
                     .Where(ids => ids != null)
                     .ToList();
 
@@ -275,6 +284,17 @@ includeRossStudents = false)
                         _photoService.GetDefaultPhotoUrl(),
                         StringComparison.OrdinalIgnoreCase);
 
+                    // Get the prior class year from the designation if available
+                    int? priorClassYear = null;
+                    if (rossDesignationDict.TryGetValue(student.IamId, out var designation) && designation.ClassYear1.HasValue)
+                    {
+                        // Only set PriorClassYear if it's different from the current grad year
+                        if (designation.ClassYear1.Value != gradYear)
+                        {
+                            priorClassYear = designation.ClassYear1.Value;
+                        }
+                    }
+
                     photoStudents.Add(new StudentPhoto
                     {
                         MailId = student.MailId,
@@ -286,7 +306,8 @@ includeRossStudents = false)
                         EighthsGroup = null,
                         TwentiethsGroup = null,
                         HasPhoto = hasPhoto,
-                        IsRossStudent = true
+                        IsRossStudent = true,
+                        PriorClassYear = priorClassYear
                     });
                 }
 
@@ -345,6 +366,8 @@ includeRossStudents = false)
                     FirstName = x.p.PersonDisplayFirstName ?? x.p.PersonFirstName,
                     LastName = x.p.PersonLastName,
                     MiddleName = x.p.PersonMiddleName,
+                    IamId = x.i.IdsIamId,
+                    BannerId = x.i.IdsClientid,
                     ClassLevel = x.s.StudentsClassLevel,
                     EighthsGroup = x.sg.StudentgrpGrp,
                     TwentiethsGroup = x.sg.Studentgrp20,
@@ -353,6 +376,9 @@ includeRossStudents = false)
                 });
 
                 var students = await query.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
+
+                // Get the current term as int for grad year calculation
+                var currentTermInt = int.Parse(currentTerm);
 
                 var photoStudents = new List<StudentPhoto>();
                 foreach (var student in students)
@@ -380,6 +406,14 @@ includeRossStudents = false)
                         groupAssignment = student.TwentiethsGroup;
                     }
 
+                    // Get the prior class year using stored procedures (like legacy system)
+                    int? priorClassYear = null;
+                    var gradYear = GradYearClassLevel.GetGradYear(student.ClassLevel, currentTermInt);
+                    if (gradYear.HasValue)
+                    {
+                        priorClassYear = await GetPriorClassYearForStudentAsync(student.BannerId, gradYear.Value, student.MailId);
+                    }
+
                     photoStudents.Add(new StudentPhoto
                     {
                         MailId = student.MailId,
@@ -393,7 +427,8 @@ includeRossStudents = false)
                         TeamNumber = student.ClassLevel == "V3" ? student.TeamNumber?.Trim() : null,
                         V3SpecialtyGroup = student.ClassLevel == "V3" ? student.V3SpecialtyGroup?.Trim() : null,
                         HasPhoto = hasPhoto,
-                        IsRossStudent = false
+                        IsRossStudent = false,
+                        PriorClassYear = priorClassYear
                     });
                 }
 
@@ -537,6 +572,130 @@ includeRossStudents = false)
             return displayName;
         }
 
+        private string GetSISConnectionString()
+        {
+            return HttpHelper.Settings["ConnectionStrings:SIS"];
+        }
+
+        private async Task<int?> GetPriorClassYearForStudentAsync(string bannerId, int currentGradYear, string mailId)
+        {
+            if (string.IsNullOrEmpty(bannerId))
+            {
+                return null;
+            }
+
+            try
+            {
+                // Call stored procedures to get PIDM and admit year using a single connection
+                string? pidm = null;
+                int? admitTerm = null;
+
+                using (var connection = new SqlConnection(GetSISConnectionString()))
+                {
+                    if (connection.State != System.Data.ConnectionState.Open)
+                        await connection.OpenAsync();
+
+                    pidm = await GetPidmFromBannerIdAsync(connection, bannerId);
+
+                    if (!string.IsNullOrEmpty(pidm))
+                    {
+                        admitTerm = await GetAdmitTermFromPidmAsync(connection, pidm);
+                    }
+                }
+
+                // Calculate prior class year (admit year + 4) and only set if different from current
+                if (admitTerm.HasValue)
+                {
+                    var calculatedPriorYear = admitTerm.Value + 4;
+                    _logger.LogInformation("Calculated prior year {PriorYear} for student {MailId} (admit {AdmitTerm} + 4, current grad {GradYear})",
+                        calculatedPriorYear, mailId, admitTerm.Value, currentGradYear);
+                    if (calculatedPriorYear != currentGradYear)
+                    {
+                        _logger.LogInformation("Setting prior class year {PriorYear} for student {MailId}", calculatedPriorYear, mailId);
+                        return calculatedPriorYear;
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Not setting prior class year for student {MailId} - calculated year matches current grad year", mailId);
+                    }
+                }
+                else if (!string.IsNullOrEmpty(pidm))
+                {
+                    _logger.LogDebug("No admit term found for student {MailId} with PIDM {PIDM}",
+                        mailId, pidm);
+                }
+                else
+                {
+                    _logger.LogDebug("No PIDM found for student {MailId} with BannerId {BannerId}",
+                        mailId, bannerId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error getting prior class year for student {MailId} with BannerId {BannerId}",
+                    mailId, bannerId);
+            }
+
+            return null;
+        }
+
+        private async Task<string?> GetPidmFromBannerIdAsync(SqlConnection connection, string bannerId)
+        {
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "usp_sis_getPidm";
+                command.CommandType = System.Data.CommandType.StoredProcedure;
+
+                // Input parameter
+                var inputParam = command.CreateParameter();
+                inputParam.ParameterName = "@thisBannerID";
+                inputParam.Value = bannerId;
+                inputParam.Direction = System.Data.ParameterDirection.Input;
+                command.Parameters.Add(inputParam);
+
+                // Output parameter
+                var outputParam = command.CreateParameter();
+                outputParam.ParameterName = "@sis_pidm";
+                outputParam.Direction = System.Data.ParameterDirection.Output;
+                outputParam.Size = 8;
+                command.Parameters.Add(outputParam);
+
+                await command.ExecuteNonQueryAsync();
+
+                return outputParam.Value?.ToString();
+            }
+        }
+
+        private async Task<int?> GetAdmitTermFromPidmAsync(SqlConnection connection, string pidm)
+        {
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "usp_sis_getAdmitClassYear";
+                command.CommandType = System.Data.CommandType.StoredProcedure;
+
+                var parameter = command.CreateParameter();
+                parameter.ParameterName = "@pidm";
+                parameter.Value = pidm;
+                command.Parameters.Add(parameter);
+
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    if (await reader.ReadAsync())
+                    {
+                        var admitTermValue = reader["ADMITTERM"];
+                        if (admitTermValue != null && admitTermValue != DBNull.Value)
+                        {
+                            if (int.TryParse(admitTermValue.ToString(), out int parsedYear))
+                            {
+                                return parsedYear;
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
         public async Task<GroupingInfo> GetGroupingInfoAsync(string groupType)
         {
             var groupInfo = new GroupingInfo
@@ -563,5 +722,109 @@ includeRossStudents = false)
 
             return groupInfo;
         }
+
+        public async Task<StudentDetailInfo?> GetStudentDetailsAsync(string mailId)
+        {
+            try
+            {
+                // Get current term
+                var currentTerm = GetCurrentTerm().ToString();
+
+                // Query AAUD to get student's BannerID and class level
+                // First try current term, if not found try most recent term
+                var student = await (from i in _aaudContext.Ids
+                                     join s in _aaudContext.Students on i.IdsPKey equals s.StudentsPKey
+                                     where i.IdsMailid == mailId && i.IdsTermCode == currentTerm
+                                     select new
+                                     {
+                                         BannerId = i.IdsClientid,
+                                         ClassLevel = s.StudentsClassLevel
+                                     }).FirstOrDefaultAsync();
+
+                // If not found in current term, try to find in most recent term
+                if (student == null || string.IsNullOrEmpty(student.BannerId))
+                {
+                    _logger.LogInformation("Student not found in current term {CurrentTerm}, trying most recent term for mailId: {MailId}", currentTerm, mailId);
+
+                    student = await (from i in _aaudContext.Ids
+                                     join s in _aaudContext.Students on i.IdsPKey equals s.StudentsPKey
+                                     where i.IdsMailid == mailId
+                                     orderby i.IdsTermCode descending
+                                     select new
+                                     {
+                                         BannerId = i.IdsClientid,
+                                         ClassLevel = s.StudentsClassLevel
+                                     }).FirstOrDefaultAsync();
+                }
+
+                if (student == null || string.IsNullOrEmpty(student.BannerId))
+                {
+                    _logger.LogWarning("Student not found or missing BannerID for mailId: {MailId}", mailId);
+                    return null;
+                }
+
+                // Calculate current expected graduation year from class level
+                var currentClassYear = CalculateGraduationYear(student.ClassLevel);
+                if (currentClassYear == null)
+                {
+                    _logger.LogWarning("Could not calculate graduation year for class level: {ClassLevel}", student.ClassLevel);
+                    return new StudentDetailInfo { CurrentClassYear = null, PriorClassYear = null };
+                }
+
+                // Call stored procedures using a SINGLE connection
+                string? pidm = null;
+                int? admitTerm = null;
+
+                using (var connection = new SqlConnection(GetSISConnectionString()))
+                {
+                    if (connection.State != System.Data.ConnectionState.Open)
+                        await connection.OpenAsync();
+
+                    pidm = await GetPidmFromBannerIdAsync(connection, student.BannerId);
+
+                    if (!string.IsNullOrEmpty(pidm))
+                    {
+                        admitTerm = await GetAdmitTermFromPidmAsync(connection, pidm);
+                    }
+                }
+
+                if (string.IsNullOrEmpty(pidm))
+                {
+                    _logger.LogWarning("Could not get PIDM for BannerID: {BannerId}", student.BannerId);
+                    return new StudentDetailInfo { CurrentClassYear = currentClassYear, PriorClassYear = null };
+                }
+
+                if (admitTerm == null)
+                {
+                    _logger.LogWarning("Could not get admit year for PIDM: {Pidm}", pidm);
+                    return new StudentDetailInfo { CurrentClassYear = currentClassYear, PriorClassYear = null };
+                }
+
+                // Calculate prior class year (admit year + 4)
+                var priorClassYear = admitTerm.Value + 4;
+
+                // Only set prior class year if it differs from current
+                var result = new StudentDetailInfo
+                {
+                    CurrentClassYear = currentClassYear,
+                    PriorClassYear = priorClassYear != currentClassYear ? priorClassYear : null
+                };
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting student details for mailId: {MailId}", mailId);
+                return null;
+            }
+        }
+
+        private int? CalculateGraduationYear(string classLevel)
+        {
+            // Use the same graduation year calculation as the rest of the codebase
+            var currentTerm = GetCurrentTerm();
+            return GradYearClassLevel.GetGradYear(classLevel, currentTerm);
+        }
+
     }
 }

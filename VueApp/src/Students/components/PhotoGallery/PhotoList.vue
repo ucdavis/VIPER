@@ -4,7 +4,7 @@
             v-for="(student, index) in students"
             :key="student.mailId"
             clickable
-            @click="openDialog(index)"
+            @click="emit('student-click', index)"
         >
             <q-item-section avatar>
                 <q-avatar size="60px">
@@ -49,30 +49,18 @@
                 <q-badge color="primary"> Ross Student </q-badge>
             </q-item-section>
         </q-item>
-
-        <StudentPhotoDialog
-            v-model="showDialog"
-            :students="students"
-            :initial-index="dialogIndex"
-        />
     </q-list>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue"
 import type { StudentPhoto } from "../../services/photo-gallery-service"
 import { getPhotoUrl } from "../../composables/use-photo-url"
-import StudentPhotoDialog from "./StudentPhotoDialog.vue"
 
 defineProps<{
     students: StudentPhoto[]
 }>()
 
-const showDialog = ref(false)
-const dialogIndex = ref(0)
-
-const openDialog = (index: number) => {
-    dialogIndex.value = index
-    showDialog.value = true
-}
+const emit = defineEmits<{
+    "student-click": [index: number]
+}>()
 </script>

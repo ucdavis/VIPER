@@ -1,6 +1,7 @@
 <template>
     <q-dialog
         v-model="show"
+        persistent
         @keydown="handleKeydown"
     >
         <q-card :style="cardStyle">
@@ -121,6 +122,18 @@
                     <div class="col">{{ currentStudent.v3SpecialtyGroup }}</div>
                 </div>
                 <div
+                    v-if="studentDetails?.priorClassYear"
+                    class="row q-mb-xs"
+                >
+                    <div
+                        class="col-auto text-weight-bold"
+                        style="min-width: 90px"
+                    >
+                        Prior Class:
+                    </div>
+                    <div class="col">{{ studentDetails.priorClassYear }}</div>
+                </div>
+                <div
                     v-if="currentStudent.isRossStudent"
                     class="row q-mt-sm text-center"
                 >
@@ -150,7 +163,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { useQuasar } from "quasar"
-import type { StudentPhoto } from "../../services/photo-gallery-service"
+import type { StudentPhoto, StudentDetailInfo } from "../../services/photo-gallery-service"
+import { photoGalleryService } from "../../services/photo-gallery-service"
 import { getPhotoUrl } from "../../composables/use-photo-url"
 
 const props = defineProps<{
@@ -161,14 +175,19 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     "update:modelValue": [value: boolean]
+    "update:index": [index: number]
 }>()
 
 const $q = useQuasar()
 const dialogIndex = ref(props.initialIndex)
+const studentDetails = ref<StudentDetailInfo | null>(null)
+const loadingDetails = ref(false)
 
 const show = computed({
     get: () => props.modelValue,
-    set: (value: boolean) => emit("update:modelValue", value),
+    set: (value: boolean) => {
+        emit("update:modelValue", value)
+    },
 })
 
 watch(
@@ -183,6 +202,24 @@ const currentStudent = computed(() => {
         return props.students[dialogIndex.value]
     }
     return props.students[0] || undefined
+})
+
+// Fetch student details when dialog opens or student changes
+watch(
+    () => [show.value, currentStudent.value?.mailId],
+    async ([isOpen, mailId]) => {
+        if (isOpen && mailId && typeof mailId === "string") {
+            loadingDetails.value = true
+            studentDetails.value = await photoGalleryService.getStudentDetails(mailId)
+            loadingDetails.value = false
+        }
+    },
+    { immediate: true },
+)
+
+// Emit index changes to parent (for URL updates during arrow key navigation)
+watch(dialogIndex, (newIndex) => {
+    emit("update:index", newIndex)
 })
 
 const currentPhotoUrl = computed(() => (currentStudent.value ? getPhotoUrl(currentStudent.value) : ""))
