@@ -1,4 +1,3 @@
-﻿using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Models.VIPER;
@@ -40,15 +39,15 @@ namespace Viper.Areas.Curriculum.Services
         public async Task<List<Term>> GetTerms(string? TermType = null, bool? current = null, bool? currentMulti = null)
         {
             var q = _context.Terms.Select(t => t);
-            if(TermType  != null)
+            if (TermType != null)
             {
                 q = q.Where(t => t.TermType == TermType);
             }
-            if(current != null)
+            if (current != null)
             {
                 q = q.Where(t => t.CurrentTerm == current);
             }
-            if(currentMulti != null)
+            if (currentMulti != null)
             {
                 q = q.Where(t => t.CurrentTermMulti == currentMulti);
             }
@@ -65,24 +64,24 @@ namespace Viper.Areas.Curriculum.Services
 
         public async Task<List<int>> GetActiveClassYears(int? termCode = null)
         {
-            if(termCode == null)
+            if (termCode == null)
             {
                 termCode = (await GetTerms(current: true)).FirstOrDefault()?.TermCode;
             }
 
             List<int> classYears = new();
 
-            if(termCode != null)
+            if (termCode != null)
             {
                 int year = (int)(termCode / 100);
                 int term = (int)(termCode % 100);
                 int start = (term == 2) ? year : year + 1;
-                for(int i = start; i <= start + 3; i++)
+                for (int i = start; i <= start + 3; i++)
                 {
                     classYears.Add(i);
                 }
             }
-            
+
             return classYears;
         }
     }
