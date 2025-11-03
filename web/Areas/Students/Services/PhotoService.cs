@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Students.Services
 {
@@ -73,11 +74,11 @@ namespace Viper.Areas.Students.Services
             }
             catch (UnauthorizedAccessException ex)
             {
-                _logger.LogError(ex, "Access denied reading photo for student {MailId}", mailId);
+                _logger.LogError(ex, "Access denied reading photo for student {MailId}", LogSanitizer.SanitizeId(mailId));
             }
             catch (IOException ex)
             {
-                _logger.LogError(ex, "Error reading photo for student {MailId}", mailId);
+                _logger.LogError(ex, "Error reading photo for student {MailId}", LogSanitizer.SanitizeId(mailId));
             }
 
             return await GetDefaultPhotoAsync();
@@ -121,7 +122,7 @@ namespace Viper.Areas.Students.Services
             // Validate mailId to prevent path traversal - only allow alphanumeric, dots, hyphens
             if (!Regex.IsMatch(mailId, "^[a-z0-9.-]+$", RegexOptions.IgnoreCase))
             {
-                _logger.LogWarning("Rejected photo request with invalid mailId {MailId}", mailId);
+                _logger.LogWarning("Rejected photo request with invalid mailId {MailId}", LogSanitizer.SanitizeId(mailId));
                 return null;
             }
 

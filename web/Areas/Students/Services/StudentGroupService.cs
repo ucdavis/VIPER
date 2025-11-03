@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
 using Viper.Classes.SQLContext;
 using Viper.Areas.Students.Models;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Students.Services
 {
@@ -153,14 +154,12 @@ namespace Viper.Areas.Students.Services
                 // Add Ross students if requested
                 if (includeRossStudents)
                 {
-                    _logger.LogInformation("Including Ross students for class level {ClassLevel}", classLevel);
-                    _logger.LogInformation("Calculated grad year: {GradYear} for class level {ClassLevel} and term {TermCode}",
-                        rossGradYear, classLevel, currentTermInt);
+                    _logger.LogDebug("Including Ross students for class level {ClassLevel}", classLevel);
 
                     if (rossGradYear.HasValue)
                     {
                         var rossStudents = await GetRossStudentsByGradYearAsync(rossGradYear.Value);
-                        _logger.LogInformation("Adding {Count} Ross students to {TotalStudents} regular students",
+                        _logger.LogDebug("Adding {Count} Ross students to {TotalStudents} regular students",
                             rossStudents.Count, photoStudents.Count);
                         photoStudents.AddRange(rossStudents);
                         photoStudents = photoStudents.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToList();
@@ -171,12 +170,12 @@ namespace Viper.Areas.Students.Services
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Invalid operation getting students by class level {ClassLevel}", classLevel);
+                _logger.LogError(ex, "Invalid operation getting students by class level {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
                 return new List<StudentPhoto>();
             }
             catch (Microsoft.Data.SqlClient.SqlException ex)
             {
-                _logger.LogError(ex, "Database error getting students by class level {ClassLevel}", classLevel);
+                _logger.LogError(ex, "Database error getting students by class level {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
                 return new List<StudentPhoto>();
             }
         }
@@ -192,13 +191,11 @@ namespace Viper.Areas.Students.Services
                 // Query StudentDesignation table in SIS database
                 // Filter by ClassYear1 (ClassYear2 is always NULL per database data)
                 // Also filter by StartTerm/EndTerm to only include active Ross students
-                _logger.LogInformation("Querying Ross students with gradYear={GradYear} and currentTerm={CurrentTerm}", gradYear, currentTermInt);
                 var rossDesignations = await _sisContext.StudentDesignations
                     .Where(sd => sd.DesignationType == "Ross" && sd.ClassYear1 == gradYear)
                     .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
                                 (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
                     .ToListAsync();
-                _logger.LogInformation("Found {Count} Ross designations for gradYear={GradYear}", rossDesignations.Count, gradYear);
 
                 var rossIamIds = rossDesignations.Select(sd => sd.IamId).ToList();
                 // Create a dictionary to look up designations by IamId for PriorClassYear info
@@ -206,7 +203,7 @@ namespace Viper.Areas.Students.Services
 
                 if (!rossIamIds.Any())
                 {
-                    _logger.LogInformation("No Ross students found for grad year {GradYear}", gradYear);
+                    _logger.LogDebug("No Ross students found for grad year {GradYear}", gradYear);
                     return new List<StudentPhoto>();
                 }
 
@@ -217,19 +214,6 @@ namespace Viper.Areas.Students.Services
                 // 3. This ensures Ross students appear in the gallery immediately upon designation
                 // Trade-off: Contact info (mailId, etc.) may be from a recent past term until AAUD updates.
                 // We validate that the current term falls within the StudentDesignation date range.
-
-                // Check what's in AAUD Ids table for these IamIds (debugging)
-                var aaudIdsForRoss = await _aaudContext.Ids
-                    .Where(ids => ids.IdsIamId != null && rossIamIds.Contains(ids.IdsIamId))
-                    .Select(ids => new { ids.IdsIamId, ids.IdsTermCode, ids.IdsMailid })
-                    .ToListAsync();
-
-                _logger.LogInformation("Found {Count} AAUD Ids records for Ross IamIds (any term)", aaudIdsForRoss.Count);
-                foreach (var aaud in aaudIdsForRoss)
-                {
-                    _logger.LogDebug("  AAUD Id: IamId={IamId}, TermCode={TermCode}, MailId={MailId}",
-                        aaud.IdsIamId, aaud.IdsTermCode, aaud.IdsMailid);
-                }
 
                 // Get the most recent AAUD record for each Ross student
                 // Only include terms <= current term and validate against StudentDesignation date range
@@ -248,7 +232,7 @@ namespace Viper.Areas.Students.Services
                     .Where(ids => ids != null)
                     .ToList();
 
-                _logger.LogInformation("Found {Count} latest AAUD records for Ross students", latestAaudRecords.Count());
+                _logger.LogDebug("Found {Count} latest AAUD records for Ross students", latestAaudRecords.Count());
 
                 // Then fetch People records for the latest AAUD records and join in-memory
                 var latestPersonPKeys = latestAaudRecords.Where(r => r != null).Select(r => r.IdsPKey).Distinct().ToList();
@@ -276,9 +260,7 @@ namespace Viper.Areas.Students.Services
                     .ThenBy(s => s.FirstName)
                     .ToList();
 
-                _logger.LogInformation("Found {Count} Ross students in AAUD using latest available records", rossStudents.Count);
-                var rossStudentsDebug = string.Join(", ", rossStudents.Select(s => $"{s.MailId} ({s.IamId}, term {s.TermCode})"));
-                _logger.LogDebug("Ross students: {Students}", rossStudentsDebug);
+                _logger.LogDebug("Found {Count} Ross students in AAUD using latest available records", rossStudents.Count);
 
                 var photoStudents = new List<StudentPhoto>();
                 foreach (var student in rossStudents)
@@ -292,12 +274,7 @@ namespace Viper.Areas.Students.Services
                         StringComparison.OrdinalIgnoreCase);
 
                     // Get the prior class year from the designation if available
-                    int? priorClassYear = null;
-                    if (rossDesignationDict.TryGetValue(student.IamId, out var designation) && designation.ClassYear1.HasValue && designation.ClassYear1.Value != gradYear)
-                    {
-                        // Only set PriorClassYear if it's different from the current grad year
-                        priorClassYear = designation.ClassYear1.Value;
-                    }
+                    var priorClassYear = TryGetPriorClassYear(rossDesignationDict, student.IamId, gradYear);
 
                     photoStudents.Add(new StudentPhoto
                     {
@@ -315,7 +292,7 @@ namespace Viper.Areas.Students.Services
                     });
                 }
 
-                _logger.LogInformation("Returning {Count} Ross students with photos", photoStudents.Count);
+                _logger.LogDebug("Returning {Count} Ross students with photos", photoStudents.Count);
                 return photoStudents;
             }
             catch (InvalidOperationException ex)
@@ -446,12 +423,12 @@ namespace Viper.Areas.Students.Services
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Invalid operation getting students by group {GroupType}/{GroupId}", groupType, groupId);
+                _logger.LogError(ex, "Invalid operation getting students by group {GroupType}/{GroupId}", LogSanitizer.SanitizeString(groupType), LogSanitizer.SanitizeString(groupId));
                 return new List<StudentPhoto>();
             }
             catch (Microsoft.Data.SqlClient.SqlException ex)
             {
-                _logger.LogError(ex, "Database error getting students by group {GroupType}/{GroupId}", groupType, groupId);
+                _logger.LogError(ex, "Database error getting students by group {GroupType}/{GroupId}", LogSanitizer.SanitizeString(groupType), LogSanitizer.SanitizeString(groupId));
                 return new List<StudentPhoto>();
             }
         }
@@ -638,27 +615,10 @@ namespace Viper.Areas.Students.Services
                 if (admitTerm.HasValue)
                 {
                     var calculatedPriorYear = admitTerm.Value + 4;
-                    _logger.LogInformation("Calculated prior year {PriorYear} for student {MailId} (admit {AdmitTerm} + 4, current grad {GradYear})",
-                        calculatedPriorYear, mailId, admitTerm.Value, currentGradYear);
                     if (calculatedPriorYear != currentGradYear)
                     {
-                        _logger.LogInformation("Setting prior class year {PriorYear} for student {MailId}", calculatedPriorYear, mailId);
                         return calculatedPriorYear;
                     }
-                    else
-                    {
-                        _logger.LogInformation("Not setting prior class year for student {MailId} - calculated year matches current grad year", mailId);
-                    }
-                }
-                else if (!string.IsNullOrEmpty(pidm))
-                {
-                    _logger.LogDebug("No admit term found for student {MailId} with PIDM {PIDM}",
-                        mailId, pidm);
-                }
-                else
-                {
-                    _logger.LogDebug("No PIDM found for student {MailId} with BannerId {BannerId}",
-                        mailId, bannerId);
                 }
             }
             catch (InvalidOperationException ex)
@@ -777,7 +737,7 @@ namespace Viper.Areas.Students.Services
                 // If not found in current term, try to find in most recent term
                 if (student == null || string.IsNullOrEmpty(student.BannerId))
                 {
-                    _logger.LogInformation("Student not found in current term {CurrentTerm}, trying most recent term for mailId: {MailId}", currentTerm, mailId);
+                    _logger.LogDebug("Student not found in current term {CurrentTerm}, trying most recent term for mailId: {MailId}", currentTerm, LogSanitizer.SanitizeId(mailId));
 
                     student = await (from i in _aaudContext.Ids
                                      join s in _aaudContext.Students on i.IdsPKey equals s.StudentsPKey
@@ -792,7 +752,7 @@ namespace Viper.Areas.Students.Services
 
                 if (student == null || string.IsNullOrEmpty(student.BannerId))
                 {
-                    _logger.LogWarning("Student not found or missing BannerID for mailId: {MailId}", mailId);
+                    _logger.LogWarning("Student not found or missing BannerID for mailId: {MailId}", LogSanitizer.SanitizeId(mailId));
                     return null;
                 }
 
@@ -847,12 +807,12 @@ namespace Viper.Areas.Students.Services
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Invalid operation getting student details for mailId: {MailId}", mailId);
+                _logger.LogError(ex, "Invalid operation getting student details for mailId: {MailId}", LogSanitizer.SanitizeId(mailId));
                 return null;
             }
             catch (Microsoft.Data.SqlClient.SqlException ex)
             {
-                _logger.LogError(ex, "Database error getting student details for mailId: {MailId}", mailId);
+                _logger.LogError(ex, "Database error getting student details for mailId: {MailId}", LogSanitizer.SanitizeId(mailId));
                 return null;
             }
         }
@@ -862,6 +822,35 @@ namespace Viper.Areas.Students.Services
             // Use the same graduation year calculation as the rest of the codebase
             var currentTerm = GetCurrentTerm();
             return GradYearClassLevel.GetGradYear(classLevel, currentTerm);
+        }
+
+        private static int? TryGetPriorClassYear(Dictionary<string, Viper.Models.SIS.StudentDesignation> rossDesignationDict, string? iamId, int currentGradYear)
+        {
+            // Return null if iamId is null or empty
+            if (string.IsNullOrEmpty(iamId))
+            {
+                return null;
+            }
+
+            // Try to get the designation for this student
+            if (!rossDesignationDict.TryGetValue(iamId, out var designation))
+            {
+                return null;
+            }
+
+            // Check if ClassYear1 has a value
+            if (!designation.ClassYear1.HasValue)
+            {
+                return null;
+            }
+
+            // Only return if it's different from the current grad year
+            if (designation.ClassYear1.Value == currentGradYear)
+            {
+                return null;
+            }
+
+            return designation.ClassYear1.Value;
         }
 
     }

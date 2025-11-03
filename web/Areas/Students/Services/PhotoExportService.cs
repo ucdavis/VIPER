@@ -5,6 +5,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using Viper.Areas.Students.Models;
+using Viper.Classes.Utilities;
 using WordDocument = DocumentFormat.OpenXml.Wordprocessing.Document;
 using PdfDocument = QuestPDF.Fluent.Document;
 
@@ -40,8 +41,8 @@ namespace Viper.Areas.Students.Services
         {
             try
             {
-                _logger.LogInformation("ExportToWordAsync called with ClassLevel={ClassLevel}, GroupType={GroupType}, GroupId={GroupId}, IncludeRoss={IncludeRoss}",
-                    request.ClassLevel, request.GroupType, request.GroupId, request.IncludeRossStudents);
+                _logger.LogDebug("ExportToWordAsync called with ClassLevel={ClassLevel}, GroupType={GroupType}, GroupId={GroupId}, IncludeRoss={IncludeRoss}",
+                    LogSanitizer.SanitizeString(request.ClassLevel), LogSanitizer.SanitizeString(request.GroupType), LogSanitizer.SanitizeString(request.GroupId), request.IncludeRossStudents);
 
                 var students = await GetStudentsForExport(request);
 
@@ -211,8 +212,8 @@ namespace Viper.Areas.Students.Services
         {
             try
             {
-                _logger.LogInformation("ExportToPdfAsync called with ClassLevel={ClassLevel}, GroupType={GroupType}, GroupId={GroupId}, IncludeRoss={IncludeRoss}",
-                    request.ClassLevel, request.GroupType, request.GroupId, request.IncludeRossStudents);
+                _logger.LogDebug("ExportToPdfAsync called with ClassLevel={ClassLevel}, GroupType={GroupType}, GroupId={GroupId}, IncludeRoss={IncludeRoss}",
+                    LogSanitizer.SanitizeString(request.ClassLevel), LogSanitizer.SanitizeString(request.GroupType), LogSanitizer.SanitizeString(request.GroupId), request.IncludeRossStudents);
 
                 var students = await GetStudentsForExport(request);
 
@@ -392,23 +393,23 @@ namespace Viper.Areas.Students.Services
         {
             if (!string.IsNullOrEmpty(request.ClassLevel))
             {
-                _logger.LogInformation("Fetching students by class level: {ClassLevel}, IncludeRoss={IncludeRoss}",
-                    request.ClassLevel, request.IncludeRossStudents);
+                _logger.LogDebug("Fetching students by class level: {ClassLevel}, IncludeRoss={IncludeRoss}",
+                    LogSanitizer.SanitizeString(request.ClassLevel), request.IncludeRossStudents);
                 var students = await _studentGroupService.GetStudentsByClassLevelAsync(
                     request.ClassLevel,
                     request.IncludeRossStudents);
-                _logger.LogInformation("Found {Count} students for class level {ClassLevel}", students.Count, request.ClassLevel);
+                _logger.LogDebug("Found {Count} students for class level {ClassLevel}", students.Count, LogSanitizer.SanitizeString(request.ClassLevel));
                 return students;
             }
             else if (!string.IsNullOrEmpty(request.GroupType) && !string.IsNullOrEmpty(request.GroupId))
             {
-                _logger.LogInformation("Fetching students by group: {GroupType}/{GroupId}",
-                    request.GroupType, request.GroupId);
+                _logger.LogDebug("Fetching students by group: {GroupType}/{GroupId}",
+                    LogSanitizer.SanitizeString(request.GroupType), LogSanitizer.SanitizeString(request.GroupId));
                 var students = await _studentGroupService.GetStudentsByGroupAsync(
                     request.GroupType,
                     request.GroupId);
-                _logger.LogInformation("Found {Count} students for group {GroupType}/{GroupId}",
-                    students.Count, request.GroupType, request.GroupId);
+                _logger.LogDebug("Found {Count} students for group {GroupType}/{GroupId}",
+                    students.Count, LogSanitizer.SanitizeString(request.GroupType), LogSanitizer.SanitizeString(request.GroupId));
                 return students;
             }
 
