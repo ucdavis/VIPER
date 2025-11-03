@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AssemblyName>EffortDataAnalysis</AssemblyName>
+    <RootNamespace>Viper.Areas.Effort.Scripts</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
+    <PackageReference Include="Amazon.Extensions.Configuration.SystemsManager" Version="5.1.0" />
+    <PackageReference Include="AWSSDK.Core" Version="3.7.201.7" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../../appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../appsettings.Production.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../appsettings.Test.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

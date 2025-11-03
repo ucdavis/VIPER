@@ -485,3 +485,7 @@ awscredentials.xml
 
 # Used to reduce unnecessary dotnet builds
 .build-cache/
+
+# Effort migration script outputs
+web/Areas/Effort/Scripts/AnalysisOutput/
+web/Areas/Effort/Scripts/RemediationOutput/
