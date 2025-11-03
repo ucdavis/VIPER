@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -33,7 +34,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             try
             {
                 _logger.LogDebug("Getting student schedule with filters: ClassYear={ClassYear}, MothraId={MothraId}, RotationId={RotationId}",
-                    classYear, mothraId, rotationId);
+                    classYear, LogSanitizer.SanitizeId(mothraId), rotationId);
 
                 var query = _context.StudentSchedules
                     .Include(s => s.Week)

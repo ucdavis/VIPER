@@ -4,6 +4,7 @@ using System.Net;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 using Viper.Services;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -53,8 +54,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
             try
             {
-                // Validate permissions and get current user
-                // For adding, check if user is adding themselves with EditOwnSchedule permission
+                // Validate permissions (rotation existence is verified internally to prevent information disclosure)
                 var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(rotationId, mothraId ?? "", cancellationToken);
 
                 // Validate grad year - only allow current or future years
@@ -88,15 +88,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     throw new InvalidOperationException($"Person with MothraId {mothraId} not found in the system");
                 }
 
-                // Validate that the rotation exists
-                var rotationExists = await _context.Rotations
-                    .AnyAsync(r => r.RotId == rotationId, cancellationToken);
-
-                if (!rotationExists)
-                {
-                    throw new InvalidOperationException($"Rotation with ID {rotationId} not found in the system");
-                }
-
                 // Validate that all weeks exist and are valid for the grad year
                 var existingWeekIds = await _context.Weeks
                     .Where(w => weekIds.Contains(w.WeekId))
@@ -121,7 +112,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     var duplicateWeeks = existingSchedules.Select(s => s.WeekId).ToList();
                     var duplicateDetails = string.Join(", ", duplicateWeeks.Select(w => $"Week {w}"));
                     _logger.LogWarning("Instructor {MothraId} is already scheduled for {DuplicateDetails} in rotation {RotationId}",
-                        mothraId, duplicateDetails, rotationId);
+                        LogSanitizer.SanitizeId(mothraId), duplicateDetails, rotationId);
                     throw new InvalidOperationException($"Instructor {mothraId} is already scheduled for {duplicateDetails} in this rotation");
                 }
 
@@ -132,7 +123,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .ToListAsync(cancellationToken);
 
                 _logger.LogDebug("Found {Count} total existing schedules for MothraId='{MothraId}' in weeks [{WeekIds}]: {Details}",
-                    allExistingForWeeks.Count, mothraId, string.Join(",", weekIds),
+                    allExistingForWeeks.Count, LogSanitizer.SanitizeId(mothraId), string.Join(",", weekIds),
                     string.Join(", ", allExistingForWeeks.Select(s => $"Week {s.WeekId} in Rotation {s.RotationId} (ID: {s.InstructorScheduleId})")));
 
 
@@ -147,7 +138,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         cancellationToken.ThrowIfCancellationRequested();
 
                         _logger.LogDebug("Preparing to add InstructorSchedule: MothraId='{MothraId}' (length={Length}), RotationId={RotationId}, WeekId={WeekId}, IsPrimary={IsPrimary}, GradYear={GradYear}",
-                            mothraId, mothraId?.Length ?? 0, rotationId, weekId, isPrimaryEvaluator, gradYear);
+                            LogSanitizer.SanitizeId(mothraId), mothraId?.Length ?? 0, rotationId, weekId, isPrimaryEvaluator, gradYear);
 
                         // Double-check for duplicates right before insertion (within transaction)
                         var duplicateCheck = await _context.InstructorSchedules
@@ -158,7 +149,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         if (duplicateCheck != null)
                         {
                             _logger.LogError("Race condition detected! Duplicate found during insertion: InstructorScheduleId={ExistingId} for MothraId='{MothraId}', RotationId={RotationId}, WeekId={WeekId}",
-                                duplicateCheck.InstructorScheduleId, mothraId, rotationId, weekId);
+                                duplicateCheck.InstructorScheduleId, LogSanitizer.SanitizeId(mothraId), rotationId, weekId);
                             throw new InvalidOperationException($"Instructor {mothraId} is already scheduled for Week {weekId} in this rotation (detected during insertion)");
                         }
 
@@ -228,11 +219,11 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 {
                     // Log warning but don't fail the operation - the database changes were successful
                     _logger.LogWarning(postTransactionEx, "Post-transaction operations failed for instructor {MothraId} in rotation {RotationId}, but database changes were successful",
-                        mothraId, rotationId);
+                        LogSanitizer.SanitizeId(mothraId), rotationId);
                 }
 
                 _logger.LogInformation("Successfully added instructor {MothraId} to rotation {RotationId} for {WeekCount} weeks (Primary: {IsPrimary})",
-                    mothraId, rotationId, weekIds.Length, isPrimaryEvaluator);
+                    LogSanitizer.SanitizeId(mothraId), rotationId, weekIds.Length, isPrimaryEvaluator);
 
                 return createdSchedules;
             }
@@ -249,7 +240,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception saveEx)
             {
                 _logger.LogError(saveEx, "Database save failed for MothraId='{MothraId}', RotationId={RotationId}, WeekIds=[{WeekIds}]",
-                    mothraId, rotationId, string.Join(",", weekIds));
+                    LogSanitizer.SanitizeId(mothraId), rotationId, string.Join(",", weekIds));
 
                 // Check if this is a database constraint violation (typically a duplicate key error)
                 var errorMessage = saveEx.Message?.ToLower();
@@ -285,8 +276,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return (false, false, null);
                 }
 
-                // Validate permissions and get current user
-                // For removal, check if user is editing their own schedule
+                // Validate permissions (rotation existence is verified internally to prevent information disclosure)
                 var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(schedule.RotationId, schedule.MothraId, cancellationToken);
 
                 // Capture whether this was a primary evaluator and instructor name before removal
@@ -316,7 +306,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     {
                         // Fallback to MothraId if we can't find the person
                         instructorName = schedule.MothraId;
-                        _logger.LogWarning("Could not load Person data for MothraId {MothraId} during removal", schedule.MothraId);
+                        _logger.LogWarning("Could not load Person data for MothraId {MothraId} during removal", LogSanitizer.SanitizeId(schedule.MothraId));
                     }
                 }
 
@@ -349,7 +339,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 }
 
                 _logger.LogInformation("Successfully removed instructor {MothraId} from rotation {RotationId}, week {WeekId} (WasPrimary: {WasPrimary})",
-                    schedule.MothraId, schedule.RotationId, schedule.WeekId, wasPrimaryEvaluator);
+                    LogSanitizer.SanitizeId(schedule.MothraId), schedule.RotationId, schedule.WeekId, wasPrimaryEvaluator);
 
                 return (true, wasPrimaryEvaluator, instructorName);
             }
@@ -468,7 +458,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 }
 
                 _logger.LogInformation("Set primary evaluator for {MothraId} on rotation {RotationId}, week {WeekId} to {IsPrimary}",
-                    schedule.MothraId, schedule.RotationId, schedule.WeekId, isPrimary);
+                    LogSanitizer.SanitizeId(schedule.MothraId), schedule.RotationId, schedule.WeekId, isPrimary);
 
                 return (true, previousPrimaryName);
             }
@@ -542,7 +532,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error checking other rotation schedules for {MothraId} on weeks {WeekIds} for grad year {GradYear}",
-                    mothraId, string.Join(",", weekIds), gradYear);
+                    LogSanitizer.SanitizeId(mothraId), string.Join(",", weekIds), LogSanitizer.SanitizeYear(gradYear));
                 throw new InvalidOperationException($"Failed to retrieve other rotation schedules. Please try again or contact support if the problem persists.", ex);
             }
         }
@@ -644,7 +634,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 if (!string.IsNullOrEmpty(newPrimaryMothraId))
                 {
                     _logger.LogDebug("Skipping email notification for primary evaluator replacement. Old: {OldMothraId}, New: {NewMothraId}, Rotation: {RotationId}, Week: {WeekId}",
-                        schedule.MothraId, newPrimaryMothraId, schedule.RotationId, schedule.WeekId);
+                        LogSanitizer.SanitizeId(schedule.MothraId), LogSanitizer.SanitizeId(newPrimaryMothraId), schedule.RotationId, schedule.WeekId);
                     return;
                 }
                 // Get base URL for links
@@ -673,7 +663,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Could not retrieve instructor name for {MothraId} in email notification", schedule.MothraId);
+                    _logger.LogWarning(ex, "Could not retrieve instructor name for {MothraId} in email notification", LogSanitizer.SanitizeId(schedule.MothraId));
                 }
 
                 // Get rotation information - explicitly load if not already loaded
@@ -819,7 +809,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         );
                     }
                     _logger.LogInformation("Primary evaluator removal notification sent to {Count} recipient(s) for {MothraId} from {RotationName} week {WeekNumber}",
-                        recipients.Count, schedule.MothraId, rotationName, weekNumber);
+                        recipients.Count, LogSanitizer.SanitizeId(schedule.MothraId), rotationName, weekNumber);
                 }
                 else
                 {
@@ -830,7 +820,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 // Log error but don't fail the transaction - email is secondary to the schedule removal
                 _logger.LogError(ex, "Failed to send primary evaluator removal notification for {MothraId} from rotation {RotationId} week {WeekId} (rotation: {RotationName})",
-                    schedule.MothraId, schedule.RotationId, schedule.WeekId, schedule.Rotation?.Name ?? "Unknown");
+                    LogSanitizer.SanitizeId(schedule.MothraId), schedule.RotationId, schedule.WeekId, schedule.Rotation?.Name ?? "Unknown");
             }
         }
 

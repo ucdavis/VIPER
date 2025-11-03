@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 using Viper.Areas.ClinicalScheduler.Constants;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -174,14 +175,14 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 await _context.SaveChangesAsync(cancellationToken);
 
                 _logger.LogDebug("Created audit entry: {Action} for {MothraId} on rotation {RotationId}, week {WeekId} by {ModifiedBy}",
-                    action, mothraId, rotationId, weekId, modifiedByMothraId);
+                    action, LogSanitizer.SanitizeId(mothraId), rotationId, weekId, LogSanitizer.SanitizeId(modifiedByMothraId));
 
                 return auditEntry;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating audit entry for action {Action}, {MothraId} on rotation {RotationId}, week {WeekId}",
-                    action, mothraId, rotationId, weekId);
+                    action, LogSanitizer.SanitizeId(mothraId), rotationId, weekId);
                 throw new InvalidOperationException($"Failed to create audit entry for action '{action}'. Please try again or contact support if the problem persists.", ex);
             }
         }
