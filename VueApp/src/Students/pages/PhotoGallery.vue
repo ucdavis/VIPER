@@ -420,6 +420,9 @@ import PhotoList from "../components/PhotoGallery/PhotoList.vue"
 import PhotoSheet from "../components/PhotoGallery/PhotoSheet.vue"
 import StudentPhotoDialog from "../components/PhotoGallery/StudentPhotoDialog.vue"
 
+// Constants
+const PRINT_DELAY_MS = 1000 // Delay before triggering print dialog to ensure images are loaded
+
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
@@ -889,7 +892,7 @@ watch(
                 nextTick(() => {
                     setTimeout(() => {
                         window.print()
-                    }, 1000)
+                    }, PRINT_DELAY_MS)
                 })
             }
         }

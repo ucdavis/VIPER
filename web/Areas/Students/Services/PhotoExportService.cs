@@ -185,9 +185,24 @@ namespace Viper.Areas.Students.Services
                     ContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 };
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Access denied while exporting photos to Word");
+                return null;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "I/O error exporting photos to Word");
+                return null;
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Invalid operation while exporting photos to Word");
+                return null;
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error exporting photos to Word");
+                _logger.LogError(ex, "Unexpected error exporting photos to Word");
                 return null;
             }
         }
@@ -210,7 +225,7 @@ namespace Viper.Areas.Students.Services
                 // Pre-load all photos in parallel with throttling
                 _logger.LogInformation("Pre-loading photos for {Count} students", students.Count);
                 var photoCache = new Dictionary<string, byte[]>();
-                var semaphore = new SemaphoreSlim(10); // Limit to 10 concurrent I/O operations
+                using var semaphore = new SemaphoreSlim(10); // Limit to 10 concurrent I/O operations
 
                 var photoTasks = students.Select(async student =>
                 {
@@ -231,12 +246,9 @@ namespace Viper.Areas.Students.Services
                 }).ToList();
 
                 var photoResults = await Task.WhenAll(photoTasks);
-                foreach (var result in photoResults)
+                foreach (var result in photoResults.Where(r => r.photoBytes != null && r.photoBytes.Length > 0))
                 {
-                    if (result.photoBytes != null && result.photoBytes.Length > 0)
-                    {
-                        photoCache[result.MailId] = result.photoBytes;
-                    }
+                    photoCache[result.MailId] = result.photoBytes;
                 }
                 _logger.LogInformation("Loaded {Count} photos into cache", photoCache.Count);
 
@@ -342,9 +354,24 @@ namespace Viper.Areas.Students.Services
                     ContentType = "application/pdf"
                 };
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Access denied while exporting photos to PDF");
+                return null;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "I/O error exporting photos to PDF");
+                return null;
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Invalid operation while exporting photos to PDF");
+                return null;
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error exporting photos to PDF");
+                _logger.LogError(ex, "Unexpected error exporting photos to PDF");
                 return null;
             }
         }

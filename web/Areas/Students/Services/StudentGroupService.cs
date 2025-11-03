@@ -7,8 +7,7 @@ namespace Viper.Areas.Students.Services
 {
     public interface IStudentGroupService
     {
-        Task<List<StudentPhoto>> GetStudentsByClassLevelAsync(string classLevel, bool includeRossStudents =
-false);
+        Task<List<StudentPhoto>> GetStudentsByClassLevelAsync(string classLevel, bool includeRossStudents = false);
         Task<List<StudentPhoto>> GetStudentsByGroupAsync(string groupType, string groupId, string? classLevel = null);
         Task<List<string>> GetEighthsGroupsAsync();
         Task<List<string>> GetTwentiethsGroupsAsync();
@@ -25,8 +24,7 @@ false);
         private readonly IPhotoService _photoService;
         private readonly ILogger<StudentGroupService> _logger;
 
-        public StudentGroupService(AAUDContext aaudContext, SISContext sisContext, IPhotoService photoService,
- ILogger<StudentGroupService> logger)
+        public StudentGroupService(AAUDContext aaudContext, SISContext sisContext, IPhotoService photoService, ILogger<StudentGroupService> logger)
         {
             _aaudContext = aaudContext;
             _sisContext = sisContext;
@@ -34,8 +32,7 @@ false);
             _logger = logger;
         }
 
-        public async Task<List<StudentPhoto>> GetStudentsByClassLevelAsync(string classLevel, bool
-includeRossStudents = false)
+        public async Task<List<StudentPhoto>> GetStudentsByClassLevelAsync(string classLevel, bool includeRossStudents = false)
         {
             try
             {
@@ -59,9 +56,14 @@ includeRossStudents = false)
 
                         rossIamIds = rossDesignations.Select(rd => rd.IamId).ToList();
                     }
-                    catch (Exception ex)
+                    catch (InvalidOperationException ex)
                     {
-                        _logger.LogError(ex, "Error querying SIS context for Ross students");
+                        _logger.LogError(ex, "Invalid operation querying SIS context for Ross students");
+                        // Continue with empty rossIamIds list - no Ross students will be excluded/added
+                    }
+                    catch (Microsoft.Data.SqlClient.SqlException ex)
+                    {
+                        _logger.LogError(ex, "Database error querying SIS context for Ross students");
                         // Continue with empty rossIamIds list - no Ross students will be excluded/added
                     }
                 }
@@ -167,9 +169,14 @@ includeRossStudents = false)
 
                 return photoStudents;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting students by class level {ClassLevel}", classLevel);
+                _logger.LogError(ex, "Invalid operation getting students by class level {ClassLevel}", classLevel);
+                return new List<StudentPhoto>();
+            }
+            catch (Microsoft.Data.SqlClient.SqlException ex)
+            {
+                _logger.LogError(ex, "Database error getting students by class level {ClassLevel}", classLevel);
                 return new List<StudentPhoto>();
             }
         }
@@ -286,13 +293,10 @@ includeRossStudents = false)
 
                     // Get the prior class year from the designation if available
                     int? priorClassYear = null;
-                    if (rossDesignationDict.TryGetValue(student.IamId, out var designation) && designation.ClassYear1.HasValue)
+                    if (rossDesignationDict.TryGetValue(student.IamId, out var designation) && designation.ClassYear1.HasValue && designation.ClassYear1.Value != gradYear)
                     {
                         // Only set PriorClassYear if it's different from the current grad year
-                        if (designation.ClassYear1.Value != gradYear)
-                        {
-                            priorClassYear = designation.ClassYear1.Value;
-                        }
+                        priorClassYear = designation.ClassYear1.Value;
                     }
 
                     photoStudents.Add(new StudentPhoto
@@ -314,9 +318,15 @@ includeRossStudents = false)
                 _logger.LogInformation("Returning {Count} Ross students with photos", photoStudents.Count);
                 return photoStudents;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting Ross students for grad year {GradYear}. Message: {Message}. InnerException: {InnerMessage}",
+                _logger.LogError(ex, "Invalid operation getting Ross students for grad year {GradYear}. Message: {Message}. InnerException: {InnerMessage}",
+                    gradYear, ex.Message, ex.InnerException?.Message ?? "None");
+                return new List<StudentPhoto>();
+            }
+            catch (Microsoft.Data.SqlClient.SqlException ex)
+            {
+                _logger.LogError(ex, "Database error getting Ross students for grad year {GradYear}. Message: {Message}. InnerException: {InnerMessage}",
                     gradYear, ex.Message, ex.InnerException?.Message ?? "None");
                 return new List<StudentPhoto>();
             }
@@ -434,9 +444,14 @@ includeRossStudents = false)
 
                 return photoStudents;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting students by group {GroupType}/{GroupId}", groupType, groupId);
+                _logger.LogError(ex, "Invalid operation getting students by group {GroupType}/{GroupId}", groupType, groupId);
+                return new List<StudentPhoto>();
+            }
+            catch (Microsoft.Data.SqlClient.SqlException ex)
+            {
+                _logger.LogError(ex, "Database error getting students by group {GroupType}/{GroupId}", groupType, groupId);
                 return new List<StudentPhoto>();
             }
         }
@@ -463,9 +478,14 @@ includeRossStudents = false)
 
                 return groups;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting twentieths groups");
+                _logger.LogError(ex, "Invalid operation getting twentieths groups");
+                return new List<string>();
+            }
+            catch (Microsoft.Data.SqlClient.SqlException ex)
+            {
+                _logger.LogError(ex, "Database error getting twentieths groups");
                 return new List<string>();
             }
         }
@@ -497,9 +517,14 @@ includeRossStudents = false)
                 }).ThenBy(t => t) // Secondary sort alphabetically for non-numeric values
                 .ToList();
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting teams for class level {ClassLevel}", classLevel);
+                _logger.LogError(ex, "Invalid operation getting teams for class level {ClassLevel}", classLevel);
+                return new List<string>();
+            }
+            catch (Microsoft.Data.SqlClient.SqlException ex)
+            {
+                _logger.LogError(ex, "Database error getting teams for class level {ClassLevel}", classLevel);
                 return new List<string>();
             }
         }
@@ -532,9 +557,15 @@ includeRossStudents = false)
 
                 return allGroups;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting V3 specialty groups");
+                _logger.LogError(ex, "Invalid operation getting V3 specialty groups");
+                // Fallback to baseline on error
+                return new List<string> { "SA", "LA", "EQ", "LIVE", "ZOO" };
+            }
+            catch (Microsoft.Data.SqlClient.SqlException ex)
+            {
+                _logger.LogError(ex, "Database error getting V3 specialty groups");
                 // Fallback to baseline on error
                 return new List<string> { "SA", "LA", "EQ", "LIVE", "ZOO" };
             }
@@ -630,9 +661,14 @@ includeRossStudents = false)
                         mailId, bannerId);
                 }
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "Error getting prior class year for student {MailId} with BannerId {BannerId}",
+                _logger.LogWarning(ex, "Invalid operation getting prior class year for student {MailId} with BannerId {BannerId}",
+                    mailId, bannerId);
+            }
+            catch (Microsoft.Data.SqlClient.SqlException ex)
+            {
+                _logger.LogWarning(ex, "Database error getting prior class year for student {MailId} with BannerId {BannerId}",
                     mailId, bannerId);
             }
 
@@ -683,12 +719,9 @@ includeRossStudents = false)
                     if (await reader.ReadAsync())
                     {
                         var admitTermValue = reader["ADMITTERM"];
-                        if (admitTermValue != null && admitTermValue != DBNull.Value)
+                        if (admitTermValue != null && admitTermValue != DBNull.Value && int.TryParse(admitTermValue.ToString(), out int parsedYear))
                         {
-                            if (int.TryParse(admitTermValue.ToString(), out int parsedYear))
-                            {
-                                return parsedYear;
-                            }
+                            return parsedYear;
                         }
                     }
                 }
@@ -812,9 +845,14 @@ includeRossStudents = false)
 
                 return result;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting student details for mailId: {MailId}", mailId);
+                _logger.LogError(ex, "Invalid operation getting student details for mailId: {MailId}", mailId);
+                return null;
+            }
+            catch (Microsoft.Data.SqlClient.SqlException ex)
+            {
+                _logger.LogError(ex, "Database error getting student details for mailId: {MailId}", mailId);
                 return null;
             }
         }

@@ -71,7 +71,11 @@ namespace Viper.Areas.Students.Services
                     return photoData;
                 }
             }
-            catch (Exception ex)
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Access denied reading photo for student {MailId}", mailId);
+            }
+            catch (IOException ex)
             {
                 _logger.LogError(ex, "Error reading photo for student {MailId}", mailId);
             }
@@ -154,13 +158,13 @@ namespace Viper.Areas.Students.Services
                 // Try configured path first (e.g., S:\Files\IDCardPhotos\ in production)
                 if (!string.IsNullOrEmpty(_idCardPhotoPath))
                 {
-                    var defaultPath = Path.Combine(_idCardPhotoPath, _defaultPhotoFile);
+                    var defaultPath = Path.Combine(_idCardPhotoPath, Path.GetFileName(_defaultPhotoFile));
                     if (File.Exists(defaultPath))
                     {
                         var defaultData = await File.ReadAllBytesAsync(defaultPath);
 
                         var cacheOptions = new MemoryCacheEntryOptions()
-                            .SetSlidingExpiration(TimeSpan.FromHours(_cacheDurationHours * 2));
+                            .SetSlidingExpiration(TimeSpan.FromHours((double)_cacheDurationHours * 2));
 
                         _cache.Set(cacheKey, defaultData, cacheOptions);
 
@@ -169,13 +173,13 @@ namespace Viper.Areas.Students.Services
                 }
 
                 // Fallback to wwwroot/images/nopic.jpg
-                var wwwrootPath = Path.Combine(_webHostEnvironment.WebRootPath, "images", _defaultPhotoFile);
+                var wwwrootPath = Path.Combine(_webHostEnvironment.WebRootPath, "images", Path.GetFileName(_defaultPhotoFile));
                 if (File.Exists(wwwrootPath))
                 {
                     var defaultData = await File.ReadAllBytesAsync(wwwrootPath);
 
                     var cacheOptions = new MemoryCacheEntryOptions()
-                        .SetSlidingExpiration(TimeSpan.FromHours(_cacheDurationHours * 2));
+                        .SetSlidingExpiration(TimeSpan.FromHours((double)_cacheDurationHours * 2));
 
                     _cache.Set(cacheKey, defaultData, cacheOptions);
 
