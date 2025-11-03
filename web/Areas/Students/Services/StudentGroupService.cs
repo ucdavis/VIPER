@@ -562,12 +562,10 @@ namespace Viper.Areas.Students.Services
                 return int.Parse($"{year}09");
             }
             // Spring/Summer semester
-            else if (month >= 1 && month <= 8)
+            else
             {
                 return int.Parse($"{year}01");
             }
-
-            return int.Parse($"{year}09");
         }
 
         private string FormatStudentDisplayName(string lastName, string firstName, string? middleName)

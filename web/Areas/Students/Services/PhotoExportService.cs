@@ -223,8 +223,8 @@ namespace Viper.Areas.Students.Services
                     return null;
                 }
 
-                // Pre-load all photos in parallel with throttling
-                _logger.LogInformation("Pre-loading photos for {Count} students", students.Count);
+                // Pre-load all photos with concurrency limit
+                _logger.LogDebug("Pre-loading photos for {Count} students", students.Count);
                 var photoCache = new Dictionary<string, byte[]>();
                 using var semaphore = new SemaphoreSlim(10); // Limit to 10 concurrent I/O operations
 
