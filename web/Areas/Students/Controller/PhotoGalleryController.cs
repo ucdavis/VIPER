@@ -3,7 +3,9 @@ using Viper.Areas.Students.Models;
 using Viper.Areas.Students.Services;
 using Viper.Areas.Curriculum.Services;
 using Viper.Classes;
+using Viper.Classes.Utilities;
 using Web.Authorization;
+using System.Text.Json;
 
 namespace Viper.Areas.Students.Controller
 {
@@ -16,28 +18,29 @@ namespace Viper.Areas.Students.Controller
         private readonly IStudentGroupService _studentGroupService;
         private readonly IPhotoExportService _photoExportService;
         private readonly TermCodeService _termCodeService;
-        private readonly IConfiguration _configuration;
-        private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly ILogger<PhotoGalleryController> _logger;
 
         private static readonly HashSet<string> ValidClassLevels = new() { "V1", "V2", "V3", "V4" };
         private static readonly HashSet<string> ValidGroupTypes = new() { "eighths", "twentieths", "teams", "v3specialty" };
+
+        // Use System.Text.Json for Photo Gallery serialization
+        private static readonly JsonSerializerOptions _jsonOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never
+        };
 
         public PhotoGalleryController(
             IPhotoService photoService,
             IStudentGroupService studentGroupService,
             IPhotoExportService photoExportService,
             TermCodeService termCodeService,
-            IConfiguration configuration,
-            IWebHostEnvironment webHostEnvironment,
             ILogger<PhotoGalleryController> logger)
         {
             _photoService = photoService;
             _studentGroupService = studentGroupService;
             _photoExportService = photoExportService;
             _termCodeService = termCodeService;
-            _configuration = configuration;
-            _webHostEnvironment = webHostEnvironment;
             _logger = logger;
         }
 
@@ -64,11 +67,17 @@ namespace Viper.Areas.Students.Controller
                     }
                 };
 
-                return Ok(viewModel);
+                // Serialize using System.Text.Json to handle JsonInclude attributes
+                var jsonString = JsonSerializer.Serialize(viewModel, _jsonOptions);
+
+                // Manually wrap in ApiResponse format expected by frontend
+                var wrappedJson = $"{{\"statusCode\":200,\"success\":true,\"result\":{jsonString}}}";
+
+                return Content(wrappedJson, "application/json");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting class gallery for {ClassLevel}", classLevel);
+                _logger.LogError(ex, "Error getting class gallery for {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
                 return StatusCode(500, "An error occurred while retrieving the photo gallery");
             }
         }
@@ -107,11 +116,18 @@ namespace Viper.Areas.Students.Controller
                     }
                 };
 
-                return Ok(viewModel);
+                // Serialize using System.Text.Json to handle JsonInclude attributes
+                var jsonString = JsonSerializer.Serialize(viewModel, _jsonOptions);
+
+                // Manually wrap in ApiResponse format expected by frontend
+                var wrappedJson = $"{{\"statusCode\":200,\"success\":true,\"result\":{jsonString}}}";
+
+                // Return as JSON content to bypass Newtonsoft serialization
+                return Content(wrappedJson, "application/json");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting group gallery for {GroupType}/{GroupId}", groupType, groupId);
+                _logger.LogError(ex, "Error getting group gallery for {GroupType}/{GroupId}", LogSanitizer.SanitizeString(groupType), LogSanitizer.SanitizeString(groupId));
                 return StatusCode(500, "An error occurred while retrieving the photo gallery");
             }
         }
@@ -158,7 +174,7 @@ namespace Viper.Areas.Students.Controller
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting photo for student {MailId}", mailId);
+                _logger.LogError(ex, "Error getting photo for student {MailId}", LogSanitizer.SanitizeId(mailId));
                 return StatusCode(500, "An error occurred while retrieving the photo");
             }
         }
@@ -270,7 +286,7 @@ namespace Viper.Areas.Students.Controller
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting export status for {ExportId}", exportId);
+                _logger.LogError(ex, "Error getting export status for {ExportId}", LogSanitizer.SanitizeId(exportId));
                 return StatusCode(500, "An error occurred while checking export status");
             }
         }
@@ -311,7 +327,7 @@ namespace Viper.Areas.Students.Controller
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting students for class {ClassLevel}", classLevel);
+                _logger.LogError(ex, "Error getting students for class {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
                 return StatusCode(500, "An error occurred while retrieving students");
             }
         }
@@ -342,5 +358,32 @@ namespace Viper.Areas.Students.Controller
                 return StatusCode(500, "An error occurred while retrieving class years");
             }
         }
+
+        [HttpGet("student/{mailId}/details")]
+        public async Task<IActionResult> GetStudentDetails(string mailId)
+        {
+            if (string.IsNullOrWhiteSpace(mailId))
+            {
+                return BadRequest("MailId is required");
+            }
+
+            try
+            {
+                var details = await _studentGroupService.GetStudentDetailsAsync(mailId);
+
+                if (details == null)
+                {
+                    return NotFound();
+                }
+
+                return Ok(details);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting student details for {MailId}", LogSanitizer.SanitizeId(mailId));
+                return StatusCode(500, "An error occurred while retrieving student details");
+            }
+        }
+
     }
 }

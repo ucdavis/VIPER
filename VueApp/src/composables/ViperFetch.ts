@@ -35,7 +35,7 @@ type UrlParams = {
 function createUrlSearchParams(obj: UrlParams): URLSearchParams {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(obj)) {
-        if (value !== null && value !== undefined && typeof key === "string") {
+        if (value != null && typeof key === "string") {
             params.append(key, value.toString())
         }
     }
@@ -46,7 +46,7 @@ function addHeader(options: any, headerName: string, headerValue: string) {
     if (options.headers === undefined) {
         options.headers = {}
     }
-    if (typeof headerName === "string" && !(headerName in options.headers)) {
+    if (typeof headerName === "string" && !Object.hasOwn(options.headers, headerName)) {
         Object.defineProperty(options.headers, headerName, {
             value: headerValue,
             enumerable: true,

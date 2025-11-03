@@ -1,11 +1,12 @@
 <template>
     <div class="photo-sheet">
-        <div class="print-header q-mb-md row items-center">
-            <div class="col text-left">
-                <div class="text-h6">{{ title }}</div>
-            </div>
-            <div class="col-auto text-right">
-                <div class="text-subtitle2">{{ formattedDate }}</div>
+        <div class="print-header q-mb-md">
+            <div class="text-h6">{{ title }}</div>
+            <div
+                v-if="formattedDate"
+                class="text-caption text-grey-7"
+            >
+                Generated: {{ formattedDate }}
             </div>
         </div>
 
@@ -36,18 +37,13 @@ import { computed } from "vue"
 import type { StudentPhoto } from "../../services/photo-gallery-service"
 import { getPhotoUrl } from "../../composables/use-photo-url"
 
-defineProps<{
+const props = defineProps<{
     students: StudentPhoto[]
     title: string
+    generatedDate?: string
 }>()
 
-const formattedDate = computed(() => {
-    const now = new Date()
-    const month = now.getMonth() + 1
-    const day = now.getDate()
-    const year = now.getFullYear()
-    return `As of ${month}/${day}/${year}`
-})
+const formattedDate = computed(() => props.generatedDate ?? "")
 
 function photoUrl(student: StudentPhoto): string {
     return getPhotoUrl(student)
@@ -84,6 +80,10 @@ function photoUrl(student: StudentPhoto): string {
     font-size: 9px;
 }
 
+.print-header > .text-caption {
+    font-size: 0.75rem;
+}
+
 @media print {
     .no-print {
         display: none !important;
@@ -92,18 +92,19 @@ function photoUrl(student: StudentPhoto): string {
     .print-header {
         break-before: auto;
         margin-bottom: 10px !important;
-        display: flex !important;
-        flex-direction: row !important;
-        align-items: center !important;
-        justify-content: space-between !important;
+        display: block !important;
     }
 
     .print-header .text-h6 {
         text-align: left !important;
+        color: #000 !important;
+        font-size: 20px !important;
+        font-weight: 600 !important;
     }
 
-    .print-header .text-subtitle2 {
-        text-align: right !important;
+    .print-header > .text-caption {
+        color: #666 !important;
+        font-size: 12px !important;
     }
 
     .photo-sheet {
@@ -155,12 +156,11 @@ function photoUrl(student: StudentPhoto): string {
     .text-caption {
         display: block !important;
         visibility: visible !important;
-        font-size: 8px !important;
+        font-size: 10px !important;
         color: #000 !important;
     }
 
-    .text-h6,
-    .text-subtitle2 {
+    .text-h6 {
         color: #000 !important;
         display: block !important;
         visibility: visible !important;

@@ -1,12 +1,38 @@
 <template>
     <q-page padding>
-        <q-card class="no-print">
-            <q-card-section>
+        <q-card>
+            <q-tabs
+                class="no-print"
+                v-model="activeTab"
+                dense
+                active-color="primary"
+                indicator-color="primary"
+                align="left"
+                @update:model-value="onTabChange"
+            >
+                <q-tab
+                    name="photos"
+                    label="Photo Gallery"
+                    icon="photo_library"
+                />
+                <q-tab
+                    name="list"
+                    label="Student List"
+                    icon="people"
+                />
+            </q-tabs>
+
+            <q-separator class="no-print" />
+
+            <q-card-section class="no-print">
                 <div class="row items-center">
                     <div class="col">
-                        <div class="text-h5">Student Photo Gallery</div>
+                        <div class="text-h5">{{ pageMainTitle }}</div>
                     </div>
-                    <div class="col-auto">
+                    <div
+                        v-if="activeTab === 'photos'"
+                        class="col-auto"
+                    >
                         <q-btn-group flat>
                             <q-btn
                                 flat
@@ -34,200 +60,351 @@
                             </q-btn>
                         </q-btn-group>
                     </div>
+                    <div
+                        v-if="activeTab === 'list' && studentListData.length > 0"
+                        class="col-auto"
+                    >
+                        <q-btn
+                            flat
+                            icon="print"
+                            color="primary"
+                            @click="handlePrint"
+                        >
+                            <q-tooltip>Print Student List</q-tooltip>
+                        </q-btn>
+                    </div>
                 </div>
             </q-card-section>
 
-            <q-separator />
+            <q-separator class="no-print" />
 
-            <q-card-section>
-                <div class="row q-col-gutter-md">
-                    <!-- Class Level Selection -->
-                    <div class="col-12 col-md-6">
-                        <q-select
-                            v-model="selectedClassLevel"
-                            :options="classLevelOptions"
-                            label="Select Class Year"
-                            outlined
-                            dense
-                            options-dense
-                            emit-value
-                            map-options
-                            @update:model-value="onClassLevelChange"
+            <q-tab-panels
+                v-model="activeTab"
+                animated
+            >
+                <!-- Photo Gallery Tab -->
+                <q-tab-panel name="photos">
+                    <div class="row q-col-gutter-md no-print">
+                        <!-- Class Level Selection -->
+                        <div class="col-12 col-md-6">
+                            <q-select
+                                v-model="selectedClassLevel"
+                                :options="classLevelOptions"
+                                label="Select Class Year"
+                                outlined
+                                dense
+                                options-dense
+                                emit-value
+                                map-options
+                                @update:model-value="onClassLevelChange"
+                            >
+                                <template #prepend>
+                                    <q-icon name="school" />
+                                </template>
+                            </q-select>
+                        </div>
+
+                        <!-- Group Type Selection -->
+                        <div class="col-12 col-md-6">
+                            <q-select
+                                v-model="selectedGroupType"
+                                :options="groupTypeOptions"
+                                label="Select Group Type"
+                                outlined
+                                dense
+                                options-dense
+                                emit-value
+                                map-options
+                                :disable="!selectedClassLevel"
+                                @update:model-value="onGroupTypeChange"
+                            >
+                                <template #prepend>
+                                    <q-icon name="group" />
+                                </template>
+                            </q-select>
+                        </div>
+
+                        <!-- Group Selection -->
+                        <div
+                            v-if="selectedGroupType"
+                            class="col-12"
                         >
-                            <template #prepend>
-                                <q-icon name="school" />
-                            </template>
-                        </q-select>
-                    </div>
+                            <q-select
+                                v-model="selectedGroup"
+                                :options="groupOptions"
+                                label="Select Specific Group"
+                                outlined
+                                dense
+                                options-dense
+                                emit-value
+                                map-options
+                                clearable
+                                @update:model-value="onGroupChange"
+                            >
+                                <template #prepend>
+                                    <q-icon name="people" />
+                                </template>
+                            </q-select>
+                        </div>
 
-                    <!-- Group Type Selection -->
-                    <div class="col-12 col-md-6">
-                        <q-select
-                            v-model="selectedGroupType"
-                            :options="groupTypeOptions"
-                            label="Select Group Type"
-                            outlined
-                            dense
-                            options-dense
-                            emit-value
-                            map-options
-                            :disable="!selectedClassLevel"
-                            @update:model-value="onGroupTypeChange"
-                        >
-                            <template #prepend>
-                                <q-icon name="group" />
-                            </template>
-                        </q-select>
-                    </div>
-
-                    <!-- Group Selection -->
-                    <div
-                        v-if="selectedGroupType"
-                        class="col-12"
-                    >
-                        <q-select
-                            v-model="selectedGroup"
-                            :options="groupOptions"
-                            label="Select Specific Group"
-                            outlined
-                            dense
-                            options-dense
-                            emit-value
-                            map-options
-                            clearable
-                            @update:model-value="onGroupChange"
-                        >
-                            <template #prepend>
-                                <q-icon name="people" />
-                            </template>
-                        </q-select>
-                    </div>
-
-                    <!-- Ross Students Toggle -->
-                    <div class="col-12">
-                        <q-checkbox
-                            v-model="galleryStore.includeRossStudents"
-                            label="Include Ross Students"
-                            @update:model-value="galleryStore.toggleRossStudents"
-                        />
-                    </div>
-                </div>
-
-                <!-- Export Controls -->
-                <div
-                    v-if="galleryStore.hasStudents && galleryStore.galleryView !== 'sheet'"
-                    class="row q-mt-md q-gutter-sm"
-                >
-                    <q-btn
-                        color="primary"
-                        icon="description"
-                        label="Export to Word"
-                        :loading="galleryStore.exportInProgress"
-                        @click="handleExportToWord"
-                    />
-                    <q-btn
-                        color="primary"
-                        icon="picture_as_pdf"
-                        label="Export to PDF"
-                        :loading="galleryStore.exportInProgress"
-                        @click="handleExportToPDF"
-                    />
-                </div>
-
-                <!-- Print Button for Sheet View -->
-                <div
-                    v-if="galleryStore.hasStudents && galleryStore.galleryView === 'sheet'"
-                    class="row q-mt-md"
-                >
-                    <q-btn
-                        color="primary"
-                        icon="print"
-                        label="Print"
-                        @click="printSheet"
-                    />
-                </div>
-            </q-card-section>
-        </q-card>
-
-        <!-- Photo Display Area -->
-        <div
-            v-if="galleryStore.loading"
-            class="q-mt-lg text-center"
-        >
-            <q-spinner
-                size="50px"
-                color="primary"
-            />
-            <div class="q-mt-md">Loading photos...</div>
-        </div>
-
-        <div
-            v-else-if="galleryStore.error"
-            class="q-mt-lg"
-        >
-            <q-banner class="bg-negative text-white">
-                <template #avatar>
-                    <q-icon name="warning" />
-                </template>
-                {{ galleryStore.error }}
-            </q-banner>
-        </div>
-
-        <div
-            v-else-if="galleryStore.hasStudents"
-            class="q-mt-lg"
-        >
-            <q-card>
-                <q-card-section>
-                    <div
-                        v-if="galleryStore.galleryView !== 'sheet'"
-                        class="row items-center q-mb-md no-print"
-                    >
-                        <div class="col">
-                            <div class="text-subtitle1">{{ pageTitle }}</div>
+                        <!-- Ross Students Toggle -->
+                        <div class="col-12">
+                            <q-checkbox
+                                v-model="galleryStore.includeRossStudents"
+                                label="Include Ross Students"
+                                @update:model-value="galleryStore.toggleRossStudents"
+                            />
                         </div>
                     </div>
 
-                    <!-- Photo Grid Component -->
-                    <PhotoGrid
-                        v-if="galleryStore.galleryView === 'grid'"
-                        :students="galleryStore.students"
-                    />
+                    <!-- Export Controls -->
+                    <div
+                        v-if="galleryStore.hasStudents && galleryStore.galleryView !== 'sheet'"
+                        class="row q-mt-md q-gutter-sm no-print"
+                    >
+                        <q-btn
+                            color="primary"
+                            icon="description"
+                            label="Export to Word"
+                            :loading="galleryStore.exportInProgress"
+                            @click="handleExportToWord"
+                        />
+                        <q-btn
+                            color="primary"
+                            icon="picture_as_pdf"
+                            label="Export to PDF"
+                            :loading="galleryStore.exportInProgress"
+                            @click="handleExportToPDF"
+                        />
+                    </div>
 
-                    <!-- Photo List Component -->
-                    <PhotoList
-                        v-else-if="galleryStore.galleryView === 'list'"
-                        :students="galleryStore.students"
-                    />
+                    <!-- Print Button for Sheet View -->
+                    <div
+                        v-if="galleryStore.hasStudents && galleryStore.galleryView === 'sheet'"
+                        class="row q-mt-md no-print"
+                    >
+                        <q-btn
+                            color="primary"
+                            icon="print"
+                            label="Print"
+                            @click="handlePrint"
+                        />
+                    </div>
 
-                    <!-- Photo Sheet Component -->
-                    <PhotoSheet
-                        v-else-if="galleryStore.galleryView === 'sheet'"
-                        :students="galleryStore.students"
-                        :title="pageTitle"
-                    />
-                </q-card-section>
-            </q-card>
-        </div>
+                    <!-- Photo Display Area -->
+                    <div
+                        v-if="galleryStore.loading"
+                        class="q-mt-lg text-center"
+                    >
+                        <q-spinner
+                            size="50px"
+                            color="primary"
+                        />
+                        <div class="q-mt-md">Loading photos...</div>
+                    </div>
 
-        <div
-            v-else
-            class="q-mt-lg text-center text-grey"
-        >
-            <q-icon
-                name="photo_library"
-                size="100px"
-                color="grey-5"
-            />
-            <div class="q-mt-md text-h6">No photos to display</div>
-            <div class="text-subtitle2">
-                {{
-                    hasActiveFilters
-                        ? "No students found for the selected filters"
-                        : "Select a class year or group to view student photos"
-                }}
-            </div>
-        </div>
+                    <div
+                        v-else-if="galleryStore.error"
+                        class="q-mt-lg"
+                    >
+                        <q-banner class="bg-negative text-white">
+                            <template #avatar>
+                                <q-icon name="warning" />
+                            </template>
+                            {{ galleryStore.error }}
+                        </q-banner>
+                    </div>
+
+                    <div
+                        v-else-if="galleryStore.hasStudents"
+                        class="q-mt-lg"
+                    >
+                        <q-card>
+                            <q-card-section>
+                                <div
+                                    v-if="galleryStore.galleryView !== 'sheet'"
+                                    class="row items-center q-mb-md no-print"
+                                >
+                                    <div class="col">
+                                        <div class="text-subtitle1">{{ pageTitle }}</div>
+                                    </div>
+                                </div>
+
+                                <!-- Photo Grid Component -->
+                                <PhotoGrid
+                                    v-if="galleryStore.galleryView === 'grid'"
+                                    :students="galleryStore.students"
+                                    @student-click="handleStudentClick"
+                                />
+
+                                <!-- Photo List Component -->
+                                <PhotoList
+                                    v-else-if="galleryStore.galleryView === 'list'"
+                                    :students="galleryStore.students"
+                                    @student-click="handleStudentClick"
+                                />
+
+                                <!-- Photo Sheet Component -->
+                                <PhotoSheet
+                                    v-else-if="galleryStore.galleryView === 'sheet'"
+                                    :students="galleryStore.students"
+                                    :title="pageTitle"
+                                    :generated-date="galleryDateFormatted"
+                                />
+                            </q-card-section>
+                        </q-card>
+                    </div>
+
+                    <div
+                        v-else
+                        class="q-mt-lg text-center text-grey"
+                    >
+                        <q-icon
+                            name="photo_library"
+                            size="100px"
+                            color="grey-5"
+                        />
+                        <div class="q-mt-md text-h6">No photos to display</div>
+                        <div class="text-subtitle2">
+                            {{
+                                hasActiveFilters
+                                    ? "No students found for the selected filters"
+                                    : "Select a class year or group to view student photos"
+                            }}
+                        </div>
+                    </div>
+                </q-tab-panel>
+
+                <!-- Student List Tab -->
+                <q-tab-panel name="list">
+                    <div class="row q-col-gutter-md no-print">
+                        <!-- Class Year Selection -->
+                        <div class="col-12 col-md-6">
+                            <q-select
+                                v-model="selectedStudentListYear"
+                                :options="studentListYearOptions"
+                                label="Select Class Year"
+                                outlined
+                                dense
+                                options-dense
+                                emit-value
+                                map-options
+                                @update:model-value="onStudentListYearChange"
+                            >
+                                <template #prepend>
+                                    <q-icon name="school" />
+                                </template>
+                            </q-select>
+                        </div>
+
+                        <!-- Ross Students Toggle -->
+                        <div class="col-12">
+                            <q-checkbox
+                                v-model="includeRossStudentsInList"
+                                label="Include Ross Students"
+                                @update:model-value="onRossStudentsToggle"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Student List Table -->
+                    <div
+                        v-if="studentListLoading"
+                        class="q-mt-lg text-center"
+                    >
+                        <q-spinner
+                            size="50px"
+                            color="primary"
+                        />
+                        <div class="q-mt-md">Loading students...</div>
+                    </div>
+
+                    <div
+                        v-else-if="studentListError"
+                        class="q-mt-lg"
+                    >
+                        <q-banner class="bg-negative text-white">
+                            <template #avatar>
+                                <q-icon name="warning" />
+                            </template>
+                            {{ studentListError }}
+                        </q-banner>
+                    </div>
+
+                    <div
+                        v-else-if="studentListData.length > 0"
+                        class="q-mt-lg"
+                    >
+                        <!-- Print Button for Student List -->
+                        <div class="row q-mb-md no-print">
+                            <q-btn
+                                color="primary"
+                                icon="print"
+                                label="Print"
+                                @click="handlePrint"
+                            />
+                        </div>
+
+                        <div class="row items-center q-mb-md no-print">
+                            <div class="col">
+                                <div class="text-subtitle1">
+                                    {{ studentListTitle }}
+                                </div>
+                                <div class="text-caption text-grey-7">Generated: {{ currentDateFormatted }}</div>
+                            </div>
+                        </div>
+
+                        <q-table
+                            :rows="studentListData"
+                            :columns="studentListColumns"
+                            row-key="mailId"
+                            dense
+                            :pagination="{ rowsPerPage: 0 }"
+                            :filter="studentListFilter"
+                            class="student-list-table"
+                        >
+                            <template #top-right>
+                                <div class="no-print">
+                                    <q-input
+                                        v-model="studentListFilter"
+                                        dense
+                                        outlined
+                                        debounce="300"
+                                        placeholder="Filter students"
+                                    >
+                                        <template #append>
+                                            <q-icon name="search" />
+                                        </template>
+                                    </q-input>
+                                </div>
+                            </template>
+                        </q-table>
+                    </div>
+
+                    <div
+                        v-else
+                        class="q-mt-lg text-center text-grey"
+                    >
+                        <q-icon
+                            name="people"
+                            size="100px"
+                            color="grey-5"
+                        />
+                        <div class="q-mt-md text-h6">No students to display</div>
+                        <div class="text-subtitle2">Select a class year to view the student list</div>
+                    </div>
+                </q-tab-panel>
+            </q-tab-panels>
+        </q-card>
+
+        <!-- Centralized Student Dialog -->
+        <StudentPhotoDialog
+            v-if="galleryStore.students.length > 0"
+            v-model="showStudentDialog"
+            :students="galleryStore.students"
+            :initial-index="selectedStudentIndex"
+            @update:index="selectedStudentIndex = $event"
+        />
     </q-page>
 </template>
 
@@ -241,23 +418,73 @@ import type { ClassYear } from "../services/photo-gallery-service"
 import PhotoGrid from "../components/PhotoGallery/PhotoGrid.vue"
 import PhotoList from "../components/PhotoGallery/PhotoList.vue"
 import PhotoSheet from "../components/PhotoGallery/PhotoSheet.vue"
+import StudentPhotoDialog from "../components/PhotoGallery/StudentPhotoDialog.vue"
+
+// Constants
+const PRINT_DELAY_MS = 1000 // Delay before triggering print dialog to ensure images are loaded
 
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
 const galleryStore = usePhotoGalleryStore()
 
+// Photo Gallery Tab
 const selectedClassLevel = ref<string | null>(null)
 const selectedGroupType = ref<string | null>(null)
 const selectedGroup = ref<string | null>(null)
-
 const classYears = ref<ClassYear[]>([])
 
+// Tab Management
+const activeTab = ref<string>("photos")
+
+// Student List Tab
+const selectedStudentListYear = ref<number | null>(null)
+const studentListData = ref<any[]>([])
+const studentListLoading = ref(false)
+const studentListError = ref<string | null>(null)
+const studentListFilter = ref("")
+const includeRossStudentsInList = ref(false)
+
+// Independent timestamps for student list vs. photo gallery flows
+const studentListLastLoadedAt = ref<Date | null>(null)
+const galleryLastLoadedAt = ref<Date | null>(null)
+
+// Student dialog management
+const showStudentDialog = ref(false)
+const selectedStudentIndex = ref(0)
+const pendingStudentMailId = ref<string | null>(null)
+
+const studentListColumns = [
+    { name: "number", label: "#", field: "number", align: "left" as const, sortable: false, style: "width: 50px" },
+    { name: "name", label: "Name", field: "fullName", align: "left" as const, sortable: true },
+    { name: "email", label: "Email", field: "email", align: "left" as const, sortable: true },
+    { name: "priorName", label: "Prior Name", field: "priorName", align: "left" as const, sortable: true },
+]
+
+// Shared class year options - used by both Photo Gallery and Student List
+const classYearOptions = computed(() =>
+    classYears.value.map((cy) => ({
+        label: `${cy.year} (${cy.classLevel})`,
+        year: cy.year,
+        classLevel: cy.classLevel,
+    })),
+)
+
+// Photo Gallery uses classLevel as the value
 const classLevelOptions = computed(() => [
     { label: "Select Class Year", value: null },
-    ...classYears.value.map((cy) => ({
-        label: `${cy.year} (${cy.classLevel})`,
-        value: cy.classLevel,
+    ...classYearOptions.value.map((option) => ({
+        label: option.label,
+        value: option.classLevel,
+    })),
+])
+
+// Student List uses year as the value
+const studentListYearOptions = computed(() => [
+    { label: "Select Class Year", value: null },
+    ...classYearOptions.value.map((option) => ({
+        label: option.label,
+        value: option.year,
     })),
 ])
 
@@ -326,6 +553,48 @@ const groupTypeLabel = computed(() => {
     return labels[selectedGroupType.value] || selectedGroupType.value
 })
 
+const pageMainTitle = computed(() => {
+    if (activeTab.value === "list") {
+        return "Student List"
+    }
+    return "Student Photo Gallery"
+})
+
+const studentListTitle = computed(() => {
+    if (!selectedStudentListYear.value) return "Student List"
+    const classYearInfo = classYears.value.find((cy) => cy.year === selectedStudentListYear.value)
+    const yearDisplay = classYearInfo
+        ? `${classYearInfo.year} (${classYearInfo.classLevel})`
+        : selectedStudentListYear.value
+    let title = `Class of ${yearDisplay}`
+    if (studentListData.value.length > 0) {
+        title += ` - ${studentListData.value.length} Student${studentListData.value.length !== 1 ? "s" : ""}`
+    }
+    if (includeRossStudentsInList.value) {
+        title += " (including Ross)"
+    }
+    return title
+})
+
+// Helper function to format dates - DRY principle
+function formatTimestamp(date: Date | null): string {
+    if (!date) return ""
+
+    return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    })
+}
+
+// Student List uses its own timestamp
+const currentDateFormatted = computed(() => formatTimestamp(studentListLastLoadedAt.value))
+
+// Photo Gallery uses its own timestamp for sheet view
+const galleryDateFormatted = computed(() => formatTimestamp(galleryLastLoadedAt.value))
+
 const pageTitle = computed(() => {
     const parts: string[] = []
 
@@ -383,6 +652,17 @@ async function onGroupChange(group: string | null) {
     }
 }
 
+// Helper function to reload current Photo Gallery data
+async function reloadPhotoGalleryData() {
+    if (!selectedClassLevel.value) return
+
+    if (selectedGroupType.value && selectedGroup.value) {
+        await galleryStore.fetchGroupPhotos(selectedGroupType.value, selectedGroup.value, selectedClassLevel.value)
+    } else {
+        await galleryStore.fetchClassPhotos(selectedClassLevel.value)
+    }
+}
+
 function updateUrlParams() {
     const query: Record<string, string> = {}
     if (selectedClassLevel.value) query.classLevel = selectedClassLevel.value
@@ -390,19 +670,99 @@ function updateUrlParams() {
     if (selectedGroup.value) query.group = selectedGroup.value
     if (galleryStore.includeRossStudents) query.includeRoss = "true"
     if (galleryStore.galleryView !== "grid") query.view = galleryStore.galleryView
+    if (activeTab.value !== "photos") query.tab = activeTab.value
+    if (selectedStudentListYear.value) query.studentListYear = selectedStudentListYear.value.toString()
+    if (includeRossStudentsInList.value) query.includeRossInList = "true"
+
+    // Add student parameter if dialog is open
+    const selectedStudent = galleryStore.students[selectedStudentIndex.value]
+    if (showStudentDialog.value && selectedStudent) {
+        query.student = selectedStudent.mailId
+    }
 
     router.replace({ query })
 }
 
+function onTabChange(_tab: string) {
+    updateUrlParams()
+}
+
+async function onStudentListYearChange(year: number | null) {
+    updateUrlParams()
+
+    if (!year) {
+        studentListData.value = []
+        return
+    }
+
+    studentListLoading.value = true
+    studentListError.value = null
+
+    try {
+        // Find the class level for this year
+        const classYearInfo = classYears.value.find((cy) => cy.year === year)
+        if (!classYearInfo) {
+            throw new Error(`Could not find class level for year ${year}`)
+        }
+
+        // Use the photo gallery service for consistent API calls with CSRF token handling
+        const result = await photoGalleryService.getClassGallery(
+            classYearInfo.classLevel,
+            includeRossStudentsInList.value,
+        )
+        if (!result || !Array.isArray(result.students)) {
+            throw new Error("Failed to load students")
+        }
+
+        // Map the data to include row number and email
+        studentListData.value = result.students.map((s: any, index: number) => ({
+            number: index + 1,
+            personId: s.personId,
+            fullName: s.displayName || `${s.lastName}, ${s.firstName}`,
+            email: s.mailId ? `${s.mailId}@ucdavis.edu` : "",
+            priorName: "", // Photo gallery doesn't have prior name data
+        }))
+
+        // Update timestamp to reflect when student list data was actually loaded
+        studentListLastLoadedAt.value = new Date()
+    } catch (error: any) {
+        studentListError.value = error.message || "An error occurred while loading students"
+        $q.notify({
+            type: "negative",
+            message: studentListError.value || "An error occurred while loading students",
+        })
+    } finally {
+        studentListLoading.value = false
+    }
+}
+
+async function onRossStudentsToggle() {
+    updateUrlParams()
+
+    // Reload data if a year is selected
+    if (selectedStudentListYear.value) {
+        await onStudentListYearChange(selectedStudentListYear.value)
+    }
+}
+
 function loadFromUrlParams() {
-    const { classLevel, groupType, group, includeRoss, view } = route.query
+    const { classLevel, groupType, group, includeRoss, view, tab, studentListYear, includeRossInList, student } =
+        route.query
 
     if (includeRoss === "true") {
         galleryStore.includeRossStudents = true
     }
 
+    if (includeRossInList === "true") {
+        includeRossStudentsInList.value = true
+    }
+
     if (typeof view === "string" && (view === "grid" || view === "list" || view === "sheet")) {
         galleryStore.galleryView = view
+    }
+
+    if (typeof tab === "string" && (tab === "photos" || tab === "list")) {
+        activeTab.value = tab
     }
 
     if (typeof classLevel === "string") {
@@ -413,6 +773,17 @@ function loadFromUrlParams() {
     }
     if (typeof group === "string") {
         selectedGroup.value = group
+    }
+    if (typeof studentListYear === "string") {
+        const year = Number.parseInt(studentListYear, 10)
+        if (!Number.isNaN(year)) {
+            selectedStudentListYear.value = year
+        }
+    }
+
+    // Handle student parameter - store for opening after data loads
+    if (typeof student === "string") {
+        pendingStudentMailId.value = student
     }
 }
 
@@ -466,8 +837,13 @@ async function handleExportToPDF() {
     }
 }
 
-function printSheet() {
+function handlePrint() {
     window.print()
+}
+
+function handleStudentClick(index: number) {
+    selectedStudentIndex.value = index
+    showStudentDialog.value = true
 }
 
 onMounted(async () => {
@@ -475,6 +851,9 @@ onMounted(async () => {
     await fetchClassYears()
 
     loadFromUrlParams()
+
+    // Wait for reactivity to settle after loading URL params
+    await nextTick()
 
     if (selectedClassLevel.value) {
         // Always fetch class photos first to populate the group counts cache
@@ -484,6 +863,11 @@ onMounted(async () => {
         if (selectedGroup.value && selectedGroupType.value) {
             await galleryStore.fetchGroupPhotos(selectedGroupType.value, selectedGroup.value, selectedClassLevel.value)
         }
+    }
+
+    // Load student list data if a year is selected
+    if (selectedStudentListYear.value) {
+        await onStudentListYearChange(selectedStudentListYear.value)
     }
 })
 
@@ -496,24 +880,79 @@ watch(
 
 watch(
     () => galleryStore.galleryView,
-    (newView, oldView) => {
-        // Auto-trigger print dialog when switching to sheet view
-        if (newView === "sheet" && oldView !== "sheet" && galleryStore.hasStudents) {
-            // Use nextTick + setTimeout to ensure images are loaded before printing
-            nextTick(() => {
-                setTimeout(() => {
-                    window.print()
-                }, 1000)
-            })
+    async (newView, oldView) => {
+        // Reload data and auto-trigger print dialog when switching to sheet view
+        if (newView === "sheet" && oldView !== "sheet") {
+            // Reload Photo Gallery data to ensure it's fresh
+            await reloadPhotoGalleryData()
+
+            // Auto-trigger print dialog after data loads
+            if (galleryStore.hasStudents) {
+                // Use nextTick + setTimeout to ensure images are loaded before printing
+                nextTick(() => {
+                    setTimeout(() => {
+                        window.print()
+                    }, PRINT_DELAY_MS)
+                })
+            }
         }
     },
 )
+
+watch(
+    () => galleryStore.students,
+    (newStudents) => {
+        // Update timestamp when Photo Gallery data loads
+        if (newStudents && newStudents.length > 0) {
+            galleryLastLoadedAt.value = new Date()
+
+            // Handle pending student modal open from URL parameter
+            if (pendingStudentMailId.value) {
+                const studentIndex = newStudents.findIndex((s) => s.mailId === pendingStudentMailId.value)
+                if (studentIndex >= 0) {
+                    handleStudentClick(studentIndex)
+                }
+                pendingStudentMailId.value = null
+            }
+        }
+    },
+)
+
+// Reload data when switching to Student List tab
+watch(activeTab, async (newTab, oldTab) => {
+    if (newTab === "list" && oldTab === "photos" && selectedStudentListYear.value) {
+        // Reload Student List data to ensure it's fresh
+        await onStudentListYearChange(selectedStudentListYear.value)
+    }
+})
+
+// Update URL when student dialog opens/closes
+watch(showStudentDialog, () => {
+    updateUrlParams()
+})
+
+// Update URL when selected student changes (e.g., arrow key navigation)
+watch(selectedStudentIndex, () => {
+    if (showStudentDialog.value) {
+        updateUrlParams()
+    }
+})
 </script>
 
 <style>
 @media print {
+    /* Default to landscape for photo gallery */
     @page {
         size: landscape;
+    }
+
+    /* Portrait for student list */
+    .print-table {
+        page: portrait-page;
+    }
+
+    @page portrait-page {
+        size: portrait;
     }
 
     /* Hide all navigation and UI elements */
@@ -530,6 +969,12 @@ watch(
     .q-header,
     .q-drawer,
     .q-footer {
+        display: none !important;
+        height: 0 !important;
+    }
+
+    /* Hide only the tab navigation bar, not the tab panels */
+    .q-tabs__content {
         display: none !important;
         height: 0 !important;
     }
@@ -554,6 +999,11 @@ watch(
         min-height: auto !important;
     }
 
+    /* Hide inactive tab panels */
+    .q-tab-panel[aria-hidden="true"] {
+        display: none !important;
+    }
+
     /* Remove card styling for cleaner print */
     .q-card {
         box-shadow: none !important;
@@ -569,28 +1019,26 @@ watch(
         padding: 10px !important;
     }
 
-    /* Force images to display */
-    img {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
+    /* QTable print styling */
+
+    /* Hide search box and pagination */
+    .q-table__top,
+    .q-table__bottom {
+        display: none !important;
+    }
+
+    /* Remove top gap */
+    .q-mt-lg,
+    .q-table {
+        margin-top: 0 !important;
+    }
+
+    /* Style table header */
+    .q-table thead th {
+        background-color: #e0e0e0 !important;
+        font-weight: bold !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
-    }
-
-    /* Ensure table and cells are visible */
-    table,
-    tr,
-    td {
-        display: table !important;
-        visibility: visible !important;
-    }
-
-    /* Remove any transforms or transitions that might interfere */
-    * {
-        transform: none !important;
-        transition: none !important;
-        animation: none !important;
     }
 }
 </style>

@@ -5,6 +5,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using Viper.Areas.Students.Models;
+using Viper.Classes.Utilities;
 using WordDocument = DocumentFormat.OpenXml.Wordprocessing.Document;
 using PdfDocument = QuestPDF.Fluent.Document;
 
@@ -40,8 +41,8 @@ namespace Viper.Areas.Students.Services
         {
             try
             {
-                _logger.LogInformation("ExportToWordAsync called with ClassLevel={ClassLevel}, GroupType={GroupType}, GroupId={GroupId}, IncludeRoss={IncludeRoss}",
-                    request.ClassLevel, request.GroupType, request.GroupId, request.IncludeRossStudents);
+                _logger.LogDebug("ExportToWordAsync called with ClassLevel={ClassLevel}, GroupType={GroupType}, GroupId={GroupId}, IncludeRoss={IncludeRoss}",
+                    LogSanitizer.SanitizeString(request.ClassLevel), LogSanitizer.SanitizeString(request.GroupType), LogSanitizer.SanitizeString(request.GroupId), request.IncludeRossStudents);
 
                 var students = await GetStudentsForExport(request);
 
@@ -185,9 +186,24 @@ namespace Viper.Areas.Students.Services
                     ContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 };
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Access denied while exporting photos to Word");
+                return null;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "I/O error exporting photos to Word");
+                return null;
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Invalid operation while exporting photos to Word");
+                return null;
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error exporting photos to Word");
+                _logger.LogError(ex, "Unexpected error exporting photos to Word");
                 return null;
             }
         }
@@ -196,8 +212,8 @@ namespace Viper.Areas.Students.Services
         {
             try
             {
-                _logger.LogInformation("ExportToPdfAsync called with ClassLevel={ClassLevel}, GroupType={GroupType}, GroupId={GroupId}, IncludeRoss={IncludeRoss}",
-                    request.ClassLevel, request.GroupType, request.GroupId, request.IncludeRossStudents);
+                _logger.LogDebug("ExportToPdfAsync called with ClassLevel={ClassLevel}, GroupType={GroupType}, GroupId={GroupId}, IncludeRoss={IncludeRoss}",
+                    LogSanitizer.SanitizeString(request.ClassLevel), LogSanitizer.SanitizeString(request.GroupType), LogSanitizer.SanitizeString(request.GroupId), request.IncludeRossStudents);
 
                 var students = await GetStudentsForExport(request);
 
@@ -207,10 +223,10 @@ namespace Viper.Areas.Students.Services
                     return null;
                 }
 
-                // Pre-load all photos in parallel with throttling
-                _logger.LogInformation("Pre-loading photos for {Count} students", students.Count);
+                // Pre-load all photos with concurrency limit
+                _logger.LogDebug("Pre-loading photos for {Count} students", students.Count);
                 var photoCache = new Dictionary<string, byte[]>();
-                var semaphore = new SemaphoreSlim(10); // Limit to 10 concurrent I/O operations
+                using var semaphore = new SemaphoreSlim(10); // Limit to 10 concurrent I/O operations
 
                 var photoTasks = students.Select(async student =>
                 {
@@ -231,12 +247,9 @@ namespace Viper.Areas.Students.Services
                 }).ToList();
 
                 var photoResults = await Task.WhenAll(photoTasks);
-                foreach (var result in photoResults)
+                foreach (var result in photoResults.Where(r => r.photoBytes != null && r.photoBytes.Length > 0))
                 {
-                    if (result.photoBytes != null && result.photoBytes.Length > 0)
-                    {
-                        photoCache[result.MailId] = result.photoBytes;
-                    }
+                    photoCache[result.MailId] = result.photoBytes;
                 }
                 _logger.LogInformation("Loaded {Count} photos into cache", photoCache.Count);
 
@@ -342,9 +355,24 @@ namespace Viper.Areas.Students.Services
                     ContentType = "application/pdf"
                 };
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Access denied while exporting photos to PDF");
+                return null;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "I/O error exporting photos to PDF");
+                return null;
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Invalid operation while exporting photos to PDF");
+                return null;
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error exporting photos to PDF");
+                _logger.LogError(ex, "Unexpected error exporting photos to PDF");
                 return null;
             }
         }
@@ -365,23 +393,23 @@ namespace Viper.Areas.Students.Services
         {
             if (!string.IsNullOrEmpty(request.ClassLevel))
             {
-                _logger.LogInformation("Fetching students by class level: {ClassLevel}, IncludeRoss={IncludeRoss}",
-                    request.ClassLevel, request.IncludeRossStudents);
+                _logger.LogDebug("Fetching students by class level: {ClassLevel}, IncludeRoss={IncludeRoss}",
+                    LogSanitizer.SanitizeString(request.ClassLevel), request.IncludeRossStudents);
                 var students = await _studentGroupService.GetStudentsByClassLevelAsync(
                     request.ClassLevel,
                     request.IncludeRossStudents);
-                _logger.LogInformation("Found {Count} students for class level {ClassLevel}", students.Count, request.ClassLevel);
+                _logger.LogDebug("Found {Count} students for class level {ClassLevel}", students.Count, LogSanitizer.SanitizeString(request.ClassLevel));
                 return students;
             }
             else if (!string.IsNullOrEmpty(request.GroupType) && !string.IsNullOrEmpty(request.GroupId))
             {
-                _logger.LogInformation("Fetching students by group: {GroupType}/{GroupId}",
-                    request.GroupType, request.GroupId);
+                _logger.LogDebug("Fetching students by group: {GroupType}/{GroupId}",
+                    LogSanitizer.SanitizeString(request.GroupType), LogSanitizer.SanitizeString(request.GroupId));
                 var students = await _studentGroupService.GetStudentsByGroupAsync(
                     request.GroupType,
                     request.GroupId);
-                _logger.LogInformation("Found {Count} students for group {GroupType}/{GroupId}",
-                    students.Count, request.GroupType, request.GroupId);
+                _logger.LogDebug("Found {Count} students for group {GroupType}/{GroupId}",
+                    students.Count, LogSanitizer.SanitizeString(request.GroupType), LogSanitizer.SanitizeString(request.GroupId));
                 return students;
             }
 
