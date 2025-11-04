@@ -37,11 +37,11 @@ namespace Viper.Areas.Effort.Scripts
             _skipBackup = skipBackup;
             _viperConnectionString = EffortScriptHelper.GetConnectionString(_configuration, "VIPER");
             _effortsConnectionString = EffortScriptHelper.GetConnectionString(_configuration, "Effort");
-            _outputPath = outputPath ?? Path.Combine(System.IO.Directory.GetCurrentDirectory(), "RemediationOutput");
+            _outputPath = EffortScriptHelper.ValidateOutputPath(outputPath, "RemediationOutput");
             _remediationDate = DateTime.Now;
             _report = new RemediationReport { RemediationDate = _remediationDate };
 
-            System.IO.Directory.CreateDirectory(_outputPath);
+            Directory.CreateDirectory(_outputPath);
         }
 
         public static void Run(string[] args)
@@ -1193,7 +1193,7 @@ namespace Viper.Areas.Effort.Scripts
 
                 // Generate unique backup filename
                 var timestamp = _remediationDate.ToString("yyyyMMdd_HHmmss");
-                var backupFileName = $"{tableName}_{timestamp}_{Guid.NewGuid().ToString().Substring(0, 8)}.sql";
+                var backupFileName = $"{tableName}_{timestamp}_{Guid.NewGuid().ToString()[..8]}.sql";
                 var backupFilePath = Path.Combine(backupDir, backupFileName);
 
                 // Query records to backup - table name is validated, parameters are used for values
@@ -1261,9 +1261,17 @@ namespace Viper.Areas.Effort.Scripts
                     }
                 }
             }
-            catch (Exception ex)
+            catch (SqlException ex)
             {
-                Console.WriteLine($"      ⚠ Backup warning: {ex.Message}");
+                Console.WriteLine($"      ⚠ Backup SQL error: {ex.Message}");
+            }
+            catch (IOException ex)
+            {
+                Console.WriteLine($"      ⚠ Backup file I/O error: {ex.Message}");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Console.WriteLine($"      ⚠ Backup access denied: {ex.Message}");
             }
         }
 

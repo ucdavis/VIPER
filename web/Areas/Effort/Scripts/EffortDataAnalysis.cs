@@ -32,11 +32,11 @@ namespace Viper.Areas.Effort.Scripts
             _configuration = configuration ?? EffortScriptHelper.LoadConfiguration();
             _viperConnectionString = EffortScriptHelper.GetConnectionString(_configuration, "VIPER");
             _effortsConnectionString = EffortScriptHelper.GetConnectionString(_configuration, "Effort");
-            _outputPath = outputPath ?? Path.Combine(System.IO.Directory.GetCurrentDirectory(), "AnalysisOutput");
+            _outputPath = EffortScriptHelper.ValidateOutputPath(outputPath, "AnalysisOutput");
             _analysisDate = DateTime.Now;
             _report = new AnalysisReport { AnalysisDate = _analysisDate };
 
-            System.IO.Directory.CreateDirectory(_outputPath);
+            Directory.CreateDirectory(_outputPath);
         }
 
         public static void Run(string[] args)
@@ -271,7 +271,7 @@ namespace Viper.Areas.Effort.Scripts
                     // Only include if this MothraId is NOT in VIPER (i.e., it's unmapped)
                     if (!string.IsNullOrEmpty(mothraId) && !viperMothraIds.Contains(mothraId))
                     {
-                        if (!personDict.ContainsKey(mothraId))
+                        if (!personDict.TryGetValue(mothraId, out var existingPerson))
                         {
                             int percentAdminOrdinal = reader.GetOrdinal("person_PercentAdmin");
                             personDict[mothraId] = new PersonDetail
@@ -294,9 +294,9 @@ namespace Viper.Areas.Effort.Scripts
                         {
                             // Add additional term codes
                             var termCode = reader["person_TermCode"]?.ToString();
-                            if (!string.IsNullOrEmpty(termCode) && !personDict[mothraId].TermCodes.Contains(termCode))
+                            if (!string.IsNullOrEmpty(termCode) && !existingPerson.TermCodes.Contains(termCode))
                             {
-                                personDict[mothraId].TermCodes += ", " + termCode;
+                                existingPerson.TermCodes += ", " + termCode;
                             }
                         }
                     }
@@ -960,7 +960,7 @@ namespace Viper.Areas.Effort.Scripts
                     // Populate effort record counts and categorize courses
                     foreach (var course in blankCrnCourses)
                     {
-                        course.EffortRecordCount = effortCounts.ContainsKey(course.CourseId) ? effortCounts[course.CourseId] : 0;
+                        course.EffortRecordCount = effortCounts.TryGetValue(course.CourseId, out int count) ? count : 0;
 
                         if (course.EffortRecordCount > 0)
                         {
