@@ -10,6 +10,7 @@ namespace Viper.Areas.Students.Services
     {
         Task<List<StudentPhoto>> GetStudentsByClassLevelAsync(string classLevel, bool includeRossStudents = false);
         Task<List<StudentPhoto>> GetStudentsByGroupAsync(string groupType, string groupId, string? classLevel = null);
+        Task<List<StudentPhoto>> GetStudentsByCourseAsync(string termCode, string crn, bool includeRossStudents = false);
         Task<List<string>> GetEighthsGroupsAsync();
         Task<List<string>> GetTwentiethsGroupsAsync();
         Task<List<string>> GetTeamsAsync(string classLevel);
@@ -22,13 +23,15 @@ namespace Viper.Areas.Students.Services
     {
         private readonly AAUDContext _aaudContext;
         private readonly SISContext _sisContext;
+        private readonly CoursesContext _coursesContext;
         private readonly IPhotoService _photoService;
         private readonly ILogger<StudentGroupService> _logger;
 
-        public StudentGroupService(AAUDContext aaudContext, SISContext sisContext, IPhotoService photoService, ILogger<StudentGroupService> logger)
+        public StudentGroupService(AAUDContext aaudContext, SISContext sisContext, CoursesContext coursesContext, IPhotoService photoService, ILogger<StudentGroupService> logger)
         {
             _aaudContext = aaudContext;
             _sisContext = sisContext;
+            _coursesContext = coursesContext;
             _photoService = photoService;
             _logger = logger;
         }
@@ -154,7 +157,7 @@ namespace Viper.Areas.Students.Services
                 // Add Ross students if requested
                 if (includeRossStudents)
                 {
-                    _logger.LogDebug("Including Ross students for class level {ClassLevel}", classLevel);
+                    _logger.LogDebug("Including Ross students for class level {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
 
                     if (rossGradYear.HasValue)
                     {
@@ -433,6 +436,213 @@ namespace Viper.Areas.Students.Services
             }
         }
 
+        public async Task<List<StudentPhoto>> GetStudentsByCourseAsync(string termCode, string crn, bool includeRossStudents = false)
+        {
+            try
+            {
+                var currentTermInt = int.Parse(termCode);
+
+                // Get list of Ross IAM IDs so we can always exclude them unless explicitly requested
+                List<string> rossIamIds = new();
+                try
+                {
+                    rossIamIds = await _sisContext.StudentDesignations
+                        .Where(sd => sd.DesignationType == "Ross")
+                        .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
+                                    (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
+                        .Select(sd => sd.IamId)
+                        .Where(id => id != null)
+                        .Distinct()
+                        .ToListAsync();
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _logger.LogError(ex, "Invalid operation querying SIS context for Ross students");
+                }
+                catch (Microsoft.Data.SqlClient.SqlException ex)
+                {
+                    _logger.LogError(ex, "Database error querying SIS context for Ross students");
+                }
+
+                // Query students enrolled in the course
+                // Two-step approach to avoid multi-context joins (following legacy implementation pattern)
+                // Step 1: Get PIDMs of enrolled students from Courses database
+                var enrolledPidms = await _coursesContext.Rosters
+                    .Where(r => r.RosterTermCode == termCode
+                                && r.RosterCrn == crn
+                                && r.RosterEnrollStatus == "RE")
+                    .Select(r => r.RosterPidm)
+                    .Distinct()
+                    .ToListAsync();
+
+                if (!enrolledPidms.Any())
+                {
+                    _logger.LogInformation("No enrolled students found for course {TermCode}/{Crn}",
+                        LogSanitizer.SanitizeId(termCode),
+                        LogSanitizer.SanitizeId(crn));
+                    return new List<StudentPhoto>();
+                }
+
+                // Step 2: Query AAUD database with the enrolled PIDMs
+                var query = from i in _aaudContext.Ids
+                            join p in _aaudContext.People on i.IdsPKey equals p.PersonPKey
+                            join s in _aaudContext.Students on p.PersonPKey equals s.StudentsPKey
+                            join sg in _aaudContext.Studentgrps on i.IdsPidm equals sg.StudentgrpPidm into sgGroup
+                            from sg in sgGroup.DefaultIfEmpty()
+                            where enrolledPidms.Contains(i.IdsPidm)
+                                  && i.IdsTermCode == termCode
+                                  && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId))
+                            select new
+                            {
+                                PersonId = p.PersonPKey,
+                                MailId = i.IdsMailid,
+                                FirstName = p.PersonDisplayFirstName ?? p.PersonFirstName,
+                                LastName = p.PersonLastName,
+                                MiddleName = p.PersonMiddleName,
+                                IamId = i.IdsIamId,
+                                BannerId = i.IdsClientid,
+                                ClassLevel = s.StudentsClassLevel,
+                                EighthsGroup = sg != null ? sg.StudentgrpGrp : null,
+                                TwentiethsGroup = sg != null ? sg.Studentgrp20 : null,
+                                TeamNumber = sg != null ? sg.StudentgrpTeamno : null,
+                                V3SpecialtyGroup = sg != null ? sg.StudentgrpV3grp : null
+                            };
+
+                var students = await query.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
+                var photoStudents = new List<StudentPhoto>();
+
+                foreach (var student in students)
+                {
+                    var displayName = FormatStudentDisplayName(student.LastName, student.FirstName, student.MiddleName);
+
+                    var photoUrl = await _photoService.GetStudentPhotoUrlAsync(student.MailId);
+                    var hasPhoto = !string.Equals(
+                        photoUrl,
+                        _photoService.GetDefaultPhotoUrl(),
+                        StringComparison.OrdinalIgnoreCase);
+
+                    // Combine Eighths and Twentieths groups
+                    var groupAssignment = "";
+                    if (!string.IsNullOrEmpty(student.EighthsGroup) && !string.IsNullOrEmpty(student.TwentiethsGroup))
+                    {
+                        groupAssignment = $"{student.EighthsGroup} / {student.TwentiethsGroup}";
+                    }
+                    else if (!string.IsNullOrEmpty(student.EighthsGroup))
+                    {
+                        groupAssignment = student.EighthsGroup;
+                    }
+                    else if (!string.IsNullOrEmpty(student.TwentiethsGroup))
+                    {
+                        groupAssignment = student.TwentiethsGroup;
+                    }
+
+                    // Get prior class year
+                    int? priorClassYear = null;
+                    var gradYear = GradYearClassLevel.GetGradYear(student.ClassLevel, currentTermInt);
+                    if (gradYear.HasValue)
+                    {
+                        priorClassYear = await GetPriorClassYearForStudentAsync(student.BannerId, gradYear.Value, student.MailId);
+                    }
+
+                    var photoStudent = new StudentPhoto
+                    {
+                        MailId = student.MailId,
+                        FirstName = student.FirstName,
+                        LastName = student.LastName,
+                        DisplayName = displayName,
+                        PhotoUrl = photoUrl,
+                        GroupAssignment = groupAssignment,
+                        EighthsGroup = student.EighthsGroup?.Trim(),
+                        TwentiethsGroup = student.TwentiethsGroup?.Trim(),
+                        TeamNumber = student.ClassLevel == "V3" ? student.TeamNumber?.Trim() : null,
+                        V3SpecialtyGroup = student.ClassLevel == "V3" ? student.V3SpecialtyGroup?.Trim() : null,
+                        HasPhoto = hasPhoto,
+                        IsRossStudent = false,
+                        PriorClassYear = priorClassYear
+                    };
+
+                    photoStudents.Add(photoStudent);
+                }
+
+                // Add Ross students if requested
+                if (includeRossStudents && rossIamIds.Any())
+                {
+                    _logger.LogDebug("Including Ross students for course {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
+
+                    // Get Ross students who are enrolled in this course
+                    var rossStudentsInCourse = await (from r in _coursesContext.Rosters
+                                                      join i in _aaudContext.Ids on r.RosterPidm equals i.IdsPidm
+                                                      where r.RosterTermCode == termCode
+                                                            && r.RosterCrn == crn
+                                                            && i.IdsIamId != null
+                                                            && rossIamIds.Contains(i.IdsIamId)
+                                                      select i.IdsIamId)
+                                                     .Distinct()
+                                                     .ToListAsync();
+
+                    if (rossStudentsInCourse.Any())
+                    {
+                        // Fetch Ross student photos for those enrolled in the course
+                        foreach (var iamId in rossStudentsInCourse)
+                        {
+                            var rossStudent = await _aaudContext.Ids
+                                .Where(ids => ids.IdsIamId == iamId)
+                                .OrderByDescending(ids => ids.IdsTermCode)
+                                .Select(ids => new
+                                {
+                                    MailId = ids.IdsMailid,
+                                    PersonPKey = ids.IdsPKey
+                                })
+                                .FirstOrDefaultAsync();
+
+                            if (rossStudent != null)
+                            {
+                                var person = await _aaudContext.People
+                                    .Where(p => p.PersonPKey == rossStudent.PersonPKey)
+                                    .FirstOrDefaultAsync();
+
+                                if (person != null && !string.IsNullOrEmpty(rossStudent.MailId))
+                                {
+                                    var displayName = FormatStudentDisplayName(person.PersonLastName, person.PersonDisplayFirstName ?? person.PersonFirstName, person.PersonMiddleName);
+                                    var photoUrl = await _photoService.GetStudentPhotoUrlAsync(rossStudent.MailId);
+                                    var hasPhoto = !string.Equals(photoUrl, _photoService.GetDefaultPhotoUrl(), StringComparison.OrdinalIgnoreCase);
+
+                                    photoStudents.Add(new StudentPhoto
+                                    {
+                                        MailId = rossStudent.MailId,
+                                        FirstName = person.PersonDisplayFirstName ?? person.PersonFirstName,
+                                        LastName = person.PersonLastName,
+                                        DisplayName = displayName,
+                                        PhotoUrl = photoUrl,
+                                        GroupAssignment = null,
+                                        EighthsGroup = null,
+                                        TwentiethsGroup = null,
+                                        HasPhoto = hasPhoto,
+                                        IsRossStudent = true,
+                                        PriorClassYear = null
+                                    });
+                                }
+                            }
+                        }
+
+                        photoStudents = photoStudents.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToList();
+                    }
+                }
+
+                return photoStudents;
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Invalid operation getting students by course {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
+                return new List<StudentPhoto>();
+            }
+            catch (Microsoft.Data.SqlClient.SqlException ex)
+            {
+                _logger.LogError(ex, "Database error getting students by course {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
+                return new List<StudentPhoto>();
+            }
+        }
+
         public async Task<List<string>> GetEighthsGroupsAsync()
         {
             return await Task.FromResult(new List<string>
@@ -496,12 +706,12 @@ namespace Viper.Areas.Students.Services
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Invalid operation getting teams for class level {ClassLevel}", classLevel);
+                _logger.LogError(ex, "Invalid operation getting teams for class level {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
                 return new List<string>();
             }
             catch (Microsoft.Data.SqlClient.SqlException ex)
             {
-                _logger.LogError(ex, "Database error getting teams for class level {ClassLevel}", classLevel);
+                _logger.LogError(ex, "Database error getting teams for class level {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
                 return new List<string>();
             }
         }
@@ -622,12 +832,12 @@ namespace Viper.Areas.Students.Services
             catch (InvalidOperationException ex)
             {
                 _logger.LogWarning(ex, "Invalid operation getting prior class year for student {MailId} with BannerId {BannerId}",
-                    mailId, bannerId);
+                    LogSanitizer.SanitizeId(mailId), LogSanitizer.SanitizeId(bannerId));
             }
             catch (Microsoft.Data.SqlClient.SqlException ex)
             {
                 _logger.LogWarning(ex, "Database error getting prior class year for student {MailId} with BannerId {BannerId}",
-                    mailId, bannerId);
+                    LogSanitizer.SanitizeId(mailId), LogSanitizer.SanitizeId(bannerId));
             }
 
             return null;
@@ -758,7 +968,7 @@ namespace Viper.Areas.Students.Services
                 var currentClassYear = CalculateGraduationYear(student.ClassLevel);
                 if (currentClassYear == null)
                 {
-                    _logger.LogWarning("Could not calculate graduation year for class level: {ClassLevel}", student.ClassLevel);
+                    _logger.LogWarning("Could not calculate graduation year for class level: {ClassLevel}", LogSanitizer.SanitizeString(student.ClassLevel));
                     return new StudentDetailInfo { CurrentClassYear = null, PriorClassYear = null };
                 }
 
@@ -781,13 +991,13 @@ namespace Viper.Areas.Students.Services
 
                 if (string.IsNullOrEmpty(pidm))
                 {
-                    _logger.LogWarning("Could not get PIDM for BannerID: {BannerId}", student.BannerId);
+                    _logger.LogWarning("Could not get PIDM for BannerID: {BannerId}", LogSanitizer.SanitizeId(student.BannerId));
                     return new StudentDetailInfo { CurrentClassYear = currentClassYear, PriorClassYear = null };
                 }
 
                 if (admitTerm == null)
                 {
-                    _logger.LogWarning("Could not get admit year for PIDM: {Pidm}", pidm);
+                    _logger.LogWarning("Could not get admit year for PIDM: {Pidm}", LogSanitizer.SanitizeId(pidm));
                     return new StudentDetailInfo { CurrentClassYear = currentClassYear, PriorClassYear = null };
                 }
 

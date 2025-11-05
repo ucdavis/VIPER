@@ -84,5 +84,72 @@ namespace Viper.Areas.Curriculum.Services
 
             return classYears;
         }
+
+        /// <summary>
+        /// Convert 6-digit YYYYMM term code (used by Courses database) to human-readable description
+        /// </summary>
+        /// <param name="termCode">Term code in YYYYMM format (e.g., "202409")</param>
+        /// <returns>Human-readable term description (e.g., "Fall 2024")</returns>
+        public static string GetTermDescriptionFromYYYYMM(string termCode)
+        {
+            if (string.IsNullOrEmpty(termCode) || termCode.Length != 6)
+            {
+                return termCode;
+            }
+
+            var year = termCode[..4];
+            var month = termCode[4..];
+
+            var season = month switch
+            {
+                "01" => "Winter",
+                "03" => "Spring",
+                "06" => "Summer",
+                "09" => "Fall",
+                _ => ""
+            };
+
+            return string.IsNullOrEmpty(season) ? termCode : $"{season} {year}";
+        }
+
+        /// <summary>
+        /// Calculate term range for course queries (current semester forward only)
+        /// Used by CourseService to query courses from current semester through next summer
+        /// </summary>
+        /// <returns>Tuple of (StartTerm, EndTerm) in YYYYMM format</returns>
+        public static (string StartTerm, string EndTerm) GetAcademicYearTermRange()
+        {
+            var now = DateTime.Now;
+            var currentYear = now.Year;
+            var currentMonth = now.Month;
+
+            // Determine current semester based on month
+            string startTerm;
+            if (currentMonth >= 1 && currentMonth <= 2)
+            {
+                // Winter term spans January-February; keep the current winter in range
+                startTerm = $"{currentYear}01";
+            }
+            else if (currentMonth >= 3 && currentMonth <= 5)
+            {
+                // Spring - start from Spring
+                startTerm = $"{currentYear}03";
+            }
+            else if (currentMonth >= 6 && currentMonth <= 8)
+            {
+                // Summer - start from Summer
+                startTerm = $"{currentYear}06";
+            }
+            else // currentMonth >= 9 && currentMonth <= 12
+            {
+                // Fall - start from Fall
+                startTerm = $"{currentYear}09";
+            }
+
+            // End term: Summer of next year to ensure we capture future courses
+            var endTerm = $"{currentYear + 1}06";
+
+            return (startTerm, endTerm);
+        }
     }
 }

@@ -4,9 +4,10 @@ namespace Viper.Areas.Students.Models
 {
     public class PhotoGalleryViewModel
     {
-        public string ClassLevel { get; set; }
+        public string? ClassLevel { get; set; }
         public List<StudentPhoto> Students { get; set; }
-        public GroupingInfo GroupInfo { get; set; }
+        public GroupingInfo? GroupInfo { get; set; }
+        public CourseInfo? CourseInfo { get; set; }
         public ExportOptions ExportOptions { get; set; }
     }
 
@@ -68,6 +69,8 @@ namespace Viper.Areas.Students.Models
         public string? ClassLevel { get; set; }
         public string? GroupType { get; set; }
         public string? GroupId { get; set; }
+        public string? TermCode { get; set; }
+        public string? Crn { get; set; }
         public bool IncludeRossStudents { get; set; }
         public string? ExportFormat { get; set; }
     }
