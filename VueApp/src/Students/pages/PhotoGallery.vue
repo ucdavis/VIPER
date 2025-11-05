@@ -85,12 +85,12 @@
                 <!-- Photo Gallery Tab -->
                 <q-tab-panel name="photos">
                     <div class="row q-col-gutter-md no-print">
-                        <!-- Class Level Selection -->
+                        <!-- Class Level or Course Selection -->
                         <div class="col-12 col-md-6">
                             <q-select
-                                v-model="selectedClassLevel"
+                                v-model="selectedClassOrCourse"
                                 :options="classLevelOptions"
-                                label="Select Class Year"
+                                label="Select Class Year or Course"
                                 outlined
                                 dense
                                 options-dense
@@ -101,11 +101,31 @@
                                 <template #prepend>
                                     <q-icon name="school" />
                                 </template>
+                                <template #option="scope">
+                                    <q-item
+                                        v-bind="scope.itemProps"
+                                        :disable="scope.opt.disable"
+                                        :class="{ 'text-weight-bold': scope.opt.header }"
+                                    >
+                                        <q-item-section>
+                                            <q-item-label>{{ scope.opt.label }}</q-item-label>
+                                        </q-item-section>
+                                    </q-item>
+                                </template>
+                                <template #selected>
+                                    {{
+                                        classLevelOptions.find((opt) => opt.value === selectedClassOrCourse)?.label ||
+                                        "Select Class Year or Course"
+                                    }}
+                                </template>
                             </q-select>
                         </div>
 
-                        <!-- Group Type Selection -->
-                        <div class="col-12 col-md-6">
+                        <!-- Group Type Selection (only for class years, not courses) -->
+                        <div
+                            v-if="!selectedCourse"
+                            class="col-12 col-md-6"
+                        >
                             <q-select
                                 v-model="selectedGroupType"
                                 :options="groupTypeOptions"
@@ -147,8 +167,11 @@
                             </q-select>
                         </div>
 
-                        <!-- Ross Students Toggle -->
-                        <div class="col-12">
+                        <!-- Ross Students Toggle (only for V3 and V4) -->
+                        <div
+                            v-if="showRossCheckbox"
+                            class="col-12"
+                        >
                             <q-checkbox
                                 v-model="galleryStore.includeRossStudents"
                                 label="Include Ross Students"
@@ -297,8 +320,11 @@
                             </q-select>
                         </div>
 
-                        <!-- Ross Students Toggle -->
-                        <div class="col-12">
+                        <!-- Ross Students Toggle (only for V3 and V4) -->
+                        <div
+                            v-if="showRossCheckboxInList"
+                            class="col-12"
+                        >
                             <q-checkbox
                                 v-model="includeRossStudentsInList"
                                 label="Include Ross Students"
@@ -414,7 +440,8 @@ import { useQuasar } from "quasar"
 import { useRoute, useRouter } from "vue-router"
 import { usePhotoGalleryStore } from "../stores/photo-gallery-store"
 import { photoGalleryService } from "../services/photo-gallery-service"
-import type { ClassYear } from "../services/photo-gallery-service"
+import type { ClassYear, CoursesByTerm } from "../services/photo-gallery-service"
+import { usePhotoGalleryOptions } from "../composables/use-photo-gallery-options"
 import PhotoGrid from "../components/PhotoGallery/PhotoGrid.vue"
 import PhotoList from "../components/PhotoGallery/PhotoList.vue"
 import PhotoSheet from "../components/PhotoGallery/PhotoSheet.vue"
@@ -432,7 +459,34 @@ const galleryStore = usePhotoGalleryStore()
 const selectedClassLevel = ref<string | null>(null)
 const selectedGroupType = ref<string | null>(null)
 const selectedGroup = ref<string | null>(null)
+const selectedCourse = ref<{ termCode: string; crn: string } | null>(null)
 const classYears = ref<ClassYear[]>([])
+const availableCourses = ref<CoursesByTerm[]>([])
+
+// Computed property for the select v-model (combines class level and course)
+const selectedClassOrCourse = computed({
+    get: () => {
+        if (selectedCourse.value) {
+            return `course:${selectedCourse.value.termCode}:${selectedCourse.value.crn}`
+        }
+        return selectedClassLevel.value
+    },
+    set: (_value: string | null) => {
+        // This setter is handled by onClassLevelChange, but we need it for v-model binding
+    },
+})
+
+// Show Ross checkbox only for V3 and V4 class levels (Photo Gallery)
+const showRossCheckbox = computed(() => selectedClassLevel.value === "V3" || selectedClassLevel.value === "V4")
+
+// Show Ross checkbox for Student List (only for V3 and V4 years)
+const showRossCheckboxInList = computed(() => {
+    if (!selectedStudentListYear.value) {
+        return false
+    }
+    const selectedYear = classYearOptions.value.find((cy) => cy.year === selectedStudentListYear.value)
+    return selectedYear?.classLevel === "V3" || selectedYear?.classLevel === "V4"
+})
 
 // Tab Management
 const activeTab = ref<string>("photos")
@@ -461,32 +515,11 @@ const studentListColumns = [
     { name: "priorName", label: "Prior Name", field: "priorName", align: "left" as const, sortable: true },
 ]
 
-// Shared class year options - used by both Photo Gallery and Student List
-const classYearOptions = computed(() =>
-    classYears.value.map((cy) => ({
-        label: `${cy.year} (${cy.classLevel})`,
-        year: cy.year,
-        classLevel: cy.classLevel,
-    })),
+// Use the composable for building dropdown options
+const { classYearOptions, classLevelOptions, studentListYearOptions } = usePhotoGalleryOptions(
+    classYears,
+    availableCourses,
 )
-
-// Photo Gallery uses classLevel as the value
-const classLevelOptions = computed(() => [
-    { label: "Select Class Year", value: null },
-    ...classYearOptions.value.map((option) => ({
-        label: option.label,
-        value: option.classLevel,
-    })),
-])
-
-// Student List uses year as the value
-const studentListYearOptions = computed(() => [
-    { label: "Select Class Year", value: null },
-    ...classYearOptions.value.map((option) => ({
-        label: option.label,
-        value: option.year,
-    })),
-])
 
 const groupTypeOptions = computed(() => [
     { label: "All Students", value: null },
@@ -578,7 +611,9 @@ const studentListTitle = computed(() => {
 
 // Helper function to format dates - DRY principle
 function formatTimestamp(date: Date | null): string {
-    if (!date) return ""
+    if (!date) {
+        return ""
+    }
 
     return date.toLocaleDateString("en-US", {
         year: "numeric",
@@ -598,7 +633,15 @@ const galleryDateFormatted = computed(() => formatTimestamp(galleryLastLoadedAt.
 const pageTitle = computed(() => {
     const parts: string[] = []
 
-    if (selectedClassYearDisplay.value) {
+    // Show course info if a course is selected
+    if (galleryStore.selectedCourse) {
+        const course = galleryStore.selectedCourse
+        parts.push(`${course.subjectCode}${course.courseNumber} - ${course.title}`)
+        if (course.termDescription) {
+            parts.push(course.termDescription)
+        }
+    } else if (selectedClassYearDisplay.value) {
+        // Otherwise show class year
         parts.push(`Class of ${selectedClassYearDisplay.value}`)
     }
 
@@ -621,15 +664,46 @@ const pageTitle = computed(() => {
     return title
 })
 
-async function onClassLevelChange(classLevel: string | null) {
+async function onClassLevelChange(value: string | null) {
     selectedGroupType.value = null
     selectedGroup.value = null
-    updateUrlParams()
 
-    if (classLevel) {
-        await galleryStore.fetchClassPhotos(classLevel)
-    } else {
+    if (!value) {
+        galleryStore.includeRossStudents = false
+        selectedClassLevel.value = null
+        selectedCourse.value = null
         galleryStore.clearSelection()
+        updateUrlParams()
+        return
+    }
+
+    // Ensure value is a string (q-select might emit objects in some cases)
+    const stringValue = typeof value === "string" ? value : String(value)
+
+    // Check if this is a course selection (format: "course:termCode:crn")
+    if (stringValue.startsWith("course:")) {
+        const [, termCode, crn] = stringValue.split(":")
+        if (!termCode || !crn) {
+            $q.notify({
+                type: "negative",
+                message: "Invalid course selection",
+            })
+            return
+        }
+        galleryStore.includeRossStudents = false
+        selectedClassLevel.value = null
+        selectedCourse.value = { termCode, crn }
+        updateUrlParams()
+        await galleryStore.fetchCoursePhotos(termCode, crn)
+    } else {
+        // This is a class level selection
+        selectedClassLevel.value = stringValue
+        selectedCourse.value = null
+        if (stringValue !== "V3" && stringValue !== "V4") {
+            galleryStore.includeRossStudents = false
+        }
+        updateUrlParams()
+        await galleryStore.fetchClassPhotos(stringValue)
     }
 }
 
@@ -665,14 +739,34 @@ async function reloadPhotoGalleryData() {
 
 function updateUrlParams() {
     const query: Record<string, string> = {}
-    if (selectedClassLevel.value) query.classLevel = selectedClassLevel.value
-    if (selectedGroupType.value) query.groupType = selectedGroupType.value
-    if (selectedGroup.value) query.group = selectedGroup.value
-    if (galleryStore.includeRossStudents) query.includeRoss = "true"
-    if (galleryStore.galleryView !== "grid") query.view = galleryStore.galleryView
-    if (activeTab.value !== "photos") query.tab = activeTab.value
-    if (selectedStudentListYear.value) query.studentListYear = selectedStudentListYear.value.toString()
-    if (includeRossStudentsInList.value) query.includeRossInList = "true"
+    if (selectedClassLevel.value) {
+        query.classLevel = selectedClassLevel.value
+    }
+    if (selectedCourse.value) {
+        query.termCode = selectedCourse.value.termCode
+        query.crn = selectedCourse.value.crn
+    }
+    if (selectedGroupType.value) {
+        query.groupType = selectedGroupType.value
+    }
+    if (selectedGroup.value) {
+        query.group = selectedGroup.value
+    }
+    if (galleryStore.includeRossStudents) {
+        query.includeRoss = "true"
+    }
+    if (galleryStore.galleryView !== "grid") {
+        query.view = galleryStore.galleryView
+    }
+    if (activeTab.value !== "photos") {
+        query.tab = activeTab.value
+    }
+    if (selectedStudentListYear.value) {
+        query.studentListYear = selectedStudentListYear.value.toString()
+    }
+    if (includeRossStudentsInList.value) {
+        query.includeRossInList = "true"
+    }
 
     // Add student parameter if dialog is open
     const selectedStudent = galleryStore.students[selectedStudentIndex.value]
@@ -703,6 +797,9 @@ async function onStudentListYearChange(year: number | null) {
         const classYearInfo = classYears.value.find((cy) => cy.year === year)
         if (!classYearInfo) {
             throw new Error(`Could not find class level for year ${year}`)
+        }
+        if (classYearInfo.classLevel !== "V3" && classYearInfo.classLevel !== "V4") {
+            includeRossStudentsInList.value = false
         }
 
         // Use the photo gallery service for consistent API calls with CSRF token handling
@@ -746,16 +843,19 @@ async function onRossStudentsToggle() {
 }
 
 function loadFromUrlParams() {
-    const { classLevel, groupType, group, includeRoss, view, tab, studentListYear, includeRossInList, student } =
-        route.query
-
-    if (includeRoss === "true") {
-        galleryStore.includeRossStudents = true
-    }
-
-    if (includeRossInList === "true") {
-        includeRossStudentsInList.value = true
-    }
+    const {
+        classLevel,
+        termCode,
+        crn,
+        groupType,
+        group,
+        includeRoss,
+        view,
+        tab,
+        studentListYear,
+        includeRossInList,
+        student,
+    } = route.query
 
     if (typeof view === "string" && (view === "grid" || view === "list" || view === "sheet")) {
         galleryStore.galleryView = view
@@ -765,9 +865,14 @@ function loadFromUrlParams() {
         activeTab.value = tab
     }
 
-    if (typeof classLevel === "string") {
+    // Handle course parameters
+    if (typeof termCode === "string" && typeof crn === "string") {
+        selectedCourse.value = { termCode, crn }
+    } else if (typeof classLevel === "string") {
+        // Only set classLevel if no course is selected
         selectedClassLevel.value = classLevel
     }
+
     if (typeof groupType === "string") {
         selectedGroupType.value = groupType
     }
@@ -778,6 +883,26 @@ function loadFromUrlParams() {
         const year = Number.parseInt(studentListYear, 10)
         if (!Number.isNaN(year)) {
             selectedStudentListYear.value = year
+        }
+    }
+
+    // Handle Ross student inclusion - only allow for V3/V4 class levels
+    // Photo Gallery Tab: Only set includeRoss if V3 or V4 class level is selected
+    if (includeRoss === "true" && typeof classLevel === "string" && (classLevel === "V3" || classLevel === "V4")) {
+        galleryStore.includeRossStudents = true
+    }
+    // If not V3/V4, the parameter is ignored (sanitized)
+
+    // Student List Tab
+    if (includeRossInList === "true" && typeof studentListYear === "string") {
+        const year = Number.parseInt(studentListYear, 10)
+        if (!Number.isNaN(year)) {
+            // Find the class level for this year
+            const yearOption = classYearOptions.value.find((cy) => cy.year === year)
+            if (yearOption && (yearOption.classLevel === "V3" || yearOption.classLevel === "V4")) {
+                includeRossStudentsInList.value = true
+            }
+            // If not V3/V4, the parameter is ignored (sanitized)
         }
     }
 
@@ -798,6 +923,21 @@ async function fetchClassYears() {
         $q.notify({
             type: "negative",
             message: "Failed to load class years",
+        })
+    }
+}
+
+async function fetchAvailableCourses() {
+    try {
+        const courses = await photoGalleryService.getAvailableCourses()
+        if (!Array.isArray(courses)) {
+            throw new TypeError("Invalid courses response")
+        }
+        availableCourses.value = courses
+    } catch {
+        $q.notify({
+            type: "negative",
+            message: "Failed to load available courses",
         })
     }
 }
@@ -838,7 +978,7 @@ async function handleExportToPDF() {
 }
 
 function handlePrint() {
-    window.print()
+    globalThis.print()
 }
 
 function handleStudentClick(index: number) {
@@ -849,13 +989,17 @@ function handleStudentClick(index: number) {
 onMounted(async () => {
     await galleryStore.fetchGalleryMenu()
     await fetchClassYears()
+    await fetchAvailableCourses()
 
     loadFromUrlParams()
 
     // Wait for reactivity to settle after loading URL params
     await nextTick()
 
-    if (selectedClassLevel.value) {
+    if (selectedCourse.value) {
+        // Fetch course photos if a course is selected
+        await galleryStore.fetchCoursePhotos(selectedCourse.value.termCode, selectedCourse.value.crn)
+    } else if (selectedClassLevel.value) {
         // Always fetch class photos first to populate the group counts cache
         await galleryStore.fetchClassPhotos(selectedClassLevel.value)
 

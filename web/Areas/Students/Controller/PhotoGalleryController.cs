@@ -17,6 +17,7 @@ namespace Viper.Areas.Students.Controller
         private readonly IPhotoService _photoService;
         private readonly IStudentGroupService _studentGroupService;
         private readonly IPhotoExportService _photoExportService;
+        private readonly ICourseService _courseService;
         private readonly TermCodeService _termCodeService;
         private readonly ILogger<PhotoGalleryController> _logger;
 
@@ -34,12 +35,14 @@ namespace Viper.Areas.Students.Controller
             IPhotoService photoService,
             IStudentGroupService studentGroupService,
             IPhotoExportService photoExportService,
+            ICourseService courseService,
             TermCodeService termCodeService,
             ILogger<PhotoGalleryController> logger)
         {
             _photoService = photoService;
             _studentGroupService = studentGroupService;
             _photoExportService = photoExportService;
+            _courseService = courseService;
             _termCodeService = termCodeService;
             _logger = logger;
         }
@@ -132,6 +135,65 @@ namespace Viper.Areas.Students.Controller
             }
         }
 
+        [HttpGet("courses")]
+        public async Task<IActionResult> GetAvailableCourses()
+        {
+            try
+            {
+                var courses = await _courseService.GetAvailableCoursesForPhotosAsync("VET");
+                return Ok(courses);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting available courses");
+                return StatusCode(500, "An error occurred while retrieving courses");
+            }
+        }
+
+        [HttpGet("gallery/course/{termCode}/{crn}")]
+        public async Task<IActionResult> GetCourseGallery(string termCode, string crn, [FromQuery] bool includeRossStudents = false)
+        {
+            var validationError = ValidateCourseParams(termCode, crn, required: true);
+            if (validationError != null)
+            {
+                return validationError;
+            }
+
+            try
+            {
+                var students = await _studentGroupService.GetStudentsByCourseAsync(termCode, crn, includeRossStudents);
+                var courseInfo = await _courseService.GetCourseInfoAsync(termCode, crn);
+
+                if (courseInfo == null)
+                {
+                    return NotFound($"Course not found for term {termCode} and CRN {crn}");
+                }
+
+                var viewModel = new PhotoGalleryViewModel
+                {
+                    CourseInfo = courseInfo,
+                    Students = students,
+                    ExportOptions = new ExportOptions
+                    {
+                        IncludeRossStudents = includeRossStudents
+                    }
+                };
+
+                // Serialize using System.Text.Json to handle JsonInclude attributes
+                var jsonString = JsonSerializer.Serialize(viewModel, _jsonOptions);
+
+                // Manually wrap in ApiResponse format expected by frontend
+                var wrappedJson = $"{{\"statusCode\":200,\"success\":true,\"result\":{jsonString}}}";
+
+                return Content(wrappedJson, "application/json");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting course gallery for {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
+                return StatusCode(500, "An error occurred while retrieving the course photo gallery");
+            }
+        }
+
         [HttpGet("gallery/menu")]
         public async Task<IActionResult> GetGalleryMenu()
         {
@@ -217,6 +279,12 @@ namespace Viper.Areas.Students.Controller
                 return BadRequest("Invalid group ID. Must be non-empty and less than 50 characters");
             }
 
+            var validationError = ValidateCourseParams(request.TermCode, request.Crn, required: false);
+            if (validationError != null)
+            {
+                return validationError;
+            }
+
             try
             {
                 var result = await _photoExportService.ExportToWordAsync(request);
@@ -251,6 +319,12 @@ namespace Viper.Areas.Students.Controller
             if (!string.IsNullOrEmpty(request.GroupId) && (string.IsNullOrWhiteSpace(request.GroupId) || request.GroupId.Length > 50))
             {
                 return BadRequest("Invalid group ID. Must be non-empty and less than 50 characters");
+            }
+
+            var validationError = ValidateCourseParams(request.TermCode, request.Crn, required: false);
+            if (validationError != null)
+            {
+                return validationError;
             }
 
             try
@@ -383,6 +457,43 @@ namespace Viper.Areas.Students.Controller
                 _logger.LogError(ex, "Error getting student details for {MailId}", LogSanitizer.SanitizeId(mailId));
                 return StatusCode(500, "An error occurred while retrieving student details");
             }
+        }
+
+        /// <summary>
+        /// Validates term code and CRN parameters for course-based operations
+        /// </summary>
+        /// <param name="termCode">Term code in YYYYMM format</param>
+        /// <param name="crn">Course Reference Number</param>
+        /// <param name="required">If true, validates that values are non-empty. If false, only validates format when values are provided.</param>
+        /// <returns>BadRequestObjectResult if validation fails, null if valid</returns>
+        private BadRequestObjectResult? ValidateCourseParams(string? termCode, string? crn, bool required = false)
+        {
+            if (required)
+            {
+                if (string.IsNullOrWhiteSpace(termCode) || termCode.Length != 6 || !termCode.All(char.IsDigit))
+                {
+                    return BadRequest("Invalid term code. Must be 6 digits (YYYYMM format)");
+                }
+
+                if (string.IsNullOrWhiteSpace(crn) || crn.Length > 5)
+                {
+                    return BadRequest("Invalid CRN. Must be non-empty and less than 6 characters");
+                }
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(termCode) && (termCode.Length != 6 || !termCode.All(char.IsDigit)))
+                {
+                    return BadRequest("Invalid term code. Must be 6 digits (YYYYMM format)");
+                }
+
+                if (!string.IsNullOrEmpty(crn) && crn.Length > 5)
+                {
+                    return BadRequest("Invalid CRN. Must be non-empty and less than 6 characters");
+                }
+            }
+
+            return null;
         }
 
     }

@@ -220,6 +220,7 @@ try
     builder.Services.AddScoped<Viper.Areas.Students.Services.IPhotoService, Viper.Areas.Students.Services.PhotoService>();
     builder.Services.AddScoped<Viper.Areas.Students.Services.IStudentGroupService, Viper.Areas.Students.Services.StudentGroupService>();
     builder.Services.AddScoped<Viper.Areas.Students.Services.IPhotoExportService, Viper.Areas.Students.Services.PhotoExportService>();
+    builder.Services.AddScoped<Viper.Areas.Students.Services.ICourseService, Viper.Areas.Students.Services.CourseService>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();

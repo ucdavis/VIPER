@@ -24,17 +24,20 @@ namespace Viper.Areas.Students.Services
         private readonly IPhotoService _photoService;
         private readonly ILogger<PhotoExportService> _logger;
         private readonly Curriculum.Services.TermCodeService _termCodeService;
+        private readonly ICourseService _courseService;
 
         public PhotoExportService(
             IStudentGroupService studentGroupService,
             IPhotoService photoService,
             ILogger<PhotoExportService> logger,
-            Curriculum.Services.TermCodeService termCodeService)
+            Curriculum.Services.TermCodeService termCodeService,
+            ICourseService courseService)
         {
             _studentGroupService = studentGroupService;
             _photoService = photoService;
             _logger = logger;
             _termCodeService = termCodeService;
+            _courseService = courseService;
         }
 
         public async Task<PhotoExportResult> ExportToWordAsync(PhotoExportRequest request)
@@ -235,7 +238,7 @@ namespace Viper.Areas.Students.Services
                     {
                         var photoBytes = await _photoService.GetStudentPhotoAsync(student.MailId);
                         _logger.LogDebug("Student {MailId}: photoBytes is {Status}, Length = {Length}",
-                            student.MailId,
+                            LogSanitizer.SanitizeId(student.MailId),
                             photoBytes == null ? "null" : "not null",
                             photoBytes?.Length ?? -1);
                         return new { student.MailId, photoBytes };
@@ -412,6 +415,20 @@ namespace Viper.Areas.Students.Services
                     students.Count, LogSanitizer.SanitizeString(request.GroupType), LogSanitizer.SanitizeString(request.GroupId));
                 return students;
             }
+            else if (!string.IsNullOrEmpty(request.TermCode) && !string.IsNullOrEmpty(request.Crn))
+            {
+                _logger.LogDebug("Fetching students by course: {TermCode}/{Crn}",
+                    LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));
+                var students = await _studentGroupService.GetStudentsByCourseAsync(
+                    request.TermCode,
+                    request.Crn,
+                    request.IncludeRossStudents);
+                _logger.LogDebug("Found {Count} students for course {TermCode}/{Crn}",
+                    students.Count,
+                    LogSanitizer.SanitizeString(request.TermCode),
+                    LogSanitizer.SanitizeString(request.Crn));
+                return students;
+            }
 
             _logger.LogWarning("No valid export parameters provided (ClassLevel and GroupType/GroupId are both empty)");
             return new List<StudentPhoto>();
@@ -458,6 +475,37 @@ namespace Viper.Areas.Students.Services
                     _ => request.GroupType
                 };
                 titleParts.Add($"{groupTypeLabel} {request.GroupId}");
+            }
+
+            // Add course information if available
+            if (!string.IsNullOrEmpty(request.TermCode) && !string.IsNullOrEmpty(request.Crn))
+            {
+                try
+                {
+                    var courseInfo = await _courseService.GetCourseInfoAsync(request.TermCode, request.Crn);
+                    if (courseInfo != null)
+                    {
+                        var termLabel = Curriculum.Services.TermCodeService.GetTermDescriptionFromYYYYMM(request.TermCode);
+                        titleParts.Add($"{courseInfo.SubjectCode}{courseInfo.CourseNumber} - {courseInfo.Title}");
+                        titleParts.Add(termLabel);
+                    }
+                    else
+                    {
+                        // Fallback if course info not found
+                        var termLabel = Curriculum.Services.TermCodeService.GetTermDescriptionFromYYYYMM(request.TermCode);
+                        titleParts.Add($"Course {request.Crn}");
+                        titleParts.Add(termLabel);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to get course info for {TermCode}/{Crn}",
+                        LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));
+                    // Fallback to basic course info
+                    var termLabel = Curriculum.Services.TermCodeService.GetTermDescriptionFromYYYYMM(request.TermCode);
+                    titleParts.Add($"Course {request.Crn}");
+                    titleParts.Add(termLabel);
+                }
             }
 
             var title = titleParts.Count > 0
