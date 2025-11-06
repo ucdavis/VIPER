@@ -250,6 +250,17 @@ function createStoreActions(refs: StoreRefs, state: StoreState) {
     }
 
     const toggleRossStudents = () => {
+        // If viewing a group, reload group data (groups don't support Ross students, so this just updates the URL)
+        if (state.selectedGroup.value) {
+            // Groups don't support includeRoss parameter, so no need to reload
+            return
+        }
+        // If viewing a course, reload course data
+        if (state.selectedCourse.value) {
+            fetchCoursePhotos(state.selectedCourse.value.termCode, state.selectedCourse.value.crn)
+            return
+        }
+        // If viewing a class, reload class data
         if (state.selectedClassLevel.value) {
             fetchClassPhotos(state.selectedClassLevel.value)
         }

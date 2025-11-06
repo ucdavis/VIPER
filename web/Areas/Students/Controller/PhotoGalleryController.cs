@@ -78,10 +78,15 @@ namespace Viper.Areas.Students.Controller
 
                 return Content(wrappedJson, "application/json");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting class gallery for {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
+                _logger.LogError(ex, "Invalid operation getting class gallery for {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
                 return StatusCode(500, "An error occurred while retrieving the photo gallery");
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "JSON serialization error for class gallery {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
+                return StatusCode(500, "An error occurred while processing the photo gallery");
             }
         }
 
@@ -128,10 +133,15 @@ namespace Viper.Areas.Students.Controller
                 // Return as JSON content to bypass Newtonsoft serialization
                 return Content(wrappedJson, "application/json");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting group gallery for {GroupType}/{GroupId}", LogSanitizer.SanitizeString(groupType), LogSanitizer.SanitizeString(groupId));
+                _logger.LogError(ex, "Invalid operation getting group gallery for {GroupType}/{GroupId}", LogSanitizer.SanitizeString(groupType), LogSanitizer.SanitizeString(groupId));
                 return StatusCode(500, "An error occurred while retrieving the photo gallery");
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "JSON serialization error for group gallery {GroupType}/{GroupId}", LogSanitizer.SanitizeString(groupType), LogSanitizer.SanitizeString(groupId));
+                return StatusCode(500, "An error occurred while processing the photo gallery");
             }
         }
 
@@ -143,9 +153,9 @@ namespace Viper.Areas.Students.Controller
                 var courses = await _courseService.GetAvailableCoursesForPhotosAsync("VET");
                 return Ok(courses);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting available courses");
+                _logger.LogError(ex, "Invalid operation getting available courses");
                 return StatusCode(500, "An error occurred while retrieving courses");
             }
         }
@@ -187,10 +197,15 @@ namespace Viper.Areas.Students.Controller
 
                 return Content(wrappedJson, "application/json");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting course gallery for {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
+                _logger.LogError(ex, "Invalid operation getting course gallery for {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
                 return StatusCode(500, "An error occurred while retrieving the course photo gallery");
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "JSON serialization error for course gallery {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
+                return StatusCode(500, "An error occurred while processing the course photo gallery");
             }
         }
 
@@ -213,9 +228,9 @@ namespace Viper.Areas.Students.Controller
 
                 return Ok(menu);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting gallery menu");
+                _logger.LogError(ex, "Invalid operation getting gallery menu");
                 return StatusCode(500, "An error occurred while retrieving the gallery menu");
             }
         }
@@ -234,9 +249,14 @@ namespace Viper.Areas.Students.Controller
 
                 return File(photoData, "image/jpeg");
             }
-            catch (Exception ex)
+            catch (FileNotFoundException ex)
             {
-                _logger.LogError(ex, "Error getting photo for student {MailId}", LogSanitizer.SanitizeId(mailId));
+                _logger.LogWarning(ex, "Photo not found for student {MailId}", LogSanitizer.SanitizeId(mailId));
+                return NotFound();
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "IO error getting photo for student {MailId}", LogSanitizer.SanitizeId(mailId));
                 return StatusCode(500, "An error occurred while retrieving the photo");
             }
         }
@@ -254,9 +274,14 @@ namespace Viper.Areas.Students.Controller
 
                 return NotFound();
             }
-            catch (Exception ex)
+            catch (FileNotFoundException ex)
             {
-                _logger.LogError(ex, "Error getting default photo");
+                _logger.LogError(ex, "Default photo file not found");
+                return StatusCode(500, "An error occurred while retrieving the default photo");
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "IO error getting default photo");
                 return StatusCode(500, "An error occurred while retrieving the default photo");
             }
         }
@@ -296,9 +321,14 @@ namespace Viper.Areas.Students.Controller
 
                 return File(result.FileData, result.ContentType, result.FileName);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error exporting to Word");
+                _logger.LogError(ex, "Invalid operation exporting to Word");
+                return StatusCode(500, "An error occurred while generating the Word document");
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "IO error exporting to Word");
                 return StatusCode(500, "An error occurred while generating the Word document");
             }
         }
@@ -338,9 +368,14 @@ namespace Viper.Areas.Students.Controller
 
                 return File(result.FileData, result.ContentType, result.FileName);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error exporting to PDF");
+                _logger.LogError(ex, "Invalid operation exporting to PDF");
+                return StatusCode(500, "An error occurred while generating the PDF document");
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "IO error exporting to PDF");
                 return StatusCode(500, "An error occurred while generating the PDF document");
             }
         }
@@ -358,9 +393,9 @@ namespace Viper.Areas.Students.Controller
                 var status = await _photoExportService.GetExportStatusAsync(exportId);
                 return Ok(status);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting export status for {ExportId}", LogSanitizer.SanitizeId(exportId));
+                _logger.LogError(ex, "Invalid operation getting export status for {ExportId}", LogSanitizer.SanitizeId(exportId));
                 return StatusCode(500, "An error occurred while checking export status");
             }
         }
@@ -379,9 +414,9 @@ namespace Viper.Areas.Students.Controller
 
                 return Ok(groups);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting available groups");
+                _logger.LogError(ex, "Invalid operation getting available groups");
                 return StatusCode(500, "An error occurred while retrieving available groups");
             }
         }
@@ -399,9 +434,9 @@ namespace Viper.Areas.Students.Controller
                 var students = await _studentGroupService.GetStudentsByClassLevelAsync(classLevel, false);
                 return Ok(students);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting students for class {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
+                _logger.LogError(ex, "Invalid operation getting students for class {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
                 return StatusCode(500, "An error occurred while retrieving students");
             }
         }
@@ -426,9 +461,9 @@ namespace Viper.Areas.Students.Controller
 
                 return Ok(classLevelMapping);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting active class years");
+                _logger.LogError(ex, "Invalid operation getting active class years");
                 return StatusCode(500, "An error occurred while retrieving class years");
             }
         }
@@ -452,9 +487,9 @@ namespace Viper.Areas.Students.Controller
 
                 return Ok(details);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Error getting student details for {MailId}", LogSanitizer.SanitizeId(mailId));
+                _logger.LogError(ex, "Invalid operation getting student details for {MailId}", LogSanitizer.SanitizeId(mailId));
                 return StatusCode(500, "An error occurred while retrieving student details");
             }
         }

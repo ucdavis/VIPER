@@ -129,7 +129,7 @@ namespace Viper.Areas.Students.Services
             // Use Path.GetFileName to strip any path separators
             var fileName = Path.GetFileName(mailId) + ".jpg";
 
-            var idCardPhotoPath = Path.Combine(_idCardPhotoPath, fileName);
+            var idCardPhotoPath = Path.Join(_idCardPhotoPath, fileName);
             if (File.Exists(idCardPhotoPath) && IsUnderRoot(idCardPhotoPath, _idCardPhotoPath))
             {
                 return idCardPhotoPath;
@@ -159,7 +159,7 @@ namespace Viper.Areas.Students.Services
                 // Try configured path first (e.g., S:\Files\IDCardPhotos\ in production)
                 if (!string.IsNullOrEmpty(_idCardPhotoPath))
                 {
-                    var defaultPath = Path.Combine(_idCardPhotoPath, Path.GetFileName(_defaultPhotoFile));
+                    var defaultPath = Path.Join(_idCardPhotoPath, Path.GetFileName(_defaultPhotoFile));
                     if (File.Exists(defaultPath))
                     {
                         var defaultData = await File.ReadAllBytesAsync(defaultPath);
@@ -174,7 +174,7 @@ namespace Viper.Areas.Students.Services
                 }
 
                 // Fallback to wwwroot/images/nopic.jpg
-                var wwwrootPath = Path.Combine(_webHostEnvironment.WebRootPath, "images", Path.GetFileName(_defaultPhotoFile));
+                var wwwrootPath = Path.Join(_webHostEnvironment.WebRootPath, "images", Path.GetFileName(_defaultPhotoFile));
                 if (File.Exists(wwwrootPath))
                 {
                     var defaultData = await File.ReadAllBytesAsync(wwwrootPath);
@@ -188,13 +188,30 @@ namespace Viper.Areas.Students.Services
                     return defaultData;
                 }
 
-                _logger.LogError("Default photo not found in configured path or wwwroot/images");
-                throw new FileNotFoundException($"Default photo {_defaultPhotoFile} not found");
+                // No default photo found in any location
+                var searchedPaths = string.Join(", ", new[] {
+                    _idCardPhotoPath,
+                    Path.Join(_webHostEnvironment.WebRootPath, "images")
+                }.Where(p => !string.IsNullOrEmpty(p)));
+
+                _logger.LogError("Default photo {DefaultPhotoFile} not found in any location. Searched: {SearchedPaths}",
+                    _defaultPhotoFile, searchedPaths);
+                throw new FileNotFoundException($"Default photo {_defaultPhotoFile} not found in configured paths");
             }
-            catch (Exception ex)
+            catch (FileNotFoundException)
             {
-                _logger.LogError(ex, "Error reading default photo");
+                // Already logged above, rethrow as-is
                 throw;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "IO error reading default photo file {DefaultPhotoFile}", _defaultPhotoFile);
+                throw new IOException($"Failed to read default photo file {_defaultPhotoFile}", ex);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Access denied reading default photo file {DefaultPhotoFile}", _defaultPhotoFile);
+                throw new UnauthorizedAccessException($"Access denied to default photo file {_defaultPhotoFile}", ex);
             }
         }
     }

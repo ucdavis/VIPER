@@ -425,7 +425,6 @@
 
         <!-- Centralized Student Dialog -->
         <StudentPhotoDialog
-            v-if="galleryStore.students.length > 0"
             v-model="showStudentDialog"
             :students="galleryStore.students"
             :initial-index="selectedStudentIndex"
@@ -507,6 +506,7 @@ const galleryLastLoadedAt = ref<Date | null>(null)
 const showStudentDialog = ref(false)
 const selectedStudentIndex = ref(0)
 const pendingStudentMailId = ref<string | null>(null)
+const isUpdatingUrlProgrammatically = ref(false)
 
 const studentListColumns = [
     { name: "number", label: "#", field: "number", align: "left" as const, sortable: false, style: "width: 50px" },
@@ -737,44 +737,52 @@ async function reloadPhotoGalleryData() {
     }
 }
 
-function updateUrlParams() {
-    const query: Record<string, string> = {}
-    if (selectedClassLevel.value) {
-        query.classLevel = selectedClassLevel.value
-    }
-    if (selectedCourse.value) {
-        query.termCode = selectedCourse.value.termCode
-        query.crn = selectedCourse.value.crn
-    }
-    if (selectedGroupType.value) {
-        query.groupType = selectedGroupType.value
-    }
-    if (selectedGroup.value) {
-        query.group = selectedGroup.value
-    }
-    if (galleryStore.includeRossStudents) {
-        query.includeRoss = "true"
-    }
-    if (galleryStore.galleryView !== "grid") {
-        query.view = galleryStore.galleryView
-    }
-    if (activeTab.value !== "photos") {
-        query.tab = activeTab.value
-    }
-    if (selectedStudentListYear.value) {
-        query.studentListYear = selectedStudentListYear.value.toString()
-    }
-    if (includeRossStudentsInList.value) {
-        query.includeRossInList = "true"
-    }
+async function updateUrlParams() {
+    isUpdatingUrlProgrammatically.value = true
+    try {
+        const query: Record<string, string> = {}
+        if (selectedClassLevel.value) {
+            query.classLevel = selectedClassLevel.value
+        }
+        if (selectedCourse.value) {
+            query.termCode = selectedCourse.value.termCode
+            query.crn = selectedCourse.value.crn
+        }
+        if (selectedGroupType.value) {
+            query.groupType = selectedGroupType.value
+        }
+        if (selectedGroup.value) {
+            query.group = selectedGroup.value
+        }
+        if (galleryStore.includeRossStudents) {
+            query.includeRoss = "true"
+        }
+        if (galleryStore.galleryView !== "grid") {
+            query.view = galleryStore.galleryView
+        }
+        if (activeTab.value !== "photos") {
+            query.tab = activeTab.value
+        }
+        if (selectedStudentListYear.value) {
+            query.studentListYear = selectedStudentListYear.value.toString()
+        }
+        if (includeRossStudentsInList.value) {
+            query.includeRossInList = "true"
+        }
 
-    // Add student parameter if dialog is open
-    const selectedStudent = galleryStore.students[selectedStudentIndex.value]
-    if (showStudentDialog.value && selectedStudent) {
-        query.student = selectedStudent.mailId
-    }
+        // Add student parameter if dialog is open
+        const selectedStudent = galleryStore.students[selectedStudentIndex.value]
+        if (showStudentDialog.value && selectedStudent) {
+            query.student = selectedStudent.mailId
+        }
 
-    router.replace({ query })
+        await router.replace({ query })
+
+        // Reset flag after router operation completes
+        await nextTick()
+    } finally {
+        isUpdatingUrlProgrammatically.value = false
+    }
 }
 
 function onTabChange(_tab: string) {
@@ -884,6 +892,13 @@ function loadFromUrlParams() {
         if (!Number.isNaN(year)) {
             selectedStudentListYear.value = year
         }
+    } else if (tab === "list" && typeof classLevel === "string" && !studentListYear) {
+        // If Student List tab is active and we have classLevel but no studentListYear,
+        // derive the year from the classLevel
+        const classYearInfo = classYears.value.find((cy) => cy.classLevel === classLevel)
+        if (classYearInfo) {
+            selectedStudentListYear.value = classYearInfo.year
+        }
     }
 
     // Handle Ross student inclusion - only allow for V3/V4 class levels
@@ -981,9 +996,28 @@ function handlePrint() {
     globalThis.print()
 }
 
-function handleStudentClick(index: number) {
+async function handleStudentClick(index: number) {
     selectedStudentIndex.value = index
-    showStudentDialog.value = true
+
+    // Update URL BEFORE opening dialog to prevent router.replace() from closing it
+    const selectedStudent = galleryStore.students[index]
+    if (selectedStudent) {
+        isUpdatingUrlProgrammatically.value = true
+        try {
+            const currentQuery = { ...route.query }
+            currentQuery.student = selectedStudent.mailId
+            await router.replace({ query: currentQuery })
+            await nextTick()
+        } finally {
+            isUpdatingUrlProgrammatically.value = false
+        }
+    }
+
+    // Use setTimeout to ensure dialog opens after the current click event fully completes
+    // This prevents the click event from being interpreted as a backdrop click
+    setTimeout(() => {
+        showStudentDialog.value = true
+    }, 0)
 }
 
 onMounted(async () => {
@@ -1070,15 +1104,34 @@ watch(activeTab, async (newTab, oldTab) => {
     }
 })
 
-// Update URL when student dialog opens/closes
-watch(showStudentDialog, () => {
-    updateUrlParams()
+// Update URL when student dialog closes
+watch(showStudentDialog, (newShowDialog, oldShowDialog) => {
+    // Skip URL updates if we're already in the middle of updating programmatically
+    // This prevents circular dependencies where router.replace() causes the dialog to close
+    if (isUpdatingUrlProgrammatically.value) {
+        return
+    }
+
+    // Only update URL when dialog is closing to remove the student parameter
+    const isClosing = oldShowDialog && !newShowDialog
+
+    if (isClosing) {
+        updateUrlParams()
+    }
 })
 
-// Update URL when selected student changes (e.g., arrow key navigation)
-watch(selectedStudentIndex, () => {
-    if (showStudentDialog.value) {
-        updateUrlParams()
+// Update URL during arrow key navigation using History API
+// This approach bypasses Vue Router to avoid triggering navigation cycles that close the dialog
+watch(selectedStudentIndex, (newIndex) => {
+    // Only update URL if dialog is open and we have students
+    if (showStudentDialog.value && galleryStore.students.length > 0) {
+        const student = galleryStore.students[newIndex]
+        if (student) {
+            // Use History API directly to avoid triggering Vue Router
+            const url = new URL(globalThis.location.href)
+            url.searchParams.set("student", student.mailId)
+            globalThis.history.replaceState({}, "", url.toString())
+        }
     }
 })
 </script>

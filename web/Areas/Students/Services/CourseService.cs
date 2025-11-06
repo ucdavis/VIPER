@@ -1,7 +1,9 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Models;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Students.Services
 {
@@ -74,9 +76,14 @@ namespace Viper.Areas.Students.Services
 
                 return coursesByTerm;
             }
-            catch (Exception ex)
+            catch (SqlException ex)
             {
-                _logger.LogError(ex, "Error fetching available courses for subject code {SubjectCode}", subjectCode);
+                _logger.LogError(ex, "Database error fetching available courses for subject code {SubjectCode}", LogSanitizer.SanitizeString(subjectCode));
+                return new List<CoursesByTerm>();
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Invalid operation fetching available courses for subject code {SubjectCode}", LogSanitizer.SanitizeString(subjectCode));
                 return new List<CoursesByTerm>();
             }
         }
@@ -103,9 +110,14 @@ namespace Viper.Areas.Students.Services
 
                 return course;
             }
-            catch (Exception ex)
+            catch (SqlException ex)
             {
-                _logger.LogError(ex, "Error fetching course info for term {TermCode} and CRN {Crn}", termCode, crn);
+                _logger.LogError(ex, "Database error fetching course info for term {TermCode} and CRN {Crn}", LogSanitizer.SanitizeId(termCode), LogSanitizer.SanitizeId(crn));
+                return null;
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Invalid operation fetching course info for term {TermCode} and CRN {Crn}", LogSanitizer.SanitizeId(termCode), LogSanitizer.SanitizeId(crn));
                 return null;
             }
         }

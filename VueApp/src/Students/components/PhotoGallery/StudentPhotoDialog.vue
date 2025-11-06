@@ -1,7 +1,7 @@
 <template>
     <q-dialog
         v-model="show"
-        persistent
+        no-backdrop-dismiss
         @keydown="handleKeydown"
     >
         <q-card :style="cardStyle">
@@ -264,6 +264,9 @@ const handleKeydown = (event: KeyboardEvent) => {
     } else if (event.key === "ArrowRight") {
         event.preventDefault()
         goToNext()
+    } else if (event.key === "Escape") {
+        event.preventDefault()
+        show.value = false
     }
 }
 </script>

@@ -1,6 +1,7 @@
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -204,9 +205,9 @@ namespace Viper.Areas.Students.Services
                 _logger.LogError(ex, "Invalid operation while exporting photos to Word");
                 return null;
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
-                _logger.LogError(ex, "Unexpected error exporting photos to Word");
+                _logger.LogError(ex, "Invalid argument exporting photos to Word");
                 return null;
             }
         }
@@ -373,9 +374,9 @@ namespace Viper.Areas.Students.Services
                 _logger.LogError(ex, "Invalid operation while exporting photos to PDF");
                 return null;
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
-                _logger.LogError(ex, "Unexpected error exporting photos to PDF");
+                _logger.LogError(ex, "Invalid argument exporting photos to PDF");
                 return null;
             }
         }
@@ -497,9 +498,18 @@ namespace Viper.Areas.Students.Services
                         titleParts.Add(termLabel);
                     }
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
                 {
-                    _logger.LogWarning(ex, "Failed to get course info for {TermCode}/{Crn}",
+                    _logger.LogWarning(ex, "Invalid operation getting course info for {TermCode}/{Crn}",
+                        LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));
+                    // Fallback to basic course info
+                    var termLabel = Curriculum.Services.TermCodeService.GetTermDescriptionFromYYYYMM(request.TermCode);
+                    titleParts.Add($"Course {request.Crn}");
+                    titleParts.Add(termLabel);
+                }
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogWarning(ex, "Database error getting course info for {TermCode}/{Crn}",
                         LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));
                     // Fallback to basic course info
                     var termLabel = Curriculum.Services.TermCodeService.GetTermDescriptionFromYYYYMM(request.TermCode);
