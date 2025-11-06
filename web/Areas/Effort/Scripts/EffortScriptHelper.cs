@@ -32,13 +32,13 @@ namespace Viper.Areas.Effort.Scripts
 
             if (currentDir.Contains("Scripts"))
             {
-                currentDir = Path.GetFullPath(Path.Combine(currentDir, "..", "..", ".."));
+                currentDir = Path.GetFullPath(Path.Join(currentDir, "..", "..", ".."));
             }
 
-            if (!File.Exists(Path.Combine(currentDir, "appsettings.json")))
+            if (!File.Exists(Path.Join(currentDir, "appsettings.json")))
             {
-                var parentDir = Path.GetFullPath(Path.Combine(currentDir, "..", ".."));
-                if (File.Exists(Path.Combine(parentDir, "appsettings.json")))
+                var parentDir = Path.GetFullPath(Path.Join(currentDir, "..", ".."));
+                if (File.Exists(Path.Join(parentDir, "appsettings.json")))
                 {
                     currentDir = parentDir;
                 }
@@ -68,9 +68,13 @@ namespace Viper.Areas.Effort.Scripts
                 var builder = new SqlConnectionStringBuilder(connectionString);
                 return $"{builder.DataSource}/{builder.InitialCatalog}";
             }
-            catch
+            catch (ArgumentException ex)
             {
-                return "Could not parse connection string";
+                return $"Could not parse connection string: {ex.Message}";
+            }
+            catch (FormatException ex)
+            {
+                return $"Could not parse connection string: {ex.Message}";
             }
         }
 
@@ -111,9 +115,18 @@ namespace Viper.Areas.Effort.Scripts
 
         public static string ValidateOutputPath(string? outputPath, string defaultSubfolder)
         {
+            // Validate defaultSubfolder to prevent path traversal or absolute paths
+            if (string.IsNullOrWhiteSpace(defaultSubfolder)
+                || Path.IsPathRooted(defaultSubfolder)
+                || defaultSubfolder.Contains(".."))
+            {
+                throw new InvalidOperationException(
+                    $"Default subfolder must be a non-empty, relative path without path traversal. Value: '{defaultSubfolder}'");
+            }
+
             if (string.IsNullOrWhiteSpace(outputPath))
             {
-                return Path.Combine(Directory.GetCurrentDirectory(), defaultSubfolder);
+                return Path.Join(Directory.GetCurrentDirectory(), defaultSubfolder);
             }
 
             // Get full path to resolve any relative paths or path traversal attempts

@@ -802,19 +802,22 @@ namespace Viper.Areas.Effort.Scripts
                     }
 
                     // Create VETGUEST person with explicit PersonId
+                    const int CLIENT_ID_LENGTH = 11;
+                    var vetGuestClientId = "VETGUEST".PadRight(CLIENT_ID_LENGTH);
                     var insertQuery = @"
                         INSERT INTO users.Person (
                             PersonId, ClientId, MothraId, FirstName, LastName, MailId,
                             CurrentStudent, FutureStudent, CurrentEmployee, FutureEmployee
                         )
                         VALUES (
-                            @PersonId, 'VETGUEST  ', 'VETGUEST', 'Guest', 'Instructor', 'vetguest',
+                            @PersonId, @ClientId, 'VETGUEST', 'Guest', 'Instructor', 'vetguest',
                             0, 0, 0, 0
                         );";
 
                     using (var cmd = new SqlCommand(insertQuery, viperConn, transaction))
                     {
                         cmd.Parameters.Add(new SqlParameter("@PersonId", SqlDbType.Int) { Value = nextPersonId });
+                        cmd.Parameters.Add(new SqlParameter("@ClientId", SqlDbType.VarChar, CLIENT_ID_LENGTH) { Value = vetGuestClientId });
                         cmd.ExecuteNonQuery();
                     }
 
@@ -1188,13 +1191,13 @@ namespace Viper.Areas.Effort.Scripts
                 }
 
                 // Create backup directory if it doesn't exist
-                var backupDir = Path.Combine(_outputPath, "Backups");
+                var backupDir = Path.Join(_outputPath, "Backups");
                 Directory.CreateDirectory(backupDir);
 
                 // Generate unique backup filename
                 var timestamp = _remediationDate.ToString("yyyyMMdd_HHmmss");
                 var backupFileName = $"{tableName}_{timestamp}_{Guid.NewGuid().ToString()[..8]}.sql";
-                var backupFilePath = Path.Combine(backupDir, backupFileName);
+                var backupFilePath = Path.Join(backupDir, backupFileName);
 
                 // Query records to backup - table name is validated, parameters are used for values
                 var selectQuery = $"SELECT * FROM {tableName} WHERE {whereClause}";
@@ -1314,7 +1317,7 @@ namespace Viper.Areas.Effort.Scripts
 
         private void GenerateReport()
         {
-            var reportPath = Path.Combine(_outputPath, $"RemediationReport_{_remediationDate:yyyyMMdd_HHmmss}.txt");
+            var reportPath = Path.Join(_outputPath, $"RemediationReport_{_remediationDate:yyyyMMdd_HHmmss}.txt");
 
             // Generate text report
             var sb = new StringBuilder();

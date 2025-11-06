@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <AssemblyName>EffortDataAnalysis</AssemblyName>
+    <AssemblyName>EffortMigration</AssemblyName>
     <RootNamespace>Viper.Areas.Effort.Scripts</RootNamespace>
   </PropertyGroup>
 
@@ -22,6 +22,14 @@
     <None Include="../../../appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../appsettings.Production.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../appsettings.Test.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Exclude dotnet-script files (they have top-level statements and can't be compiled as part of project) -->
+  <ItemGroup>
+    <Compile Remove="CreateEffortDatabase.cs" />
+    <Compile Remove="MigrateEffortData.cs" />
+    <Compile Remove="CreateEffortShadow.cs" />
+    <Compile Remove="ConfigurePermissions.cs" />
   </ItemGroup>
 
 </Project>

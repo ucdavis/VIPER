@@ -1,13 +1,13 @@
 @echo off
 REM ================================================================
-REM Effort Data Migration Analysis Script Runner
+REM Effort Migration Toolkit - Data Analysis Runner
 REM ================================================================
-REM Usage: RunDataAnalysis.bat [environment] [custom_config_file]
+REM Usage: RunDataAnalysis.bat [environment]
 REM
 REM Examples:
 REM   RunDataAnalysis.bat                    (uses Development config)
 REM   RunDataAnalysis.bat Production         (uses Production config)
-REM   RunDataAnalysis.bat Test custom.json  (uses custom config file)
+REM   RunDataAnalysis.bat Test               (uses Test config)
 REM
 REM NOTE: Make sure to add the Efforts connection string to appsettings.json:
 REM   "ConnectionStrings": {
@@ -27,16 +27,7 @@ set ASPNETCORE_ENVIRONMENT=Development
 if not "%~1"=="" set ASPNETCORE_ENVIRONMENT=%1
 
 echo Environment: %ASPNETCORE_ENVIRONMENT%
-
-REM Check if custom config file provided
-if not "%~2"=="" (
-    echo Using custom config: %~2
-    set CONFIG_ARG=%~2
-) else (
-    echo Using application configuration from appsettings.json
-    set CONFIG_ARG=
-)
-
+echo Using application configuration from appsettings.json
 echo.
 
 REM Check if .NET is installed
@@ -48,9 +39,9 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-REM Check if project file exists, restore dependencies
-if not exist "EffortDataAnalysis.csproj" (
-    echo ERROR: EffortDataAnalysis.csproj not found!
+REM Check if project file exists
+if not exist "EffortMigration.csproj" (
+    echo ERROR: EffortMigration.csproj not found!
     echo Make sure you're running this from the Scripts folder.
     pause
     exit /b 1
@@ -79,11 +70,7 @@ echo.
 echo Running analysis...
 echo.
 
-if defined CONFIG_ARG (
-    dotnet run --project . --configuration Release -- "%CONFIG_ARG%"
-) else (
-    dotnet run --project . --configuration Release
-)
+dotnet run --project EffortMigration.csproj --configuration Release -- analysis
 
 echo.
 if %errorlevel% equ 0 (

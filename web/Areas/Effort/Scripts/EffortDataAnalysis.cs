@@ -104,9 +104,13 @@ namespace Viper.Areas.Effort.Scripts
                 var builder = new SqlConnectionStringBuilder(connectionString);
                 return $"{builder.DataSource}/{builder.InitialCatalog}";
             }
-            catch
+            catch (ArgumentException ex)
             {
-                return "Could not parse connection string";
+                return $"Could not parse connection string: {ex.Message}";
+            }
+            catch (FormatException ex)
+            {
+                return $"Could not parse connection string: {ex.Message}";
             }
         }
 
@@ -1004,7 +1008,7 @@ namespace Viper.Areas.Effort.Scripts
         private void GenerateReports()
         {
             // Generate detailed text report
-            string txtPath = Path.Combine(_outputPath, $"EffortAnalysis_{_analysisDate:yyyyMMdd_HHmmss}.txt");
+            string txtPath = Path.Join(_outputPath, $"EffortAnalysis_{_analysisDate:yyyyMMdd_HHmmss}.txt");
             GenerateTextReport(txtPath);
             Console.WriteLine($"  Text report saved to: {txtPath}");
         }

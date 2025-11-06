@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 REM ================================================================
-REM Effort Data Remediation Script Runner
+REM Effort Migration Toolkit - Data Remediation Runner
 REM ================================================================
 REM Usage: RunDataRemediation.bat [flags] [environment]
 REM
@@ -100,8 +100,8 @@ if %errorlevel% neq 0 (
 )
 
 REM Check if project file exists
-if not exist "EffortDataAnalysis.csproj" (
-    echo ERROR: EffortDataAnalysis.csproj not found!
+if not exist "EffortMigration.csproj" (
+    echo ERROR: EffortMigration.csproj not found!
     echo Make sure you're running this from the Scripts folder.
     echo Current directory: %CD%
     echo.
@@ -154,8 +154,8 @@ if defined APPLY_CHANGES (
     )
 )
 
-REM Build the command line arguments
-set ARGS=EffortDataRemediation
+REM Build the command line arguments for remediation command
+set ARGS=remediation
 if defined APPLY_CHANGES set ARGS=%ARGS% %APPLY_CHANGES%
 if defined SKIP_BACKUP set ARGS=%ARGS% %SKIP_BACKUP%
 
@@ -164,7 +164,7 @@ echo.
 echo Running remediation script...
 echo.
 
-dotnet run --project . --configuration Release -- %ARGS%
+dotnet run --project EffortMigration.csproj --configuration Release -- %ARGS%
 
 set EXIT_CODE=%errorlevel%
 
