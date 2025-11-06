@@ -317,12 +317,39 @@ namespace Viper.Areas.Students.Services
             try
             {
                 var currentTerm = GetCurrentTerm().ToString();
+                var currentTermInt = int.Parse(currentTerm);
+
+                // Get list of Ross student IamIds to ALWAYS exclude from regular query
+                // This prevents duplicates - Ross students would need to be added separately if we supported includeRoss for groups
+                List<string> rossIamIds = new List<string>();
+                try
+                {
+                    rossIamIds = await _sisContext.StudentDesignations
+                        .Where(sd => sd.DesignationType == "Ross")
+                        .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
+                                    (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
+                        .Select(sd => sd.IamId)
+                        .Where(id => id != null)
+                        .Distinct()
+                        .ToListAsync();
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _logger.LogError(ex, "Invalid operation querying SIS context for Ross students");
+                    // Continue with empty rossIamIds list - no Ross students will be excluded
+                }
+                catch (Microsoft.Data.SqlClient.SqlException ex)
+                {
+                    _logger.LogError(ex, "Database error querying SIS context for Ross students");
+                    // Continue with empty rossIamIds list - no Ross students will be excluded
+                }
 
                 var queryBase = from i in _aaudContext.Ids
                                 join p in _aaudContext.People on i.IdsPKey equals p.PersonPKey
                                 join s in _aaudContext.Students on p.PersonPKey equals s.StudentsPKey
                                 join sg in _aaudContext.Studentgrps on i.IdsPidm equals sg.StudentgrpPidm
                                 where i.IdsTermCode == currentTerm
+                                      && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId))
                                 select new { i, p, s, sg };
 
                 // Filter by class level first if provided
@@ -366,9 +393,6 @@ namespace Viper.Areas.Students.Services
                 });
 
                 var students = await query.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
-
-                // Get the current term as int for grad year calculation
-                var currentTermInt = int.Parse(currentTerm);
 
                 var photoStudents = new List<StudentPhoto>();
                 foreach (var student in students)
@@ -582,7 +606,7 @@ namespace Viper.Areas.Students.Services
 
                     if (rossStudentsInCourse.Any())
                     {
-                        // Fetch Ross student photos for those enrolled in the course
+                        // Fetch Ross student photos sequentially to avoid concurrent DbContext usage
                         foreach (var iamId in rossStudentsInCourse)
                         {
                             var rossStudent = await _aaudContext.Ids
@@ -595,34 +619,38 @@ namespace Viper.Areas.Students.Services
                                 })
                                 .FirstOrDefaultAsync();
 
-                            if (rossStudent != null)
+                            if (rossStudent == null)
                             {
-                                var person = await _aaudContext.People
-                                    .Where(p => p.PersonPKey == rossStudent.PersonPKey)
-                                    .FirstOrDefaultAsync();
-
-                                if (person != null && !string.IsNullOrEmpty(rossStudent.MailId))
-                                {
-                                    var displayName = FormatStudentDisplayName(person.PersonLastName, person.PersonDisplayFirstName ?? person.PersonFirstName, person.PersonMiddleName);
-                                    var photoUrl = await _photoService.GetStudentPhotoUrlAsync(rossStudent.MailId);
-                                    var hasPhoto = !string.Equals(photoUrl, _photoService.GetDefaultPhotoUrl(), StringComparison.OrdinalIgnoreCase);
-
-                                    photoStudents.Add(new StudentPhoto
-                                    {
-                                        MailId = rossStudent.MailId,
-                                        FirstName = person.PersonDisplayFirstName ?? person.PersonFirstName,
-                                        LastName = person.PersonLastName,
-                                        DisplayName = displayName,
-                                        PhotoUrl = photoUrl,
-                                        GroupAssignment = null,
-                                        EighthsGroup = null,
-                                        TwentiethsGroup = null,
-                                        HasPhoto = hasPhoto,
-                                        IsRossStudent = true,
-                                        PriorClassYear = null
-                                    });
-                                }
+                                continue;
                             }
+
+                            var person = await _aaudContext.People
+                                .Where(p => p.PersonPKey == rossStudent.PersonPKey)
+                                .FirstOrDefaultAsync();
+
+                            if (person == null || string.IsNullOrEmpty(rossStudent.MailId))
+                            {
+                                continue;
+                            }
+
+                            var displayName = FormatStudentDisplayName(person.PersonLastName, person.PersonDisplayFirstName ?? person.PersonFirstName, person.PersonMiddleName);
+                            var photoUrl = await _photoService.GetStudentPhotoUrlAsync(rossStudent.MailId);
+                            var hasPhoto = !string.Equals(photoUrl, _photoService.GetDefaultPhotoUrl(), StringComparison.OrdinalIgnoreCase);
+
+                            photoStudents.Add(new StudentPhoto
+                            {
+                                MailId = rossStudent.MailId,
+                                FirstName = person.PersonDisplayFirstName ?? person.PersonFirstName,
+                                LastName = person.PersonLastName,
+                                DisplayName = displayName,
+                                PhotoUrl = photoUrl,
+                                GroupAssignment = null,
+                                EighthsGroup = null,
+                                TwentiethsGroup = null,
+                                HasPhoto = hasPhoto,
+                                IsRossStudent = true,
+                                PriorClassYear = null
+                            });
                         }
 
                         photoStudents = photoStudents.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToList();

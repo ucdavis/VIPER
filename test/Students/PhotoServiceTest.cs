@@ -24,21 +24,21 @@ namespace Viper.test.Students
             _mockLogger = new Mock<ILogger<PhotoService>>();
             _mockWebHostEnvironment = new Mock<IWebHostEnvironment>();
 
-            _testPhotoDirectory = Path.Combine(Path.GetTempPath(), $"VIPERPhotoTest_{Guid.NewGuid()}");
+            _testPhotoDirectory = Path.Join(Path.GetTempPath(), $"VIPERPhotoTest_{Guid.NewGuid()}");
             Directory.CreateDirectory(_testPhotoDirectory);
 
             _mockConfiguration.Setup(c => c["PhotoGallery:IDCardPhotoPath"]).Returns(_testPhotoDirectory);
             _mockConfiguration.Setup(c => c["PhotoGallery:DefaultPhotoFile"]).Returns("nopic.jpg");
             _mockConfiguration.Setup(c => c["PhotoGallery:CacheDurationHours"]).Returns("24");
 
-            var wwwrootPath = Path.Combine(_testPhotoDirectory, "wwwroot");
-            Directory.CreateDirectory(Path.Combine(wwwrootPath, "images"));
+            var wwwrootPath = Path.Join(_testPhotoDirectory, "wwwroot");
+            Directory.CreateDirectory(Path.Join(wwwrootPath, "images"));
             _mockWebHostEnvironment.Setup(e => e.WebRootPath).Returns(wwwrootPath);
 
-            _testDefaultPhotoPath = Path.Combine(_testPhotoDirectory, "nopic.jpg");
+            _testDefaultPhotoPath = Path.Join(_testPhotoDirectory, "nopic.jpg");
             File.WriteAllBytes(_testDefaultPhotoPath, new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
 
-            var wwwrootDefaultPath = Path.Combine(wwwrootPath, "images", "nopic.jpg");
+            var wwwrootDefaultPath = Path.Join(wwwrootPath, "images", "nopic.jpg");
             File.WriteAllBytes(wwwrootDefaultPath, new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
 
             _photoService = new PhotoService(_mockConfiguration.Object, _memoryCache, _mockLogger.Object, _mockWebHostEnvironment.Object);
@@ -88,12 +88,12 @@ namespace Viper.test.Students
             // Arrange - Test various invalid characters
             var invalidMailIds = new[] { "test@user", "user<script>", "user;drop", "user/slash" };
 
-            foreach (var mailId in invalidMailIds)
-            {
-                // Act
-                var result = await _photoService.GetStudentPhotoAsync(mailId);
+            // Act
+            var results = await Task.WhenAll(invalidMailIds.Select(_photoService.GetStudentPhotoAsync));
 
-                // Assert
+            // Assert
+            foreach (var result in results)
+            {
                 Assert.NotNull(result);
                 Assert.NotEmpty(result);
             }
@@ -104,7 +104,7 @@ namespace Viper.test.Students
         {
             // Arrange
             var validMailId = "test-user.name123";
-            var photoPath = Path.Combine(_testPhotoDirectory, $"{validMailId}.jpg");
+            var photoPath = Path.Join(_testPhotoDirectory, $"{validMailId}.jpg");
             var testPhotoBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10 };
             File.WriteAllBytes(photoPath, testPhotoBytes);
 
@@ -125,7 +125,7 @@ namespace Viper.test.Students
         {
             // Arrange
             var mailId = "testuser";
-            var photoPath = Path.Combine(_testPhotoDirectory, $"{mailId}.jpg");
+            var photoPath = Path.Join(_testPhotoDirectory, $"{mailId}.jpg");
             var testPhotoBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46 };
             File.WriteAllBytes(photoPath, testPhotoBytes);
 
@@ -189,7 +189,7 @@ namespace Viper.test.Students
         {
             // Arrange
             var mailId = "cachetest";
-            var photoPath = Path.Combine(_testPhotoDirectory, $"{mailId}.jpg");
+            var photoPath = Path.Join(_testPhotoDirectory, $"{mailId}.jpg");
             var testPhotoBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x01, 0x02 };
             File.WriteAllBytes(photoPath, testPhotoBytes);
 
@@ -238,7 +238,7 @@ namespace Viper.test.Students
         {
             // Arrange
             var mailId = "urltest";
-            var photoPath = Path.Combine(_testPhotoDirectory, $"{mailId}.jpg");
+            var photoPath = Path.Join(_testPhotoDirectory, $"{mailId}.jpg");
             File.WriteAllBytes(photoPath, new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
 
             // Act
@@ -276,7 +276,7 @@ namespace Viper.test.Students
         {
             // Arrange
             var mailId = "existstest";
-            var photoPath = Path.Combine(_testPhotoDirectory, $"{mailId}.jpg");
+            var photoPath = Path.Join(_testPhotoDirectory, $"{mailId}.jpg");
             File.WriteAllBytes(photoPath, new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
 
             // Act
@@ -373,12 +373,12 @@ namespace Viper.test.Students
         {
             // Arrange
             var mockConfig = new Mock<IConfiguration>();
-            mockConfig.Setup(c => c["PhotoGallery:IDCardPhotoPath"]).Returns(Path.Combine(_testPhotoDirectory, "nonexistent"));
+            mockConfig.Setup(c => c["PhotoGallery:IDCardPhotoPath"]).Returns(Path.Join(_testPhotoDirectory, "nonexistent"));
             mockConfig.Setup(c => c["PhotoGallery:DefaultPhotoFile"]).Returns("missing.jpg");
             mockConfig.Setup(c => c["PhotoGallery:CacheDurationHours"]).Returns("24");
 
             var mockWebHost = new Mock<IWebHostEnvironment>();
-            mockWebHost.Setup(e => e.WebRootPath).Returns(Path.Combine(_testPhotoDirectory, "nonexistentwwwroot"));
+            mockWebHost.Setup(e => e.WebRootPath).Returns(Path.Join(_testPhotoDirectory, "nonexistentwwwroot"));
 
             var service = new PhotoService(mockConfig.Object, new MemoryCache(new MemoryCacheOptions()), _mockLogger.Object, mockWebHost.Object);
 
