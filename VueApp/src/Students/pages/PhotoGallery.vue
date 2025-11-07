@@ -310,7 +310,7 @@
                                                 <q-avatar size="56px">
                                                     <img
                                                         v-if="props.row.hasPhoto"
-                                                        :src="props.row.photoUrl"
+                                                        :src="getPhotoUrl(props.row)"
                                                         :alt="`${props.row.displayName} photo`"
                                                         loading="lazy"
                                                     />
@@ -545,6 +545,7 @@ import { usePhotoGalleryStore } from "../stores/photo-gallery-store"
 import { photoGalleryService } from "../services/photo-gallery-service"
 import type { ClassYear, CoursesByTerm } from "../services/photo-gallery-service"
 import { usePhotoGalleryOptions } from "../composables/use-photo-gallery-options"
+import { getPhotoUrl } from "../composables/use-photo-url"
 import PhotoSheet from "../components/PhotoGallery/PhotoSheet.vue"
 import StudentPhotoCard from "../components/PhotoGallery/StudentPhotoCard.vue"
 import StudentPhotoDialog from "../components/PhotoGallery/StudentPhotoDialog.vue"
