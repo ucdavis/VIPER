@@ -98,9 +98,6 @@ namespace Viper.Areas.Students.Services
 
                 var students = await query.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
 
-                // Get the graduation year for this class level to check for prior class years
-                var gradYear = GradYearClassLevel.GetGradYear(classLevel, currentTermInt);
-
                 var photoStudents = new List<StudentPhoto>();
                 foreach (var student in students)
                 {
