@@ -307,15 +307,23 @@
                                     <q-td colspan="100%">
                                         <q-item class="q-pa-sm">
                                             <q-item-section avatar>
-                                                <q-avatar size="56px">
-                                                    <img
-                                                        v-if="props.row.hasPhoto"
-                                                        :src="getPhotoUrl(props.row)"
-                                                        :alt="`${props.row.displayName} photo`"
-                                                        loading="lazy"
-                                                    />
+                                                <img
+                                                    v-if="props.row.hasPhoto"
+                                                    :src="getPhotoUrl(props.row)"
+                                                    :alt="`${props.row.displayName} photo`"
+                                                    loading="lazy"
+                                                    style="
+                                                        width: 42px;
+                                                        height: 56px;
+                                                        object-fit: cover;
+                                                        border-radius: 4px;
+                                                    "
+                                                />
+                                                <q-avatar
+                                                    v-else
+                                                    size="56px"
+                                                >
                                                     <q-icon
-                                                        v-else
                                                         name="person"
                                                         size="32px"
                                                     />
