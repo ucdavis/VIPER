@@ -74,6 +74,30 @@
                     <div class="col">{{ currentStudent.mailId }}@ucdavis.edu</div>
                 </div>
                 <div
+                    v-if="studentDetails?.currentClassYear"
+                    class="row q-mb-xs"
+                >
+                    <div
+                        class="col-auto text-weight-bold"
+                        style="min-width: 90px"
+                    >
+                        Class Year:
+                    </div>
+                    <div class="col">{{ studentDetails.currentClassYear }}</div>
+                </div>
+                <div
+                    v-if="studentDetails?.priorClassYear"
+                    class="row q-mb-xs"
+                >
+                    <div
+                        class="col-auto text-weight-bold"
+                        style="min-width: 90px"
+                    >
+                        Prior Class:
+                    </div>
+                    <div class="col">{{ studentDetails.priorClassYear }}</div>
+                </div>
+                <div
                     v-if="currentStudent.eighthsGroup"
                     class="row q-mb-xs"
                 >
@@ -120,18 +144,6 @@
                         Stream:
                     </div>
                     <div class="col">{{ currentStudent.v3SpecialtyGroup }}</div>
-                </div>
-                <div
-                    v-if="studentDetails?.priorClassYear"
-                    class="row q-mb-xs"
-                >
-                    <div
-                        class="col-auto text-weight-bold"
-                        style="min-width: 90px"
-                    >
-                        Prior Class:
-                    </div>
-                    <div class="col">{{ studentDetails.priorClassYear }}</div>
                 </div>
                 <div
                     v-if="currentStudent.isRossStudent"

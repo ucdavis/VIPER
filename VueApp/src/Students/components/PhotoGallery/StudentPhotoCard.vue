@@ -3,6 +3,7 @@
         <q-img
             :src="photoUrl"
             :ratio="3 / 4"
+            loading="lazy"
             spinner-color="primary"
             no-default-spinner
             class="cursor-pointer"

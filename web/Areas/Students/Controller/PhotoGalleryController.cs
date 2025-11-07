@@ -247,6 +247,22 @@ namespace Viper.Areas.Students.Controller
                     return NotFound();
                 }
 
+                // Add cache headers for browser caching
+                Response.Headers.CacheControl = "public, max-age=3600";  // 1 hour
+                Response.Headers.Expires = DateTime.UtcNow.AddHours(1).ToString("R");
+
+                // Add ETag for conditional requests
+                var etag = Convert.ToBase64String(
+                    System.Security.Cryptography.SHA256.HashData(photoData)
+                )[..16];
+                var etagHeader = $"\"{etag}\"";
+                Response.Headers.ETag = etagHeader;
+
+                if (Request.Headers.IfNoneMatch.Contains(etagHeader))
+                {
+                    return StatusCode(304); // Not Modified
+                }
+
                 return File(photoData, "image/jpeg");
             }
             catch (FileNotFoundException ex)
