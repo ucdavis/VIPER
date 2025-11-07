@@ -338,18 +338,11 @@
                                             </q-item-section>
 
                                             <q-item-section side>
-                                                <div class="row items-center q-gutter-xs">
-                                                    <q-badge
-                                                        v-if="props.row.priorClassYear"
-                                                        color="info"
-                                                        :label="`Prior: ${props.row.priorClassYear}`"
-                                                    />
-                                                    <q-badge
-                                                        v-if="props.row.isRossStudent"
-                                                        color="primary"
-                                                        label="Ross"
-                                                    />
-                                                </div>
+                                                <q-badge
+                                                    v-if="props.row.isRossStudent"
+                                                    color="primary"
+                                                    label="Ross"
+                                                />
                                             </q-item-section>
                                         </q-item>
                                     </q-td>
@@ -908,9 +901,13 @@ async function updateUrlParams() {
         }
 
         // Add student parameter if dialog is open
-        const selectedStudent = galleryStore.students[selectedStudentIndex.value]
-        if (showStudentDialog.value && selectedStudent) {
-            query.student = selectedStudent.mailId
+        if (showStudentDialog.value && galleryStore.students?.length > 0) {
+            if (selectedStudentIndex.value >= 0 && selectedStudentIndex.value < galleryStore.students.length) {
+                const selectedStudent = galleryStore.students[selectedStudentIndex.value]
+                if (selectedStudent) {
+                    query.student = selectedStudent.mailId
+                }
+            }
         }
 
         await router.replace({ query })
@@ -1134,6 +1131,10 @@ function handlePrint() {
 }
 
 async function handleStudentClickByMailId(mailId: string) {
+    if (!galleryStore.students || galleryStore.students.length === 0) {
+        return
+    }
+
     const index = galleryStore.students.findIndex((student) => student.mailId === mailId)
     if (index < 0) {
         return
@@ -1263,7 +1264,7 @@ watch(showStudentDialog, (newShowDialog, oldShowDialog) => {
 // This approach bypasses Vue Router to avoid triggering navigation cycles that close the dialog
 watch(selectedStudentIndex, (newIndex) => {
     // Only update URL if dialog is open and we have students
-    if (showStudentDialog.value && galleryStore.students.length > 0) {
+    if (showStudentDialog.value && galleryStore.students && galleryStore.students.length > 0) {
         const student = galleryStore.students[newIndex]
         if (student) {
             // Use History API directly to avoid triggering Vue Router

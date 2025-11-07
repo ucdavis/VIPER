@@ -124,6 +124,9 @@ class PhotoGalleryService {
         const response = await get(
             `${this.baseUrl}/gallery/course/${termCode}/${crn}?includeRossStudents=${includeRossStudents}`,
         )
+        if (!response.success || !response.result) {
+            throw new Error(response.errors?.[0] || "Failed to fetch course gallery")
+        }
         return response.result as PhotoGalleryViewModel
     }
 

@@ -30,12 +30,6 @@
             >
                 {{ line }}
             </div>
-            <div
-                v-if="student.priorClassYear"
-                class="text-body2 text-grey-7 q-mt-xs"
-            >
-                Prior Class: {{ student.priorClassYear }}
-            </div>
             <div class="badge-container">
                 <q-badge
                     v-if="student.isRossStudent"
