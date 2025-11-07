@@ -242,40 +242,144 @@
                         v-else-if="galleryStore.hasStudents"
                         class="q-mt-lg"
                     >
-                        <q-card>
-                            <q-card-section>
-                                <div
-                                    v-if="galleryStore.galleryView !== 'sheet'"
-                                    class="row items-center q-mb-md no-print"
+                        <!-- Q-Table for Grid and List views -->
+                        <q-table
+                            v-if="galleryStore.galleryView !== 'sheet'"
+                            :rows="galleryStore.students"
+                            :columns="photoColumns"
+                            :grid="galleryStore.galleryView === 'grid'"
+                            :filter="photoFilter"
+                            row-key="mailId"
+                            :pagination="{ rowsPerPage: 0 }"
+                            hide-header
+                            :loading="galleryStore.loading"
+                            separator="cell"
+                            bordered
+                            class="photo-gallery-table"
+                        >
+                            <!-- Filter input in top-right corner -->
+                            <template #top-right>
+                                <q-input
+                                    v-model="photoFilter"
+                                    dense
+                                    outlined
+                                    debounce="300"
+                                    placeholder="Filter students"
+                                    clearable
+                                    class="q-mr-sm"
                                 >
-                                    <div class="col">
-                                        <div class="text-subtitle1">{{ pageTitle }}</div>
+                                    <template #append>
+                                        <q-icon name="search" />
+                                    </template>
+                                </q-input>
+                            </template>
+
+                            <!-- Title in top-left -->
+                            <template #top-left>
+                                <div class="text-h5 text-weight-bold">{{ pageTitle }}</div>
+                            </template>
+
+                            <!-- Grid/List item rendering -->
+                            <!-- Grid view: Use item slot for grid mode -->
+                            <template
+                                v-if="galleryStore.galleryView === 'grid'"
+                                #item="props"
+                            >
+                                <div class="col-4 col-sm-3 col-md-2 col-lg-2 col-xl-1 q-pa-xs">
+                                    <StudentPhotoCard
+                                        :student="props.row"
+                                        :current-index="props.rowIndex"
+                                        @click="handleStudentClickByMailId(props.row.mailId)"
+                                    />
+                                </div>
+                            </template>
+
+                            <!-- List view: Use body slot for table mode -->
+                            <template
+                                v-if="galleryStore.galleryView === 'list'"
+                                #body="props"
+                            >
+                                <q-tr
+                                    :props="props"
+                                    @click="handleStudentClickByMailId(props.row.mailId)"
+                                    class="cursor-pointer"
+                                >
+                                    <q-td colspan="100%">
+                                        <q-item class="q-pa-sm">
+                                            <q-item-section avatar>
+                                                <q-avatar size="56px">
+                                                    <img
+                                                        v-if="props.row.hasPhoto"
+                                                        :src="props.row.photoUrl"
+                                                        :alt="`${props.row.displayName} photo`"
+                                                        loading="lazy"
+                                                    />
+                                                    <q-icon
+                                                        v-else
+                                                        name="person"
+                                                        size="32px"
+                                                    />
+                                                </q-avatar>
+                                            </q-item-section>
+
+                                            <q-item-section>
+                                                <q-item-label class="text-weight-medium">
+                                                    {{ props.row.displayName }}
+                                                </q-item-label>
+                                                <q-item-label caption>
+                                                    {{ props.row.mailId }}@ucdavis.edu
+                                                </q-item-label>
+                                                <q-item-label
+                                                    v-if="props.row.secondaryTextLines.length > 0"
+                                                    caption
+                                                >
+                                                    {{ props.row.secondaryTextLines.join(" • ") }}
+                                                </q-item-label>
+                                            </q-item-section>
+
+                                            <q-item-section side>
+                                                <q-badge
+                                                    v-if="props.row.isRossStudent"
+                                                    color="primary"
+                                                    label="Ross"
+                                                />
+                                            </q-item-section>
+                                        </q-item>
+                                    </q-td>
+                                </q-tr>
+                            </template>
+
+                            <!-- No results message -->
+                            <template #no-data>
+                                <div class="full-width row flex-center q-gutter-sm q-py-xl">
+                                    <q-icon
+                                        name="photo_library"
+                                        size="100px"
+                                        color="grey-5"
+                                    />
+                                    <div class="text-center">
+                                        <div class="text-h6 text-grey">No photos to display</div>
+                                        <div class="text-subtitle2 text-grey">
+                                            {{
+                                                photoFilter.trim()
+                                                    ? `No students found matching "${photoFilter}"`
+                                                    : hasActiveFilters
+                                                      ? "No students found for the selected filters"
+                                                      : "Select a class year or group to view student photos"
+                                            }}
+                                        </div>
                                     </div>
                                 </div>
+                            </template>
+                        </q-table>
 
-                                <!-- Photo Grid Component -->
-                                <PhotoGrid
-                                    v-if="galleryStore.galleryView === 'grid'"
-                                    :students="galleryStore.students"
-                                    @student-click="handleStudentClick"
-                                />
-
-                                <!-- Photo List Component -->
-                                <PhotoList
-                                    v-else-if="galleryStore.galleryView === 'list'"
-                                    :students="galleryStore.students"
-                                    @student-click="handleStudentClick"
-                                />
-
-                                <!-- Photo Sheet Component -->
-                                <PhotoSheet
-                                    v-else-if="galleryStore.galleryView === 'sheet'"
-                                    :students="galleryStore.students"
-                                    :title="pageTitle"
-                                    :generated-date="galleryDateFormatted"
-                                />
-                            </q-card-section>
-                        </q-card>
+                        <!-- Keep PhotoSheet separate for print view (no filtering needed) -->
+                        <PhotoSheet
+                            v-else
+                            :students="galleryStore.students"
+                            :title="pageTitle"
+                            :generated-date="galleryDateFormatted"
+                        />
                     </div>
 
                     <div
@@ -441,10 +545,11 @@ import { usePhotoGalleryStore } from "../stores/photo-gallery-store"
 import { photoGalleryService } from "../services/photo-gallery-service"
 import type { ClassYear, CoursesByTerm } from "../services/photo-gallery-service"
 import { usePhotoGalleryOptions } from "../composables/use-photo-gallery-options"
-import PhotoGrid from "../components/PhotoGallery/PhotoGrid.vue"
-import PhotoList from "../components/PhotoGallery/PhotoList.vue"
 import PhotoSheet from "../components/PhotoGallery/PhotoSheet.vue"
+import StudentPhotoCard from "../components/PhotoGallery/StudentPhotoCard.vue"
 import StudentPhotoDialog from "../components/PhotoGallery/StudentPhotoDialog.vue"
+import type { QTableColumn } from "quasar"
+import type { StudentPhoto } from "../services/photo-gallery-service"
 
 // Constants
 const PRINT_DELAY_MS = 1000 // Delay before triggering print dialog to ensure images are loaded
@@ -461,6 +566,31 @@ const selectedGroup = ref<string | null>(null)
 const selectedCourse = ref<{ termCode: string; crn: string } | null>(null)
 const classYears = ref<ClassYear[]>([])
 const availableCourses = ref<CoursesByTerm[]>([])
+
+// Photo Gallery Filter
+const photoFilter = ref("")
+
+// Column definitions for q-table filtering
+const photoColumns: QTableColumn[] = [
+    {
+        name: "name",
+        field: (row: StudentPhoto) => `${row.firstName} ${row.lastName} ${row.displayName}`,
+        label: "Name",
+        align: "left",
+    },
+    {
+        name: "email",
+        field: "mailId",
+        label: "Email",
+        align: "left",
+    },
+    {
+        name: "groups",
+        field: (row: StudentPhoto) => row.secondaryTextLines.join(" "),
+        label: "Groups",
+        align: "left",
+    },
+]
 
 // Computed property for the select v-model (combines class level and course)
 const selectedClassOrCourse = computed({
@@ -771,9 +901,13 @@ async function updateUrlParams() {
         }
 
         // Add student parameter if dialog is open
-        const selectedStudent = galleryStore.students[selectedStudentIndex.value]
-        if (showStudentDialog.value && selectedStudent) {
-            query.student = selectedStudent.mailId
+        if (showStudentDialog.value && galleryStore.students?.length > 0) {
+            if (selectedStudentIndex.value >= 0 && selectedStudentIndex.value < galleryStore.students.length) {
+                const selectedStudent = galleryStore.students[selectedStudentIndex.value]
+                if (selectedStudent) {
+                    query.student = selectedStudent.mailId
+                }
+            }
         }
 
         await router.replace({ query })
@@ -996,7 +1130,16 @@ function handlePrint() {
     globalThis.print()
 }
 
-async function handleStudentClick(index: number) {
+async function handleStudentClickByMailId(mailId: string) {
+    if (!galleryStore.students || galleryStore.students.length === 0) {
+        return
+    }
+
+    const index = galleryStore.students.findIndex((student) => student.mailId === mailId)
+    if (index < 0) {
+        return
+    }
+
     selectedStudentIndex.value = index
 
     // Update URL BEFORE opening dialog to prevent router.replace() from closing it
@@ -1086,10 +1229,7 @@ watch(
 
             // Handle pending student modal open from URL parameter
             if (pendingStudentMailId.value) {
-                const studentIndex = newStudents.findIndex((s) => s.mailId === pendingStudentMailId.value)
-                if (studentIndex >= 0) {
-                    handleStudentClick(studentIndex)
-                }
+                handleStudentClickByMailId(pendingStudentMailId.value)
                 pendingStudentMailId.value = null
             }
         }
@@ -1124,7 +1264,7 @@ watch(showStudentDialog, (newShowDialog, oldShowDialog) => {
 // This approach bypasses Vue Router to avoid triggering navigation cycles that close the dialog
 watch(selectedStudentIndex, (newIndex) => {
     // Only update URL if dialog is open and we have students
-    if (showStudentDialog.value && galleryStore.students.length > 0) {
+    if (showStudentDialog.value && galleryStore.students && galleryStore.students.length > 0) {
         const student = galleryStore.students[newIndex]
         if (student) {
             // Use History API directly to avoid triggering Vue Router
@@ -1137,6 +1277,35 @@ watch(selectedStudentIndex, (newIndex) => {
 </script>
 
 <style>
+/* Remove box-within-box appearance */
+.photo-gallery-table .q-table__card {
+    box-shadow: none !important;
+    border: none !important;
+}
+
+.photo-gallery-table .q-table__top {
+    background-color: transparent !important;
+    padding: 16px !important;
+}
+
+.photo-gallery-table .q-table__bottom {
+    background-color: transparent !important;
+}
+
+.photo-gallery-table .q-table__container {
+    border: 1px solid rgb(0 0 0 / 12%) !important;
+    box-shadow: none !important;
+}
+
+/* List view borders - add borders to each item */
+.photo-gallery-table .q-table__grid-content .q-item {
+    border-bottom: 1px solid rgb(0 0 0 / 12%);
+}
+
+.photo-gallery-table .q-table__grid-content .q-item:last-child {
+    border-bottom: none;
+}
+
 @media print {
     /* Default to landscape for photo gallery */
     @page {

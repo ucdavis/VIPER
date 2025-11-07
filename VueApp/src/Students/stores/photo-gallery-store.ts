@@ -91,6 +91,8 @@ async function fetchClassPhotosData(refs: StoreRefs, classLevel: string, include
         calculateGroupCounts(refs.students.value, refs.groupCounts)
     } catch (err: any) {
         refs.error.value = err.message || "Failed to fetch class photos"
+        refs.students.value = []
+        calculateGroupCounts([], refs.groupCounts)
     } finally {
         refs.loading.value = false
     }
@@ -118,6 +120,9 @@ async function fetchGroupPhotosData(refs: StoreRefs, params: GroupParams) {
         }
     } catch (err: any) {
         refs.error.value = err.message || "Failed to fetch group photos"
+        refs.students.value = []
+        refs.selectedGroup.value = null
+        calculateGroupCounts([], refs.groupCounts)
     } finally {
         refs.loading.value = false
     }
@@ -162,6 +167,9 @@ async function fetchCoursePhotosData(refs: StoreRefs, params: CourseParams) {
         calculateGroupCounts(refs.students.value, refs.groupCounts)
     } catch (err: any) {
         refs.error.value = err.message || "Failed to fetch course photos"
+        refs.students.value = []
+        refs.selectedCourse.value = null
+        calculateGroupCounts([], refs.groupCounts)
     } finally {
         refs.loading.value = false
     }

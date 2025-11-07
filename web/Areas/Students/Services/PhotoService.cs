@@ -26,6 +26,9 @@ namespace Viper.Areas.Students.Services
         private const int MaxCacheDurationHours = 168; // 1 week
         private const int DefaultCacheDurationHours = 24;
 
+        // Compiled regex for mailId validation - compiled once for performance
+        private static readonly Regex MailIdValidationRegex = new("^[a-z0-9.-]+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         public PhotoService(IConfiguration configuration, IMemoryCache cache, ILogger<PhotoService> logger, IWebHostEnvironment webHostEnvironment)
         {
             _configuration = configuration;
@@ -120,7 +123,7 @@ namespace Viper.Areas.Students.Services
             }
 
             // Validate mailId to prevent path traversal - only allow alphanumeric, dots, hyphens
-            if (!Regex.IsMatch(mailId, "^[a-z0-9.-]+$", RegexOptions.IgnoreCase))
+            if (!MailIdValidationRegex.IsMatch(mailId))
             {
                 _logger.LogWarning("Rejected photo request with invalid mailId {MailId}", LogSanitizer.SanitizeId(mailId));
                 return null;

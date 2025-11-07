@@ -3,6 +3,7 @@
         <q-img
             :src="photoUrl"
             :ratio="3 / 4"
+            loading="lazy"
             spinner-color="primary"
             no-default-spinner
             class="cursor-pointer"
@@ -28,12 +29,6 @@
                 class="text-body1 text-grey"
             >
                 {{ line }}
-            </div>
-            <div
-                v-if="student.priorClassYear"
-                class="text-body2 text-grey-7 q-mt-xs"
-            >
-                Prior Class: {{ student.priorClassYear }}
             </div>
             <div class="badge-container">
                 <q-badge

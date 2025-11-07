@@ -127,12 +127,8 @@ namespace Viper.Areas.Students.Services
                         groupAssignment = student.TwentiethsGroup;
                     }
 
-                    // Get the prior class year using stored procedures (like legacy system)
-                    int? priorClassYear = null;
-                    if (gradYear.HasValue)
-                    {
-                        priorClassYear = await GetPriorClassYearForStudentAsync(student.BannerId, gradYear.Value, student.MailId);
-                    }
+                    // Prior class year is lazy-loaded via GetStudentDetailsAsync when modal opens
+                    // This avoids 200+ stored procedure calls on initial page load
 
                     var photoStudent = new StudentPhoto
                     {
@@ -148,7 +144,7 @@ namespace Viper.Areas.Students.Services
                         V3SpecialtyGroup = student.ClassLevel == "V3" ? student.V3SpecialtyGroup?.Trim() : null,
                         HasPhoto = hasPhoto,
                         IsRossStudent = false,
-                        PriorClassYear = priorClassYear
+                        PriorClassYear = null  // Lazy-loaded when modal opens
                     };
 
                     photoStudents.Add(photoStudent);
@@ -420,13 +416,8 @@ namespace Viper.Areas.Students.Services
                         groupAssignment = student.TwentiethsGroup;
                     }
 
-                    // Get the prior class year using stored procedures (like legacy system)
-                    int? priorClassYear = null;
-                    var gradYear = GradYearClassLevel.GetGradYear(student.ClassLevel, currentTermInt);
-                    if (gradYear.HasValue)
-                    {
-                        priorClassYear = await GetPriorClassYearForStudentAsync(student.BannerId, gradYear.Value, student.MailId);
-                    }
+                    // Prior class year is lazy-loaded via GetStudentDetailsAsync when modal opens
+                    // This avoids stored procedure calls on initial page load
 
                     photoStudents.Add(new StudentPhoto
                     {
@@ -442,7 +433,7 @@ namespace Viper.Areas.Students.Services
                         V3SpecialtyGroup = student.ClassLevel == "V3" ? student.V3SpecialtyGroup?.Trim() : null,
                         HasPhoto = hasPhoto,
                         IsRossStudent = false,
-                        PriorClassYear = priorClassYear
+                        PriorClassYear = null  // Lazy-loaded when modal opens
                     });
                 }
 
@@ -560,13 +551,8 @@ namespace Viper.Areas.Students.Services
                         groupAssignment = student.TwentiethsGroup;
                     }
 
-                    // Get prior class year
-                    int? priorClassYear = null;
-                    var gradYear = GradYearClassLevel.GetGradYear(student.ClassLevel, currentTermInt);
-                    if (gradYear.HasValue)
-                    {
-                        priorClassYear = await GetPriorClassYearForStudentAsync(student.BannerId, gradYear.Value, student.MailId);
-                    }
+                    // Prior class year is lazy-loaded via GetStudentDetailsAsync when modal opens
+                    // This avoids stored procedure calls on initial page load
 
                     var photoStudent = new StudentPhoto
                     {
@@ -582,7 +568,7 @@ namespace Viper.Areas.Students.Services
                         V3SpecialtyGroup = student.ClassLevel == "V3" ? student.V3SpecialtyGroup?.Trim() : null,
                         HasPhoto = hasPhoto,
                         IsRossStudent = false,
-                        PriorClassYear = priorClassYear
+                        PriorClassYear = null  // Lazy-loaded when modal opens
                     };
 
                     photoStudents.Add(photoStudent);
@@ -606,42 +592,42 @@ namespace Viper.Areas.Students.Services
 
                     if (rossStudentsInCourse.Any())
                     {
-                        // Fetch Ross student photos sequentially to avoid concurrent DbContext usage
-                        foreach (var iamId in rossStudentsInCourse)
+                        // Fetch all Ross student data in a single bulk query to avoid N+1 problem
+                        // Group by IamId and get the most recent record for each student
+                        var rossStudentData = await (from i in _aaudContext.Ids
+                                                     join p in _aaudContext.People on i.IdsPKey equals p.PersonPKey
+                                                     where i.IdsIamId != null && rossStudentsInCourse.Contains(i.IdsIamId)
+                                                     orderby i.IdsIamId, i.IdsTermCode descending
+                                                     select new
+                                                     {
+                                                         i.IdsIamId,
+                                                         i.IdsMailid,
+                                                         i.IdsTermCode,
+                                                         PersonFirstName = p.PersonDisplayFirstName ?? p.PersonFirstName,
+                                                         PersonLastName = p.PersonLastName,
+                                                         PersonMiddleName = p.PersonMiddleName
+                                                     })
+                                                    .ToListAsync();
+
+                        // Take only the most recent record for each IamId (already ordered by IdsTermCode descending)
+                        var latestRossStudents = rossStudentData
+                            .GroupBy(s => s.IdsIamId)
+                            .Select(g => g.First())
+                            .Where(s => !string.IsNullOrEmpty(s.IdsMailid))
+                            .ToList();
+
+                        // Map to StudentPhoto objects (this is in-memory, no more database calls except for photos)
+                        foreach (var student in latestRossStudents)
                         {
-                            var rossStudent = await _aaudContext.Ids
-                                .Where(ids => ids.IdsIamId == iamId)
-                                .OrderByDescending(ids => ids.IdsTermCode)
-                                .Select(ids => new
-                                {
-                                    MailId = ids.IdsMailid,
-                                    PersonPKey = ids.IdsPKey
-                                })
-                                .FirstOrDefaultAsync();
-
-                            if (rossStudent == null)
-                            {
-                                continue;
-                            }
-
-                            var person = await _aaudContext.People
-                                .Where(p => p.PersonPKey == rossStudent.PersonPKey)
-                                .FirstOrDefaultAsync();
-
-                            if (person == null || string.IsNullOrEmpty(rossStudent.MailId))
-                            {
-                                continue;
-                            }
-
-                            var displayName = FormatStudentDisplayName(person.PersonLastName, person.PersonDisplayFirstName ?? person.PersonFirstName, person.PersonMiddleName);
-                            var photoUrl = await _photoService.GetStudentPhotoUrlAsync(rossStudent.MailId);
+                            var displayName = FormatStudentDisplayName(student.PersonLastName, student.PersonFirstName, student.PersonMiddleName);
+                            var photoUrl = await _photoService.GetStudentPhotoUrlAsync(student.IdsMailid);
                             var hasPhoto = !string.Equals(photoUrl, _photoService.GetDefaultPhotoUrl(), StringComparison.OrdinalIgnoreCase);
 
                             photoStudents.Add(new StudentPhoto
                             {
-                                MailId = rossStudent.MailId,
-                                FirstName = person.PersonDisplayFirstName ?? person.PersonFirstName,
-                                LastName = person.PersonLastName,
+                                MailId = student.IdsMailid,
+                                FirstName = student.PersonFirstName,
+                                LastName = student.PersonLastName,
                                 DisplayName = displayName,
                                 PhotoUrl = photoUrl,
                                 GroupAssignment = null,
@@ -794,16 +780,8 @@ namespace Viper.Areas.Students.Services
             var year = now.Year;
             var month = now.Month;
 
-            // Fall semester starts in September
-            if (month >= 9)
-            {
-                return int.Parse($"{year}09");
-            }
-            // Spring/Summer semester
-            else
-            {
-                return int.Parse($"{year}01");
-            }
+            // Fall semester starts in September, otherwise Spring/Summer
+            return month >= 9 ? int.Parse($"{year}09") : int.Parse($"{year}01");
         }
 
         private string FormatStudentDisplayName(string lastName, string firstName, string? middleName)
@@ -819,56 +797,6 @@ namespace Viper.Areas.Students.Services
         private string GetSISConnectionString()
         {
             return HttpHelper.Settings["ConnectionStrings:SIS"];
-        }
-
-        private async Task<int?> GetPriorClassYearForStudentAsync(string bannerId, int currentGradYear, string mailId)
-        {
-            if (string.IsNullOrEmpty(bannerId))
-            {
-                return null;
-            }
-
-            try
-            {
-                // Call stored procedures to get PIDM and admit year using a single connection
-                string? pidm = null;
-                int? admitTerm = null;
-
-                using (var connection = new SqlConnection(GetSISConnectionString()))
-                {
-                    if (connection.State != System.Data.ConnectionState.Open)
-                        await connection.OpenAsync();
-
-                    pidm = await GetPidmFromBannerIdAsync(connection, bannerId);
-
-                    if (!string.IsNullOrEmpty(pidm))
-                    {
-                        admitTerm = await GetAdmitTermFromPidmAsync(connection, pidm);
-                    }
-                }
-
-                // Calculate prior class year (admit year + 4) and only set if different from current
-                if (admitTerm.HasValue)
-                {
-                    var calculatedPriorYear = admitTerm.Value + 4;
-                    if (calculatedPriorYear != currentGradYear)
-                    {
-                        return calculatedPriorYear;
-                    }
-                }
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Invalid operation getting prior class year for student {MailId} with BannerId {BannerId}",
-                    LogSanitizer.SanitizeId(mailId), LogSanitizer.SanitizeId(bannerId));
-            }
-            catch (Microsoft.Data.SqlClient.SqlException ex)
-            {
-                _logger.LogWarning(ex, "Database error getting prior class year for student {MailId} with BannerId {BannerId}",
-                    LogSanitizer.SanitizeId(mailId), LogSanitizer.SanitizeId(bannerId));
-            }
-
-            return null;
         }
 
         private async Task<string?> GetPidmFromBannerIdAsync(SqlConnection connection, string bannerId)
