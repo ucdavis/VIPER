@@ -4,7 +4,6 @@ import type {
     ServicePermissionCheck,
     RotationPermissionCheck,
     InstructorSchedulePermissionCheck,
-    PermissionSummary,
 } from "../types"
 
 const { get } = useFetch()
@@ -156,26 +155,6 @@ class PermissionService {
                 throw error
             }
             throw PermissionService.networkError("Network error checking own schedule permissions", error as Error)
-        }
-    }
-
-    /**
-     * Get summary of permission system configuration
-     */
-    async getPermissionSummary(): Promise<PermissionSummary> {
-        try {
-            const response = await get(`${PermissionService.BASE_URL}/summary`)
-
-            if (!response.success) {
-                throw PermissionService.apiError(response.errors?.join(", ") || "Failed to fetch permission summary")
-            }
-
-            return response.result
-        } catch (error) {
-            if (PermissionService.isPermissionError(error)) {
-                throw error
-            }
-            throw PermissionService.networkError("Network error fetching permission summary", error as Error)
         }
     }
 

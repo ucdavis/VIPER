@@ -68,7 +68,7 @@ describe("ClinicalSchedulerHome - Navigation", () => {
             expect(routerPush).toHaveBeenCalledWith("/ClinicalScheduler/clinician")
         })
 
-        it("does not show clinician card when user lacks access", async () => {
+        it("does not show clinician card when user lacks access", () => {
             mockPermissionsStore.hasAnyEditPermission = true
             mockPermissionsStore.hasOnlyServiceSpecificPermissions = true
             mockPermissionsStore.canAccessClinicianView = false
@@ -142,7 +142,7 @@ describe("ClinicalSchedulerHome - Navigation", () => {
             expect(routerPush).not.toHaveBeenCalled()
         })
 
-        it("only shows rotation card for users without clinician access", async () => {
+        it("only shows rotation card for users without clinician access", () => {
             mockPermissionsStore.hasAnyEditPermission = true
             mockPermissionsStore.hasOnlyServiceSpecificPermissions = true
             mockPermissionsStore.canAccessClinicianView = false
