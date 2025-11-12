@@ -74,7 +74,7 @@
                     <div class="col">{{ currentStudent.mailId }}@ucdavis.edu</div>
                 </div>
                 <div
-                    v-if="studentDetails?.currentClassYear"
+                    v-if="currentClassYear"
                     class="row q-mb-xs"
                 >
                     <div
@@ -83,19 +83,7 @@
                     >
                         Class Year:
                     </div>
-                    <div class="col">{{ studentDetails.currentClassYear }}</div>
-                </div>
-                <div
-                    v-if="studentDetails?.priorClassYear"
-                    class="row q-mb-xs"
-                >
-                    <div
-                        class="col-auto text-weight-bold"
-                        style="min-width: 90px"
-                    >
-                        Prior Class:
-                    </div>
-                    <div class="col">{{ studentDetails.priorClassYear }}</div>
+                    <div class="col">{{ currentClassYear }}</div>
                 </div>
                 <div
                     v-if="currentStudent.eighthsGroup"
@@ -175,8 +163,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { useQuasar } from "quasar"
-import type { StudentPhoto, StudentDetailInfo } from "../../services/photo-gallery-service"
-import { photoGalleryService } from "../../services/photo-gallery-service"
+import type { StudentPhoto } from "../../services/photo-gallery-service"
 import { getPhotoUrl } from "../../composables/use-photo-url"
 
 const props = defineProps<{
@@ -192,8 +179,6 @@ const emit = defineEmits<{
 
 const $q = useQuasar()
 const dialogIndex = ref(props.initialIndex)
-const studentDetails = ref<StudentDetailInfo | null>(null)
-const loadingDetails = ref(false)
 
 const show = computed({
     get: () => props.modelValue,
@@ -216,18 +201,34 @@ const currentStudent = computed(() => {
     return props.students[0] || undefined
 })
 
-// Fetch student details when dialog opens or student changes
-watch(
-    () => [show.value, currentStudent.value?.mailId],
-    async ([isOpen, mailId]) => {
-        if (isOpen && mailId && typeof mailId === "string") {
-            loadingDetails.value = true
-            studentDetails.value = await photoGalleryService.getStudentDetails(mailId)
-            loadingDetails.value = false
-        }
-    },
-    { immediate: true },
-)
+// Calculate graduation year from class level
+const calculateGradYear = (classLevel: string | null): number | null => {
+    if (!classLevel || !classLevel.startsWith("V")) return null
+
+    const dvmYear = Number.parseInt(classLevel.slice(1))
+    if (Number.isNaN(dvmYear) || dvmYear < 1 || dvmYear > 4) return null
+
+    // Get current term code (YYYYMM format)
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth() + 1
+    let term: number
+    if (month >= 1 && month <= 5) {
+        term = 2 // Spring
+    } else if (month >= 6 && month <= 8) {
+        term = 4 // Summer
+    } else {
+        term = 9 // Fall
+    }
+
+    // Formula from GradYearClassLevel.GetGradYear
+    // term 2 or 4 or 9: year + (5 - dvmYear) - (term == 2 ? 1 : 0)
+    return year + (5 - dvmYear) - (term === 2 ? 1 : 0)
+}
+
+const currentClassYear = computed(() => {
+    return currentStudent.value?.classLevel ? calculateGradYear(currentStudent.value.classLevel) : null
+})
 
 // Emit index changes to parent (for URL updates during arrow key navigation)
 watch(dialogIndex, (newIndex) => {

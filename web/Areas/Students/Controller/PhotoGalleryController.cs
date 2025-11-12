@@ -484,32 +484,6 @@ namespace Viper.Areas.Students.Controller
             }
         }
 
-        [HttpGet("student/{mailId}/details")]
-        public async Task<IActionResult> GetStudentDetails(string mailId)
-        {
-            if (string.IsNullOrWhiteSpace(mailId))
-            {
-                return BadRequest("MailId is required");
-            }
-
-            try
-            {
-                var details = await _studentGroupService.GetStudentDetailsAsync(mailId);
-
-                if (details == null)
-                {
-                    return NotFound();
-                }
-
-                return Ok(details);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogError(ex, "Invalid operation getting student details for {MailId}", LogSanitizer.SanitizeId(mailId));
-                return StatusCode(500, "An error occurred while retrieving student details");
-            }
-        }
-
         /// <summary>
         /// Validates term code and CRN parameters for course-based operations
         /// </summary>

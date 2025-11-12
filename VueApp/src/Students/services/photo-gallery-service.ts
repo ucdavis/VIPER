@@ -13,7 +13,7 @@ interface StudentPhoto {
     v3SpecialtyGroup: string | null
     hasPhoto: boolean
     isRossStudent: boolean
-    priorClassYear: number | null
+    classLevel: string | null
     // Computed properties from backend for consistent display
     fullName: string
     secondaryTextLines: string[]
@@ -78,11 +78,6 @@ interface GalleryMenu {
 interface ClassYear {
     year: number
     classLevel: string
-}
-
-interface StudentDetailInfo {
-    priorClassYear: number | null
-    currentClassYear: number | null
 }
 
 class PhotoGalleryService {
@@ -168,24 +163,6 @@ class PhotoGalleryService {
         return response.result as ClassYear[]
     }
 
-    getStudentDetails = async (mailId: string): Promise<StudentDetailInfo | null> => {
-        try {
-            // Use raw fetch to avoid triggering the global error handler for 404s
-            const response = await fetch(`${this.baseUrl}/student/${mailId}/details`)
-
-            // Return null for 404 or other errors without showing an error notification
-            if (!response.ok) {
-                return null
-            }
-
-            const data = await response.json()
-            return (data.result ?? data) as StudentDetailInfo
-        } catch {
-            // Silently return null on error
-            return null
-        }
-    }
-
     downloadFile = (blob: Blob, filename: string): void => {
         const url = globalThis.URL.createObjectURL(blob)
         const link = document.createElement("a")
@@ -211,5 +188,4 @@ export type {
     PhotoExportRequest,
     GalleryMenu,
     ClassYear,
-    StudentDetailInfo,
 }
