@@ -41,12 +41,9 @@ namespace Viper.test.ClinicalScheduler
 
             var serviceId = CardiologyServiceId;
             var canEdit = true;
-            var requiredPermission = CardiologyEditPermission;
 
             _mockPermissionService.Setup(s => s.HasEditPermissionForServiceAsync(serviceId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(canEdit);
-            _mockPermissionService.Setup(s => s.GetRequiredPermissionForServiceAsync(serviceId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(requiredPermission);
 
             // Act
             var result = await _controller.CanEditService(serviceId);
@@ -56,9 +53,7 @@ namespace Viper.test.ClinicalScheduler
             var response = okResult.Value;
             Assert.NotNull(response);
             dynamic dynamicResponse = response;
-            Assert.Equal(serviceId, dynamicResponse.serviceId);
             Assert.True(dynamicResponse.canEdit);
-            Assert.Equal(requiredPermission, dynamicResponse.requiredPermission);
         }
 
         [Fact]
@@ -70,12 +65,9 @@ namespace Viper.test.ClinicalScheduler
 
             var serviceId = SurgeryServiceId;
             var canEdit = false;
-            var requiredPermission = ClinicalSchedulePermissions.Manage;
 
             _mockPermissionService.Setup(s => s.HasEditPermissionForServiceAsync(serviceId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(canEdit);
-            _mockPermissionService.Setup(s => s.GetRequiredPermissionForServiceAsync(serviceId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(requiredPermission);
 
             // Act
             var result = await _controller.CanEditService(serviceId);
@@ -85,9 +77,7 @@ namespace Viper.test.ClinicalScheduler
             var response = okResult.Value;
             Assert.NotNull(response);
             dynamic dynamicResponse = response;
-            Assert.Equal(serviceId, dynamicResponse.serviceId);
             Assert.False(dynamicResponse.canEdit);
-            Assert.Equal(requiredPermission, dynamicResponse.requiredPermission);
         }
 
         [Fact]
@@ -111,9 +101,7 @@ namespace Viper.test.ClinicalScheduler
             var response = okResult.Value;
             Assert.NotNull(response);
             dynamic dynamicResponse = response;
-            Assert.Equal(rotationId, dynamicResponse.rotationId);
             Assert.True(dynamicResponse.canEdit);
-            Assert.Equal(TestUserMothraId, dynamicResponse.user.mothraId);
         }
 
         [Fact]

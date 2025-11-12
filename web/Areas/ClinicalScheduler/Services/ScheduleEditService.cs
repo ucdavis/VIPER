@@ -54,10 +54,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
             try
             {
-                // Validate permissions (rotation existence is verified internally to prevent information disclosure)
-                var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(rotationId, mothraId ?? "", cancellationToken);
-
-                // Validate grad year - only allow current or future years
+                // Validate grad year before permission checks to prevent user-controlled bypass
                 var currentGradYear = await _gradYearService.GetCurrentGradYearAsync();
                 const int minYear = 2009;
                 var maxYear = currentGradYear + 2;
@@ -72,12 +69,15 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     throw new InvalidOperationException($"Cannot modify schedules for past academic years. Current year is {currentGradYear}, requested year is {gradYear}.");
                 }
 
-                // Trim and validate MothraId
+                // Validate mothraId before permission check
                 mothraId = mothraId?.Trim();
-                if (string.IsNullOrEmpty(mothraId))
+                if (string.IsNullOrWhiteSpace(mothraId))
                 {
                     throw new ArgumentException("MothraId is required", nameof(mothraId));
                 }
+
+                // Validate edit permissions for rotation and user
+                var currentUser = await _permissionValidator.ValidateEditPermissionAndGetUserAsync(rotationId, mothraId, cancellationToken);
 
                 // Validate that the person exists in the database
                 var personExists = await _context.Persons

@@ -104,12 +104,15 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// Check if current user can edit a specific service
         /// </summary>
         /// <param name="serviceId">Service ID to check</param>
-        /// <returns>Permission check result</returns>
+        /// <returns>Object with canEdit boolean indicating if user has permission</returns>
+        /// <remarks>
+        /// Protected by authentication and [Permission] attribute.
+        /// Returns only the permission boolean to minimize information disclosure.
+        /// </remarks>
         [HttpGet("service/{serviceId:int}/can-edit")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> CanEditService(int serviceId)
         {
@@ -129,36 +132,26 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     return Unauthorized(new { error = "User not authenticated" });
                 }
 
-                // Check permission first to avoid information disclosure
-                // The permission check will internally verify the service exists
                 _logger.LogInformation("Checking edit permission for user {MothraId} and service {ServiceId}", LogSanitizer.SanitizeId(user.MothraId), serviceId);
 
-                var canEdit = await _permissionService.HasEditPermissionForServiceAsync(serviceId, HttpContext.RequestAborted);
-                var requiredPermission = await _permissionService.GetRequiredPermissionForServiceAsync(serviceId, HttpContext.RequestAborted);
+                // Verify service existence before permission check to prevent information disclosure
+                var service = await _csContext.Services
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.ServiceId == serviceId, HttpContext.RequestAborted);
 
-                // If requiredPermission is null or empty, the service doesn't exist
-                // Return a generic error without revealing existence information
-                if (string.IsNullOrEmpty(requiredPermission))
+                if (service == null)
                 {
-                    _logger.LogWarning("Service {ServiceId} not found or user {MothraId} lacks permission", serviceId, LogSanitizer.SanitizeId(user.MothraId));
-                    return NotFound(new { error = "Service not found or access denied" });
+                    _logger.LogWarning("Service {ServiceId} not found for user {MothraId}", serviceId, LogSanitizer.SanitizeId(user.MothraId));
+                    return Ok(new { canEdit = false });
                 }
 
-                var response = new
-                {
-                    serviceId,
-                    canEdit,
-                    requiredPermission,
-                    user = new
-                    {
-                        mothraId = user.MothraId
-                    }
-                };
+                // Check edit permissions for authenticated user
+                var canEdit = await _permissionService.HasEditPermissionForServiceAsync(serviceId, HttpContext.RequestAborted);
 
-                _logger.LogInformation("Permission check result for user {MothraId} and service {ServiceId}: canEdit={CanEdit}, required='{RequiredPermission}'",
-                    LogSanitizer.SanitizeId(user.MothraId), serviceId, canEdit, requiredPermission);
+                _logger.LogInformation("Permission check result for user {MothraId} and service {ServiceId}: canEdit={CanEdit}",
+                    LogSanitizer.SanitizeId(user.MothraId), serviceId, canEdit);
 
-                return Ok(response);
+                return Ok(new { canEdit });
             }
             catch (Exception)
             {
@@ -172,12 +165,16 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// Check if current user can edit a specific rotation
         /// </summary>
         /// <param name="rotationId">Rotation ID to check</param>
-        /// <returns>Permission check result</returns>
+        /// <returns>Object with canEdit boolean indicating if user has permission</returns>
+        /// <remarks>
+        /// Permission is determined by the rotation's associated service.
+        /// Protected by authentication and [Permission] attribute.
+        /// Returns only the permission boolean to minimize information disclosure.
+        /// </remarks>
         [HttpGet("rotation/{rotationId:int}/can-edit")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> CanEditRotation(int rotationId)
         {
@@ -197,37 +194,26 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     return Unauthorized(new { error = "User not authenticated" });
                 }
 
-                // Check permission first to avoid information disclosure
-                // The permission check will internally verify the rotation exists
                 _logger.LogInformation("Checking edit permission for user {MothraId} and rotation {RotationId}", LogSanitizer.SanitizeId(user.MothraId), rotationId);
 
-                var canEdit = await _permissionService.HasEditPermissionForRotationAsync(rotationId, HttpContext.RequestAborted);
-
-                // Verify rotation exists - if not, return generic error to avoid information disclosure
-                var rotationExists = await _csContext.Rotations
+                // Verify rotation existence before permission check to prevent information disclosure
+                var rotation = await _csContext.Rotations
                     .AsNoTracking()
-                    .AnyAsync(r => r.RotId == rotationId, HttpContext.RequestAborted);
+                    .FirstOrDefaultAsync(r => r.RotId == rotationId, HttpContext.RequestAborted);
 
-                if (!rotationExists)
+                if (rotation == null)
                 {
-                    _logger.LogWarning("Rotation {RotationId} not found or user {MothraId} lacks permission", rotationId, LogSanitizer.SanitizeId(user.MothraId));
-                    return NotFound(new { error = "Rotation not found or access denied" });
+                    _logger.LogWarning("Rotation {RotationId} not found for user {MothraId}", rotationId, LogSanitizer.SanitizeId(user.MothraId));
+                    return Ok(new { canEdit = false });
                 }
 
-                var response = new
-                {
-                    rotationId,
-                    canEdit,
-                    user = new
-                    {
-                        mothraId = user.MothraId
-                    }
-                };
+                // Check edit permissions for authenticated user
+                var canEdit = await _permissionService.HasEditPermissionForRotationAsync(rotationId, HttpContext.RequestAborted);
 
                 _logger.LogInformation("Permission check result for user {MothraId} and rotation {RotationId}: canEdit={CanEdit}",
                     LogSanitizer.SanitizeId(user.MothraId), rotationId, canEdit);
 
-                return Ok(response);
+                return Ok(new { canEdit });
             }
             catch (Exception)
             {
@@ -241,12 +227,16 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// Check if current user can edit their own schedule for a specific instructor schedule entry
         /// </summary>
         /// <param name="instructorScheduleId">Instructor schedule ID to check</param>
-        /// <returns>Permission check result</returns>
+        /// <returns>Object with canEditOwn boolean indicating if user can edit their own schedule</returns>
+        /// <remarks>
+        /// Requires EditOwnSchedule permission and the schedule must belong to the current user.
+        /// Protected by authentication and [Permission] attribute.
+        /// Returns only the permission boolean to minimize information disclosure.
+        /// </remarks>
         [HttpGet("instructor-schedule/{instructorScheduleId:int}/can-edit-own")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> CanEditOwnSchedule(int instructorScheduleId)
         {
@@ -266,35 +256,26 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     return Unauthorized(new { error = "User not authenticated" });
                 }
 
-                // Atomically check for schedule existence and permission to avoid timing-based information disclosure
                 _logger.LogInformation("Checking own schedule edit permission for user {MothraId} and instructor schedule {InstructorScheduleId}", LogSanitizer.SanitizeId(user.MothraId), instructorScheduleId);
 
+                // Verify schedule existence before permission check to prevent information disclosure
                 var schedule = await _csContext.InstructorSchedules
                     .AsNoTracking()
                     .FirstOrDefaultAsync(s => s.InstructorScheduleId == instructorScheduleId, HttpContext.RequestAborted);
 
                 if (schedule == null)
                 {
-                    _logger.LogWarning("Instructor schedule {InstructorScheduleId} not found or user {MothraId} lacks permission", instructorScheduleId, LogSanitizer.SanitizeId(user.MothraId));
-                    return NotFound(new { error = "Instructor schedule not found or access denied" });
+                    _logger.LogWarning("Instructor schedule {InstructorScheduleId} not found for user {MothraId}", instructorScheduleId, LogSanitizer.SanitizeId(user.MothraId));
+                    return Ok(new { canEditOwn = false });
                 }
 
-                var canEdit = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId, HttpContext.RequestAborted);
-
-                var response = new
-                {
-                    instructorScheduleId,
-                    canEditOwn = canEdit,
-                    user = new
-                    {
-                        mothraId = user.MothraId
-                    }
-                };
+                // Check own schedule edit permissions for authenticated user
+                var canEditOwn = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId, HttpContext.RequestAborted);
 
                 _logger.LogDebug("Own schedule permission check result for user {MothraId} and instructor schedule {InstructorScheduleId}: canEditOwn={CanEditOwn}",
-                    LogSanitizer.SanitizeId(user.MothraId), instructorScheduleId, canEdit);
+                    LogSanitizer.SanitizeId(user.MothraId), instructorScheduleId, canEditOwn);
 
-                return Ok(response);
+                return Ok(new { canEditOwn });
             }
             catch (Exception)
             {
@@ -304,87 +285,5 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
         }
 
-        /// <summary>
-        /// Get summary of permission system configuration
-        /// </summary>
-        /// <returns>Permission system summary</returns>
-        [HttpGet("summary")]
-        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<object>> GetPermissionSummary()
-        {
-            var user = _userHelper.GetCurrentUser();
-
-            if (user == null)
-            {
-                _logger.LogWarning("No current user found when getting permission summary");
-                return Unauthorized(new { error = "User not authenticated" });
-            }
-
-            _logger.LogInformation("Getting permission summary for user {MothraId}", LogSanitizer.SanitizeId(user.MothraId));
-
-            // Enforce elevated permission for full system-wide summary
-            var raps = HttpContext.RequestServices.GetRequiredService<RAPSContext>();
-            if (!_userHelper.HasPermission(raps, user, ClinicalSchedulePermissions.Manage))
-            {
-                _logger.LogWarning("User {MothraId} attempted to access full permission summary without manage permission", LogSanitizer.SanitizeId(user.MothraId));
-                return Forbid();
-            }
-
-            // Get all services and their permissions
-            var services = await _csContext.Services
-                .AsNoTracking()
-                .OrderBy(s => s.ServiceName)
-                .Select(s => new
-                {
-                    s.ServiceId,
-                    s.ServiceName,
-                    s.ScheduleEditPermission
-                })
-                .ToListAsync(HttpContext.RequestAborted);
-
-            var userPermissions = await _permissionService.GetUserServicePermissionsAsync(HttpContext.RequestAborted);
-
-            var servicesWithPermissions = services.Select(s =>
-            {
-                var ServiceId = s.ServiceId;
-                var ServiceName = s.ServiceName;
-                var hasCustomPermission = !string.IsNullOrEmpty(s.ScheduleEditPermission);
-                var userCanEdit = userPermissions.GetValueOrDefault(s.ServiceId, false);
-                return new
-                {
-                    ServiceId,
-                    ServiceName,
-                    hasCustomPermission,
-                    userCanEdit
-                };
-            }).ToList();
-
-            var totalEditableServices = servicesWithPermissions.Count(s => s.userCanEdit);
-            var servicesWithCustomPermissions = servicesWithPermissions.Count(s => s.hasCustomPermission);
-
-            var response = new
-            {
-                user = new
-                {
-                    mothraId = user.MothraId,
-                    displayName = user.DisplayFullName
-                },
-                summary = new
-                {
-                    totalServices = services.Count,
-                    editableServices = totalEditableServices,
-                    servicesWithCustomPermissions,
-                    defaultPermission = ClinicalSchedulePermissions.Manage
-                },
-                services = servicesWithPermissions
-            };
-
-            _logger.LogInformation("Permission summary for user {MothraId}: total={Total}, editable={Editable}, custom={Custom}",
-                LogSanitizer.SanitizeId(user.MothraId), services.Count, totalEditableServices, servicesWithCustomPermissions);
-
-            return Ok(response);
-        }
     }
 }
