@@ -14,11 +14,13 @@ namespace Viper.Areas.Students.Services
     {
         private readonly CoursesContext _coursesContext;
         private readonly ILogger<CourseService> _logger;
+        private readonly TermCodeService _termCodeService;
 
-        public CourseService(CoursesContext coursesContext, ILogger<CourseService> logger)
+        public CourseService(CoursesContext coursesContext, ILogger<CourseService> logger, TermCodeService termCodeService)
         {
             _coursesContext = coursesContext;
             _logger = logger;
+            _termCodeService = termCodeService;
         }
 
         /// <summary>
@@ -29,14 +31,14 @@ namespace Viper.Areas.Students.Services
             try
             {
                 // Calculate term range: current academic year + previous year
-                var termRange = TermCodeService.GetAcademicYearTermRange();
+                var (startTerm, endTerm) = await _termCodeService.GetAcademicYearTermRangeAsync();
 
                 // Query courses with enrolled students
                 var courses = await _coursesContext.Baseinfos
                     .Where(b => b.BaseinfoSubjCode == subjectCode)
                     .Where(b => b.BaseinfoTermCode != null &&
-                               string.Compare(b.BaseinfoTermCode, termRange.StartTerm) >= 0 &&
-                               string.Compare(b.BaseinfoTermCode, termRange.EndTerm) <= 0)
+                               string.Compare(b.BaseinfoTermCode, startTerm, StringComparison.Ordinal) >= 0 &&
+                               string.Compare(b.BaseinfoTermCode, endTerm, StringComparison.Ordinal) <= 0)
                     .Where(b => b.BaseinfoEnrollment > 0)
                     .Where(b => _coursesContext.Rosters.Any(r =>
                         r.RosterTermCode == b.BaseinfoTermCode &&
@@ -55,24 +57,27 @@ namespace Viper.Areas.Students.Services
                     })
                     .ToListAsync();
 
-                // Group by term
-                var coursesByTerm = courses
-                    .GroupBy(c => c.TermCode)
-                    .Select(g => new CoursesByTerm
+                // Group by term and get descriptions, ordered by term code (most recent first)
+                // Note: GetTermDescriptionAsync uses a static cache loaded on first access, so repeated calls are efficient after initial load
+                var coursesByTerm = new List<CoursesByTerm>();
+                foreach (var termGroup in courses.GroupBy(c => c.TermCode).OrderByDescending(g => g.Key))
+                {
+                    var termDescription = await _termCodeService.GetTermDescriptionAsync(termGroup.Key);
+                    coursesByTerm.Add(new CoursesByTerm
                     {
-                        TermCode = g.Key,
-                        TermDescription = TermCodeService.GetTermDescriptionFromYYYYMM(g.Key),
-                        Courses = g.Select(c => new CourseInfo
+                        TermCode = termGroup.Key,
+                        TermDescription = termDescription,
+                        Courses = termGroup.Select(c => new CourseInfo
                         {
                             TermCode = c.TermCode,
                             Crn = c.Crn,
                             SubjectCode = c.SubjectCode,
                             CourseNumber = c.CourseNumber,
                             Title = c.Title,
-                            TermDescription = TermCodeService.GetTermDescriptionFromYYYYMM(c.TermCode)
+                            TermDescription = termDescription
                         }).ToList()
-                    })
-                    .ToList();
+                    });
+                }
 
                 return coursesByTerm;
             }
@@ -84,6 +89,16 @@ namespace Viper.Areas.Students.Services
             catch (InvalidOperationException ex)
             {
                 _logger.LogError(ex, "Invalid operation fetching available courses for subject code {SubjectCode}", LogSanitizer.SanitizeString(subjectCode));
+                return new List<CoursesByTerm>();
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogError(ex, "Invalid term code format while fetching available courses for subject code {SubjectCode}", LogSanitizer.SanitizeString(subjectCode));
+                return new List<CoursesByTerm>();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogError(ex, "Term code not found in database while fetching available courses for subject code {SubjectCode}", LogSanitizer.SanitizeString(subjectCode));
                 return new List<CoursesByTerm>();
             }
         }
@@ -104,9 +119,14 @@ namespace Viper.Areas.Students.Services
                         SubjectCode = b.BaseinfoSubjCode ?? string.Empty,
                         CourseNumber = b.BaseinfoCrseNumb ?? string.Empty,
                         Title = b.BaseinfoTitle ?? string.Empty,
-                        TermDescription = TermCodeService.GetTermDescriptionFromYYYYMM(b.BaseinfoTermCode ?? string.Empty)
+                        TermDescription = string.Empty // Set below after query
                     })
                     .FirstOrDefaultAsync();
+
+                if (course != null)
+                {
+                    course.TermDescription = await _termCodeService.GetTermDescriptionAsync(course.TermCode);
+                }
 
                 return course;
             }
@@ -118,6 +138,16 @@ namespace Viper.Areas.Students.Services
             catch (InvalidOperationException ex)
             {
                 _logger.LogError(ex, "Invalid operation fetching course info for term {TermCode} and CRN {Crn}", LogSanitizer.SanitizeId(termCode), LogSanitizer.SanitizeId(crn));
+                return null;
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogError(ex, "Invalid term code format while fetching course info for term {TermCode} and CRN {Crn}", LogSanitizer.SanitizeId(termCode), LogSanitizer.SanitizeId(crn));
+                return null;
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogError(ex, "Term code not found in database while fetching course info for term {TermCode} and CRN {Crn}", LogSanitizer.SanitizeId(termCode), LogSanitizer.SanitizeId(crn));
                 return null;
             }
         }

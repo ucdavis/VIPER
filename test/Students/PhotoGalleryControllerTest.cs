@@ -24,8 +24,8 @@ namespace Viper.test.Students
             _mockStudentGroupService = new Mock<IStudentGroupService>();
             _mockPhotoExportService = new Mock<IPhotoExportService>();
             _mockCourseService = new Mock<ICourseService>();
-            // TermCodeService requires VIPERContext, mock with null using MockBehavior.Loose
-            _mockTermCodeService = new Mock<TermCodeService>(MockBehavior.Loose, [null!]);
+            // TermCodeService requires VIPERContext and CoursesContext, mock with null using MockBehavior.Loose
+            _mockTermCodeService = new Mock<TermCodeService>(MockBehavior.Loose, [null!, null!]);
             _mockLogger = new Mock<ILogger<PhotoGalleryController>>();
 
             _controller = new PhotoGalleryController(

@@ -483,38 +483,72 @@ namespace Viper.Areas.Students.Services
             {
                 try
                 {
+                    var termLabel = await _termCodeService.GetTermDescriptionAsync(request.TermCode);
                     var courseInfo = await _courseService.GetCourseInfoAsync(request.TermCode, request.Crn);
                     if (courseInfo != null)
                     {
-                        var termLabel = Curriculum.Services.TermCodeService.GetTermDescriptionFromYYYYMM(request.TermCode);
                         titleParts.Add($"{courseInfo.SubjectCode}{courseInfo.CourseNumber} - {courseInfo.Title}");
                         titleParts.Add(termLabel);
                     }
                     else
                     {
                         // Fallback if course info not found
-                        var termLabel = Curriculum.Services.TermCodeService.GetTermDescriptionFromYYYYMM(request.TermCode);
                         titleParts.Add($"Course {request.Crn}");
                         titleParts.Add(termLabel);
                     }
+                }
+                catch (ArgumentException ex)
+                {
+                    _logger.LogWarning(ex, "Invalid term code format for {TermCode}/{Crn}",
+                        LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));
+                    titleParts.Add($"Course {request.Crn}");
+                }
+                catch (KeyNotFoundException ex)
+                {
+                    _logger.LogWarning(ex, "Term code not found for {TermCode}/{Crn}",
+                        LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));
+                    // Fallback to basic course info without term label
+                    titleParts.Add($"Course {request.Crn}");
                 }
                 catch (InvalidOperationException ex)
                 {
                     _logger.LogWarning(ex, "Invalid operation getting course info for {TermCode}/{Crn}",
                         LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));
-                    // Fallback to basic course info
-                    var termLabel = Curriculum.Services.TermCodeService.GetTermDescriptionFromYYYYMM(request.TermCode);
-                    titleParts.Add($"Course {request.Crn}");
-                    titleParts.Add(termLabel);
+                    // Try to at least get term label
+                    try
+                    {
+                        var termLabel = await _termCodeService.GetTermDescriptionAsync(request.TermCode);
+                        titleParts.Add($"Course {request.Crn}");
+                        titleParts.Add(termLabel);
+                    }
+                    catch (ArgumentException)
+                    {
+                        titleParts.Add($"Course {request.Crn}");
+                    }
+                    catch (KeyNotFoundException)
+                    {
+                        titleParts.Add($"Course {request.Crn}");
+                    }
                 }
                 catch (DbUpdateException ex)
                 {
                     _logger.LogWarning(ex, "Database error getting course info for {TermCode}/{Crn}",
                         LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));
-                    // Fallback to basic course info
-                    var termLabel = Curriculum.Services.TermCodeService.GetTermDescriptionFromYYYYMM(request.TermCode);
-                    titleParts.Add($"Course {request.Crn}");
-                    titleParts.Add(termLabel);
+                    // Try to at least get term label
+                    try
+                    {
+                        var termLabel = await _termCodeService.GetTermDescriptionAsync(request.TermCode);
+                        titleParts.Add($"Course {request.Crn}");
+                        titleParts.Add(termLabel);
+                    }
+                    catch (ArgumentException)
+                    {
+                        titleParts.Add($"Course {request.Crn}");
+                    }
+                    catch (KeyNotFoundException)
+                    {
+                        titleParts.Add($"Course {request.Crn}");
+                    }
                 }
             }
 
