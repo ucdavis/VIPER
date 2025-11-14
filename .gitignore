@@ -489,4 +489,4 @@ awscredentials.xml
 # Effort migration script outputs
 web/Areas/Effort/Scripts/AnalysisOutput/
 web/Areas/Effort/Scripts/RemediationOutput/
-web/Areas/Effort/Scripts/Effort_Database_Schema_And_Data.txt
+web/Areas/Effort/Scripts/Effort_Database_Schema_And_Data_LEGACY.txt

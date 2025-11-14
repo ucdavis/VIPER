@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.Data.SqlClient;
@@ -13,6 +14,34 @@ namespace Viper.Areas.Effort.Scripts
     /// </summary>
     public static class EffortScriptHelper
     {
+        /// <summary>
+        /// All tables in the effort schema - single source of truth
+        /// </summary>
+        public static readonly string[] EffortTables =
+        [
+            "Records", "Percentages", "Persons", "Courses", "TermStatus",
+            "Roles", "EffortTypes", "SessionTypes", "Sabbaticals", "UserAccess", "Units",
+            "JobCodes", "ReportUnits", "AlternateTitles",
+            "CourseRelationships", "Audits"
+        ];
+
+        /// <summary>
+        /// Expected number of tables in the effort schema
+        /// </summary>
+        public static readonly int ExpectedTableCount = EffortTables.Length;
+
+        /// <summary>
+        /// All valid SessionType codes - single source of truth for both schema creation and validation
+        /// These values are seeded into effort.SessionTypes table during database creation
+        /// </summary>
+        public static readonly string[] ValidSessionTypes =
+        [
+            "ACT", "AUT", "CBL", "CLI", "CON", "D/L", "DIS", "DSL", "EXM", "FAS",
+            "FWK", "IND", "INT", "JLC", "L/D", "LAB", "LEC", "LED", "LIS", "LLA",
+            "PBL", "PER", "PRA", "PRB", "PRJ", "PRS", "SEM", "STD", "T-D", "TBL",
+            "TMP", "TUT", "VAR", "WED", "WRK", "WVL"
+        ];
+
         public static string BuildMothraIdWhereClause(string columnName, string parameterName,
             bool excludeIfAlreadyNewValue = false, string? newValueParameter = null)
         {
@@ -47,7 +76,7 @@ namespace Viper.Areas.Effort.Scripts
             return currentDir;
         }
 
-        public static string GetConnectionString(IConfiguration configuration, string name)
+        public static string GetConnectionString(IConfiguration configuration, string name, bool readOnly = true)
         {
             var connectionString = configuration.GetConnectionString(name);
 
@@ -56,6 +85,22 @@ namespace Viper.Areas.Effort.Scripts
                 throw new InvalidOperationException(
                     $"{name} database connection string not found in configuration."
                 );
+            }
+
+            // SECURITY: Automatically add ApplicationIntent=ReadOnly to the "Effort" connection string
+            // to prevent accidental modifications to the legacy database during migration
+            // Exception: Data remediation script needs write access to fix data quality issues
+            if (name.Equals("Effort", StringComparison.OrdinalIgnoreCase) && readOnly)
+            {
+                var builder = new SqlConnectionStringBuilder(connectionString);
+
+                // Only add if not already present
+                if (builder.ApplicationIntent != ApplicationIntent.ReadOnly)
+                {
+                    builder.ApplicationIntent = ApplicationIntent.ReadOnly;
+                    connectionString = builder.ConnectionString;
+                    Console.WriteLine("  ℹ Added ApplicationIntent=ReadOnly to Effort connection for safety");
+                }
             }
 
             return connectionString;
@@ -78,10 +123,63 @@ namespace Viper.Areas.Effort.Scripts
             }
         }
 
+        /// <summary>
+        /// Gets the current academic year from the VIPER system by querying the current term.
+        /// Uses the system's CurrentTerm flag to determine the active academic year.
+        /// Queries the Courses database to get the academic year for the term.
+        /// </summary>
+        /// <param name="connection">Open SQL connection to the VIPER database</param>
+        /// <param name="transaction">Optional transaction to use for the query</param>
+        /// <returns>Academic year string in format "YYYY-YYYY" (e.g., "2024-2025")</returns>
+        public static string GetCurrentAcademicYear(SqlConnection connection, SqlTransaction? transaction = null)
+        {
+            string sql = "SELECT TOP 1 TermCode FROM [VIPER].[dbo].[vwTerms] WHERE CurrentTerm = 1";
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            var result = cmd.ExecuteScalar();
+
+            if (result == null)
+            {
+                throw new InvalidOperationException(
+                    "No current term found in VIPER database. Please ensure CurrentTerm flag is set in vwTerms.");
+            }
+
+            int termCode = Convert.ToInt32(result);
+
+            // Convert the term code to academic year format
+            return GetAcademicYearFromTermCode(termCode);
+        }
+
+        /// <summary>
+        /// Converts a term code to academic year format (YYYY-YYYY).
+        /// Academic year runs from Fall through Spring (e.g., 2024-2025 includes Fall 2024 and Spring 2025).
+        /// Winter (01), Spring Semester (02), and Spring Quarter (03) belong to the academic year that started in the previous calendar year.
+        /// All other terms (Summer, Fall) belong to the academic year starting in the current calendar year.
+        /// </summary>
+        /// <param name="termCode">Term code (e.g., 202502 returns "2024-2025", 202410 returns "2024-2025")</param>
+        /// <returns>Academic year string (e.g., "2024-2025")</returns>
+        private static string GetAcademicYearFromTermCode(int termCode)
+        {
+            int year = termCode / 100;
+            int term = termCode % 100;
+
+            // Winter Quarter (01), Spring Semester (02), and Spring Quarter (03) belong to academic year that started previous calendar year
+            // All other terms (Summer, Fall) start or belong to academic year in the current calendar year
+            int startYear = (term >= 1 && term <= 3) ? year - 1 : year;
+
+            return $"{startYear}-{startYear + 1}";
+        }
+
+        /// <summary>
+        /// Loads configuration from appsettings.json files and AWS Parameter Store.
+        /// Falls back gracefully to appsettings.json only if AWS is unavailable.
+        /// </summary>
         public static IConfiguration LoadConfiguration()
         {
             var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
             var appRoot = GetApplicationRoot();
+
+            Console.WriteLine($"Loading configuration for environment: {environment}");
+            Console.WriteLine($"Configuration root: {appRoot}");
 
             var builder = new ConfigurationBuilder()
                 .SetBasePath(appRoot)
@@ -101,13 +199,20 @@ namespace Viper.Areas.Effort.Scripts
 
                 Console.WriteLine($"Successfully connected to AWS Parameter Store for environment: {environment}");
             }
-            catch (Exception ex)
+            catch (Amazon.Runtime.AmazonServiceException ex)
             {
-                throw new InvalidOperationException(
-                    "Failed to connect to AWS Parameter Store. " +
-                    "Ensure AWS credentials are configured (run the main VIPER application first or configure AWS credentials).",
-                    ex
-                );
+                Console.WriteLine($"Warning: Could not connect to AWS Parameter Store: {ex.Message}");
+                Console.WriteLine("Continuing with appsettings.json configuration only.");
+            }
+            catch (Amazon.Runtime.AmazonClientException ex)
+            {
+                Console.WriteLine($"Warning: Could not connect to AWS Parameter Store: {ex.Message}");
+                Console.WriteLine("Continuing with appsettings.json configuration only.");
+            }
+            catch (ArgumentException ex)
+            {
+                Console.WriteLine($"Warning: AWS configuration error: {ex.Message}");
+                Console.WriteLine("Continuing with appsettings.json configuration only.");
             }
 
             return builder.Build();

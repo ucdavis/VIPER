@@ -1,451 +1,435 @@
-# Effort Data Migration Analysis Script
+# Effort Migration Toolkit
 
-## Purpose
-This C# script analyzes the Effort database to identify all potential data integrity issues that need to be addressed before migrating to the VIPER database with foreign key constraints.
+Consolidated command-line tools for the Effort System migration from ColdFusion to .NET/Vue.js.
 
-## What It Analyzes
+## Overview
 
-### 1. MothraId Mapping Issues
+This project provides three main operations:
 
-- Identifies all MothraIds in Effort tables that don't exist in VIPER.users.Person
-- Reports count and percentage of affected records in each table
-- Lists specific unmapped MothraIds with their record counts
-
-### 2. Referential Integrity Issues
-
-- Orphaned courses (referencing non-existent terms)
-- Effort records without valid courses
-- Effort records with invalid roles
-- Percentage records without valid person/term combinations
-
-### 3. Business Rule Violations
-
-- Duplicate key violations (e.g., duplicate PersonId+TermCode)
-- Required fields with null values
-- Check constraint violations (percentages outside 0-100, invalid hours)
-
-### 4. Data Quality Issues
-
-- Suspicious data patterns (test data, demo data)
-- Date range analysis (oldest to newest terms)
-- Stale or inactive records
-
-## How to Run
-
-### Using the Batch File
-
-```bash
-# Navigate to Scripts folder
-cd C:\path\to\VIPER3\web\Areas\Effort\Scripts
-
-# Run with Development environment (default)
-RunDataAnalysis.bat
-
-# Run with Production environment
-RunDataAnalysis.bat Production
-
-# Run with custom config file
-RunDataAnalysis.bat Test custom-config.json
-```
-
-## Output
-
-The script generates a detailed text report in the `AnalysisOutput` folder:
-
-**`EffortAnalysis_[timestamp].txt`**
-
-- Human-readable detailed report
-- Executive summary with risk assessment
-- Detailed breakdown of each issue type
-- Recommended remediation actions
-
-## Understanding the Results
-
-### Severity Levels
-
-**CRITICAL** - Migration will fail without fixing these:
-
-- Unmapped MothraIds (no corresponding PersonId in VIPER)
-- Orphaned records (invalid foreign key references)
-- Duplicate key violations
-- Required fields with nulls
-
-**HIGH** - Should be fixed but migration might succeed:
-
-- Check constraint violations
-- Business rule violations
-
-**WARNING** - Should review but may be acceptable:
-
-- Suspicious data patterns
-- Very old data
-- Test/demo data
-
-### Risk Assessment
-
-- **HIGH** - More than 100 critical issues
-- **MEDIUM** - 50-100 critical issues
-- **LOW** - 1-49 critical issues
-- **MINIMAL** - No critical issues
-
-## Next Steps After Analysis
-
-Based on the analysis results, you'll need to:
-
-1. **For Unmapped MothraIds:**
-
-   - Option A: Create PersonId entries in VIPER for missing MothraIds
-   - Option B: Map to a default migration user
-   - Option C: Exclude these records from migration
-
-2. **For Orphaned Records:**
-
-   - Delete orphaned records
-   - Create missing parent records
-   - Update references to valid values
-
-3. **For Business Rule Violations:**
-
-   - Fill in required fields with default values
-   - Merge or delete duplicate records
-   - Correct invalid data values
-
-4. **For Data Quality Issues:**
-
-   - Clean up test/demo data
-   - Archive old data separately
-   - Standardize data formats
-
+1. **Data Analysis** - Analyze legacy Effort database for migration planning
+2. **Data Remediation** - Fix data quality issues before migration
+3. **Schema Export** - Document legacy database schema for reference
 
 ---
 
-# Effort Data Remediation Script
+## Quick Start
 
-> **🛡️ SAFETY FIRST**: This script defaults to **preview mode** (no changes). You must explicitly use `--apply` to modify the database.
+### Prerequisites
 
-## Purpose
+- .NET 8.0 SDK
+- Access to legacy Effort database (SQL Server)
 
-This C# script automatically fixes critical data quality issues identified by the EffortDataAnalysis script. It prepares the Efforts database for migration to VIPER by resolving data integrity problems.
+### Common Commands
 
-**✨ Key Features**:
+```bash
+cd web/Areas/Effort/Scripts
 
-- **Safe by Default**: Runs in dry-run mode unless you explicitly use `--apply`
-- **Idempotent**: Safe to run multiple times - skips already-fixed records
-- **Transaction Rollback Dry-Run**: Executes actual SQL in transactions then rolls back (validates SQL correctness)
-- **Backup System**: Creates SQL backup files before modifications (when using --apply)
-- **Transaction Safety**: All database operations wrapped in transactions for atomicity
+# Data analysis (Point 1 from PLAN.md)
+dotnet run -- analysis
 
-## What It Fixes
+# Data remediation
+dotnet run -- remediation --dry-run    # Preview changes
+dotnet run -- remediation              # Apply fixes
 
-### Task 1: Fix Duplicate Courses
+# Export legacy schema documentation
+dotnet run -- schema-export --output ../docs/Legacy_Schema.md
+```
 
-Identifies courses with duplicate (CRN + Term + Units) combinations and consolidates them:
+---
 
-- Keeps the course with the most effort assignments
-- Remaps effort records to the kept course
-- Deletes duplicate courses
-- **Example**: CRN 83036 Term 201010 Units 15 (2 duplicates) → keeps 1
+## Architecture
 
-### Task 2: Fix Missing Department Codes
+### Modern Architecture (3-Database Design)
 
-Fills in missing `person_EffortDept` values:
+```
++----------------------------------------------------------+
+|                  VIPER Database                          |
+|  - users.Person table (master person records)            |
+|  - Contains MothraId -> PersonId mapping                 |
++----------------------------------------------------------+
+                        |
+                        | Foreign Keys
+                        v
++----------------------------------------------------------+
+|              Effort Database (Modern)                    |
+|  - 19 tables with modern schema design                   |
+|  - Uses PersonId (int) instead of MothraId (varchar)     |
+|  - NO stored procedures (uses Entity Framework)          |
+|  - All CRUD operations via EF Core                       |
++----------------------------------------------------------+
+                        |
+                        | Views Query
+                        v
++----------------------------------------------------------+
+|    EffortShadow Database (Compatibility Layer)           |
+|  - 19 views mapping Effort -> legacy schema              |
+|  - 122 wrapper stored procedures for ColdFusion          |
+|  - Maps PersonId -> MothraId for legacy compatibility    |
+|  - NO DATA STORAGE (all views and SPs)                   |
++----------------------------------------------------------+
+                        |
+                        v
+              ColdFusion Application
+              (no code changes required)
+```
 
-- Looks up most recent valid department from person's other terms
-- Updates to found dept or "UNK" if none found
-- **Impact**: Prevents NULL constraint violations in migration
+---
 
-### Task 3: Generate Placeholder CRNs
+## Scripts Execution Order
 
-Assigns sequential placeholder CRNs to all courses with blank/null CRN values:
+### Prerequisites
 
-- **Courses with effort records**: CRN range 90001+ (critical for migration)
-- **Courses without effort records**: CRN range 99001+ (cleanup)
-- Sequential assignment based on course_id order
-- **Impact**: Ensures all courses have valid CRNs for migration
+1. **SQL Server** installed and accessible
+2. **.NET 8 SDK** installed
+3. **dotnet-script** tool installed:
+   ```bash
+   dotnet tool install -g dotnet-script
+   ```
+4. **Existing databases**:
+   - `VIPER` database with `users.Person` table
+   - `Efforts` database (legacy database with existing data)
 
-### Task 4: Delete Negative Hours Records
+### Step-by-Step Execution
 
-Removes invalid effort records with negative hours:
-
-- Identifies any records where effort_Hours < 0
-- **Impact**: Fixes check constraint violations
-
-### Task 5: Delete Invalid MothraIds
-
-Removes records with invalid/corrupted MothraIds:
-
-- Identifies MothraIds that contain invalid characters or patterns
-- Examples: `#URL.Mot` (data entry error), invalid IDs from data imports
-- **Impact**: Removes unmappable records
-
-### Task 6: Consolidate Guest Instructors
-
-Creates unified guest instructor account:
-
-- Creates VETGUEST person in VIPER if needed
-- Remaps various guest instructor accounts to VETGUEST:
-  - UNKGuest → VETGUEST
-  - VETGuest → VETGUEST
-  - VMDOGues → VETGUEST
-- **Impact**: Provides valid PersonId for all guest instructors
-
-### Task 7: Add Missing Person Records
-
-Creates VIPER person records for valid historical instructors:
-
-- Identifies instructors with effort records but no VIPER person record
-- Creates person entries with their historical MothraId data
-- **Impact**: Allows migration of their effort records
-
-### Task 8: Remap Duplicate Person Records
-
-Consolidates duplicate person records identified in data analysis:
-
-- Remaps effort/percent records to the canonical MothraId
-- Preserves all historical effort data
-- **Impact**: Prevents duplicate persons in VIPER
-
-## How to Run
-
-### Using Batch File
-
-#### Dry-Run Mode (Default - Safe)
+#### Step 1: Create Modern Effort Database
 
 ```bash
 cd web\Areas\Effort\Scripts
-RunDataRemediation.bat
+dotnet script CreateEffortDatabase.cs
 ```
 
-This **executes actual SQL in transactions then rolls back** - validates SQL correctness without persisting changes.
+**What this does:**
+- Creates the `Effort` database
+- Creates all 19 tables with modern schema
+- Sets up foreign keys to `VIPER.users.Person`
+- Creates indexes for performance
 
-**How it works:**
+**Tables created:**
+- Core tables: Roles, EffortTypes, Status, Persons, Courses, Records, Percentages, Sabbatics
+- Authorization: UserAccess (CRITICAL)
+- Lookup tables: Units, JobCodes, ReportUnits, ReviewYears, AlternateTitles, Months, Workdays
+- Relationships: CourseRelationships, AdditionalQuestions
+- Audit: AuditLog
 
-- Executes all UPDATE/DELETE/INSERT statements using real SQL
-- Validates SQL syntax and catches runtime errors
-- Acquires table locks (brief, released on rollback)
-- Rolls back all transactions at the end
-- No data is permanently modified
-- Catches SQL errors that preview-only mode would miss
+**Expected output:**
+```
+============================================
+Creating Effort Database
+============================================
+Creating database...
+  ✓ Effort database created successfully.
 
-#### Apply Fixes
+Creating tables...
+  ✓ Roles table created.
+  ✓ EffortTypes table created.
+  ...
+  ✓ UserAccess table created (CRITICAL).
+  ...
+✓ All 19 tables created successfully
+```
+
+---
+
+#### Step 2: Migrate Data from Legacy Database
 
 ```bash
-RunDataRemediation.bat --apply
+dotnet script MigrateEffortData.cs
 ```
 
-This **actually applies the changes** to the database (with backups).
+**What this does:**
+- Migrates all data from `Efforts` database to `Effort` database
+- Performs MothraId -> PersonId mapping via `VIPER.users.Person`
+- Validates all migrations
+- Preserves all data relationships
 
-#### Fast Mode (No Backup)
+**Security Note:** The migration script automatically adds `ApplicationIntent=ReadOnly` to the legacy Effort database connection to prevent accidental modifications. You'll see this notification during execution:
+```
+ℹ Added ApplicationIntent=ReadOnly to Effort connection for safety
+```
+
+**Migration order:**
+1. Lookup tables (Roles, EffortTypes, Status, Units, etc.)
+2. Core tables (Persons, Courses, Records, Percentages)
+3. Relationship tables (CourseRelationships, AdditionalQuestions)
+
+**Expected output:**
+```
+============================================
+Migrating Data from Efforts to Effort Database
+============================================
+Verifying prerequisites...
+  ✓ Effort database found
+  ✓ Legacy Efforts database found
+  ✓ Legacy database contains 1234 effort records
+
+Step 1: Migrate Lookup Tables
+  ✓ Migrated 5 roles
+  ✓ Migrated 3 effort types
+  ...
+
+Step 2: Migrate Core Tables
+  ✓ Migrated 456 persons
+  ✓ Migrated 789 courses
+  ✓ Migrated 1234 effort records
+  ...
+
+Step 4: Validate Migration
+  ✓ Roles: 5 records (matches legacy)
+  ✓ Records: 1234 records (matches legacy)
+  ...
+```
+
+**⚠ IMPORTANT:** Review warnings about unmapped records:
+```
+  ⚠ WARNING: 12 persons could not be mapped to VIPER.users.Person
+```
+These records will have `PersonId = 0` and need manual remediation.
+
+---
+
+#### Step 3: Create Shadow Database for ColdFusion
 
 ```bash
-RunDataRemediation.bat --apply --skip-backup
+dotnet script CreateEffortShadow.cs
 ```
 
-⚠️ **Warning**: Only use if you have a database backup!
+**What this does:**
+- Creates `EffortShadow` database
+- Creates 19 compatibility views mapping modern schema to legacy naming
+- Creates 122 wrapper stored procedures for ColdFusion
+- Maps PersonId -> MothraId for legacy compatibility
 
-#### With Different Environment
+**Views created:**
+- `tblEffort` -> maps to `Effort.dbo.Records`
+- `tblPerson` -> maps to `Effort.dbo.Persons`
+- `userAccess` -> maps to `Effort.dbo.UserAccess` (CRITICAL)
+- 16 additional views for all legacy tables
 
-```bash
-RunDataRemediation.bat Production          # Preview in Production
-RunDataRemediation.bat --apply Production  # Apply in Production
+**Expected output:**
+```
+============================================
+Creating EffortShadow Compatibility Database
+============================================
+Verifying prerequisites...
+  ✓ Effort database found
+  ✓ Effort database contains 1234 records
+
+Creating EffortShadow database...
+  ✓ EffortShadow database created successfully.
+
+Step 1: Create Compatibility Views
+Creating view: tblEffort (effort records)...
+  ✓ View created
+Creating view: userAccess (CRITICAL - user authorization)...
+  ✓ View created
+...
+✓ All 19 views created successfully
+
+Step 2: Create Wrapper Stored Procedures
+⚠ MANUAL STEP REQUIRED: Create the 122 wrapper stored procedures
 ```
 
-## Output
+**⚠ MANUAL STEP:** The 122 wrapper stored procedures need to be created based on the legacy `Efforts` database stored procedures. See [`Shadow_Database_Guide.md`](../docs/Shadow_Database_Guide.md) for the complete list.
 
-All outputs are saved in the `RemediationOutput/` directory:
+---
 
-**`RemediationReport_[timestamp].txt`**
+#### Step 4: Configure Security Permissions
 
-- Summary of all tasks executed
-- Records affected per task
-- Detailed list of changes made
-- Final statistics
+**Note:** Database permissions are configured by the DBA outside of migration scripts.
 
-**`Backups/` folder** (created when using `--apply`)
+**DBA will grant:**
+- ColdFusion application login access to EffortShadow database
+- ColdFusion application login access to Effort database (via wrappers)
+- ColdFusion application login access to VIPER.users.Person
+- VIPER2 application service account access to [VIPER].[effort] schema
 
-- SQL files with INSERT statements for original data
-- Format: `{TableName}_{timestamp}_{uniqueid}.sql`
-- Contains only affected records
-- Created automatically unless `--skip-backup` used
-- Example: `tblCourses_20251029_143022_a1b2c3d4.sql`
-- Easy to restore - just execute the SQL file
+**VIPER2 Authorization:**
+- Uses trusted application service account with full schema access
+- Authorization enforced at application layer using RAPS permissions
+- Department-level access controlled via UserAccess table
+- See [Authorization_Design.md](../Docs/Authorization_Design.md) for complete architecture
 
-## Safety Features
-
-### Idempotent Operations
-
-All tasks are **idempotent** - safe to run multiple times:
-
-- ✅ Checks if issues still exist before fixing
-- ✅ Skips records that are already corrected
-- ✅ No errors if re-run after completion
-- ✅ Can resume after interruption
-
-**Example**: If Task 3 completes but Task 4 fails, you can re-run the script. Tasks 1-3 will be skipped, and execution continues from Task 4.
-
-### Backup System
-
-When using `--apply` mode, creates backup SQL files:
-
-- **Not created in dry-run mode** (changes are rolled back, no backup needed)
-- Contains only affected records (not entire table)
-- Saved to `RemediationOutput/Backups/` folder
-- Each file contains INSERT statements to restore data
-- Automatically named with timestamp and unique ID
-- Ready to execute - no import wizards needed
-- Disable with `--skip-backup` for faster execution (only works with `--apply`)
-
-**Backup File Naming**:
-
-```
-RemediationOutput/
-  └── Backups/
-      ├── tblCourses_20251029_143022_a1b2c3d4.sql
-      ├── tblPerson_20251029_143022_b2c3d4e5.sql
-      └── tblEffort_20251029_143022_c3d4e5f6.sql
-```
-
-### Transaction Safety
-
-All database operations are wrapped in transactions:
-
-- ✅ **All operations** use SqlTransaction (not just multi-statement tasks)
-- ✅ **Dry-run mode**: Executes SQL then rolls back (validates without persisting)
-- ✅ **Apply mode**: Executes SQL then commits (persists changes)
-- ✅ Operations are atomic (all succeed or all rollback)
-- ✅ Task 1 (Fix Duplicates): UPDATE + DELETE in single transaction
-- ✅ Task 2-8: All UPDATEs/DELETEs/INSERTs wrapped in transactions
-- ✅ Idempotent design allows safe re-runs
-- ✅ Backup SQL files provide additional rollback capability (apply mode only)
-
-**Dry-Run Advantages:**
-
-- Catches SQL syntax errors before applying changes
-- Validates NULL handling and data type conversions
-- Shows actual row counts that will be affected
-- Brief table locks (released on rollback) - minimal impact on running systems
-
-**Recommendation**: Always run dry-run first, then apply during maintenance window.
-
-## Rollback Procedure
-
-If you need to rollback changes:
-
-### Restore from Backup SQL Files
-
-The backup SQL files contain INSERT statements that can be executed directly:
-
-**Manual execution:**
+**Example SQL for DBA reference:**
 
 ```sql
--- Run the contents of the backup SQL file
--- Example from tblCourses_20251029_143022_a1b2c3d4.sql:
+-- Example - actual commands will vary by environment
+USE master;
+CREATE LOGIN [DOMAIN\ViperAppService] FROM WINDOWS;
+CREATE LOGIN [DOMAIN\ColdFusionService] FROM WINDOWS;
 
-INSERT INTO tblCourses ([course_id], [course_CRN], [course_TermCode], ...)
-VALUES (123, '12345', 202503, ...);
+-- Add users to Effort database
+USE Effort;
+CREATE USER [DOMAIN\ViperAppService] FOR LOGIN [DOMAIN\ViperAppService];
+EXEC sp_addrolemember 'EffortEditor', 'DOMAIN\ViperAppService';
 
-INSERT INTO tblCourses ([course_id], [course_CRN], [course_TermCode], ...)
-VALUES (456, '67890', 202503, ...);
+-- Add users to EffortShadow database
+USE EffortShadow;
+CREATE USER [DOMAIN\ColdFusionService] FOR LOGIN [DOMAIN\ColdFusionService];
+EXEC sp_addrolemember 'ColdFusionApp', 'DOMAIN\ColdFusionService';
 ```
 
-## Recommended Workflow
+---
 
-### Complete Migration Process
+## Verification Steps
 
-#### 1. Initial Analysis
-
-```bash
-cd web\Areas\Effort\Scripts
-RunDataAnalysis.bat
-```
-
-Review the analysis report: `AnalysisOutput/EffortAnalysis_[timestamp].txt`
-
-Note the number of critical issues that need remediation.
-
-#### 2. Dry-Run Remediation
-
-```bash
-RunDataRemediation.bat
-```
-
-⚠️ **Note**: No `--apply` flag = safe dry-run mode (default)
-
-Review the dry-run report: `RemediationOutput/RemediationReport_[timestamp].txt`
-
-**What happens in dry-run:**
-
-- Executes all SQL statements in transactions
-- Validates syntax and catches runtime errors (e.g., NULL handling, type mismatches)
-- Acquires table locks briefly (released when transaction rolls back)
-- Shows actual row counts that would be affected
-- Rolls back all changes - no data is modified
-- **Advantage**: Catches SQL errors before applying changes to production
-
-#### 3. Backup Database (Recommended)
+### 1. Verify Effort Database
 
 ```sql
-BACKUP DATABASE Efforts
-TO DISK = 'C:\Backups\Efforts_PreRemediation.bak'
-WITH COMPRESSION;
+USE Effort;
+
+-- Check record counts
+SELECT 'Records' as TableName, COUNT(*) as RecordCount FROM Records
+UNION ALL
+SELECT 'Persons', COUNT(*) FROM Persons
+UNION ALL
+SELECT 'Courses', COUNT(*) FROM Courses
+UNION ALL
+SELECT 'UserAccess', COUNT(*) FROM UserAccess;
+
+-- Check MothraId mapping
+SELECT COUNT(*) as UnmappedPersons
+FROM Persons
+WHERE PersonId = 0;
+
+-- Should return 0 or very few records
 ```
 
-#### 4. Apply Remediation
+### 2. Verify EffortShadow Database
 
-```bash
-RunDataRemediation.bat --apply
+```sql
+USE EffortShadow;
+
+-- Check views exist
+SELECT name FROM sys.views ORDER BY name;
+-- Should return 19 views
+
+-- Check stored procedures exist
+SELECT name FROM sys.procedures ORDER BY name;
+-- Should return 122 procedures
+
+-- Test a view
+SELECT TOP 10 * FROM tblEffort;
+-- Should return effort records with MothraId (not PersonId)
+
+-- Test userAccess view (CRITICAL)
+SELECT COUNT(*) FROM userAccess;
+-- Should match count from Effort.dbo.UserAccess WHERE IsActive = 1
 ```
 
-The script will ask for confirmation before applying changes.
+### 3. Test ColdFusion Compatibility
 
-#### 5. Verify Results
+```sql
+USE EffortShadow;
 
-```bash
-RunDataAnalysis.bat
+-- Test the exact query ColdFusion uses
+SELECT *
+FROM tblEffort
+WHERE effort_MothraID = 'test123';
+
+-- Test authorization query
+SELECT *
+FROM userAccess
+WHERE mothraID = 'test123';
 ```
 
-Review the analysis report.
+---
 
-Should show: **0 critical issues** ✅
+## Rollback Procedures
 
-#### 6. Proceed with Migration
+If you need to rollback the migration:
 
-Once analysis shows 0 critical issues, proceed with:
+### Rollback Step 4 (Permissions)
+```sql
+-- Drop roles from Effort database
+USE Effort;
+DROP ROLE IF EXISTS EffortReadOnly;
+DROP ROLE IF EXISTS EffortEditor;
+DROP ROLE IF EXISTS EffortAdmin;
 
-- Entity Framework migration generation
-- Database schema migration
-- Data migration from Efforts → VIPER
+-- Drop role from EffortShadow database
+USE EffortShadow;
+DROP ROLE IF EXISTS ColdFusionApp;
+```
 
+### Rollback Step 3 (Shadow Database)
+```sql
+USE master;
+DROP DATABASE IF EXISTS EffortShadow;
+```
 
-## Notes
+### Rollback Step 2 (Data Migration)
+```sql
+USE Effort;
 
-### VETGUEST Account
+-- Truncate all tables in reverse dependency order
+TRUNCATE TABLE AdditionalQuestions;
+TRUNCATE TABLE CourseRelationships;
+TRUNCATE TABLE AuditLog;
+TRUNCATE TABLE UserAccess;
+TRUNCATE TABLE Sabbatics;
+TRUNCATE TABLE Percentages;
+TRUNCATE TABLE Records;
+TRUNCATE TABLE Courses;
+TRUNCATE TABLE Persons;
+-- ... continue for all tables
+```
 
-The consolidated guest instructor account:
+### Rollback Step 1 (Database Creation)
+```sql
+USE master;
+DROP DATABASE IF EXISTS Effort;
+```
 
-- **MothraId**: VETGUEST
-- **Name**: Guest Instructor
-- **Email**: vetguest@ucdavis.edu
-- **Purpose**: Historical placeholder for guest instructors
-- **Records**: Consolidates UNKGuest, VETGuest, VMDOGues
+---
 
-### CRN Numbering
+## Next Steps After Migration
 
-Placeholder CRNs use distinct ranges:
+1. **Test ColdFusion Application**
+   - Update ColdFusion datasource to point to `EffortShadow`
+   - Test all CRUD operations
+   - Verify authorization queries work
 
-- **Real CRNs**: 5 digits (e.g., 12345)
-- **90001-90999**: Courses with effort records (must migrate)
-- **99001-99999**: Courses without effort records (cleanup)
-- Easily identifiable as system-generated
-- Sequential assignment based on course_id order
+2. **Create Entity Framework Entities**
+   - Scaffold EF entities from `Effort` database
+   - Create DbContext class
+   - Add to VIPER2 application
 
-### Data Integrity
+3. **Build New API Endpoints**
+   - Create ASP.NET Core controllers
+   - Implement business logic services
+   - Add permission attributes
 
-After remediation:
+4. **Create Vue.js Frontend**
+   - Build new UI components
+   - Implement API service layer
+   - Add Quasar components for forms/tables
 
-- All MothraIds map to valid VIPER PersonIds
-- No duplicate courses
-- No NULL department codes
-- No blank CRNs (for courses with effort records)
-- No negative hours
-- All check constraints satisfied
+5. **Data Validation**
+   - Run comprehensive data validation queries
+   - Fix any unmapped PersonId records
+   - Verify all relationships are intact
+
+6. **Performance Testing**
+   - Test query performance
+   - Add additional indexes if needed
+   - Optimize slow queries
+
+7. **Create 122 Wrapper Stored Procedures**
+   - Export all 122 stored procedures from legacy `Efforts` database
+   - Create wrapper versions in `EffortShadow` database
+   - Each wrapper should query the views, not the `Effort` database directly
+
+---
+
+## Additional Resources
+
+- **Planning Documents:**
+  - [Effort Master Plan](../docs/EFFORT_MASTER_PLAN.md)
+  - [Migration Guide](../docs/MIGRATION_GUIDE.md)
+  - [Shadow Database Guide](../docs/Shadow_Database_Guide.md)
+  - [Database Schema](../docs/Effort_Database_Schema.sql)
+  - [Technical Reference](../docs/Technical_Reference.md)
+
+- **Data Analysis:**
+  - [Data Analysis Script](./EffortDataRemediation.cs)
+  - [SQL Remediation Scripts](./SQL/)

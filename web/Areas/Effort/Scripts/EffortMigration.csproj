@@ -24,12 +24,6 @@
     <None Include="../../../appsettings.Test.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- Exclude dotnet-script files (they have top-level statements and can't be compiled as part of project) -->
-  <ItemGroup>
-    <Compile Remove="CreateEffortDatabase.cs" />
-    <Compile Remove="MigrateEffortData.cs" />
-    <Compile Remove="CreateEffortShadow.cs" />
-    <Compile Remove="ConfigurePermissions.cs" />
-  </ItemGroup>
+  <!-- All migration scripts are now compiled as part of the project -->
 
 </Project>

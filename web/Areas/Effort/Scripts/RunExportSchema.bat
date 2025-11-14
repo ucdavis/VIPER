@@ -9,8 +9,8 @@ echo ===========================================================================
 echo Effort Database Schema Export
 echo ================================================================================
 echo.
-echo This script will export the Effort database schema and sample data.
-echo Output: %CD%\Effort_Database_Schema_And_Data.txt
+echo This script will export the LEGACY Effort database schema and sample data.
+echo Output: %CD%\Effort_Database_Schema_And_Data_LEGACY.txt
 echo.
 echo ================================================================================
 echo.
@@ -28,7 +28,7 @@ if %ERRORLEVEL% EQU 0 (
     echo ================================================================================
     echo.
     echo The exported schema file is located at:
-    echo   %CD%\Effort_Database_Schema_And_Data.txt
+    echo   %CD%\Effort_Database_Schema_And_Data_LEGACY.txt
     echo.
 ) else (
     echo.
@@ -36,11 +36,7 @@ if %ERRORLEVEL% EQU 0 (
     echo ERROR: Export failed with error code %ERRORLEVEL%
     echo ================================================================================
     echo.
-    echo Common issues:
-    echo - .NET 8 SDK not installed: Download from https://dotnet.microsoft.com/download
-    echo - Connection string not configured: Check appsettings.json or appsettings.Development.json
-    echo - Database not accessible: Verify SQL Server connection and permissions
-    echo - AWS credentials not configured: Run the main VIPER application first
+    echo See error details above for specific issue.
     echo.
 )
 

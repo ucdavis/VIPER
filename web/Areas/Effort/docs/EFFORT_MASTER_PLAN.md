@@ -16,7 +16,7 @@ This master plan outlines an agile, feature-driven migration strategy for transf
 ### Legacy System (ColdFusion)
 - **85 CFM files** including 40+ reports and **8 CFC components**
 - **Complex workflows**: Term lifecycle, multi-system imports, effort verification
-- **Efforts database** with 21 tables, 93 active stored procedures
+- **Efforts database** with 21 tables, 87 active stored procedures (89 total, 2 obsolete)
 - **Missing database constraints**: 0 foreign keys, 4 tables without primary keys
 - **Security concerns**: Limited input validation, SQL injection risks
 - **Integration dependencies**: CREST, Banner, Clinical Scheduler, AAUD systems
@@ -31,34 +31,89 @@ This master plan outlines an agile, feature-driven migration strategy for transf
 
 ---
 
-## Database Access Strategy - Hybrid Approach
+## Database Strategy - Shadow Database Approach
 
-### Overview
-The migration will use a **hybrid approach** optimized for performance and maintainability:
-- **Entity Framework with LINQ** will replace simple CRUD stored procedures (~37 SPs)
-- **Complex reporting SPs** will be migrated and modernized (~16 SPs)
-- **Unused procedures** will not be migrated (~30 SPs)
-- **Term Management**: Leverage existing VIPER vwTerms view for term data, create [effort].[TermStatus] for workflow tracking
+### Architecture Overview
 
-### Rationale
-- Simple CRUD operations: EF/LINQ provides better maintainability and type safety
-- Complex reporting: Stored procedures are 10-30x faster for aggregations with temp tables
-- Term data reuse: Avoid duplicating term reference data that already exists in VIPER
-- This approach balances modern development practices with proven performance
+The migration uses a **Shadow Database** pattern to enable parallel operation of ColdFusion and VIPER2:
 
-### Term Management Strategy
-Instead of creating a duplicate [effort].[Terms] table, we will:
-1. **Use existing vwTerms** for term reference data (TermCode, Description, StartDate, EndDate, etc.)
-2. **Create [effort].[TermStatus]** table for Effort-specific workflow tracking:
-   - TermCode (PK, references vwTerms.TermCode)
-   - Status (Harvested/Opened/Closed)
-   - HarvestedDate, OpenedDate, ClosedDate
-   - ModifiedBy, ModifiedDate for audit trail
-3. **Benefits**:
-   - No duplication of term data
-   - Leverages existing VIPER infrastructure
-   - Maintains Effort-specific workflow tracking
-   - Better integration with other VIPER modules
+**Two Separate Databases:**
+1. **Effort Database** - Modernized schema (single source of truth)
+2. **EffortShadow Database** - Compatibility layer (views + wrapper SPs only)
+
+**Key Benefits:**
+- ✅ ColdFusion continues running unchanged during entire VIPER2 development
+- ✅ Single source of truth - no data synchronization needed
+- ✅ Both applications share same data in real-time
+- ✅ Easy cleanup - drop EffortShadow when ColdFusion retired
+- ✅ Low risk - can rollback by changing one connection string
+
+### Effort Database (Primary)
+
+**Purpose:** Modern schema with proper constraints and relationships
+
+**Schema Design:**
+- Clean table names: Records, Persons, Courses, Percentages, Terms, etc.
+- MothraId (varchar) → PersonId (int FK to VIPER.users.Person)
+- Decimal types for precision (percentages, units)
+- Comprehensive audit fields (CreatedDate, ModifiedDate, ModifiedBy)
+- Proper foreign keys and unique constraints
+- Optimized indexes for EF Core queries
+
+**Stored Procedures:**
+- 37 CRUD procedures rewritten with modernized logic
+- 16 complex reporting procedures (optional - can use EF/LINQ instead)
+- All handle MothraId → PersonId mapping automatically
+
+### EffortShadow Database (Compatibility Layer)
+
+**Purpose:** Enable ColdFusion to use new schema transparently
+
+**Contains:** Views and wrapper SPs only (NO DATA)
+
+**Compatibility Views:**
+```
+tblEffort        → VIEW of [Effort].[dbo].[Records]
+tblPerson        → VIEW of [Effort].[dbo].[Persons]
+tblCourses       → VIEW of [Effort].[dbo].[Courses]
+tblPercent       → VIEW of [Effort].[dbo].[Percentages]
+tblStatus        → VIEW of [Effort].[dbo].[Terms]
+tblSabbatic      → VIEW of [Effort].[dbo].[Sabbaticals]
+tblRoles         → VIEW of [Effort].[dbo].[Roles]
+tblEffortType_LU → VIEW of [Effort].[dbo].[EffortTypes]
+```
+
+**Wrapper Stored Procedures:**
+- 37 wrapper SPs with legacy signatures
+- Each delegates to corresponding Effort database SP
+- ColdFusion calls wrappers, wrappers call real SPs
+- Transparent to ColdFusion application
+
+**ColdFusion Configuration Change:**
+- Update datasource: `Efforts` → `EffortShadow`
+- That's the ONLY change needed in ColdFusion!
+
+**Detailed Implementation:** See `Shadow_Database_Implementation_Plan.md`
+
+### Data Access Strategy
+
+**VIPER2 Application:**
+- Connects directly to **Effort** database
+- Uses Entity Framework with LINQ for CRUD operations
+- Modern repository and service layer patterns
+- Type-safe, testable, maintainable code
+
+**ColdFusion Application:**
+- Connects to **EffortShadow** database
+- Uses views (read operations) and wrapper SPs (write operations)
+- Completely unchanged code
+- Views/wrappers handle all translation to new schema
+
+**Both Applications:**
+- Read and write to same underlying Effort database
+- See changes immediately (real-time consistency)
+- No dual-write complexity
+- Single source of truth
 
 ### Migration Approach by Category
 
@@ -118,7 +173,7 @@ Development artifacts and unused procedures will not be migrated
 
 ### Migration Summary
 
-**Total Stored Procedures in Legacy System:** 83
+**Total Stored Procedures in Legacy System:** 87 active (89 total, 2 obsolete)
 
 **Hybrid Approach - Best of Both Worlds:**
 - **Replace with EF Repositories:** ~37 CRUD operation SPs
@@ -141,62 +196,161 @@ Development artifacts and unused procedures will not be migrated
 
 ---
 
+## Authorization Design
+
+The Effort system integrates with VIPER2's existing RAPS-based permission architecture to provide both system-wide and department-level authorization.
+
+### Two-Layer Authorization Model
+
+1. **RAPS Permissions (System-Wide)**: Controls what actions users can perform
+   - `SVMSecure.Effort.Admin` - Full administrative access
+   - `SVMSecure.Effort.Manage` - Manage all departments
+   - `SVMSecure.Effort.ViewDept` - View department-level data
+   - `SVMSecure.Effort.EditDept` - Edit department-level data
+   - `SVMSecure.Effort.VerifyDept` - Verify department effort records
+   - `SVMSecure.Effort.ViewOwn` - View own effort records
+   - `SVMSecure.Effort.EditOwn` - Edit own effort records
+   - `SVMSecure.Effort.RunReports` - Access reporting functionality
+
+2. **UserAccess Table (Department-Specific)**: Controls which departments users can access
+   - Users with department-level permissions (ViewDept, EditDept, VerifyDept) are filtered by their UserAccess assignments
+   - Admin and Manage permissions bypass department filtering
+
+### Implementation Components
+
+- **EffortPermissions.cs**: Strongly-typed permission constants
+- **IEffortPermissionService**: Service interface for permission checks
+- **EffortPermissionService**: Implementation following VIPER2's ClinicalScheduler pattern
+- **PermissionAttribute**: Applied to controllers/actions for RAPS authorization
+- **Service Layer**: All controllers use EffortPermissionService for department-level filtering
+
+### Key Benefits Over Legacy System
+
+- ✅ Consistent with VIPER2 architecture (follows ClinicalScheduler pattern)
+- ✅ Centralized permission management through RAPS
+- ✅ Type-safe permission constants prevent typos
+- ✅ Department-level access preserved from legacy system
+- ✅ Permission hierarchy (Admin > Manage > Department-specific)
+- ✅ Comprehensive audit trail (ModifiedBy, ModifiedDate, IsActive)
+- ✅ Service layer enables testability and maintainability
+- ✅ Defense in depth (application layer + optional row-level security)
+
+**Detailed Documentation**: See [Authorization_Design.md](Authorization_Design.md) for complete architecture, implementation guide, code examples, and migration path.
+
+---
+
 ## Implementation Phases & Sprint Structure
 
-### Phase 1: Database Updates (Sprint 0 - Pre-Development)
-**Timeline:** Prior to Sprint 1 start
-**Focus:** Database preparation and schema migration
+### Phase 1: Shadow Database Setup (Sprint 0 - Pre-Development)
+**Timeline:** Prior to Sprint 1 start (1-2 weeks)
+**Focus:** Database preparation, data migration, and shadow database creation
+**Detailed Plan:** See `Shadow_Database_Implementation_Plan.md`
 
-#### Database Migration Decisions
-- [x] Validate table usage in codebase (COMPLETED)
-- [ ] Tables NOT to migrate (leave in legacy database):
-  - [ ] AdditionalQuestion (no references found)
-  - [ ] Months (no references found)
-  - [ ] Sheet1 (no references found)
-  - [ ] Workdays (no references found)
-  - [ ] tblReviewYears (referenced but appears unused)
-  - [ ] userAccess (disabled in UI, replaced by VIPER Application Approvers)
-- [ ] Tables TO MIGRATE to new schema:
-  - [ ] tblSabbatic → [effort].[Sabbaticals] (ACTIVELY USED for faculty leave tracking - critical for merit reports)
-  - [ ] tblEffort → [effort].[Records]
-  - [ ] tblPerson → [effort].[Persons]
-  - [ ] tblCourses → [effort].[Courses]
-  - [ ] tblPercent → [effort].[Percentages]
-  - [ ] tblStatus → [effort].[Terms]
-  - [ ] tblEffortType_LU → [effort].[EffortTypes]
-  - [ ] tblRoles → [effort].[Roles]
-- [ ] Create VIPER.effort schema in VIPER database
-- [ ] Migrate tables with PersonId integration to [VIPER].[users].[Person]
-- [ ] Rename tblEffortType_LU to PercentType
-- [ ] Create foreign key constraints and unique constraints
-- [ ] Replace MothraId with PersonId throughout (FK to [VIPER].[users].[Person])
+#### Week 1: Database Creation and Data Migration
 
-#### Stored Procedure Migration Preparation
-- [ ] Analyze and categorize all 83 stored procedures
-- [ ] Create migration script templates for reporting SPs
-- [ ] Document table/field name mappings for SP updates:
-  - tblEffort → [effort].[Records]
-  - effort_MothraID → PersonId
-  - tblPerson → [effort].[Persons]
-  - person_MothraID → PersonId
-  - tblSabbatic → [effort].[Sabbaticals]
-  - sab_MothraID → PersonId
-- [ ] Migrate helper functions to new schema:
-  - [ ] getFirstTermInYear - Converts year to first term code
-  - [ ] getLastTermInYear - Converts year to last term code
-- [ ] Create test harness for validating SP migrations
-- [ ] Identify SP dependencies on external databases (AAUD, Banner)
+**Step 1: Data Quality Remediation**
+- [ ] Run EffortDataAnalysis.cs to identify critical data quality issues
+- [ ] Run EffortDataRemediation.cs to fix all issues
+- [ ] Verify 0 critical issues remain
 
-#### Data Migration Requirements
-- [ ] Map effort_MothraID → PersonId (int FK to [VIPER].[users].[Person])
-- [ ] Map person_MothraID → PersonId (int FK to [VIPER].[users].[Person])
-- [ ] Map percent_MothraID → PersonId (int FK to [VIPER].[users].[Person])
-- [ ] Map ModifiedBy fields → PersonId references
-- [ ] Create repeatable migration scripts (RedGate or SQL scripts)
+**Step 2: Create Effort Database**
+- [ ] Create Effort database (modernized schema)
+- [ ] Create all tables with proper constraints:
+  - [ ] Records (tblEffort)
+  - [ ] Persons (tblPerson)
+  - [ ] Courses (tblCourses)
+  - [ ] Percentages (tblPercent)
+  - [ ] Terms (tblStatus)
+  - [ ] Sabbaticals (tblSabbatic)
+  - [ ] Roles (tblRoles)
+  - [ ] EffortTypes (tblEffortType_LU)
+  - [ ] CourseRelationships (new)
+  - [ ] AdditionalQuestions (new)
+  - [ ] Audits (new)
+
+**Tables NOT Migrated:**
+
+- AdditionalQuestion - legacy table with 0 rows, unused
+- Months - no references found in legacy code or stored procedures
+- Sheet1 - no references found
+- Workdays - no references found in legacy code or stored procedures
+- tblReviewYears - partially implemented feature, never fully deployed (only 1 test record), superseded by dynamic year selection in reports
+
+**Tables Migrated (verified in active use):**
+
+- userAccess - **MIGRATED** (actively used in Access.cfc and manageAccess.cfm for department-level authorization)
+
+**Step 3: Migrate Data**
+- [ ] Migrate reference data (Roles, EffortTypes, Terms)
+- [ ] Migrate courses with variable-unit support
+- [ ] Migrate persons with PersonId mapping
+- [ ] Migrate effort records
+- [ ] Migrate percentages
+- [ ] Migrate sabbaticals
+- [ ] Validate record counts match
+
+**Step 4: Create Stored Procedures in Effort Database**
+- [ ] Create 37 CRUD stored procedures
+- [ ] Add MothraId → PersonId mapping logic
+- [ ] Add proper error handling and transactions
+- [ ] Test SCOPE_IDENTITY() returns correctly
+
+#### Week 2: Shadow Database Creation and ColdFusion Update
+
+**Step 5: Create EffortShadow Database**
+- [ ] Create EffortShadow database (empty)
+- [ ] Create 8 compatibility views:
+  - [ ] tblEffort → Records view
+  - [ ] tblPerson → Persons view
+  - [ ] tblCourses → Courses view
+  - [ ] tblPercent → Percentages view
+  - [ ] tblStatus → Terms view
+  - [ ] tblSabbatic → Sabbaticals view
+  - [ ] tblRoles → Roles view
+  - [ ] tblEffortType_LU → EffortTypes view
+
+**Step 6: Create Wrapper Stored Procedures**
+- [ ] Create 37 wrapper SPs in EffortShadow
+- [ ] Test each wrapper delegates correctly
+- [ ] Create 16 read-only reporting SPs (use views)
+
+**Step 7: Database Permissions (DBA Responsibility)**
+- [ ] DBA grants ColdFusion login access to EffortShadow
+- [ ] DBA grants ColdFusion login access to Effort (via wrappers)
+- [ ] DBA grants ColdFusion login access to VIPER.users.Person
+- [ ] DBA grants VIPER2 application service account access to Effort database
+
+**Note:** Database permissions are configured by the DBA outside of migration scripts. The VIPER2 application uses a trusted service account with full schema access, and authorization is enforced at the application layer (see Authorization Design below).
+
+**Step 8: Update ColdFusion**
+- [ ] Change datasource from "Efforts" to "EffortShadow"
+- [ ] Test all ColdFusion functionality:
+  - [ ] CRUD operations
+  - [ ] Reporting
+  - [ ] Term management
+  - [ ] Imports
+  - [ ] Verification workflow
+
+**Step 9: Performance Validation**
+- [ ] Benchmark view query performance
+- [ ] Benchmark wrapper SP performance
+- [ ] Ensure no degradation from baseline
+
+#### Success Criteria for Phase 1
+✅ Effort database contains all migrated data
+✅ EffortShadow database created with all views and wrapper SPs
+✅ ColdFusion updated to use EffortShadow
+✅ All ColdFusion functionality working correctly
+✅ Performance meets or exceeds baseline
+✅ Both ColdFusion and VIPER2 can access same data
+
+---
 
 ### Agile Sprint Structure
 
 Each 2-week sprint delivers a complete, testable feature with database, API, and UI components. This vertical slicing approach enables continuous stakeholder feedback and reduces integration risk.
+
+**Note:** ColdFusion continues running on EffortShadow throughout all sprints. VIPER2 development proceeds incrementally while both systems share the same underlying Effort database.
 
 ## Sprint 1: Foundation & Core Data Model (Phase 2)
 
@@ -439,8 +593,9 @@ Each 2-week sprint delivers a complete, testable feature with database, API, and
 - Verification status tracking
 
 **Sprint 8: Permission & Access Control**
-- RAPS integration and claims
-- Department-based restrictions
+- Implement EffortPermissionService (see [Authorization_Design.md](Authorization_Design.md))
+- RAPS permission integration (SVMSecure.Effort.*)
+- Department-based access control via UserAccess table
 - Role enforcement across all features
 
 **Sprint 9: Percent Assignment (Phase 7)**

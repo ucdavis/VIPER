@@ -372,8 +372,10 @@ namespace Viper.Areas.Effort.Scripts
             _report.ReferentialIntegrityIssues = new ReferentialIntegrityAnalysis();
 
             using (var conn = new SqlConnection(_effortsConnectionString))
+            using (var viperConn = new SqlConnection(_viperConnectionString))
             {
                 conn.Open();
+                viperConn.Open();
 
                 // Check for orphaned courses (referencing non-existent terms)
                 var orphanedCourses = CheckOrphanedRecords(conn,
@@ -400,6 +402,11 @@ namespace Viper.Areas.Effort.Scripts
                 var orphanedPercentages = CheckOrphanedPercentageRecords(conn);
                 _report.ReferentialIntegrityIssues.OrphanedPercentages = orphanedPercentages;
                 Console.WriteLine($"  Percentage records with invalid person/term combinations: {orphanedPercentages.Count}");
+
+                // Check for alternate titles without valid persons
+                var orphanedAltTitles = CheckOrphanedAlternateTitles(conn, viperConn);
+                _report.ReferentialIntegrityIssues.OrphanedAlternateTitles = orphanedAltTitles;
+                Console.WriteLine($"  Alternate titles with unmapped or missing persons: {orphanedAltTitles.Count}");
             }
         }
 
@@ -463,6 +470,79 @@ namespace Viper.Areas.Effort.Scripts
                     {
                         ReferenceValue = $"{reader[0]}|{reader[1]}",
                         RecordCount = reader.GetInt32(2)
+                    });
+                }
+            }
+
+            result.Count = result.OrphanedRecords.Sum(r => r.RecordCount);
+            return result;
+        }
+
+        private OrphanedRecordSet CheckOrphanedAlternateTitles(SqlConnection effortConn, SqlConnection viperConn)
+        {
+            var result = new OrphanedRecordSet
+            {
+                ChildTable = "tblAltTitles",
+                ParentTable = "tblPerson → VIPER.users.Person"
+            };
+
+            // Build MothraId lookup from VIPER (same pattern as migration script)
+            var viperMothraIds = new HashSet<string>();
+            var viperQuery = "SELECT MothraId FROM [users].[Person] WHERE MothraId IS NOT NULL";
+            using (var cmd = new SqlCommand(viperQuery, viperConn))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    viperMothraIds.Add(reader.GetString(0));
+                }
+            }
+
+            // Query AlternateTitles and tblPerson from Effort database
+            // Check for AlternateTitles where:
+            // 1. JobGrpID doesn't match any person (orphaned from tblPerson)
+            // 2. JobGrpID matches a person but that person's MothraID isn't in VIPER
+            var effortQuery = @"
+                SELECT
+                    alt.JobGrpID,
+                    alt.JobGrpName,
+                    tp.person_MothraID,
+                    COUNT(*) as RecordCount
+                FROM [dbo].[tblAltTitles] alt
+                LEFT JOIN [dbo].[tblPerson] tp ON alt.JobGrpID = tp.person_JobGrpID
+                GROUP BY alt.JobGrpID, alt.JobGrpName, tp.person_MothraID
+                ORDER BY RecordCount DESC";
+
+            using (var cmd = new SqlCommand(effortQuery, effortConn))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    var jobGrpId = reader.GetString(0);
+                    var jobGrpName = reader.GetString(1);
+                    var mothraId = reader.IsDBNull(2) ? null : reader.GetString(2);
+                    var recordCount = reader.GetInt32(3);
+
+                    // Determine reason for orphan status
+                    string reason;
+                    if (mothraId == null)
+                    {
+                        reason = "No matching person in tblPerson";
+                    }
+                    else if (!viperMothraIds.Contains(mothraId))
+                    {
+                        reason = "Person exists but MothraID not in VIPER";
+                    }
+                    else
+                    {
+                        // This record is valid, skip it
+                        continue;
+                    }
+
+                    result.OrphanedRecords.Add(new OrphanedRecord
+                    {
+                        ReferenceValue = $"{jobGrpId} ({jobGrpName}) - {reason}",
+                        RecordCount = recordCount
                     });
                 }
             }
@@ -668,9 +748,47 @@ namespace Viper.Areas.Effort.Scripts
             // These are foreign key constraints that will be added in the new schema
             // but don't exist in the current legacy database
 
-            // 1. SessionType validation - all existing values are valid and already included in proposed schema
-            // No validation needed since all SessionTypes in legacy data are legitimate and defined in the new schema
-            Console.WriteLine("  SessionType validation: All existing SessionTypes are valid and included in proposed schema");
+            // 1. SessionType validation - check for SessionTypes NOT in the valid list
+            var sessionTypeQuery = @"
+                SELECT DISTINCT effort_SessionType, COUNT(*) as RecordCount
+                FROM tblEffort
+                WHERE effort_SessionType IS NOT NULL
+                GROUP BY effort_SessionType
+                ORDER BY effort_SessionType";
+
+            var validSessionTypes = new HashSet<string>(EffortScriptHelper.ValidSessionTypes, StringComparer.OrdinalIgnoreCase);
+            var invalidSessionTypes = new List<(string SessionType, int Count)>();
+
+            using (var cmd = new SqlCommand(sessionTypeQuery, conn))
+            using (var reader = cmd.ExecuteReader())
+            {
+                int recordCountOrdinal = reader.GetOrdinal("RecordCount");
+                while (reader.Read())
+                {
+                    var sessionType = reader["effort_SessionType"]?.ToString() ?? "";
+                    var count = reader.GetInt32(recordCountOrdinal);
+
+                    if (!validSessionTypes.Contains(sessionType))
+                    {
+                        invalidSessionTypes.Add((sessionType, count));
+                    }
+                }
+            }
+
+            if (invalidSessionTypes.Count > 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  ⚠ Found {invalidSessionTypes.Count} INVALID SessionTypes (not in schema):");
+                Console.ResetColor();
+                foreach (var (sessionType, count) in invalidSessionTypes)
+                {
+                    Console.WriteLine($"    - '{sessionType}': {count} records");
+                }
+            }
+            else
+            {
+                Console.WriteLine("  ✓ All SessionTypes are valid and included in schema");
+            }
 
             // 2. Check EffortType foreign key references
             var effortTypeQuery = @"
@@ -731,7 +849,7 @@ namespace Viper.Areas.Effort.Scripts
                 }
             }
 
-            Console.WriteLine($"  Planned foreign key constraint violations checked");
+            Console.WriteLine("  ✓ Planned foreign key constraint violations");
         }
 
         private void CheckPlannedUniqueConstraints(SqlConnection conn)
@@ -807,7 +925,7 @@ namespace Viper.Areas.Effort.Scripts
                 }
             }
 
-            Console.WriteLine($"  Planned unique constraint violations checked");
+            Console.WriteLine("  ✓ Planned unique constraint violations");
         }
 
         private void CheckDataQuality()
@@ -823,6 +941,18 @@ namespace Viper.Areas.Effort.Scripts
 
                 // Check for inactive/old data
                 CheckStaleData(conn);
+
+                // Check for courses with invalid units (discovered during migration)
+                CheckCoursesWithInvalidUnits(conn);
+
+                // Check for records with invalid references (discovered during migration)
+                CheckRecordsWithInvalidReferences(conn);
+
+                // Check for percentages with invalid references (discovered during migration)
+                CheckPercentagesWithInvalidReferences(conn);
+
+                // Check for course relationships with invalid types or references (discovered during migration)
+                CheckCourseRelationshipIssues(conn);
             }
         }
 
@@ -878,6 +1008,187 @@ namespace Viper.Areas.Effort.Scripts
             }
 
             Console.WriteLine($"  Term range: {_report.DataQualityIssues.OldestTermCode} to {_report.DataQualityIssues.NewestTermCode} ({_report.DataQualityIssues.TotalTerms} terms)");
+        }
+
+        private void CheckCoursesWithInvalidUnits(SqlConnection conn)
+        {
+            // Migration will skip courses with Units < 0 due to CHECK constraint (Units >= 0)
+            var query = "SELECT COUNT(*) FROM tblCourses WHERE course_Units < 0";
+            using (var cmd = new SqlCommand(query, conn))
+            {
+                int count = (int)cmd.ExecuteScalar();
+                if (count > 0)
+                {
+                    _report.DataQualityIssues.CoursesWithInvalidUnits = count;
+                    Console.WriteLine($"  Courses with invalid units (<0): {count}");
+                }
+            }
+        }
+
+        private void CheckRecordsWithInvalidReferences(SqlConnection conn)
+        {
+            var viperMothraIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using (var viperConn = new SqlConnection(_viperConnectionString))
+            {
+                viperConn.Open();
+                using (var cmd = new SqlCommand("SELECT MothraId FROM users.Person WHERE MothraId IS NOT NULL", viperConn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        viperMothraIds.Add(reader.GetString(0));
+                    }
+                }
+            }
+
+            // Migration will fail to map PersonId without matching VIPER record
+            var unmappedPersonQuery = @"
+                SELECT COUNT(*)
+                FROM tblEffort
+                WHERE effort_MothraID NOT IN (SELECT person_MothraID FROM tblPerson WHERE person_MothraID IS NOT NULL)
+                   OR effort_MothraID IS NULL";
+            using (var cmd = new SqlCommand(unmappedPersonQuery, conn))
+            {
+                int count = (int)cmd.ExecuteScalar();
+                if (count > 0)
+                {
+                    _report.DataQualityIssues.RecordsWithUnmappedPersons = count;
+                    Console.WriteLine($"  Effort records with unmapped PersonId: {count}");
+                }
+            }
+
+            // Orphaned records referencing deleted courses - migration will skip these
+            var invalidCourseQuery = @"
+                SELECT COUNT(*)
+                FROM tblEffort e
+                LEFT JOIN tblCourses c ON e.effort_CourseID = c.course_ID
+                WHERE c.course_ID IS NULL";
+            using (var cmd = new SqlCommand(invalidCourseQuery, conn))
+            {
+                int count = (int)cmd.ExecuteScalar();
+                if (count > 0)
+                {
+                    _report.DataQualityIssues.RecordsWithInvalidCourses = count;
+                    Console.WriteLine($"  ⚠ Effort records with invalid CourseId (will be skipped): {count}");
+                }
+            }
+
+            // Migration will skip records violating CHECK constraint (Hours >= 0 AND Hours <= 2500)
+            var invalidHoursQuery = "SELECT COUNT(*) FROM tblEffort WHERE effort_Hours < 0 OR effort_Hours > 2500";
+            using (var cmd = new SqlCommand(invalidHoursQuery, conn))
+            {
+                int count = (int)cmd.ExecuteScalar();
+                if (count > 0)
+                {
+                    _report.DataQualityIssues.RecordsWithInvalidHours = count;
+                    Console.WriteLine($"  Effort records with invalid Hours (<0 or >2500): {count}");
+                }
+            }
+
+            // Business rule validation: effort weeks must be within academic year range
+            var invalidWeeksQuery = "SELECT COUNT(*) FROM tblEffort WHERE effort_Weeks < 0 OR effort_Weeks > 52";
+            using (var cmd = new SqlCommand(invalidWeeksQuery, conn))
+            {
+                int count = (int)cmd.ExecuteScalar();
+                if (count > 0)
+                {
+                    _report.DataQualityIssues.RecordsWithInvalidWeeks = count;
+                    Console.WriteLine($"  Effort records with invalid Weeks (<0 or >52): {count}");
+                }
+            }
+        }
+
+        private void CheckPercentagesWithInvalidReferences(SqlConnection conn)
+        {
+            // Migration will fail to map PersonId without matching VIPER record
+            var unmappedPersonQuery = @"
+                SELECT COUNT(*)
+                FROM tblPercent
+                WHERE percent_MothraID NOT IN (SELECT person_MothraID FROM tblPerson WHERE person_MothraID IS NOT NULL)
+                   OR percent_MothraID IS NULL";
+            using (var cmd = new SqlCommand(unmappedPersonQuery, conn))
+            {
+                int count = (int)cmd.ExecuteScalar();
+                if (count > 0)
+                {
+                    _report.DataQualityIssues.PercentagesWithUnmappedPersons = count;
+                    Console.WriteLine($"  Percentage records with unmapped PersonId: {count}");
+                }
+            }
+
+            // Foreign key constraint requires person record to exist for the academic year
+            var invalidComboQuery = @"
+                SELECT COUNT(*)
+                FROM tblPercent perc
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM tblPerson pers
+                    WHERE pers.person_MothraID = perc.percent_MothraID
+                      AND pers.person_TermCode = (
+                          SELECT MIN(status_TermCode)
+                          FROM tblStatus
+                          WHERE status_AcademicYear = perc.percent_AcademicYear
+                      )
+                )";
+            using (var cmd = new SqlCommand(invalidComboQuery, conn))
+            {
+                int count = (int)cmd.ExecuteScalar();
+                if (count > 0)
+                {
+                    _report.DataQualityIssues.PercentagesWithInvalidPersonTermCombos = count;
+                    Console.WriteLine($"  Percentage records with invalid (PersonId, TermCode) combination: {count}");
+                }
+            }
+        }
+
+        private void CheckCourseRelationshipIssues(SqlConnection conn)
+        {
+            // Table is optional in legacy schema - skip if not present
+            var tableExistsQuery = @"
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_NAME = 'tblCourseRelationships'";
+            using (var cmd = new SqlCommand(tableExistsQuery, conn))
+            {
+                int tableExists = (int)cmd.ExecuteScalar();
+                if (tableExists == 0)
+                {
+                    Console.WriteLine("  CourseRelationships table does not exist - skipping checks");
+                    return;
+                }
+            }
+
+            // Migration requires relationship type to be Parent, Child, CrossList, or Section
+            var invalidTypeQuery = @"
+                SELECT COUNT(*)
+                FROM tblCourseRelationships
+                WHERE LOWER(cr_Relationship) NOT IN ('parent', 'child', 'crosslist', 'section')
+                  AND LOWER(cr_Relationship) NOT LIKE '%cross%'
+                  AND LOWER(cr_Relationship) NOT LIKE '%list%'";
+            using (var cmd = new SqlCommand(invalidTypeQuery, conn))
+            {
+                int count = (int)cmd.ExecuteScalar();
+                if (count > 0)
+                {
+                    _report.DataQualityIssues.RelationshipsWithInvalidTypes = count;
+                    Console.WriteLine($"  Course relationships with invalid types: {count}");
+                }
+            }
+
+            // Foreign key constraints require both parent and child courses to exist
+            var invalidCourseQuery = @"
+                SELECT COUNT(*)
+                FROM tblCourseRelationships r
+                WHERE NOT EXISTS (SELECT 1 FROM tblCourses c WHERE c.course_ID = r.cr_ParentID)
+                   OR NOT EXISTS (SELECT 1 FROM tblCourses c WHERE c.course_ID = r.cr_ChildID)";
+            using (var cmd = new SqlCommand(invalidCourseQuery, conn))
+            {
+                int count = (int)cmd.ExecuteScalar();
+                if (count > 0)
+                {
+                    _report.DataQualityIssues.RelationshipsWithInvalidCourses = count;
+                    Console.WriteLine($"  Course relationships with invalid course references: {count}");
+                }
+            }
         }
 
         private void AnalyzeBlankCrnCourses()
@@ -1113,6 +1424,15 @@ namespace Viper.Areas.Effort.Scripts
                 count += ReferentialIntegrityIssues.GetTotalOrphaned();
             if (BusinessRuleViolations != null)
                 count += BusinessRuleViolations.GetTotalViolations();
+
+            if (DataQualityIssues != null)
+            {
+                count += DataQualityIssues.CoursesWithInvalidUnits;
+                count += DataQualityIssues.RecordsWithInvalidHours;
+                count += DataQualityIssues.RecordsWithInvalidWeeks;
+                count += DataQualityIssues.RelationshipsWithInvalidTypes;
+            }
+
             return count;
         }
 
@@ -1120,8 +1440,14 @@ namespace Viper.Areas.Effort.Scripts
         {
             int count = 0;
             if (DataQualityIssues != null)
+            {
                 count += DataQualityIssues.SuspiciousDataPatterns.Sum(p => p.RecordCount);
-            // Blank CRN courses without effort records are warnings (cleanup recommended but not critical)
+                count += DataQualityIssues.RecordsWithUnmappedPersons;
+                count += DataQualityIssues.RecordsWithInvalidCourses;
+                count += DataQualityIssues.PercentagesWithUnmappedPersons;
+                count += DataQualityIssues.PercentagesWithInvalidPersonTermCombos;
+                count += DataQualityIssues.RelationshipsWithInvalidCourses;
+            }
             if (BlankCrnCourses != null)
                 count += BlankCrnCourses.CoursesNotUsedInEffortReports;
             return count;
@@ -1180,7 +1506,8 @@ namespace Viper.Areas.Effort.Scripts
                 ("Orphaned Courses", ReferentialIntegrityIssues.OrphanedCourses),
                 ("Effort records with invalid courses", ReferentialIntegrityIssues.OrphanedEffortRecords),
                 ("Effort records with invalid roles", ReferentialIntegrityIssues.InvalidRoleReferences),
-                ("Percentage records with invalid person/term combinations", ReferentialIntegrityIssues.OrphanedPercentages)
+                ("Percentage records with invalid person/term combinations", ReferentialIntegrityIssues.OrphanedPercentages),
+                ("Alternate titles with unmapped or missing persons", ReferentialIntegrityIssues.OrphanedAlternateTitles)
             };
 
             foreach (var (description, orphanedSet) in orphanedSets)
@@ -1286,15 +1613,120 @@ namespace Viper.Areas.Effort.Scripts
             }
 
             // Phase 4: Data Quality Issues
+            sb.AppendLine("DATA QUALITY ISSUES");
+            sb.AppendLine("-------------------");
+
             if (DataQualityIssues.SuspiciousDataPatterns.Count > 0)
             {
-                sb.AppendLine("DATA QUALITY ISSUES");
-                sb.AppendLine("-------------------");
                 sb.AppendLine("Suspicious Data Patterns:");
                 foreach (var pattern in DataQualityIssues.SuspiciousDataPatterns)
                 {
                     sb.AppendLine($"  {pattern.Table}: {pattern.Pattern} ({pattern.RecordCount} records)");
                 }
+                sb.AppendLine();
+            }
+
+            bool hasCriticalIssues = false;
+            if (DataQualityIssues.CoursesWithInvalidUnits > 0)
+            {
+                if (!hasCriticalIssues)
+                {
+                    sb.AppendLine("Critical Issues (block migration):");
+                    hasCriticalIssues = true;
+                }
+                sb.AppendLine($"  Courses with invalid units (<0): {DataQualityIssues.CoursesWithInvalidUnits}");
+            }
+
+            if (DataQualityIssues.RecordsWithInvalidHours > 0)
+            {
+                if (!hasCriticalIssues)
+                {
+                    sb.AppendLine("Critical Issues (block migration):");
+                    hasCriticalIssues = true;
+                }
+                sb.AppendLine($"  Effort records with invalid Hours (<0 or >2500): {DataQualityIssues.RecordsWithInvalidHours}");
+            }
+
+            if (DataQualityIssues.RecordsWithInvalidWeeks > 0)
+            {
+                if (!hasCriticalIssues)
+                {
+                    sb.AppendLine("Critical Issues (block migration):");
+                    hasCriticalIssues = true;
+                }
+                sb.AppendLine($"  Effort records with invalid Weeks (<0 or >52): {DataQualityIssues.RecordsWithInvalidWeeks}");
+            }
+
+            if (DataQualityIssues.RelationshipsWithInvalidTypes > 0)
+            {
+                if (!hasCriticalIssues)
+                {
+                    sb.AppendLine("Critical Issues (block migration):");
+                    hasCriticalIssues = true;
+                }
+                sb.AppendLine($"  Course relationships with invalid types (not Parent/Child/CrossList/Section): {DataQualityIssues.RelationshipsWithInvalidTypes}");
+            }
+
+            if (hasCriticalIssues)
+            {
+                sb.AppendLine();
+            }
+
+            // Warnings - records that will be skipped during migration
+            bool hasWarnings = false;
+            if (DataQualityIssues.RecordsWithUnmappedPersons > 0)
+            {
+                if (!hasWarnings)
+                {
+                    sb.AppendLine("Warnings (will be skipped during migration):");
+                    hasWarnings = true;
+                }
+                sb.AppendLine($"  Effort records with unmapped PersonId: {DataQualityIssues.RecordsWithUnmappedPersons}");
+            }
+
+            if (DataQualityIssues.RecordsWithInvalidCourses > 0)
+            {
+                if (!hasWarnings)
+                {
+                    sb.AppendLine("Warnings (will be skipped during migration):");
+                    hasWarnings = true;
+                }
+                sb.AppendLine($"  Effort records referencing deleted courses: {DataQualityIssues.RecordsWithInvalidCourses}");
+            }
+
+            if (DataQualityIssues.PercentagesWithUnmappedPersons > 0)
+            {
+                if (!hasWarnings)
+                {
+                    sb.AppendLine("Warnings (will be skipped during migration):");
+                    hasWarnings = true;
+                }
+                sb.AppendLine($"  Percentage records with unmapped PersonId: {DataQualityIssues.PercentagesWithUnmappedPersons}");
+            }
+
+            if (DataQualityIssues.PercentagesWithInvalidPersonTermCombos > 0)
+            {
+                if (!hasWarnings)
+                {
+                    sb.AppendLine("Warnings (will be skipped during migration):");
+                    hasWarnings = true;
+                }
+                sb.AppendLine($"  Percentage records with invalid (PersonId, TermCode) combination: {DataQualityIssues.PercentagesWithInvalidPersonTermCombos}");
+            }
+
+            if (DataQualityIssues.RelationshipsWithInvalidCourses > 0)
+            {
+                if (!hasWarnings)
+                {
+                    sb.AppendLine("Warnings (will be skipped during migration):");
+                    hasWarnings = true;
+                }
+                sb.AppendLine($"  Course relationships with invalid course references: {DataQualityIssues.RelationshipsWithInvalidCourses}");
+            }
+
+            if (hasWarnings)
+            {
+                sb.AppendLine("  (These records will be automatically skipped and do not block migration)");
                 sb.AppendLine();
             }
 
@@ -1494,13 +1926,15 @@ namespace Viper.Areas.Effort.Scripts
         public OrphanedRecordSet OrphanedEffortRecords { get; set; } = new OrphanedRecordSet();
         public OrphanedRecordSet InvalidRoleReferences { get; set; } = new OrphanedRecordSet();
         public OrphanedRecordSet OrphanedPercentages { get; set; } = new OrphanedRecordSet();
+        public OrphanedRecordSet OrphanedAlternateTitles { get; set; } = new OrphanedRecordSet();
 
         public int GetTotalOrphaned()
         {
             return OrphanedCourses.Count +
                    OrphanedEffortRecords.Count +
                    InvalidRoleReferences.Count +
-                   OrphanedPercentages.Count;
+                   OrphanedPercentages.Count +
+                   OrphanedAlternateTitles.Count;
         }
     }
 
@@ -1560,6 +1994,17 @@ namespace Viper.Areas.Effort.Scripts
         public int OldestTermCode { get; set; }
         public int NewestTermCode { get; set; }
         public int TotalTerms { get; set; }
+
+        // Migration-discovered issues
+        public int CoursesWithInvalidUnits { get; set; }
+        public int RecordsWithUnmappedPersons { get; set; }
+        public int RecordsWithInvalidCourses { get; set; }
+        public int RecordsWithInvalidHours { get; set; }
+        public int RecordsWithInvalidWeeks { get; set; }
+        public int PercentagesWithUnmappedPersons { get; set; }
+        public int PercentagesWithInvalidPersonTermCombos { get; set; }
+        public int RelationshipsWithInvalidTypes { get; set; }
+        public int RelationshipsWithInvalidCourses { get; set; }
     }
 
     public class DataPattern

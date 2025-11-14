@@ -12,12 +12,12 @@ namespace Viper.Areas.Effort.Scripts
     /// </summary>
     public class Program
     {
-        public static void Main(string[] args)
+        public static int Main(string[] args)
         {
             if (args.Length == 0)
             {
                 ShowUsage();
-                return;
+                return 1;
             }
 
             var command = args[0].ToLowerInvariant();
@@ -27,20 +27,31 @@ namespace Viper.Areas.Effort.Scripts
             {
                 case "analysis":
                     EffortDataAnalysis.Run(commandArgs);
-                    break;
+                    return 0;
 
                 case "remediation":
                     EffortDataRemediation.Run(commandArgs);
-                    break;
+                    return 0;
 
                 case "schema-export":
                     EffortSchemaExport.Run(commandArgs);
-                    break;
+                    return 0;
+
+                case "create-database":
+                    return CreateEffortDatabase.Run(commandArgs);
+
+                case "migrate-data":
+                    MigrateEffortData.Run(commandArgs);
+                    return 0;
+
+                case "create-shadow":
+                    CreateEffortShadow.Run(commandArgs);
+                    return 0;
 
                 default:
                     Console.WriteLine($"Unknown command: {command}");
                     ShowUsage();
-                    break;
+                    return 1;
             }
         }
 
@@ -51,14 +62,20 @@ namespace Viper.Areas.Effort.Scripts
             Console.WriteLine("Usage: dotnet run -- <command> [options]");
             Console.WriteLine();
             Console.WriteLine("Commands:");
-            Console.WriteLine("  analysis         Run data analysis queries against legacy database");
-            Console.WriteLine("  remediation      Run data remediation scripts");
-            Console.WriteLine("  schema-export    Export legacy schema documentation");
+            Console.WriteLine("  analysis              Run data analysis queries against legacy database");
+            Console.WriteLine("  remediation           Run data remediation scripts");
+            Console.WriteLine("  schema-export         Export legacy schema documentation");
+            Console.WriteLine("  create-database       Create modernized Effort schema in VIPER database");
+            Console.WriteLine("  migrate-data          Migrate data from legacy Efforts database");
+            Console.WriteLine("  create-shadow         Create EffortShadow compatibility database");
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  dotnet run -- analysis");
             Console.WriteLine("  dotnet run -- remediation --table tblPerson");
-            Console.WriteLine("  dotnet run -- schema-export --output ./docs/schema.md");
+            Console.WriteLine("  dotnet run -- schema-export");
+            Console.WriteLine("  dotnet run -- create-database --apply");
+            Console.WriteLine("  dotnet run -- migrate-data --apply");
+            Console.WriteLine("  dotnet run -- create-shadow --apply");
         }
     }
 }

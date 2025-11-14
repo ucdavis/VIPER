@@ -36,7 +36,8 @@ namespace Viper.Areas.Effort.Scripts
             _dryRun = dryRun;
             _skipBackup = skipBackup;
             _viperConnectionString = EffortScriptHelper.GetConnectionString(_configuration, "VIPER");
-            _effortsConnectionString = EffortScriptHelper.GetConnectionString(_configuration, "Effort");
+            // Remediation script needs WRITE access to fix data quality issues in legacy database
+            _effortsConnectionString = EffortScriptHelper.GetConnectionString(_configuration, "Effort", readOnly: false);
             _outputPath = EffortScriptHelper.ValidateOutputPath(outputPath, "RemediationOutput");
             _remediationDate = DateTime.Now;
             _report = new RemediationReport { RemediationDate = _remediationDate };
@@ -132,6 +133,18 @@ namespace Viper.Areas.Effort.Scripts
             // Task 8: Remap Karina Snapp
             Console.WriteLine("\nTask 8: Remapping Karina Snapp to correct PersonId...");
             RemapKarinaSnapp();
+
+            // Task 9: Fix courses with invalid units
+            Console.WriteLine("\nTask 9: Fixing courses with invalid units (<=0)...");
+            FixCoursesWithInvalidUnits();
+
+            // Task 10: Delete orphaned course relationships
+            Console.WriteLine("\nTask 10: Deleting course relationships with invalid references...");
+            DeleteOrphanedCourseRelationships();
+
+            // Task 11: Fix course relationships with invalid types
+            Console.WriteLine("\nTask 11: Fixing course relationships with invalid types...");
+            FixCourseRelationshipTypes();
 
             // Generate final report
             Console.WriteLine("\nGenerating remediation report...");
@@ -1162,6 +1175,303 @@ namespace Viper.Areas.Effort.Scripts
 
         #endregion
 
+        #region Task 9: Fix Courses with Invalid Units
+
+        private void FixCoursesWithInvalidUnits()
+        {
+            var task = new RemediationTask { TaskName = "Fix Courses with Invalid Units" };
+            _report.Tasks.Add(task);
+
+            using (var conn = new SqlConnection(_effortsConnectionString))
+            {
+                conn.Open();
+
+                var query = "SELECT course_ID, course_CRN, course_TermCode, course_Units FROM tblCourses WHERE course_Units < 0";
+                var coursesToFix = new List<(int courseId, string? crn, int term, double? units)>();
+
+                using (var cmd = new SqlCommand(query, conn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        coursesToFix.Add((
+                            reader.GetInt32(0),
+                            reader.IsDBNull(1) ? null : reader.GetString(1),
+                            reader.GetInt32(2),
+                            reader.IsDBNull(3) ? (double?)null : Convert.ToDouble(reader.GetValue(3))
+                        ));
+                    }
+                }
+
+                if (coursesToFix.Count == 0)
+                {
+                    task.Status = "Skipped - No courses with invalid units found";
+                    Console.WriteLine("  ✓ No courses with invalid units found");
+                    return;
+                }
+
+                Console.WriteLine($"  Found {coursesToFix.Count} courses with Units < 0");
+
+                if (!_dryRun && !_skipBackup)
+                {
+                    BackupRecords(conn, "tblCourses", "course_Units < 0");
+                }
+
+                using (var transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        foreach (var (courseId, crn, term, units) in coursesToFix)
+                        {
+                            // Deletion preferred over default value to avoid data integrity issues
+                            var deleteQuery = "DELETE FROM tblCourses WHERE course_ID = @CourseId";
+                            using (var cmd = new SqlCommand(deleteQuery, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@CourseId", courseId);
+                                int deleted = cmd.ExecuteNonQuery();
+                                if (!_dryRun)
+                                {
+                                    task.RecordsAffected += deleted;
+                                }
+                                Console.WriteLine($"    {(_dryRun ? "Would delete" : "✓ Deleted")} course {courseId} (CRN: {crn ?? "NULL"}, Term: {term}, Units: {units})");
+                            }
+                        }
+
+                        if (_dryRun)
+                        {
+                            transaction.Rollback();
+                            task.Status = "Dry-run";
+                        }
+                        else
+                        {
+                            transaction.Commit();
+                            task.Status = "Completed";
+                            task.Details.Add($"Deleted {task.RecordsAffected} courses with invalid units");
+                        }
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        #endregion
+
+        #region Task 10: Delete Orphaned Course Relationships
+
+        private void DeleteOrphanedCourseRelationships()
+        {
+            var task = new RemediationTask { TaskName = "Delete Orphaned Course Relationships" };
+            _report.Tasks.Add(task);
+
+            using (var conn = new SqlConnection(_effortsConnectionString))
+            {
+                conn.Open();
+
+                // Table is optional in legacy schema - skip if not present
+                var tableExistsQuery = @"
+                    SELECT COUNT(*)
+                    FROM INFORMATION_SCHEMA.TABLES
+                    WHERE TABLE_NAME = 'tblCourseRelationships'";
+                using (var cmd = new SqlCommand(tableExistsQuery, conn))
+                {
+                    int tableExists = (int)cmd.ExecuteScalar();
+                    if (tableExists == 0)
+                    {
+                        task.Status = "Skipped - tblCourseRelationships table does not exist";
+                        Console.WriteLine("  ✓ tblCourseRelationships table does not exist - skipping");
+                        return;
+                    }
+                }
+
+                var query = @"
+                    SELECT cr_ParentID, cr_ChildID
+                    FROM tblCourseRelationships r
+                    WHERE NOT EXISTS (SELECT 1 FROM tblCourses c WHERE c.course_ID = r.cr_ParentID)
+                       OR NOT EXISTS (SELECT 1 FROM tblCourses c WHERE c.course_ID = r.cr_ChildID)";
+
+                var orphanedRelationships = new List<(int parentId, int childId)>();
+                using (var cmd = new SqlCommand(query, conn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        orphanedRelationships.Add((
+                            reader.GetInt32(0),
+                            reader.GetInt32(1)
+                        ));
+                    }
+                }
+
+                if (orphanedRelationships.Count == 0)
+                {
+                    task.Status = "Skipped - No orphaned relationships found";
+                    Console.WriteLine("  ✓ No orphaned course relationships found");
+                    return;
+                }
+
+                Console.WriteLine($"  Found {orphanedRelationships.Count} orphaned relationships");
+
+                if (!_dryRun && !_skipBackup)
+                {
+                    BackupRecords(conn, "tblCourseRelationships",
+                        "NOT EXISTS (SELECT 1 FROM tblCourses c WHERE c.course_ID = cr_ParentID) OR NOT EXISTS (SELECT 1 FROM tblCourses c WHERE c.course_ID = cr_ChildId)");
+                }
+
+                using (var transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        foreach (var (parentId, childId) in orphanedRelationships)
+                        {
+                            // Composite key required because table has no ID column
+                            var deleteQuery = "DELETE FROM tblCourseRelationships WHERE cr_ParentID = @ParentId AND cr_ChildID = @ChildId";
+                            using (var cmd = new SqlCommand(deleteQuery, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@ParentId", parentId);
+                                cmd.Parameters.AddWithValue("@ChildId", childId);
+                                int deleted = cmd.ExecuteNonQuery();
+                                if (!_dryRun)
+                                {
+                                    task.RecordsAffected += deleted;
+                                }
+                                Console.WriteLine($"    {(_dryRun ? "Would delete" : "✓ Deleted")} relationship (Parent: {parentId}, Child: {childId})");
+                            }
+                        }
+
+                        if (_dryRun)
+                        {
+                            transaction.Rollback();
+                            task.Status = "Dry-run";
+                        }
+                        else
+                        {
+                            transaction.Commit();
+                            task.Status = "Completed";
+                            task.Details.Add($"Deleted {task.RecordsAffected} orphaned course relationships");
+                        }
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        #endregion
+
+        #region Task 11: Fix Course Relationship Types
+
+        private void FixCourseRelationshipTypes()
+        {
+            var task = new RemediationTask { TaskName = "Fix Course Relationship Types" };
+            _report.Tasks.Add(task);
+
+            using (var conn = new SqlConnection(_effortsConnectionString))
+            {
+                conn.Open();
+
+                // Table is optional in legacy schema - skip if not present
+                var tableExistsQuery = @"
+                    SELECT COUNT(*)
+                    FROM INFORMATION_SCHEMA.TABLES
+                    WHERE TABLE_NAME = 'tblCourseRelationships'";
+                using (var cmd = new SqlCommand(tableExistsQuery, conn))
+                {
+                    int tableExists = (int)cmd.ExecuteScalar();
+                    if (tableExists == 0)
+                    {
+                        task.Status = "Skipped - tblCourseRelationships table does not exist";
+                        Console.WriteLine("  ✓ tblCourseRelationships table does not exist - skipping");
+                        return;
+                    }
+                }
+
+                var query = @"
+                    SELECT cr_ParentID, cr_ChildID, cr_Relationship
+                    FROM tblCourseRelationships
+                    WHERE LOWER(cr_Relationship) NOT IN ('parent', 'child', 'crosslist', 'section')
+                      AND LOWER(cr_Relationship) NOT LIKE '%cross%'
+                      AND LOWER(cr_Relationship) NOT LIKE '%list%'";
+
+                var invalidRelationships = new List<(int parentId, int childId, string type)>();
+                using (var cmd = new SqlCommand(query, conn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        invalidRelationships.Add((
+                            reader.GetInt32(0),
+                            reader.GetInt32(1),
+                            reader.GetString(2)
+                        ));
+                    }
+                }
+
+                if (invalidRelationships.Count == 0)
+                {
+                    task.Status = "Skipped - No invalid relationship types found";
+                    Console.WriteLine("  ✓ No invalid relationship types found");
+                    return;
+                }
+
+                Console.WriteLine($"  Found {invalidRelationships.Count} relationships with invalid types");
+
+                if (!_dryRun && !_skipBackup)
+                {
+                    BackupRecords(conn, "tblCourseRelationships",
+                        "LOWER(cr_Relationship) NOT IN ('parent', 'child', 'crosslist', 'section') AND LOWER(cr_Relationship) NOT LIKE '%cross%' AND LOWER(cr_Relationship) NOT LIKE '%list%'");
+                }
+
+                using (var transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        foreach (var (parentId, childId, type) in invalidRelationships)
+                        {
+                            // Modern schema CHECK constraint only allows Parent, Child, CrossList, or Section types
+                            var deleteQuery = "DELETE FROM tblCourseRelationships WHERE cr_ParentID = @ParentId AND cr_ChildID = @ChildId";
+                            using (var cmd = new SqlCommand(deleteQuery, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@ParentId", parentId);
+                                cmd.Parameters.AddWithValue("@ChildId", childId);
+                                int deleted = cmd.ExecuteNonQuery();
+                                if (!_dryRun)
+                                {
+                                    task.RecordsAffected += deleted;
+                                }
+                                Console.WriteLine($"    {(_dryRun ? "Would delete" : "✓ Deleted")} relationship (Parent: {parentId}, Child: {childId}) with invalid type: {type}");
+                            }
+                        }
+
+                        if (_dryRun)
+                        {
+                            transaction.Rollback();
+                            task.Status = "Dry-run";
+                        }
+                        else
+                        {
+                            transaction.Commit();
+                            task.Status = "Completed";
+                            task.Details.Add($"Deleted {task.RecordsAffected} relationships with invalid types");
+                        }
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        #endregion
+
         #region Helper Methods
         private static readonly HashSet<string> AllowedTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -1169,7 +1479,8 @@ namespace Viper.Areas.Effort.Scripts
             "tblEffort",
             "tblPerson",
             "tblPercent",
-            "tblSabbatic"
+            "tblSabbatic",
+            "tblCourseRelationships"  // Legacy table name is plural
         };
 
         /// <summary>

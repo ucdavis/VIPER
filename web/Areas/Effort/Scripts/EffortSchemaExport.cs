@@ -23,7 +23,7 @@ namespace Viper.Areas.Effort.Scripts
         {
             _configuration = configuration ?? EffortScriptHelper.LoadConfiguration();
             _connectionString = EffortScriptHelper.GetConnectionString(_configuration, "Effort");
-            _outputPath = outputPath ?? Path.Join(Directory.GetCurrentDirectory(), "Effort_Database_Schema_And_Data.txt");
+            _outputPath = outputPath ?? Path.Join(Directory.GetCurrentDirectory(), "Effort_Database_Schema_And_Data_LEGACY.txt");
             _output = new StringBuilder();
         }
 
@@ -92,19 +92,48 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine($"Output file: {exporter._outputPath}");
                 Console.WriteLine("================================================================================");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex) when (ex.Message.Contains("connection string not found"))
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"\nERROR: {ex.Message}");
-
-                if (ex.Message.Contains("connection string not found"))
-                {
-                    Console.WriteLine("\nTo fix this, add the Effort connection string to appsettings.json:");
-                    Console.WriteLine("  \"ConnectionStrings\": {");
-                    Console.WriteLine("    \"Effort\": \"Server=YOUR_SERVER;Database=Effort;Trusted_Connection=true;\"");
-                    Console.WriteLine("  }");
-                }
-
+                Console.WriteLine("\nTo fix this, add the Effort connection string to appsettings.json:");
+                Console.WriteLine("  \"ConnectionStrings\": {");
+                Console.WriteLine("    \"Effort\": \"Server=YOUR_SERVER;Database=Effort;Trusted_Connection=true;\"");
+                Console.WriteLine("  }");
+                Console.ResetColor();
+                Environment.Exit(1);
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\nDATABASE ERROR: {ex.Message}");
+                Console.WriteLine($"\nError Number: {ex.Number}");
+                Console.WriteLine("\nStack Trace:");
+                Console.WriteLine(ex.StackTrace);
+                Console.ResetColor();
+                Environment.Exit(1);
+            }
+            catch (IOException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\nFILE I/O ERROR: {ex.Message}");
+                Console.WriteLine("\nStack Trace:");
+                Console.WriteLine(ex.StackTrace);
+                Console.ResetColor();
+                Environment.Exit(1);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\nACCESS DENIED: {ex.Message}");
+                Console.WriteLine("\nEnsure you have permission to write to the output directory.");
+                Console.ResetColor();
+                Environment.Exit(1);
+            }
+            catch (InvalidOperationException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\nCONFIGURATION ERROR: {ex.Message}");
                 Console.WriteLine("\nStack Trace:");
                 Console.WriteLine(ex.StackTrace);
                 Console.ResetColor();
@@ -383,6 +412,7 @@ namespace Viper.Areas.Effort.Scripts
 
             using var reader = cmd.ExecuteReader();
             var hasIndex = false;
+            var description = new StringBuilder();
 
             while (reader.Read())
             {
@@ -395,7 +425,7 @@ namespace Viper.Areas.Effort.Scripts
                 var keyColumns = reader.GetString(5);
                 var includedColumns = reader.IsDBNull(6) ? null : reader.GetString(6);
 
-                var description = new StringBuilder();
+                description.Clear();
                 description.Append($"  {indexName}: {indexType}");
 
                 if (isUnique)
@@ -465,13 +495,11 @@ namespace Viper.Areas.Effort.Scripts
 
             // Write column headers
             var columnNames = new List<string>();
-            var columnWidths = new List<int>();
 
             for (int i = 0; i < reader.FieldCount; i++)
             {
                 var columnName = reader.GetName(i);
                 columnNames.Add(columnName);
-                columnWidths.Add(Math.Min(columnName.Length, 30));
             }
 
             _output.AppendLine(string.Join(" | ", columnNames));
