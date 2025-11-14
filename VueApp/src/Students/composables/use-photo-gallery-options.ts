@@ -1,12 +1,12 @@
 import { computed } from "vue"
 import type { Ref } from "vue"
-import type { ClassYear, CoursesByTerm } from "../services/photo-gallery-service"
+import type { ClassYear, CourseInfo } from "../services/photo-gallery-service"
 
 /**
  * Composable for building photo gallery dropdown options
  * Extracts option-building logic to reduce component complexity
  */
-export function usePhotoGalleryOptions(classYears: Ref<ClassYear[]>, availableCourses: Ref<CoursesByTerm[]>) {
+export function usePhotoGalleryOptions(classYears: Ref<ClassYear[]>, availableCourses: Ref<CourseInfo[]>) {
     // Shared class year options - used by both Photo Gallery and Student List
     const classYearOptions = computed(() =>
         classYears.value.map((cy) => ({
@@ -47,27 +47,33 @@ export function usePhotoGalleryOptions(classYears: Ref<ClassYear[]>, availableCo
             }
         }
 
-        // Add courses grouped by term with section headers
-        for (const termGroup of availableCourses.value) {
-            if (termGroup.courses.length > 0) {
-                // Add term section header (e.g., "Fall Semester 2025")
-                options.push({
-                    label: termGroup.termDescription,
-                    value: null,
-                    disable: true,
-                    header: true,
-                })
+        // Add courses with term section header
+        if (availableCourses.value.length > 0) {
+            const firstCourse = availableCourses.value[0]
+            if (!firstCourse) {
+                return options
+            }
 
-                // Add courses under this term, showing course number and title
-                for (const course of termGroup.courses) {
-                    options.push({
-                        label: `${course.subjectCode}${course.courseNumber} - ${course.title}`,
-                        value: `course:${course.termCode}:${course.crn}`,
-                        type: "course",
-                        termCode: course.termCode,
-                        crn: course.crn,
-                    })
-                }
+            // All courses are from the same term, so use the first course's term description
+            const termDescription = firstCourse.termDescription
+
+            // Add term section header (e.g., "Fall Semester 2025")
+            options.push({
+                label: termDescription,
+                value: null,
+                disable: true,
+                header: true,
+            })
+
+            // Add courses under this term, showing course number and title
+            for (const course of availableCourses.value) {
+                options.push({
+                    label: `${course.subjectCode}${course.courseNumber} - ${course.title}`,
+                    value: `course:${course.termCode}:${course.crn}`,
+                    type: "course",
+                    termCode: course.termCode,
+                    crn: course.crn,
+                })
             }
         }
 

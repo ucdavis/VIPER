@@ -7,7 +7,6 @@ import type {
     PhotoExportRequest,
     GalleryMenu,
     CourseInfo,
-    CoursesByTerm,
 } from "../services/photo-gallery-service"
 import { photoGalleryService } from "../services/photo-gallery-service"
 
@@ -76,7 +75,7 @@ interface StoreRefs {
     groupCounts: Ref<Record<string, Record<string, number>>>
     galleryMenu: Ref<GalleryMenu | null>
     groupTypes: Ref<{ eighths: string[]; twentieths: string[]; teams: string[]; v3specialty: string[] }>
-    availableCourses: Ref<CoursesByTerm[]>
+    availableCourses: Ref<CourseInfo[]>
 }
 
 async function fetchClassPhotosData(refs: StoreRefs, classLevel: string, includeRoss: boolean) {
@@ -200,7 +199,7 @@ interface StoreState {
     groupCounts: Ref<Record<string, Record<string, number>>>
     galleryMenu: Ref<GalleryMenu | null>
     groupTypes: Ref<{ eighths: string[]; twentieths: string[]; teams: string[]; v3specialty: string[] }>
-    availableCourses: Ref<CoursesByTerm[]>
+    availableCourses: Ref<CourseInfo[]>
     includeRossStudents: Ref<boolean>
     exportInProgress: Ref<boolean>
     exportParams: Ref<PhotoExportRequest>
@@ -301,7 +300,7 @@ export const usePhotoGalleryStore = defineStore("photoGallery", () => {
     const selectedClassLevel = ref<string | null>(null)
     const selectedGroup = ref<GroupingInfo | null>(null)
     const selectedCourse = ref<CourseInfo | null>(null)
-    const availableCourses = ref<CoursesByTerm[]>([])
+    const availableCourses = ref<CourseInfo[]>([])
     const includeRossStudents = ref(false)
     const exportInProgress = ref(false)
     const galleryView = ref<"grid" | "sheet" | "list">("grid")

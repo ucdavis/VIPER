@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import { setActivePinia, createPinia } from "pinia"
 import { usePhotoGalleryStore } from "../stores/photo-gallery-store"
 import { photoGalleryService } from "../services/photo-gallery-service"
-import type { PhotoGalleryViewModel, GalleryMenu, CoursesByTerm } from "../services/photo-gallery-service"
+import type { PhotoGalleryViewModel, GalleryMenu, CourseInfo } from "../services/photo-gallery-service"
 
 // Mock the photo gallery service
 vi.mock("../services/photo-gallery-service", () => ({
@@ -491,20 +491,14 @@ describe("photo-gallery-store", () => {
     describe("fetchAvailableCourses", () => {
         it("should fetch available courses", async () => {
             const store = usePhotoGalleryStore()
-            const mockCourses: CoursesByTerm[] = [
+            const mockCourses: CourseInfo[] = [
                 {
                     termCode: "202501",
+                    crn: "12345",
+                    subjectCode: "VMD",
+                    courseNumber: "101",
+                    title: "Test Course",
                     termDescription: "Fall 2025",
-                    courses: [
-                        {
-                            termCode: "202501",
-                            crn: "12345",
-                            subjectCode: "VMD",
-                            courseNumber: "101",
-                            title: "Test Course",
-                            termDescription: "Fall 2025",
-                        },
-                    ],
                 },
             ]
 

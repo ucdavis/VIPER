@@ -551,7 +551,7 @@ import { useQuasar } from "quasar"
 import { useRoute, useRouter } from "vue-router"
 import { usePhotoGalleryStore } from "../stores/photo-gallery-store"
 import { photoGalleryService } from "../services/photo-gallery-service"
-import type { ClassYear, CoursesByTerm } from "../services/photo-gallery-service"
+import type { ClassYear, CourseInfo } from "../services/photo-gallery-service"
 import { usePhotoGalleryOptions } from "../composables/use-photo-gallery-options"
 import { getPhotoUrl } from "../composables/use-photo-url"
 import PhotoSheet from "../components/PhotoGallery/PhotoSheet.vue"
@@ -574,7 +574,7 @@ const selectedGroupType = ref<string | null>(null)
 const selectedGroup = ref<string | null>(null)
 const selectedCourse = ref<{ termCode: string; crn: string } | null>(null)
 const classYears = ref<ClassYear[]>([])
-const availableCourses = ref<CoursesByTerm[]>([])
+const availableCourses = ref<CourseInfo[]>([])
 
 // Photo Gallery Filter
 const photoFilter = ref("")

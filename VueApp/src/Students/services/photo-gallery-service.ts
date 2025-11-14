@@ -28,12 +28,6 @@ interface CourseInfo {
     termDescription: string
 }
 
-interface CoursesByTerm {
-    termCode: string
-    termDescription: string
-    courses: CourseInfo[]
-}
-
 interface PhotoGalleryViewModel {
     classLevel?: string
     students: StudentPhoto[]
@@ -104,10 +98,10 @@ class PhotoGalleryService {
         return response.result as PhotoGalleryViewModel
     }
 
-    getAvailableCourses = async (): Promise<CoursesByTerm[]> => {
+    getAvailableCourses = async (): Promise<CourseInfo[]> => {
         const { get } = useFetch()
         const response = await get(`${this.baseUrl}/courses`)
-        return response.result as CoursesByTerm[]
+        return response.result as CourseInfo[]
     }
 
     getCourseGallery = async (
@@ -183,7 +177,6 @@ export type {
     PhotoGalleryViewModel,
     GroupingInfo,
     CourseInfo,
-    CoursesByTerm,
     ExportOptions,
     PhotoExportRequest,
     GalleryMenu,

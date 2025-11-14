@@ -35,25 +35,4 @@ namespace Viper.Areas.Students.Models
         /// </summary>
         public string TermDescription { get; set; } = string.Empty;
     }
-
-    /// <summary>
-    /// Courses grouped by academic term
-    /// </summary>
-    public class CoursesByTerm
-    {
-        /// <summary>
-        /// Term code in YYYYMM format
-        /// </summary>
-        public string TermCode { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Human-readable term description (e.g., "Fall 2024")
-        /// </summary>
-        public string TermDescription { get; set; } = string.Empty;
-
-        /// <summary>
-        /// List of courses in this term
-        /// </summary>
-        public List<CourseInfo> Courses { get; set; } = new();
-    }
 }
