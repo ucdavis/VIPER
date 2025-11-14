@@ -201,12 +201,17 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (TaskCanceledException ex)
             {
                 _logger.LogError(ex, "Query timeout retrieving clinicians for grad year range {StartYear}-{EndYear}", LogSanitizer.SanitizeYear(startGradYear), LogSanitizer.SanitizeYear(endGradYear));
-                throw new TimeoutException($"Timed out retrieving clinicians for grad year range {startGradYear}-{endGradYear}.", ex);
+                throw new TimeoutException($"Timed out retrieving clinicians for grad year range {LogSanitizer.SanitizeYear(startGradYear)}-{LogSanitizer.SanitizeYear(endGradYear)}.", ex);
             }
             catch (SqlException ex)
             {
                 _logger.LogError(ex, "Database error retrieving clinicians for grad year range {StartYear}-{EndYear}", LogSanitizer.SanitizeYear(startGradYear), LogSanitizer.SanitizeYear(endGradYear));
-                throw new InvalidOperationException($"Database error retrieving clinicians for grad year range {startGradYear}-{endGradYear}", ex);
+                throw new InvalidOperationException($"Database error retrieving clinicians for grad year range {LogSanitizer.SanitizeYear(startGradYear)}-{LogSanitizer.SanitizeYear(endGradYear)}", ex);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving clinicians for grad year range {StartYear}-{EndYear}", LogSanitizer.SanitizeYear(startGradYear), LogSanitizer.SanitizeYear(endGradYear));
+                throw new InvalidOperationException($"Failed to retrieve clinicians for grad year range {LogSanitizer.SanitizeYear(startGradYear)}-{LogSanitizer.SanitizeYear(endGradYear)}", ex);
             }
         }
 
