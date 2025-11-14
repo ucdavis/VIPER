@@ -86,7 +86,7 @@
                 <q-tab-panel name="photos">
                     <div class="row q-col-gutter-md no-print">
                         <!-- Class Level or Course Selection -->
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-4">
                             <q-select
                                 v-model="selectedClassOrCourse"
                                 :options="classLevelOptions"
@@ -121,11 +121,8 @@
                             </q-select>
                         </div>
 
-                        <!-- Group Type Selection (only for class years, not courses) -->
-                        <div
-                            v-if="!selectedCourse"
-                            class="col-12 col-md-6"
-                        >
+                        <!-- Group Type Selection -->
+                        <div class="col-12 col-md-4">
                             <q-select
                                 v-model="selectedGroupType"
                                 :options="groupTypeOptions"
@@ -135,7 +132,7 @@
                                 options-dense
                                 emit-value
                                 map-options
-                                :disable="!selectedClassLevel"
+                                :disable="!selectedClassLevel && !selectedCourse"
                                 @update:model-value="onGroupTypeChange"
                             >
                                 <template #prepend>
@@ -147,7 +144,7 @@
                         <!-- Group Selection -->
                         <div
                             v-if="selectedGroupType"
-                            class="col-12"
+                            class="col-12 col-md-4"
                         >
                             <q-select
                                 v-model="selectedGroup"
@@ -660,17 +657,23 @@ const { classYearOptions, classLevelOptions, studentListYearOptions } = usePhoto
     availableCourses,
 )
 
-const groupTypeOptions = computed(() => [
-    { label: "All Students", value: null },
-    { label: "Eighths", value: "eighths" },
-    { label: "Twentieths", value: "twentieths" },
-    ...(selectedClassLevel.value === "V3"
-        ? [
-              { label: "Teams", value: "teams" },
-              { label: "Streams", value: "v3specialty" },
-          ]
-        : []),
-])
+const groupTypeOptions = computed(() => {
+    const options = [
+        { label: "All Students", value: null },
+        { label: "Eighths", value: "eighths" },
+        { label: "Twentieths", value: "twentieths" },
+    ]
+
+    // Add V3-specific options if viewing V3 class level
+    if (selectedClassLevel.value === "V3") {
+        options.push({ label: "Teams", value: "teams" }, { label: "Streams", value: "v3specialty" })
+    }
+
+    // For courses, always show eighths and twentieths (teams/streams depend on course composition)
+    // The group counts will determine if any students are in those groups
+
+    return options
+})
 
 const groupOptions = computed(() => {
     if (!selectedGroupType.value) return []
@@ -850,8 +853,12 @@ function onGroupTypeChange(groupType: string | null) {
     selectedGroup.value = null
     updateUrlParams()
 
-    if (!groupType && selectedClassLevel.value) {
-        galleryStore.fetchClassPhotos(selectedClassLevel.value)
+    if (!groupType) {
+        if (selectedClassLevel.value) {
+            galleryStore.fetchClassPhotos(selectedClassLevel.value)
+        } else if (selectedCourse.value) {
+            galleryStore.fetchCoursePhotos(selectedCourse.value.termCode, selectedCourse.value.crn)
+        }
     }
 }
 
@@ -859,9 +866,23 @@ async function onGroupChange(group: string | null) {
     updateUrlParams()
 
     if (group && selectedGroupType.value) {
-        await galleryStore.fetchGroupPhotos(selectedGroupType.value, group, selectedClassLevel.value)
+        // For courses, pass group parameters to fetchCoursePhotos for server-side filtering
+        if (selectedCourse.value) {
+            await galleryStore.fetchCoursePhotos(
+                selectedCourse.value.termCode,
+                selectedCourse.value.crn,
+                selectedGroupType.value,
+                group,
+            )
+        } else {
+            // For class levels, use the existing group API endpoint
+            await galleryStore.fetchGroupPhotos(selectedGroupType.value, group, selectedClassLevel.value)
+        }
     } else if (selectedClassLevel.value) {
         await galleryStore.fetchClassPhotos(selectedClassLevel.value)
+    } else if (selectedCourse.value) {
+        // Clear group filter for courses - fetch all course students
+        await galleryStore.fetchCoursePhotos(selectedCourse.value.termCode, selectedCourse.value.crn)
     }
 }
 
@@ -1183,8 +1204,18 @@ onMounted(async () => {
     await nextTick()
 
     if (selectedCourse.value) {
-        // Fetch course photos if a course is selected
+        // Always fetch full course roster first to populate group counts
         await galleryStore.fetchCoursePhotos(selectedCourse.value.termCode, selectedCourse.value.crn)
+
+        // Then fetch filtered data if a group is selected
+        if (selectedGroup.value && selectedGroupType.value) {
+            await galleryStore.fetchCoursePhotos(
+                selectedCourse.value.termCode,
+                selectedCourse.value.crn,
+                selectedGroupType.value,
+                selectedGroup.value,
+            )
+        }
     } else if (selectedClassLevel.value) {
         // Always fetch class photos first to populate the group counts cache
         await galleryStore.fetchClassPhotos(selectedClassLevel.value)

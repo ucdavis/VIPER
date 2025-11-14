@@ -9,7 +9,7 @@ namespace Viper.Areas.Students.Services
     {
         Task<List<StudentPhoto>> GetStudentsByClassLevelAsync(string classLevel, bool includeRossStudents = false);
         Task<List<StudentPhoto>> GetStudentsByGroupAsync(string groupType, string groupId, string? classLevel = null);
-        Task<List<StudentPhoto>> GetStudentsByCourseAsync(string termCode, string crn, bool includeRossStudents = false);
+        Task<List<StudentPhoto>> GetStudentsByCourseAsync(string termCode, string crn, bool includeRossStudents = false, string? groupType = null, string? groupId = null);
         Task<List<string>> GetEighthsGroupsAsync();
         Task<List<string>> GetTwentiethsGroupsAsync();
         Task<List<string>> GetTeamsAsync(string classLevel);
@@ -441,7 +441,7 @@ namespace Viper.Areas.Students.Services
             }
         }
 
-        public async Task<List<StudentPhoto>> GetStudentsByCourseAsync(string termCode, string crn, bool includeRossStudents = false)
+        public async Task<List<StudentPhoto>> GetStudentsByCourseAsync(string termCode, string crn, bool includeRossStudents = false, string? groupType = null, string? groupId = null)
         {
             try
             {
@@ -512,6 +512,19 @@ namespace Viper.Areas.Students.Services
                                 TeamNumber = sg != null ? sg.StudentgrpTeamno : null,
                                 V3SpecialtyGroup = sg != null ? sg.StudentgrpV3grp : null
                             };
+
+                // Apply group filtering if specified
+                if (!string.IsNullOrEmpty(groupType) && !string.IsNullOrEmpty(groupId))
+                {
+                    query = groupType.ToLower() switch
+                    {
+                        "eighths" => query.Where(s => s.EighthsGroup == groupId),
+                        "twentieths" => query.Where(s => s.TwentiethsGroup == groupId),
+                        "teams" => query.Where(s => s.TeamNumber == groupId),
+                        "v3specialty" => query.Where(s => s.V3SpecialtyGroup == groupId),
+                        _ => query
+                    };
+                }
 
                 var students = await query.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
                 var photoStudents = new List<StudentPhoto>();

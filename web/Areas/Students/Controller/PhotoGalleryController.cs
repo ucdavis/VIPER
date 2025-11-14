@@ -161,7 +161,7 @@ namespace Viper.Areas.Students.Controller
         }
 
         [HttpGet("gallery/course/{termCode}/{crn}")]
-        public async Task<IActionResult> GetCourseGallery(string termCode, string crn, [FromQuery] bool includeRossStudents = false)
+        public async Task<IActionResult> GetCourseGallery(string termCode, string crn, [FromQuery] bool includeRossStudents = false, [FromQuery] string? groupType = null, [FromQuery] string? groupId = null)
         {
             var validationError = ValidateCourseParams(termCode, crn, required: true);
             if (validationError != null)
@@ -171,7 +171,7 @@ namespace Viper.Areas.Students.Controller
 
             try
             {
-                var students = await _studentGroupService.GetStudentsByCourseAsync(termCode, crn, includeRossStudents);
+                var students = await _studentGroupService.GetStudentsByCourseAsync(termCode, crn, includeRossStudents, groupType, groupId);
                 var courseInfo = await _courseService.GetCourseInfoAsync(termCode, crn);
 
                 if (courseInfo == null)

@@ -108,11 +108,19 @@ class PhotoGalleryService {
         termCode: string,
         crn: string,
         includeRossStudents = false,
+        groupType?: string | null,
+        groupId?: string | null,
     ): Promise<PhotoGalleryViewModel> => {
         const { get } = useFetch()
-        const response = await get(
-            `${this.baseUrl}/gallery/course/${termCode}/${crn}?includeRossStudents=${includeRossStudents}`,
-        )
+        const params = new URLSearchParams()
+        params.append("includeRossStudents", includeRossStudents.toString())
+        if (groupType) {
+            params.append("groupType", groupType)
+        }
+        if (groupId) {
+            params.append("groupId", groupId)
+        }
+        const response = await get(`${this.baseUrl}/gallery/course/${termCode}/${crn}?${params.toString()}`)
         if (!response.success || !response.result) {
             throw new Error(response.errors?.[0] || "Failed to fetch course gallery")
         }

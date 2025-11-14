@@ -353,7 +353,13 @@ describe("photo-gallery-store", () => {
 
             await store.fetchCoursePhotos("202501", "12345")
 
-            expect(photoGalleryService.getCourseGallery).toHaveBeenCalledWith("202501", "12345", false)
+            expect(photoGalleryService.getCourseGallery).toHaveBeenCalledWith(
+                "202501",
+                "12345",
+                false,
+                undefined,
+                undefined,
+            )
             expect(store.selectedCourse).toEqual(mockResponse.courseInfo)
             expect(store.selectedClassLevel).toBeNull()
             expect(store.selectedGroup).toBeNull()
