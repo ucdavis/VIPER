@@ -1,7 +1,6 @@
-﻿using Newtonsoft.Json;
-using NuGet.Protocol;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Viper.Areas.RAPS.Models.Uinform;
 
 namespace Viper.Areas.RAPS.Services
@@ -9,6 +8,7 @@ namespace Viper.Areas.RAPS.Services
     public class UinformService
     {
         private static readonly HttpClient _httpClient = new();
+        private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
         //private readonly NLog.Logger _logger;
         private readonly string _apiBase;
         private static readonly List<HttpMethod> _allowedHttpMethods = new()
@@ -46,7 +46,7 @@ namespace Viper.Areas.RAPS.Services
             {
                 url += "Search";
                 method = HttpMethod.Post;
-                body = new SearchClass() { Value = search }.ToJson();
+                body = JsonSerializer.Serialize(new SearchClass() { Value = search });
             }
             else if (!string.IsNullOrEmpty(ownerSamAccountName))
             {
@@ -60,7 +60,7 @@ namespace Viper.Areas.RAPS.Services
             {
                 url += "Search";
                 method = HttpMethod.Post;
-                body = new SearchClass() { Value = _ourGroupIdentifier }.ToJson();
+                body = JsonSerializer.Serialize(new SearchClass() { Value = _ourGroupIdentifier });
             }
 
             var response = await SendRequest<List<ManagedGroup>>(url, method, body);
@@ -110,7 +110,7 @@ namespace Viper.Areas.RAPS.Services
                 Description = description,
                 MaxMembers = maxMembers
             };
-            _ = await SendRequest<ManagedGroup>("ManagedGroups", HttpMethod.Post, newGroup.ToJson());
+            _ = await SendRequest<ManagedGroup>("ManagedGroups", HttpMethod.Post, JsonSerializer.Serialize(newGroup));
         }
 
         /// <summary>
@@ -121,7 +121,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="description"></param>
         /// <param name="maxMembers">Max members, or 0 for no max</param>
         /// <returns></returns>
-        public void UpdateManagedGroup(string guid, string displayName, string description, int maxMembers = 0)
+        public async Task UpdateManagedGroup(string guid, string displayName, string description, int maxMembers = 0)
         {
             ManagedGroupAddEdit newGroup = new()
             {
@@ -129,7 +129,7 @@ namespace Viper.Areas.RAPS.Services
                 Description = description,
                 MaxMembers = maxMembers
             };
-            _ = SendRequest<ManagedGroup>("ManagedGroups/" + guid, HttpMethod.Put, newGroup.ToJson());
+            _ = await SendRequest<ManagedGroup>("ManagedGroups/" + guid, HttpMethod.Put, JsonSerializer.Serialize(newGroup));
         }
 
         /// <summary>
@@ -151,11 +151,11 @@ namespace Viper.Areas.RAPS.Services
         /// <returns></returns>
         public async Task AddGroupMember(string groupGuid, string userGuid)
         {
-            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, new AddRemoveMember()
+            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, JsonSerializer.Serialize(new AddRemoveMember()
             {
                 UserGuid = userGuid,
                 Action = "add"
-            }.ToJson());
+            }));
         }
 
         /// <summary>
@@ -166,11 +166,11 @@ namespace Viper.Areas.RAPS.Services
         /// <returns></returns>
         public async Task RemoveGroupMember(string groupGuid, string userGuid)
         {
-            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, new AddRemoveMember()
+            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, JsonSerializer.Serialize(new AddRemoveMember()
             {
                 UserGuid = userGuid,
                 Action = "remove"
-            }.ToJson());
+            }));
         }
 
         /// <summary>
@@ -248,7 +248,7 @@ namespace Viper.Areas.RAPS.Services
             string responseBody = await response.Content.ReadAsStringAsync();
             if (response.IsSuccessStatusCode)
             {
-                uInformResponse = JsonConvert.DeserializeObject<UinformResponse<T>>(responseBody);
+                uInformResponse = JsonSerializer.Deserialize<UinformResponse<T>>(responseBody, _jsonOptions);
             }
             else
             {
