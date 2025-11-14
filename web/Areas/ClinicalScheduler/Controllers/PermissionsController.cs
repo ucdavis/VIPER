@@ -116,12 +116,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> CanEditService(int serviceId)
         {
-            if (serviceId <= 0)
-            {
-                _logger.LogWarning("Invalid service ID provided for permission check: {ServiceId}", serviceId);
-                return BadRequest(new { error = "Service ID must be a positive integer" });
-            }
-
             try
             {
                 var user = _userHelper.GetCurrentUser();
@@ -130,6 +124,12 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 {
                     _logger.LogWarning("No current user found when checking service edit permission for service {ServiceId}", serviceId);
                     return Unauthorized(new { error = "User not authenticated" });
+                }
+
+                if (serviceId <= 0)
+                {
+                    _logger.LogWarning("Invalid service ID provided for permission check: {ServiceId}", serviceId);
+                    return BadRequest(new { error = "Service ID must be a positive integer" });
                 }
 
                 _logger.LogInformation("Checking edit permission for user {MothraId} and service {ServiceId}", LogSanitizer.SanitizeId(user.MothraId), serviceId);
@@ -178,12 +178,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> CanEditRotation(int rotationId)
         {
-            if (rotationId <= 0)
-            {
-                _logger.LogWarning("Invalid rotation ID provided for permission check: {RotationId}", rotationId);
-                return BadRequest(new { error = "Rotation ID must be a positive integer" });
-            }
-
             try
             {
                 var user = _userHelper.GetCurrentUser();
@@ -192,6 +186,12 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 {
                     _logger.LogWarning("No current user found when checking rotation edit permission for rotation {RotationId}", rotationId);
                     return Unauthorized(new { error = "User not authenticated" });
+                }
+
+                if (rotationId <= 0)
+                {
+                    _logger.LogWarning("Invalid rotation ID provided for permission check: {RotationId}", rotationId);
+                    return BadRequest(new { error = "Rotation ID must be a positive integer" });
                 }
 
                 _logger.LogInformation("Checking edit permission for user {MothraId} and rotation {RotationId}", LogSanitizer.SanitizeId(user.MothraId), rotationId);
@@ -240,12 +240,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> CanEditOwnSchedule(int instructorScheduleId)
         {
-            if (instructorScheduleId <= 0)
-            {
-                _logger.LogWarning("Invalid instructor schedule ID provided for own schedule permission check: {InstructorScheduleId}", instructorScheduleId);
-                return BadRequest(new { error = "Instructor schedule ID must be a positive integer" });
-            }
-
             try
             {
                 var user = _userHelper.GetCurrentUser();
@@ -254,6 +248,12 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 {
                     _logger.LogWarning("No current user found when checking own schedule edit permission for instructor schedule {InstructorScheduleId}", instructorScheduleId);
                     return Unauthorized(new { error = "User not authenticated" });
+                }
+
+                if (instructorScheduleId <= 0)
+                {
+                    _logger.LogWarning("Invalid instructor schedule ID provided for own schedule permission check: {InstructorScheduleId}", instructorScheduleId);
+                    return BadRequest(new { error = "Instructor schedule ID must be a positive integer" });
                 }
 
                 _logger.LogInformation("Checking own schedule edit permission for user {MothraId} and instructor schedule {InstructorScheduleId}", LogSanitizer.SanitizeId(user.MothraId), instructorScheduleId);
