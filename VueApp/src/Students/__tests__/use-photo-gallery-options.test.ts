@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { ref } from "vue"
 import { usePhotoGalleryOptions } from "../composables/use-photo-gallery-options"
-import type { ClassYear, CoursesByTerm } from "../services/photo-gallery-service"
+import type { ClassYear, CourseInfo } from "../services/photo-gallery-service"
 
 describe("usePhotoGalleryOptions", () => {
     describe("classYearOptions", () => {
@@ -10,7 +10,7 @@ describe("usePhotoGalleryOptions", () => {
                 { year: 2025, classLevel: "V4" },
                 { year: 2026, classLevel: "V3" },
             ])
-            const availableCourses = ref<CoursesByTerm[]>([])
+            const availableCourses = ref<CourseInfo[]>([])
 
             const { classYearOptions } = usePhotoGalleryOptions(classYears, availableCourses)
 
@@ -22,7 +22,7 @@ describe("usePhotoGalleryOptions", () => {
 
         it("should handle empty class years", () => {
             const classYears = ref<ClassYear[]>([])
-            const availableCourses = ref<CoursesByTerm[]>([])
+            const availableCourses = ref<CourseInfo[]>([])
 
             const { classYearOptions } = usePhotoGalleryOptions(classYears, availableCourses)
 
@@ -33,7 +33,7 @@ describe("usePhotoGalleryOptions", () => {
     describe("classLevelOptions", () => {
         it("should include default option at the beginning", () => {
             const classYears = ref<ClassYear[]>([])
-            const availableCourses = ref<CoursesByTerm[]>([])
+            const availableCourses = ref<CourseInfo[]>([])
 
             const { classLevelOptions } = usePhotoGalleryOptions(classYears, availableCourses)
 
@@ -45,7 +45,7 @@ describe("usePhotoGalleryOptions", () => {
 
         it("should add Class Level section header when class years exist", () => {
             const classYears = ref<ClassYear[]>([{ year: 2025, classLevel: "V4" }])
-            const availableCourses = ref<CoursesByTerm[]>([])
+            const availableCourses = ref<CourseInfo[]>([])
 
             const { classLevelOptions } = usePhotoGalleryOptions(classYears, availableCourses)
 
@@ -62,7 +62,7 @@ describe("usePhotoGalleryOptions", () => {
                 { year: 2025, classLevel: "V4" },
                 { year: 2026, classLevel: "V3" },
             ])
-            const availableCourses = ref<CoursesByTerm[]>([])
+            const availableCourses = ref<CourseInfo[]>([])
 
             const { classLevelOptions } = usePhotoGalleryOptions(classYears, availableCourses)
 
@@ -80,20 +80,14 @@ describe("usePhotoGalleryOptions", () => {
 
         it("should group courses by term with section headers", () => {
             const classYears = ref<ClassYear[]>([])
-            const availableCourses = ref<CoursesByTerm[]>([
+            const availableCourses = ref<CourseInfo[]>([
                 {
                     termCode: "202501",
+                    crn: "12345",
+                    subjectCode: "VMD",
+                    courseNumber: "101",
+                    title: "Introduction to Veterinary Medicine",
                     termDescription: "Fall Semester 2025",
-                    courses: [
-                        {
-                            termCode: "202501",
-                            crn: "12345",
-                            subjectCode: "VMD",
-                            courseNumber: "101",
-                            title: "Introduction to Veterinary Medicine",
-                            termDescription: "Fall Semester 2025",
-                        },
-                    ],
                 },
             ])
 
@@ -110,20 +104,14 @@ describe("usePhotoGalleryOptions", () => {
 
         it("should format course labels as SUBJ123 - Title", () => {
             const classYears = ref<ClassYear[]>([])
-            const availableCourses = ref<CoursesByTerm[]>([
+            const availableCourses = ref<CourseInfo[]>([
                 {
                     termCode: "202501",
+                    crn: "12345",
+                    subjectCode: "VMD",
+                    courseNumber: "101",
+                    title: "Introduction to Veterinary Medicine",
                     termDescription: "Fall Semester 2025",
-                    courses: [
-                        {
-                            termCode: "202501",
-                            crn: "12345",
-                            subjectCode: "VMD",
-                            courseNumber: "101",
-                            title: "Introduction to Veterinary Medicine",
-                            termDescription: "Fall Semester 2025",
-                        },
-                    ],
                 },
             ])
 
@@ -138,56 +126,39 @@ describe("usePhotoGalleryOptions", () => {
             })
         })
 
-        it("should handle multiple terms with courses", () => {
+        it("should handle multiple courses in the same term", () => {
             const classYears = ref<ClassYear[]>([])
-            const availableCourses = ref<CoursesByTerm[]>([
+            const availableCourses = ref<CourseInfo[]>([
                 {
                     termCode: "202501",
+                    crn: "12345",
+                    subjectCode: "VMD",
+                    courseNumber: "101",
+                    title: "Intro Course",
                     termDescription: "Fall Semester 2025",
-                    courses: [
-                        {
-                            termCode: "202501",
-                            crn: "12345",
-                            subjectCode: "VMD",
-                            courseNumber: "101",
-                            title: "Intro Course",
-                            termDescription: "Fall Semester 2025",
-                        },
-                    ],
                 },
                 {
-                    termCode: "202502",
-                    termDescription: "Spring Semester 2026",
-                    courses: [
-                        {
-                            termCode: "202502",
-                            crn: "67890",
-                            subjectCode: "VMD",
-                            courseNumber: "201",
-                            title: "Advanced Course",
-                            termDescription: "Spring Semester 2026",
-                        },
-                    ],
+                    termCode: "202501",
+                    crn: "67890",
+                    subjectCode: "VMD",
+                    courseNumber: "201",
+                    title: "Advanced Course",
+                    termDescription: "Fall Semester 2025",
                 },
             ])
 
             const { classLevelOptions } = usePhotoGalleryOptions(classYears, availableCourses)
 
-            // Should have: default, fall header, fall course, spring header, spring course
-            expect(classLevelOptions.value).toHaveLength(5)
+            // Should have: default, term header, two courses
+            expect(classLevelOptions.value).toHaveLength(4)
             expect(classLevelOptions.value[1].label).toBe("Fall Semester 2025")
-            expect(classLevelOptions.value[3].label).toBe("Spring Semester 2026")
+            expect(classLevelOptions.value[2].label).toBe("VMD101 - Intro Course")
+            expect(classLevelOptions.value[3].label).toBe("VMD201 - Advanced Course")
         })
 
-        it("should skip terms with no courses", () => {
+        it("should skip when no courses available", () => {
             const classYears = ref<ClassYear[]>([])
-            const availableCourses = ref<CoursesByTerm[]>([
-                {
-                    termCode: "202501",
-                    termDescription: "Fall Semester 2025",
-                    courses: [],
-                },
-            ])
+            const availableCourses = ref<CourseInfo[]>([])
 
             const { classLevelOptions } = usePhotoGalleryOptions(classYears, availableCourses)
 
@@ -197,20 +168,14 @@ describe("usePhotoGalleryOptions", () => {
 
         it("should combine class years and courses correctly", () => {
             const classYears = ref<ClassYear[]>([{ year: 2025, classLevel: "V4" }])
-            const availableCourses = ref<CoursesByTerm[]>([
+            const availableCourses = ref<CourseInfo[]>([
                 {
                     termCode: "202501",
+                    crn: "12345",
+                    subjectCode: "VMD",
+                    courseNumber: "101",
+                    title: "Test Course",
                     termDescription: "Fall Semester 2025",
-                    courses: [
-                        {
-                            termCode: "202501",
-                            crn: "12345",
-                            subjectCode: "VMD",
-                            courseNumber: "101",
-                            title: "Test Course",
-                            termDescription: "Fall Semester 2025",
-                        },
-                    ],
                 },
             ])
 
@@ -232,7 +197,7 @@ describe("usePhotoGalleryOptions", () => {
                 { year: 2025, classLevel: "V4" },
                 { year: 2026, classLevel: "V3" },
             ])
-            const availableCourses = ref<CoursesByTerm[]>([])
+            const availableCourses = ref<CourseInfo[]>([])
 
             const { studentListYearOptions } = usePhotoGalleryOptions(classYears, availableCourses)
 
@@ -245,7 +210,7 @@ describe("usePhotoGalleryOptions", () => {
 
         it("should include default option at the beginning", () => {
             const classYears = ref<ClassYear[]>([])
-            const availableCourses = ref<CoursesByTerm[]>([])
+            const availableCourses = ref<CourseInfo[]>([])
 
             const { studentListYearOptions } = usePhotoGalleryOptions(classYears, availableCourses)
 

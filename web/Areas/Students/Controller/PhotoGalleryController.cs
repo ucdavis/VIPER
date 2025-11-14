@@ -161,7 +161,7 @@ namespace Viper.Areas.Students.Controller
         }
 
         [HttpGet("gallery/course/{termCode}/{crn}")]
-        public async Task<IActionResult> GetCourseGallery(string termCode, string crn, [FromQuery] bool includeRossStudents = false)
+        public async Task<IActionResult> GetCourseGallery(string termCode, string crn, [FromQuery] bool includeRossStudents = false, [FromQuery] string? groupType = null, [FromQuery] string? groupId = null)
         {
             var validationError = ValidateCourseParams(termCode, crn, required: true);
             if (validationError != null)
@@ -171,7 +171,7 @@ namespace Viper.Areas.Students.Controller
 
             try
             {
-                var students = await _studentGroupService.GetStudentsByCourseAsync(termCode, crn, includeRossStudents);
+                var students = await _studentGroupService.GetStudentsByCourseAsync(termCode, crn, includeRossStudents, groupType, groupId);
                 var courseInfo = await _courseService.GetCourseInfoAsync(termCode, crn);
 
                 if (courseInfo == null)
@@ -481,32 +481,6 @@ namespace Viper.Areas.Students.Controller
             {
                 _logger.LogError(ex, "Invalid operation getting active class years");
                 return StatusCode(500, "An error occurred while retrieving class years");
-            }
-        }
-
-        [HttpGet("student/{mailId}/details")]
-        public async Task<IActionResult> GetStudentDetails(string mailId)
-        {
-            if (string.IsNullOrWhiteSpace(mailId))
-            {
-                return BadRequest("MailId is required");
-            }
-
-            try
-            {
-                var details = await _studentGroupService.GetStudentDetailsAsync(mailId);
-
-                if (details == null)
-                {
-                    return NotFound();
-                }
-
-                return Ok(details);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogError(ex, "Invalid operation getting student details for {MailId}", LogSanitizer.SanitizeId(mailId));
-                return StatusCode(500, "An error occurred while retrieving student details");
             }
         }
 

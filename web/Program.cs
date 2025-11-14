@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 using NLog;
 using NLog.Web;
 using Polly;
@@ -84,9 +84,9 @@ try
     });
 
     // Add services to the container.
-    builder.Services.AddControllersWithViews().AddSessionStateTempDataProvider().AddNewtonsoftJson(options =>
+    builder.Services.AddControllersWithViews().AddSessionStateTempDataProvider().AddJsonOptions(options =>
         {
-            options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+            options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         });
 
     builder.Host.UseNLog();

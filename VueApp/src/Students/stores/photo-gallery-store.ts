@@ -7,7 +7,6 @@ import type {
     PhotoExportRequest,
     GalleryMenu,
     CourseInfo,
-    CoursesByTerm,
 } from "../services/photo-gallery-service"
 import { photoGalleryService } from "../services/photo-gallery-service"
 
@@ -76,7 +75,7 @@ interface StoreRefs {
     groupCounts: Ref<Record<string, Record<string, number>>>
     galleryMenu: Ref<GalleryMenu | null>
     groupTypes: Ref<{ eighths: string[]; twentieths: string[]; teams: string[]; v3specialty: string[] }>
-    availableCourses: Ref<CoursesByTerm[]>
+    availableCourses: Ref<CourseInfo[]>
 }
 
 async function fetchClassPhotosData(refs: StoreRefs, classLevel: string, includeRoss: boolean) {
@@ -153,6 +152,8 @@ interface CourseParams {
     termCode: string
     crn: string
     includeRoss: boolean
+    groupType?: string | null
+    groupId?: string | null
 }
 
 async function fetchCoursePhotosData(refs: StoreRefs, params: CourseParams) {
@@ -161,10 +162,22 @@ async function fetchCoursePhotosData(refs: StoreRefs, params: CourseParams) {
         refs.error.value = null
         refs.selectedClassLevel.value = null
         refs.selectedGroup.value = null
-        const response = await photoGalleryService.getCourseGallery(params.termCode, params.crn, params.includeRoss)
+        const response = await photoGalleryService.getCourseGallery(
+            params.termCode,
+            params.crn,
+            params.includeRoss,
+            params.groupType,
+            params.groupId,
+        )
         refs.students.value = response.students
         refs.selectedCourse.value = response.courseInfo || null
-        calculateGroupCounts(refs.students.value, refs.groupCounts)
+
+        // Only recalculate group counts if no group filter is applied
+        // This ensures counts reflect the full course roster, not the filtered subset
+        if (!params.groupType && !params.groupId) {
+            calculateGroupCounts(refs.students.value, refs.groupCounts)
+        }
+        // Otherwise, preserve the existing counts from the full roster
     } catch (err: any) {
         refs.error.value = err.message || "Failed to fetch course photos"
         refs.students.value = []
@@ -200,7 +213,7 @@ interface StoreState {
     groupCounts: Ref<Record<string, Record<string, number>>>
     galleryMenu: Ref<GalleryMenu | null>
     groupTypes: Ref<{ eighths: string[]; twentieths: string[]; teams: string[]; v3specialty: string[] }>
-    availableCourses: Ref<CoursesByTerm[]>
+    availableCourses: Ref<CourseInfo[]>
     includeRossStudents: Ref<boolean>
     exportInProgress: Ref<boolean>
     exportParams: Ref<PhotoExportRequest>
@@ -239,8 +252,19 @@ function createStoreActions(refs: StoreRefs, state: StoreState) {
         await fetchAvailableCoursesData(refs)
     }
 
-    async function fetchCoursePhotos(termCode: string, crn: string) {
-        await fetchCoursePhotosData(refs, { termCode, crn, includeRoss: state.includeRossStudents.value })
+    async function fetchCoursePhotos(
+        termCode: string,
+        crn: string,
+        groupType?: string | null,
+        groupId?: string | null,
+    ) {
+        await fetchCoursePhotosData(refs, {
+            termCode,
+            crn,
+            includeRoss: state.includeRossStudents.value,
+            groupType,
+            groupId,
+        })
     }
 
     async function exportToWord() {
@@ -301,7 +325,7 @@ export const usePhotoGalleryStore = defineStore("photoGallery", () => {
     const selectedClassLevel = ref<string | null>(null)
     const selectedGroup = ref<GroupingInfo | null>(null)
     const selectedCourse = ref<CourseInfo | null>(null)
-    const availableCourses = ref<CoursesByTerm[]>([])
+    const availableCourses = ref<CourseInfo[]>([])
     const includeRossStudents = ref(false)
     const exportInProgress = ref(false)
     const galleryView = ref<"grid" | "sheet" | "list">("grid")

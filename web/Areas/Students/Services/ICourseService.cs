@@ -8,11 +8,11 @@ namespace Viper.Areas.Students.Services
     public interface ICourseService
     {
         /// <summary>
-        /// Get available courses for photo gallery, grouped by term
+        /// Get available courses for the current term
         /// </summary>
         /// <param name="subjectCode">Subject code to filter courses (default: "VET")</param>
-        /// <returns>List of courses grouped by academic term</returns>
-        Task<List<CoursesByTerm>> GetAvailableCoursesForPhotosAsync(string subjectCode = "VET");
+        /// <returns>List of courses for the current term</returns>
+        Task<List<CourseInfo>> GetAvailableCoursesForPhotosAsync(string subjectCode = "VET");
 
         /// <summary>
         /// Get detailed information for a specific course

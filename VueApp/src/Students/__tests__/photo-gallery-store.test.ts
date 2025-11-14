@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import { setActivePinia, createPinia } from "pinia"
 import { usePhotoGalleryStore } from "../stores/photo-gallery-store"
 import { photoGalleryService } from "../services/photo-gallery-service"
-import type { PhotoGalleryViewModel, GalleryMenu, CoursesByTerm } from "../services/photo-gallery-service"
+import type { PhotoGalleryViewModel, GalleryMenu, CourseInfo } from "../services/photo-gallery-service"
 
 // Mock the photo gallery service
 vi.mock("../services/photo-gallery-service", () => ({
@@ -83,9 +83,9 @@ describe("photo-gallery-store", () => {
                     twentiethsGroup: null,
                     teamNumber: null,
                     v3SpecialtyGroup: null,
+                    classLevel: null,
                     hasPhoto: true,
                     isRossStudent: false,
-                    priorClassYear: null,
                     fullName: "John Doe",
                     secondaryTextLines: [],
                 },
@@ -111,9 +111,9 @@ describe("photo-gallery-store", () => {
                     twentiethsGroup: null,
                     teamNumber: null,
                     v3SpecialtyGroup: null,
+                    classLevel: null,
                     hasPhoto: true,
                     isRossStudent: false,
-                    priorClassYear: null,
                     fullName: "John Doe",
                     secondaryTextLines: [],
                 },
@@ -128,9 +128,9 @@ describe("photo-gallery-store", () => {
                     twentiethsGroup: null,
                     teamNumber: null,
                     v3SpecialtyGroup: null,
+                    classLevel: null,
                     hasPhoto: true,
                     isRossStudent: false,
-                    priorClassYear: null,
                     fullName: "Jane Smith",
                     secondaryTextLines: [],
                 },
@@ -218,9 +218,9 @@ describe("photo-gallery-store", () => {
                         twentiethsGroup: null,
                         teamNumber: null,
                         v3SpecialtyGroup: null,
+                        classLevel: null,
                         hasPhoto: true,
                         isRossStudent: false,
-                        priorClassYear: null,
                         fullName: "John Doe",
                         secondaryTextLines: [],
                     },
@@ -255,9 +255,9 @@ describe("photo-gallery-store", () => {
                         twentiethsGroup: "T1",
                         teamNumber: null,
                         v3SpecialtyGroup: null,
+                        classLevel: null,
                         hasPhoto: true,
                         isRossStudent: false,
-                        priorClassYear: null,
                         fullName: "John Doe",
                         secondaryTextLines: [],
                     },
@@ -272,9 +272,9 @@ describe("photo-gallery-store", () => {
                         twentiethsGroup: "T2",
                         teamNumber: null,
                         v3SpecialtyGroup: null,
+                        classLevel: null,
                         hasPhoto: true,
                         isRossStudent: false,
-                        priorClassYear: null,
                         fullName: "Jane Smith",
                         secondaryTextLines: [],
                     },
@@ -353,7 +353,13 @@ describe("photo-gallery-store", () => {
 
             await store.fetchCoursePhotos("202501", "12345")
 
-            expect(photoGalleryService.getCourseGallery).toHaveBeenCalledWith("202501", "12345", false)
+            expect(photoGalleryService.getCourseGallery).toHaveBeenCalledWith(
+                "202501",
+                "12345",
+                false,
+                undefined,
+                undefined,
+            )
             expect(store.selectedCourse).toEqual(mockResponse.courseInfo)
             expect(store.selectedClassLevel).toBeNull()
             expect(store.selectedGroup).toBeNull()
@@ -397,9 +403,9 @@ describe("photo-gallery-store", () => {
                         twentiethsGroup: null,
                         teamNumber: "Team 1",
                         v3SpecialtyGroup: "Companion Animal",
+                        classLevel: null,
                         hasPhoto: true,
                         isRossStudent: false,
-                        priorClassYear: null,
                         fullName: "John Doe",
                         secondaryTextLines: [],
                     },
@@ -491,20 +497,14 @@ describe("photo-gallery-store", () => {
     describe("fetchAvailableCourses", () => {
         it("should fetch available courses", async () => {
             const store = usePhotoGalleryStore()
-            const mockCourses: CoursesByTerm[] = [
+            const mockCourses: CourseInfo[] = [
                 {
                     termCode: "202501",
+                    crn: "12345",
+                    subjectCode: "VMD",
+                    courseNumber: "101",
+                    title: "Test Course",
                     termDescription: "Fall 2025",
-                    courses: [
-                        {
-                            termCode: "202501",
-                            crn: "12345",
-                            subjectCode: "VMD",
-                            courseNumber: "101",
-                            title: "Test Course",
-                            termDescription: "Fall 2025",
-                        },
-                    ],
                 },
             ]
 
@@ -624,9 +624,9 @@ describe("photo-gallery-store", () => {
                     twentiethsGroup: null,
                     teamNumber: null,
                     v3SpecialtyGroup: null,
+                    classLevel: null,
                     hasPhoto: true,
                     isRossStudent: false,
-                    priorClassYear: null,
                     fullName: "John Doe",
                     secondaryTextLines: [],
                 },

@@ -13,7 +13,7 @@ interface StudentPhoto {
     v3SpecialtyGroup: string | null
     hasPhoto: boolean
     isRossStudent: boolean
-    priorClassYear: number | null
+    classLevel: string | null
     // Computed properties from backend for consistent display
     fullName: string
     secondaryTextLines: string[]
@@ -26,12 +26,6 @@ interface CourseInfo {
     courseNumber: string
     title: string
     termDescription: string
-}
-
-interface CoursesByTerm {
-    termCode: string
-    termDescription: string
-    courses: CourseInfo[]
 }
 
 interface PhotoGalleryViewModel {
@@ -80,11 +74,6 @@ interface ClassYear {
     classLevel: string
 }
 
-interface StudentDetailInfo {
-    priorClassYear: number | null
-    currentClassYear: number | null
-}
-
 class PhotoGalleryService {
     private baseUrl = `${import.meta.env.VITE_API_URL}students/photos`
 
@@ -109,21 +98,29 @@ class PhotoGalleryService {
         return response.result as PhotoGalleryViewModel
     }
 
-    getAvailableCourses = async (): Promise<CoursesByTerm[]> => {
+    getAvailableCourses = async (): Promise<CourseInfo[]> => {
         const { get } = useFetch()
         const response = await get(`${this.baseUrl}/courses`)
-        return response.result as CoursesByTerm[]
+        return response.result as CourseInfo[]
     }
 
     getCourseGallery = async (
         termCode: string,
         crn: string,
         includeRossStudents = false,
+        groupType?: string | null,
+        groupId?: string | null,
     ): Promise<PhotoGalleryViewModel> => {
         const { get } = useFetch()
-        const response = await get(
-            `${this.baseUrl}/gallery/course/${termCode}/${crn}?includeRossStudents=${includeRossStudents}`,
-        )
+        const params = new URLSearchParams()
+        params.append("includeRossStudents", includeRossStudents.toString())
+        if (groupType) {
+            params.append("groupType", groupType)
+        }
+        if (groupId) {
+            params.append("groupId", groupId)
+        }
+        const response = await get(`${this.baseUrl}/gallery/course/${termCode}/${crn}?${params.toString()}`)
         if (!response.success || !response.result) {
             throw new Error(response.errors?.[0] || "Failed to fetch course gallery")
         }
@@ -168,24 +165,6 @@ class PhotoGalleryService {
         return response.result as ClassYear[]
     }
 
-    getStudentDetails = async (mailId: string): Promise<StudentDetailInfo | null> => {
-        try {
-            // Use raw fetch to avoid triggering the global error handler for 404s
-            const response = await fetch(`${this.baseUrl}/student/${mailId}/details`)
-
-            // Return null for 404 or other errors without showing an error notification
-            if (!response.ok) {
-                return null
-            }
-
-            const data = await response.json()
-            return (data.result ?? data) as StudentDetailInfo
-        } catch {
-            // Silently return null on error
-            return null
-        }
-    }
-
     downloadFile = (blob: Blob, filename: string): void => {
         const url = globalThis.URL.createObjectURL(blob)
         const link = document.createElement("a")
@@ -206,10 +185,8 @@ export type {
     PhotoGalleryViewModel,
     GroupingInfo,
     CourseInfo,
-    CoursesByTerm,
     ExportOptions,
     PhotoExportRequest,
     GalleryMenu,
     ClassYear,
-    StudentDetailInfo,
 }

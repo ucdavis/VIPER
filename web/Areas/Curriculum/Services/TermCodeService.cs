@@ -7,9 +7,14 @@ namespace Viper.Areas.Curriculum.Services
     public class TermCodeService
     {
         private readonly VIPERContext _context;
-        public TermCodeService(VIPERContext context)
+        private readonly CoursesContext? _coursesContext;
+        private static readonly SemaphoreSlim _cacheLock = new(1, 1);
+        private static Dictionary<string, string>? _termDescriptionCache;
+
+        public TermCodeService(VIPERContext context, CoursesContext? coursesContext = null)
         {
             _context = context;
+            _coursesContext = coursesContext;
         }
 
         static public string GetTermCodeDescription(int termCode)
@@ -86,70 +91,106 @@ namespace Viper.Areas.Curriculum.Services
         }
 
         /// <summary>
-        /// Convert 6-digit YYYYMM term code (used by Courses database) to human-readable description
+        /// Get term description from Courses database (with caching)
+        /// Queries terminfo table on first call, then uses cached values
         /// </summary>
         /// <param name="termCode">Term code in YYYYMM format (e.g., "202409")</param>
-        /// <returns>Human-readable term description (e.g., "Fall 2024")</returns>
-        public static string GetTermDescriptionFromYYYYMM(string termCode)
+        /// <returns>Human-readable term description from database (e.g., "Fall Semester 2024")</returns>
+        /// <exception cref="InvalidOperationException">Thrown when CoursesContext is not provided</exception>
+        /// <exception cref="ArgumentException">Thrown when term code format is invalid</exception>
+        /// <exception cref="KeyNotFoundException">Thrown when term code is not found in database</exception>
+        public async Task<string> GetTermDescriptionAsync(string termCode)
         {
-            if (string.IsNullOrEmpty(termCode) || termCode.Length != 6)
+            if (_coursesContext == null)
             {
-                return termCode;
+                throw new InvalidOperationException("CoursesContext is required for GetTermDescriptionAsync. Please provide CoursesContext in the constructor.");
             }
 
-            var year = termCode[..4];
-            var month = termCode[4..];
-
-            var season = month switch
+            if (string.IsNullOrEmpty(termCode) || termCode.Length != 6)
             {
-                "01" => "Winter",
-                "03" => "Spring",
-                "06" => "Summer",
-                "09" => "Fall",
-                _ => ""
-            };
+                throw new ArgumentException($"Invalid term code format: '{termCode}'. Expected 6-digit YYYYMM format.", nameof(termCode));
+            }
 
-            return string.IsNullOrEmpty(season) ? termCode : $"{season} {year}";
+            // Initialize cache on first access (thread-safe lazy loading with semaphore)
+            if (_termDescriptionCache == null)
+            {
+                await _cacheLock.WaitAsync();
+                try
+                {
+                    if (_termDescriptionCache == null)
+                    {
+                        await LoadTermCacheAsync();
+                    }
+                }
+                finally
+                {
+                    _cacheLock.Release();
+                }
+            }
+
+            // Return cached description
+            if (_termDescriptionCache != null && _termDescriptionCache.TryGetValue(termCode, out var description))
+            {
+                return description;
+            }
+
+            throw new KeyNotFoundException($"Term code '{termCode}' not found in Courses database terminfo table.");
         }
 
         /// <summary>
-        /// Calculate term range for course queries (current semester forward only)
-        /// Used by CourseService to query courses from current semester through next summer
+        /// Load term descriptions from database into static cache (assumes caller holds lock)
+        /// </summary>
+        private async Task LoadTermCacheAsync()
+        {
+            if (_coursesContext == null)
+            {
+                throw new InvalidOperationException("CoursesContext is required for loading term cache.");
+            }
+
+            var terms = await _coursesContext.Terminfos
+                .AsNoTracking()
+                .Where(t => t.TermCollCode == "VM")
+                .GroupBy(t => t.TermCode)
+                .ToDictionaryAsync(g => g.Key, g => g.Select(x => x.TermDesc).FirstOrDefault() ?? string.Empty);
+
+            _termDescriptionCache = terms;
+        }
+
+        /// <summary>
+        /// Gets the term range for course queries spanning the current academic year.
+        /// Determines the academic year by querying courses.dbo.terminfo for the current_term flag,
+        /// which is manually set when ready to transition to the next term (e.g., Fall extends into January).
+        /// Returns the earliest and latest term codes for that academic year.
         /// </summary>
         /// <returns>Tuple of (StartTerm, EndTerm) in YYYYMM format</returns>
-        public static (string StartTerm, string EndTerm) GetAcademicYearTermRange()
+        /// <exception cref="InvalidOperationException">Thrown when CoursesContext is not provided or when no current term is set in the database</exception>
+        public async Task<(string StartTerm, string EndTerm)> GetAcademicYearTermRangeAsync()
         {
-            var now = DateTime.Now;
-            var currentYear = now.Year;
-            var currentMonth = now.Month;
-
-            // Determine current semester based on month
-            string startTerm;
-            if (currentMonth >= 1 && currentMonth <= 2)
+            if (_coursesContext == null)
             {
-                // Winter term spans January-February; keep the current winter in range
-                startTerm = $"{currentYear}01";
-            }
-            else if (currentMonth >= 3 && currentMonth <= 5)
-            {
-                // Spring - start from Spring
-                startTerm = $"{currentYear}03";
-            }
-            else if (currentMonth >= 6 && currentMonth <= 8)
-            {
-                // Summer - start from Summer
-                startTerm = $"{currentYear}06";
-            }
-            else // currentMonth >= 9 && currentMonth <= 12
-            {
-                // Fall - start from Fall
-                startTerm = $"{currentYear}09";
+                throw new InvalidOperationException("CoursesContext is required for GetAcademicYearTermRangeAsync. Please provide CoursesContext in the constructor.");
             }
 
-            // End term: Summer of next year to ensure we capture future courses
-            var endTerm = $"{currentYear + 1}06";
+            // Get the current term's academic year from courses.dbo.terminfo where current_term = true
+            var currentTerm = await _coursesContext.Terminfos
+                .Where(t => t.TermCollCode == "VM" && t.TermCurrentTerm)
+                .Select(t => new { t.TermAcademicYear })
+                .FirstOrDefaultAsync()
+                ?? throw new InvalidOperationException("No current term is set in courses.dbo.terminfo. Please ensure term_current_term is set to true for the active term.");
 
-            return (startTerm, endTerm);
+            // Get all terms for the same academic year, sorted by term code
+            var academicYearTerms = await _coursesContext.Terminfos
+                .Where(t => t.TermCollCode == "VM" && t.TermAcademicYear == currentTerm.TermAcademicYear)
+                .OrderBy(t => t.TermCode)
+                .Select(t => t.TermCode)
+                .ToListAsync();
+
+            if (academicYearTerms.Count == 0)
+            {
+                throw new InvalidOperationException($"No terms found for academic year {currentTerm.TermAcademicYear} in courses.dbo.terminfo.");
+            }
+
+            return (academicYearTerms[0], academicYearTerms[^1]);
         }
     }
 }

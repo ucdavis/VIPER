@@ -1,9 +1,9 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Models;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
+using Viper.Areas.Curriculum.Services;
 
 namespace Viper.Areas.Students.Services
 {
@@ -22,69 +22,51 @@ namespace Viper.Areas.Students.Services
         }
 
         /// <summary>
-        /// Get available courses for photo gallery, grouped by term
+        /// Get available courses for the current term
         /// </summary>
-        public async Task<List<CoursesByTerm>> GetAvailableCoursesForPhotosAsync(string subjectCode = "VET")
+        public async Task<List<CourseInfo>> GetAvailableCoursesForPhotosAsync(string subjectCode = "VET")
         {
             try
             {
-                // Calculate term range: current academic year + previous year
-                var termRange = TermCodeService.GetAcademicYearTermRange();
+                var currentTermCode = await _coursesContext.Terminfos
+                    .AsNoTracking()
+                    .Where(t => t.TermCollCode == "VM" && t.TermCurrentTerm)
+                    .Select(t => t.TermCode)
+                    .FirstOrDefaultAsync()
+                    ?? throw new InvalidOperationException("No current term is set in courses.dbo.terminfo. Please ensure term_current_term is set to true for the active term.");
 
-                // Query courses with enrolled students
-                var courses = await _coursesContext.Baseinfos
+                var termDescription = TermCodeService.GetTermCodeDescription(int.Parse(currentTermCode));
+
+                return await _coursesContext.Baseinfos
                     .Where(b => b.BaseinfoSubjCode == subjectCode)
-                    .Where(b => b.BaseinfoTermCode != null &&
-                               string.Compare(b.BaseinfoTermCode, termRange.StartTerm) >= 0 &&
-                               string.Compare(b.BaseinfoTermCode, termRange.EndTerm) <= 0)
+                    .Where(b => b.BaseinfoTermCode == currentTermCode)
                     .Where(b => b.BaseinfoEnrollment > 0)
                     .Where(b => _coursesContext.Rosters.Any(r =>
                         r.RosterTermCode == b.BaseinfoTermCode &&
                         r.RosterCrn == b.BaseinfoCrn))
-                    .OrderByDescending(b => b.BaseinfoTermCode)
-                    .ThenBy(b => b.BaseinfoSubjCode)
+                    .OrderBy(b => b.BaseinfoSubjCode)
                     .ThenBy(b => b.BaseinfoCrseNumb)
                     .ThenBy(b => b.BaseinfoSeqNumb)
-                    .Select(b => new
+                    .Select(b => new CourseInfo
                     {
                         TermCode = b.BaseinfoTermCode ?? string.Empty,
                         Crn = b.BaseinfoCrn ?? string.Empty,
                         SubjectCode = b.BaseinfoSubjCode ?? string.Empty,
                         CourseNumber = b.BaseinfoCrseNumb ?? string.Empty,
-                        Title = b.BaseinfoTitle ?? string.Empty
+                        Title = b.BaseinfoTitle ?? string.Empty,
+                        TermDescription = termDescription
                     })
                     .ToListAsync();
-
-                // Group by term
-                var coursesByTerm = courses
-                    .GroupBy(c => c.TermCode)
-                    .Select(g => new CoursesByTerm
-                    {
-                        TermCode = g.Key,
-                        TermDescription = TermCodeService.GetTermDescriptionFromYYYYMM(g.Key),
-                        Courses = g.Select(c => new CourseInfo
-                        {
-                            TermCode = c.TermCode,
-                            Crn = c.Crn,
-                            SubjectCode = c.SubjectCode,
-                            CourseNumber = c.CourseNumber,
-                            Title = c.Title,
-                            TermDescription = TermCodeService.GetTermDescriptionFromYYYYMM(c.TermCode)
-                        }).ToList()
-                    })
-                    .ToList();
-
-                return coursesByTerm;
             }
             catch (SqlException ex)
             {
                 _logger.LogError(ex, "Database error fetching available courses for subject code {SubjectCode}", LogSanitizer.SanitizeString(subjectCode));
-                return new List<CoursesByTerm>();
+                return new List<CourseInfo>();
             }
             catch (InvalidOperationException ex)
             {
                 _logger.LogError(ex, "Invalid operation fetching available courses for subject code {SubjectCode}", LogSanitizer.SanitizeString(subjectCode));
-                return new List<CoursesByTerm>();
+                return new List<CourseInfo>();
             }
         }
 
@@ -104,9 +86,14 @@ namespace Viper.Areas.Students.Services
                         SubjectCode = b.BaseinfoSubjCode ?? string.Empty,
                         CourseNumber = b.BaseinfoCrseNumb ?? string.Empty,
                         Title = b.BaseinfoTitle ?? string.Empty,
-                        TermDescription = TermCodeService.GetTermDescriptionFromYYYYMM(b.BaseinfoTermCode ?? string.Empty)
+                        TermDescription = string.Empty // Set below after query
                     })
                     .FirstOrDefaultAsync();
+
+                if (course != null)
+                {
+                    course.TermDescription = TermCodeService.GetTermCodeDescription(int.Parse(course.TermCode));
+                }
 
                 return course;
             }
