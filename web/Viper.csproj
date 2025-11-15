@@ -15,6 +15,10 @@
     <Content Remove="Areas\CTS\Views\css\**" />
     <EmbeddedResource Remove="Areas\CTS\Views\css\**" />
     <None Remove="Areas\CTS\Views\css\**" />
+    <Compile Remove="Areas\Effort\Scripts\**" />
+    <Content Remove="Areas\Effort\Scripts\**" />
+    <EmbeddedResource Remove="Areas\Effort\Scripts\**" />
+    <None Remove="Areas\Effort\Scripts\**" />
   </ItemGroup>
 
   <ItemGroup>
