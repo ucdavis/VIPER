@@ -72,10 +72,9 @@ try
     Console.WriteLine();
 
     // Step 2: Handle database creation based on mode
-    bool databaseCreated = false;
     if (executeMode)
     {
-        databaseCreated = CreateDatabase(masterConnectionString);
+        CreateDatabase(masterConnectionString);
     }
     else
     {
@@ -152,7 +151,16 @@ try
     Console.WriteLine($"End Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
     Console.WriteLine("============================================");
 }
-catch (Exception ex)
+catch (SqlException sqlEx)
+{
+    Console.ForegroundColor = ConsoleColor.Red;
+    Console.WriteLine($"DATABASE ERROR: {sqlEx.Message}");
+    Console.WriteLine($"SQL Error Number: {sqlEx.Number}");
+    Console.WriteLine($"Stack Trace: {sqlEx.StackTrace}");
+    Console.ResetColor();
+    Environment.Exit(1);
+}
+catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
 {
     Console.ForegroundColor = ConsoleColor.Red;
     Console.WriteLine($"ERROR: {ex.Message}");
@@ -190,10 +198,11 @@ static bool VerifyPrerequisites(string connectionString)
     {
         recordCount = (int)cmdData.ExecuteScalar();
     }
-    catch
+    catch (Exception ex)
     {
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine("  ⚠ WARNING: Could not check [VIPER].[effort] schema for data.");
+        Console.WriteLine($"     Exception: {ex.Message}");
         Console.ResetColor();
     }
 
@@ -669,35 +678,7 @@ static void MigrateStoredProcedures(string connectionString, bool executeMode)
     Console.WriteLine($"Found {procedures.Count} stored procedures to migrate");
     Console.WriteLine();
 
-    // Table reference mapping (legacy table names → EffortShadow view names)
-    var tableMapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
-        { "tblEffort", "vw_tblEffort" },
-        { "tblPerson", "vw_tblPerson" },
-        { "tblCourses", "vw_tblCourses" },
-        { "tblPercent", "vw_tblPercent" },
-        { "tblStatus", "vw_tblStatus" },
-        { "tblSabbatic", "vw_tblSabbatic" },
-        { "tblRoles", "vw_tblRoles" },
-        { "tblEffortType_LU", "vw_tblEffortType_LU" },
-        { "userAccess", "vw_userAccess" },
-        { "tblUnits_LU", "vw_tblUnits_LU" },
-        { "tblJobCode", "vw_tblJobCode" },
-        { "tblReportUnits", "vw_tblReportUnits" },
-        { "tblReviewYears", "vw_tblReviewYears" },
-        { "tblAltTitles", "vw_tblAltTitles" },
-        { "months", "vw_months" },
-        { "workdays", "vw_workdays" },
-        { "tblCourseRelationships", "vw_tblCourseRelationships" },
-        { "additionalQuestion", "vw_additionalQuestion" },
-        { "tblAudit", "vw_tblAudit" }
-    };
-
-    // NOTE: Actually, we should reference the views we just created (tblEffort, tblPerson, etc.)
-    // NOT vw_tblEffort. The views ARE the compatibility layer. Let's use the actual view names.
-    // Stored procedures should reference [dbo].[tblEffort], [dbo].[tblPerson], etc.
-    // No table reference updates needed - legacy table names are now view names!
-
+    // Views created earlier maintain legacy table names, so procedures require no modification
     using var connection = new SqlConnection(connectionString);
     connection.Open();
 

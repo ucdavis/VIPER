@@ -204,6 +204,15 @@ namespace Viper.Areas.Effort.Scripts
 
             return 0;
         }
+        catch (SqlException sqlEx)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"DATABASE ERROR: {sqlEx.Message}");
+            Console.WriteLine($"SQL Error Number: {sqlEx.Number}");
+            Console.WriteLine(sqlEx.StackTrace);
+            Console.ResetColor();
+            return 1;
+        }
         catch (Exception ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
@@ -265,15 +274,17 @@ namespace Viper.Areas.Effort.Scripts
                         dataCounts[table] = count;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Table doesn't exist or can't be queried - skip it
+                    // Skip missing or inaccessible tables
+                    Console.Error.WriteLine($"Warning: Could not query table '{table}': {ex.Message}");
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Schema doesn't exist or can't be accessed - return empty counts
+            // Return empty counts if schema is inaccessible
+            Console.Error.WriteLine($"Warning: Could not access schema: {ex.Message}");
         }
 
         return dataCounts;
@@ -345,9 +356,15 @@ namespace Viper.Areas.Effort.Scripts
                     Console.ResetColor();
                 }
             }
-            catch
+            catch (SqlException)
             {
-                // Database doesn't exist or can't access - continue
+                // Ignore if database doesn't exist
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"  Warning: Unexpected error while dropping EffortShadow database: {ex.Message}");
+                Console.ResetColor();
             }
         }
 

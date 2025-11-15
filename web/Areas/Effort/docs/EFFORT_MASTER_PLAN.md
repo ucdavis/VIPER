@@ -60,10 +60,11 @@ The migration uses a **Shadow Database** pattern to enable parallel operation of
 - Proper foreign keys and unique constraints
 - Optimized indexes for EF Core queries
 
-**Stored Procedures:**
-- 37 CRUD procedures rewritten with modernized logic
-- 16 complex reporting procedures (optional - can use EF/LINQ instead)
-- All handle MothraId → PersonId mapping automatically
+**Data Access:**
+
+- CRUD operations replaced with Entity Framework Core + LINQ repositories
+- 16 complex reporting stored procedures for performance-critical aggregations
+- MothraId → PersonId mapping handled by Entity Framework navigation properties
 
 ### EffortShadow Database (Compatibility Layer)
 
@@ -176,8 +177,9 @@ Development artifacts and unused procedures will not be migrated
 **Total Stored Procedures in Legacy System:** 87 active (89 total, 2 obsolete)
 
 **Hybrid Approach - Best of Both Worlds:**
-- **Replace with EF Repositories:** ~37 CRUD operation SPs
-- **Migrate & Modernize:** 16 complex reporting SPs (for performance)
+
+- **Replace with Entity Framework Core:** ~37 CRUD operation SPs replaced with EF repositories + LINQ
+- **Migrate & Modernize:** 16 complex reporting SPs (for performance-critical aggregations)
 - **Not Migrating (Unused):** ~30 development iterations and unused SPs
 
 **Key Benefits:**
@@ -289,11 +291,13 @@ The Effort system integrates with VIPER2's existing RAPS-based permission archit
 - [ ] Migrate sabbaticals
 - [ ] Validate record counts match
 
-**Step 4: Create Stored Procedures in Effort Database**
-- [ ] Create 37 CRUD stored procedures
-- [ ] Add MothraId → PersonId mapping logic
-- [ ] Add proper error handling and transactions
-- [ ] Test SCOPE_IDENTITY() returns correctly
+**Step 4: Create Reporting Stored Procedures in Effort Database**
+- [ ] Run CreateEffortReportingProcedures.cs to create 16 reporting SPs
+- [ ] Test each reporting procedure with sample data
+- [ ] Validate performance meets requirements
+- [ ] Document SP parameters and return values
+
+**Note:** CRUD operations will be handled by Entity Framework repositories, not stored procedures.
 
 #### Week 2: Shadow Database Creation and ColdFusion Update
 

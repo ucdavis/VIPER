@@ -181,10 +181,22 @@ namespace Viper.Areas.Effort.Scripts
                 throw;
             }
         }
+        catch (SqlException sqlEx)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"DATABASE ERROR: {sqlEx.Message}");
+            Console.WriteLine($"SQL Error Number: {sqlEx.Number}");
+            Console.WriteLine($"Stack Trace: {sqlEx.StackTrace}");
+            Console.ResetColor();
+            Environment.Exit(1);
+        }
         catch (Exception ex)
         {
+            Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"ERROR: {ex.Message}");
             Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+            Console.ResetColor();
+            Environment.Exit(1);
         }
     }
 
@@ -230,6 +242,13 @@ namespace Viper.Areas.Effort.Scripts
             effortConnection.Open();
             Console.WriteLine("  ✓ Legacy Efforts database connection successful");
         }
+        catch (SqlException sqlEx)
+        {
+            Console.WriteLine($"  ✗ Cannot connect to legacy Efforts database: {sqlEx.Message}");
+            Console.WriteLine($"     SQL Error Number: {sqlEx.Number}");
+            Console.WriteLine("     Check the 'Effort' connection string in appsettings");
+            return false;
+        }
         catch (Exception ex)
         {
             Console.WriteLine($"  ✗ Cannot connect to legacy Efforts database: {ex.Message}");
@@ -255,9 +274,10 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine("  ✓ VIPER.users.Person table found");
             }
         }
-        catch
+        catch (Exception ex)
         {
             Console.WriteLine("  ⚠ WARNING: Could not verify VIPER.users.Person table. MothraId mapping may fail.");
+            Console.WriteLine($"     Exception: {ex.Message}");
         }
 
         // Check if legacy database has data using the Effort connection
@@ -498,11 +518,8 @@ namespace Viper.Areas.Effort.Scripts
         insertCmd.Parameters.Add("@UnitName", SqlDbType.NVarChar, 100);
 
         int rows = 0;
-        foreach (var item in legacyData)
+        foreach (var item in legacyData.Where(item => !string.IsNullOrEmpty(item.Abbrev) || !string.IsNullOrEmpty(item.Unit)))
         {
-            // Skip if both abbrev and unit are null
-            if (string.IsNullOrEmpty(item.Abbrev) && string.IsNullOrEmpty(item.Unit)) continue;
-
             string unitCode = item.Abbrev ?? item.Unit ?? "UNKNOWN";
 
             // Check if already exists
@@ -665,7 +682,7 @@ namespace Viper.Areas.Effort.Scripts
                     reader.IsDBNull(4) ? null : reader.GetString(4),   // person_MiddleIni
                     reader.GetString(5),   // person_EffortTitleCode
                     reader.GetString(6),   // person_EffortDept
-                    reader.GetDouble(7) == 0 ? 0 : (decimal)reader.GetDouble(7),  // person_PercentAdmin (float to decimal)
+                    Math.Abs(reader.GetDouble(7)) < 1e-6 ? 0 : (decimal)reader.GetDouble(7),  // person_PercentAdmin (float to decimal)
                     reader.IsDBNull(8) ? null : reader.GetString(8),   // person_JobGrpID
                     reader.IsDBNull(9) ? null : reader.GetString(9),   // person_Title
                     reader.IsDBNull(10) ? null : reader.GetString(10), // person_AdminUnit

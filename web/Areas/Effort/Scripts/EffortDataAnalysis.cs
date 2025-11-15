@@ -1027,20 +1027,6 @@ namespace Viper.Areas.Effort.Scripts
 
         private void CheckRecordsWithInvalidReferences(SqlConnection conn)
         {
-            var viperMothraIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            using (var viperConn = new SqlConnection(_viperConnectionString))
-            {
-                viperConn.Open();
-                using (var cmd = new SqlCommand("SELECT MothraId FROM users.Person WHERE MothraId IS NOT NULL", viperConn))
-                using (var reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        viperMothraIds.Add(reader.GetString(0));
-                    }
-                }
-            }
-
             // Migration will fail to map PersonId without matching VIPER record
             var unmappedPersonQuery = @"
                 SELECT COUNT(*)
