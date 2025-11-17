@@ -239,13 +239,65 @@
                         v-else-if="galleryStore.hasStudents"
                         class="q-mt-lg"
                     >
-                        <!-- Q-Table for Grid and List views -->
+                        <!-- Grid view with group headers -->
+                        <div v-if="galleryStore.galleryView === 'grid'">
+                            <div class="row items-center q-mb-md">
+                                <div class="col">
+                                    <div class="text-h5 text-weight-bold">{{ pageTitle }}</div>
+                                </div>
+                                <div class="col-auto">
+                                    <q-input
+                                        v-model="photoFilter"
+                                        dense
+                                        outlined
+                                        debounce="300"
+                                        placeholder="Filter students"
+                                        clearable
+                                        class="q-mr-sm"
+                                    >
+                                        <template #append>
+                                            <q-icon name="search" />
+                                        </template>
+                                    </q-input>
+                                </div>
+                            </div>
+
+                            <!-- Render groups with headers -->
+                            <template
+                                v-for="[groupName, students] in groupedStudents"
+                                :key="groupName"
+                            >
+                                <!-- Group header (only show if more than one group) -->
+                                <div
+                                    v-if="groupedStudents.size > 1"
+                                    class="text-h6 text-weight-bold q-mt-md q-mb-sm q-pa-sm bg-grey-2 rounded-borders"
+                                >
+                                    {{ groupName }} ({{ students.length }})
+                                </div>
+
+                                <!-- Students grid for this group -->
+                                <div class="row q-col-gutter-xs">
+                                    <div
+                                        v-for="(student, index) in students"
+                                        :key="student.mailId"
+                                        class="student-grid-item"
+                                    >
+                                        <StudentPhotoCard
+                                            :student="student"
+                                            :current-index="index"
+                                            @click="handleStudentClickByMailId(student.mailId)"
+                                        />
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- List view with group headers -->
                         <q-table
-                            v-if="galleryStore.galleryView !== 'sheet'"
-                            :rows="galleryStore.students"
+                            v-else-if="galleryStore.galleryView === 'list'"
+                            :rows="sortedStudentsForList"
                             :columns="photoColumns"
-                            :grid="galleryStore.galleryView === 'grid'"
-                            :filter="photoFilter"
+                            :grid="false"
                             row-key="mailId"
                             :pagination="{ rowsPerPage: 0 }"
                             hide-header
@@ -276,26 +328,23 @@
                                 <div class="text-h5 text-weight-bold">{{ pageTitle }}</div>
                             </template>
 
-                            <!-- Grid/List item rendering -->
-                            <!-- Grid view: Use item slot for grid mode -->
-                            <template
-                                v-if="galleryStore.galleryView === 'grid'"
-                                #item="props"
-                            >
-                                <div class="col-4 col-sm-3 col-md-2 col-lg-2 col-xl-1 q-pa-xs">
-                                    <StudentPhotoCard
-                                        :student="props.row"
-                                        :current-index="props.rowIndex"
-                                        @click="handleStudentClickByMailId(props.row.mailId)"
-                                    />
-                                </div>
-                            </template>
+                            <!-- List view: Use body slot for table mode with group headers -->
+                            <template #body="props">
+                                <!-- Group header row (only if this is the start of a new group) -->
+                                <q-tr
+                                    v-if="shouldShowGroupHeader(props.rowIndex)"
+                                    class="bg-grey-2"
+                                >
+                                    <q-td colspan="100%">
+                                        <div class="text-h6 text-weight-bold q-pa-sm">
+                                            {{ getGroupValueForStudent(props.row) }} ({{
+                                                getGroupStudentCount(props.row)
+                                            }})
+                                        </div>
+                                    </q-td>
+                                </q-tr>
 
-                            <!-- List view: Use body slot for table mode -->
-                            <template
-                                v-if="galleryStore.galleryView === 'list'"
-                                #body="props"
-                            >
+                                <!-- Student row -->
                                 <q-tr
                                     :props="props"
                                     @click="handleStudentClickByMailId(props.row.mailId)"
@@ -384,6 +433,7 @@
                             :students="galleryStore.students"
                             :title="pageTitle"
                             :generated-date="galleryDateFormatted"
+                            :grouped-students="groupedStudents"
                         />
                     </div>
 
@@ -551,6 +601,7 @@ import { photoGalleryService } from "../services/photo-gallery-service"
 import type { ClassYear, CourseInfo } from "../services/photo-gallery-service"
 import { usePhotoGalleryOptions } from "../composables/use-photo-gallery-options"
 import { getPhotoUrl } from "../composables/use-photo-url"
+import { groupStudentsByType, getStudentGroupValue } from "../stores/photo-gallery-helpers"
 import PhotoSheet from "../components/PhotoGallery/PhotoSheet.vue"
 import StudentPhotoCard from "../components/PhotoGallery/StudentPhotoCard.vue"
 import StudentPhotoDialog from "../components/PhotoGallery/StudentPhotoDialog.vue"
@@ -669,8 +720,18 @@ const groupTypeOptions = computed(() => {
         options.push({ label: "Teams", value: "teams" }, { label: "Streams", value: "v3specialty" })
     }
 
-    // For courses, always show eighths and twentieths (teams/streams depend on course composition)
-    // The group counts will determine if any students are in those groups
+    // For courses: show Teams/Streams if the course has V3 students (detected via group counts)
+    if (selectedCourse.value) {
+        const hasV3Teams = Object.keys(galleryStore.groupCounts.teams || {}).length > 0
+        const hasV3Streams = Object.keys(galleryStore.groupCounts.v3specialty || {}).length > 0
+
+        if (hasV3Teams) {
+            options.push({ label: "Teams", value: "teams" })
+        }
+        if (hasV3Streams) {
+            options.push({ label: "Streams", value: "v3specialty" })
+        }
+    }
 
     return options
 })
@@ -680,31 +741,50 @@ const groupOptions = computed(() => {
 
     let groups: string[] = []
     let countKey: "eighths" | "twentieths" | "teams" | "v3specialty" = "eighths"
+    let groupTypeLabel = ""
 
     if (selectedGroupType.value === "eighths") {
         groups = galleryStore.groupTypes.eighths
         countKey = "eighths"
+        groupTypeLabel = "Eighths"
     } else if (selectedGroupType.value === "twentieths") {
         groups = galleryStore.groupTypes.twentieths
         countKey = "twentieths"
+        groupTypeLabel = "Twentieths"
     } else if (selectedGroupType.value === "teams") {
         groups = galleryStore.groupTypes.teams
         countKey = "teams"
+        groupTypeLabel = "Teams"
     } else if (selectedGroupType.value === "v3specialty") {
         groups = galleryStore.groupTypes.v3specialty
         countKey = "v3specialty"
+        groupTypeLabel = "Streams"
     }
 
     // Use cached counts from the store (populated when class is loaded)
     const counts = galleryStore.groupCounts[countKey] || {}
 
-    return groups.map((group) => {
+    // Calculate total students across all groups
+    const totalCount = Object.values(counts).reduce((sum, count) => sum + count, 0)
+
+    // Create the options array starting with "All <group type>"
+    const options: Array<{ label: string; value: string | null }> = [
+        {
+            label: `All ${groupTypeLabel} (${totalCount})`,
+            value: null,
+        },
+    ]
+
+    // Add individual group options
+    groups.forEach((group) => {
         const count = counts[group] || 0
-        return {
+        options.push({
             label: `${group} (${count})`,
             value: group,
-        }
+        })
     })
+
+    return options
 })
 
 const hasActiveFilters = computed(() => {
@@ -751,7 +831,7 @@ const studentListTitle = computed(() => {
     return title
 })
 
-// Helper function to format dates - DRY principle
+// Formats timestamps in long form for display in export options and student details
 function formatTimestamp(date: Date | null): string {
     if (!date) {
         return ""
@@ -806,6 +886,75 @@ const pageTitle = computed(() => {
     return title
 })
 
+// Computed property for filtered students (applies search filter)
+const filteredStudents = computed(() => {
+    const term = photoFilter.value?.trim().toLowerCase() ?? ""
+    if (!term) {
+        return galleryStore.students
+    }
+    return galleryStore.students.filter((student) => {
+        const haystack = `${student.firstName} ${student.lastName} ${student.displayName} ${student.mailId} ${student.secondaryTextLines.join(" ")}`
+        return haystack.toLowerCase().includes(term)
+    })
+})
+
+// Computed property for grouped students
+const groupedStudents = computed(() => {
+    const source = filteredStudents.value
+    // Only group when a group type is selected and we're showing "All" (no specific group selected)
+    if (selectedGroupType.value && !selectedGroup.value) {
+        return groupStudentsByType(source, selectedGroupType.value)
+    }
+    // Otherwise return students ungrouped
+    return groupStudentsByType(source, null)
+})
+
+// Computed property for students sorted by group for list view
+const sortedStudentsForList = computed(() => {
+    const source = filteredStudents.value
+    if (selectedGroupType.value && !selectedGroup.value) {
+        // Flatten grouped students into a single array while preserving group order
+        const result: StudentPhoto[] = []
+        for (const students of groupedStudents.value.values()) {
+            result.push(...students)
+        }
+        return result
+    }
+    // Otherwise return students as-is
+    return source
+})
+
+// Helper to determine if we should show a group header before this student in list view
+function shouldShowGroupHeader(rowIndex: number): boolean {
+    if (!selectedGroupType.value || selectedGroup.value) {
+        return false // No grouping active
+    }
+    if (rowIndex === 0) {
+        return true // Always show header for first student
+    }
+    // Show header if this student's group differs from previous student's group
+    const currentStudent = sortedStudentsForList.value[rowIndex]
+    const previousStudent = sortedStudentsForList.value[rowIndex - 1]
+    if (!currentStudent || !previousStudent) {
+        return false
+    }
+    return getGroupValueForStudent(currentStudent) !== getGroupValueForStudent(previousStudent)
+}
+
+// Maps student's group membership to display string based on currently selected group type
+function getGroupValueForStudent(student: StudentPhoto): string {
+    if (!selectedGroupType.value) return "All Students"
+    const groupValue = getStudentGroupValue(student, selectedGroupType.value)
+    return groupValue || "Unassigned"
+}
+
+// Helper to get count of students in the same group as this student
+function getGroupStudentCount(student: StudentPhoto): number {
+    const groupValue = getGroupValueForStudent(student)
+    const studentsInGroup = groupedStudents.value.get(groupValue)
+    return studentsInGroup?.length || 0
+}
+
 async function onClassLevelChange(value: string | null) {
     selectedGroupType.value = null
     selectedGroup.value = null
@@ -836,7 +985,7 @@ async function onClassLevelChange(value: string | null) {
         selectedClassLevel.value = null
         selectedCourse.value = { termCode, crn }
         updateUrlParams()
-        await galleryStore.fetchCoursePhotos(termCode, crn)
+        await galleryStore.fetchCoursePhotos(termCode, crn, {})
     } else {
         // This is a class level selection
         selectedClassLevel.value = stringValue
@@ -857,7 +1006,7 @@ function onGroupTypeChange(groupType: string | null) {
         if (selectedClassLevel.value) {
             galleryStore.fetchClassPhotos(selectedClassLevel.value)
         } else if (selectedCourse.value) {
-            galleryStore.fetchCoursePhotos(selectedCourse.value.termCode, selectedCourse.value.crn)
+            galleryStore.fetchCoursePhotos(selectedCourse.value.termCode, selectedCourse.value.crn, {})
         }
     }
 }
@@ -866,23 +1015,24 @@ async function onGroupChange(group: string | null) {
     updateUrlParams()
 
     if (group && selectedGroupType.value) {
-        // For courses, pass group parameters to fetchCoursePhotos for server-side filtering
+        // Specific group selected - filter to that group
         if (selectedCourse.value) {
-            await galleryStore.fetchCoursePhotos(
-                selectedCourse.value.termCode,
-                selectedCourse.value.crn,
-                selectedGroupType.value,
-                group,
-            )
+            await galleryStore.fetchCoursePhotos(selectedCourse.value.termCode, selectedCourse.value.crn, {
+                groupType: selectedGroupType.value,
+                groupId: group,
+            })
         } else {
             // For class levels, use the existing group API endpoint
             await galleryStore.fetchGroupPhotos(selectedGroupType.value, group, selectedClassLevel.value)
         }
-    } else if (selectedClassLevel.value) {
-        await galleryStore.fetchClassPhotos(selectedClassLevel.value)
-    } else if (selectedCourse.value) {
-        // Clear group filter for courses - fetch all course students
-        await galleryStore.fetchCoursePhotos(selectedCourse.value.termCode, selectedCourse.value.crn)
+    } else {
+        // "All <group type>" selected (group is null) - show all students
+        // This maintains the group type selection for organizing/sorting but doesn't filter
+        if (selectedClassLevel.value) {
+            await galleryStore.fetchClassPhotos(selectedClassLevel.value)
+        } else if (selectedCourse.value) {
+            await galleryStore.fetchCoursePhotos(selectedCourse.value.termCode, selectedCourse.value.crn, {})
+        }
     }
 }
 
@@ -1205,16 +1355,14 @@ onMounted(async () => {
 
     if (selectedCourse.value) {
         // Always fetch full course roster first to populate group counts
-        await galleryStore.fetchCoursePhotos(selectedCourse.value.termCode, selectedCourse.value.crn)
+        await galleryStore.fetchCoursePhotos(selectedCourse.value.termCode, selectedCourse.value.crn, {})
 
         // Then fetch filtered data if a group is selected
         if (selectedGroup.value && selectedGroupType.value) {
-            await galleryStore.fetchCoursePhotos(
-                selectedCourse.value.termCode,
-                selectedCourse.value.crn,
-                selectedGroupType.value,
-                selectedGroup.value,
-            )
+            await galleryStore.fetchCoursePhotos(selectedCourse.value.termCode, selectedCourse.value.crn, {
+                groupType: selectedGroupType.value,
+                groupId: selectedGroup.value,
+            })
         }
     } else if (selectedClassLevel.value) {
         // Always fetch class photos first to populate the group counts cache
@@ -1317,6 +1465,41 @@ watch(selectedStudentIndex, (newIndex) => {
 </script>
 
 <style>
+/* Student grid item sizing for 8 per row on large screens */
+.student-grid-item {
+    flex: 0 0 25%; /* 4 per row on mobile (25%) */
+    max-width: 25%;
+    padding: 4px;
+}
+
+@media (width >= 600px) {
+    .student-grid-item {
+        flex: 0 0 16.667%; /* 6 per row on small screens (16.667%) */
+        max-width: 16.667%;
+    }
+}
+
+@media (width >= 1024px) {
+    .student-grid-item {
+        flex: 0 0 12.5%; /* 8 per row on medium+ screens (12.5%) */
+        max-width: 12.5%;
+    }
+}
+
+@media (width >= 1440px) {
+    .student-grid-item {
+        flex: 0 0 10%; /* 10 per row on large screens (10%) */
+        max-width: 10%;
+    }
+}
+
+@media (width >= 1920px) {
+    .student-grid-item {
+        flex: 0 0 8.333%; /* 12 per row on extra large screens (8.333%) */
+        max-width: 8.333%;
+    }
+}
+
 /* Remove box-within-box appearance */
 .photo-gallery-table .q-table__card {
     box-shadow: none !important;

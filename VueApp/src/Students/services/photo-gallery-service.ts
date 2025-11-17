@@ -74,9 +74,19 @@ interface ClassYear {
     classLevel: string
 }
 
+/**
+ * Service for interacting with the Photo Gallery API
+ * Provides methods for fetching student photos, exporting galleries, and managing photo data
+ */
 class PhotoGalleryService {
     private baseUrl = `${import.meta.env.VITE_API_URL}students/photos`
 
+    /**
+     * Fetches photo gallery for a specific class level (V1-V4)
+     * @param classLevel - The class level to fetch (V1, V2, V3, or V4)
+     * @param includeRossStudents - Whether to include Ross transfer students
+     * @returns Photo gallery view model with students and metadata
+     */
     getClassGallery = async (classLevel: string, includeRossStudents = false): Promise<PhotoGalleryViewModel> => {
         const { get } = useFetch()
         const response = await get(
@@ -107,10 +117,9 @@ class PhotoGalleryService {
     getCourseGallery = async (
         termCode: string,
         crn: string,
-        includeRossStudents = false,
-        groupType?: string | null,
-        groupId?: string | null,
+        options: { includeRossStudents?: boolean; groupType?: string | null; groupId?: string | null } = {},
     ): Promise<PhotoGalleryViewModel> => {
+        const { includeRossStudents = false, groupType, groupId } = options
         const { get } = useFetch()
         const params = new URLSearchParams()
         params.append("includeRossStudents", includeRossStudents.toString())
@@ -133,19 +142,13 @@ class PhotoGalleryService {
         return response.result as GalleryMenu
     }
 
-    getStudentPhotoUrl = (mailId: string): string => {
-        return `${this.baseUrl}/student/${mailId}`
-    }
+    getStudentPhotoUrl = (mailId: string): string => `${this.baseUrl}/student/${mailId}`
 
-    getDefaultPhotoUrl = (): string => {
-        return `${this.baseUrl}/default`
-    }
+    getDefaultPhotoUrl = (): string => `${this.baseUrl}/default`
 
-    exportToWord = async (request: PhotoExportRequest): Promise<Blob> =>
-        postForBlob(`${this.baseUrl}/export/word`, request)
+    exportToWord = (request: PhotoExportRequest): Promise<Blob> => postForBlob(`${this.baseUrl}/export/word`, request)
 
-    exportToPDF = async (request: PhotoExportRequest): Promise<Blob> =>
-        postForBlob(`${this.baseUrl}/export/pdf`, request)
+    exportToPDF = (request: PhotoExportRequest): Promise<Blob> => postForBlob(`${this.baseUrl}/export/pdf`, request)
 
     getAvailableGroups = async (): Promise<any> => {
         const { get } = useFetch()

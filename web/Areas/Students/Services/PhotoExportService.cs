@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Models;
 using Viper.Classes.Utilities;
 using WordDocument = DocumentFormat.OpenXml.Wordprocessing.Document;
@@ -14,13 +15,20 @@ namespace Viper.Areas.Students.Services
 {
     public interface IPhotoExportService
     {
-        Task<PhotoExportResult> ExportToWordAsync(PhotoExportRequest request);
-        Task<PhotoExportResult> ExportToPdfAsync(PhotoExportRequest request);
-        Task<object> GetExportStatusAsync(string exportId);
+        Task<PhotoExportResult?> ExportToWordAsync(PhotoExportRequest request);
+        Task<PhotoExportResult?> ExportToPdfAsync(PhotoExportRequest request);
     }
 
     public class PhotoExportService : IPhotoExportService
     {
+        // Photo dimensions in EMUs (English Metric Units) for Word/PDF export
+        // EMU = 1/914400 inch; these values represent approximately 1.04" x 1.39"
+        private const long PhotoWidthEmu = 950000L;
+        private const long PhotoHeightEmu = 1267000L;
+
+        // Timestamp format for export filenames
+        private const string ExportFilenameTimestampFormat = "yyyyMMddHHmmss";
+
         private readonly IStudentGroupService _studentGroupService;
         private readonly IPhotoService _photoService;
         private readonly ILogger<PhotoExportService> _logger;
@@ -41,7 +49,13 @@ namespace Viper.Areas.Students.Services
             _courseService = courseService;
         }
 
-        public async Task<PhotoExportResult> ExportToWordAsync(PhotoExportRequest request)
+        /// <summary>
+        /// Exports student photos to a formatted Word document with optional grouping by class, course, or student groups.
+        /// </summary>
+        /// <param name="request">Export request containing student selection criteria and options</param>
+        /// <returns>PhotoExportResult containing the Word document bytes and metadata, or null if no students found</returns>
+#pragma warning disable S3220 // OpenXML SDK uses params overloads by design for fluent object construction
+        public async Task<PhotoExportResult?> ExportToWordAsync(PhotoExportRequest request)
         {
             try
             {
@@ -55,6 +69,13 @@ namespace Viper.Areas.Students.Services
                     _logger.LogWarning("No students found for export request");
                     return null;
                 }
+
+                // Load all photos upfront for faster rendering
+                var photoCache = await BatchLoadPhotosAsync(students);
+
+                // Determine if we should group: GroupType is provided but GroupId is not (meaning "All <group type>")
+                var shouldGroup = !string.IsNullOrEmpty(request.GroupType) && string.IsNullOrEmpty(request.GroupId);
+                var groupedStudents = shouldGroup ? GroupStudentsByType(students, request.GroupType) : GroupStudentsByType(students, null);
 
                 using var stream = new MemoryStream();
                 using (var wordDocument = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document))
@@ -84,95 +105,121 @@ namespace Viper.Areas.Students.Services
                         dateProps.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Color() { Val = "808080" }); // Gray color
                     }
 
-                    var table = body.AppendChild(new Table());
-                    var tableProps = table.AppendChild(new TableProperties());
-                    tableProps.AppendChild(new TableBorders(
-                        new TopBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
-                        new BottomBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
-                        new LeftBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
-                        new RightBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
-                        new InsideHorizontalBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
-                        new InsideVerticalBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 }
-                    ));
-
                     const int photosPerRow = 4;
                     uint imageId = 1;
-                    for (int i = 0; i < students.Count; i += photosPerRow)
+                    bool isFirstGroup = true;
+
+                    // Iterate over groups
+                    foreach (var group in groupedStudents)
                     {
-                        var row = table.AppendChild(new TableRow());
-                        var rowStudents = students.Skip(i).Take(photosPerRow).ToList();
-
-                        foreach (var student in rowStudents)
+                        // Add page break before each group (except the first one)
+                        if (!isFirstGroup && groupedStudents.Count > 1)
                         {
-                            var cell = row.AppendChild(new TableCell());
+                            var pageBreakPara = body.AppendChild(new Paragraph());
+                            pageBreakPara.AppendChild(new Run(new Break() { Type = BreakValues.Page }));
+                        }
+                        isFirstGroup = false;
 
-                            // Add photo
-                            var photoBytes = await _photoService.GetStudentPhotoAsync(student.MailId);
-                            if (photoBytes != null && photoBytes.Length > 0)
-                            {
-                                var photoParagraph = cell.AppendChild(new Paragraph());
-                                var photoParagraphProps = photoParagraph.AppendChild(new ParagraphProperties());
-                                photoParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
-                                var photoRun = photoParagraph.AppendChild(new Run());
-
-                                var imagePart = mainPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Jpeg);
-                                using (var photoStream = new MemoryStream(photoBytes))
-                                {
-                                    imagePart.FeedData(photoStream);
-                                }
-
-                                imageId++; // Increment before use to avoid duplicate IDs
-
-                                var inline = new DocumentFormat.OpenXml.Drawing.Wordprocessing.Inline(
-                                    new DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent() { Cx = 950000L, Cy = 1267000L },
-                                    new DocumentFormat.OpenXml.Drawing.Wordprocessing.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
-                                    new DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties() { Id = (UInt32Value)imageId, Name = $"Photo{imageId}" },
-                                    new DocumentFormat.OpenXml.Drawing.Wordprocessing.NonVisualGraphicFrameDrawingProperties(
-                                        new DocumentFormat.OpenXml.Drawing.GraphicFrameLocks() { NoChangeAspect = true }),
-                                    new DocumentFormat.OpenXml.Drawing.Graphic(
-                                        new DocumentFormat.OpenXml.Drawing.GraphicData(
-                                            new DocumentFormat.OpenXml.Drawing.Pictures.Picture(
-                                                new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureProperties(
-                                                    new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties() { Id = (UInt32Value)imageId, Name = $"Photo{imageId}.jpg" },
-                                                    new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureDrawingProperties()),
-                                                new DocumentFormat.OpenXml.Drawing.Pictures.BlipFill(
-                                                    new DocumentFormat.OpenXml.Drawing.Blip() { Embed = mainPart.GetIdOfPart(imagePart) },
-                                                    new DocumentFormat.OpenXml.Drawing.Stretch(
-                                                        new DocumentFormat.OpenXml.Drawing.FillRectangle())),
-                                                new DocumentFormat.OpenXml.Drawing.Pictures.ShapeProperties(
-                                                    new DocumentFormat.OpenXml.Drawing.Transform2D(
-                                                        new DocumentFormat.OpenXml.Drawing.Offset() { X = 0L, Y = 0L },
-                                                        new DocumentFormat.OpenXml.Drawing.Extents() { Cx = 950000L, Cy = 1267000L }),
-                                                    new DocumentFormat.OpenXml.Drawing.PresetGeometry(
-                                                        new DocumentFormat.OpenXml.Drawing.AdjustValueList())
-                                                    { Preset = DocumentFormat.OpenXml.Drawing.ShapeTypeValues.Rectangle }))
-                                        )
-                                        { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" })
-                                )
-                                { DistanceFromTop = (UInt32Value)0U, DistanceFromBottom = (UInt32Value)0U, DistanceFromLeft = (UInt32Value)0U, DistanceFromRight = (UInt32Value)0U };
-
-                                var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing(inline);
-
-                                photoRun.AppendChild(drawing);
-                            }
-
-                            // Add name and secondary text using centralized display logic
-                            var cellParagraph = cell.AppendChild(new Paragraph());
-                            var cellParagraphProps = cellParagraph.AppendChild(new ParagraphProperties());
-                            cellParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
-                            var cellRun = cellParagraph.AppendChild(new Run());
-                            cellRun.AppendChild(new Text(student.FullName));
-
-                            foreach (var line in student.SecondaryTextLines)
-                            {
-                                cellRun.AppendChild(new Break());
-                                cellRun.AppendChild(new Text(line));
-                            }
+                        // Add group header if there are multiple groups
+                        if (groupedStudents.Count > 1)
+                        {
+                            var groupHeaderPara = body.AppendChild(new Paragraph());
+                            var groupHeaderRun = groupHeaderPara.AppendChild(new Run());
+                            groupHeaderRun.AppendChild(new Text($"{group.Key} ({group.Value.Count})"));
+                            var groupHeaderProps = groupHeaderRun.PrependChild(new RunProperties());
+                            groupHeaderProps.AppendChild(new Bold());
+                            groupHeaderProps.AppendChild(new FontSize() { Val = "24" });
                         }
 
-                        for (int j = rowStudents.Count; j < photosPerRow; j++)
+                        // Create table for this group
+                        var table = body.AppendChild(new Table());
+                        var tableProps = table.AppendChild(new TableProperties());
+                        tableProps.AppendChild(new TableBorders(
+                            new TopBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
+                            new BottomBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
+                            new LeftBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
+                            new RightBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
+                            new InsideHorizontalBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
+                            new InsideVerticalBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 }
+                        ));
+
+                        var groupStudents = group.Value;
+                        for (int i = 0; i < groupStudents.Count; i += photosPerRow)
                         {
-                            row.AppendChild(new TableCell(new Paragraph()));
+                            var row = table.AppendChild(new TableRow());
+                            var rowStudents = groupStudents.Skip(i).Take(photosPerRow).ToList();
+
+                            foreach (var student in rowStudents)
+                            {
+                                var cell = row.AppendChild(new TableCell());
+
+                                // Add photo from cache (already batch loaded)
+                                if (photoCache.TryGetValue(student.MailId, out var photoBytes) && photoBytes != null && photoBytes.Length > 0)
+                                {
+                                    var photoParagraph = cell.AppendChild(new Paragraph());
+                                    var photoParagraphProps = photoParagraph.AppendChild(new ParagraphProperties());
+                                    photoParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
+                                    var photoRun = photoParagraph.AppendChild(new Run());
+
+                                    var imagePart = mainPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Jpeg);
+                                    using (var photoStream = new MemoryStream(photoBytes))
+                                    {
+                                        imagePart.FeedData(photoStream);
+                                    }
+
+                                    imageId++; // Increment before use to avoid duplicate IDs
+
+                                    var inline = new DocumentFormat.OpenXml.Drawing.Wordprocessing.Inline(
+                                        new DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent() { Cx = PhotoWidthEmu, Cy = PhotoHeightEmu },
+                                        new DocumentFormat.OpenXml.Drawing.Wordprocessing.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+                                        new DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties() { Id = (UInt32Value)imageId, Name = $"Photo{imageId}" },
+                                        new DocumentFormat.OpenXml.Drawing.Wordprocessing.NonVisualGraphicFrameDrawingProperties(
+                                            new DocumentFormat.OpenXml.Drawing.GraphicFrameLocks() { NoChangeAspect = true }),
+                                        new DocumentFormat.OpenXml.Drawing.Graphic(
+                                            new DocumentFormat.OpenXml.Drawing.GraphicData(
+                                                new DocumentFormat.OpenXml.Drawing.Pictures.Picture(
+                                                    new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureProperties(
+                                                        new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties() { Id = (UInt32Value)imageId, Name = $"Photo{imageId}.jpg" },
+                                                        new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureDrawingProperties()),
+                                                    new DocumentFormat.OpenXml.Drawing.Pictures.BlipFill(
+                                                        new DocumentFormat.OpenXml.Drawing.Blip() { Embed = mainPart.GetIdOfPart(imagePart) },
+                                                        new DocumentFormat.OpenXml.Drawing.Stretch(
+                                                            new DocumentFormat.OpenXml.Drawing.FillRectangle())),
+                                                    new DocumentFormat.OpenXml.Drawing.Pictures.ShapeProperties(
+                                                        new DocumentFormat.OpenXml.Drawing.Transform2D(
+                                                            new DocumentFormat.OpenXml.Drawing.Offset() { X = 0L, Y = 0L },
+                                                            new DocumentFormat.OpenXml.Drawing.Extents() { Cx = PhotoWidthEmu, Cy = PhotoHeightEmu }),
+                                                        new DocumentFormat.OpenXml.Drawing.PresetGeometry(
+                                                            new DocumentFormat.OpenXml.Drawing.AdjustValueList())
+                                                        { Preset = DocumentFormat.OpenXml.Drawing.ShapeTypeValues.Rectangle }))
+                                            )
+                                            { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" })
+                                    )
+                                    { DistanceFromTop = (UInt32Value)0U, DistanceFromBottom = (UInt32Value)0U, DistanceFromLeft = (UInt32Value)0U, DistanceFromRight = (UInt32Value)0U };
+
+                                    var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing(inline);
+
+                                    photoRun.AppendChild(drawing);
+                                }
+
+                                // Add name and secondary text using centralized display logic
+                                var cellParagraph = cell.AppendChild(new Paragraph());
+                                var cellParagraphProps = cellParagraph.AppendChild(new ParagraphProperties());
+                                cellParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
+                                var cellRun = cellParagraph.AppendChild(new Run());
+                                cellRun.AppendChild(new Text(student.FullName));
+
+                                foreach (var line in student.SecondaryTextLines)
+                                {
+                                    cellRun.AppendChild(new Break());
+                                    cellRun.AppendChild(new Text(line));
+                                }
+                            }
+
+                            for (int j = rowStudents.Count; j < photosPerRow; j++)
+                            {
+                                row.AppendChild(new TableCell(new Paragraph()));
+                            }
                         }
                     }
 
@@ -186,7 +233,7 @@ namespace Viper.Areas.Students.Services
                 {
                     ExportId = Guid.NewGuid().ToString(),
                     FileData = fileData,
-                    FileName = $"StudentPhotos_{DateTime.Now:yyyyMMddHHmmss}.docx",
+                    FileName = $"StudentPhotos_{DateTime.Now.ToString(ExportFilenameTimestampFormat)}.docx",
                     ContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 };
             }
@@ -211,8 +258,14 @@ namespace Viper.Areas.Students.Services
                 return null;
             }
         }
+#pragma warning restore S3220
 
-        public async Task<PhotoExportResult> ExportToPdfAsync(PhotoExportRequest request)
+        /// <summary>
+        /// Exports student photos to a formatted PDF document with optional grouping by class, course, or student groups.
+        /// </summary>
+        /// <param name="request">Export request containing student selection criteria and options</param>
+        /// <returns>PhotoExportResult containing the PDF document bytes and metadata, or null if no students found</returns>
+        public async Task<PhotoExportResult?> ExportToPdfAsync(PhotoExportRequest request)
         {
             try
             {
@@ -227,35 +280,12 @@ namespace Viper.Areas.Students.Services
                     return null;
                 }
 
-                // Pre-load all photos with concurrency limit
-                _logger.LogDebug("Pre-loading photos for {Count} students", students.Count);
-                var photoCache = new Dictionary<string, byte[]>();
-                using var semaphore = new SemaphoreSlim(10); // Limit to 10 concurrent I/O operations
+                // Load all photos upfront for faster rendering
+                var photoCache = await BatchLoadPhotosAsync(students);
 
-                var photoTasks = students.Select(async student =>
-                {
-                    await semaphore.WaitAsync();
-                    try
-                    {
-                        var photoBytes = await _photoService.GetStudentPhotoAsync(student.MailId);
-                        _logger.LogDebug("Student {MailId}: photoBytes is {Status}, Length = {Length}",
-                            LogSanitizer.SanitizeId(student.MailId),
-                            photoBytes == null ? "null" : "not null",
-                            photoBytes?.Length ?? -1);
-                        return new { student.MailId, photoBytes };
-                    }
-                    finally
-                    {
-                        semaphore.Release();
-                    }
-                }).ToList();
-
-                var photoResults = await Task.WhenAll(photoTasks);
-                foreach (var result in photoResults.Where(r => r.photoBytes != null && r.photoBytes.Length > 0))
-                {
-                    photoCache[result.MailId] = result.photoBytes;
-                }
-                _logger.LogInformation("Loaded {Count} photos into cache", photoCache.Count);
+                // Determine if we should group
+                var shouldGroup = !string.IsNullOrEmpty(request.GroupType) && string.IsNullOrEmpty(request.GroupId);
+                var groupedStudents = shouldGroup ? GroupStudentsByType(students, request.GroupType) : GroupStudentsByType(students, null);
 
                 // Fetch title before entering QuestPDF builder to avoid async void lambda
                 var titleLines = (await GetExportTitleAsync(request)).Split('\n');
@@ -264,89 +294,102 @@ namespace Viper.Areas.Students.Services
 
                 var document = PdfDocument.Create(container =>
                 {
-                    container.Page(page =>
+                    foreach (var group in groupedStudents)
                     {
-                        page.Size(PageSizes.Letter);
-                        page.Margin(1, Unit.Inch);
-                        page.PageColor(Colors.White);
+                        container.Page(page =>
+                        {
+                            page.Size(PageSizes.Letter);
+                            page.Margin(1, Unit.Inch);
+                            page.PageColor(Colors.White);
 
-                        page.Header()
-                            .Column(column =>
-                            {
-                                column.Item().Text(titleLines[0])
-                                    .SemiBold()
-                                    .FontSize(20)
-                                    .FontColor(Colors.Black);
-
-                                if (titleLines.Length > 1)
+                            page.Header()
+                                .Column(column =>
                                 {
-                                    column.Item().Text(titleLines[1])
-                                        .FontSize(10)
-                                        .FontColor(Colors.Grey.Darken1);
-                                }
-                            });
+                                    column.Item().Text(titleLines[0])
+                                        .SemiBold()
+                                        .FontSize(20)
+                                        .FontColor(Colors.Black);
 
-                        page.Content()
-                            .PaddingVertical(1, Unit.Centimetre)
-                            .Column(column =>
-                            {
-                                column.Item().Table(table =>
-                                {
-                                    table.ColumnsDefinition(columns =>
+                                    if (titleLines.Length > 1)
                                     {
-                                        columns.RelativeColumn();
-                                        columns.RelativeColumn();
-                                        columns.RelativeColumn();
-                                        columns.RelativeColumn();
-                                    });
+                                        column.Item().Text(titleLines[1])
+                                            .FontSize(10)
+                                            .FontColor(Colors.Grey.Darken1);
+                                    }
 
-                                    const int photosPerRow = 4;
-                                    for (int i = 0; i < students.Count; i += photosPerRow)
+                                    // Add group header if there are multiple groups
+                                    if (groupedStudents.Count > 1)
                                     {
-                                        var rowStudents = students.Skip(i).Take(photosPerRow).ToList();
-
-                                        foreach (var student in rowStudents)
-                                        {
-                                            table.Cell().Border(1).Padding(5).Column(innerColumn =>
-                                            {
-                                                // Add photo from cache
-                                                if (photoCache.TryGetValue(student.MailId, out var photoBytes))
-                                                {
-                                                    innerColumn.Item().Image(photoBytes).FitWidth();
-                                                }
-
-                                                // Use centralized display logic
-                                                innerColumn.Item().Text(student.FullName)
-                                                    .FontSize(10);
-
-                                                foreach (var line in student.SecondaryTextLines)
-                                                {
-                                                    innerColumn.Item().Text(line)
-                                                        .FontSize(8)
-                                                        .FontColor(Colors.Grey.Darken1);
-                                                }
-                                            });
-                                        }
-
-                                        for (int j = rowStudents.Count; j < photosPerRow; j++)
-                                        {
-                                            table.Cell().Border(1).Element(Block);
-                                            static void Block(IContainer container) => container.Height(50);
-                                        }
+                                        column.Item().PaddingTop(10).Text($"{group.Key} ({group.Value.Count})")
+                                            .SemiBold()
+                                            .FontSize(16)
+                                            .FontColor(Colors.Black);
                                     }
                                 });
-                            });
 
-                        page.Footer()
-                            .AlignCenter()
-                            .Text(x =>
-                            {
-                                x.Span("Page ");
-                                x.CurrentPageNumber();
-                                x.Span(" of ");
-                                x.TotalPages();
-                            });
-                    });
+                            page.Content()
+                                .PaddingVertical(1, Unit.Centimetre)
+                                .Column(column =>
+                                {
+                                    column.Item().Table(table =>
+                                    {
+                                        table.ColumnsDefinition(columns =>
+                                        {
+                                            columns.RelativeColumn();
+                                            columns.RelativeColumn();
+                                            columns.RelativeColumn();
+                                            columns.RelativeColumn();
+                                        });
+
+                                        const int photosPerRow = 4;
+                                        var groupStudents = group.Value;
+                                        for (int i = 0; i < groupStudents.Count; i += photosPerRow)
+                                        {
+                                            var rowStudents = groupStudents.Skip(i).Take(photosPerRow).ToList();
+
+                                            foreach (var student in rowStudents)
+                                            {
+                                                table.Cell().Border(1).Padding(5).Column(innerColumn =>
+                                                {
+                                                    // Add photo from cache
+                                                    if (photoCache.TryGetValue(student.MailId, out var photoBytes))
+                                                    {
+                                                        innerColumn.Item().Image(photoBytes).FitWidth();
+                                                    }
+
+                                                    // Use centralized display logic
+                                                    innerColumn.Item().Text(student.FullName)
+                                                        .FontSize(10);
+
+                                                    foreach (var line in student.SecondaryTextLines)
+                                                    {
+                                                        innerColumn.Item().Text(line)
+                                                            .FontSize(8)
+                                                            .FontColor(Colors.Grey.Darken1);
+                                                    }
+                                                });
+                                            }
+
+                                            for (int j = rowStudents.Count; j < photosPerRow; j++)
+                                            {
+                                                table.Cell().Border(1).Element(Block);
+                                                static void Block(IContainer container) => container.Height(50);
+                                            }
+                                        }
+                                    });
+                                });
+
+                            page.Footer()
+                                .AlignCenter()
+                                .Text(x =>
+                                {
+                                    x.Span("Page ");
+                                    x.CurrentPageNumber();
+                                    x.Span(" of ");
+                                    x.TotalPages();
+                                });
+                        });
+                    }
                 });
 
                 var pdfBytes = document.GeneratePdf();
@@ -355,7 +398,7 @@ namespace Viper.Areas.Students.Services
                 {
                     ExportId = Guid.NewGuid().ToString(),
                     FileData = pdfBytes,
-                    FileName = $"StudentPhotos_{DateTime.Now:yyyyMMddHHmmss}.pdf",
+                    FileName = $"StudentPhotos_{DateTime.Now.ToString(ExportFilenameTimestampFormat)}.pdf",
                     ContentType = "application/pdf"
                 };
             }
@@ -381,16 +424,40 @@ namespace Viper.Areas.Students.Services
             }
         }
 
-        public async Task<object> GetExportStatusAsync(string exportId)
+        /// <summary>
+        /// Loads all student photos upfront in parallel for faster export generation.
+        /// Returns a dictionary keyed by student MailId for quick lookup during rendering.
+        /// </summary>
+        private async Task<Dictionary<string, byte[]>> BatchLoadPhotosAsync(List<StudentPhoto> students)
         {
-            await Task.Delay(100);
+            var photoCache = new Dictionary<string, byte[]>();
 
-            return new
+            // Load all photos in parallel
+            var photoTasks = students
+                .Where(s => !string.IsNullOrWhiteSpace(s.MailId))
+                .Select(async s =>
+                {
+                    try
+                    {
+                        var photoBytes = await _photoService.GetStudentPhotoAsync(s.MailId);
+                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)photoBytes };
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to load photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
+                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)null };
+                    }
+                });
+
+            var photos = await Task.WhenAll(photoTasks);
+
+            foreach (var photo in photos.Where(p => p.PhotoBytes != null && p.PhotoBytes.Length > 0))
             {
-                ExportId = exportId,
-                Status = "completed",
-                Message = "Export completed successfully"
-            };
+                photoCache[photo.MailId] = photo.PhotoBytes!;
+            }
+
+            _logger.LogDebug("Batch loaded {Count} photos for {TotalStudents} students", photoCache.Count, students.Count);
+            return photoCache;
         }
 
         private async Task<List<StudentPhoto>> GetStudentsForExport(PhotoExportRequest request)
@@ -433,6 +500,58 @@ namespace Viper.Areas.Students.Services
 
             _logger.LogWarning("No valid export parameters provided (ClassLevel and GroupType/GroupId are both empty)");
             return new List<StudentPhoto>();
+        }
+
+        /// <summary>
+        /// Groups students by the specified group type and sorts them alphabetically within each group.
+        /// Students without a group assignment are placed in an "Unassigned" group.
+        /// </summary>
+        /// <param name="students">List of students to group</param>
+        /// <param name="groupType">Type of grouping: "eighths", "twentieths", "teams", "v3specialty", or null for no grouping</param>
+        /// <returns>Dictionary mapping group names to sorted lists of students</returns>
+        private static Dictionary<string, List<StudentPhoto>> GroupStudentsByType(List<StudentPhoto> students, string? groupType)
+        {
+            var grouped = new Dictionary<string, List<StudentPhoto>>();
+
+            if (string.IsNullOrEmpty(groupType))
+            {
+                // No grouping - return all students in a single group
+                grouped["All Students"] = students.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToList();
+                return grouped;
+            }
+
+            // Group students by the specified field
+            foreach (var student in students)
+            {
+                var groupValue = groupType.ToLower() switch
+                {
+                    "eighths" => student.EighthsGroup,
+                    "twentieths" => student.TwentiethsGroup,
+                    "teams" => student.TeamNumber,
+                    "v3specialty" => student.V3SpecialtyGroup,
+                    _ => null
+                };
+
+                var groupName = string.IsNullOrEmpty(groupValue) ? "Unassigned" : groupValue;
+
+                if (!grouped.ContainsKey(groupName))
+                {
+                    grouped[groupName] = new List<StudentPhoto>();
+                }
+                grouped[groupName].Add(student);
+            }
+
+            // Sort students within each group by last name, then first name
+            foreach (var group in grouped.Keys.ToList())
+            {
+                grouped[group] = grouped[group].OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToList();
+            }
+
+            // Return groups sorted (put "Unassigned" last, otherwise alphabetically)
+            return grouped
+                .OrderBy(kvp => kvp.Key == "Unassigned" ? 1 : 0)
+                .ThenBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         }
 
         private async Task<string> GetExportTitleAsync(PhotoExportRequest request)
@@ -483,7 +602,11 @@ namespace Viper.Areas.Students.Services
             {
                 try
                 {
-                    var termLabel = await _termCodeService.GetTermDescriptionAsync(request.TermCode);
+                    // Use static method instead of database lookup
+                    var termLabel = int.TryParse(request.TermCode, out var termCodeInt)
+                        ? TermCodeService.GetTermCodeDescription(termCodeInt)
+                        : request.TermCode; // Fallback to raw term code if parse fails
+
                     var courseInfo = await _courseService.GetCourseInfoAsync(request.TermCode, request.Crn);
                     if (courseInfo != null)
                     {
@@ -497,58 +620,17 @@ namespace Viper.Areas.Students.Services
                         titleParts.Add(termLabel);
                     }
                 }
-                catch (ArgumentException ex)
-                {
-                    _logger.LogWarning(ex, "Invalid term code format for {TermCode}/{Crn}",
-                        LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));
-                    titleParts.Add($"Course {request.Crn}");
-                }
-                catch (KeyNotFoundException ex)
-                {
-                    _logger.LogWarning(ex, "Term code not found for {TermCode}/{Crn}",
-                        LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));
-                    // Fallback to basic course info without term label
-                    titleParts.Add($"Course {request.Crn}");
-                }
                 catch (InvalidOperationException ex)
                 {
                     _logger.LogWarning(ex, "Invalid operation getting course info for {TermCode}/{Crn}",
                         LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));
-                    // Try to at least get term label
-                    try
-                    {
-                        var termLabel = await _termCodeService.GetTermDescriptionAsync(request.TermCode);
-                        titleParts.Add($"Course {request.Crn}");
-                        titleParts.Add(termLabel);
-                    }
-                    catch (ArgumentException)
-                    {
-                        titleParts.Add($"Course {request.Crn}");
-                    }
-                    catch (KeyNotFoundException)
-                    {
-                        titleParts.Add($"Course {request.Crn}");
-                    }
+                    titleParts.Add($"Course {request.Crn}");
                 }
                 catch (DbUpdateException ex)
                 {
                     _logger.LogWarning(ex, "Database error getting course info for {TermCode}/{Crn}",
                         LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));
-                    // Try to at least get term label
-                    try
-                    {
-                        var termLabel = await _termCodeService.GetTermDescriptionAsync(request.TermCode);
-                        titleParts.Add($"Course {request.Crn}");
-                        titleParts.Add(termLabel);
-                    }
-                    catch (ArgumentException)
-                    {
-                        titleParts.Add($"Course {request.Crn}");
-                    }
-                    catch (KeyNotFoundException)
-                    {
-                        titleParts.Add($"Course {request.Crn}");
-                    }
+                    titleParts.Add($"Course {request.Crn}");
                 }
             }
 

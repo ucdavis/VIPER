@@ -77,7 +77,7 @@ namespace Viper.Areas.Students.Services
                             join sg in _aaudContext.Studentgrps on i.IdsPidm equals sg.StudentgrpPidm into sgGroup
                             from sg in sgGroup.DefaultIfEmpty()
                             where s.StudentsClassLevel == classLevel && i.IdsTermCode == currentTerm
-                                  && !rossIamIds.Contains(i.IdsIamId)
+                                  && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId ?? ""))
                             select new
                             {
                                 PersonId = p.PersonPKey,
@@ -110,19 +110,7 @@ namespace Viper.Areas.Students.Services
                         StringComparison.OrdinalIgnoreCase);
 
                     // Combine Eighths and Twentieths groups in format "2B1 / 1AA"
-                    var groupAssignment = "";
-                    if (!string.IsNullOrEmpty(student.EighthsGroup) && !string.IsNullOrEmpty(student.TwentiethsGroup))
-                    {
-                        groupAssignment = $"{student.EighthsGroup} / {student.TwentiethsGroup}";
-                    }
-                    else if (!string.IsNullOrEmpty(student.EighthsGroup))
-                    {
-                        groupAssignment = student.EighthsGroup;
-                    }
-                    else if (!string.IsNullOrEmpty(student.TwentiethsGroup))
-                    {
-                        groupAssignment = student.TwentiethsGroup;
-                    }
+                    var groupAssignment = FormatGroupAssignment(student.EighthsGroup, student.TwentiethsGroup);
 
                     var photoStudent = new StudentPhoto
                     {
@@ -173,6 +161,14 @@ namespace Viper.Areas.Students.Services
             }
         }
 
+        /// <summary>
+        /// Retrieves Ross students for a specific graduation year.
+        /// Ross students are transfer students from Ross University who are not enrolled every term,
+        /// so this uses the most recent AAUD record available rather than requiring current term enrollment.
+        /// </summary>
+        /// <param name="gradYear">The graduation year to filter Ross students</param>
+        /// <param name="classLevel">The class level (V1-V4) for display purposes</param>
+        /// <returns>List of StudentPhoto objects for active Ross students in the specified graduation year</returns>
         private async Task<List<StudentPhoto>> GetRossStudentsByGradYearAsync(int gradYear, string classLevel)
         {
             try
@@ -224,10 +220,10 @@ namespace Viper.Areas.Students.Services
                     .Where(ids => ids != null)
                     .ToList();
 
-                _logger.LogDebug("Found {Count} latest AAUD records for Ross students", latestAaudRecords.Count());
+                _logger.LogDebug("Found {Count} latest AAUD records for Ross students", latestAaudRecords.Count);
 
                 // Then fetch People records for the latest AAUD records and join in-memory
-                var latestPersonPKeys = latestAaudRecords.Where(r => r != null).Select(r => r.IdsPKey).Distinct().ToList();
+                var latestPersonPKeys = latestAaudRecords.Where(r => r != null).Select(r => r!.IdsPKey).Distinct().ToList();
                 var peopleDict = (await _aaudContext.People
                     .Where(person => latestPersonPKeys.Contains(person.PersonPKey))
                     .ToListAsync())
@@ -237,7 +233,7 @@ namespace Viper.Areas.Students.Services
                     .Where(ids => ids != null && peopleDict.ContainsKey(ids.IdsPKey))
                     .Select(ids =>
                     {
-                        var person = peopleDict[ids.IdsPKey];
+                        var person = peopleDict[ids!.IdsPKey];
                         return new
                         {
                             MailId = ids.IdsMailid,
@@ -396,19 +392,7 @@ namespace Viper.Areas.Students.Services
                         StringComparison.OrdinalIgnoreCase);
 
                     // Combine Eighths and Twentieths groups in format "2B1 / 1AA"
-                    var groupAssignment = "";
-                    if (!string.IsNullOrEmpty(student.EighthsGroup) && !string.IsNullOrEmpty(student.TwentiethsGroup))
-                    {
-                        groupAssignment = $"{student.EighthsGroup} / {student.TwentiethsGroup}";
-                    }
-                    else if (!string.IsNullOrEmpty(student.EighthsGroup))
-                    {
-                        groupAssignment = student.EighthsGroup;
-                    }
-                    else if (!string.IsNullOrEmpty(student.TwentiethsGroup))
-                    {
-                        groupAssignment = student.TwentiethsGroup;
-                    }
+                    var groupAssignment = FormatGroupAssignment(student.EighthsGroup, student.TwentiethsGroup);
 
                     photoStudents.Add(new StudentPhoto
                     {
@@ -496,7 +480,7 @@ namespace Viper.Areas.Students.Services
                             from sg in sgGroup.DefaultIfEmpty()
                             where enrolledPidms.Contains(i.IdsPidm)
                                   && i.IdsTermCode == termCode
-                                  && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId))
+                                  && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId ?? ""))
                             select new
                             {
                                 PersonId = p.PersonPKey,
@@ -542,19 +526,7 @@ namespace Viper.Areas.Students.Services
                         StringComparison.OrdinalIgnoreCase);
 
                     // Combine Eighths and Twentieths groups
-                    var groupAssignment = "";
-                    if (!string.IsNullOrEmpty(student.EighthsGroup) && !string.IsNullOrEmpty(student.TwentiethsGroup))
-                    {
-                        groupAssignment = $"{student.EighthsGroup} / {student.TwentiethsGroup}";
-                    }
-                    else if (!string.IsNullOrEmpty(student.EighthsGroup))
-                    {
-                        groupAssignment = student.EighthsGroup;
-                    }
-                    else if (!string.IsNullOrEmpty(student.TwentiethsGroup))
-                    {
-                        groupAssignment = student.TwentiethsGroup;
-                    }
+                    var groupAssignment = FormatGroupAssignment(student.EighthsGroup, student.TwentiethsGroup);
 
                     var photoStudent = new StudentPhoto
                     {
@@ -678,7 +650,7 @@ namespace Viper.Areas.Students.Services
             {
                 var groups = await _aaudContext.Studentgrps
                     .Where(sg => !string.IsNullOrEmpty(sg.Studentgrp20))
-                    .Select(sg => sg.Studentgrp20.Trim())
+                    .Select(sg => sg.Studentgrp20!.Trim())
                     .Distinct()
                     .OrderBy(g => g)
                     .ToListAsync();
@@ -752,7 +724,7 @@ namespace Viper.Areas.Students.Services
                                       where s.StudentsClassLevel == "V3" &&
                                             i.IdsTermCode == currentTerm &&
                                             !string.IsNullOrEmpty(sg.StudentgrpV3grp)
-                                      select sg.StudentgrpV3grp.Trim())
+                                      select sg.StudentgrpV3grp!.Trim())
                                      .Distinct()
                                      .ToListAsync();
 
@@ -778,7 +750,7 @@ namespace Viper.Areas.Students.Services
             }
         }
 
-        private int GetCurrentTerm()
+        private static int GetCurrentTerm()
         {
             // Logic to determine current semester term
             // This should match the legacy system's currentSemesterTerm logic
@@ -790,7 +762,7 @@ namespace Viper.Areas.Students.Services
             return month >= 9 ? int.Parse($"{year}09") : int.Parse($"{year}01");
         }
 
-        private string FormatStudentDisplayName(string lastName, string firstName, string? middleName)
+        private static string FormatStudentDisplayName(string lastName, string firstName, string? middleName)
         {
             var displayName = $"{lastName}, {firstName}";
             if (!string.IsNullOrEmpty(middleName))
@@ -825,6 +797,31 @@ namespace Viper.Areas.Students.Services
             }
 
             return groupInfo;
+        }
+
+        /// <summary>
+        /// Formats a student's group assignment by combining Eighths and Twentieths groups.
+        /// Returns the combined format "EighthsGroup / TwentiethsGroup" if both exist,
+        /// otherwise returns whichever group is available, or empty string if neither exists.
+        /// </summary>
+        /// <param name="eighthsGroup">The student's Eighths group assignment</param>
+        /// <param name="twentiethsGroup">The student's Twentieths group assignment</param>
+        /// <returns>Formatted group assignment string</returns>
+        private static string FormatGroupAssignment(string? eighthsGroup, string? twentiethsGroup)
+        {
+            if (!string.IsNullOrEmpty(eighthsGroup) && !string.IsNullOrEmpty(twentiethsGroup))
+            {
+                return $"{eighthsGroup} / {twentiethsGroup}";
+            }
+            else if (!string.IsNullOrEmpty(eighthsGroup))
+            {
+                return eighthsGroup;
+            }
+            else if (!string.IsNullOrEmpty(twentiethsGroup))
+            {
+                return twentiethsGroup;
+            }
+            return string.Empty;
         }
 
     }

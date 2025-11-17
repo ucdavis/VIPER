@@ -10,25 +10,63 @@
             </div>
         </div>
 
-        <div class="photo-grid">
+        <!-- Render groups if grouped, otherwise render flat list -->
+        <template v-if="groupedStudents.size > 1">
             <div
-                v-for="student in students"
-                :key="student.mailId"
-                class="student-cell"
+                v-for="[groupName, groupStudents] in groupedStudents"
+                :key="groupName"
+                class="group-section"
             >
-                <div class="photo-container">
-                    <img
-                        :src="photoUrl(student)"
-                        :alt="`${student.firstName} ${student.lastName}`"
-                        class="student-photo"
-                    />
+                <!-- Group header -->
+                <div class="group-header q-mb-sm">
+                    <div class="text-subtitle1 text-weight-bold">{{ groupName }} ({{ groupStudents.length }})</div>
                 </div>
-                <div class="student-name">
-                    <div class="text-caption">{{ student.lastName }},</div>
-                    <div class="text-caption">{{ student.firstName }}</div>
+
+                <!-- Students grid for this group -->
+                <div class="photo-grid q-mb-md">
+                    <div
+                        v-for="student in groupStudents"
+                        :key="student.mailId"
+                        class="student-cell"
+                    >
+                        <div class="photo-container">
+                            <img
+                                :src="photoUrl(student)"
+                                :alt="`${student.firstName} ${student.lastName}`"
+                                class="student-photo"
+                            />
+                        </div>
+                        <div class="student-name">
+                            <div class="text-caption">{{ student.lastName }},</div>
+                            <div class="text-caption">{{ student.firstName }}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </template>
+
+        <!-- Ungrouped view (fallback) -->
+        <template v-else>
+            <div class="photo-grid">
+                <div
+                    v-for="student in students"
+                    :key="student.mailId"
+                    class="student-cell"
+                >
+                    <div class="photo-container">
+                        <img
+                            :src="photoUrl(student)"
+                            :alt="`${student.firstName} ${student.lastName}`"
+                            class="student-photo"
+                        />
+                    </div>
+                    <div class="student-name">
+                        <div class="text-caption">{{ student.lastName }},</div>
+                        <div class="text-caption">{{ student.firstName }}</div>
+                    </div>
+                </div>
+            </div>
+        </template>
     </div>
 </template>
 
@@ -41,9 +79,21 @@ const props = defineProps<{
     students: StudentPhoto[]
     title: string
     generatedDate?: string
+    groupedStudents?: Map<string, StudentPhoto[]>
 }>()
 
 const formattedDate = computed(() => props.generatedDate ?? "")
+
+// Use provided groupedStudents or create a single group
+const groupedStudents = computed(() => {
+    if (props.groupedStudents && props.groupedStudents.size > 0) {
+        return props.groupedStudents
+    }
+    // Fallback: single ungrouped group
+    const map = new Map<string, StudentPhoto[]>()
+    map.set("All Students", props.students)
+    return map
+})
 
 function photoUrl(student: StudentPhoto): string {
     return getPhotoUrl(student)
@@ -84,6 +134,15 @@ function photoUrl(student: StudentPhoto): string {
     font-size: 0.75rem;
 }
 
+.group-section {
+    margin-bottom: 16px;
+}
+
+.group-header {
+    padding: 8px 0;
+    border-bottom: 2px solid #e0e0e0;
+}
+
 @media print {
     .no-print {
         display: none !important;
@@ -110,6 +169,33 @@ function photoUrl(student: StudentPhoto): string {
     .photo-sheet {
         display: block !important;
         visibility: visible !important;
+    }
+
+    /* Page break before each group (except the first one) */
+    .group-section ~ .group-section {
+        break-before: always;
+        break-before: page;
+    }
+
+    .group-section {
+        display: block !important;
+        visibility: visible !important;
+    }
+
+    .group-header {
+        display: block !important;
+        visibility: visible !important;
+        padding: 8px 0 !important;
+        margin-bottom: 8px !important;
+        border-bottom: 2px solid #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .group-header .text-subtitle1 {
+        color: #000 !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
     }
 
     .photo-grid {

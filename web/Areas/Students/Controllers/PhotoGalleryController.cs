@@ -7,13 +7,15 @@ using Viper.Classes.Utilities;
 using Web.Authorization;
 using System.Text.Json;
 
-namespace Viper.Areas.Students.Controller
+namespace Viper.Areas.Students.Controllers
 {
     [Route("/api/students/photos")]
     [Permission(Allow = "SVMSecure.Students.PhotoGallery")]
     [Permission(Allow = "SVMSecure.Students.StudentGroup")]
     public class PhotoGalleryController : ApiController
     {
+        private const int PhotoCacheMaxAgeSeconds = 86400 * 120; // ~4 months (academic semester)
+
         private readonly IPhotoService _photoService;
         private readonly IStudentGroupService _studentGroupService;
         private readonly IPhotoExportService _photoExportService;
@@ -70,13 +72,7 @@ namespace Viper.Areas.Students.Controller
                     }
                 };
 
-                // Serialize using System.Text.Json to handle JsonInclude attributes
-                var jsonString = JsonSerializer.Serialize(viewModel, _jsonOptions);
-
-                // Manually wrap in ApiResponse format expected by frontend
-                var wrappedJson = $"{{\"statusCode\":200,\"success\":true,\"result\":{jsonString}}}";
-
-                return Content(wrappedJson, "application/json");
+                return WrapJsonResponse(viewModel);
             }
             catch (InvalidOperationException ex)
             {
@@ -93,7 +89,7 @@ namespace Viper.Areas.Students.Controller
         [HttpGet("gallery/group/{groupType}/{groupId}")]
         public async Task<IActionResult> GetGroupGallery(string groupType, string groupId, [FromQuery] string? classLevel = null)
         {
-            if (!ValidGroupTypes.Contains(groupType?.ToLower()))
+            if (groupType == null || !ValidGroupTypes.Contains(groupType.ToLower()))
             {
                 return BadRequest($"Invalid group type. Must be one of: {string.Join(", ", ValidGroupTypes)}");
             }
@@ -124,14 +120,7 @@ namespace Viper.Areas.Students.Controller
                     }
                 };
 
-                // Serialize using System.Text.Json to handle JsonInclude attributes
-                var jsonString = JsonSerializer.Serialize(viewModel, _jsonOptions);
-
-                // Manually wrap in ApiResponse format expected by frontend
-                var wrappedJson = $"{{\"statusCode\":200,\"success\":true,\"result\":{jsonString}}}";
-
-                // Return as JSON content to bypass Newtonsoft serialization
-                return Content(wrappedJson, "application/json");
+                return WrapJsonResponse(viewModel);
             }
             catch (InvalidOperationException ex)
             {
@@ -189,13 +178,7 @@ namespace Viper.Areas.Students.Controller
                     }
                 };
 
-                // Serialize using System.Text.Json to handle JsonInclude attributes
-                var jsonString = JsonSerializer.Serialize(viewModel, _jsonOptions);
-
-                // Manually wrap in ApiResponse format expected by frontend
-                var wrappedJson = $"{{\"statusCode\":200,\"success\":true,\"result\":{jsonString}}}";
-
-                return Content(wrappedJson, "application/json");
+                return WrapJsonResponse(viewModel);
             }
             catch (InvalidOperationException ex)
             {
@@ -248,8 +231,8 @@ namespace Viper.Areas.Students.Controller
                 }
 
                 // Add cache headers for browser caching
-                Response.Headers.CacheControl = "public, max-age=3600";  // 1 hour
-                Response.Headers.Expires = DateTime.UtcNow.AddHours(1).ToString("R");
+                Response.Headers.CacheControl = $"public, max-age={PhotoCacheMaxAgeSeconds}";
+                Response.Headers.Expires = DateTime.UtcNow.AddSeconds(PhotoCacheMaxAgeSeconds).ToString("R");
 
                 // Add ETag for conditional requests
                 var etag = Convert.ToBase64String(
@@ -305,115 +288,13 @@ namespace Viper.Areas.Students.Controller
         [HttpPost("export/word")]
         public async Task<IActionResult> ExportToWord([FromBody] PhotoExportRequest request)
         {
-            if (!string.IsNullOrEmpty(request.ClassLevel) && !ValidClassLevels.Contains(request.ClassLevel))
-            {
-                return BadRequest($"Invalid class level. Must be one of: {string.Join(", ", ValidClassLevels)}");
-            }
-
-            if (!string.IsNullOrEmpty(request.GroupType) && !ValidGroupTypes.Contains(request.GroupType?.ToLower()))
-            {
-                return BadRequest($"Invalid group type. Must be one of: {string.Join(", ", ValidGroupTypes)}");
-            }
-
-            if (!string.IsNullOrEmpty(request.GroupId) && (string.IsNullOrWhiteSpace(request.GroupId) || request.GroupId.Length > 50))
-            {
-                return BadRequest("Invalid group ID. Must be non-empty and less than 50 characters");
-            }
-
-            var validationError = ValidateCourseParams(request.TermCode, request.Crn, required: false);
-            if (validationError != null)
-            {
-                return validationError;
-            }
-
-            try
-            {
-                var result = await _photoExportService.ExportToWordAsync(request);
-
-                if (result == null || result.FileData == null)
-                {
-                    return BadRequest("Failed to generate Word document");
-                }
-
-                return File(result.FileData, result.ContentType, result.FileName);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogError(ex, "Invalid operation exporting to Word");
-                return StatusCode(500, "An error occurred while generating the Word document");
-            }
-            catch (IOException ex)
-            {
-                _logger.LogError(ex, "IO error exporting to Word");
-                return StatusCode(500, "An error occurred while generating the Word document");
-            }
+            return await ExecuteExport(request, _photoExportService.ExportToWordAsync, "Word");
         }
 
         [HttpPost("export/pdf")]
         public async Task<IActionResult> ExportToPdf([FromBody] PhotoExportRequest request)
         {
-            if (!string.IsNullOrEmpty(request.ClassLevel) && !ValidClassLevels.Contains(request.ClassLevel))
-            {
-                return BadRequest($"Invalid class level. Must be one of: {string.Join(", ", ValidClassLevels)}");
-            }
-
-            if (!string.IsNullOrEmpty(request.GroupType) && !ValidGroupTypes.Contains(request.GroupType?.ToLower()))
-            {
-                return BadRequest($"Invalid group type. Must be one of: {string.Join(", ", ValidGroupTypes)}");
-            }
-
-            if (!string.IsNullOrEmpty(request.GroupId) && (string.IsNullOrWhiteSpace(request.GroupId) || request.GroupId.Length > 50))
-            {
-                return BadRequest("Invalid group ID. Must be non-empty and less than 50 characters");
-            }
-
-            var validationError = ValidateCourseParams(request.TermCode, request.Crn, required: false);
-            if (validationError != null)
-            {
-                return validationError;
-            }
-
-            try
-            {
-                var result = await _photoExportService.ExportToPdfAsync(request);
-
-                if (result == null || result.FileData == null)
-                {
-                    return BadRequest("Failed to generate PDF document");
-                }
-
-                return File(result.FileData, result.ContentType, result.FileName);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogError(ex, "Invalid operation exporting to PDF");
-                return StatusCode(500, "An error occurred while generating the PDF document");
-            }
-            catch (IOException ex)
-            {
-                _logger.LogError(ex, "IO error exporting to PDF");
-                return StatusCode(500, "An error occurred while generating the PDF document");
-            }
-        }
-
-        [HttpGet("export/status/{exportId}")]
-        public async Task<IActionResult> GetExportStatus(string exportId)
-        {
-            if (!Guid.TryParse(exportId, out _))
-            {
-                return BadRequest("Invalid export ID. Must be a valid GUID");
-            }
-
-            try
-            {
-                var status = await _photoExportService.GetExportStatusAsync(exportId);
-                return Ok(status);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogError(ex, "Invalid operation getting export status for {ExportId}", LogSanitizer.SanitizeId(exportId));
-                return StatusCode(500, "An error occurred while checking export status");
-            }
+            return await ExecuteExport(request, _photoExportService.ExportToPdfAsync, "PDF");
         }
 
         [HttpGet("metadata/groups")]
@@ -482,6 +363,83 @@ namespace Viper.Areas.Students.Controller
                 _logger.LogError(ex, "Invalid operation getting active class years");
                 return StatusCode(500, "An error occurred while retrieving class years");
             }
+        }
+
+        /// <summary>
+        /// Executes a photo export operation (Word or PDF) with common validation and error handling.
+        /// </summary>
+        /// <param name="request">The export request parameters</param>
+        /// <param name="exportFunc">The service function to execute (ExportToWordAsync or ExportToPdfAsync)</param>
+        /// <param name="formatName">The format name for error messages ("Word" or "PDF")</param>
+        /// <returns>File result if successful, or error result</returns>
+        private async Task<IActionResult> ExecuteExport(
+            PhotoExportRequest request,
+            Func<PhotoExportRequest, Task<PhotoExportResult?>> exportFunc,
+            string formatName)
+        {
+            // Validate class level
+            if (!string.IsNullOrEmpty(request.ClassLevel) && !ValidClassLevels.Contains(request.ClassLevel))
+            {
+                return BadRequest($"Invalid class level. Must be one of: {string.Join(", ", ValidClassLevels)}");
+            }
+
+            // Validate group type
+            if (!string.IsNullOrEmpty(request.GroupType) && !ValidGroupTypes.Contains(request.GroupType.ToLower()))
+            {
+                return BadRequest($"Invalid group type. Must be one of: {string.Join(", ", ValidGroupTypes)}");
+            }
+
+            // Validate group ID
+            if (!string.IsNullOrEmpty(request.GroupId) && (string.IsNullOrWhiteSpace(request.GroupId) || request.GroupId.Length > 50))
+            {
+                return BadRequest("Invalid group ID. Must be non-empty and less than 50 characters");
+            }
+
+            // Validate course parameters
+            var validationError = ValidateCourseParams(request.TermCode, request.Crn, required: false);
+            if (validationError != null)
+            {
+                return validationError;
+            }
+
+            try
+            {
+                var result = await exportFunc(request);
+
+                if (result == null || result.FileData == null)
+                {
+                    return BadRequest($"Failed to generate {formatName} document");
+                }
+
+                return File(result.FileData, result.ContentType, result.FileName);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Invalid operation exporting to {Format}", formatName);
+                return StatusCode(500, $"An error occurred while generating the {formatName} document");
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "IO error exporting to {Format}", formatName);
+                return StatusCode(500, $"An error occurred while generating the {formatName} document");
+            }
+        }
+
+        /// <summary>
+        /// Wraps a data object in the ApiResponse format expected by the frontend,
+        /// using System.Text.Json serialization to properly handle JsonInclude attributes.
+        /// </summary>
+        /// <param name="data">The data object to serialize and wrap</param>
+        /// <returns>ContentResult with JSON content wrapped in ApiResponse format</returns>
+        private ContentResult WrapJsonResponse(object data)
+        {
+            // Serialize using System.Text.Json to handle JsonInclude attributes
+            var jsonString = JsonSerializer.Serialize(data, _jsonOptions);
+
+            // Manually wrap in ApiResponse format expected by frontend
+            var wrappedJson = $"{{\"statusCode\":200,\"success\":true,\"result\":{jsonString}}}";
+
+            return Content(wrappedJson, "application/json");
         }
 
         /// <summary>

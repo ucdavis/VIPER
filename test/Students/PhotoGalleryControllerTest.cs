@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.Curriculum.Services;
-using Viper.Areas.Students.Controller;
+using Viper.Areas.Students.Controllers;
 using Viper.Areas.Students.Models;
 using Viper.Areas.Students.Services;
 
@@ -52,7 +52,7 @@ namespace Viper.test.Students
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Contains("Invalid class level", badRequestResult.Value.ToString());
+            Assert.Contains("Invalid class level", badRequestResult.Value!.ToString()!);
         }
 
         [Theory]
@@ -84,7 +84,7 @@ namespace Viper.test.Students
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Contains("Invalid group type", badRequestResult.Value.ToString());
+            Assert.Contains("Invalid group type", badRequestResult.Value!.ToString()!);
         }
 
         [Fact]
@@ -98,7 +98,7 @@ namespace Viper.test.Students
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Contains("Invalid group ID", badRequestResult.Value.ToString());
+            Assert.Contains("Invalid group ID", badRequestResult.Value!.ToString()!);
         }
 
         [Theory]
@@ -113,7 +113,7 @@ namespace Viper.test.Students
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Contains("Invalid term code", badRequestResult.Value.ToString());
+            Assert.Contains("Invalid term code", badRequestResult.Value!.ToString()!);
         }
 
         [Theory]
@@ -126,7 +126,7 @@ namespace Viper.test.Students
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Contains("Invalid CRN", badRequestResult.Value.ToString());
+            Assert.Contains("Invalid CRN", badRequestResult.Value!.ToString()!);
         }
 
         [Fact]
@@ -159,25 +159,14 @@ namespace Viper.test.Students
             _mockStudentGroupService.Setup(s => s.GetStudentsByCourseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<StudentPhoto>());
             _mockCourseService.Setup(c => c.GetCourseInfoAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync((CourseInfo)null);
+                .ReturnsAsync((CourseInfo?)null);
 
             // Act
             var result = await _controller.GetCourseGallery("202409", "12345", false);
 
             // Assert
             var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
-            Assert.Contains("Course not found", notFoundResult.Value.ToString());
-        }
-
-        [Fact]
-        public async Task GetExportStatus_InvalidGuid_ReturnsBadRequest()
-        {
-            // Act
-            var result = await _controller.GetExportStatus("not-a-guid");
-
-            // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Contains("Invalid export ID", badRequestResult.Value.ToString());
+            Assert.Contains("Course not found", notFoundResult.Value!.ToString()!);
         }
 
         #endregion
@@ -253,7 +242,208 @@ namespace Viper.test.Students
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Contains("Invalid class level", badRequestResult.Value.ToString());
+            Assert.Contains("Invalid class level", badRequestResult.Value!.ToString()!);
+        }
+
+        #endregion
+
+        #region Teams Filter Tests
+
+        [Theory]
+        [InlineData("teams")]
+        [InlineData("v3specialty")]
+        public async Task GetGroupGallery_ValidV3GroupTypes_ReturnsContent(string groupType)
+        {
+            // Arrange
+            _mockStudentGroupService.Setup(s => s.GetStudentsByGroupAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(new List<StudentPhoto>());
+
+            _mockStudentGroupService.Setup(s => s.GetGroupingInfoAsync(It.IsAny<string>()))
+                .ReturnsAsync(new GroupingInfo
+                {
+                    GroupType = groupType,
+                    GroupId = "1",
+                    AvailableGroups = new List<string>()
+                });
+
+            // Act
+            var result = await _controller.GetGroupGallery(groupType, "1", "V3");
+
+            // Assert
+            Assert.IsType<ContentResult>(result);
+        }
+
+        [Fact]
+        public async Task GetGroupGallery_TeamsGroupType_CallsServiceWithCorrectParameters()
+        {
+            // Arrange
+            _mockStudentGroupService.Setup(s => s.GetStudentsByGroupAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(new List<StudentPhoto>
+                {
+                    new StudentPhoto
+                    {
+                        MailId = "test1",
+                        FirstName = "John",
+                        LastName = "Doe",
+                        DisplayName = "John Doe",
+                        TeamNumber = "1",
+                        ClassLevel = "V3"
+                    }
+                });
+
+            _mockStudentGroupService.Setup(s => s.GetGroupingInfoAsync(It.IsAny<string>()))
+                .ReturnsAsync(new GroupingInfo
+                {
+                    GroupType = "teams",
+                    GroupId = "1",
+                    AvailableGroups = new List<string> { "1", "2", "3" }
+                });
+
+            // Act
+            var result = await _controller.GetGroupGallery("teams", "1", "V3");
+
+            // Assert
+            _mockStudentGroupService.Verify(s => s.GetStudentsByGroupAsync("teams", "1", "V3"), Times.Once);
+            _mockStudentGroupService.Verify(s => s.GetGroupingInfoAsync("teams"), Times.Once);
+            Assert.IsType<ContentResult>(result);
+        }
+
+        [Fact]
+        public async Task GetCourseGallery_WithTeamsGroupFilter_CallsServiceWithCorrectParameters()
+        {
+            // Arrange
+            var mockStudents = new List<StudentPhoto>
+            {
+                new StudentPhoto
+                {
+                    MailId = "test1",
+                    FirstName = "John",
+                    LastName = "Doe",
+                    DisplayName = "John Doe",
+                    TeamNumber = "1",
+                    ClassLevel = "V3"
+                },
+                new StudentPhoto
+                {
+                    MailId = "test2",
+                    FirstName = "Jane",
+                    LastName = "Smith",
+                    DisplayName = "Jane Smith",
+                    TeamNumber = "1",
+                    ClassLevel = "V3"
+                }
+            };
+
+            _mockStudentGroupService.Setup(s => s.GetStudentsByCourseAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(mockStudents);
+
+            _mockCourseService.Setup(c => c.GetCourseInfoAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(new CourseInfo
+                {
+                    TermCode = "202501",
+                    Crn = "12345",
+                    SubjectCode = "VET",
+                    CourseNumber = "400",
+                    Title = "V3 Clinical Course"
+                });
+
+            // Act
+            var result = await _controller.GetCourseGallery("202501", "12345", false, "teams", "1");
+
+            // Assert
+            _mockStudentGroupService.Verify(
+                s => s.GetStudentsByCourseAsync("202501", "12345", false, "teams", "1"),
+                Times.Once);
+            Assert.IsType<ContentResult>(result);
+        }
+
+        [Fact]
+        public async Task GetCourseGallery_WithV3Students_ReturnsStudentsWithTeamNumbers()
+        {
+            // Arrange
+            var mockStudents = new List<StudentPhoto>
+            {
+                new StudentPhoto
+                {
+                    MailId = "test1",
+                    FirstName = "John",
+                    LastName = "Doe",
+                    DisplayName = "John Doe",
+                    TeamNumber = "1",
+                    EighthsGroup = "1A1",
+                    TwentiethsGroup = "1AA",
+                    ClassLevel = "V3",
+                    HasPhoto = true
+                }
+            };
+
+            _mockStudentGroupService.Setup(s => s.GetStudentsByCourseAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(mockStudents);
+
+            _mockCourseService.Setup(c => c.GetCourseInfoAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(new CourseInfo
+                {
+                    TermCode = "202501",
+                    Crn = "12345",
+                    Title = "Test Course"
+                });
+
+            // Act
+            var result = await _controller.GetCourseGallery("202501", "12345", false);
+
+            // Assert
+            Assert.IsType<ContentResult>(result);
+            var contentResult = result as ContentResult;
+            Assert.NotNull(contentResult?.Content);
+
+            // Verify service was called
+            _mockStudentGroupService.Verify(
+                s => s.GetStudentsByCourseAsync("202501", "12345", false, null, null),
+                Times.Once);
+        }
+
+        [Theory]
+        [InlineData("teams", "1")]
+        [InlineData("teams", "16")]
+        [InlineData("v3specialty", "SA")]
+        [InlineData("v3specialty", "LA")]
+        public async Task GetCourseGallery_WithV3GroupFilters_AcceptsValidGroupTypes(string groupType, string groupId)
+        {
+            // Arrange
+            _mockStudentGroupService.Setup(s => s.GetStudentsByCourseAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new List<StudentPhoto>());
+
+            _mockCourseService.Setup(c => c.GetCourseInfoAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(new CourseInfo
+                {
+                    TermCode = "202501",
+                    Crn = "12345",
+                    Title = "Test Course"
+                });
+
+            // Act
+            var result = await _controller.GetCourseGallery("202501", "12345", false, groupType, groupId);
+
+            // Assert
+            Assert.IsType<ContentResult>(result);
+            _mockStudentGroupService.Verify(
+                s => s.GetStudentsByCourseAsync("202501", "12345", false, groupType, groupId),
+                Times.Once);
         }
 
         #endregion

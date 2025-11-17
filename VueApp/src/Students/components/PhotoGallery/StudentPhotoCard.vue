@@ -20,13 +20,13 @@
             </template>
         </q-img>
 
-        <q-card-section class="text-center q-py-xs q-px-sm card-content">
-            <div class="text-body1 text-weight-bold">{{ student.lastName }}</div>
-            <div class="text-body1">{{ student.firstName }}</div>
+        <q-card-section class="text-center q-py-xs q-px-xs card-content">
+            <div class="text-caption text-weight-bold">{{ student.lastName }}</div>
+            <div class="text-caption">{{ student.firstName }}</div>
             <div
                 v-for="(line, index) in student.secondaryTextLines"
                 :key="index"
-                class="text-body1 text-grey"
+                class="text-caption text-grey"
             >
                 {{ line }}
             </div>
@@ -98,6 +98,6 @@ function handleClick(event: Event) {
 }
 
 .badge-text {
-    font-size: 14px;
+    font-size: 10px;
 }
 </style>
