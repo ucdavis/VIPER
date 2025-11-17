@@ -22,9 +22,13 @@ namespace Viper.Areas.Students.Services
     public class PhotoExportService : IPhotoExportService
     {
         // Photo dimensions in EMUs (English Metric Units) for Word/PDF export
-        // EMU = 1/914400 inch; these values represent approximately 1.04" x 1.39"
-        private const long PhotoWidthEmu = 950000L;
-        private const long PhotoHeightEmu = 1267000L;
+        // EMU = 1/914400 inch; these values represent approximately 0.69" x 0.92"
+        // Sized for 6 photos per row on standard letter paper with margins
+        private const long PhotoWidthEmu = 633333L;
+        private const long PhotoHeightEmu = 844667L;
+
+        // Number of student photos per row in Word/PDF exports
+        private const int PhotosPerRow = 6;
 
         // Timestamp format for export filenames
         private const string ExportFilenameTimestampFormat = "yyyyMMddHHmmss";
@@ -105,7 +109,6 @@ namespace Viper.Areas.Students.Services
                         dateProps.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Color() { Val = "808080" }); // Gray color
                     }
 
-                    const int photosPerRow = 4;
                     uint imageId = 1;
                     bool isFirstGroup = true;
 
@@ -131,23 +134,23 @@ namespace Viper.Areas.Students.Services
                             groupHeaderProps.AppendChild(new FontSize() { Val = "24" });
                         }
 
-                        // Create table for this group
+                        // Create a borderless table for this group
                         var table = body.AppendChild(new Table());
                         var tableProps = table.AppendChild(new TableProperties());
                         tableProps.AppendChild(new TableBorders(
-                            new TopBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
-                            new BottomBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
-                            new LeftBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
-                            new RightBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
-                            new InsideHorizontalBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 },
-                            new InsideVerticalBorder() { Val = new EnumValue<BorderValues>(BorderValues.Single), Size = 6 }
+                            new TopBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new BottomBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new LeftBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new RightBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new InsideHorizontalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new InsideVerticalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 }
                         ));
 
                         var groupStudents = group.Value;
-                        for (int i = 0; i < groupStudents.Count; i += photosPerRow)
+                        for (int i = 0; i < groupStudents.Count; i += PhotosPerRow)
                         {
                             var row = table.AppendChild(new TableRow());
-                            var rowStudents = groupStudents.Skip(i).Take(photosPerRow).ToList();
+                            var rowStudents = groupStudents.Skip(i).Take(PhotosPerRow).ToList();
 
                             foreach (var student in rowStudents)
                             {
@@ -216,7 +219,7 @@ namespace Viper.Areas.Students.Services
                                 }
                             }
 
-                            for (int j = rowStudents.Count; j < photosPerRow; j++)
+                            for (int j = rowStudents.Count; j < PhotosPerRow; j++)
                             {
                                 row.AppendChild(new TableCell(new Paragraph()));
                             }
@@ -299,7 +302,10 @@ namespace Viper.Areas.Students.Services
                         container.Page(page =>
                         {
                             page.Size(PageSizes.Letter);
-                            page.Margin(1, Unit.Inch);
+                            page.MarginTop(1, Unit.Inch);
+                            page.MarginLeft(1, Unit.Inch);
+                            page.MarginRight(1, Unit.Inch);
+                            page.MarginBottom(0.25f, Unit.Inch);
                             page.PageColor(Colors.White);
 
                             page.Header()
@@ -335,22 +341,23 @@ namespace Viper.Areas.Students.Services
                                     {
                                         table.ColumnsDefinition(columns =>
                                         {
-                                            columns.RelativeColumn();
-                                            columns.RelativeColumn();
-                                            columns.RelativeColumn();
-                                            columns.RelativeColumn();
+                                            for (int col = 0; col < PhotosPerRow; col++)
+                                            {
+                                                columns.RelativeColumn();
+                                            }
                                         });
 
-                                        const int photosPerRow = 4;
                                         var groupStudents = group.Value;
-                                        for (int i = 0; i < groupStudents.Count; i += photosPerRow)
+                                        for (int i = 0; i < groupStudents.Count; i += PhotosPerRow)
                                         {
-                                            var rowStudents = groupStudents.Skip(i).Take(photosPerRow).ToList();
+                                            var rowStudents = groupStudents.Skip(i).Take(PhotosPerRow).ToList();
 
                                             foreach (var student in rowStudents)
                                             {
-                                                table.Cell().Border(1).Padding(5).Column(innerColumn =>
+                                                table.Cell().Padding(5).ShowOnce().Column(innerColumn =>
                                                 {
+                                                    innerColumn.Spacing(2);
+
                                                     // Add photo from cache
                                                     if (photoCache.TryGetValue(student.MailId, out var photoBytes))
                                                     {
@@ -370,9 +377,9 @@ namespace Viper.Areas.Students.Services
                                                 });
                                             }
 
-                                            for (int j = rowStudents.Count; j < photosPerRow; j++)
+                                            for (int j = rowStudents.Count; j < PhotosPerRow; j++)
                                             {
-                                                table.Cell().Border(1).Element(Block);
+                                                table.Cell().Element(Block);
                                                 static void Block(IContainer container) => container.Height(50);
                                             }
                                         }
