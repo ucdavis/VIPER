@@ -77,7 +77,7 @@ namespace Viper.Areas.Students.Services
                             join sg in _aaudContext.Studentgrps on i.IdsPidm equals sg.StudentgrpPidm into sgGroup
                             from sg in sgGroup.DefaultIfEmpty()
                             where s.StudentsClassLevel == classLevel && i.IdsTermCode == currentTerm
-                                  && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId ?? ""))
+                                  && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId!))
                             select new
                             {
                                 PersonId = p.PersonPKey,
@@ -480,7 +480,7 @@ namespace Viper.Areas.Students.Services
                             from sg in sgGroup.DefaultIfEmpty()
                             where enrolledPidms.Contains(i.IdsPidm)
                                   && i.IdsTermCode == termCode
-                                  && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId ?? ""))
+                                  && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId!))
                             select new
                             {
                                 PersonId = p.PersonPKey,

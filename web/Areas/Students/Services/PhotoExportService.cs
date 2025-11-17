@@ -442,9 +442,19 @@ namespace Viper.Areas.Students.Services
                         var photoBytes = await _photoService.GetStudentPhotoAsync(s.MailId);
                         return new { MailId = s.MailId, PhotoBytes = (byte[]?)photoBytes };
                     }
-                    catch (Exception ex)
+                    catch (IOException ex)
                     {
-                        _logger.LogWarning(ex, "Failed to load photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
+                        _logger.LogWarning(ex, "IO error loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
+                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)null };
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        _logger.LogWarning(ex, "HTTP error loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
+                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)null };
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        _logger.LogWarning(ex, "Invalid operation loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
                         return new { MailId = s.MailId, PhotoBytes = (byte[]?)null };
                     }
                 });
