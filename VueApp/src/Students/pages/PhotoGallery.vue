@@ -1278,7 +1278,11 @@ function setView(view: "grid" | "list" | "sheet") {
 
 async function handleExportToWord() {
     try {
-        await galleryStore.exportToWord()
+        // Pass local group type/id to ensure proper grouping in export
+        await galleryStore.exportToWord({
+            groupType: selectedGroupType.value || undefined,
+            groupId: selectedGroup.value || undefined,
+        })
         $q.notify({
             type: "positive",
             message: "Export to Word completed successfully",
@@ -1293,7 +1297,11 @@ async function handleExportToWord() {
 
 async function handleExportToPDF() {
     try {
-        await galleryStore.exportToPDF()
+        // Pass local group type/id to ensure proper grouping in export
+        await galleryStore.exportToPDF({
+            groupType: selectedGroupType.value || undefined,
+            groupId: selectedGroup.value || undefined,
+        })
         $q.notify({
             type: "positive",
             message: "Export to PDF completed successfully",

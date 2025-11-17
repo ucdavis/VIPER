@@ -157,11 +157,12 @@ function createFetchAvailableCourses(refs: StoreRefs) {
 }
 
 function createExportToWord(refs: StoreRefs) {
-    return async function exportToWord() {
+    return async function exportToWord(overrides?: Partial<PhotoExportRequest>) {
         try {
             refs.exportInProgress.value = true
             const blob = await photoGalleryService.exportToWord({
                 ...refs.exportParams.value,
+                ...overrides,
                 exportFormat: "word" as const,
             })
             const filename = `StudentPhotos_${new Date().toISOString().slice(0, ISO_DATE_LENGTH)}.docx`
@@ -175,11 +176,12 @@ function createExportToWord(refs: StoreRefs) {
 }
 
 function createExportToPDF(refs: StoreRefs) {
-    return async function exportToPDF() {
+    return async function exportToPDF(overrides?: Partial<PhotoExportRequest>) {
         try {
             refs.exportInProgress.value = true
             const blob = await photoGalleryService.exportToPDF({
                 ...refs.exportParams.value,
+                ...overrides,
                 exportFormat: "pdf" as const,
             })
             const filename = `StudentPhotos_${new Date().toISOString().slice(0, ISO_DATE_LENGTH)}.pdf`
