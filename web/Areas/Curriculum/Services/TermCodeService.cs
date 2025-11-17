@@ -8,8 +8,6 @@ namespace Viper.Areas.Curriculum.Services
     {
         private readonly VIPERContext _context;
         private readonly CoursesContext? _coursesContext;
-        private static readonly SemaphoreSlim _cacheLock = new(1, 1);
-        private static Dictionary<string, string>? _termDescriptionCache;
 
         public TermCodeService(VIPERContext context, CoursesContext? coursesContext = null)
         {
@@ -88,72 +86,6 @@ namespace Viper.Areas.Curriculum.Services
             }
 
             return classYears;
-        }
-
-        /// <summary>
-        /// Get term description from Courses database (with caching)
-        /// Queries terminfo table on first call, then uses cached values
-        /// </summary>
-        /// <param name="termCode">Term code in YYYYMM format (e.g., "202409")</param>
-        /// <returns>Human-readable term description from database (e.g., "Fall Semester 2024")</returns>
-        /// <exception cref="InvalidOperationException">Thrown when CoursesContext is not provided</exception>
-        /// <exception cref="ArgumentException">Thrown when term code format is invalid</exception>
-        /// <exception cref="KeyNotFoundException">Thrown when term code is not found in database</exception>
-        public async Task<string> GetTermDescriptionAsync(string termCode)
-        {
-            if (_coursesContext == null)
-            {
-                throw new InvalidOperationException("CoursesContext is required for GetTermDescriptionAsync. Please provide CoursesContext in the constructor.");
-            }
-
-            if (string.IsNullOrEmpty(termCode) || termCode.Length != 6)
-            {
-                throw new ArgumentException($"Invalid term code format: '{termCode}'. Expected 6-digit YYYYMM format.", nameof(termCode));
-            }
-
-            // Initialize cache on first access (thread-safe lazy loading with semaphore)
-            if (_termDescriptionCache == null)
-            {
-                await _cacheLock.WaitAsync();
-                try
-                {
-                    if (_termDescriptionCache == null)
-                    {
-                        await LoadTermCacheAsync();
-                    }
-                }
-                finally
-                {
-                    _cacheLock.Release();
-                }
-            }
-
-            // Return cached description
-            if (_termDescriptionCache != null && _termDescriptionCache.TryGetValue(termCode, out var description))
-            {
-                return description;
-            }
-
-            throw new KeyNotFoundException($"Term code '{termCode}' not found in Courses database terminfo table.");
-        }
-
-        /// <summary>
-        /// Load term descriptions from database into static cache (assumes caller holds lock)
-        /// </summary>
-        private async Task LoadTermCacheAsync()
-        {
-            if (_coursesContext == null)
-            {
-                throw new InvalidOperationException("CoursesContext is required for loading term cache.");
-            }
-
-            var terms = await _coursesContext.Terminfos
-                .AsNoTracking()
-                .Where(t => t.TermCollCode == "VM")
-                .GroupBy(t => t.TermCode)
-                .ToDictionaryAsync(g => g.Key, g => g.Select(x => x.TermDesc).FirstOrDefault() ?? string.Empty);
-
-            _termDescriptionCache = terms;
         }
 
         /// <summary>

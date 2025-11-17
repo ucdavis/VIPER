@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Comprehensive test suite requires extensive test coverage */
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { setActivePinia, createPinia } from "pinia"
 import { usePhotoGalleryStore } from "../stores/photo-gallery-store"
@@ -18,6 +19,7 @@ vi.mock("../services/photo-gallery-service", () => ({
     },
 }))
 
+// eslint-disable-next-line max-lines-per-function -- Test suite requires comprehensive coverage with multiple test cases
 describe("photo-gallery-store", () => {
     beforeEach(() => {
         // Create a fresh pinia instance for each test
@@ -353,13 +355,9 @@ describe("photo-gallery-store", () => {
 
             await store.fetchCoursePhotos("202501", "12345")
 
-            expect(photoGalleryService.getCourseGallery).toHaveBeenCalledWith(
-                "202501",
-                "12345",
-                false,
-                undefined,
-                undefined,
-            )
+            expect(photoGalleryService.getCourseGallery).toHaveBeenCalledWith("202501", "12345", {
+                includeRossStudents: false,
+            })
             expect(store.selectedCourse).toEqual(mockResponse.courseInfo)
             expect(store.selectedClassLevel).toBeNull()
             expect(store.selectedGroup).toBeNull()
