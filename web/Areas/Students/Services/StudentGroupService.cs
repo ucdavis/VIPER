@@ -777,6 +777,7 @@ namespace Viper.Areas.Students.Services
             var groupInfo = new GroupingInfo
             {
                 GroupType = groupType,
+                GroupId = string.Empty,
                 AvailableGroups = new List<string>()
             };
 

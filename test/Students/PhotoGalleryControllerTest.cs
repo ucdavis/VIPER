@@ -286,6 +286,7 @@ namespace Viper.test.Students
                         FirstName = "John",
                         LastName = "Doe",
                         DisplayName = "John Doe",
+                        PhotoUrl = "/api/students/photos/student/test1",
                         TeamNumber = "1",
                         ClassLevel = "V3"
                     }
@@ -320,6 +321,7 @@ namespace Viper.test.Students
                     FirstName = "John",
                     LastName = "Doe",
                     DisplayName = "John Doe",
+                    PhotoUrl = "/api/students/photos/student/test1",
                     TeamNumber = "1",
                     ClassLevel = "V3"
                 },
@@ -329,6 +331,7 @@ namespace Viper.test.Students
                     FirstName = "Jane",
                     LastName = "Smith",
                     DisplayName = "Jane Smith",
+                    PhotoUrl = "/api/students/photos/student/test2",
                     TeamNumber = "1",
                     ClassLevel = "V3"
                 }
@@ -374,6 +377,7 @@ namespace Viper.test.Students
                     FirstName = "John",
                     LastName = "Doe",
                     DisplayName = "John Doe",
+                    PhotoUrl = "/api/students/photos/student/test1",
                     TeamNumber = "1",
                     EighthsGroup = "1A1",
                     TwentiethsGroup = "1AA",

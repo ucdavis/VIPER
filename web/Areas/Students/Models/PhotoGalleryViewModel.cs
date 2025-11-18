@@ -5,19 +5,19 @@ namespace Viper.Areas.Students.Models
     public class PhotoGalleryViewModel
     {
         public string? ClassLevel { get; set; }
-        public List<StudentPhoto> Students { get; set; }
+        public required List<StudentPhoto> Students { get; set; }
         public GroupingInfo? GroupInfo { get; set; }
         public CourseInfo? CourseInfo { get; set; }
-        public ExportOptions ExportOptions { get; set; }
+        public required ExportOptions ExportOptions { get; set; }
     }
 
     public class StudentPhoto
     {
-        public string MailId { get; set; }
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string DisplayName { get; set; }
-        public string PhotoUrl { get; set; }
+        public required string MailId { get; set; }
+        public required string FirstName { get; set; }
+        public required string LastName { get; set; }
+        public required string DisplayName { get; set; }
+        public required string PhotoUrl { get; set; }
         public string? GroupAssignment { get; set; }
         public string? EighthsGroup { get; set; }
         public string? TwentiethsGroup { get; set; }
@@ -50,18 +50,18 @@ namespace Viper.Areas.Students.Models
 
     public class GroupingInfo
     {
-        public string GroupType { get; set; }
-        public string GroupId { get; set; }
-        public List<string> AvailableGroups { get; set; }
+        public required string GroupType { get; set; }
+        public required string GroupId { get; set; }
+        public required List<string> AvailableGroups { get; set; }
     }
 
     public class ExportOptions
     {
-        public string Format { get; set; }
+        public required string Format { get; set; }
         public bool IncludeGroups { get; set; }
         public bool IncludeRossStudents { get; set; }
-        public string Title { get; set; }
-        public string Subtitle { get; set; }
+        public required string Title { get; set; }
+        public required string Subtitle { get; set; }
     }
 
     public class PhotoExportRequest
@@ -71,15 +71,15 @@ namespace Viper.Areas.Students.Models
         public string? GroupId { get; set; }
         public string? TermCode { get; set; }
         public string? Crn { get; set; }
-        public bool IncludeRossStudents { get; set; }
+        public required bool IncludeRossStudents { get; set; }
         public string? ExportFormat { get; set; }
     }
 
     public class PhotoExportResult
     {
-        public string ExportId { get; set; }
-        public byte[] FileData { get; set; }
-        public string FileName { get; set; }
-        public string ContentType { get; set; }
+        public required string ExportId { get; set; }
+        public required byte[] FileData { get; set; }
+        public required string FileName { get; set; }
+        public required string ContentType { get; set; }
     }
 }
