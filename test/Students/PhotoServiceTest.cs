@@ -46,11 +46,20 @@ namespace Viper.test.Students
 
         public void Dispose()
         {
-            if (Directory.Exists(_testPhotoDirectory))
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
             {
-                Directory.Delete(_testPhotoDirectory, true);
+                if (Directory.Exists(_testPhotoDirectory))
+                {
+                    Directory.Delete(_testPhotoDirectory, true);
+                }
+                _memoryCache.Dispose();
             }
-            _memoryCache.Dispose();
         }
 
         #region Security Tests - Path Traversal Protection
@@ -106,7 +115,7 @@ namespace Viper.test.Students
             var validMailId = "test-user.name123";
             var photoPath = Path.Join(_testPhotoDirectory, $"{validMailId}.jpg");
             var testPhotoBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10 };
-            File.WriteAllBytes(photoPath, testPhotoBytes);
+            await File.WriteAllBytesAsync(photoPath, testPhotoBytes);
 
             // Act
             var result = await _photoService.GetStudentPhotoAsync(validMailId);
@@ -127,7 +136,7 @@ namespace Viper.test.Students
             var mailId = "testuser";
             var photoPath = Path.Join(_testPhotoDirectory, $"{mailId}.jpg");
             var testPhotoBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46 };
-            File.WriteAllBytes(photoPath, testPhotoBytes);
+            await File.WriteAllBytesAsync(photoPath, testPhotoBytes);
 
             // Act
             var result = await _photoService.GetStudentPhotoAsync(mailId);
@@ -173,7 +182,7 @@ namespace Viper.test.Students
             string? mailId = null;
 
             // Act
-            var result = await _photoService.GetStudentPhotoAsync(mailId);
+            var result = await _photoService.GetStudentPhotoAsync(mailId!);
 
             // Assert
             Assert.NotNull(result);
@@ -191,13 +200,13 @@ namespace Viper.test.Students
             var mailId = "cachetest";
             var photoPath = Path.Join(_testPhotoDirectory, $"{mailId}.jpg");
             var testPhotoBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x01, 0x02 };
-            File.WriteAllBytes(photoPath, testPhotoBytes);
+            await File.WriteAllBytesAsync(photoPath, testPhotoBytes);
 
             // Act - First call
             var result1 = await _photoService.GetStudentPhotoAsync(mailId);
 
             // Modify file on disk (to verify cache is used)
-            File.WriteAllBytes(photoPath, new byte[] { 0x00, 0x00, 0x00, 0x00 });
+            await File.WriteAllBytesAsync(photoPath, new byte[] { 0x00, 0x00, 0x00, 0x00 });
 
             // Act - Second call
             var result2 = await _photoService.GetStudentPhotoAsync(mailId);
@@ -239,7 +248,7 @@ namespace Viper.test.Students
             // Arrange
             var mailId = "urltest";
             var photoPath = Path.Join(_testPhotoDirectory, $"{mailId}.jpg");
-            File.WriteAllBytes(photoPath, new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
+            await File.WriteAllBytesAsync(photoPath, new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
 
             // Act
             var result = await _photoService.GetStudentPhotoUrlAsync(mailId);
@@ -277,7 +286,7 @@ namespace Viper.test.Students
             // Arrange
             var mailId = "existstest";
             var photoPath = Path.Join(_testPhotoDirectory, $"{mailId}.jpg");
-            File.WriteAllBytes(photoPath, new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
+            await File.WriteAllBytesAsync(photoPath, new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
 
             // Act
             var result = await _photoService.StudentPhotoExistsAsync(mailId);

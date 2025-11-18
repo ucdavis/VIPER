@@ -68,7 +68,10 @@ namespace Viper.Areas.Students.Controllers
                     GroupInfo = null,
                     ExportOptions = new ExportOptions
                     {
-                        IncludeRossStudents = includeRossStudents
+                        Format = string.Empty,
+                        IncludeRossStudents = includeRossStudents,
+                        Title = string.Empty,
+                        Subtitle = string.Empty
                     }
                 };
 
@@ -116,7 +119,10 @@ namespace Viper.Areas.Students.Controllers
                     GroupInfo = groupInfo,
                     ExportOptions = new ExportOptions
                     {
-                        IncludeGroups = true
+                        Format = string.Empty,
+                        IncludeGroups = true,
+                        Title = string.Empty,
+                        Subtitle = string.Empty
                     }
                 };
 
@@ -174,7 +180,10 @@ namespace Viper.Areas.Students.Controllers
                     Students = students,
                     ExportOptions = new ExportOptions
                     {
-                        IncludeRossStudents = includeRossStudents
+                        Format = string.Empty,
+                        IncludeRossStudents = includeRossStudents,
+                        Title = string.Empty,
+                        Subtitle = string.Empty
                     }
                 };
 

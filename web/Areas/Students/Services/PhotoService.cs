@@ -14,7 +14,6 @@ namespace Viper.Areas.Students.Services
 
     public class PhotoService : IPhotoService
     {
-        private readonly IConfiguration _configuration;
         private readonly IMemoryCache _cache;
         private readonly ILogger<PhotoService> _logger;
         private readonly IWebHostEnvironment _webHostEnvironment;
@@ -31,15 +30,14 @@ namespace Viper.Areas.Students.Services
 
         public PhotoService(IConfiguration configuration, IMemoryCache cache, ILogger<PhotoService> logger, IWebHostEnvironment webHostEnvironment)
         {
-            _configuration = configuration;
             _cache = cache;
             _logger = logger;
             _webHostEnvironment = webHostEnvironment;
 
-            _idCardPhotoPath = _configuration["PhotoGallery:IDCardPhotoPath"] ?? @"S:\Files\IDCardPhotos\";
-            _defaultPhotoFile = _configuration["PhotoGallery:DefaultPhotoFile"] ?? "nopic.jpg";
+            _idCardPhotoPath = configuration["PhotoGallery:IDCardPhotoPath"] ?? @"S:\Files\IDCardPhotos\";
+            _defaultPhotoFile = configuration["PhotoGallery:DefaultPhotoFile"] ?? "nopic.jpg";
 
-            if (!int.TryParse(_configuration["PhotoGallery:CacheDurationHours"], out var cacheHours) || cacheHours < MinCacheDurationHours || cacheHours > MaxCacheDurationHours)
+            if (!int.TryParse(configuration["PhotoGallery:CacheDurationHours"], out var cacheHours) || cacheHours < MinCacheDurationHours || cacheHours > MaxCacheDurationHours)
             {
                 cacheHours = DefaultCacheDurationHours;
             }
@@ -55,7 +53,7 @@ namespace Viper.Areas.Students.Services
 
             var cacheKey = $"photo_{mailId}";
 
-            if (_cache.TryGetValue<byte[]>(cacheKey, out var cachedPhoto))
+            if (_cache.TryGetValue<byte[]>(cacheKey, out var cachedPhoto) && cachedPhoto != null)
             {
                 return cachedPhoto;
             }
@@ -152,7 +150,7 @@ namespace Viper.Areas.Students.Services
         {
             var cacheKey = "photo_default";
 
-            if (_cache.TryGetValue<byte[]>(cacheKey, out var cachedDefault))
+            if (_cache.TryGetValue<byte[]>(cacheKey, out var cachedDefault) && cachedDefault != null)
             {
                 return cachedDefault;
             }
