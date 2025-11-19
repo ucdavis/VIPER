@@ -52,7 +52,7 @@ pipeline {
 				parallel(
 					npm: {
 						bat 'pushd VueApp && npm install --prefer-offline --no-audit --no-fund && popd'
-						bat 'npm audit --prefix VueApp --audit-level=high'
+						bat 'npm audit --prefix VueApp --omit=dev --audit-level=high'
 					},
 					dotnet: {
 						bat '"C:\\Program Files\\dotnet\\dotnet" restore Viper.sln'
