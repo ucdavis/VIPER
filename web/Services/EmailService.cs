@@ -12,12 +12,14 @@ namespace Viper.Services
         private readonly EmailSettings _emailSettings;
         private readonly ILogger<EmailService> _logger;
         private readonly IHostEnvironment _hostEnvironment;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public EmailService(IOptions<EmailSettings> emailSettings, ILogger<EmailService> logger, IHostEnvironment hostEnvironment)
+        public EmailService(IOptions<EmailSettings> emailSettings, ILogger<EmailService> logger, IHostEnvironment hostEnvironment, IHttpContextAccessor httpContextAccessor)
         {
             _emailSettings = emailSettings.Value;
             _logger = logger;
             _hostEnvironment = hostEnvironment;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task SendEmailAsync(string to, string subject, string body, bool isHtml = true, string? from = null)
@@ -49,16 +51,17 @@ namespace Viper.Services
                 using var smtpClient = CreateSmtpClient();
 
                 // Log email details for debugging
-                _logger.LogInformation("Sending email via {SmtpHost}:{SmtpPort} - Subject: {Subject}",
-                    _emailSettings.SmtpHost, _emailSettings.SmtpPort, mailMessage.Subject);
+                _logger.LogInformation("Sending email via {SmtpHost}:{SmtpPort} from {RequestContext}, Recipients: {RecipientCount}",
+                    _emailSettings.SmtpHost, _emailSettings.SmtpPort, GetRequestContext(), mailMessage.To.Count);
 
                 await smtpClient.SendMailAsync(mailMessage);
 
-                _logger.LogInformation("Email sent successfully");
+                _logger.LogInformation("Email sent successfully from {RequestContext}", GetRequestContext());
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send email. Subject: {Subject}", mailMessage.Subject);
+                _logger.LogError(ex, "Failed to send email from {RequestContext}, Recipients: {RecipientCount}",
+                    GetRequestContext(), mailMessage.To.Count);
 
                 // In development, if Mailpit is not available, log warning and continue
                 if (_hostEnvironment.IsDevelopment() && _emailSettings.UseMailpit)
@@ -128,6 +131,18 @@ namespace Viper.Services
             {
                 return false;
             }
+        }
+
+        private string GetRequestContext()
+        {
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext == null) return "Background";
+
+            var routeData = httpContext.GetRouteData();
+            var area = routeData.Values["area"]?.ToString();
+            var controller = routeData.Values["controller"]?.ToString();
+
+            return area != null ? $"{area}/{controller}" : controller ?? "Unknown";
         }
 
     }
