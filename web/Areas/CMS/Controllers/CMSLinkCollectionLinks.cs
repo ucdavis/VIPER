@@ -235,7 +235,6 @@ namespace Viper.Areas.CMS.Controllers
             await _context.SaveChangesAsync();
 
             int i = 1;
-            List<LinkTag> tagsAdded = new List<LinkTag>();
             foreach (var tcId in tagCategories)
             {
                 if (tagValues.ContainsKey(tcId))
@@ -252,7 +251,6 @@ namespace Viper.Areas.CMS.Controllers
                                 Value = v
                             };
                             _context.LinkTags.Add(linkTag);
-                            tagsAdded.Add(linkTag);
                         }
                     }
                 }
