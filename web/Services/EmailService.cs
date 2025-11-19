@@ -139,6 +139,8 @@ namespace Viper.Services
             if (httpContext == null) return "Background";
 
             var routeData = httpContext.GetRouteData();
+            if (routeData == null) return "NonRouted";
+
             var area = routeData.Values["area"]?.ToString();
             var controller = routeData.Values["controller"]?.ToString();
 
