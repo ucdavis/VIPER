@@ -49,25 +49,21 @@ namespace Viper.Services
                 using var smtpClient = CreateSmtpClient();
 
                 // Log email details for debugging
-                _logger.LogInformation("Sending email via {SmtpHost}:{SmtpPort} - To: {To}, Subject: {Subject}",
-                    _emailSettings.SmtpHost, _emailSettings.SmtpPort,
-                    string.Join(", ", mailMessage.To.Select(t => t.Address)), mailMessage.Subject);
+                _logger.LogInformation("Sending email via {SmtpHost}:{SmtpPort} - Subject: {Subject}",
+                    _emailSettings.SmtpHost, _emailSettings.SmtpPort, mailMessage.Subject);
 
                 await smtpClient.SendMailAsync(mailMessage);
 
-                _logger.LogInformation("Email sent successfully to {Recipients}",
-                    string.Join(", ", mailMessage.To.Select(t => t.Address)));
+                _logger.LogInformation("Email sent successfully");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send email to {Recipients}. Subject: {Subject}",
-                    string.Join(", ", mailMessage.To.Select(t => t.Address)), mailMessage.Subject);
+                _logger.LogError(ex, "Failed to send email. Subject: {Subject}", mailMessage.Subject);
 
                 // In development, if Mailpit is not available, log warning and continue
                 if (_hostEnvironment.IsDevelopment() && _emailSettings.UseMailpit)
                 {
-                    _logger.LogWarning("Mailpit not available, skipping email to {Recipients}",
-                        string.Join(", ", mailMessage.To.Select(t => t.Address)));
+                    _logger.LogWarning("Mailpit not available, skipping email");
                     return; // Silent skip in development
                 }
                 else
