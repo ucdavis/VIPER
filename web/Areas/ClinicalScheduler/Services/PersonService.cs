@@ -1,5 +1,7 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -48,7 +50,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return null;
                 }
 
-                _logger.LogInformation("Getting person data for MothraId: {MothraId} from Clinical Scheduler context", mothraId);
+                _logger.LogInformation("Getting person data for MothraId: {MothraId} from Clinical Scheduler context", LogSanitizer.SanitizeId(mothraId));
 
                 // Query the vPerson view directly - much more efficient than joining through InstructorSchedules
                 var personData = await _context.Persons
@@ -70,19 +72,19 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 if (person == null)
                 {
-                    _logger.LogWarning("Person not found for MothraId: {MothraId} in Clinical Scheduler data", mothraId);
+                    _logger.LogWarning("Person not found for MothraId: {MothraId} in Clinical Scheduler data", LogSanitizer.SanitizeId(mothraId));
                 }
                 else
                 {
-                    _logger.LogInformation("Found person for MothraId: {MothraId}", mothraId);
+                    _logger.LogInformation("Found person for MothraId: {MothraId}", LogSanitizer.SanitizeId(mothraId));
                 }
 
                 return person;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving person data for MothraId: {MothraId}", mothraId);
-                throw new InvalidOperationException($"Failed to retrieve person data for MothraId {mothraId}", ex);
+                _logger.LogError(ex, "Error retrieving person data for MothraId: {MothraId}", LogSanitizer.SanitizeId(mothraId));
+                throw new InvalidOperationException($"Failed to retrieve person data for MothraId {LogSanitizer.SanitizeId(mothraId)}", ex);
             }
         }
 
@@ -154,46 +156,38 @@ namespace Viper.Areas.ClinicalScheduler.Services
         {
             try
             {
-
-                // Step 1: Get unique MothraIds with last scheduled date using EF navigation properties
-                var mothraIdData = await _context.InstructorSchedules
+                // Step 1: Get unique MothraIds for the grad year range
+                var mothraIds = await _context.InstructorSchedules
                     .AsNoTracking()
-                    .Include(i => i.Week)
-                        .ThenInclude(w => w.WeekGradYears)
                     .Where(i => i.Week.WeekGradYears.Any(wgy =>
                         wgy.GradYear >= startGradYear &&
                         wgy.GradYear <= endGradYear))
                     .Where(i => !string.IsNullOrEmpty(i.MothraId))
-                    .GroupBy(i => i.MothraId)
-                    .Select(g => new
-                    {
-                        MothraId = g.Key
-                    })
+                    .Select(i => i.MothraId)
+                    .Distinct()
                     .ToListAsync(cancellationToken);
 
-
-                if (!mothraIdData.Any())
+                if (mothraIds.Count == 0)
                 {
-                    return new List<ClinicianSummary>();
+                    return [];
                 }
 
-                // Step 2: Get person details for those MothraIds
-                var mothraIds = mothraIdData.Select(x => x.MothraId).ToList();
+                // Step 2: Fetch person details
                 var persons = await _context.Persons
                     .AsNoTracking()
                     .Where(p => mothraIds.Contains(p.IdsMothraId))
                     .ToListAsync(cancellationToken);
 
-
-                // Step 3: Combine the data in memory
-                var clinicians = mothraIdData
-                    .Select(m =>
+                // Step 3: Build clinician summaries with dictionary lookup
+                var personById = persons.ToDictionary(p => p.IdsMothraId, p => p);
+                var clinicians = mothraIds
+                    .Select(mothraId =>
                     {
-                        var person = persons.FirstOrDefault(p => p.IdsMothraId == m.MothraId);
+                        personById.TryGetValue(mothraId, out var person);
                         return new ClinicianSummary
                         {
-                            MothraId = m.MothraId,
-                            FullName = person?.PersonDisplayFullName ?? $"Clinician {m.MothraId}",
+                            MothraId = mothraId,
+                            FullName = person?.PersonDisplayFullName ?? $"Clinician {mothraId}",
                             FirstName = person?.PersonDisplayFirstName ?? "",
                             LastName = person?.PersonDisplayLastName ?? ""
                         };
@@ -204,10 +198,20 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return clinicians;
             }
+            catch (TaskCanceledException ex)
+            {
+                _logger.LogError(ex, "Query timeout retrieving clinicians for grad year range {StartYear}-{EndYear}", LogSanitizer.SanitizeYear(startGradYear), LogSanitizer.SanitizeYear(endGradYear));
+                throw new TimeoutException($"Timed out retrieving clinicians for grad year range {LogSanitizer.SanitizeYear(startGradYear)}-{LogSanitizer.SanitizeYear(endGradYear)}.", ex);
+            }
+            catch (SqlException ex)
+            {
+                _logger.LogError(ex, "Database error retrieving clinicians for grad year range {StartYear}-{EndYear}", LogSanitizer.SanitizeYear(startGradYear), LogSanitizer.SanitizeYear(endGradYear));
+                throw new InvalidOperationException($"Database error retrieving clinicians for grad year range {LogSanitizer.SanitizeYear(startGradYear)}-{LogSanitizer.SanitizeYear(endGradYear)}", ex);
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving clinicians for grad year range {StartYear}-{EndYear}", startGradYear, endGradYear);
-                throw new InvalidOperationException($"Failed to retrieve clinicians for grad year range {startGradYear}-{endGradYear}", ex);
+                _logger.LogError(ex, "Error retrieving clinicians for grad year range {StartYear}-{EndYear}", LogSanitizer.SanitizeYear(startGradYear), LogSanitizer.SanitizeYear(endGradYear));
+                throw new InvalidOperationException($"Failed to retrieve clinicians for grad year range {LogSanitizer.SanitizeYear(startGradYear)}-{LogSanitizer.SanitizeYear(endGradYear)}", ex);
             }
         }
 
@@ -295,7 +299,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return null;
                 }
 
-                _logger.LogDebug("Getting clinician data for MothraId: {MothraId} from AAUD context", mothraId);
+                _logger.LogDebug("Getting clinician data for MothraId: {MothraId} from AAUD context", LogSanitizer.SanitizeId(mothraId));
 
                 var clinician = await _aaudContext.VwVmthClinicians
                     .AsNoTracking()
@@ -311,19 +315,19 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 if (clinician == null)
                 {
-                    _logger.LogWarning("Clinician not found for MothraId: {MothraId} in AAUD data", mothraId);
+                    _logger.LogWarning("Clinician not found for MothraId: {MothraId} in AAUD data", LogSanitizer.SanitizeId(mothraId));
                 }
                 else
                 {
-                    _logger.LogDebug("Found clinician for MothraId: {MothraId} in AAUD data", mothraId);
+                    _logger.LogDebug("Found clinician for MothraId: {MothraId} in AAUD data", LogSanitizer.SanitizeId(mothraId));
                 }
 
                 return clinician;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving clinician data for MothraId: {MothraId} from AAUD", mothraId);
-                throw new InvalidOperationException($"Failed to retrieve clinician data for MothraId {mothraId} from AAUD", ex);
+                _logger.LogError(ex, "Error retrieving clinician data for MothraId: {MothraId} from AAUD", LogSanitizer.SanitizeId(mothraId));
+                throw new InvalidOperationException($"Failed to retrieve clinician data for MothraId {LogSanitizer.SanitizeId(mothraId)} from AAUD", ex);
             }
         }
 

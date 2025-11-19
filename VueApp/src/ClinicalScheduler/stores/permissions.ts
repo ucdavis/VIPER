@@ -10,13 +10,12 @@ import {
 import { createPermissionActions } from "./permissions-actions"
 import type { PermissionsState } from "./permissions-actions"
 import { createPermissionUtils } from "./permissions-utils"
-import type { UserPermissions, PermissionSummary, User, Service } from "../types"
+import type { UserPermissions, User, Service } from "../types"
 
 // Helper functions extracted to reduce main store function size
 function createPermissionsState(): PermissionsState {
     return {
         userPermissions: ref<UserPermissions | null>(null),
-        permissionSummary: ref<PermissionSummary | null>(null),
         isLoading: ref(false),
         error: ref<string | null>(null),
     }
@@ -192,7 +191,7 @@ function createPermissionsGetters(state: PermissionsState) {
 export const usePermissionsStore = defineStore("permissions", () => {
     // State
     const state = createPermissionsState()
-    const { userPermissions, permissionSummary, isLoading, error } = state
+    const { userPermissions, isLoading, error } = state
 
     // Getters
     const getters = createPermissionsGetters(state)
@@ -228,7 +227,6 @@ export const usePermissionsStore = defineStore("permissions", () => {
     return {
         // State
         userPermissions: readonly(userPermissions),
-        permissionSummary: readonly(permissionSummary),
         isLoading: readonly(isLoading),
         error: readonly(error),
 
