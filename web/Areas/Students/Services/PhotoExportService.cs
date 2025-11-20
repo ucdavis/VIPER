@@ -34,9 +34,6 @@ namespace Viper.Areas.Students.Services
         private const long LargePhotoHeightEmu = 2066514L;  // 2.26 inches
         private const int LargePhotosPerRow = 3;
 
-        // Timestamp format for export filenames
-        private const string ExportFilenameTimestampFormat = "yyyyMMddHHmmss";
-
         private readonly IStudentGroupService _studentGroupService;
         private readonly IPhotoService _photoService;
         private readonly ILogger<PhotoExportService> _logger;
@@ -149,7 +146,7 @@ namespace Viper.Areas.Students.Services
                                 var chunkStudents = groupStudents.Skip(chunkStart).Take(chunkEnd - chunkStart).ToList();
 
                                 // Add group header with student range numbering
-                                if (groupedStudents.Count > 1)
+                                if (ShouldShowGroupHeaders(groupedStudents))
                                 {
                                     var groupHeaderPara = body.AppendChild(new Paragraph());
                                     var groupHeaderRun = groupHeaderPara.AppendChild(new Run());
@@ -249,7 +246,7 @@ namespace Viper.Areas.Students.Services
 
                         // Standard processing (no chunking needed)
                         // Add page break before each group (except the first one)
-                        if (!isFirstGroup && groupedStudents.Count > 1)
+                        if (!isFirstGroup && ShouldShowGroupHeaders(groupedStudents))
                         {
                             var pageBreakPara = body.AppendChild(new Paragraph());
                             pageBreakPara.AppendChild(new Run(new Break() { Type = BreakValues.Page }));
@@ -257,13 +254,13 @@ namespace Viper.Areas.Students.Services
                         isFirstGroup = false;
 
                         // Add group header if there are multiple groups
-                        if (groupedStudents.Count > 1)
+                        if (ShouldShowGroupHeaders(groupedStudents))
                         {
                             var groupHeaderPara = body.AppendChild(new Paragraph());
                             var groupHeaderRun = groupHeaderPara.AppendChild(new Run());
 
-                            // For large layouts, just show group name; for standard, show count
-                            var headerText = useLargeLayout ? group.Key : $"{group.Key} ({group.Value.Count})";
+                            // Show count in parentheses
+                            var headerText = GetGroupHeaderText(group.Key, groupStudents.Count);
                             groupHeaderRun.AppendChild(new Text(headerText));
 
                             var groupHeaderProps = groupHeaderRun.PrependChild(new RunProperties());
@@ -376,7 +373,7 @@ namespace Viper.Areas.Students.Services
                 {
                     ExportId = Guid.NewGuid().ToString(),
                     FileData = fileData,
-                    FileName = $"StudentPhotos_{DateTime.Now.ToString(ExportFilenameTimestampFormat)}.docx",
+                    FileName = await GetExportFilenameAsync(request, ".docx"),
                     ContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 };
             }
@@ -439,111 +436,222 @@ namespace Viper.Areas.Students.Services
 
                 QuestPDF.Settings.License = LicenseType.Community;
 
+                const int studentsPerPage = 9; // For large layouts: 3 rows × 3 students
+
                 var document = PdfDocument.Create(container =>
                 {
                     foreach (var group in groupedStudents)
                     {
-                        container.Page(page =>
+                        var groupStudents = group.Value;
+                        var totalStudents = groupStudents.Count;
+
+                        // For large layouts with many students, split into chunks with repeating headers
+                        if (useLargeLayout && totalStudents > studentsPerPage)
                         {
-                            page.Size(PageSizes.Letter);
-                            page.MarginTop(1, Unit.Inch);
-                            page.MarginLeft(1, Unit.Inch);
-                            page.MarginRight(1, Unit.Inch);
-                            page.MarginBottom(0.25f, Unit.Inch);
-                            page.PageColor(Colors.White);
+                            // Process group in chunks of studentsPerPage (9 students per page)
+                            for (int chunkStart = 0; chunkStart < totalStudents; chunkStart += studentsPerPage)
+                            {
+                                var chunkEnd = Math.Min(chunkStart + studentsPerPage, totalStudents);
+                                var chunkStudents = groupStudents.Skip(chunkStart).Take(chunkEnd - chunkStart).ToList();
 
-                            page.Header()
-                                .Column(column =>
+                                container.Page(page =>
                                 {
-                                    column.Item().Text(titleLines[0])
-                                        .SemiBold()
-                                        .FontSize(20)
-                                        .FontColor(Colors.Black);
+                                    page.Size(PageSizes.Letter);
+                                    page.MarginTop(1, Unit.Inch);
+                                    page.MarginLeft(1, Unit.Inch);
+                                    page.MarginRight(1, Unit.Inch);
+                                    page.MarginBottom(0.25f, Unit.Inch);
+                                    page.PageColor(Colors.White);
 
-                                    if (titleLines.Length > 1)
-                                    {
-                                        column.Item().Text(titleLines[1])
-                                            .FontSize(10)
-                                            .FontColor(Colors.Grey.Darken1);
-                                    }
-
-                                    // Add group header if there are multiple groups
-                                    if (groupedStudents.Count > 1)
-                                    {
-                                        column.Item().PaddingTop(10).Text($"{group.Key} ({group.Value.Count})")
-                                            .SemiBold()
-                                            .FontSize(16)
-                                            .FontColor(Colors.Black);
-                                    }
-                                });
-
-                            page.Content()
-                                .PaddingVertical(1, Unit.Centimetre)
-                                .Column(column =>
-                                {
-                                    column.Item().Table(table =>
-                                    {
-                                        table.ColumnsDefinition(columns =>
+                                    page.Header()
+                                        .Column(column =>
                                         {
-                                            for (int col = 0; col < layout.PerRow; col++)
+                                            // Add group header with student range numbering
+                                            if (ShouldShowGroupHeaders(groupedStudents))
                                             {
-                                                columns.RelativeColumn();
+                                                var headerText = $"{group.Key} ({chunkStart + 1}-{chunkEnd})";
+                                                column.Item().Text(headerText)
+                                                    .SemiBold()
+                                                    .FontSize(16)
+                                                    .FontColor(Colors.Black);
                                             }
                                         });
 
-                                        var groupStudents = group.Value;
-                                        for (int i = 0; i < groupStudents.Count; i += layout.PerRow)
+                                    page.Content()
+                                        .PaddingVertical(1, Unit.Centimetre)
+                                        .Column(column =>
                                         {
-                                            var rowStudents = groupStudents.Skip(i).Take(layout.PerRow).ToList();
-
-                                            foreach (var student in rowStudents)
+                                            column.Item().Table(table =>
                                             {
-                                                table.Cell().Padding(5).ShowOnce().Column(innerColumn =>
+                                                table.ColumnsDefinition(columns =>
                                                 {
-                                                    innerColumn.Spacing(2);
-
-                                                    // Add photo from cache
-                                                    if (photoCache.TryGetValue(student.MailId, out var photoBytes))
+                                                    for (int col = 0; col < layout.PerRow; col++)
                                                     {
-                                                        innerColumn.Item().Image(photoBytes).FitWidth();
-                                                    }
-
-                                                    // Show student name
-                                                    innerColumn.Item().Text(useLargeLayout ? student.GroupExportName : student.FullName)
-                                                        .FontSize(10);
-
-                                                    // Only show secondary text (group info) if not using large layout
-                                                    if (!useLargeLayout)
-                                                    {
-                                                        foreach (var line in student.SecondaryTextLines)
-                                                        {
-                                                            innerColumn.Item().Text(line)
-                                                                .FontSize(8)
-                                                                .FontColor(Colors.Grey.Darken1);
-                                                        }
+                                                        columns.RelativeColumn();
                                                     }
                                                 });
-                                            }
 
-                                            for (int j = rowStudents.Count; j < layout.PerRow; j++)
+                                                for (int i = 0; i < chunkStudents.Count; i += layout.PerRow)
+                                                {
+                                                    var rowStudents = chunkStudents.Skip(i).Take(layout.PerRow).ToList();
+
+                                                    foreach (var student in rowStudents)
+                                                    {
+                                                        table.Cell().Padding(5).Column(innerColumn =>
+                                                        {
+                                                            innerColumn.Spacing(2);
+
+                                                            // Add photo from cache with explicit dimensions
+                                                            if (photoCache.TryGetValue(student.MailId, out var photoBytes))
+                                                            {
+                                                                innerColumn.Item().Width(1.74f, Unit.Inch).Height(2.26f, Unit.Inch).Image(photoBytes);
+                                                            }
+
+                                                            // Show student name (centered)
+                                                            innerColumn.Item().AlignCenter().Text(student.GroupExportName)
+                                                                .FontSize(10);
+                                                        });
+                                                    }
+
+                                                    for (int j = rowStudents.Count; j < layout.PerRow; j++)
+                                                    {
+                                                        table.Cell().Element(Block);
+                                                        static void Block(IContainer container) => container.Height(50);
+                                                    }
+                                                }
+                                            });
+                                        });
+
+                                    page.Footer()
+                                        .AlignCenter()
+                                        .Text(x =>
+                                        {
+                                            x.Span("Page ");
+                                            x.CurrentPageNumber();
+                                            x.Span(" of ");
+                                            x.TotalPages();
+                                        });
+                                });
+                            }
+                        }
+                        else
+                        {
+                            // Standard processing (no chunking needed)
+                            container.Page(page =>
+                            {
+                                page.Size(PageSizes.Letter);
+                                page.MarginTop(1, Unit.Inch);
+                                page.MarginLeft(1, Unit.Inch);
+                                page.MarginRight(1, Unit.Inch);
+                                page.MarginBottom(0.25f, Unit.Inch);
+                                page.PageColor(Colors.White);
+
+                                page.Header()
+                                    .Column(column =>
+                                    {
+                                        // Only show title and date for non-group exports
+                                        if (!useLargeLayout)
+                                        {
+                                            column.Item().Text(titleLines[0])
+                                                .SemiBold()
+                                                .FontSize(20)
+                                                .FontColor(Colors.Black);
+
+                                            if (titleLines.Length > 1)
                                             {
-                                                table.Cell().Element(Block);
-                                                static void Block(IContainer container) => container.Height(50);
+                                                column.Item().Text(titleLines[1])
+                                                    .FontSize(10)
+                                                    .FontColor(Colors.Grey.Darken1);
                                             }
                                         }
-                                    });
-                                });
 
-                            page.Footer()
-                                .AlignCenter()
-                                .Text(x =>
-                                {
-                                    x.Span("Page ");
-                                    x.CurrentPageNumber();
-                                    x.Span(" of ");
-                                    x.TotalPages();
-                                });
-                        });
+                                        // Add group header if there are multiple groups
+                                        if (ShouldShowGroupHeaders(groupedStudents))
+                                        {
+                                            var headerText = GetGroupHeaderText(group.Key, groupStudents.Count);
+                                            column.Item().PaddingTop(useLargeLayout ? 0 : 10).Text(headerText)
+                                                .SemiBold()
+                                                .FontSize(16)
+                                                .FontColor(Colors.Black);
+                                        }
+                                    });
+
+                                page.Content()
+                                    .PaddingVertical(1, Unit.Centimetre)
+                                    .Column(column =>
+                                    {
+                                        column.Item().Table(table =>
+                                        {
+                                            table.ColumnsDefinition(columns =>
+                                            {
+                                                for (int col = 0; col < layout.PerRow; col++)
+                                                {
+                                                    columns.RelativeColumn();
+                                                }
+                                            });
+
+                                            for (int i = 0; i < groupStudents.Count; i += layout.PerRow)
+                                            {
+                                                var rowStudents = groupStudents.Skip(i).Take(layout.PerRow).ToList();
+
+                                                foreach (var student in rowStudents)
+                                                {
+                                                    table.Cell().Padding(5).Column(innerColumn =>
+                                                    {
+                                                        innerColumn.Spacing(2);
+
+                                                        // Add photo from cache with explicit dimensions based on layout
+                                                        if (photoCache.TryGetValue(student.MailId, out var photoBytes))
+                                                        {
+                                                            if (useLargeLayout)
+                                                            {
+                                                                // Large layout: 1.74" x 2.26"
+                                                                innerColumn.Item().Width(1.74f, Unit.Inch).Height(2.26f, Unit.Inch).Image(photoBytes);
+                                                            }
+                                                            else
+                                                            {
+                                                                // Standard layout: 0.69" x 0.92"
+                                                                innerColumn.Item().Width(0.69f, Unit.Inch).Height(0.92f, Unit.Inch).Image(photoBytes);
+                                                            }
+                                                        }
+
+                                                        // Show student name (centered)
+                                                        innerColumn.Item().AlignCenter().Text(useLargeLayout ? student.GroupExportName : student.FullName)
+                                                            .FontSize(10);
+
+                                                        // Only show secondary text (group info) if not using large layout
+                                                        if (!useLargeLayout)
+                                                        {
+                                                            foreach (var line in student.SecondaryTextLines)
+                                                            {
+                                                                innerColumn.Item().AlignCenter().Text(line)
+                                                                    .FontSize(8)
+                                                                    .FontColor(Colors.Grey.Darken1);
+                                                            }
+                                                        }
+                                                    });
+                                                }
+
+                                                for (int j = rowStudents.Count; j < layout.PerRow; j++)
+                                                {
+                                                    table.Cell().Element(Block);
+                                                    static void Block(IContainer container) => container.Height(50);
+                                                }
+                                            }
+                                        });
+                                    });
+
+                                page.Footer()
+                                    .AlignCenter()
+                                    .Text(x =>
+                                    {
+                                        x.Span("Page ");
+                                        x.CurrentPageNumber();
+                                        x.Span(" of ");
+                                        x.TotalPages();
+                                    });
+                            });
+                        }
                     }
                 });
 
@@ -553,7 +661,7 @@ namespace Viper.Areas.Students.Services
                 {
                     ExportId = Guid.NewGuid().ToString(),
                     FileData = pdfBytes,
-                    FileName = $"StudentPhotos_{DateTime.Now.ToString(ExportFilenameTimestampFormat)}.pdf",
+                    FileName = await GetExportFilenameAsync(request, ".pdf"),
                     ContentType = "application/pdf"
                 };
             }
@@ -745,6 +853,23 @@ namespace Viper.Areas.Students.Services
             return (StandardPhotoWidthEmu, StandardPhotoHeightEmu, StandardPhotosPerRow);
         }
 
+        /// <summary>
+        /// Determines if group headers should be displayed.
+        /// Group headers are shown when there are multiple groups being exported.
+        /// </summary>
+        private static bool ShouldShowGroupHeaders(Dictionary<string, List<StudentPhoto>> groupedStudents)
+        {
+            return groupedStudents.Count > 1;
+        }
+
+        /// <summary>
+        /// Generates the header text for a group, showing the group name and student count.
+        /// </summary>
+        private static string GetGroupHeaderText(string groupKey, int studentCount)
+        {
+            return $"{groupKey} ({studentCount})";
+        }
+
         private async Task<string> GetExportTitleAsync(PhotoExportRequest request)
         {
             var titleParts = new List<string>();
@@ -838,6 +963,53 @@ namespace Viper.Areas.Students.Services
             title += $"\nAs of {DateTime.Now:M/d/yyyy}";
 
             return title;
+        }
+
+        /// <summary>
+        /// Generates a descriptive filename for the export based on context (course, class level, group).
+        /// </summary>
+        private async Task<string> GetExportFilenameAsync(PhotoExportRequest request, string extension)
+        {
+            var filenameParts = new List<string> { "Student Groups" };
+
+            // Add course code or class level
+            if (!string.IsNullOrEmpty(request.TermCode) && !string.IsNullOrEmpty(request.Crn))
+            {
+                try
+                {
+                    var courseInfo = await _courseService.GetCourseInfoAsync(request.TermCode, request.Crn);
+                    if (courseInfo != null)
+                    {
+                        filenameParts.Add($"{courseInfo.SubjectCode}{courseInfo.CourseNumber}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error getting course info for filename generation");
+                }
+            }
+            else if (!string.IsNullOrEmpty(request.ClassLevel))
+            {
+                filenameParts.Add(request.ClassLevel);
+            }
+
+            // Add group type if grouping is enabled
+            if (!string.IsNullOrEmpty(request.GroupType) && string.IsNullOrEmpty(request.GroupId))
+            {
+                // When GroupType is set but GroupId is not, we're showing all groups of that type
+                filenameParts.Add(request.GroupType.ToLower());
+            }
+            else if (!string.IsNullOrEmpty(request.GroupId))
+            {
+                // When filtering by a specific group, include the group ID
+                var groupTypeLabel = request.GroupType?.ToLower() ?? "group";
+                filenameParts.Add($"{groupTypeLabel} {request.GroupId}");
+            }
+
+            // Build filename with spaces (not underscores) and add extension
+            var filename = string.Join(" ", filenameParts) + extension;
+
+            return filename;
         }
     }
 }
