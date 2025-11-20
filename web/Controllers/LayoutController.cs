@@ -79,8 +79,6 @@ namespace Viper.Controllers
         [HttpGet("leftnav")]
         public ActionResult<NavMenu> GetLeftNav(bool area = true, string nav = "viper-home")
         {
-            //var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}/";
-            _ = $"{Request.PathBase}/";
             NavMenu? menu = null;
             if (area)
             {
