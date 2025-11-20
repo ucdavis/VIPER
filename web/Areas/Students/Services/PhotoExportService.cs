@@ -232,7 +232,7 @@ namespace Viper.Areas.Students.Services
                                         var cellParagraphProps = cellParagraph.AppendChild(new ParagraphProperties());
                                         cellParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
                                         var cellRun = cellParagraph.AppendChild(new Run());
-                                        cellRun.AppendChild(new Text(useLargeLayout ? student.GroupExportName : student.FullName));
+                                        cellRun.AppendChild(new Text(student.GroupExportName));
                                     }
 
                                     for (int j = rowStudents.Count; j < layout.PerRow; j++)
@@ -983,9 +983,21 @@ namespace Viper.Areas.Students.Services
                         filenameParts.Add($"{courseInfo.SubjectCode}{courseInfo.CourseNumber}");
                     }
                 }
+                catch (ArgumentException ex)
+                {
+                    _logger.LogWarning(ex, "Invalid argument when getting course info for filename generation");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _logger.LogWarning(ex, "Invalid operation when getting course info for filename generation");
+                }
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogWarning(ex, "Database error when getting course info for filename generation");
+                }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Error getting course info for filename generation");
+                    _logger.LogWarning(ex, "Unexpected error when getting course info for filename generation");
                 }
             }
             else if (!string.IsNullOrEmpty(request.ClassLevel))
