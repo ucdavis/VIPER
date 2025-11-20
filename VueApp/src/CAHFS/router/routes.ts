@@ -1,7 +1,4 @@
 import ViperLayout from '@/layouts/ViperLayout.vue'
-import ViperLayoutSimple from '@/layouts/ViperLayoutSimple.vue'
-
-const CAHFSBreadcrumbs = [{ url: "Home", name: "Return to CAHFS Home" }]
 
 const routes = [
     {
