@@ -133,7 +133,11 @@ async function fetchWrapper(url: string, options: any = {}) {
     return resultObj
 }
 
-async function postForBlob(url: string = "", body: any = {}, options: any = {}): Promise<Blob> {
+async function postForBlob(
+    url: string = "",
+    body: any = {},
+    options: any = {},
+): Promise<{ blob: Blob; filename: string | null }> {
     options.method = "POST"
     options.body = JSON.stringify(body)
     addHeader(options, "Content-Type", "application/json")
@@ -173,7 +177,21 @@ async function postForBlob(url: string = "", body: any = {}, options: any = {}):
         throw new Error(message)
     }
 
-    return await response.blob()
+    // Extract filename from Content-Disposition header
+    const contentDisposition = response.headers.get("Content-Disposition")
+    let filename: string | null = null
+
+    if (contentDisposition) {
+        // Try to extract filename from Content-Disposition header
+        // Format: attachment; filename="filename.ext" or attachment; filename=filename.ext
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+        if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1].replaceAll(/['"]/g, "")
+        }
+    }
+
+    const blob = await response.blob()
+    return { blob, filename }
 }
 
 function useFetch() {

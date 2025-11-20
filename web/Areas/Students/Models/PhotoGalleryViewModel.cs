@@ -31,6 +31,10 @@ namespace Viper.Areas.Students.Models
         [JsonInclude]
         public string FullName => $"{LastName}, {FirstName}";
 
+        // Alternative name format for group exports (FirstName LastName)
+        [JsonInclude]
+        public string GroupExportName => $"{FirstName} {LastName}";
+
         [JsonInclude]
         public List<string> SecondaryTextLines
         {

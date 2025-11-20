@@ -522,7 +522,7 @@ describe("photo-gallery-store", () => {
                 type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             })
 
-            vi.mocked(photoGalleryService.exportToWord).mockResolvedValue(mockBlob)
+            vi.mocked(photoGalleryService.exportToWord).mockResolvedValue({ blob: mockBlob, filename: null })
             vi.mocked(photoGalleryService.downloadFile).mockImplementation(() => {
                 // Mock implementation - no action needed
             })
@@ -546,7 +546,7 @@ describe("photo-gallery-store", () => {
             store.selectedClassLevel = "V4"
             const mockBlob = new Blob(["test"], { type: "application/pdf" })
 
-            vi.mocked(photoGalleryService.exportToPDF).mockResolvedValue(mockBlob)
+            vi.mocked(photoGalleryService.exportToPDF).mockResolvedValue({ blob: mockBlob, filename: null })
             vi.mocked(photoGalleryService.downloadFile).mockImplementation(() => {
                 // Mock implementation - no action needed
             })
@@ -569,7 +569,7 @@ describe("photo-gallery-store", () => {
             const store = usePhotoGalleryStore()
             const mockBlob = new Blob(["test"])
 
-            vi.mocked(photoGalleryService.exportToWord).mockResolvedValue(mockBlob)
+            vi.mocked(photoGalleryService.exportToWord).mockResolvedValue({ blob: mockBlob, filename: null })
             vi.mocked(photoGalleryService.downloadFile).mockImplementation(() => {
                 // Mock implementation - no action needed
             })
