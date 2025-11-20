@@ -160,13 +160,14 @@ function createExportToWord(refs: StoreRefs) {
     return async function exportToWord(overrides?: Partial<PhotoExportRequest>) {
         try {
             refs.exportInProgress.value = true
-            const blob = await photoGalleryService.exportToWord({
+            const { blob, filename } = await photoGalleryService.exportToWord({
                 ...refs.exportParams.value,
                 ...overrides,
                 exportFormat: "word" as const,
             })
-            const filename = `StudentPhotos_${new Date().toISOString().slice(0, ISO_DATE_LENGTH)}.docx`
-            photoGalleryService.downloadFile(blob, filename)
+            // Use server-provided filename if available, otherwise fallback to timestamp
+            const finalFilename = filename || `StudentPhotos_${new Date().toISOString().slice(0, ISO_DATE_LENGTH)}.docx`
+            photoGalleryService.downloadFile(blob, finalFilename)
         } catch (err: any) {
             throw new Error(err.message || "Failed to export to Word")
         } finally {
@@ -179,13 +180,14 @@ function createExportToPDF(refs: StoreRefs) {
     return async function exportToPDF(overrides?: Partial<PhotoExportRequest>) {
         try {
             refs.exportInProgress.value = true
-            const blob = await photoGalleryService.exportToPDF({
+            const { blob, filename } = await photoGalleryService.exportToPDF({
                 ...refs.exportParams.value,
                 ...overrides,
                 exportFormat: "pdf" as const,
             })
-            const filename = `StudentPhotos_${new Date().toISOString().slice(0, ISO_DATE_LENGTH)}.pdf`
-            photoGalleryService.downloadFile(blob, filename)
+            // Use server-provided filename if available, otherwise fallback to timestamp
+            const finalFilename = filename || `StudentPhotos_${new Date().toISOString().slice(0, ISO_DATE_LENGTH)}.pdf`
+            photoGalleryService.downloadFile(blob, finalFilename)
         } catch (err: any) {
             throw new Error(err.message || "Failed to export to PDF")
         } finally {

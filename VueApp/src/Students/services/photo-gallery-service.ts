@@ -146,9 +146,11 @@ class PhotoGalleryService {
 
     getDefaultPhotoUrl = (): string => `${this.baseUrl}/default`
 
-    exportToWord = (request: PhotoExportRequest): Promise<Blob> => postForBlob(`${this.baseUrl}/export/word`, request)
+    exportToWord = (request: PhotoExportRequest): Promise<{ blob: Blob; filename: string | null }> =>
+        postForBlob(`${this.baseUrl}/export/word`, request)
 
-    exportToPDF = (request: PhotoExportRequest): Promise<Blob> => postForBlob(`${this.baseUrl}/export/pdf`, request)
+    exportToPDF = (request: PhotoExportRequest): Promise<{ blob: Blob; filename: string | null }> =>
+        postForBlob(`${this.baseUrl}/export/pdf`, request)
 
     getAvailableGroups = async (): Promise<any> => {
         const { get } = useFetch()

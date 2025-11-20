@@ -22,13 +22,17 @@ namespace Viper.Areas.Students.Services
     public class PhotoExportService : IPhotoExportService
     {
         // Photo dimensions in EMUs (English Metric Units) for Word/PDF export
-        // EMU = 1/914400 inch; these values represent approximately 0.69" x 0.92"
-        // Sized for 6 photos per row on standard letter paper with margins
-        private const long PhotoWidthEmu = 633333L;
-        private const long PhotoHeightEmu = 844667L;
+        // EMU = 1/914400 inch
 
-        // Number of student photos per row in Word/PDF exports
-        private const int PhotosPerRow = 6;
+        // Standard layout: 6 photos per row, approximately 0.69" x 0.92"
+        private const long StandardPhotoWidthEmu = 633333L;
+        private const long StandardPhotoHeightEmu = 844667L;
+        private const int StandardPhotosPerRow = 6;
+
+        // Group-filtered layout: 3 photos per row, matching legacy at 1.74" x 2.26" (portrait)
+        private const long LargePhotoWidthEmu = 1591086L;   // 1.74 inches
+        private const long LargePhotoHeightEmu = 2066514L;  // 2.26 inches
+        private const int LargePhotosPerRow = 3;
 
         // Timestamp format for export filenames
         private const string ExportFilenameTimestampFormat = "yyyyMMddHHmmss";
@@ -81,6 +85,10 @@ namespace Viper.Areas.Students.Services
                 var shouldGroup = !string.IsNullOrEmpty(request.GroupType) && string.IsNullOrEmpty(request.GroupId);
                 var groupedStudents = shouldGroup ? GroupStudentsByType(students, request.GroupType) : GroupStudentsByType(students, null);
 
+                // Get layout configuration (standard or large)
+                var layout = GetLayoutConfiguration(request);
+                var useLargeLayout = ShouldUseLargeLayout(request);
+
                 using var stream = new MemoryStream();
                 using (var wordDocument = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document))
                 {
@@ -88,33 +96,158 @@ namespace Viper.Areas.Students.Services
                     mainPart.Document = new WordDocument();
                     var body = mainPart.Document.AppendChild(new Body());
 
-                    var titleLines = (await GetExportTitleAsync(request)).Split('\n');
-
-                    var titleParagraph = body.AppendChild(new Paragraph());
-                    var titleRun = titleParagraph.AppendChild(new Run());
-                    titleRun.AppendChild(new Text(titleLines[0]));
-
-                    var titleProps = titleRun.PrependChild(new RunProperties());
-                    titleProps.AppendChild(new Bold());
-                    titleProps.AppendChild(new FontSize() { Val = "32" });
-
-                    // Add export date on new line with smaller font
-                    if (titleLines.Length > 1)
+                    // Only show title and date for non-group exports
+                    if (!useLargeLayout)
                     {
-                        titleRun.AppendChild(new Break());
-                        var dateRun = titleParagraph.AppendChild(new Run());
-                        dateRun.AppendChild(new Text(titleLines[1]));
-                        var dateProps = dateRun.PrependChild(new RunProperties());
-                        dateProps.AppendChild(new FontSize() { Val = "16" });
-                        dateProps.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Color() { Val = "808080" }); // Gray color
+                        var titleLines = (await GetExportTitleAsync(request)).Split('\n');
+
+                        var titleParagraph = body.AppendChild(new Paragraph());
+                        var titleRun = titleParagraph.AppendChild(new Run());
+                        titleRun.AppendChild(new Text(titleLines[0]));
+
+                        var titleProps = titleRun.PrependChild(new RunProperties());
+                        titleProps.AppendChild(new Bold());
+                        titleProps.AppendChild(new FontSize() { Val = "32" });
+
+                        // Add export date on new line with smaller font
+                        if (titleLines.Length > 1)
+                        {
+                            titleRun.AppendChild(new Break());
+                            var dateRun = titleParagraph.AppendChild(new Run());
+                            dateRun.AppendChild(new Text(titleLines[1]));
+                            var dateProps = dateRun.PrependChild(new RunProperties());
+                            dateProps.AppendChild(new FontSize() { Val = "16" });
+                            dateProps.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Color() { Val = "808080" }); // Gray color
+                        }
                     }
 
                     uint imageId = 1;
                     bool isFirstGroup = true;
+                    const int studentsPerPage = 9; // For large layouts: 3 rows × 3 students
 
                     // Iterate over groups
                     foreach (var group in groupedStudents)
                     {
+                        var groupStudents = group.Value;
+                        var totalStudents = groupStudents.Count;
+
+                        // For large layouts with many students, split into chunks with repeating headers
+                        if (useLargeLayout && totalStudents > studentsPerPage)
+                        {
+                            // Process group in chunks of studentsPerPage (9 students per "page")
+                            for (int chunkStart = 0; chunkStart < totalStudents; chunkStart += studentsPerPage)
+                            {
+                                // Add page break before each chunk (except the very first one)
+                                if (!isFirstGroup)
+                                {
+                                    var pageBreakPara = body.AppendChild(new Paragraph());
+                                    pageBreakPara.AppendChild(new Run(new Break() { Type = BreakValues.Page }));
+                                }
+                                isFirstGroup = false;
+
+                                var chunkEnd = Math.Min(chunkStart + studentsPerPage, totalStudents);
+                                var chunkStudents = groupStudents.Skip(chunkStart).Take(chunkEnd - chunkStart).ToList();
+
+                                // Add group header with student range numbering
+                                if (groupedStudents.Count > 1)
+                                {
+                                    var groupHeaderPara = body.AppendChild(new Paragraph());
+                                    var groupHeaderRun = groupHeaderPara.AppendChild(new Run());
+                                    groupHeaderRun.AppendChild(new Text($"{group.Key} ({chunkStart + 1}-{chunkEnd})"));
+                                    var groupHeaderProps = groupHeaderRun.PrependChild(new RunProperties());
+                                    groupHeaderProps.AppendChild(new Bold());
+                                    groupHeaderProps.AppendChild(new FontSize() { Val = "24" });
+                                }
+
+                                // Create a borderless table for this chunk
+                                var chunkTable = body.AppendChild(new Table());
+                                var chunkTableProps = chunkTable.AppendChild(new TableProperties());
+                                chunkTableProps.AppendChild(new TableBorders(
+                                    new TopBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new BottomBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new LeftBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new RightBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new InsideHorizontalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new InsideVerticalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 }
+                                ));
+
+                                // Render rows for this chunk
+                                for (int i = 0; i < chunkStudents.Count; i += layout.PerRow)
+                                {
+                                    var row = chunkTable.AppendChild(new TableRow());
+                                    var rowStudents = chunkStudents.Skip(i).Take(layout.PerRow).ToList();
+
+                                    foreach (var student in rowStudents)
+                                    {
+                                        var cell = row.AppendChild(new TableCell());
+
+                                        // Add photo from cache (already batch loaded)
+                                        if (photoCache.TryGetValue(student.MailId, out var photoBytes) && photoBytes != null && photoBytes.Length > 0)
+                                        {
+                                            var photoParagraph = cell.AppendChild(new Paragraph());
+                                            var photoParagraphProps = photoParagraph.AppendChild(new ParagraphProperties());
+                                            photoParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
+                                            var photoRun = photoParagraph.AppendChild(new Run());
+
+                                            var imagePart = mainPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Jpeg);
+                                            using (var photoStream = new MemoryStream(photoBytes))
+                                            {
+                                                imagePart.FeedData(photoStream);
+                                            }
+
+                                            imageId++; // Increment before use to avoid duplicate IDs
+
+                                            var inline = new DocumentFormat.OpenXml.Drawing.Wordprocessing.Inline(
+                                                new DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent() { Cx = layout.Width, Cy = layout.Height },
+                                                new DocumentFormat.OpenXml.Drawing.Wordprocessing.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+                                                new DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties() { Id = (UInt32Value)imageId, Name = $"Photo{imageId}" },
+                                                new DocumentFormat.OpenXml.Drawing.Wordprocessing.NonVisualGraphicFrameDrawingProperties(
+                                                    new DocumentFormat.OpenXml.Drawing.GraphicFrameLocks() { NoChangeAspect = true }),
+                                                new DocumentFormat.OpenXml.Drawing.Graphic(
+                                                    new DocumentFormat.OpenXml.Drawing.GraphicData(
+                                                        new DocumentFormat.OpenXml.Drawing.Pictures.Picture(
+                                                            new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureProperties(
+                                                                new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties() { Id = (UInt32Value)imageId, Name = $"Photo{imageId}.jpg" },
+                                                                new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureDrawingProperties()),
+                                                            new DocumentFormat.OpenXml.Drawing.Pictures.BlipFill(
+                                                                new DocumentFormat.OpenXml.Drawing.Blip() { Embed = mainPart.GetIdOfPart(imagePart) },
+                                                                new DocumentFormat.OpenXml.Drawing.Stretch(
+                                                                    new DocumentFormat.OpenXml.Drawing.FillRectangle())),
+                                                            new DocumentFormat.OpenXml.Drawing.Pictures.ShapeProperties(
+                                                                new DocumentFormat.OpenXml.Drawing.Transform2D(
+                                                                    new DocumentFormat.OpenXml.Drawing.Offset() { X = 0L, Y = 0L },
+                                                                    new DocumentFormat.OpenXml.Drawing.Extents() { Cx = layout.Width, Cy = layout.Height }),
+                                                                new DocumentFormat.OpenXml.Drawing.PresetGeometry(
+                                                                    new DocumentFormat.OpenXml.Drawing.AdjustValueList())
+                                                                { Preset = DocumentFormat.OpenXml.Drawing.ShapeTypeValues.Rectangle }))
+                                                    )
+                                                    { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" })
+                                            )
+                                            { DistanceFromTop = (UInt32Value)0U, DistanceFromBottom = (UInt32Value)0U, DistanceFromLeft = (UInt32Value)0U, DistanceFromRight = (UInt32Value)0U };
+
+                                            var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing(inline);
+
+                                            photoRun.AppendChild(drawing);
+                                        }
+
+                                        // Add name (no secondary text for large layouts)
+                                        var cellParagraph = cell.AppendChild(new Paragraph());
+                                        var cellParagraphProps = cellParagraph.AppendChild(new ParagraphProperties());
+                                        cellParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
+                                        var cellRun = cellParagraph.AppendChild(new Run());
+                                        cellRun.AppendChild(new Text(useLargeLayout ? student.GroupExportName : student.FullName));
+                                    }
+
+                                    for (int j = rowStudents.Count; j < layout.PerRow; j++)
+                                    {
+                                        row.AppendChild(new TableCell(new Paragraph()));
+                                    }
+                                }
+                            }
+                            continue; // Skip normal processing for this group
+                        }
+
+                        // Standard processing (no chunking needed)
                         // Add page break before each group (except the first one)
                         if (!isFirstGroup && groupedStudents.Count > 1)
                         {
@@ -128,7 +261,11 @@ namespace Viper.Areas.Students.Services
                         {
                             var groupHeaderPara = body.AppendChild(new Paragraph());
                             var groupHeaderRun = groupHeaderPara.AppendChild(new Run());
-                            groupHeaderRun.AppendChild(new Text($"{group.Key} ({group.Value.Count})"));
+
+                            // For large layouts, just show group name; for standard, show count
+                            var headerText = useLargeLayout ? group.Key : $"{group.Key} ({group.Value.Count})";
+                            groupHeaderRun.AppendChild(new Text(headerText));
+
                             var groupHeaderProps = groupHeaderRun.PrependChild(new RunProperties());
                             groupHeaderProps.AppendChild(new Bold());
                             groupHeaderProps.AppendChild(new FontSize() { Val = "24" });
@@ -146,11 +283,10 @@ namespace Viper.Areas.Students.Services
                             new InsideVerticalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 }
                         ));
 
-                        var groupStudents = group.Value;
-                        for (int i = 0; i < groupStudents.Count; i += PhotosPerRow)
+                        for (int i = 0; i < groupStudents.Count; i += layout.PerRow)
                         {
                             var row = table.AppendChild(new TableRow());
-                            var rowStudents = groupStudents.Skip(i).Take(PhotosPerRow).ToList();
+                            var rowStudents = groupStudents.Skip(i).Take(layout.PerRow).ToList();
 
                             foreach (var student in rowStudents)
                             {
@@ -173,7 +309,7 @@ namespace Viper.Areas.Students.Services
                                     imageId++; // Increment before use to avoid duplicate IDs
 
                                     var inline = new DocumentFormat.OpenXml.Drawing.Wordprocessing.Inline(
-                                        new DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent() { Cx = PhotoWidthEmu, Cy = PhotoHeightEmu },
+                                        new DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent() { Cx = layout.Width, Cy = layout.Height },
                                         new DocumentFormat.OpenXml.Drawing.Wordprocessing.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
                                         new DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties() { Id = (UInt32Value)imageId, Name = $"Photo{imageId}" },
                                         new DocumentFormat.OpenXml.Drawing.Wordprocessing.NonVisualGraphicFrameDrawingProperties(
@@ -191,7 +327,7 @@ namespace Viper.Areas.Students.Services
                                                     new DocumentFormat.OpenXml.Drawing.Pictures.ShapeProperties(
                                                         new DocumentFormat.OpenXml.Drawing.Transform2D(
                                                             new DocumentFormat.OpenXml.Drawing.Offset() { X = 0L, Y = 0L },
-                                                            new DocumentFormat.OpenXml.Drawing.Extents() { Cx = PhotoWidthEmu, Cy = PhotoHeightEmu }),
+                                                            new DocumentFormat.OpenXml.Drawing.Extents() { Cx = layout.Width, Cy = layout.Height }),
                                                         new DocumentFormat.OpenXml.Drawing.PresetGeometry(
                                                             new DocumentFormat.OpenXml.Drawing.AdjustValueList())
                                                         { Preset = DocumentFormat.OpenXml.Drawing.ShapeTypeValues.Rectangle }))
@@ -205,21 +341,25 @@ namespace Viper.Areas.Students.Services
                                     photoRun.AppendChild(drawing);
                                 }
 
-                                // Add name and secondary text using centralized display logic
+                                // Add name and optionally secondary text (hide group info for large layouts)
                                 var cellParagraph = cell.AppendChild(new Paragraph());
                                 var cellParagraphProps = cellParagraph.AppendChild(new ParagraphProperties());
                                 cellParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
                                 var cellRun = cellParagraph.AppendChild(new Run());
-                                cellRun.AppendChild(new Text(student.FullName));
+                                cellRun.AppendChild(new Text(useLargeLayout ? student.GroupExportName : student.FullName));
 
-                                foreach (var line in student.SecondaryTextLines)
+                                // Only show secondary text (group info) if not using large layout
+                                if (!useLargeLayout)
                                 {
-                                    cellRun.AppendChild(new Break());
-                                    cellRun.AppendChild(new Text(line));
+                                    foreach (var line in student.SecondaryTextLines)
+                                    {
+                                        cellRun.AppendChild(new Break());
+                                        cellRun.AppendChild(new Text(line));
+                                    }
                                 }
                             }
 
-                            for (int j = rowStudents.Count; j < PhotosPerRow; j++)
+                            for (int j = rowStudents.Count; j < layout.PerRow; j++)
                             {
                                 row.AppendChild(new TableCell(new Paragraph()));
                             }
@@ -290,6 +430,10 @@ namespace Viper.Areas.Students.Services
                 var shouldGroup = !string.IsNullOrEmpty(request.GroupType) && string.IsNullOrEmpty(request.GroupId);
                 var groupedStudents = shouldGroup ? GroupStudentsByType(students, request.GroupType) : GroupStudentsByType(students, null);
 
+                // Get layout configuration (standard or large)
+                var layout = GetLayoutConfiguration(request);
+                var useLargeLayout = ShouldUseLargeLayout(request);
+
                 // Fetch title before entering QuestPDF builder to avoid async void lambda
                 var titleLines = (await GetExportTitleAsync(request)).Split('\n');
 
@@ -341,16 +485,16 @@ namespace Viper.Areas.Students.Services
                                     {
                                         table.ColumnsDefinition(columns =>
                                         {
-                                            for (int col = 0; col < PhotosPerRow; col++)
+                                            for (int col = 0; col < layout.PerRow; col++)
                                             {
                                                 columns.RelativeColumn();
                                             }
                                         });
 
                                         var groupStudents = group.Value;
-                                        for (int i = 0; i < groupStudents.Count; i += PhotosPerRow)
+                                        for (int i = 0; i < groupStudents.Count; i += layout.PerRow)
                                         {
-                                            var rowStudents = groupStudents.Skip(i).Take(PhotosPerRow).ToList();
+                                            var rowStudents = groupStudents.Skip(i).Take(layout.PerRow).ToList();
 
                                             foreach (var student in rowStudents)
                                             {
@@ -364,20 +508,24 @@ namespace Viper.Areas.Students.Services
                                                         innerColumn.Item().Image(photoBytes).FitWidth();
                                                     }
 
-                                                    // Use centralized display logic
-                                                    innerColumn.Item().Text(student.FullName)
+                                                    // Show student name
+                                                    innerColumn.Item().Text(useLargeLayout ? student.GroupExportName : student.FullName)
                                                         .FontSize(10);
 
-                                                    foreach (var line in student.SecondaryTextLines)
+                                                    // Only show secondary text (group info) if not using large layout
+                                                    if (!useLargeLayout)
                                                     {
-                                                        innerColumn.Item().Text(line)
-                                                            .FontSize(8)
-                                                            .FontColor(Colors.Grey.Darken1);
+                                                        foreach (var line in student.SecondaryTextLines)
+                                                        {
+                                                            innerColumn.Item().Text(line)
+                                                                .FontSize(8)
+                                                                .FontColor(Colors.Grey.Darken1);
+                                                        }
                                                     }
                                                 });
                                             }
 
-                                            for (int j = rowStudents.Count; j < PhotosPerRow; j++)
+                                            for (int j = rowStudents.Count; j < layout.PerRow; j++)
                                             {
                                                 table.Cell().Element(Block);
                                                 static void Block(IContainer container) => container.Height(50);
@@ -569,6 +717,32 @@ namespace Viper.Areas.Students.Services
                 .OrderBy(kvp => kvp.Key == "Unassigned" ? 1 : 0)
                 .ThenBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+        }
+
+        /// <summary>
+        /// Determines if the export should use the large photo layout (3x3 grid) based on the group type.
+        /// </summary>
+        private static bool ShouldUseLargeLayout(PhotoExportRequest request)
+        {
+            if (string.IsNullOrEmpty(request.GroupType))
+            {
+                return false;
+            }
+
+            var groupType = request.GroupType.ToLower();
+            return groupType == "eighths" || groupType == "twentieths" || groupType == "teams";
+        }
+
+        /// <summary>
+        /// Gets the photo dimensions and photos-per-row configuration based on the export request.
+        /// </summary>
+        private static (long Width, long Height, int PerRow) GetLayoutConfiguration(PhotoExportRequest request)
+        {
+            if (ShouldUseLargeLayout(request))
+            {
+                return (LargePhotoWidthEmu, LargePhotoHeightEmu, LargePhotosPerRow);
+            }
+            return (StandardPhotoWidthEmu, StandardPhotoHeightEmu, StandardPhotosPerRow);
         }
 
         private async Task<string> GetExportTitleAsync(PhotoExportRequest request)
