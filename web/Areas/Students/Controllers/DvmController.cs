@@ -1,18 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Polly;
-using System.ComponentModel;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Models;
 using Viper.Areas.Students.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
-using Viper.Models.RAPS;
 using Viper.Models.Students;
 using Web.Authorization;
 
-namespace Viper.Areas.Students.Controller
+namespace Viper.Areas.Students.Controllers
 {
     [Route("/api/students/dvm")]
     [Permission(Allow = "SVMSecure.Students")]
@@ -57,12 +54,12 @@ namespace Viper.Areas.Students.Controller
         /// <param name="personId"></param>
         /// <returns></returns>
         [HttpGet("{personId}")]
-        [Permission(Allow ="SVMSecure.Students")]
+        [Permission(Allow = "SVMSecure.Students")]
         public async Task<ActionResult<Models.Student>> GetDvmStudent(int personId)
         {
-			var student = await studentList.GetStudent(personId);
+            var student = await studentList.GetStudent(personId);
             return student == null ? NotFound() : student;
-		}
+        }
 
         /// <summary>
         /// Get students by term and class level. Uses AAUD student info table, which is driven by registration data and exceptions.
@@ -168,7 +165,7 @@ namespace Viper.Areas.Students.Controller
         public async Task<ActionResult<StudentClassYear>> UpdateClassYear(int classYear, int personId, StudentClassYearUpdate studentClassYear)
         {
             var user = userHelper.GetCurrentUser();
-            var record = context.StudentClassYears.Find(studentClassYear.StudentClassYearId);
+            var record = await context.StudentClassYears.FindAsync(studentClassYear.StudentClassYearId);
             if (record == null)
             {
                 return NotFound();
@@ -237,7 +234,7 @@ namespace Viper.Areas.Students.Controller
         [HttpDelete("studentClassYears/{studentClassYearId}")]
         public async Task<ActionResult> DeleteStudentClassYear(int studentClassYearId)
         {
-            var record = context.StudentClassYears.Find(studentClassYearId);
+            var record = await context.StudentClassYears.FindAsync(studentClassYearId);
             if (record == null)
             {
                 return NotFound();

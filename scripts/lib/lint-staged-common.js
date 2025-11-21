@@ -127,9 +127,11 @@ function displayCategorizedIssues(categorizedIssues, config, toolName) {
         }
     }
 
-    // Display warnings only when blocking on warnings is enabled
-    if (blockOnWarnings && warnings.length > 0) {
-        logger.warning(`${warningLabel} (${warnings.length}):`)
+    // Always display warnings so developers can see them
+    // LINT_BLOCK_ON_WARNINGS controls whether warnings block commits, not whether they're shown
+    if (warnings.length > 0) {
+        const blockingStatus = blockOnWarnings ? "" : " - non-blocking"
+        logger.warning(`${warningLabel} (${warnings.length})${blockingStatus}:`)
         for (const issue of warnings) {
             logger.plain(`  ${issue.file}:${issue.line}:${issue.col} - ${issue.rule}: ${issue.message}`)
         }

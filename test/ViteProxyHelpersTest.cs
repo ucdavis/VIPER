@@ -94,15 +94,24 @@ namespace Viper.test
         [InlineData("/CTS", "?debug=true", "https://localhost:5173/2/vue/src/CTS/index.html?debug=true")]
         public void BuildViteUrl_ValidPaths_ReturnsCorrectUrl(string path, string queryString, string expected)
         {
-            // Arrange
-            var pathString = new PathString(path);
-            var query = new QueryString(queryString);
+            // Arrange - clear environment variable to test with hardcoded default
+            var original = Environment.GetEnvironmentVariable("VITE_SERVER_URL");
+            try
+            {
+                Environment.SetEnvironmentVariable("VITE_SERVER_URL", null);
+                var pathString = new PathString(path);
+                var query = new QueryString(queryString);
 
-            // Act
-            var result = ViteProxyHelpers.BuildViteUrl(pathString, query, _vueAppNames);
+                // Act
+                var result = ViteProxyHelpers.BuildViteUrl(pathString, query, _vueAppNames);
 
-            // Assert
-            Assert.Equal(expected, result);
+                // Assert
+                Assert.Equal(expected, result);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("VITE_SERVER_URL", original);
+            }
         }
 
         private static HttpContext CreateHttpContext(string path)
@@ -127,7 +136,7 @@ namespace Viper.test
                 // Act
                 var result = ViteProxyHelpers.BuildViteUrl(pathString, query, _vueAppNames);
 
-                // Assert - should fall back to localhost and not include the evil host
+                // Assert - should fall back to localhost:5173 (hardcoded default) and not include the evil host
                 Assert.StartsWith("https://localhost:5173", result);
                 Assert.DoesNotContain("evil.example.com", result);
             }

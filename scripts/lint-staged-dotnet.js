@@ -10,7 +10,14 @@ const {
 } = require("./lib/lint-staged-common")
 const { createLogger } = require("./lib/script-utils")
 const { categorizeRule } = require("./lib/critical-rules")
-const { needsBuild, markAsBuilt, getCachedBuildOutput } = require("./lib/build-cache")
+const {
+    needsBuild,
+    markAsBuilt,
+    getCachedBuildOutput,
+    needsFormatCheck,
+    markFormatChecked,
+    getCachedFormatOutput,
+} = require("./lib/build-cache")
 
 // Platform-specific path patterns
 // Regex patterns for robust path classification (handle both "web" and "web/file.cs")
@@ -145,7 +152,7 @@ const runBuild = (projectPath) => {
         }
     }
 
-    const args = ["build", `${projectPath}/`, "--no-incremental", "--verbosity", "normal"]
+    const args = ["build", `${projectPath}/`, "--no-incremental", "--verbosity", "quiet"]
 
     try {
         logger.info(`Building ${projectPath}/ project for code analysis...`)
@@ -157,7 +164,7 @@ const runBuild = (projectPath) => {
 
         // Store successful build in cache
         try {
-            markAsBuilt(projectName, result)
+            markAsBuilt(projectPath, projectName, result)
         } catch (error) {
             logger.warning(`Failed to cache build result: ${error.message}`)
         }
@@ -174,7 +181,7 @@ const runBuild = (projectPath) => {
 
             // Store build output even for failed builds so analyzers can process it
             try {
-                markAsBuilt(projectName, output)
+                markAsBuilt(projectPath, projectName, output)
             } catch (error) {
                 logger.warning(`Failed to cache build output: ${error.message}`)
             }
@@ -234,6 +241,21 @@ const verifyFormatting = (projectPath, relativePaths, afterFix = false) => {
         logger.info(`🔍 Checking for remaining issues in ${projectPath}/ project...`)
     }
 
+    // Generate cache key based on project and files
+    const cacheKey = `${projectPath}-format`
+
+    // Convert relative paths to absolute for hashing
+    const absolutePaths = relativePaths.map((p) => path.resolve(process.cwd(), p))
+
+    // Check if format check is needed (unless forced or after fix)
+    if (!afterFix && !forceFlag && !needsFormatCheck(absolutePaths, cacheKey)) {
+        // Return cached format output
+        const cachedOutput = getCachedFormatOutput(cacheKey)
+        const hasWarnings = cachedOutput && (cachedOutput.includes("warning ") || cachedOutput.includes(": warning"))
+        const hasErrors = cachedOutput && (cachedOutput.includes("error ") || cachedOutput.includes(": error"))
+        return { hasErrors: hasErrors, hasWarnings: hasWarnings, output: cachedOutput || "" }
+    }
+
     const verifyArgs = ["format", `${projectPath}/`, "--verify-no-changes", "--severity", "warn"]
     for (const p of relativePaths) {
         verifyArgs.push("--include", p)
@@ -246,6 +268,11 @@ const verifyFormatting = (projectPath, relativePaths, afterFix = false) => {
             stdio: ["inherit", "pipe", "pipe"],
         })
 
+        // Cache successful format check
+        if (!afterFix) {
+            markFormatChecked(absolutePaths, cacheKey, result || "")
+        }
+
         if (afterFix) {
             logger.success(`All issues have been fixed in ${projectPath}/ files`)
         }
@@ -255,6 +282,11 @@ const verifyFormatting = (projectPath, relativePaths, afterFix = false) => {
             const output = (error.stdout || "") + (error.stderr || "")
             const hasWarnings = output.includes("warning ") || output.includes(": warning")
             const hasErrors = output.includes("error ") || output.includes(": error")
+
+            // Cache format check results even if there are issues
+            if (!afterFix) {
+                markFormatChecked(absolutePaths, cacheKey, output)
+            }
 
             if (afterFix) {
                 const remainingCount = (output.match(/warning|error/g) || []).length
@@ -328,8 +360,15 @@ function isRelevantIssue(issue, requestedFiles) {
     }
 
     for (const requestedPath of requestedFiles) {
-        const normalizedRequested = path.normalize(requestedPath).replaceAll("\\\\", "/")
-        const normalizedIssueFile = path.normalize(issue.file).replaceAll("\\\\", "/")
+        // Convert absolute paths to relative paths for consistent comparison
+        // This handles lint-staged passing absolute paths while build output has relative paths
+        let normalizedRequested = path.normalize(requestedPath)
+        if (path.isAbsolute(normalizedRequested)) {
+            normalizedRequested = path.relative(process.cwd(), normalizedRequested)
+        }
+        normalizedRequested = normalizedRequested.replaceAll("\\", "/")
+
+        const normalizedIssueFile = path.normalize(issue.file).replaceAll("\\", "/")
 
         // Direct file match
         if (normalizedIssueFile === normalizedRequested) {
@@ -383,6 +422,10 @@ try {
     const allIssues = [...buildIssues, ...formatIssues]
     const issues = allIssues.filter((issue) => isRelevantIssue(issue, rawFiles))
 
+    // Track filtered vs total for reporting
+    const totalProjectIssues = allIssues.length
+    const filteredOutCount = totalProjectIssues - issues.length
+
     // Categorize issues using shared function (same logic as other scripts)
     const categorizedIssues = categorizeIssuesBySeverity(issues, categorizeRule, "critical-security")
 
@@ -401,6 +444,11 @@ try {
             criticalIcon: "🔐",
         }
         displayCategorizedIssues(categorizedIssues, displayConfig, ".NET")
+
+        // Show filtering information if issues were filtered out
+        if (filteredOutCount > 0) {
+            logger.info(`(${filteredOutCount} issue(s) in other files not shown)`)
+        }
     }
 
     if (totalIssues > 0) {
@@ -416,7 +464,13 @@ try {
         }
 
         handleCommitDecisionForCategorizedIssues(categorizedIssues, config, ".NET")
+    } else if (filteredOutCount > 0) {
+        // No issues in the specific files being checked, but other files have issues
+        logger.success(
+            `No issues found in the checked file(s). (${filteredOutCount} issue(s) exist in other project files)`,
+        )
     } else {
+        // No issues anywhere
         logger.success(`All C# files ${fixFlag ? "have been fixed" : "pass linting checks"}`)
     }
 } catch (error) {

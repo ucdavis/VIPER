@@ -1,6 +1,3 @@
-﻿using Microsoft.AspNetCore.Connections.Features;
-using Microsoft.Identity.Client;
-
 namespace Viper.Areas.Students.Services
 {
     /// <summary>
@@ -96,7 +93,6 @@ namespace Viper.Areas.Students.Services
         {
             var classLevel = "";
             int term = termCode % 100;
-            int year = termCode / 100;
             int currentYear = DateTime.Now.Year;
 
             //Spring Semester - if they graduate this year, class level is V4, if they graduate next year, V3, etc.
