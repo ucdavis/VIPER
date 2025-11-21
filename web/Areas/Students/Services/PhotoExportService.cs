@@ -995,10 +995,6 @@ namespace Viper.Areas.Students.Services
                 {
                     _logger.LogWarning(ex, "Database error when getting course info for filename generation");
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Unexpected error when getting course info for filename generation");
-                }
             }
             else if (!string.IsNullOrEmpty(request.ClassLevel))
             {
