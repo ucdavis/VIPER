@@ -3,7 +3,7 @@
         <component
             :is="$route.meta.layout || 'div'"
             nav="cahfs-nav"
-            navarea="false"
+            :navarea="false"
             highlighted-top-nav="CAHFS"
             :breadcrumbs="$route.meta?.breadcrumbs"
         >

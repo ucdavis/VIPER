@@ -1,9 +1,6 @@
 /* Base styles extracted from site.css - layout, typography, and non-color styles */
 
-@font-face {
-    font-family: Metropolis;
-    src: url('@/assets/fonts/Metropolis-Regular.woff2');
-}
+@import "@quasar/extras/roboto-font/roboto-font.css";
 
 html {
     font-size: 14px;
@@ -29,8 +26,14 @@ body {
     margin-bottom: 60px;
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+.btn:focus,
+.btn:active:focus,
+.btn-link.nav-link:focus,
+.form-control:focus,
+.form-check-input:focus {
+    box-shadow:
+        0 0 0 0.1rem white,
+        0 0 0 0.25rem #258cfb;
 }
 
 /*Placeholders used when loading*/
@@ -59,7 +62,7 @@ body {
     font-size: 1.6em !important;
     font-weight: normal;
     vertical-align: bottom;
-    margin-left: .6em;
+    margin-left: 0.6em;
 }
 
 .mainLayoutViperPlaceholder {
@@ -68,8 +71,8 @@ body {
 }
 
 .mainLayoutViperMode {
-    margin-left: .6em;
-    margin-top: .4em;
+    margin-left: 0.6em;
+    margin-top: 0.4em;
     color: red;
     vertical-align: bottom;
 }
@@ -90,8 +93,7 @@ body {
 */
 
 div.breadcrumbs {
-    font-size: .75rem;
-
+    font-size: 0.75rem;
 }
 
 #mainLayoutHeaderSections {
@@ -101,53 +103,52 @@ div.breadcrumbs {
     /*padding: 0 12px;*/
 }
 
-    #mainLayoutHeaderSections .selectedTopNav {
-        /*background-color: #4F7094;*/
-        background-color: var(--ucdavis-gold-40);
-    }
+#mainLayoutHeaderSections .selectedTopNav {
+    /*background-color: #4F7094;*/
+    background-color: var(--ucdavis-gold-40);
+}
 
-    #mainLayoutHeaderSections a.q-btn.navLink {
-
-    }
+#mainLayoutHeaderSections a.q-btn.navLink {
+}
 
 /*Left Nav styles*/
 #leftNavMenu {
     /*background-color: #E5E5E5;*/
 }
 
-    #leftNavMenu h2 {
-        font-size: 1.2rem;
-        margin: 0;
-        line-height: 1.5rem;
-        padding: .2rem .5rem .1rem .5rem;
-        font-weight: bold;
-    }
+#leftNavMenu h2 {
+    font-size: 1.2rem;
+    margin: 0;
+    line-height: 1.5rem;
+    padding: 0.2rem 0.5rem 0.1rem 0.5rem;
+    font-weight: bold;
+}
 
-    #leftNavMenu .leftNavHeader {
-        font-weight: bold;
-        font-size: 1rem;
-        padding: 1.5rem .5rem .1rem .5rem;
-        /*background-color: #FFD24C;*/
-        /*color: white;*/
-    }
+#leftNavMenu .leftNavHeader {
+    font-weight: bold;
+    font-size: 1rem;
+    padding: 1.5rem 0.5rem 0.1rem 0.5rem;
+    /*background-color: #FFD24C;*/
+    /*color: white;*/
+}
 
-    #leftNavMenu .leftNavSpacer {
-        border: 0;
-    }
+#leftNavMenu .leftNavSpacer {
+    border: 0;
+}
 
-    #leftNavMenu .leftNavLink {
-        padding-left: .5rem;
-        /*background-color: #CDD6E0;*/
-    }
+#leftNavMenu .leftNavLink {
+    padding-left: 0.5rem;
+    /*background-color: #CDD6E0;*/
+}
 
 /*Footer styles*/
 #footerNavLinks a {
     text-decoration: none;
 }
 
-    #footerNavLinks a:hover {
-        text-decoration: underline;
-    }
+#footerNavLinks a:hover {
+    text-decoration: underline;
+}
 
 .sticky-header-table {
     /* height or max-height is important */
@@ -176,7 +177,7 @@ div.breadcrumbs {
 }
 
 .sticky-header-table .q-table__middle table thead tr:first-child th {
-    top: 0
+    top: 0;
 }
 
 /* this is when the loading indicator appears */
@@ -193,14 +194,14 @@ div.breadcrumbs {
 
 /* fallback */
 @font-face {
-    font-family: 'Material Icons';
+    font-family: "Material Icons";
     font-style: normal;
     font-weight: 400;
-    src: url(https://fonts.gstatic.com/s/materialicons/v140/flUhRq6tzZclQEJ-Vdg-IuiaDsNc.woff2) format('woff2');
+    src: url(https://fonts.gstatic.com/s/materialicons/v140/flUhRq6tzZclQEJ-Vdg-IuiaDsNc.woff2) format("woff2");
 }
 
 .material-icons {
-    font-family: 'Material Icons';
+    font-family: "Material Icons";
     font-weight: normal;
     font-style: normal;
     font-size: 24px;
@@ -211,7 +212,7 @@ div.breadcrumbs {
     white-space: nowrap;
     word-wrap: normal;
     direction: ltr;
-    -webkit-font-feature-settings: 'liga';
+    -webkit-font-feature-settings: "liga";
     -webkit-font-smoothing: antialiased;
 }
 
@@ -232,7 +233,7 @@ div.breadcrumbs {
 .q-page-container .text-h3 {
     font-size: 1.2rem;
     line-height: 1.2rem;
-    margin: .0rem 0rem .5rem 0rem;
+    margin: 0rem 0rem 0.5rem 0rem;
     font-weight: bold;
 }
 
@@ -242,7 +243,7 @@ div.breadcrumbs {
 .q-page-container .text-h4 {
     font-size: 1.1rem;
     line-height: 1.1rem;
-    margin: .0rem 0rem .5rem 0rem;
+    margin: 0rem 0rem 0.5rem 0rem;
     font-weight: bold;
 }
 
@@ -252,7 +253,7 @@ div.breadcrumbs {
 .q-page-container .text-h5 {
     font-size: 1rem;
     line-height: 1rem;
-    margin: .0rem 0rem .5rem 0rem;
+    margin: 0rem 0rem 0.5rem 0rem;
     font-weight: bold;
 }
 
@@ -262,7 +263,7 @@ div.breadcrumbs {
 .q-page-container .text-h6 {
     font-size: 1rem;
     line-height: 1rem;
-    margin: .0rem 0rem .5rem 0rem;
+    margin: 0rem 0rem 0.5rem 0rem;
 }
 
 .q-avatar .smallPhoto {

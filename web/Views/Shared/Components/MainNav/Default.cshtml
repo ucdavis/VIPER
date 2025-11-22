@@ -15,7 +15,7 @@
         }
         else
         {
-            <a class="q-btn q-btn--flat q-btn--actionable q-btn--no-uppercase q-hoverable q-px-md text-primary text-weight-medium navLink @(tabLink[1] == (string)(ViewData["SelectedTopNav"] ?? "") ? " selectedTopNav" : "")"
+            <a class="q-btn q-btn--flat q-btn--actionable q-btn--no-uppercase q-hoverable q-px-md text-primary text-weight-regular navLink @(tabLink[1] == (string)(ViewData["SelectedTopNav"] ?? "") ? " selectedTopNav" : "")"
                href="@Url.Content(tabLink[0])">
                 <span class="q-focus-helper"></span>
                 <span class="q-btn__content" style="padding-top:2px">
