@@ -228,12 +228,19 @@
 </template>
 <script lang="ts">
 import { ref } from "vue"
+import type { PropType } from "vue"
 import { useUserStore } from "@/store/UserStore"
 import LeftNav from "@/layouts/LeftNav.vue"
 import MainNav from "@/layouts/MainNav.vue"
 import MiniNav from "@/layouts/MiniNav.vue"
 import ProfilePic from "@/layouts/ProfilePic.vue"
 import SessionTimeout from "@/components/SessionTimeout.vue"
+
+type BreadCrumb = {
+    url: string
+    name: string
+}
+
 export default {
     name: "ViperLayout",
     setup() {
@@ -242,9 +249,19 @@ export default {
         return { userStore, mainLeftDrawer }
     },
     props: {
-        nav: String,
+        nav: {
+            type: String,
+            default: "",
+        },
         navarea: Boolean,
-        highlightedTopNav: String,
+        highlightedTopNav: {
+            type: String,
+            default: "",
+        },
+        breadcrumbs: {
+            type: Array as PropType<BreadCrumb[]>,
+            default: () => [],
+        },
     },
     components: {
         LeftNav,
