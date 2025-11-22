@@ -39,15 +39,15 @@
         "husky": "^9.1.7",
         "lint-staged": "^16.2.6",
         "open": "^10.2.0",
-        "oxlint": "^1.12.0",
-        "oxlint-tsgolint": "^0.1.6",
+        "oxlint": "^1.29.0",
+        "oxlint-tsgolint": "^0.8.0",
         "postcss-html": "^1.8.0",
         "prettier": "^3.6.2",
         "recursive-last-modified": "^1.0.6",
         "stylelint": "^16.23.1",
         "stylelint-config-standard": "^39.0.0",
         "tsgolint": "^0.0.1",
-        "typescript-eslint": "^8.40.0",
+        "typescript-eslint": "^8.47.0",
         "yauzl": "^3.2.0"
     },
     "volta": {
