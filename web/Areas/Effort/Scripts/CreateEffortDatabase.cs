@@ -10,7 +10,7 @@ namespace Viper.Areas.Effort.Scripts
     /// Run this BEFORE MigrateEffortData.cs
     ///
     /// Architecture: Creates [VIPER].[effort] schema (NOT a separate database)
-    /// Shadow DB: Separate EffortShadow database with views pointing to VIPER.effort tables
+    /// Shadow Schema: [VIPER].[EffortShadow] schema with views pointing to VIPER.effort tables
     ///
     /// Usage:
     ///   dotnet script CreateEffortDatabase.cs              (dry-run mode - tests but doesn't commit)
@@ -111,7 +111,7 @@ namespace Viper.Areas.Effort.Scripts
                     Console.WriteLine();
                 }
 
-                // Drop schema and EffortShadow database
+                // Drop schema and EffortShadow schema
                 if (!DropEffortSchema(connectionString))
                 {
                     return 1;
@@ -181,9 +181,10 @@ namespace Viper.Areas.Effort.Scripts
                 Console.ResetColor();
                 Console.WriteLine();
                 Console.WriteLine("Next Steps:");
-                Console.WriteLine("  1. Run MigrateEffortData.cs to migrate data from legacy database");
-                Console.WriteLine("  2. Run CreateEffortShadow.cs to create shadow database for ColdFusion");
-                Console.WriteLine("  3. DBA will configure database permissions for applications");
+                Console.WriteLine("  1. Run CreateEffortReportingProcedures.cs to create reporting stored procedures");
+                Console.WriteLine("  2. Run MigrateEffortData.cs to migrate data from legacy database");
+                Console.WriteLine("  3. Run CreateEffortShadow.cs to create shadow schema for ColdFusion");
+                Console.WriteLine("  4. DBA will configure database permissions for applications");
             }
             else
             {
@@ -215,6 +216,10 @@ namespace Viper.Areas.Effort.Scripts
         }
         catch (Exception ex)
         {
+            // Rethrow critical exceptions that should never be handled
+            if (ex is OutOfMemoryException || ex is StackOverflowException || ex is System.Threading.ThreadAbortException)
+                throw;
+
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"FATAL ERROR: {ex.Message}");
             Console.WriteLine(ex.StackTrace);
@@ -274,14 +279,14 @@ namespace Viper.Areas.Effort.Scripts
                         dataCounts[table] = count;
                     }
                 }
-                catch (Exception ex)
+                catch (SqlException ex)
                 {
                     // Skip missing or inaccessible tables
                     Console.Error.WriteLine($"Warning: Could not query table '{table}': {ex.Message}");
                 }
             }
         }
-        catch (Exception ex)
+        catch (SqlException ex)
         {
             // Return empty counts if schema is inaccessible
             Console.Error.WriteLine($"Warning: Could not access schema: {ex.Message}");
@@ -339,32 +344,39 @@ namespace Viper.Areas.Effort.Scripts
         using var connection = new SqlConnection(connectionString);
         connection.Open();
 
-        // Drop EffortShadow database first (it depends on VIPER.effort schema)
+        // Drop EffortShadow schema first (it depends on VIPER.effort schema)
         using (var cmd = connection.CreateCommand())
         {
-            cmd.CommandText = "SELECT COUNT(*) FROM sys.databases WHERE name = 'EffortShadow'";
+            cmd.CommandText = "SELECT COUNT(*) FROM sys.schemas WHERE name = 'EffortShadow'";
             try
             {
                 int count = (int)cmd.ExecuteScalar();
                 if (count > 0)
                 {
-                    Console.WriteLine("  Dropping EffortShadow database (dependency)...");
-                    cmd.CommandText = "DROP DATABASE IF EXISTS [EffortShadow]";
+                    Console.WriteLine("  Dropping EffortShadow schema (dependency)...");
+                    cmd.CommandText = @"
+                        DECLARE @sql NVARCHAR(MAX) = '';
+                        SELECT @sql += 'DROP VIEW [EffortShadow].[' + name + '];'
+                        FROM sys.views WHERE schema_id = SCHEMA_ID('EffortShadow');
+                        EXEC sp_executesql @sql;
+                        SET @sql = '';
+                        SELECT @sql += 'DROP PROCEDURE [EffortShadow].[' + name + '];'
+                        FROM sys.procedures WHERE schema_id = SCHEMA_ID('EffortShadow');
+                        EXEC sp_executesql @sql;
+                        SET @sql = '';
+                        SELECT @sql += 'DROP FUNCTION [EffortShadow].[' + name + '];'
+                        FROM sys.objects WHERE schema_id = SCHEMA_ID('EffortShadow') AND type IN ('FN','IF','TF');
+                        EXEC sp_executesql @sql;
+                        DROP SCHEMA [EffortShadow];";
                     cmd.ExecuteNonQuery();
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("  ✓ EffortShadow dropped");
+                    Console.WriteLine("  ✓ EffortShadow schema dropped");
                     Console.ResetColor();
                 }
             }
             catch (SqlException)
             {
                 // Ignore if database doesn't exist
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"  Warning: Unexpected error while dropping EffortShadow database: {ex.Message}");
-                Console.ResetColor();
             }
         }
 
@@ -395,6 +407,35 @@ namespace Viper.Areas.Effort.Scripts
             cmd.ExecuteNonQuery();
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("  ✓ All tables dropped");
+            Console.ResetColor();
+        }
+
+        // Drop programmable objects (stored procedures, functions) in effort schema
+        using (var cmd = connection.CreateCommand())
+        {
+            Console.WriteLine("  Dropping programmable objects in effort schema...");
+            cmd.CommandText = @"
+                DECLARE @sql NVARCHAR(MAX) = '';
+
+                -- Drop all stored procedures
+                SELECT @sql += 'DROP PROCEDURE [effort].[' + name + '];'
+                FROM sys.procedures
+                WHERE schema_id = SCHEMA_ID('effort');
+
+                EXEC sp_executesql @sql;
+
+                SET @sql = '';
+
+                -- Drop all functions
+                SELECT @sql += 'DROP FUNCTION [effort].[' + name + '];'
+                FROM sys.objects
+                WHERE schema_id = SCHEMA_ID('effort') AND type IN ('FN', 'IF', 'TF');
+
+                EXEC sp_executesql @sql;
+            ";
+            cmd.ExecuteNonQuery();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("  ✓ All programmable objects dropped");
             Console.ResetColor();
         }
 
@@ -711,14 +752,15 @@ BEGIN
         Id int IDENTITY(1,1) NOT NULL,
         Crn char(5) NOT NULL,
         TermCode int NOT NULL,
-        SubjCode char(4) NOT NULL,
-        CrseNumb char(6) NOT NULL,
-        SeqNumb char(6) NOT NULL,
+        SubjCode char(3) NOT NULL,
+        CrseNumb char(5) NOT NULL,
+        SeqNumb char(3) NOT NULL,
         Enrollment int NOT NULL DEFAULT 0,
         Units decimal(4,2) NOT NULL,
         CustDept char(6) NOT NULL,
         CONSTRAINT PK_Courses PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT UQ_Courses_CRN_Term_Units UNIQUE (Crn, TermCode, Units),
+        CONSTRAINT FK_Courses_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
         CONSTRAINT CK_Courses_Enrollment CHECK (Enrollment >= 0),
         CONSTRAINT CK_Courses_Units CHECK (Units >= 0)
     );
@@ -746,7 +788,7 @@ BEGIN
         LastName varchar(50) NOT NULL,
         MiddleInitial varchar(1) NULL,
         EffortTitleCode char(6) NOT NULL,
-        EffortDept char(6) NOT NULL,
+        EffortDept varchar(6) NOT NULL,
         PercentAdmin decimal(5,2) NOT NULL DEFAULT 0,
         JobGroupId char(3) NULL,
         Title varchar(50) NULL,
@@ -757,6 +799,7 @@ BEGIN
         PercentClinical decimal(5,2) NULL,
         CONSTRAINT PK_Persons PRIMARY KEY CLUSTERED (PersonId, TermCode),
         CONSTRAINT FK_Persons_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
+        CONSTRAINT FK_Persons_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
         CONSTRAINT CK_Persons_PercentAdmin CHECK (PercentAdmin BETWEEN 0 AND 100),
         CONSTRAINT CK_Persons_PercentClinical CHECK (PercentClinical IS NULL OR PercentClinical BETWEEN 0 AND 100)
     );
@@ -792,6 +835,7 @@ BEGIN
         CONSTRAINT FK_Records_Courses FOREIGN KEY (CourseId) REFERENCES [effort].[Courses](Id),
         CONSTRAINT FK_Records_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
         CONSTRAINT FK_Records_Persons FOREIGN KEY (PersonId, TermCode) REFERENCES [effort].[Persons](PersonId, TermCode),
+        CONSTRAINT FK_Records_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
         CONSTRAINT FK_Records_Roles FOREIGN KEY (Role) REFERENCES [effort].[Roles](Id),
         CONSTRAINT FK_Records_SessionTypes FOREIGN KEY (SessionType) REFERENCES [effort].[SessionTypes](Id),
         CONSTRAINT FK_Records_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
@@ -823,10 +867,13 @@ BEGIN
         Percentage decimal(5,2) NOT NULL,
         EffortTypeId int NOT NULL,
         Unit varchar(50) NULL,
+        Modifier varchar(50) NULL,
+        Comment varchar(100) NULL,
         StartDate datetime2(7) NOT NULL,
         EndDate datetime2(7) NULL,
         ModifiedDate datetime2(7) NULL,
         ModifiedBy int NULL,
+        Compensated bit NOT NULL DEFAULT 0,
         CONSTRAINT PK_Percentages PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT FK_Percentages_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
         CONSTRAINT FK_Percentages_Persons FOREIGN KEY (PersonId, TermCode) REFERENCES [effort].[Persons](PersonId, TermCode),

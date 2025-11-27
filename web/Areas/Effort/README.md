@@ -13,12 +13,13 @@ This folder contains the Effort system migration scripts and documentation.
 
 All migration scripts are in the [`Scripts/`](Scripts/) folder:
 
-- **CreateEffortDatabase.cs** - Creates the modern `[VIPER].[effort]` schema with 20 tables
-- **MigrateEffortData.cs** - Migrates all data from legacy Efforts database
-- **CreateEffortShadow.cs** - Creates shadow database for ColdFusion compatibility
-- **RunCreateDatabase.bat** - User-friendly launcher for CreateEffortDatabase.cs
-- **RunMigrateData.bat** - User-friendly launcher for MigrateEffortData.cs
-- **RunCreateShadow.bat** - User-friendly launcher for CreateEffortShadow.cs
+- **EffortDataAnalysis.cs** / **RunDataAnalysis.bat** - Analyzes data quality issues in legacy database (run FIRST)
+- **EffortDataRemediation.cs** / **RunDataRemediation.bat** - Fixes identified data quality issues in legacy database
+- **CreateEffortDatabase.cs** / **RunCreateDatabase.bat** - Creates the modern `[VIPER].[effort]` schema with 20 tables
+- **MigrateEffortData.cs** / **RunMigrateData.bat** - Migrates all data from legacy Efforts database
+- **CreateEffortReportingProcedures.cs** / **RunCreateReportingProcedures.bat** - Creates reporting stored procedures in `[effort]` schema
+- **CreateEffortShadow.cs** / **RunCreateShadow.bat** - Creates shadow schema for ColdFusion compatibility
+- **VerifyShadowProcedures.cs** / **RunVerifyShadow.bat** - Compares legacy vs shadow schema stored procedures to verify compatibility layer
 
 ## Documentation
 
@@ -46,16 +47,20 @@ All documentation is in the [`Docs/`](Docs/) folder:
 
 **Modern Database**: `[VIPER].[effort]` schema (within VIPER database, not separate database)
 
-**Shadow Database**: `EffortShadow` (separate database for ColdFusion compatibility)
+**Shadow Schema**: `[VIPER].[EffortShadow]` (schema within VIPER database for ColdFusion compatibility)
 
 **Migration Approach**:
-1. Create modern schema in VIPER database
-2. Migrate all data from legacy Efforts database
-3. Create shadow database with views/procedures for ColdFusion
-4. Update ColdFusion datasource to EffortShadow
-5. Begin VIPER2 development using modern schema
+1. Analyze data quality issues in legacy Efforts database (RunDataAnalysis.bat)
+2. Remediate identified issues in legacy Efforts database (RunDataRemediation.bat)
+3. Verify 0 critical issues remain (re-run RunDataAnalysis.bat)
+4. Create modern schema in VIPER database
+5. Migrate all data from legacy Efforts database
+6. Create reporting stored procedures
+7. Create shadow schema with views/procedures for ColdFusion
+8. Update ColdFusion datasource to VIPER database ([EffortShadow] schema)
+9. Begin VIPER2 development using modern schema
 
-**Timeline**: Sprint 0 (2-3 weeks) for shadow database setup + ColdFusion testing
+**Timeline**: Sprint 0 (2-3 weeks) for shadow schema setup + ColdFusion testing
 
 ## Support
 

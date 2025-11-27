@@ -61,9 +61,9 @@ dotnet run -- schema-export --output ../docs/Legacy_Schema.md
                         | Views Query
                         v
 +----------------------------------------------------------+
-|    EffortShadow Database (Compatibility Layer)           |
+|    [EffortShadow] Schema (Compatibility Layer)           |
 |  - 19 views mapping Effort -> legacy schema              |
-|  - 122 wrapper stored procedures for ColdFusion          |
+|  - 87 rewritten stored procedures for ColdFusion         |
 |  - Maps PersonId -> MothraId for legacy compatibility    |
 |  - NO DATA STORAGE (all views and SPs)                   |
 +----------------------------------------------------------+
@@ -81,28 +81,66 @@ dotnet run -- schema-export --output ../docs/Legacy_Schema.md
 
 1. **SQL Server** installed and accessible
 2. **.NET 8 SDK** installed
-3. **dotnet-script** tool installed:
-   ```bash
-   dotnet tool install -g dotnet-script
-   ```
-4. **Existing databases**:
+3. **Existing databases**:
    - `VIPER` database with `users.Person` table
    - `Efforts` database (legacy database with existing data)
 
 ### Step-by-Step Execution
 
+#### Step 0: Data Analysis & Remediation (REQUIRED FIRST)
+
+```bash
+cd web\Areas\Effort\Scripts
+
+# Step 0a: Analyze data quality issues in legacy Efforts database
+.\RunDataAnalysis.bat
+
+# Review the analysis report to understand what issues exist
+
+# Step 0b: Fix the identified issues
+.\RunDataRemediation.bat
+
+# Step 0c: Re-run analysis to verify 0 critical issues remain
+.\RunDataAnalysis.bat
+```
+
+**What this does:**
+
+**RunDataAnalysis.bat** - Identifies data quality issues:
+- Reports unmapped MothraIds
+- Identifies duplicate courses
+- Finds missing department codes
+- Detects invalid data
+- Creates detailed analysis report
+
+**RunDataRemediation.bat** - Fixes 8 categories of issues in the legacy database:
+- Task 1: Merge duplicate courses (same CRN/Term/Units)
+- Task 2: Fix missing department codes
+- Task 3: Generate placeholder CRNs
+- Task 4: Delete negative hours records
+- Task 5: Delete invalid MothraIds
+- Task 6: Consolidate guest instructors → VETGUEST
+- Task 7: Add missing persons to VIPER
+- Task 8: Remap duplicate person records
+
+**Expected Result:** Re-running RunDataAnalysis.bat should show 0% unmapped MothraIds and no critical issues.
+
+**IMPORTANT**: Run this BEFORE creating the new database to ensure clean migration.
+
 #### Step 1: Create Modern Effort Database
 
 ```bash
 cd web\Areas\Effort\Scripts
-dotnet script CreateEffortDatabase.cs
+.\RunCreateDatabase.bat
+.\RunCreateDatabase.bat --execute
 ```
 
 **What this does:**
-- Creates the `Effort` database
-- Creates all 19 tables with modern schema
+- Creates the `[VIPER].[effort]` schema (within VIPER database)
+- Creates all 20 tables with modern schema
 - Sets up foreign keys to `VIPER.users.Person`
 - Creates indexes for performance
+- Seeds reference data
 
 **Tables created:**
 - Core tables: Roles, EffortTypes, Status, Persons, Courses, Records, Percentages, Sabbatics
@@ -133,12 +171,14 @@ Creating tables...
 #### Step 2: Migrate Data from Legacy Database
 
 ```bash
-dotnet script MigrateEffortData.cs
+.\RunMigrateData.bat
+.\RunMigrateData.bat --execute
 ```
 
 **What this does:**
-- Migrates all data from `Efforts` database to `Effort` database
+- Migrates all data from legacy `Efforts` database to `[VIPER].[effort]` schema
 - Performs MothraId -> PersonId mapping via `VIPER.users.Person`
+- Should report 0% unmapped MothraIds (due to Step 0 remediation)
 - Validates all migrations
 - Preserves all data relationships
 
@@ -179,43 +219,58 @@ Step 4: Validate Migration
   ...
 ```
 
-**⚠ IMPORTANT:** Review warnings about unmapped records:
+**⚠ IMPORTANT:** If you see warnings about unmapped records:
 ```
   ⚠ WARNING: 12 persons could not be mapped to VIPER.users.Person
 ```
-These records will have `PersonId = 0` and need manual remediation.
+This should NOT happen if Step 0 (RunDataRemediation.bat) completed successfully. Re-run the remediation script.
 
 ---
 
-#### Step 3: Create Shadow Database for ColdFusion
+#### Step 3: Create Reporting Stored Procedures
 
 ```bash
-dotnet script CreateEffortShadow.cs
+.\RunCreateReportingProcedures.bat
+.\RunCreateReportingProcedures.bat --execute
 ```
 
 **What this does:**
-- Creates `EffortShadow` database
+- Creates 16 reporting stored procedures in `[effort]` schema
+- Instructor effort reports
+- Course summaries
+- Term-based analytics
+
+---
+
+#### Step 4: Create Shadow Schema for ColdFusion
+
+```bash
+.\RunCreateShadow.bat --apply
+```
+
+**What this does:**
+- Creates `[EffortShadow]` schema in VIPER database
 - Creates 19 compatibility views mapping modern schema to legacy naming
-- Creates 122 wrapper stored procedures for ColdFusion
+- Rewrites 87 stored procedures to work with modern tables
 - Maps PersonId -> MothraId for legacy compatibility
 
 **Views created:**
-- `tblEffort` -> maps to `Effort.dbo.Records`
-- `tblPerson` -> maps to `Effort.dbo.Persons`
-- `userAccess` -> maps to `Effort.dbo.UserAccess` (CRITICAL)
+- `tblEffort` -> maps to `[effort].[Records]`
+- `tblPerson` -> maps to `[effort].[Persons]`
+- `userAccess` -> maps to `[effort].[UserAccess]` (CRITICAL)
 - 16 additional views for all legacy tables
 
 **Expected output:**
 ```
 ============================================
-Creating EffortShadow Compatibility Database
+Creating EffortShadow Compatibility Schema
 ============================================
 Verifying prerequisites...
-  ✓ Effort database found
-  ✓ Effort database contains 1234 records
+  ✓ [effort] schema found
+  ✓ [effort] schema contains 1234 records
 
-Creating EffortShadow database...
-  ✓ EffortShadow database created successfully.
+Creating EffortShadow schema...
+  ✓ EffortShadow schema created successfully.
 
 Step 1: Create Compatibility Views
 Creating view: tblEffort (effort records)...
@@ -238,8 +293,8 @@ Step 2: Create Wrapper Stored Procedures
 **Note:** Database permissions are configured by the DBA outside of migration scripts.
 
 **DBA will grant:**
-- ColdFusion application login access to EffortShadow database
-- ColdFusion application login access to Effort database (via wrappers)
+- ColdFusion application login access to VIPER database ([EffortShadow] schema)
+- ColdFusion application login access to VIPER database ([effort] schema via EffortShadow views)
 - ColdFusion application login access to VIPER.users.Person
 - VIPER2 application service account access to [VIPER].[effort] schema
 
@@ -257,15 +312,14 @@ USE master;
 CREATE LOGIN [DOMAIN\ViperAppService] FROM WINDOWS;
 CREATE LOGIN [DOMAIN\ColdFusionService] FROM WINDOWS;
 
--- Add users to Effort database
-USE Effort;
+-- Add users to VIPER database with schema permissions
+USE VIPER;
 CREATE USER [DOMAIN\ViperAppService] FOR LOGIN [DOMAIN\ViperAppService];
-EXEC sp_addrolemember 'EffortEditor', 'DOMAIN\ViperAppService';
+GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[effort] TO [DOMAIN\ViperAppService];
 
--- Add users to EffortShadow database
-USE EffortShadow;
 CREATE USER [DOMAIN\ColdFusionService] FOR LOGIN [DOMAIN\ColdFusionService];
-EXEC sp_addrolemember 'ColdFusionApp', 'DOMAIN\ColdFusionService';
+GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[EffortShadow] TO [DOMAIN\ColdFusionService];
+GRANT SELECT ON SCHEMA::[users] TO [DOMAIN\ColdFusionService];
 ```
 
 ---
@@ -294,18 +348,18 @@ WHERE PersonId = 0;
 -- Should return 0 or very few records
 ```
 
-### 2. Verify EffortShadow Database
+### 2. Verify EffortShadow Schema
 
 ```sql
-USE EffortShadow;
+USE VIPER;
 
 -- Check views exist
-SELECT name FROM sys.views ORDER BY name;
+SELECT name FROM sys.views WHERE schema_name(schema_id) = 'EffortShadow' ORDER BY name;
 -- Should return 19 views
 
 -- Check stored procedures exist
-SELECT name FROM sys.procedures ORDER BY name;
--- Should return 122 procedures
+SELECT name FROM sys.procedures WHERE schema_name(schema_id) = 'EffortShadow' ORDER BY name;
+-- Should return 87 procedures
 
 -- Test a view
 SELECT TOP 10 * FROM tblEffort;
@@ -346,15 +400,15 @@ DROP ROLE IF EXISTS EffortReadOnly;
 DROP ROLE IF EXISTS EffortEditor;
 DROP ROLE IF EXISTS EffortAdmin;
 
--- Drop role from EffortShadow database
-USE EffortShadow;
-DROP ROLE IF EXISTS ColdFusionApp;
+-- Drop schema-specific permissions
+USE VIPER;
+REVOKE ALL ON SCHEMA::[EffortShadow] FROM [DOMAIN\ColdFusionService];
 ```
 
-### Rollback Step 3 (Shadow Database)
+### Rollback Step 3 (Shadow Schema)
 ```sql
-USE master;
-DROP DATABASE IF EXISTS EffortShadow;
+USE VIPER;
+DROP SCHEMA IF EXISTS [EffortShadow];
 ```
 
 ### Rollback Step 2 (Data Migration)
@@ -426,7 +480,7 @@ DROP DATABASE IF EXISTS Effort;
 - **Planning Documents:**
   - [Effort Master Plan](../docs/EFFORT_MASTER_PLAN.md)
   - [Migration Guide](../docs/MIGRATION_GUIDE.md)
-  - [Shadow Database Guide](../docs/Shadow_Database_Guide.md)
+  - [Shadow Schema Guide](../docs/Shadow_Database_Guide.md)
   - [Database Schema](../docs/Effort_Database_Schema.sql)
   - [Technical Reference](../docs/Technical_Reference.md)
 

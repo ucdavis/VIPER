@@ -168,16 +168,33 @@ namespace Viper.Areas.Effort.Scripts
                     Console.WriteLine("All data successfully migrated from Efforts to Effort database.");
                     Console.WriteLine();
                     Console.WriteLine("Next Steps:");
-                    Console.WriteLine("  1. Run CreateEffortShadow.cs to create shadow database for ColdFusion");
-                    Console.WriteLine("  2. Update ColdFusion connection strings to point to EffortShadow");
+                    Console.WriteLine("  1. Run RunCreateReportingProcedures.bat to create reporting stored procedures");
+                    Console.WriteLine("  2. Run RunCreateShadow.bat to create shadow schema for ColdFusion");
                 }
                 Console.WriteLine("============================================");
                 Console.WriteLine($"End Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 Console.WriteLine("============================================");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                transaction.Rollback();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"MIGRATION ERROR: {ex.Message}");
+                Console.WriteLine($"Exception Type: {ex.GetType().Name}");
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                }
+                Console.ResetColor();
+
+                try
+                {
+                    transaction.Rollback();
+                }
+                catch
+                {
+                    // Transaction already rolled back
+                }
                 throw;
             }
         }
@@ -1037,6 +1054,28 @@ namespace Viper.Areas.Effort.Scripts
             }
         }
 
+        // Step 1a: Build AcademicYear -> TermCodes mapping from Legacy tblStatus
+        // Use Legacy's exact TermCode mappings to ensure we match their AcademicYear assignments
+        var academicYearTermCodes = new Dictionary<string, HashSet<int>>();
+        using (var cmd = new SqlCommand(@"
+            SELECT status_TermCode, status_AcademicYear
+            FROM [dbo].[tblStatus]
+            WHERE status_AcademicYear IS NOT NULL
+            ORDER BY status_TermCode", effortConnection))
+        using (var reader = cmd.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                int termCode = reader.GetInt32(0);
+                string academicYear = reader.GetString(1);
+
+                if (!academicYearTermCodes.ContainsKey(academicYear))
+                    academicYearTermCodes[academicYear] = new HashSet<int>();
+
+                academicYearTermCodes[academicYear].Add(termCode);
+            }
+        }
+
         // Step 1b: Build set of valid (PersonId, TermCode) combinations from migrated Persons table
         // Percentages FK references effort.Persons on composite key (PersonId, TermCode)
         var validPersonTermCodes = new HashSet<(int PersonId, int TermCode)>();
@@ -1050,8 +1089,8 @@ namespace Viper.Areas.Effort.Scripts
         }
 
         // Step 2: Read from legacy database
-        var legacyData = new List<(string MothraId, string AcademicYear, int TypeId, decimal? Percentage, string? Unit, DateTime? StartDate, DateTime? EndDate)>();
-        using (var cmd = new SqlCommand("SELECT percent_MothraID, percent_AcademicYear, percent_TypeID, percent_Percent, percent_Unit, percent_start, percent_end FROM [dbo].[tblPercent] WHERE percent_AcademicYear IS NOT NULL", effortConnection))
+        var legacyData = new List<(string MothraId, string AcademicYear, int TypeId, decimal? Percentage, string? Unit, string? Modifier, string? Comment, DateTime? StartDate, DateTime? EndDate, bool Compensated)>();
+        using (var cmd = new SqlCommand("SELECT percent_MothraID, percent_AcademicYear, percent_TypeID, percent_Percent, percent_Unit, percent_Modifier, percent_Comment, percent_start, percent_end, percent_compensated FROM [dbo].[tblPercent] WHERE percent_AcademicYear IS NOT NULL", effortConnection))
         using (var reader = cmd.ExecuteReader())
         {
             while (reader.Read())
@@ -1062,16 +1101,19 @@ namespace Viper.Areas.Effort.Scripts
                     reader.GetInt32(2),
                     reader.IsDBNull(3) ? null : Convert.ToDecimal(reader.GetDouble(3)),  // Legacy uses float, convert to decimal
                     reader.IsDBNull(4) ? null : reader.GetString(4),
-                    reader.IsDBNull(5) ? null : reader.GetDateTime(5),
-                    reader.IsDBNull(6) ? null : reader.GetDateTime(6)
+                    reader.IsDBNull(5) ? null : reader.GetString(5),  // percent_Modifier
+                    reader.IsDBNull(6) ? null : reader.GetString(6),  // percent_Comment
+                    reader.IsDBNull(7) ? null : reader.GetDateTime(7),
+                    reader.IsDBNull(8) ? null : reader.GetDateTime(8),
+                    reader.IsDBNull(9) ? false : reader.GetBoolean(9)  // percent_compensated
                 ));
             }
         }
 
         // Step 3: Write to VIPER with transaction
         using var insertCmd = new SqlCommand(@"
-            INSERT INTO [effort].[Percentages] (PersonId, TermCode, EffortTypeId, Percentage, Unit, StartDate, EndDate, ModifiedDate, ModifiedBy)
-            VALUES (@PersonId, @TermCode, @EffortTypeId, @Percentage, @Unit, @StartDate, @EndDate, @ModifiedDate, @ModifiedBy)",
+            INSERT INTO [effort].[Percentages] (PersonId, TermCode, EffortTypeId, Percentage, Unit, Modifier, Comment, StartDate, EndDate, ModifiedDate, ModifiedBy, Compensated)
+            VALUES (@PersonId, @TermCode, @EffortTypeId, @Percentage, @Unit, @Modifier, @Comment, @StartDate, @EndDate, @ModifiedDate, @ModifiedBy, @Compensated)",
             viperConnection, transaction);
 
         insertCmd.Parameters.Add("@PersonId", SqlDbType.Int);
@@ -1079,10 +1121,13 @@ namespace Viper.Areas.Effort.Scripts
         insertCmd.Parameters.Add("@EffortTypeId", SqlDbType.Int);
         insertCmd.Parameters.Add("@Percentage", SqlDbType.Decimal);
         insertCmd.Parameters.Add("@Unit", SqlDbType.NVarChar, 50);
+        insertCmd.Parameters.Add("@Modifier", SqlDbType.NVarChar, 50);
+        insertCmd.Parameters.Add("@Comment", SqlDbType.NVarChar, 100);
         insertCmd.Parameters.Add("@StartDate", SqlDbType.DateTime);
         insertCmd.Parameters.Add("@EndDate", SqlDbType.DateTime);
         insertCmd.Parameters.Add("@ModifiedDate", SqlDbType.DateTime);
         insertCmd.Parameters.Add("@ModifiedBy", SqlDbType.Int);
+        insertCmd.Parameters.Add("@Compensated", SqlDbType.Bit);
 
         int rows = 0;
         int skipped = 0;
@@ -1095,23 +1140,46 @@ namespace Viper.Areas.Effort.Scripts
                 personId = mappedId;
             }
 
-            // Convert AcademicYear to TermCode (use Fall term of first year)
-            // Example: '2023-2024' → 202301 (Fall 2023)
-            int termCode = int.Parse(item.AcademicYear.Substring(0, 4) + "01");
-
-            // Skip records with unmapped PersonId or invalid (PersonId, TermCode) combination
-            // FK constraint requires (PersonId, TermCode) exists in effort.Persons table
-            if (personId == 0 || !validPersonTermCodes.Contains((personId, termCode)))
+            // Skip records with unmapped PersonId
+            if (personId == 0)
             {
                 skipped++;
                 continue;
             }
 
-            // Check if already exists
-            using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[Percentages] WHERE PersonId = @PersonId AND TermCode = @TermCode AND EffortTypeId = @EffortTypeId", viperConnection, transaction);
+            // Find ANY TermCode for this person within the academic year
+            // Use Legacy tblStatus mappings to get the exact TermCodes for this AcademicYear
+            int termCode = 0;
+            if (academicYearTermCodes.TryGetValue(item.AcademicYear, out var validTermCodes))
+            {
+                // Find the first matching term for this person within the academic year
+                termCode = validPersonTermCodes
+                    .Where(pt => pt.PersonId == personId && validTermCodes.Contains(pt.TermCode))
+                    .Select(pt => pt.TermCode)
+                    .OrderBy(tc => tc)  // Prefer earlier terms in the academic year
+                    .FirstOrDefault();
+            }
+
+            // Skip if person has no terms in this academic year
+            if (termCode == 0)
+            {
+                skipped++;
+                continue;
+            }
+
+            // Check if already exists (including Unit to allow multiple records with different Units)
+            // Legacy allows same Person+Term+Type with different Units (e.g., 01020814 has Unit 67 and Unit 40)
+            using var checkCmd = new SqlCommand(@"
+                SELECT COUNT(*)
+                FROM [effort].[Percentages]
+                WHERE PersonId = @PersonId
+                  AND TermCode = @TermCode
+                  AND EffortTypeId = @EffortTypeId
+                  AND (Unit = @Unit OR (Unit IS NULL AND @Unit IS NULL))", viperConnection, transaction);
             checkCmd.Parameters.AddWithValue("@PersonId", personId);
             checkCmd.Parameters.AddWithValue("@TermCode", termCode);
             checkCmd.Parameters.AddWithValue("@EffortTypeId", item.TypeId);
+            checkCmd.Parameters.AddWithValue("@Unit", (object?)item.Unit ?? DBNull.Value);
             int exists = (int)checkCmd.ExecuteScalar();
             if (exists > 0) continue;
 
@@ -1123,10 +1191,13 @@ namespace Viper.Areas.Effort.Scripts
             insertCmd.Parameters["@EffortTypeId"].Value = item.TypeId;
             insertCmd.Parameters["@Percentage"].Value = (object?)item.Percentage ?? DBNull.Value;
             insertCmd.Parameters["@Unit"].Value = (object?)item.Unit ?? DBNull.Value;
+            insertCmd.Parameters["@Modifier"].Value = (object?)item.Modifier ?? DBNull.Value;
+            insertCmd.Parameters["@Comment"].Value = (object?)item.Comment ?? DBNull.Value;
             insertCmd.Parameters["@StartDate"].Value = startDate;
             insertCmd.Parameters["@EndDate"].Value = (object?)item.EndDate ?? DBNull.Value;
             insertCmd.Parameters["@ModifiedDate"].Value = DBNull.Value;
             insertCmd.Parameters["@ModifiedBy"].Value = DBNull.Value;
+            insertCmd.Parameters["@Compensated"].Value = item.Compensated;
 
             insertCmd.ExecuteNonQuery();
             rows++;

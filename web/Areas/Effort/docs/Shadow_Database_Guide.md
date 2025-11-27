@@ -1,4 +1,4 @@
-# Shadow Database Guide
+# Shadow Schema Guide
 
 Implementation guide for the EffortShadow compatibility layer.
 
@@ -10,27 +10,27 @@ Implementation guide for the EffortShadow compatibility layer.
 [VIPER].[effort] schema (modern)
         ↑
         │
-EffortShadow database (views + stored procedures)
+[VIPER].[EffortShadow] schema (views + stored procedures)
         ↑
         │
 ColdFusion app (no changes required)
 ```
 
-**EffortShadow** provides a compatibility layer between legacy ColdFusion code and the modern database schema.
+**[EffortShadow]** provides a compatibility layer between legacy ColdFusion code and the modern database schema. It exists as a schema within the VIPER database, not as a separate database.
 
 ---
 
 ## Implementation
 
-### Step 1: Create Shadow Database
+### Step 1: Create Shadow Schema
 
 ```powershell
-dotnet script CreateEffortShadow.cs
+.\RunCreateShadow.bat --apply
 ```
 
-Creates EffortShadow database with:
+Creates [EffortShadow] schema with:
 - Views mapping legacy table/column names to modern schema
-- Empty stored procedure shells (to be populated in Step 2)
+- 87 stored procedures rewritten to work with modern tables
 
 ### Step 2: Migrate Stored Procedures
 
@@ -61,9 +61,10 @@ Creates EffortShadow database with:
 In ColdFusion Administrator:
 1. Navigate to Data & Services > Data Sources
 2. Find "Effort" or "Efforts" datasource
-3. Change database from "Efforts" to "EffortShadow"
-4. Test connection
-5. Save and restart ColdFusion
+3. Change database from "Efforts" to "VIPER"
+4. Set default schema to "EffortShadow"
+5. Test connection
+6. Save and restart ColdFusion
 
 ### Step 4: Test ColdFusion Application
 
@@ -228,10 +229,10 @@ WHERE database_id = DB_ID('VIPER')
 ## Rollback
 
 **If issues discovered**, revert ColdFusion datasource:
-1. Change datasource from "EffortShadow" back to "Efforts"
+1. Change datasource from "VIPER" back to "Efforts"
 2. Restart ColdFusion
 3. Verify legacy app works
-4. Fix EffortShadow issues
+4. Fix [EffortShadow] schema issues
 5. Retry
 
 **Data safety**: Modern [VIPER].[effort] schema remains untouched, legacy Efforts database remains available.
@@ -241,8 +242,8 @@ WHERE database_id = DB_ID('VIPER')
 ## Security
 
 **Database permissions** (configured by DBA):
-- ColdFusion application login granted access to EffortShadow database
-- ColdFusion application login granted access to Effort database (via wrappers)
+- ColdFusion application login granted access to VIPER database ([EffortShadow] schema)
+- ColdFusion application login granted access to VIPER database ([effort] schema via EffortShadow views)
 - ColdFusion application login granted access to VIPER.users.Person
 - VIPER2 application service account granted access to [VIPER].[effort] schema
 
@@ -260,4 +261,4 @@ WHERE database_id = DB_ID('VIPER')
 2. Monitor performance in production
 3. Begin VIPER2 development (Sprint 1)
 4. Gradually migrate features from ColdFusion to VIPER2
-5. When ColdFusion fully replaced, retire EffortShadow database
+5. When ColdFusion fully replaced, retire [EffortShadow] schema

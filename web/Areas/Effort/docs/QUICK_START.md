@@ -2,193 +2,182 @@
 
 **Quick reference for running the migration scripts**
 
+For detailed validation queries, troubleshooting, and comprehensive documentation, see [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md).
+
 ---
 
-## Step 1: Create Database Schema
+## Prerequisites
 
 ```powershell
 # Set environment and navigate to scripts
-$env:ASPNETCORE_ENVIRONMENT="Test"
+$env:ASPNETCORE_ENVIRONMENT="Test"  # or "Development" or "Production"
 cd web\Areas\Effort\Scripts
 ```
 
-### Dry-Run Mode (Recommended First Step)
+---
 
-**Test SQL commands without permanent changes:**
+## Step 1: Data Analysis & Remediation
 
-```powershell
-# Option A: Using batch file (recommended)
-.\RunCreateDatabase.bat
-
-# Option B: Using dotnet script directly
-dotnet script CreateEffortDatabase.cs
-```
-
-**Expected**:
-
-- Creates [VIPER].[effort] schema (permanent, idempotent)
-- Tests all 20 table creation statements in a transaction
-- Rolls back tables (no permanent table changes)
-- Validates SQL syntax and database connectivity
-
-### Execute Mode (After Dry-Run Validation)
-
-**Actually create the tables:**
+**IMPORTANT: Run this BEFORE creating the new database to fix data quality issues at the source.**
 
 ```powershell
-# Option A: Using batch file with execute flag
-.\RunCreateDatabase.bat --execute
+# Step 1a: Analyze data quality in legacy Efforts database
+.\RunDataAnalysis.bat
 
-# Option B: Using dotnet script with execute flag
-dotnet script CreateEffortDatabase.cs --execute
+# Review the analysis report
+
+# Step 1b: Fix the identified issues
+.\RunDataRemediation.bat
+
+# Step 1c: Verify 0 critical issues remain
+.\RunDataAnalysis.bat
 ```
 
-**Expected**: Creates [VIPER].[effort] schema with 20 tables and automatically validates:
+**What it does:**
 
-- All 20 tables created
-- Roles table seeded (3 rows)
-- SessionTypes table seeded (35 rows)
-- EffortTypes table seeded (26 rows)
-- Months table seeded (12 rows)
-- Records.Role column type correct (char(1))
+**RunDataAnalysis.bat** - Identifies data quality issues and creates analysis report
+
+**RunDataRemediation.bat** - Fixes 8 categories of issues:
+- Merges duplicate courses, fixes missing data, removes invalid records
+- Consolidates guest instructors, adds missing persons to VIPER
+
+**Expected Result:** Final analysis shows 0% unmapped MothraIds and no critical issues.
+
+See [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for detailed remediation task descriptions.
 
 ---
 
-## Step 2: Data Cleanup (REQUIRED before migration)
+## Step 2: Create Database Schema
 
 ```powershell
-# Run remediation to fix all data quality issues
-dotnet script EffortDataRemediation.cs
+# Test schema creation (dry-run, recommended first)
+.\RunCreateDatabase.bat
 
-# Review the remediation report
-# This resolves ALL unmapped MothraIds, invalid data, and duplicates
+# Actually create the schema
+.\RunCreateDatabase.bat --apply
 ```
 
-**Expected**: Fixes data quality issues across 8 categories:
-- Task 1: Merge duplicate courses (same CRN/Term/Units)
-- Task 2: Fix missing department codes
-- Task 3: Generate placeholder CRNs where needed
-- Task 4: Delete negative hours records
-- Task 5: Delete invalid MothraIds
-- Task 6: Consolidate guest instructors → VETGUEST
-- Task 7: Add missing persons to VIPER
-- Task 8: Remap duplicate person records
+**What it creates:**
+- [VIPER].[effort] schema with 20 tables
+- Reference data: Roles (3), SessionTypes (35), EffortTypes (26), Months (12)
 
-**IMPORTANT**: This step ensures 0% unmapped MothraIds in the migration.
+See [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for detailed validation queries.
 
 ---
 
 ## Step 3: Migrate Data
 
-### Dry-Run Mode - Data Migration (Recommended First Step)
-
-**Test migration without permanent changes:**
-
 ```powershell
-# Option A: Using batch file (recommended)
+# Test migration (dry-run, recommended first)
 .\RunMigrateData.bat
 
-# Option B: Using dotnet script directly
-dotnet script MigrateEffortData.cs
+# Actually migrate the data
+.\RunMigrateData.bat --apply
 ```
 
-**Expected**:
+**What it migrates:**
+- All data from legacy Efforts → [VIPER].[effort]
+- Includes automatic validation of record counts and data quality
+- Should report 0% unmapped MothraIds (due to Step 1 remediation)
 
-- Validates prerequisites and connectivity
-- Tests all migration SQL in a transaction
-- Rolls back transaction (no permanent changes)
-- Shows preview of records that would be migrated
-- Automatically validates data quality
-
-### Execute Mode - Data Migration (After Dry-Run Validation)
-
-**Actually migrate the data:**
-
-```powershell
-# Option A: Using batch file with execute flag
-.\RunMigrateData.bat --execute
-
-# Option B: Using dotnet script with execute flag
-dotnet script MigrateEffortData.cs --execute
-```
-
-**Expected**: Migrates all data from Efforts → [VIPER].[effort] and automatically validates:
-
-- All table record counts match legacy database
-- Data quality summary (unmapped MothraIds should be 0)
-- Role column values correct ('1', '2', '3')
-- Sabbaticals and Audits data preserved
-- UserAccess authorization data complete
+See [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for detailed validation queries.
 
 ---
 
-## Troubleshooting
+## Step 4: Create Reporting Stored Procedures
 
-### Error: "Effort schema not found"
 ```powershell
-# Run CreateEffortDatabase.cs first
-dotnet script CreateEffortDatabase.cs
+# Test procedure creation (dry-run, recommended first)
+.\RunCreateReportingProcedures.bat
+
+# Actually create the procedures
+.\RunCreateReportingProcedures.bat --apply
 ```
 
-### Error: "Legacy Efforts database not found"
-- Check connection string in appsettings.json
-- Verify Efforts database exists and is accessible
-
-### Error: "Foreign key constraint violation"
-- This means CreateEffortDatabase.cs didn't complete successfully
-- Drop and recreate: `dotnet script CreateEffortDatabase.cs --force`
-
-### Warning: "X persons could not be mapped"
-
-- **This should NOT happen** if EffortDataRemediation.cs ran successfully
-- If you see this warning, run EffortDataRemediation.cs first to resolve all MothraId mapping issues
-- Review the remediation report to verify all 8 tasks completed
+**What it creates:**
+- 16 reporting stored procedures in [effort] schema
+- Instructor reports, course summaries, term analytics
 
 ---
 
-## Rollback
-
-### Test changes first (dry-run):
+## Step 5: Create Shadow Schema (ColdFusion Compatibility)
 
 ```powershell
-# Always test schema with dry-run before executing
-.\RunCreateDatabase.bat
-# Review output, then execute if everything looks good
-.\RunCreateDatabase.bat --execute
+# Test shadow schema creation (dry-run, recommended first)
+.\RunCreateShadow.bat
 
-# Always test data migration with dry-run before executing
-.\RunMigrateData.bat
-# Review output, then execute if everything looks good
-.\RunMigrateData.bat --execute
+# Actually create the shadow schema
+.\RunCreateShadow.bat --apply
 ```
 
-### Drop data only (keep schema):
-
-```sql
-EXEC sp_MSforeachtable 'ALTER TABLE [effort].? NOCHECK CONSTRAINT ALL';
--- Truncate tables (see MIGRATION_GUIDE.md for order)
-EXEC sp_MSforeachtable 'ALTER TABLE [effort].? WITH CHECK CHECK CONSTRAINT ALL';
-```
-
-### Drop everything and start over:
+**What it creates:**
+- [EffortShadow] schema with 19 compatibility views
+- 87 stored procedures rewritten to work with modern [effort] tables
+- Allows ColdFusion app to work with new database structure
 
 ```powershell
-dotnet script CreateEffortDatabase.cs --drop
-# Test with dry-run first
-dotnet script CreateEffortDatabase.cs
-# Then execute
-dotnet script CreateEffortDatabase.cs --execute
+# Verify shadow procedures work correctly
+.\RunVerifyShadow.bat
 ```
+
+See [Shadow_Database_Guide.md](./Shadow_Database_Guide.md) for architectural details.
 
 ---
 
 ## Next Steps After Migration
 
-1. ✅ Verify 0 unmapped PersonId records (remediation should have resolved all)
-2. ✅ Run CreateEffortShadow.cs (creates compatibility layer for ColdFusion)
-3. ✅ DBA configures database permissions for applications
-4. ✅ Test ColdFusion application with EffortShadow database
-5. ✅ Begin Sprint 1 (VIPER2 development)
+1. ✅ DBA configures database permissions for applications
+2. ✅ Test ColdFusion application with [EffortShadow] schema
+3. ✅ Begin VIPER2 development (Sprint 1)
+
+---
+
+## Troubleshooting
+
+### Error: "Legacy Efforts database not found"
+Check connection string in `appsettings.json` and verify database accessibility.
+
+### Error: "Foreign key constraint violation"
+Run `.\RunCreateDatabase.bat --force` to drop and recreate schema.
+
+### Warning: "X persons could not be mapped"
+This should NOT happen if Step 1 (RunDataRemediation.bat) completed successfully. Re-run data remediation.
+
+### Rollback Instructions
+
+See [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for complete rollback procedures.
+
+---
+
+## All Commands At A Glance
+
+```powershell
+# Complete migration workflow
+$env:ASPNETCORE_ENVIRONMENT="Test"
+cd web\Areas\Effort\Scripts
+
+# Step 1: Analyze and fix data quality issues in legacy database
+.\RunDataAnalysis.bat
+.\RunDataRemediation.bat
+.\RunDataAnalysis.bat  # Verify 0 critical issues
+
+# Step 2: Create new schema
+.\RunCreateDatabase.bat
+.\RunCreateDatabase.bat --apply
+
+# Step 3: Migrate data
+.\RunMigrateData.bat
+.\RunMigrateData.bat --apply
+
+# Step 4: Create reporting procedures
+.\RunCreateReportingProcedures.bat
+.\RunCreateReportingProcedures.bat --apply
+
+# Step 5: Create shadow schema for ColdFusion
+.\RunCreateShadow.bat
+.\RunCreateShadow.bat --apply
+.\RunVerifyShadow.bat
+```
 
 ---
 
@@ -198,19 +187,11 @@ dotnet script CreateEffortDatabase.cs --execute
 |------|---------|
 | **MIGRATION_GUIDE.md** | Complete testing guide, validation queries, and Sprint 0 plan |
 | **EFFORT_MASTER_PLAN.md** | 16-sprint roadmap |
-| **Shadow_Database_Guide.md** | ColdFusion compatibility strategy |
+| **Shadow_Database_Guide.md** | ColdFusion compatibility schema strategy |
 | **Technical_Reference.md** | Schema mappings and field transformations |
 
 ---
 
 ## Support
 
-If something goes wrong:
-1. Read error message carefully
-2. Check MIGRATION_GUIDE.md for validation queries and troubleshooting
-3. Try rollback and retry
-4. Document specific error for further analysis
-
-**All scripts are safe to run multiple times** - they check for existing data before inserting.
-
----
+If something goes wrong, see [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for detailed troubleshooting steps.

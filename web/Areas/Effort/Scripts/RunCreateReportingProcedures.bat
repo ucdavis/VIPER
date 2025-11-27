@@ -101,6 +101,11 @@ if %EXITCODE% equ 0 (
     echo ====================================================
     echo Reporting procedures script completed successfully!
     echo ====================================================
+    echo.
+    echo Next Steps:
+    echo   1. Run RunCreateShadow.bat to create shadow schema for ColdFusion
+    echo   2. Run RunVerifyShadow.bat to verify shadow schema procedures
+    echo.
 ) else (
     echo ====================================================
     echo Script failed. Check error messages above.

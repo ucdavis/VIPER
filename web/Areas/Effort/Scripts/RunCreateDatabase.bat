@@ -69,7 +69,8 @@ if %ERRORLEVEL% EQU 0 (
     echo.
     echo Next Steps:
     echo   1. Run RunMigrateData.bat to migrate data from legacy database
-    echo   2. Run RunCreateShadow.bat to create shadow database for ColdFusion
+    echo   2. Run RunCreateReportingProcedures.bat to create reporting stored procedures
+    echo   3. Run RunCreateShadow.bat to create shadow schema for ColdFusion
     echo.
 ) else (
     echo.

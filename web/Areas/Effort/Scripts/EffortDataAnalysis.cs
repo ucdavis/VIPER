@@ -131,7 +131,10 @@ namespace Viper.Areas.Effort.Scripts
             Console.WriteLine("\nPhase 5: Analyzing Blank CRN Courses...");
             AnalyzeBlankCrnCourses();
 
-            Console.WriteLine("\nPhase 6: Generating Reports...");
+            Console.WriteLine("\nPhase 6: Analyzing Audit Data Quality...");
+            AnalyzeAuditDataQuality();
+
+            Console.WriteLine("\nPhase 7: Generating Reports...");
             GenerateReports();
 
             DisplaySummary();
@@ -382,31 +385,46 @@ namespace Viper.Areas.Effort.Scripts
                     "tblCourses", "course_TermCode",
                     "tblStatus", "status_TermCode");
                 _report.ReferentialIntegrityIssues.OrphanedCourses = orphanedCourses;
-                Console.WriteLine($"  Orphaned Courses: {orphanedCourses.Count}");
+                WriteColoredCount("  Orphaned Courses", orphanedCourses.Count);
 
                 // Check for effort records without valid courses
                 var orphanedEffortCourses = CheckOrphanedRecords(conn,
                     "tblEffort", "effort_CourseID",
                     "tblCourses", "course_ID");
                 _report.ReferentialIntegrityIssues.OrphanedEffortRecords = orphanedEffortCourses;
-                Console.WriteLine($"  Effort records with invalid courses: {orphanedEffortCourses.Count}");
+                WriteColoredCount("  Effort records with invalid courses", orphanedEffortCourses.Count);
 
                 // Check for effort records with invalid roles
                 var invalidRoles = CheckOrphanedRecords(conn,
                     "tblEffort", "effort_Role",
                     "tblRoles", "Role_ID");
                 _report.ReferentialIntegrityIssues.InvalidRoleReferences = invalidRoles;
-                Console.WriteLine($"  Effort records with invalid roles: {invalidRoles.Count}");
+                WriteColoredCount("  Effort records with invalid roles", invalidRoles.Count);
 
                 // Check for percentages without valid persons
                 var orphanedPercentages = CheckOrphanedPercentageRecords(conn);
                 _report.ReferentialIntegrityIssues.OrphanedPercentages = orphanedPercentages;
-                Console.WriteLine($"  Percentage records with invalid person/term combinations: {orphanedPercentages.Count}");
+                WriteColoredCount("  Percentage records with invalid person/term combinations", orphanedPercentages.Count);
 
                 // Check for alternate titles without valid persons
                 var orphanedAltTitles = CheckOrphanedAlternateTitles(conn, viperConn);
                 _report.ReferentialIntegrityIssues.OrphanedAlternateTitles = orphanedAltTitles;
-                Console.WriteLine($"  Alternate titles with unmapped or missing persons: {orphanedAltTitles.Count}");
+                WriteColoredCount("  Alternate titles with unmapped or missing persons", orphanedAltTitles.Count);
+
+                // Check for courses with term codes not in tblStatus (effort's own term table)
+                var invalidCoursesTermCodes = CheckCoursesTermCodeReferences(conn);
+                _report.ReferentialIntegrityIssues.InvalidCoursesTermCodeReferences = invalidCoursesTermCodes;
+                WriteColoredCount("  Courses records with invalid TermCode (not in tblStatus)", invalidCoursesTermCodes.Count, isCritical: true);
+
+                // Check for persons with term codes not in tblStatus
+                var invalidPersonsTermCodes = CheckPersonsTermCodeReferences(conn);
+                _report.ReferentialIntegrityIssues.InvalidPersonsTermCodeReferences = invalidPersonsTermCodes;
+                WriteColoredCount("  Person records with invalid TermCode (not in tblStatus)", invalidPersonsTermCodes.Count, isCritical: true);
+
+                // Check for effort records with term codes not in tblStatus
+                var invalidEffortTermCodes = CheckEffortTermCodeReferences(conn);
+                _report.ReferentialIntegrityIssues.InvalidEffortTermCodeReferences = invalidEffortTermCodes;
+                WriteColoredCount("  Effort records with invalid TermCode (not in tblStatus)", invalidEffortTermCodes.Count, isCritical: true);
             }
         }
 
@@ -551,6 +569,152 @@ namespace Viper.Areas.Effort.Scripts
             return result;
         }
 
+        private OrphanedRecordSet CheckCoursesTermCodeReferences(SqlConnection effortConn)
+        {
+            var result = new OrphanedRecordSet
+            {
+                ChildTable = "tblCourses",
+                ParentTable = "tblStatus",
+                OrphanedRecords = new List<OrphanedRecord>()
+            };
+
+            // Check for Courses records with term codes not in tblStatus
+            // A LEFT JOIN with NULL check identifies orphaned records
+            var effortQuery = @"
+                SELECT DISTINCT c.course_TermCode, COUNT(*) as RecordCount
+                FROM tblCourses c
+                LEFT JOIN tblStatus s ON c.course_TermCode = s.status_TermCode
+                WHERE c.course_TermCode IS NOT NULL
+                  AND s.status_TermCode IS NULL
+                GROUP BY c.course_TermCode";
+
+            using (var cmd = new SqlCommand(effortQuery, effortConn))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    int termCode = reader.GetInt32(0);
+                    int count = reader.GetInt32(1);
+
+                    result.OrphanedRecords.Add(new OrphanedRecord
+                    {
+                        ReferenceValue = $"{termCode}",
+                        RecordCount = count
+                    });
+                }
+            }
+
+            result.Count = result.OrphanedRecords.Sum(r => r.RecordCount);
+            return result;
+        }
+
+        private OrphanedRecordSet CheckPersonsTermCodeReferences(SqlConnection effortConn)
+        {
+            var result = new OrphanedRecordSet
+            {
+                ChildTable = "tblPerson",
+                ParentTable = "tblStatus",
+                OrphanedRecords = new List<OrphanedRecord>()
+            };
+
+            // Check for Person records with term codes not in tblStatus, grouped by person
+            var effortQuery = @"
+                SELECT DISTINCT p.person_MothraID, p.person_TermCode,
+                       p.person_FirstName, p.person_LastName, COUNT(*) as RecordCount
+                FROM tblPerson p
+                LEFT JOIN tblStatus s ON p.person_TermCode = s.status_TermCode
+                WHERE p.person_TermCode IS NOT NULL
+                  AND s.status_TermCode IS NULL
+                GROUP BY p.person_MothraID, p.person_TermCode,
+                         p.person_FirstName, p.person_LastName";
+
+            // Group by MothraID and name, then collect their invalid TermCodes
+            var personTermCodes = new Dictionary<(string MothraId, string PersonName), List<(int TermCode, int Count)>>();
+
+            using (var cmd = new SqlCommand(effortQuery, effortConn))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    string mothraId = reader.GetString(0).Trim();
+                    int termCode = reader.GetInt32(1);
+                    string firstName = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    string lastName = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                    int count = reader.GetInt32(4);
+
+                    string personName = $"{firstName} {lastName}".Trim();
+                    if (string.IsNullOrWhiteSpace(personName))
+                    {
+                        personName = "Unknown Name";
+                    }
+
+                    var key = (mothraId, personName);
+                    if (!personTermCodes.ContainsKey(key))
+                    {
+                        personTermCodes[key] = new List<(int, int)>();
+                    }
+
+                    personTermCodes[key].Add((termCode, count));
+                }
+            }
+
+            // Format output grouped by MothraID with bulleted term list
+            foreach (var person in personTermCodes.OrderBy(p => p.Key.PersonName))
+            {
+                int totalCount = person.Value.Sum(t => t.Count);
+                var termCodeLines = person.Value.Select(t =>
+                    $"\n      • {t.TermCode}");
+                var termCodeList = string.Join("", termCodeLines);
+
+                result.OrphanedRecords.Add(new OrphanedRecord
+                {
+                    ReferenceValue = $"MothraID {person.Key.MothraId} - {person.Key.PersonName}:{termCodeList}",
+                    RecordCount = totalCount
+                });
+            }
+
+            result.Count = result.OrphanedRecords.Sum(r => r.RecordCount);
+            return result;
+        }
+
+        private OrphanedRecordSet CheckEffortTermCodeReferences(SqlConnection effortConn)
+        {
+            var result = new OrphanedRecordSet
+            {
+                ChildTable = "tblEffort",
+                ParentTable = "tblStatus",
+                OrphanedRecords = new List<OrphanedRecord>()
+            };
+
+            // Check for Effort records with term codes not in tblStatus
+            var effortQuery = @"
+                SELECT DISTINCT e.effort_termCode, COUNT(*) as RecordCount
+                FROM tblEffort e
+                LEFT JOIN tblStatus s ON e.effort_termCode = s.status_TermCode
+                WHERE e.effort_termCode IS NOT NULL
+                  AND s.status_TermCode IS NULL
+                GROUP BY e.effort_termCode";
+
+            using (var cmd = new SqlCommand(effortQuery, effortConn))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    int termCode = reader.GetInt32(0);
+                    int count = reader.GetInt32(1);
+
+                    result.OrphanedRecords.Add(new OrphanedRecord
+                    {
+                        ReferenceValue = $"{termCode}",
+                        RecordCount = count
+                    });
+                }
+            }
+
+            result.Count = result.OrphanedRecords.Sum(r => r.RecordCount);
+            return result;
+        }
+
         private void ValidateBusinessRules()
         {
             _report.BusinessRuleViolations = new BusinessRuleAnalysis();
@@ -599,7 +763,7 @@ namespace Viper.Areas.Effort.Scripts
                 }
             }
 
-            Console.WriteLine($"  Potential duplicate key violations: {_report.BusinessRuleViolations.DuplicateKeyViolations.Count}");
+            WriteColoredCount("  Potential duplicate key violations", _report.BusinessRuleViolations.DuplicateKeyViolations.Count, isCritical: true);
         }
 
         private void CheckRequiredFields(SqlConnection conn)
@@ -653,7 +817,7 @@ namespace Viper.Areas.Effort.Scripts
                 }
             }
 
-            Console.WriteLine($"  Required fields with null/empty values: {_report.BusinessRuleViolations.RequiredFieldViolations.Sum(v => v.NullCount)}");
+            WriteColoredCount("  Required fields with null/empty values", _report.BusinessRuleViolations.RequiredFieldViolations.Sum(v => v.NullCount), isCritical: true);
         }
 
         private void CheckConstraintViolations(SqlConnection conn)
@@ -740,7 +904,7 @@ namespace Viper.Areas.Effort.Scripts
                 }
             }
 
-            Console.WriteLine($"  Check constraint violations: {_report.BusinessRuleViolations.CheckConstraintViolations.Sum(v => v.ViolationCount)}");
+            WriteColoredCount("  Check constraint violations", _report.BusinessRuleViolations.CheckConstraintViolations.Sum(v => v.ViolationCount), isCritical: true);
         }
 
         private void CheckPlannedForeignKeyConstraints(SqlConnection conn)
@@ -984,7 +1148,7 @@ namespace Viper.Areas.Effort.Scripts
                 }
             }
 
-            Console.WriteLine($"  Suspicious data patterns found: {_report.DataQualityIssues.SuspiciousDataPatterns.Sum(p => p.RecordCount)} records");
+            WriteColoredCount("  Suspicious data patterns found", _report.DataQualityIssues.SuspiciousDataPatterns.Sum(p => p.RecordCount));
         }
 
         private void CheckStaleData(SqlConnection conn)
@@ -1102,18 +1266,16 @@ namespace Viper.Areas.Effort.Scripts
                 }
             }
 
-            // Foreign key constraint requires person record to exist for the academic year
+            // Foreign key constraint requires person record to exist for ANY term within the academic year
+            // Migration uses ANY term in the range, not just Fall term
             var invalidComboQuery = @"
                 SELECT COUNT(*)
                 FROM tblPercent perc
                 WHERE NOT EXISTS (
                     SELECT 1 FROM tblPerson pers
+                    INNER JOIN tblStatus stat ON pers.person_TermCode = stat.status_TermCode
                     WHERE pers.person_MothraID = perc.percent_MothraID
-                      AND pers.person_TermCode = (
-                          SELECT MIN(status_TermCode)
-                          FROM tblStatus
-                          WHERE status_AcademicYear = perc.percent_AcademicYear
-                      )
+                      AND stat.status_AcademicYear = perc.percent_AcademicYear
                 )";
             using (var cmd = new SqlCommand(invalidComboQuery, conn))
             {
@@ -1302,6 +1464,248 @@ namespace Viper.Areas.Effort.Scripts
             }
         }
 
+        private void AnalyzeAuditDataQuality()
+        {
+            _report.AuditDataQuality = new AuditDataQualityAnalysis();
+
+            try
+            {
+                using (var effortConn = new SqlConnection(_effortsConnectionString))
+                {
+                    effortConn.Open();
+
+                    Console.WriteLine("\nAnalyzing Audit Data Quality...");
+
+                    // Get total audit record count
+                    var totalQuery = "SELECT COUNT(*) FROM tblAudit";
+                    using (var cmd = new SqlCommand(totalQuery, effortConn))
+                    {
+                        _report.AuditDataQuality.TotalAuditRecords = (int)cmd.ExecuteScalar();
+                    }
+                    Console.WriteLine($"  Total audit records: {_report.AuditDataQuality.TotalAuditRecords}");
+
+                    // Build lookup sets for validation
+                    var validTermCodes = new HashSet<int>();
+                    var validCrns = new Dictionary<string, List<int>>(); // CRN -> List of TermCodes
+                    var validMothraIds = new HashSet<string>();
+
+                    // Load valid TermCodes from tblStatus (effort's own term table)
+                    var termQuery = "SELECT status_TermCode FROM tblStatus WHERE status_TermCode IS NOT NULL";
+                    using (var cmd = new SqlCommand(termQuery, effortConn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            validTermCodes.Add(reader.GetInt32(0));
+                        }
+                    }
+
+                    // Load valid CRNs from tblCourses (CRN can appear in multiple terms)
+                    var crnQuery = "SELECT DISTINCT course_CRN, course_TermCode FROM tblCourses WHERE course_CRN IS NOT NULL AND LTRIM(RTRIM(course_CRN)) != ''";
+                    using (var cmd = new SqlCommand(crnQuery, effortConn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string crn = reader.GetString(0).Trim();
+                            int termCode = reader.GetInt32(1);
+                            if (!validCrns.ContainsKey(crn))
+                            {
+                                validCrns[crn] = new List<int>();
+                            }
+                            validCrns[crn].Add(termCode);
+                        }
+                    }
+
+                    // Load valid MothraIDs from tblPerson
+                    var mothraQuery = "SELECT DISTINCT person_MothraID FROM tblPerson WHERE person_MothraID IS NOT NULL";
+                    using (var cmd = new SqlCommand(mothraQuery, effortConn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            validMothraIds.Add(reader.GetString(0));
+                        }
+                    }
+
+                    // Load TermCode -> TermName mappings from tblStatus for human-readable output
+                    var termNameLookup = new Dictionary<int, (string TermName, string AcademicYear)>();
+                    var statusQuery = "SELECT status_TermCode, status_TermName, status_AcademicYear FROM tblStatus WHERE status_TermCode IS NOT NULL";
+                    using (var cmd = new SqlCommand(statusQuery, effortConn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int termCode = reader.GetInt32(0);
+                            string termName = reader.IsDBNull(1) ? "Unknown" : reader.GetString(1);
+                            string academicYear = reader.IsDBNull(2) ? "Unknown" : reader.GetString(2);
+                            termNameLookup[termCode] = (termName, academicYear);
+                        }
+                    }
+
+                    // Analyze audit records for NULL values and validity
+                    var auditQuery = @"
+                        SELECT audit_TermCode, audit_CRN, audit_MothraID, COUNT(*) as RecordCount
+                        FROM tblAudit
+                        GROUP BY audit_TermCode, audit_CRN, audit_MothraID";
+
+                    _report.AuditDataQuality.InvalidTermCodes.ChildTable = "tblAudit";
+                    _report.AuditDataQuality.InvalidTermCodes.ParentTable = "tblStatus";
+                    _report.AuditDataQuality.InvalidCrns.ChildTable = "tblAudit";
+                    _report.AuditDataQuality.InvalidCrns.ParentTable = "tblCourses";
+                    _report.AuditDataQuality.InvalidMothraIds.ChildTable = "tblAudit";
+                    _report.AuditDataQuality.InvalidMothraIds.ParentTable = "tblPerson";
+
+                    // Use dictionaries to aggregate counts for each unique invalid value
+                    var invalidTermCodeCounts = new Dictionary<string, int>();
+                    var invalidCrnCounts = new Dictionary<string, int>();
+                    var invalidMothraCounts = new Dictionary<string, int>();
+
+                    using (var cmd = new SqlCommand(auditQuery, effortConn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            bool hasTermCode = !reader.IsDBNull(0);
+                            bool hasCrn = !reader.IsDBNull(1);
+                            bool hasMothraId = !reader.IsDBNull(2);
+                            int count = reader.GetInt32(3);
+
+                            int? termCode = hasTermCode ? reader.GetInt32(0) : null;
+                            string? crn = hasCrn ? reader.GetString(1).Trim() : null;
+                            string? mothraId = hasMothraId ? reader.GetString(2) : null;
+
+                            // Count NULL values
+                            if (!hasTermCode) _report.AuditDataQuality.RecordsWithNullTermCode += count;
+                            if (!hasCrn) _report.AuditDataQuality.RecordsWithNullCrn += count;
+                            if (!hasMothraId) _report.AuditDataQuality.RecordsWithNullMothraId += count;
+
+                            // Collect invalid TermCodes
+                            if (hasTermCode && termCode.HasValue && !validTermCodes.Contains(termCode.Value))
+                            {
+                                // Get TermName from lookup dictionary
+                                string termInfo = termCode.Value.ToString();
+                                if (termNameLookup.TryGetValue(termCode.Value, out var termDetails))
+                                {
+                                    termInfo = $"{termCode.Value} ({termDetails.TermName}, {termDetails.AcademicYear})";
+                                }
+
+                                if (!invalidTermCodeCounts.ContainsKey(termInfo))
+                                {
+                                    invalidTermCodeCounts[termInfo] = 0;
+                                }
+                                invalidTermCodeCounts[termInfo] += count;
+                            }
+
+                            // Collect invalid CRNs - validate both CRN existence and term-specific validity
+                            if (hasCrn && !string.IsNullOrWhiteSpace(crn))
+                            {
+                                var termListPresent = validCrns.TryGetValue(crn, out var allowedTerms);
+                                var crnMatchesTerm = termListPresent && allowedTerms != null && (!hasTermCode || (termCode.HasValue && allowedTerms.Contains(termCode.Value)));
+
+                                if (!termListPresent || !crnMatchesTerm)
+                                {
+                                    var key = termCode.HasValue ? $"{crn} (Term {termCode.Value})" : $"{crn} (no term)";
+                                    if (!invalidCrnCounts.ContainsKey(key))
+                                    {
+                                        invalidCrnCounts[key] = 0;
+                                    }
+                                    invalidCrnCounts[key] += count;
+                                }
+                            }
+
+                            // Collect invalid MothraIDs
+                            if (hasMothraId && mothraId != null && !validMothraIds.Contains(mothraId))
+                            {
+                                if (!invalidMothraCounts.ContainsKey(mothraId))
+                                {
+                                    invalidMothraCounts[mothraId] = 0;
+                                }
+                                invalidMothraCounts[mothraId] += count;
+                            }
+
+                            // Categorize mappability - only consider records with valid, populated fields as mappable
+                            bool termCodeValid = hasTermCode && termCode.HasValue && validTermCodes.Contains(termCode.Value);
+                            bool crnValid = hasCrn && !string.IsNullOrWhiteSpace(crn) &&
+                                            validCrns.TryGetValue(crn, out var crnTerms) &&
+                                            (!hasTermCode || (termCode.HasValue && crnTerms.Contains(termCode.Value)));
+                            bool mothraIdValid = hasMothraId && mothraId != null && validMothraIds.Contains(mothraId);
+                            bool hasAnyReference = hasTermCode || hasCrn || hasMothraId;
+
+                            if (termCodeValid && crnValid && mothraIdValid)
+                            {
+                                _report.AuditDataQuality.RecordsFullyMappable += count;
+                            }
+                            else if (!hasAnyReference)
+                            {
+                                _report.AuditDataQuality.RecordsUnmappable += count;
+                            }
+                            else
+                            {
+                                _report.AuditDataQuality.RecordsPartiallyMappable += count;
+                            }
+                        }
+                    }
+
+                    // Convert aggregated dictionaries to OrphanedRecords
+                    foreach (var kvp in invalidTermCodeCounts)
+                    {
+                        _report.AuditDataQuality.InvalidTermCodes.OrphanedRecords.Add(new OrphanedRecord
+                        {
+                            ReferenceValue = kvp.Key,
+                            RecordCount = kvp.Value
+                        });
+                    }
+
+                    foreach (var kvp in invalidCrnCounts)
+                    {
+                        _report.AuditDataQuality.InvalidCrns.OrphanedRecords.Add(new OrphanedRecord
+                        {
+                            ReferenceValue = kvp.Key,
+                            RecordCount = kvp.Value
+                        });
+                    }
+
+                    foreach (var kvp in invalidMothraCounts)
+                    {
+                        _report.AuditDataQuality.InvalidMothraIds.OrphanedRecords.Add(new OrphanedRecord
+                        {
+                            ReferenceValue = kvp.Key,
+                            RecordCount = kvp.Value
+                        });
+                    }
+
+                    // Calculate totals
+                    _report.AuditDataQuality.InvalidTermCodes.Count = _report.AuditDataQuality.InvalidTermCodes.OrphanedRecords.Sum(r => r.RecordCount);
+                    _report.AuditDataQuality.InvalidCrns.Count = _report.AuditDataQuality.InvalidCrns.OrphanedRecords.Sum(r => r.RecordCount);
+                    _report.AuditDataQuality.InvalidMothraIds.Count = _report.AuditDataQuality.InvalidMothraIds.OrphanedRecords.Sum(r => r.RecordCount);
+
+                    // Console summary
+                    WriteColoredCount("  Records with NULL TermCode", _report.AuditDataQuality.RecordsWithNullTermCode);
+                    WriteColoredCount("  Records with NULL CRN", _report.AuditDataQuality.RecordsWithNullCrn);
+                    WriteColoredCount("  Records with NULL MothraID", _report.AuditDataQuality.RecordsWithNullMothraId);
+                    WriteColoredCount("  Records with invalid TermCode", _report.AuditDataQuality.InvalidTermCodes.Count, isCritical: true);
+                    WriteColoredCount("  Records with invalid CRN", _report.AuditDataQuality.InvalidCrns.Count, isCritical: true);
+                    WriteColoredCount("  Records with invalid MothraID", _report.AuditDataQuality.InvalidMothraIds.Count, isCritical: true);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"  Fully mappable records: {_report.AuditDataQuality.RecordsFullyMappable}");
+                    Console.ResetColor();
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"  Partially mappable records: {_report.AuditDataQuality.RecordsPartiallyMappable}");
+                    Console.ResetColor();
+                    // Unmappable records are migrated but with "Unknown" table and 0 recordId - warning level since they have limited usefulness
+                    Console.ForegroundColor = _report.AuditDataQuality.RecordsUnmappable > 0 ? ConsoleColor.Yellow : ConsoleColor.Green;
+                    Console.WriteLine($"  Unmappable records (all fields NULL): {_report.AuditDataQuality.RecordsUnmappable}");
+                    Console.ResetColor();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  ERROR: Failed to analyze audit data quality: {ex.Message}");
+                Console.WriteLine($"  Audit data quality analysis will be skipped.");
+            }
+        }
+
         private void GenerateReports()
         {
             // Generate detailed text report
@@ -1331,6 +1735,29 @@ namespace Viper.Areas.Effort.Scripts
             report.Append(_report.GetDetailedReport());
 
             File.WriteAllText(path, report.ToString());
+        }
+
+        /// <summary>
+        /// Writes a count with color coding: red for issues, green for no issues
+        /// </summary>
+        /// <param name="label">The label to display</param>
+        /// <param name="count">The count value</param>
+        /// <param name="isCritical">If true, issues are critical (red); if false, issues are warnings (yellow)</param>
+        private static void WriteColoredCount(string label, int count, bool isCritical = false)
+        {
+            Console.Write($"{label}: ");
+            if (count > 0)
+            {
+                Console.ForegroundColor = isCritical ? ConsoleColor.Red : ConsoleColor.Yellow;
+                Console.WriteLine(count);
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine(count);
+                Console.ResetColor();
+            }
         }
 
         private void DisplaySummary()
@@ -1400,6 +1827,7 @@ namespace Viper.Areas.Effort.Scripts
         public BusinessRuleAnalysis BusinessRuleViolations { get; set; } = null!;
         public DataQualityAnalysis DataQualityIssues { get; set; } = null!;
         public BlankCrnAnalysis BlankCrnCourses { get; set; } = new BlankCrnAnalysis();
+        public AuditDataQualityAnalysis AuditDataQuality { get; set; } = new AuditDataQualityAnalysis();
 
         public int GetCriticalIssueCount()
         {
@@ -1484,16 +1912,19 @@ namespace Viper.Areas.Effort.Scripts
                 sb.AppendLine();
             }
 
-            // Phase 2: Referential Integrity Issues
-            sb.AppendLine("REFERENTIAL INTEGRITY ISSUES");
-            sb.AppendLine("-----------------------------");
+            // Phase 2: TermCode Mapping Issues
+            sb.AppendLine("TERMCODE MAPPING ISSUES");
+            sb.AppendLine("-----------------------");
 
             var orphanedSets = new[] {
                 ("Orphaned Courses", ReferentialIntegrityIssues.OrphanedCourses),
                 ("Effort records with invalid courses", ReferentialIntegrityIssues.OrphanedEffortRecords),
                 ("Effort records with invalid roles", ReferentialIntegrityIssues.InvalidRoleReferences),
                 ("Percentage records with invalid person/term combinations", ReferentialIntegrityIssues.OrphanedPercentages),
-                ("Alternate titles with unmapped or missing persons", ReferentialIntegrityIssues.OrphanedAlternateTitles)
+                ("Alternate titles with unmapped or missing persons", ReferentialIntegrityIssues.OrphanedAlternateTitles),
+                ("Courses records with invalid TermCode (not in tblStatus)", ReferentialIntegrityIssues.InvalidCoursesTermCodeReferences),
+                ("Person records with invalid TermCode (not in tblStatus)", ReferentialIntegrityIssues.InvalidPersonsTermCodeReferences),
+                ("Effort records with invalid TermCode (not in tblStatus)", ReferentialIntegrityIssues.InvalidEffortTermCodeReferences)
             };
 
             foreach (var (description, orphanedSet) in orphanedSets)
@@ -1505,22 +1936,23 @@ namespace Viper.Areas.Effort.Scripts
                     sb.AppendLine($"  Orphaned Records: {orphanedSet.Count}");
                     if (orphanedSet.OrphanedRecords.Count > 0)
                     {
-                        if (orphanedSet.OrphanedRecords.Count <= 20)
+                        sb.AppendLine("  Complete List of Orphaned Records:");
+                        foreach (var record in orphanedSet.OrphanedRecords.OrderByDescending(x => x.RecordCount))
                         {
-                            sb.AppendLine("  Complete List of Orphaned Records:");
-                            foreach (var record in orphanedSet.OrphanedRecords)
+                            // Handle multi-line ReferenceValue (e.g., Person records with bullet lists)
+                            if (record.ReferenceValue.Contains("\n"))
+                            {
+                                var lines = record.ReferenceValue.Split('\n');
+                                sb.AppendLine($"    - {lines[0]} ({record.RecordCount} records)");
+                                for (int i = 1; i < lines.Length; i++)
+                                {
+                                    sb.AppendLine(lines[i]);
+                                }
+                            }
+                            else
                             {
                                 sb.AppendLine($"    - {record.ReferenceValue} ({record.RecordCount} records)");
                             }
-                        }
-                        else
-                        {
-                            sb.AppendLine("  Top 20 Orphaned Records (by count):");
-                            foreach (var record in orphanedSet.OrphanedRecords.OrderByDescending(x => x.RecordCount).Take(20))
-                            {
-                                sb.AppendLine($"    - {record.ReferenceValue} ({record.RecordCount} records)");
-                            }
-                            sb.AppendLine($"  ... and {orphanedSet.OrphanedRecords.Count - 20} more orphaned records");
                         }
                     }
                     sb.AppendLine();
@@ -1859,6 +2291,78 @@ namespace Viper.Areas.Effort.Scripts
                 }
             }
 
+            // Phase 7: Audit Data Quality Analysis
+            if (AuditDataQuality != null && AuditDataQuality.TotalAuditRecords > 0)
+            {
+                sb.AppendLine("AUDIT DATA QUALITY ANALYSIS");
+                sb.AppendLine("---------------------------");
+                sb.AppendLine($"Total audit records: {AuditDataQuality.TotalAuditRecords}");
+                sb.AppendLine();
+
+                sb.AppendLine("NULL Value Analysis:");
+                sb.AppendLine($"  Records with NULL TermCode: {AuditDataQuality.RecordsWithNullTermCode} ({(AuditDataQuality.RecordsWithNullTermCode * 100.0 / AuditDataQuality.TotalAuditRecords):F1}%)");
+                sb.AppendLine($"  Records with NULL CRN: {AuditDataQuality.RecordsWithNullCrn} ({(AuditDataQuality.RecordsWithNullCrn * 100.0 / AuditDataQuality.TotalAuditRecords):F1}%)");
+                sb.AppendLine($"  Records with NULL MothraID: {AuditDataQuality.RecordsWithNullMothraId} ({(AuditDataQuality.RecordsWithNullMothraId * 100.0 / AuditDataQuality.TotalAuditRecords):F1}%)");
+                sb.AppendLine();
+
+                sb.AppendLine("Validity Analysis:");
+                sb.AppendLine($"  Records with invalid TermCode: {AuditDataQuality.InvalidTermCodes.Count}");
+                sb.AppendLine($"  Records with invalid CRN: {AuditDataQuality.InvalidCrns.Count}");
+                sb.AppendLine($"  Records with invalid MothraID: {AuditDataQuality.InvalidMothraIds.Count}");
+                sb.AppendLine();
+
+                sb.AppendLine("Mappability Summary:");
+                sb.AppendLine($"  Fully mappable records: {AuditDataQuality.RecordsFullyMappable} ({(AuditDataQuality.RecordsFullyMappable * 100.0 / AuditDataQuality.TotalAuditRecords):F1}%)");
+                sb.AppendLine($"  Partially mappable records: {AuditDataQuality.RecordsPartiallyMappable} ({(AuditDataQuality.RecordsPartiallyMappable * 100.0 / AuditDataQuality.TotalAuditRecords):F1}%)");
+                sb.AppendLine($"  Unmappable records (all fields NULL): {AuditDataQuality.RecordsUnmappable} ({(AuditDataQuality.RecordsUnmappable * 100.0 / AuditDataQuality.TotalAuditRecords):F1}%)");
+                sb.AppendLine();
+
+                if (AuditDataQuality.InvalidTermCodes.OrphanedRecords.Count > 0)
+                {
+                    sb.AppendLine("Invalid TermCodes:");
+                    foreach (var record in AuditDataQuality.InvalidTermCodes.OrphanedRecords.OrderByDescending(r => r.RecordCount))
+                    {
+                        sb.AppendLine($"  {record.ReferenceValue}: {record.RecordCount} records");
+                    }
+                    sb.AppendLine();
+                }
+
+                if (AuditDataQuality.InvalidCrns.OrphanedRecords.Count > 0)
+                {
+                    sb.AppendLine("Invalid CRNs (not found in tblCourses):");
+                    int displayLimit = Math.Min(50, AuditDataQuality.InvalidCrns.OrphanedRecords.Count);
+                    foreach (var record in AuditDataQuality.InvalidCrns.OrphanedRecords.OrderByDescending(r => r.RecordCount).Take(displayLimit))
+                    {
+                        sb.AppendLine($"  {record.ReferenceValue}: {record.RecordCount} records");
+                    }
+                    if (AuditDataQuality.InvalidCrns.OrphanedRecords.Count > displayLimit)
+                    {
+                        sb.AppendLine($"  ... and {AuditDataQuality.InvalidCrns.OrphanedRecords.Count - displayLimit} more invalid CRNs");
+                    }
+                    sb.AppendLine();
+                }
+
+                if (AuditDataQuality.InvalidMothraIds.OrphanedRecords.Count > 0)
+                {
+                    sb.AppendLine("Invalid MothraIDs (not found in tblPerson):");
+                    int displayLimit = Math.Min(50, AuditDataQuality.InvalidMothraIds.OrphanedRecords.Count);
+                    foreach (var record in AuditDataQuality.InvalidMothraIds.OrphanedRecords.OrderByDescending(r => r.RecordCount).Take(displayLimit))
+                    {
+                        sb.AppendLine($"  {record.ReferenceValue}: {record.RecordCount} records");
+                    }
+                    if (AuditDataQuality.InvalidMothraIds.OrphanedRecords.Count > displayLimit)
+                    {
+                        sb.AppendLine($"  ... and {AuditDataQuality.InvalidMothraIds.OrphanedRecords.Count - displayLimit} more invalid MothraIDs");
+                    }
+                    sb.AppendLine();
+                }
+
+                sb.AppendLine("NOTE: The new Audits table design does not include a TermCode column.");
+                sb.AppendLine("Legacy audit_TermCode values are migrated as RecordId where available.");
+                sb.AppendLine("For full audit trail integrity, consider creating a separate audit remediation script.");
+                sb.AppendLine();
+            }
+
             return sb.ToString();
         }
 
@@ -1913,6 +2417,9 @@ namespace Viper.Areas.Effort.Scripts
         public OrphanedRecordSet InvalidRoleReferences { get; set; } = new OrphanedRecordSet();
         public OrphanedRecordSet OrphanedPercentages { get; set; } = new OrphanedRecordSet();
         public OrphanedRecordSet OrphanedAlternateTitles { get; set; } = new OrphanedRecordSet();
+        public OrphanedRecordSet InvalidCoursesTermCodeReferences { get; set; } = new OrphanedRecordSet();
+        public OrphanedRecordSet InvalidPersonsTermCodeReferences { get; set; } = new OrphanedRecordSet();
+        public OrphanedRecordSet InvalidEffortTermCodeReferences { get; set; } = new OrphanedRecordSet();
 
         public int GetTotalOrphaned()
         {
@@ -1920,7 +2427,10 @@ namespace Viper.Areas.Effort.Scripts
                    OrphanedEffortRecords.Count +
                    InvalidRoleReferences.Count +
                    OrphanedPercentages.Count +
-                   OrphanedAlternateTitles.Count;
+                   OrphanedAlternateTitles.Count +
+                   InvalidCoursesTermCodeReferences.Count +
+                   InvalidPersonsTermCodeReferences.Count +
+                   InvalidEffortTermCodeReferences.Count;
         }
     }
 
@@ -2048,6 +2558,25 @@ namespace Viper.Areas.Effort.Scripts
         public int Units { get; set; }
         public string CustDept { get; set; } = "";
         public int EffortRecordCount { get; set; }
+    }
+
+    public class AuditDataQualityAnalysis
+    {
+        public int TotalAuditRecords { get; set; }
+        public int RecordsWithNullTermCode { get; set; }
+        public int RecordsWithNullCrn { get; set; }
+        public int RecordsWithNullMothraId { get; set; }
+        public int RecordsFullyMappable { get; set; }
+        public int RecordsPartiallyMappable { get; set; }
+        public int RecordsUnmappable { get; set; }
+        public OrphanedRecordSet InvalidTermCodes { get; set; } = new OrphanedRecordSet();
+        public OrphanedRecordSet InvalidCrns { get; set; } = new OrphanedRecordSet();
+        public OrphanedRecordSet InvalidMothraIds { get; set; } = new OrphanedRecordSet();
+
+        public int GetTotalIssues()
+        {
+            return InvalidTermCodes.Count + InvalidCrns.Count + InvalidMothraIds.Count;
+        }
     }
 
     #endregion

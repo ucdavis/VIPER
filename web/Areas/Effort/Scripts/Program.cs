@@ -45,12 +45,14 @@ namespace Viper.Areas.Effort.Scripts
                     return 0;
 
                 case "create-shadow":
-                    CreateEffortShadow.Run(commandArgs);
-                    return 0;
+                    return CreateEffortShadow.Run(commandArgs);
 
                 case "create-reporting-procedures":
                     CreateEffortReportingProcedures.Run(commandArgs);
                     return 0;
+
+                case "verify-shadow":
+                    return VerifyShadowProcedures.Run(commandArgs);
 
                 default:
                     Console.WriteLine($"Unknown command: {command}");
@@ -71,8 +73,9 @@ namespace Viper.Areas.Effort.Scripts
             Console.WriteLine("  schema-export                 Export legacy schema documentation");
             Console.WriteLine("  create-database               Create modernized Effort schema in VIPER database");
             Console.WriteLine("  migrate-data                  Migrate data from legacy Efforts database");
-            Console.WriteLine("  create-shadow                 Create EffortShadow compatibility database");
+            Console.WriteLine("  create-shadow                 Create EffortShadow compatibility schema");
             Console.WriteLine("  create-reporting-procedures   Create modernized reporting stored procedures");
+            Console.WriteLine("  verify-shadow                 Verify shadow schema procedures match legacy");
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  dotnet run -- analysis");
@@ -82,6 +85,7 @@ namespace Viper.Areas.Effort.Scripts
             Console.WriteLine("  dotnet run -- migrate-data --apply");
             Console.WriteLine("  dotnet run -- create-shadow --apply");
             Console.WriteLine("  dotnet run -- create-reporting-procedures --apply");
+            Console.WriteLine("  dotnet run -- verify-shadow");
         }
     }
 }

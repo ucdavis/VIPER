@@ -9,8 +9,8 @@ Date: 2025-11-06
 
 Architecture:
 - Creates [VIPER].[effort] schema (NOT a separate database)
-- Shadow DB: Separate EffortShadow database with views pointing to VIPER.effort tables
-- 16 tables total with proper dependency ordering
+- Shadow Schema: [VIPER].[EffortShadow] schema with views pointing to [effort] tables
+- 20 tables total with proper dependency ordering
 
 Tables:
 1. Lookup Tables (no dependencies): Roles, EffortTypes, SessionTypes, Units,
@@ -251,14 +251,15 @@ CREATE TABLE [effort].[Courses] (
     Id int IDENTITY(1,1) NOT NULL,
     Crn char(5) NOT NULL,
     TermCode int NOT NULL,
-    SubjCode char(4) NOT NULL,
-    CrseNumb char(6) NOT NULL,
-    SeqNumb char(6) NOT NULL,
+    SubjCode char(3) NOT NULL,
+    CrseNumb char(5) NOT NULL,
+    SeqNumb char(3) NOT NULL,
     Enrollment int NOT NULL DEFAULT 0,
     Units decimal(4,2) NOT NULL,
     CustDept char(6) NOT NULL,
     CONSTRAINT PK_Courses PRIMARY KEY CLUSTERED (Id),
     CONSTRAINT UQ_Courses_CRN_Term_Units UNIQUE (Crn, TermCode, Units),
+    CONSTRAINT FK_Courses_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
     CONSTRAINT CK_Courses_Enrollment CHECK (Enrollment >= 0),
     CONSTRAINT CK_Courses_Units CHECK (Units >= 0)
 );
@@ -286,7 +287,7 @@ CREATE TABLE [effort].[Persons] (
     LastName varchar(50) NOT NULL,
     MiddleInitial varchar(1) NULL,
     EffortTitleCode char(6) NOT NULL,
-    EffortDept char(6) NOT NULL,
+    EffortDept varchar(6) NOT NULL,
     PercentAdmin decimal(5,2) NOT NULL DEFAULT 0,
     JobGroupId char(3) NULL,
     Title varchar(50) NULL,
@@ -297,6 +298,7 @@ CREATE TABLE [effort].[Persons] (
     PercentClinical decimal(5,2) NULL,
     CONSTRAINT PK_Persons PRIMARY KEY CLUSTERED (PersonId, TermCode),
     CONSTRAINT FK_Persons_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
+    CONSTRAINT FK_Persons_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
     CONSTRAINT CK_Persons_PercentAdmin CHECK (PercentAdmin BETWEEN 0 AND 100),
     CONSTRAINT CK_Persons_PercentClinical CHECK (PercentClinical IS NULL OR PercentClinical BETWEEN 0 AND 100)
 );
@@ -376,6 +378,7 @@ CREATE TABLE [effort].[Records] (
     CONSTRAINT FK_Records_Courses FOREIGN KEY (CourseId) REFERENCES [effort].[Courses](Id),
     CONSTRAINT FK_Records_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
     CONSTRAINT FK_Records_Persons FOREIGN KEY (PersonId, TermCode) REFERENCES [effort].[Persons](PersonId, TermCode),
+    CONSTRAINT FK_Records_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
     CONSTRAINT FK_Records_Roles FOREIGN KEY (Role) REFERENCES [effort].[Roles](Id),
     CONSTRAINT FK_Records_SessionTypes FOREIGN KEY (SessionType) REFERENCES [effort].[SessionTypes](Id),
     CONSTRAINT FK_Records_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
@@ -402,10 +405,13 @@ CREATE TABLE [effort].[Percentages] (
     Percentage decimal(5,2) NOT NULL,
     EffortTypeId int NOT NULL,
     Unit varchar(50) NULL,
+    Modifier varchar(50) NULL,
+    Comment varchar(100) NULL,
     StartDate datetime2(7) NOT NULL,
     EndDate datetime2(7) NULL,
     ModifiedDate datetime2(7) NULL,
     ModifiedBy int NULL,
+    Compensated bit NOT NULL DEFAULT 0,
     CONSTRAINT PK_Percentages PRIMARY KEY CLUSTERED (Id),
     CONSTRAINT FK_Percentages_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
     CONSTRAINT FK_Percentages_Persons FOREIGN KEY (PersonId, TermCode) REFERENCES [effort].[Persons](PersonId, TermCode),
@@ -533,7 +539,7 @@ PRINT '  - SessionTypes: 35 rows';
 PRINT '';
 PRINT 'Next Steps:';
 PRINT '  1. Run MigrateEffortData.cs to migrate data from legacy database';
-PRINT '  2. Run CreateEffortShadow.cs to create shadow database for ColdFusion';
+PRINT '  2. Run CreateEffortShadow.cs to create shadow schema for ColdFusion';
 PRINT '  3. DBA will configure database permissions for applications';
 PRINT '';
 PRINT '================================================================================';

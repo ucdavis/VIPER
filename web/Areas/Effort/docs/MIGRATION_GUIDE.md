@@ -12,36 +12,75 @@ This guide covers the complete migration process from the legacy Efforts databas
 
 See [QUICK_START.md](QUICK_START.md) for simple command reference.
 
-**Step 1: Test Schema Creation (Dry-Run)**:
+**Step 1: Data Analysis & Remediation**:
+
+```powershell
+# Step 1a: Analyze data quality in legacy Efforts database
+.\RunDataAnalysis.bat
+
+# Step 1b: Fix data quality issues in legacy Efforts database BEFORE migration
+.\RunDataRemediation.bat
+
+# Step 1c: Verify 0 critical issues remain
+.\RunDataAnalysis.bat
+```
+
+**IMPORTANT**: This step **analyzes** then **fixes** 8 categories of data quality issues in the **legacy Efforts database** before you create the new schema. This ensures:
+- 0% unmapped MothraIds
+- No duplicate courses or invalid data
+- Clean migration with no rollback needed
+
+**RunDataAnalysis.bat** identifies issues, **RunDataRemediation.bat** fixes them, then re-run analysis to verify.
+
+**Step 2: Test Schema Creation (Dry-Run)**:
 
 ```powershell
 # Test SQL without permanent changes (recommended first step)
 .\RunCreateDatabase.bat
-# or: dotnet script CreateEffortDatabase.cs
 ```
 
-**Step 2: Create Schema (Execute)**:
+**Step 3: Create Schema (Execute)**:
 
 ```powershell
 # Actually create the tables
-.\RunCreateDatabase.bat --execute
-# or: dotnet script CreateEffortDatabase.cs --execute
+.\RunCreateDatabase.bat --apply
 ```
 
-**Step 3: Preview Data Migration (Dry-Run)**:
+**Step 4: Preview Data Migration (Dry-Run)**:
 
 ```powershell
 # Test migration without permanent changes (recommended first step)
 .\RunMigrateData.bat
-# or: dotnet script MigrateEffortData.cs
 ```
 
-**Step 4: Execute Data Migration**:
+**Step 5: Execute Data Migration**:
 
 ```powershell
 # Actually migrate the data
-.\RunMigrateData.bat --execute
-# or: dotnet script MigrateEffortData.cs --execute
+.\RunMigrateData.bat --apply
+```
+
+**Step 6: Create Reporting Stored Procedures**:
+
+```powershell
+# Test stored procedure creation (dry-run)
+.\RunCreateReportingProcedures.bat
+
+# Actually create the stored procedures
+.\RunCreateReportingProcedures.bat --apply
+```
+
+**Step 7: Create Shadow Schema (ColdFusion Compatibility)**:
+
+```powershell
+# Test shadow schema creation (dry-run)
+.\RunCreateShadow.bat
+
+# Actually create the shadow schema
+.\RunCreateShadow.bat --apply
+
+# Verify shadow procedures
+.\RunVerifyShadow.bat
 ```
 
 ---
@@ -54,7 +93,7 @@ See [QUICK_START.md](QUICK_START.md) for simple command reference.
 
 ```powershell
 # Test schema creation without permanent changes
-dotnet script CreateEffortDatabase.cs
+.\RunCreateDatabase.bat
 ```
 
 **What dry-run does**:
@@ -70,7 +109,7 @@ dotnet script CreateEffortDatabase.cs
 
 ```powershell
 # Actually create the tables
-dotnet script CreateEffortDatabase.cs --execute
+.\RunCreateDatabase.bat --apply
 ```
 
 ### Dry-Run Mode for Data Migration (Recommended Before Actual Migration)
@@ -79,7 +118,7 @@ dotnet script CreateEffortDatabase.cs --execute
 
 ```powershell
 # Preview migration without permanent changes
-dotnet script MigrateEffortData.cs
+.\RunMigrateData.bat
 ```
 
 **What dry-run does**:
@@ -95,7 +134,7 @@ dotnet script MigrateEffortData.cs
 
 ```powershell
 # Actually migrate the data
-dotnet script MigrateEffortData.cs --execute
+.\RunMigrateData.bat --apply
 ```
 
 ---
@@ -106,27 +145,27 @@ dotnet script MigrateEffortData.cs --execute
 
 ```powershell
 # Drop the schema completely
-dotnet script CreateEffortDatabase.cs --drop
+.\RunCreateDatabase.bat --drop
 
 # Test recreation with dry-run first
-dotnet script CreateEffortDatabase.cs
+.\RunCreateDatabase.bat
 
 # Then execute if dry-run succeeds
-dotnet script CreateEffortDatabase.cs --execute
+.\RunCreateDatabase.bat --apply
 ```
 
 ### Rollback Data Migration
 
 ```powershell
 # Drop and recreate schema
-dotnet script CreateEffortDatabase.cs --force
+.\RunCreateDatabase.bat --force
 # Type "DELETE" to confirm
 
 # Test with dry-run first
-dotnet script MigrateEffortData.cs
+.\RunMigrateData.bat
 
 # Then execute if dry-run succeeds
-dotnet script MigrateEffortData.cs --execute
+.\RunMigrateData.bat --apply
 ```
 
 ---
@@ -135,40 +174,51 @@ dotnet script MigrateEffortData.cs --execute
 
 After successful data migration, proceed with these tasks in order:
 
-### 1. Create Shadow Database (EffortShadow)
+### 1. Create Shadow Schema (EffortShadow)
 
 ```powershell
 # Test with dry-run first
-dotnet script CreateEffortShadow.cs
+.\RunCreateShadow.bat
 
 # Then execute if dry-run succeeds
-dotnet script CreateEffortShadow.cs --execute
+.\RunCreateShadow.bat --apply
 ```
 
-This creates a compatibility layer for the ColdFusion application with:
+This creates a compatibility layer for the ColdFusion application within the VIPER database:
 
-- Views that map legacy table/column names to the new `[VIPER].[effort]` schema
-- Automatic migration of 87 stored procedures from legacy database
+- Creates `[VIPER].[EffortShadow]` schema
+- Views that map legacy table/column names to the `[effort]` schema
+- 87 stored procedures rewritten to work with modern tables
 
-### 2. DBA Configures Database Permissions
+### 2. Verify Shadow Schema Procedures
+
+```powershell
+# Compare legacy vs shadow schema procedures
+.\RunVerifyShadow.bat
+```
+
+This verifies that [EffortShadow] schema procedures return identical results to legacy procedures, ensuring the compatibility layer works correctly.
+
+### 3. DBA Configures Database Permissions
 
 **Note:** Database permissions are configured by the DBA outside of migration scripts.
 
 The DBA will grant:
-- ColdFusion application login access to EffortShadow database
-- ColdFusion application login access to Effort database (via wrappers)
+
+- ColdFusion application login access to VIPER database ([EffortShadow] schema)
+- ColdFusion application login access to VIPER database ([effort] schema via EffortShadow views)
 - ColdFusion application login access to VIPER.users.Person
-- VIPER2 application service account access to Effort schema
+- VIPER2 application service account access to [effort] schema
 
 **Authorization in VIPER2:** The VIPER2 application uses a trusted service account with full schema access. Authorization is enforced at the application layer using RAPS permissions and the EffortPermissionService. See [Authorization_Design.md](Authorization_Design.md) for details.
 
-### 3. Update ColdFusion Datasource
+### 4. Update ColdFusion Datasource
 
 **Test environment only first!**
 
-Update ColdFusion datasource from "Efforts" to "EffortShadow".
+Update ColdFusion datasource to point to VIPER database and use [EffortShadow] schema. The ColdFusion application will continue to reference the same table names (e.g., tblEffort), but they will now resolve to [EffortShadow].[tblEffort] views in the VIPER database.
 
-### 4. ColdFusion Testing
+### 5. ColdFusion Testing
 
 Complete testing checklist:
 
@@ -178,7 +228,7 @@ Complete testing checklist:
 - [ ] Search functionality
 - [ ] Performance validation (< 20% slower than baseline)
 
-### 5. Begin VIPER2 Development (Sprint 1)
+### 6. Begin VIPER2 Development (Sprint 1)
 
 Once ColdFusion is running successfully on EffortShadow:
 
@@ -192,35 +242,39 @@ Once ColdFusion is running successfully on EffortShadow:
 
 ### Week 1: Database Creation & Data Migration
 
-**Day 1**: Create modern schema
+**Day 1**: Data quality & remediation
 
-- Test with dry-run: `dotnet script CreateEffortDatabase.cs`
-- Execute schema creation: `dotnet script CreateEffortDatabase.cs --execute`
+- Run data analysis: `.\RunDataRemediation.bat`
+- Review remediation report
+- Verify all 8 data quality tasks completed
+- Confirm 0% unmapped MothraIds
+
+**Day 2**: Create modern schema
+
+- Test with dry-run: `.\RunCreateDatabase.bat`
+- Execute schema creation: `.\RunCreateDatabase.bat --apply`
 - Validate 20 tables created
 
-**Day 2-3**: Data quality & remediation
+**Day 3-4**: Migrate data and create reporting procedures
 
-- Run data analysis scripts
-- Apply remediation
-- Verify fixes
+- Test with dry-run: `.\RunMigrateData.bat`
+- Execute migration: `.\RunMigrateData.bat --apply`
+- Test reporting procedures: `.\RunCreateReportingProcedures.bat`
+- Execute reporting procedures: `.\RunCreateReportingProcedures.bat --apply`
 
-**Day 4-5**: Migrate data
+### Week 2: Shadow Schema & ColdFusion
 
-- Test with dry-run: `dotnet script MigrateEffortData.cs`
-- Execute migration: `dotnet script MigrateEffortData.cs --execute`
+**Day 6-7**: Create EffortShadow schema and verify
 
-### Week 2: Shadow Database & ColdFusion
-
-**Day 6-7**: Create EffortShadow
-
-- Test with dry-run: `dotnet script CreateEffortShadow.cs`
-- Execute: `dotnet script CreateEffortShadow.cs --execute`
-- Automatically migrates views and stored procedures
+- Test with dry-run: `.\RunCreateShadow.bat`
+- Execute: `.\RunCreateShadow.bat --apply`
+- Automatically creates views and rewrites stored procedures
+- Verify shadow procedures: `.\RunVerifyShadow.bat`
 
 **Day 8-9**: Configure security
 
 - DBA configures database permissions
-- Grant application access to databases
+- Grant application access to VIPER database schemas
 
 **Day 10-14**: ColdFusion testing
 
@@ -261,20 +315,24 @@ Once ColdFusion is running successfully on EffortShadow:
 ### Troubleshooting
 
 **Error: "Effort schema not found"**
+
 ```powershell
-# Run CreateEffortDatabase.cs first
-dotnet script CreateEffortDatabase.cs
+# Run RunCreateDatabase.bat first
+.\RunCreateDatabase.bat
 ```
 
 **Error: "Legacy Efforts database not found"**
+
 - Check connection string in appsettings.json
 - Verify Efforts database exists and is accessible
 
 **Error: "Foreign key constraint violation"**
-- CreateEffortDatabase.cs didn't complete successfully
-- Drop and recreate: `dotnet script CreateEffortDatabase.cs --force`
+
+- RunCreateDatabase.bat didn't complete successfully
+- Drop and recreate: `.\RunCreateDatabase.bat --force`
 
 **Warning: "X persons could not be mapped"**
+
 - Expected if some MothraIds don't exist in VIPER.users.Person
 - Document these for stakeholder review
 

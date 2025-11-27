@@ -31,24 +31,25 @@ This master plan outlines an agile, feature-driven migration strategy for transf
 
 ---
 
-## Database Strategy - Shadow Database Approach
+## Database Strategy - Shadow Schema Approach
 
 ### Architecture Overview
 
-The migration uses a **Shadow Database** pattern to enable parallel operation of ColdFusion and VIPER2:
+The migration uses a **Shadow Schema** pattern to enable parallel operation of ColdFusion and VIPER2:
 
-**Two Separate Databases:**
-1. **Effort Database** - Modernized schema (single source of truth)
-2. **EffortShadow Database** - Compatibility layer (views + wrapper SPs only)
+**Two Schemas Within VIPER Database:**
+1. **[effort] Schema** - Modernized schema (single source of truth)
+2. **[EffortShadow] Schema** - Compatibility layer (views + rewritten SPs only)
 
 **Key Benefits:**
 - ✅ ColdFusion continues running unchanged during entire VIPER2 development
 - ✅ Single source of truth - no data synchronization needed
 - ✅ Both applications share same data in real-time
-- ✅ Easy cleanup - drop EffortShadow when ColdFusion retired
-- ✅ Low risk - can rollback by changing one connection string
+- ✅ Easy cleanup - drop [EffortShadow] schema when ColdFusion retired
+- ✅ Low risk - can rollback by changing one datasource configuration
+- ✅ Same-database foreign keys enable referential integrity to [users].[Person]
 
-### Effort Database (Primary)
+### [effort] Schema (Primary)
 
 **Purpose:** Modern schema with proper constraints and relationships
 
@@ -66,7 +67,7 @@ The migration uses a **Shadow Database** pattern to enable parallel operation of
 - 16 complex reporting stored procedures for performance-critical aggregations
 - MothraId → PersonId mapping handled by Entity Framework navigation properties
 
-### EffortShadow Database (Compatibility Layer)
+### [EffortShadow] Schema (Compatibility Layer)
 
 **Purpose:** Enable ColdFusion to use new schema transparently
 
@@ -243,21 +244,30 @@ The Effort system integrates with VIPER2's existing RAPS-based permission archit
 
 ## Implementation Phases & Sprint Structure
 
-### Phase 1: Shadow Database Setup (Sprint 0 - Pre-Development)
+### Phase 1: Shadow Schema Setup (Sprint 0 - Pre-Development)
 **Timeline:** Prior to Sprint 1 start (1-2 weeks)
-**Focus:** Database preparation, data migration, and shadow database creation
-**Detailed Plan:** See `Shadow_Database_Implementation_Plan.md`
+**Focus:** Database preparation, data migration, and shadow schema creation
+**Detailed Plan:** See `Shadow_Database_Guide.md`
 
-#### Week 1: Database Creation and Data Migration
+#### Week 1: Data Quality & Migration
 
-**Step 1: Data Quality Remediation**
-- [ ] Run EffortDataAnalysis.cs to identify critical data quality issues
-- [ ] Run EffortDataRemediation.cs to fix all issues
-- [ ] Verify 0 critical issues remain
+**Step 1: Data Quality Analysis & Remediation (BEFORE creating new database)**
+- [ ] Run RunDataAnalysis.bat to identify critical data quality issues in legacy Efforts database
+- [ ] Review analysis report
+- [ ] Run RunDataRemediation.bat to fix all issues in legacy Efforts database:
+  - [ ] Task 1: Merge duplicate courses (same CRN/Term/Units)
+  - [ ] Task 2: Fix missing department codes
+  - [ ] Task 3: Generate placeholder CRNs where needed
+  - [ ] Task 4: Delete negative hours records
+  - [ ] Task 5: Delete invalid MothraIds
+  - [ ] Task 6: Consolidate guest instructors → VETGUEST
+  - [ ] Task 7: Add missing persons to VIPER
+  - [ ] Task 8: Remap duplicate person records
+- [ ] Re-run RunDataAnalysis.bat to verify 0 critical issues remain (0% unmapped MothraIds)
 
 **Step 2: Create Effort Database**
-- [ ] Create Effort database (modernized schema)
-- [ ] Create all tables with proper constraints:
+- [ ] Create [VIPER].[effort] schema (modernized schema within VIPER database)
+- [ ] Create all 20 tables with proper constraints:
   - [ ] Records (tblEffort)
   - [ ] Persons (tblPerson)
   - [ ] Courses (tblCourses)
@@ -269,6 +279,8 @@ The Effort system integrates with VIPER2's existing RAPS-based permission archit
   - [ ] CourseRelationships (new)
   - [ ] AdditionalQuestions (new)
   - [ ] Audits (new)
+  - [ ] UserAccess (authorization)
+  - [ ] Plus 8 additional tables
 
 **Tables NOT Migrated:**
 
@@ -299,11 +311,11 @@ The Effort system integrates with VIPER2's existing RAPS-based permission archit
 
 **Note:** CRUD operations will be handled by Entity Framework repositories, not stored procedures.
 
-#### Week 2: Shadow Database Creation and ColdFusion Update
+#### Week 2: Shadow Schema Creation and ColdFusion Update
 
-**Step 5: Create EffortShadow Database**
-- [ ] Create EffortShadow database (empty)
-- [ ] Create 8 compatibility views:
+**Step 5: Create EffortShadow Schema**
+- [ ] Create [EffortShadow] schema in VIPER database
+- [ ] Create 19 compatibility views:
   - [ ] tblEffort → Records view
   - [ ] tblPerson → Persons view
   - [ ] tblCourses → Courses view
@@ -314,9 +326,9 @@ The Effort system integrates with VIPER2's existing RAPS-based permission archit
   - [ ] tblEffortType_LU → EffortTypes view
 
 **Step 6: Create Wrapper Stored Procedures**
-- [ ] Create 37 wrapper SPs in EffortShadow
+- [ ] Create 87 wrapper SPs in EffortShadow (rewritten from legacy)
 - [ ] Test each wrapper delegates correctly
-- [ ] Create 16 read-only reporting SPs (use views)
+- [ ] Verify all CRUD operations work through shadow layer
 
 **Step 7: Database Permissions (DBA Responsibility)**
 - [ ] DBA grants ColdFusion login access to EffortShadow
@@ -341,9 +353,9 @@ The Effort system integrates with VIPER2's existing RAPS-based permission archit
 - [ ] Ensure no degradation from baseline
 
 #### Success Criteria for Phase 1
-✅ Effort database contains all migrated data
-✅ EffortShadow database created with all views and wrapper SPs
-✅ ColdFusion updated to use EffortShadow
+✅ [effort] schema contains all migrated data
+✅ [EffortShadow] schema created with all views and rewritten SPs
+✅ ColdFusion updated to use [EffortShadow] schema
 ✅ All ColdFusion functionality working correctly
 ✅ Performance meets or exceeds baseline
 ✅ Both ColdFusion and VIPER2 can access same data

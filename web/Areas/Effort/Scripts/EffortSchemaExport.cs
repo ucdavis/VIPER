@@ -148,6 +148,8 @@ namespace Viper.Areas.Effort.Scripts
 
             WriteHeader(conn);
             ExportTables(conn);
+            ExportViews(conn);
+            ExportFunctions(conn);
             ExportStoredProcedures(conn);
 
             // Write to file
@@ -522,6 +524,87 @@ namespace Viper.Areas.Effort.Scripts
             }
 
             _output.AppendLine();
+        }
+
+        private void ExportViews(SqlConnection conn)
+        {
+            Console.WriteLine("Exporting views...");
+
+            _output.AppendLine();
+            _output.AppendLine("================================================================================");
+            _output.AppendLine("VIEWS");
+            _output.AppendLine("================================================================================");
+            _output.AppendLine();
+
+            var sql = @"
+                SELECT
+                    s.name AS VIEW_SCHEMA,
+                    v.name AS VIEW_NAME,
+                    m.definition AS VIEW_DEFINITION
+                FROM sys.views AS v
+                INNER JOIN sys.schemas AS s ON v.schema_id = s.schema_id
+                INNER JOIN sys.sql_modules AS m ON v.object_id = m.object_id
+                ORDER BY s.name, v.name";
+
+            using var cmd = new SqlCommand(sql, conn);
+            using var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+            {
+                var schema = reader.GetString(0);
+                var name = reader.GetString(1);
+                var definition = reader.IsDBNull(2) ? "(Definition not available)" : reader.GetString(2);
+
+                Console.WriteLine($"  - [{schema}].[{name}]");
+
+                _output.AppendLine("################################################################################");
+                _output.AppendLine($"VIEW: [{schema}].[{name}]");
+                _output.AppendLine("################################################################################");
+                _output.AppendLine(definition);
+                _output.AppendLine();
+            }
+        }
+
+        private void ExportFunctions(SqlConnection conn)
+        {
+            Console.WriteLine("Exporting functions...");
+
+            _output.AppendLine();
+            _output.AppendLine("================================================================================");
+            _output.AppendLine("FUNCTIONS");
+            _output.AppendLine("================================================================================");
+            _output.AppendLine();
+
+            var sql = @"
+                SELECT
+                    s.name AS ROUTINE_SCHEMA,
+                    o.name AS ROUTINE_NAME,
+                    o.type_desc AS FUNCTION_TYPE,
+                    m.definition AS ROUTINE_DEFINITION
+                FROM sys.objects AS o
+                INNER JOIN sys.schemas AS s ON o.schema_id = s.schema_id
+                INNER JOIN sys.sql_modules AS m ON o.object_id = m.object_id
+                WHERE o.type IN ('FN', 'IF', 'TF')  -- FN=Scalar, IF=Inline Table, TF=Table-Valued
+                ORDER BY s.name, o.name";
+
+            using var cmd = new SqlCommand(sql, conn);
+            using var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+            {
+                var schema = reader.GetString(0);
+                var name = reader.GetString(1);
+                var functionType = reader.GetString(2);
+                var definition = reader.IsDBNull(3) ? "(Definition not available)" : reader.GetString(3);
+
+                Console.WriteLine($"  - [{schema}].[{name}] ({functionType})");
+
+                _output.AppendLine("################################################################################");
+                _output.AppendLine($"FUNCTION: [{schema}].[{name}] ({functionType})");
+                _output.AppendLine("################################################################################");
+                _output.AppendLine(definition);
+                _output.AppendLine();
+            }
         }
 
         private void ExportStoredProcedures(SqlConnection conn)

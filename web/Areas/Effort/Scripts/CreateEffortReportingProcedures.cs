@@ -83,6 +83,10 @@ namespace Viper.Areas.Effort.Scripts
             }
             catch (Exception ex)
             {
+                // Rethrow critical exceptions that should never be handled
+                if (ex is OutOfMemoryException || ex is StackOverflowException || ex is System.Threading.ThreadAbortException || ex is OperationCanceledException)
+                    throw;
+
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"ERROR: {ex.Message}");
                 Console.WriteLine($"Stack Trace: {ex.StackTrace}");
@@ -265,7 +269,7 @@ namespace Viper.Areas.Effort.Scripts
                 Console.ResetColor();
                 successCount++;
             }
-            catch (Exception ex)
+            catch (SqlException ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"  ✗ FAILED: [effort].[{procName}] - {ex.Message}");
@@ -339,7 +343,7 @@ namespace Viper.Areas.Effort.Scripts
                             Console.ResetColor();
                             deletedCount++;
                         }
-                        catch (Exception ex)
+                        catch (SqlException ex)
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
                             Console.WriteLine($"  ✗ Failed to delete [effort].[{procName}]: {ex.Message}");

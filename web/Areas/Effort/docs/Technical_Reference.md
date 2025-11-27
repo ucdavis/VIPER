@@ -352,11 +352,11 @@ Reference documentation for the Effort system database schema and field mappings
 ## Database Architecture
 
 **Modern schema**: `[VIPER].[effort]` (within VIPER database, not separate)
-**Shadow database**: `EffortShadow` (separate database with views for ColdFusion)
+**Shadow schema**: `[VIPER].[EffortShadow]` (schema within VIPER database with views for ColdFusion)
 
 **Connection**:
 - VIPER2: Connects to VIPER database, uses [effort] schema
-- ColdFusion: Connects to EffortShadow database, uses views
+- ColdFusion: Connects to VIPER database, uses [EffortShadow] schema views
 
 ---
 
