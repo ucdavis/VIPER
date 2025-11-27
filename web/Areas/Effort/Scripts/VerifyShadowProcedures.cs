@@ -244,7 +244,7 @@ namespace Viper.Areas.Effort.Scripts
                             result.Warnings.Add($"Shadow error: {shadowException.Message}");
                             result.Warnings.Add("Likely cause: External database access, missing permissions, or data dependencies");
                         }
-                        else if (legacyException != null && shadowException == null)
+                        else if (legacyException != null)
                         {
                             // Legacy failed but shadow worked - NEEDS INVESTIGATION
                             // We cannot verify shadow correctness without a working legacy baseline

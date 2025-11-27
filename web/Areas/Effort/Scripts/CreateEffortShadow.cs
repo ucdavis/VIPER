@@ -117,9 +117,6 @@ Console.WriteLine($"Start Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
 Console.WriteLine("============================================");
 Console.WriteLine();
 
-// EffortShadow is now a schema within VIPER database, not a separate database
-string shadowConnectionString = viperConnectionString;
-
 Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
 Console.WriteLine();
 
@@ -1709,9 +1706,7 @@ static int MigrateFunctionsInTransaction(SqlConnection connection, SqlTransactio
 
     foreach (Match match in matches)
     {
-        var schema = match.Groups[1].Value;
         var name = match.Groups[2].Value;
-        var type = match.Groups[3].Value;
         var comments = match.Groups[4].Value;  // Optional comments before CREATE
         var definition = match.Groups[5].Value;  // CREATE FUNCTION ... statement
 

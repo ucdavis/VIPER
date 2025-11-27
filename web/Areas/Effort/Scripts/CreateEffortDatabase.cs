@@ -130,7 +130,7 @@ namespace Viper.Areas.Effort.Scripts
                     return 0;
                 }
             }
-            else if (tablesExist && !forceRecreate && !dropOnly)
+            else if (tablesExist && !forceRecreate)
             {
                 // Default behavior: skip if tables exist
                 Console.ForegroundColor = ConsoleColor.Yellow;
