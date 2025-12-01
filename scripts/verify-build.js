@@ -100,7 +100,7 @@ async function verifyDotNetTests() {
     logger.info("Checking .NET test compilation...")
 
     try {
-        await runCommand("dotnet", ["build", "./test/Viper.Test.csproj", "--no-restore", "--nologo"], {
+        await runCommand("dotnet", ["build", "./test/Viper.test.csproj", "--no-restore", "--nologo"], {
             env: { ...process.env, DOTNET_USE_COMPILER_SERVER: "1", DOTNET_CLI_FORCE_UTF8_ENCODING: "true" },
         })
 

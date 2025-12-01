@@ -1,9 +1,5 @@
 ﻿using NLog;
-using NuGet.Protocol.Plugins;
-using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Reflection.Metadata.Ecma335;
-using System.Security.Cryptography.Pkcs;
 using System.Text.Json;
 using System.Web;
 using Viper.Models.IAM;
@@ -18,6 +14,7 @@ namespace Viper.Classes.Utilities
     {
         private const string apiBase = "https://iet-ws.ucdavis.edu/api/";
         private static readonly List<string> reservedParamKeys = new() { "key", "v" };
+        private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
         private const string version = "1.0";
         private readonly IHttpClientFactory _factory;
         private readonly Logger _logger = LogManager.GetLogger("IAM");
@@ -415,7 +412,7 @@ namespace Viper.Classes.Utilities
                 else
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
-                    var content = Newtonsoft.Json.JsonConvert.DeserializeObject<IntermediateResponse<T>>(responseContent);
+                    var content = JsonSerializer.Deserialize<IntermediateResponse<T>>(responseContent, _jsonOptions);
                     if (content == null)
                     {
                         r.ErrorMessage = "Could not parse response.";
@@ -481,8 +478,8 @@ namespace Viper.Classes.Utilities
         private class IntermediateResponse<T> where T : IIamData
         {
             public string ResponseDetails { get; set; } = string.Empty;
-            public int ResponseStatus { get; set; }
-#pragma warning disable CS0649 // Assigned by JsonConvert.DeserializeObject
+            public int ResponseStatus { get; }
+#pragma warning disable CS0649 // Assigned by JsonSerializer.Deserialize
             public DataArray<T>? ResponseData;
 #pragma warning restore CS0649 // Field 'IamApi.IntermediateResponse<T>.ResponseData' is never assigned to, and will always have its default value null
         }

@@ -6,6 +6,7 @@
             id="mainLayoutHeader"
             height-hint="98"
             v-cloak
+            class="no-print"
         >
             <div
                 v-show="false"
@@ -170,7 +171,7 @@
 
         <q-footer
             elevated
-            class="bg-white"
+            class="bg-white no-print"
             v-cloak
         >
             <div
@@ -242,9 +243,15 @@ export default {
         return { userStore, mainLeftDrawer }
     },
     props: {
-        nav: String,
+        nav: {
+            type: String,
+            default: "",
+        },
         navarea: Boolean,
-        highlightedTopNav: String,
+        highlightedTopNav: {
+            type: String,
+            default: "",
+        },
     },
     components: {
         LeftNav,
