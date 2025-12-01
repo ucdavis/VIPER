@@ -250,14 +250,15 @@ export default {
         return { userStore, mainLeftDrawer }
     },
     props: {
-        nav: {
-            type: String,
-            default: "",
-        },
+        nav: String,
         navarea: Boolean,
         highlightedTopNav: {
             type: String,
             default: "",
+        },
+        breadcrumbs: {
+            type: Array as PropType<BreadCrumb[]>,
+            default: () => [],
         },
     },
     components: {
