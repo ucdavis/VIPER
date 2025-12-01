@@ -1,4 +1,4 @@
-﻿namespace Viper.Areas.Students.Models
+namespace Viper.Areas.Students.Models
 {
     public class StudentClassYearProblem : Student
     {

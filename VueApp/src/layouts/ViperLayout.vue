@@ -6,6 +6,7 @@
             id="mainLayoutHeader"
             height-hint="98"
             v-cloak
+            class="no-print"
         >
             <div
                 v-show="false"
@@ -170,7 +171,7 @@
 
         <q-footer
             elevated
-            class="bg-white"
+            class="bg-white no-print"
             v-cloak
         >
             <div
@@ -257,10 +258,6 @@ export default {
         highlightedTopNav: {
             type: String,
             default: "",
-        },
-        breadcrumbs: {
-            type: Array as PropType<BreadCrumb[]>,
-            default: () => [],
         },
     },
     components: {

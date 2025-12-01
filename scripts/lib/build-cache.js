@@ -2,20 +2,24 @@
 
 const fs = require("node:fs")
 const path = require("node:path")
+const crypto = require("node:crypto")
 const { execFileSync } = require("node:child_process")
 const { createLogger } = require("./script-utils")
-const recursiveLastModified = require("recursive-last-modified")
 
 const logger = createLogger("Cache")
 
 /**
- * Build caching utilities to avoid redundant builds during linting
- * Tracks file modifications and build timestamps to determine if rebuilds are needed
+ * Build caching utilities using content hashing
+ * Tracks file content hashes to determine if rebuilds are needed
+ * More reliable than timestamp-based caching - eliminates need for --force flag
  */
 
 // Cache directory
 const CACHE_DIR = path.join(__dirname, "..", "..", ".build-cache")
-const CACHE_FILE = path.join(CACHE_DIR, "build-timestamps.json")
+const CACHE_FILE = path.join(CACHE_DIR, "build-hashes.json")
+
+// Hash display length for log messages
+const HASH_DISPLAY_LENGTH = 12
 
 // Ensure cache directory exists
 function ensureCacheDir() {
@@ -25,41 +29,93 @@ function ensureCacheDir() {
 }
 
 /**
- * Get the timestamp of the most recent file modification in a directory
- * Uses recursive-last-modified package for reliable directory traversal
- *
- * NOTE: The recursive-last-modified library (v1.0.6) is synchronous and doesn't
- * currently support exclusion lists for directories like node_modules, bin, or obj.
- * This is a known limitation but acceptable for our use case since:
- * 1. We're only scanning for specific extensions (.cs, .csproj) which naturally excludes most large folders
- * 2. The library is synchronous and fast enough for our build caching needs
- * 3. Future versions may add exclusion support per the package roadmap
- *
+ * Recursively find all files matching extensions in a directory
+ * @param {string} dir - Directory to search
+ * @param {string[]} extensions - File extensions to include (e.g., ['.cs', '.csproj'])
+ * @param {string[]} excludeDirs - Directories to exclude (e.g., ['bin', 'obj', 'node_modules'])
+ * @returns {string[]} - Array of absolute file paths
+ */
+function findFiles(dir, extensions = [".cs", ".csproj"], excludeDirs = ["bin", "obj", "node_modules", ".git"]) {
+    const files = []
+
+    function scan(currentDir) {
+        try {
+            const entries = fs.readdirSync(currentDir, { withFileTypes: true })
+
+            for (const entry of entries) {
+                const fullPath = path.join(currentDir, entry.name)
+
+                if (entry.isDirectory()) {
+                    // Skip excluded directories
+                    if (!excludeDirs.includes(entry.name)) {
+                        scan(fullPath)
+                    }
+                } else if (entry.isFile()) {
+                    const ext = path.extname(entry.name).toLowerCase()
+                    if (extensions.includes(ext)) {
+                        files.push(fullPath)
+                    }
+                }
+            }
+        } catch (error) {
+            logger.warning(`Could not scan directory ${currentDir}: ${error.message}`)
+        }
+    }
+
+    scan(dir)
+    return files.sort() // Sort for consistent ordering
+}
+
+/**
+ * Compute SHA-256 hash of a single file
+ * @param {string} filePath - Path to the file
+ * @returns {string} - Hex-encoded hash
+ */
+function hashFile(filePath) {
+    try {
+        const hash = crypto.createHash("sha256")
+        const content = fs.readFileSync(filePath)
+        hash.update(content)
+        return hash.digest("hex")
+    } catch (error) {
+        logger.warning(`Could not hash file ${filePath}: ${error.message}`)
+        return "0"
+    }
+}
+
+/**
+ * Compute combined hash of all relevant files in a project
  * @param {string} projectPath - Path to the project directory
  * @param {string[]} extensions - File extensions to check (e.g., ['.cs', '.csproj'])
- * @returns {number} - Latest modification timestamp (synchronously returned)
+ * @returns {string} - Hex-encoded hash of all file contents
  */
-function getLatestFileTimestamp(projectPath, extensions = [".cs", ".csproj"]) {
+function computeProjectHash(projectPath, extensions = [".cs", ".csproj"]) {
     try {
-        const result = recursiveLastModified(projectPath, { extensions })
+        const files = findFiles(projectPath, extensions)
 
-        // Coerce to number and validate
-        const timestamp = Number(result)
-        if (!Number.isFinite(timestamp) || timestamp <= 0) {
-            logger.warning(`Unexpected timestamp result from recursive-last-modified for ${projectPath}: ${result}`)
-            return 0
+        if (files.length === 0) {
+            logger.warning(`No files found in ${projectPath} with extensions ${extensions.join(", ")}`)
+            return "0"
         }
 
-        return timestamp
+        // Hash each file individually, then combine hashes
+        const combinedHash = crypto.createHash("sha256")
+
+        for (const file of files) {
+            const fileHash = hashFile(file)
+            combinedHash.update(fileHash)
+        }
+
+        return combinedHash.digest("hex")
     } catch (error) {
-        logger.warning(`Could not scan directory ${projectPath}: ${error.message}`)
-        return 0
+        logger.warning(`Could not compute hash for ${projectPath}: ${error.message}`)
+        return "0"
     }
 }
 
 /**
  * Load build cache from disk
- * @returns {Object} - Cache object with project timestamps and build outputs
+ * @returns {Object} - Cache object with project hashes and build outputs
  */
 function loadBuildCache() {
     ensureCacheDir()
@@ -90,14 +146,14 @@ function saveBuildCache(cache) {
 }
 
 /**
- * Check if a project needs to be built based on file timestamps
+ * Check if a project needs to be built based on file content hashes
  * @param {string} projectPath - Path to the project directory
  * @param {string} projectName - Name of the project for caching
  * @returns {boolean} - True if build is needed
  */
 function needsBuild(projectPath, projectName) {
     const cache = loadBuildCache()
-    const latestFileTime = getLatestFileTimestamp(projectPath)
+    const currentHash = computeProjectHash(projectPath)
     const cacheEntry = cache[projectName]
 
     // Always rebuild if no cache entry exists
@@ -106,21 +162,19 @@ function needsBuild(projectPath, projectName) {
         return true
     }
 
-    // Handle both old (timestamp) and new (object) cache formats
-    const lastBuildTime = cacheEntry && typeof cacheEntry === "object" ? cacheEntry.timestamp : cacheEntry || 0
+    const cachedHash = cacheEntry.hash || "0"
 
-    // Check if files have been modified since last build
-    // Use a 100ms buffer to account for filesystem timestamp granularity
-    // (Windows NTFS and some network filesystems have ~100ms timestamp resolution)
-    const TIMESTAMP_BUFFER = 100
-    const needsRebuild = latestFileTime > lastBuildTime + TIMESTAMP_BUFFER
+    // Compare content hashes
+    const needsRebuild = currentHash !== cachedHash
 
     if (needsRebuild) {
         logger.info(
-            `📝 Build needed for ${projectName}: files modified since last build (latest: ${new Date(latestFileTime).toISOString()}, cached: ${new Date(lastBuildTime).toISOString()})`,
+            `📝 Build needed for ${projectName}: file content has changed (hash: ${currentHash.slice(0, HASH_DISPLAY_LENGTH)}... != cached: ${cachedHash.slice(0, HASH_DISPLAY_LENGTH)}...)`,
         )
     } else {
-        logger.info(`✅ Skipping build for ${projectName}: no changes since last build`)
+        logger.info(
+            `✅ Skipping build for ${projectName}: no changes detected (hash: ${currentHash.slice(0, HASH_DISPLAY_LENGTH)}...)`,
+        )
     }
 
     return needsRebuild
@@ -128,13 +182,17 @@ function needsBuild(projectPath, projectName) {
 
 /**
  * Mark a project as successfully built and cache the build output
+ * @param {string} projectPath - Path to the project directory
  * @param {string} projectName - Name of the project
  * @param {string} buildOutput - Build output to cache
  */
-function markAsBuilt(projectName, buildOutput = "") {
+function markAsBuilt(projectPath, projectName, buildOutput = "") {
     const cache = loadBuildCache()
+    const currentHash = computeProjectHash(projectPath)
+
     cache[projectName] = {
-        timestamp: Date.now(),
+        hash: currentHash,
+        timestamp: Date.now(), // Keep timestamp for informational purposes
         output: buildOutput,
     }
     saveBuildCache(cache)
@@ -205,7 +263,7 @@ function buildIfNeeded(projectPath, projectName, buildArgs = ["build"], options 
             ...options,
         })
 
-        markAsBuilt(projectName, result)
+        markAsBuilt(projectPath, projectName, result)
         logger.success(`✅ Build completed for ${projectName}`)
 
         return { success: true, output: result, wasCached: false }
@@ -215,7 +273,7 @@ function buildIfNeeded(projectPath, projectName, buildArgs = ["build"], options 
         const buildOutput = (error.stdout || "") + (error.stderr || "")
 
         // Store the build output even for failed builds so analyzers can process it
-        markAsBuilt(projectName, buildOutput)
+        markAsBuilt(projectPath, projectName, buildOutput)
 
         logger.warning(`⚠️  Build completed with errors for ${projectName} (analyzer output captured)`)
 
@@ -225,11 +283,113 @@ function buildIfNeeded(projectPath, projectName, buildArgs = ["build"], options 
     }
 }
 
+/**
+ * Check if format check is needed for specific files based on content hashes
+ * @param {string[]} filePaths - Array of file paths to check
+ * @param {string} cacheKey - Unique key for this format check (e.g., "web-format")
+ * @returns {boolean} - True if format check is needed
+ */
+function needsFormatCheck(filePaths, cacheKey) {
+    const cache = loadBuildCache()
+    const cacheEntry = cache[cacheKey]
+
+    // Compute combined hash of all specified files
+    const currentHash = crypto.createHash("sha256")
+    const sortedPaths = [...filePaths].sort() // Ensure consistent ordering
+
+    for (const filePath of sortedPaths) {
+        try {
+            const fileHash = hashFile(filePath)
+            currentHash.update(fileHash)
+        } catch (error) {
+            logger.warning(`Could not hash file ${filePath}: ${error.message}`)
+            return true // If we can't hash, assume format check is needed
+        }
+    }
+
+    const currentHashDigest = currentHash.digest("hex")
+
+    // Check if cache entry exists and hash matches
+    if (!cacheEntry || typeof cacheEntry !== "object") {
+        logger.info(`📝 Format check needed for ${cacheKey}: no valid cache entry found`)
+        return true
+    }
+
+    const cachedHash = cacheEntry.hash || "0"
+    const needsCheck = currentHashDigest !== cachedHash
+
+    if (needsCheck) {
+        logger.info(
+            `📝 Format check needed for ${cacheKey}: file content changed (hash: ${currentHashDigest.slice(0, HASH_DISPLAY_LENGTH)}... != cached: ${cachedHash.slice(0, HASH_DISPLAY_LENGTH)}...)`,
+        )
+    } else {
+        logger.info(
+            `✅ Skipping format check for ${cacheKey}: no changes detected (hash: ${currentHashDigest.slice(0, HASH_DISPLAY_LENGTH)}...)`,
+        )
+    }
+
+    return needsCheck
+}
+
+/**
+ * Mark format check as complete and cache the results
+ * @param {string[]} filePaths - Array of file paths that were checked
+ * @param {string} cacheKey - Unique key for this format check
+ * @param {string} formatOutput - Format check output to cache
+ */
+function markFormatChecked(filePaths, cacheKey, formatOutput = "") {
+    const cache = loadBuildCache()
+
+    // Compute hash of all specified files
+    const currentHash = crypto.createHash("sha256")
+    const sortedPaths = [...filePaths].sort()
+
+    for (const filePath of sortedPaths) {
+        try {
+            const fileHash = hashFile(filePath)
+            currentHash.update(fileHash)
+        } catch (error) {
+            logger.warning(`Could not hash file ${filePath}: ${error.message}`)
+            return
+        }
+    }
+
+    const currentHashDigest = currentHash.digest("hex")
+
+    cache[cacheKey] = {
+        hash: currentHashDigest,
+        timestamp: Date.now(),
+        output: formatOutput,
+        files: sortedPaths, // Store file list for debugging
+    }
+
+    saveBuildCache(cache)
+}
+
+/**
+ * Get cached format check output
+ * @param {string} cacheKey - Unique key for this format check
+ * @returns {string|null} - Cached format output or null if not cached
+ */
+function getCachedFormatOutput(cacheKey) {
+    const cache = loadBuildCache()
+    const cacheEntry = cache[cacheKey]
+
+    if (!cacheEntry || typeof cacheEntry !== "object") {
+        return null
+    }
+
+    return cacheEntry.output || ""
+}
+
 module.exports = {
     needsBuild,
     markAsBuilt,
     getCachedBuildOutput,
     clearBuildCache,
     buildIfNeeded,
-    getLatestFileTimestamp,
+    computeProjectHash,
+    needsFormatCheck,
+    markFormatChecked,
+    getCachedFormatOutput,
 }
