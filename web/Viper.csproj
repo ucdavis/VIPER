@@ -83,6 +83,7 @@
   </ItemGroup>
 
   <Target Name="RestoreClientSideLibraries" BeforeTargets="Build">
+    <Exec Command="dotnet tool install -g Microsoft.Web.LibraryManager.Cli 2>nul || ver >nul" IgnoreExitCode="true" />
     <Exec Command="libman restore" WorkingDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 </Project>
