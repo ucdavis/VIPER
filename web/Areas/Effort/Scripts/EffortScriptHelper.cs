@@ -170,6 +170,71 @@ namespace Viper.Areas.Effort.Scripts
         }
 
         /// <summary>
+        /// Derives the academic year string from a date.
+        /// Academic year runs July 1 to June 30 (e.g., July 2024 = "2024-2025", June 2024 = "2023-2024").
+        /// This aligns with the legacy ColdFusion Effort system's date-based academic year calculation.
+        /// </summary>
+        /// <param name="date">The date to derive academic year from</param>
+        /// <returns>Academic year string in format "YYYY-YYYY"</returns>
+        public static string GetAcademicYearFromDate(DateTime date)
+        {
+            int startYear = date.Month >= 7 ? date.Year : date.Year - 1;
+            return $"{startYear}-{startYear + 1}";
+        }
+
+        /// <summary>
+        /// Returns the SQL CASE expression for deriving academic year from a date column.
+        /// Use this in SQL queries that need to derive academic year from percent_start.
+        /// This matches the logic in GetAcademicYearFromDate() and the shadow view derivation.
+        /// </summary>
+        /// <param name="dateColumn">The name of the date column (e.g., "perc.percent_start")</param>
+        /// <returns>SQL CASE expression that evaluates to "YYYY-YYYY" format</returns>
+        public static string GetAcademicYearFromDateSql(string dateColumn)
+        {
+            return $@"CASE
+                WHEN MONTH({dateColumn}) >= 7 THEN
+                    CAST(YEAR({dateColumn}) AS varchar) + '-' + CAST(YEAR({dateColumn})+1 AS varchar)
+                ELSE
+                    CAST(YEAR({dateColumn})-1 AS varchar) + '-' + CAST(YEAR({dateColumn}) AS varchar)
+            END";
+        }
+
+        /// <summary>
+        /// Generates all possible TermCodes for an academic year.
+        /// UC Davis SVM uses: 07=Summer II, 08=Summer Quarter, 10=Fall Quarter,
+        /// 01=Winter Quarter, 02=Spring Semester, 03=Spring Quarter, 04=Summer Semester, 05=Summer I, 06=Special.
+        /// Academic year "2002-2003" spans July 2002 - June 2003.
+        /// Use this as a fallback when tblStatus doesn't have an entry for an old academic year.
+        /// </summary>
+        /// <param name="academicYear">Academic year string (e.g., "2002-2003")</param>
+        /// <returns>HashSet of valid TermCodes for that academic year</returns>
+        public static HashSet<int> GetTermCodesForAcademicYear(string academicYear)
+        {
+            var parts = academicYear.Split('-');
+            if (parts.Length != 2
+                || !int.TryParse(parts[0], out int startYear)
+                || !int.TryParse(parts[1], out int endYear))
+            {
+                throw new ArgumentException($"Invalid academic year format: '{academicYear}'. Expected 'YYYY-YYYY'.", nameof(academicYear));
+            }
+
+            // Start year terms: 07 (Summer II), 08 (Summer Quarter), 10 (Fall Quarter)
+            // End year terms: 01 (Winter), 02 (Spring Sem), 03 (Spring Qtr), 04 (Summer Sem), 05 (Summer I), 06 (Special)
+            return new HashSet<int>
+            {
+                startYear * 100 + 7,   // Summer II
+                startYear * 100 + 8,   // Summer Quarter
+                startYear * 100 + 10,  // Fall Quarter
+                endYear * 100 + 1,     // Winter Quarter
+                endYear * 100 + 2,     // Spring Semester
+                endYear * 100 + 3,     // Spring Quarter
+                endYear * 100 + 4,     // Summer Semester
+                endYear * 100 + 5,     // Summer I
+                endYear * 100 + 6      // Special
+            };
+        }
+
+        /// <summary>
         /// Loads configuration from appsettings.json files and AWS Parameter Store.
         /// Falls back gracefully to appsettings.json only if AWS is unavailable.
         /// </summary>

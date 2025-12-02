@@ -37,10 +37,13 @@ namespace Viper.Areas.Effort.Scripts
 
         // Columns to ignore during comparison per procedure (identity columns that differ between Legacy and Shadow)
         // Key: procedure name, Value: set of column names to ignore (case-insensitive)
+        // NOTE: As of the 1:1 ID mapping fix, percent_ID should now match between Legacy and Shadow.
+        // Keeping this configuration in case there are edge cases or if we need to revert.
         private static readonly Dictionary<string, HashSet<string>> ColumnsToIgnore = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
         {
-            // percent_ID is an identity column - Legacy has original IDs (59903), Shadow has new IDs (12079)
+            // percent_ID now uses 1:1 mapping from legacy percent_ID via SET IDENTITY_INSERT
             // The ColdFusion code only uses mothraid from this procedure (valueList(clin_instructors.mothraid))
+            // Keeping this ignore rule until verified that all IDs match after migration
             ["usp_getInstructorsWithClinicalEffort"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "percent_ID" }
         };
 
@@ -556,9 +559,12 @@ namespace Viper.Areas.Effort.Scripts
             Console.ResetColor();
             Console.WriteLine("================================================================================");
 
-            // Fail if any procedures failed OR need investigation (both legacy and shadow failed)
+            // Run tblPercent migration verification (top 25 users comparison)
+            int percentDiscrepancies = VerifyTblPercentByTopUsers(legacyConnectionString, shadowConnectionString, verboseMode);
+
+            // Fail if any procedures failed OR need investigation OR percent migration has discrepancies
             // NeedsInvestigation indicates environmental issues that prevent validation
-            return (report.FailedProcedures == 0 && report.NeedsInvestigation == 0) ? 0 : 1;
+            return (report.FailedProcedures == 0 && report.NeedsInvestigation == 0 && percentDiscrepancies == 0) ? 0 : 1;
         }
 
         // ============================================================================
@@ -1418,7 +1424,22 @@ namespace Viper.Areas.Effort.Scripts
                 var legacyValue = legacyRow[legacyCol];
                 var shadowValue = shadowRow[shadowCol];
 
-                // Compare values
+                // Detect whitespace padding differences (char vs varchar type mismatch)
+                // This catches cases where strings are semantically equal but have different lengths
+                // due to CHAR column padding with trailing spaces
+                if (legacyValue is string legacyStr && shadowValue is string shadowStr)
+                {
+                    if (legacyStr != shadowStr && legacyStr.Trim() == shadowStr.Trim())
+                    {
+                        result.Warnings.Add(
+                            $"Row {rowIndex}, Column '{legacyCol}': WHITESPACE PADDING DIFFERENCE - " +
+                            $"Legacy='{legacyStr}' ({legacyStr.Length} chars), " +
+                            $"Shadow='{shadowStr}' ({shadowStr.Length} chars). " +
+                            "This indicates a char/varchar type mismatch in the schema.");
+                    }
+                }
+
+                // Compare values (still uses trimmed comparison for compatibility)
                 if (!ValuesEqual(legacyValue, shadowValue))
                 {
                     result.Differences.Add($"Row {rowIndex}, Column '{legacyCol}': Legacy='{legacyValue}' vs Shadow='{shadowValue}'");
@@ -1457,6 +1478,233 @@ namespace Viper.Areas.Effort.Scripts
         private static bool IsNumeric(object value)
         {
             return value is int || value is decimal || value is double || value is float || value is long;
+        }
+
+        /// <summary>
+        /// Verifies tblPercent migration by comparing the top 25 users with most records.
+        /// This method filters out orphaned records (those without a corresponding tblPerson entry)
+        /// since these are intentionally not migrated per tblPercent-tblPerson-relationship.md.
+        /// </summary>
+        /// <param name="legacyConnectionString">Connection string for legacy Effort database</param>
+        /// <param name="shadowConnectionString">Connection string for VIPER database with EffortShadow schema</param>
+        /// <param name="verbose">Enable verbose output</param>
+        /// <returns>Number of discrepancies found (0 = all records match)</returns>
+        public static int VerifyTblPercentByTopUsers(string legacyConnectionString, string shadowConnectionString, bool verbose = false)
+        {
+            Console.WriteLine();
+            Console.WriteLine("================================================================================");
+            Console.WriteLine("tblPercent Migration Verification (Top 25 Users)");
+            Console.WriteLine("================================================================================");
+
+            // Use shared helper to get academic year SQL expression
+            var academicYearExpr = EffortScriptHelper.GetAcademicYearFromDateSql("p.percent_start");
+
+            // Step 1: Find top 25 people with most non-orphaned records in legacy
+            // IMPORTANT: Only count records that have a corresponding tblPerson entry
+            // (orphaned records are intentionally not migrated per tblPercent-tblPerson-relationship.md)
+            var topUsersQuery = $@"
+                SELECT TOP 25 p.percent_MothraID, COUNT(*) as cnt
+                FROM tblPercent p
+                WHERE p.percent_start IS NOT NULL
+                  AND EXISTS (
+                    SELECT 1 FROM tblPerson per
+                    INNER JOIN tblStatus stat ON per.person_TermCode = stat.status_TermCode
+                    WHERE per.person_MothraID = p.percent_MothraID
+                      AND stat.status_AcademicYear = {academicYearExpr}
+                )
+                GROUP BY p.percent_MothraID
+                ORDER BY cnt DESC";
+
+            var topUsers = new List<(string MothraId, int LegacyCount)>();
+            int totalDiscrepancies = 0;
+
+            using (var legacyConn = new SqlConnection(legacyConnectionString))
+            {
+                legacyConn.Open();
+                using var cmd = new SqlCommand(topUsersQuery, legacyConn);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    topUsers.Add((reader.GetString(0), reader.GetInt32(1)));
+                }
+            }
+
+            Console.WriteLine($"Found {topUsers.Count} users with the most percentage records.");
+            Console.WriteLine();
+
+            // Step 2: For each user, compare legacy (excluding orphans) vs shadow
+            foreach (var user in topUsers)
+            {
+                Console.Write($"Checking MothraID {user.MothraId} ({user.LegacyCount} records in legacy)... ");
+
+                // Get legacy records (excluding orphans)
+                var legacyRecords = GetLegacyPercentRecords(legacyConnectionString, user.MothraId);
+
+                // Get shadow records
+                var shadowRecords = GetShadowPercentRecords(shadowConnectionString, user.MothraId);
+
+                // Compare using composite key: typeID + start + unit + modifier
+                var legacySet = legacyRecords.Select(r => GetPercentRecordKey(r)).ToHashSet();
+                var shadowSet = shadowRecords.Select(r => GetPercentRecordKey(r)).ToHashSet();
+
+                var missingInShadow = legacySet.Except(shadowSet).ToList();
+                var extraInShadow = shadowSet.Except(legacySet).ToList();
+
+                if (missingInShadow.Count == 0 && extraInShadow.Count == 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"✓ MATCH ({shadowRecords.Count} records)");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"✗ MISMATCH");
+                    Console.ResetColor();
+                    totalDiscrepancies++;
+
+                    if (missingInShadow.Count > 0)
+                    {
+                        Console.WriteLine($"    Missing in shadow: {missingInShadow.Count}");
+                        if (verbose)
+                        {
+                            foreach (var key in missingInShadow.Take(5))
+                            {
+                                Console.WriteLine($"      - {key}");
+                            }
+                            if (missingInShadow.Count > 5)
+                                Console.WriteLine($"      ... and {missingInShadow.Count - 5} more");
+                        }
+                    }
+
+                    if (extraInShadow.Count > 0)
+                    {
+                        Console.WriteLine($"    Extra in shadow: {extraInShadow.Count}");
+                        if (verbose)
+                        {
+                            foreach (var key in extraInShadow.Take(5))
+                            {
+                                Console.WriteLine($"      - {key}");
+                            }
+                            if (extraInShadow.Count > 5)
+                                Console.WriteLine($"      ... and {extraInShadow.Count - 5} more");
+                        }
+                    }
+                }
+            }
+
+            Console.WriteLine();
+            if (totalDiscrepancies == 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("✓ All top users' percentage records verified successfully");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"✗ {totalDiscrepancies} of {topUsers.Count} users have discrepancies");
+                Console.ResetColor();
+            }
+            Console.WriteLine("================================================================================");
+
+            return totalDiscrepancies;
+        }
+
+        private static List<PercentRecord> GetLegacyPercentRecords(string connectionString, string mothraId)
+        {
+            var records = new List<PercentRecord>();
+            var academicYearExpr = EffortScriptHelper.GetAcademicYearFromDateSql("p.percent_start");
+
+            // Query legacy records, excluding orphans (records without corresponding tblPerson entry)
+            var query = $@"
+                SELECT p.percent_ID, p.percent_TypeID, p.percent_start, p.percent_end,
+                       p.percent_Percent, p.percent_Unit, p.percent_Modifier
+                FROM tblPercent p
+                WHERE p.percent_MothraID = @MothraId
+                  AND p.percent_start IS NOT NULL
+                  AND EXISTS (
+                    SELECT 1 FROM tblPerson per
+                    INNER JOIN tblStatus stat ON per.person_TermCode = stat.status_TermCode
+                    WHERE per.person_MothraID = p.percent_MothraID
+                      AND stat.status_AcademicYear = {academicYearExpr}
+                )
+                ORDER BY p.percent_start, p.percent_TypeID";
+
+            using var conn = new SqlConnection(connectionString);
+            conn.Open();
+            using var cmd = new SqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@MothraId", mothraId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                records.Add(new PercentRecord
+                {
+                    Id = reader.GetInt32(0),
+                    TypeId = reader.GetInt32(1),
+                    StartDate = reader.GetDateTime(2),
+                    EndDate = reader.IsDBNull(3) ? null : reader.GetDateTime(3),
+                    Percentage = reader.IsDBNull(4) ? null : Convert.ToDecimal(reader.GetDouble(4)),
+                    Unit = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    Modifier = reader.IsDBNull(6) ? null : reader.GetString(6)
+                });
+            }
+
+            return records;
+        }
+
+        private static List<PercentRecord> GetShadowPercentRecords(string connectionString, string mothraId)
+        {
+            var records = new List<PercentRecord>();
+
+            // Query shadow view (tblPercent in EffortShadow schema)
+            var query = @"
+                SELECT s.percent_ID, s.percent_TypeID, s.percent_start, s.percent_end,
+                       s.percent_Percent, s.percent_Unit, s.percent_Modifier
+                FROM [EffortShadow].[tblPercent] s
+                WHERE s.percent_MothraID = @MothraId
+                ORDER BY s.percent_start, s.percent_TypeID";
+
+            using var conn = new SqlConnection(connectionString);
+            conn.Open();
+            using var cmd = new SqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@MothraId", mothraId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                records.Add(new PercentRecord
+                {
+                    Id = reader.GetInt32(0),
+                    TypeId = reader.GetInt32(1),
+                    StartDate = reader.GetDateTime(2),
+                    EndDate = reader.IsDBNull(3) ? null : reader.GetDateTime(3),
+                    Percentage = reader.IsDBNull(4) ? null : Convert.ToDecimal(reader.GetDouble(4)),
+                    Unit = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    Modifier = reader.IsDBNull(6) ? null : reader.GetString(6)
+                });
+            }
+
+            return records;
+        }
+
+        private static string GetPercentRecordKey(PercentRecord record)
+        {
+            // Composite key: typeID + startDate + unit + modifier
+            // (start date formatted as ISO 8601 for reliable comparison)
+            var unit = string.IsNullOrWhiteSpace(record.Unit) ? "NULL" : record.Unit.Trim();
+            var modifier = string.IsNullOrWhiteSpace(record.Modifier) ? "NULL" : record.Modifier.Trim();
+            return $"Type:{record.TypeId}|Start:{record.StartDate:yyyy-MM-dd}|Unit:{unit}|Mod:{modifier}";
+        }
+
+        private class PercentRecord
+        {
+            public int Id { get; set; }
+            public int TypeId { get; set; }
+            public DateTime StartDate { get; set; }
+            public DateTime? EndDate { get; set; }
+            public decimal? Percentage { get; set; }
+            public string? Unit { get; set; }
+            public string? Modifier { get; set; }
         }
     }
 }

@@ -1268,14 +1268,17 @@ namespace Viper.Areas.Effort.Scripts
 
             // Foreign key constraint requires person record to exist for ANY term within the academic year
             // Migration uses ANY term in the range, not just Fall term
-            var invalidComboQuery = @"
+            // Derive academic year from percent_start to handle NULL percent_AcademicYear records
+            var academicYearExpr = EffortScriptHelper.GetAcademicYearFromDateSql("perc.percent_start");
+            var invalidComboQuery = $@"
                 SELECT COUNT(*)
                 FROM tblPercent perc
-                WHERE NOT EXISTS (
+                WHERE perc.percent_start IS NOT NULL
+                  AND NOT EXISTS (
                     SELECT 1 FROM tblPerson pers
                     INNER JOIN tblStatus stat ON pers.person_TermCode = stat.status_TermCode
                     WHERE pers.person_MothraID = perc.percent_MothraID
-                      AND stat.status_AcademicYear = perc.percent_AcademicYear
+                      AND stat.status_AcademicYear = {academicYearExpr}
                 )";
             using (var cmd = new SqlCommand(invalidComboQuery, conn))
             {
@@ -1283,7 +1286,7 @@ namespace Viper.Areas.Effort.Scripts
                 if (count > 0)
                 {
                     _report.DataQualityIssues.PercentagesWithInvalidPersonTermCombos = count;
-                    Console.WriteLine($"  Percentage records with invalid (PersonId, TermCode) combination: {count}");
+                    Console.WriteLine($"  Percentage records with no matching (PersonId, TermCode) - orphaned records: {count}");
                 }
             }
         }

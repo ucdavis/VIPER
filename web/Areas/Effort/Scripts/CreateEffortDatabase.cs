@@ -757,7 +757,7 @@ BEGIN
         SeqNumb char(3) NOT NULL,
         Enrollment int NOT NULL DEFAULT 0,
         Units decimal(4,2) NOT NULL,
-        CustDept char(6) NOT NULL,
+        CustDept varchar(6) NOT NULL,  -- Must be varchar to match legacy schema (char pads with spaces)
         CONSTRAINT PK_Courses PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT UQ_Courses_CRN_Term_Units UNIQUE (Crn, TermCode, Units),
         CONSTRAINT FK_Courses_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
@@ -787,16 +787,16 @@ BEGIN
         FirstName varchar(50) NOT NULL,
         LastName varchar(50) NOT NULL,
         MiddleInitial varchar(1) NULL,
-        EffortTitleCode char(6) NOT NULL,
+        EffortTitleCode varchar(6) NOT NULL,  -- Must be varchar to match legacy schema (char pads with spaces)
         EffortDept varchar(6) NOT NULL,
-        PercentAdmin decimal(5,2) NOT NULL DEFAULT 0,
+        PercentAdmin float NOT NULL DEFAULT 0,  -- Match legacy float(53)
         JobGroupId char(3) NULL,
         Title varchar(50) NULL,
         AdminUnit varchar(25) NULL,
         EffortVerified datetime2(7) NULL,
         ReportUnit varchar(50) NULL,
         VolunteerWos tinyint NULL,
-        PercentClinical decimal(5,2) NULL,
+        PercentClinical float NULL,  -- Match legacy float(53)
         CONSTRAINT PK_Persons PRIMARY KEY CLUSTERED (PersonId, TermCode),
         CONSTRAINT FK_Persons_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
         CONSTRAINT FK_Persons_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
@@ -864,7 +864,7 @@ BEGIN
         Id int IDENTITY(1,1) NOT NULL,
         PersonId int NOT NULL,
         TermCode int NOT NULL,
-        Percentage decimal(5,2) NOT NULL,
+        Percentage float NOT NULL,  -- Match legacy float(53)
         EffortTypeId int NOT NULL,
         Unit varchar(50) NULL,
         Modifier varchar(50) NULL,
@@ -925,7 +925,7 @@ BEGIN
     CREATE TABLE [effort].[UserAccess] (
         Id int IDENTITY(1,1) NOT NULL,
         PersonId int NOT NULL,
-        DepartmentCode char(6) NOT NULL,
+        DepartmentCode varchar(6) NOT NULL,  -- Must be varchar to match legacy schema (char pads with spaces)
         ModifiedDate datetime2(7) NULL,
         ModifiedBy int NULL,
         IsActive bit NOT NULL DEFAULT 1,
