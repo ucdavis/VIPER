@@ -258,7 +258,7 @@ namespace Viper.Areas.Effort.Scripts
                             result.Warnings.Add("Shadow procedure succeeded, but we cannot verify correctness without working legacy baseline");
                             result.Warnings.Add("Likely cause: Legacy procedure is broken (references non-existent columns/tables), or is unused");
                         }
-                        else if (legacyException == null && shadowException != null)
+                        else if (shadowException != null)
                         {
                             // Shadow failed but legacy worked - this IS a problem with shadow schema
                             result.Status = TestStatus.Failed;
@@ -732,13 +732,11 @@ namespace Viper.Areas.Effort.Scripts
             string paramLower = paramName.ToLowerInvariant();
 
             // Boolean flags - handle FIRST to avoid matching substrings like "dept" in "allDepts"
-            if (paramLower.Contains("alldepts") || paramLower.Contains("useacademicyear") ||
-                paramLower.Contains("includeall") || paramLower.Contains("showdetails"))
+            if ((paramLower.Contains("alldepts") || paramLower.Contains("useacademicyear") ||
+                paramLower.Contains("includeall") || paramLower.Contains("showdetails")) &&
+                dataType.ToLowerInvariant() == "bit")
             {
-                if (dataType.ToLowerInvariant() == "bit")
-                {
-                    return false;  // Default to false for boolean flags
-                }
+                return false;  // Default to false for boolean flags
             }
 
             // ModBy (modification user) - Always required for CRUD operations
@@ -1391,12 +1389,9 @@ namespace Viper.Areas.Effort.Scripts
         {
             // Create a normalized string representation of the row for comparison
             var values = new List<string>();
-            foreach (var col in columnMapping.Keys.OrderBy(k => k))
+            foreach (var col in columnMapping.Keys.OrderBy(k => k)
+                       .Where(col => ignoredColumns == null || !ignoredColumns.Contains(col)))
             {
-                // Skip ignored columns (e.g., identity columns that differ between Legacy and Shadow)
-                if (ignoredColumns != null && ignoredColumns.Contains(col))
-                    continue;
-
                 var value = row[col];
                 if (value == DBNull.Value)
                     values.Add("NULL");
