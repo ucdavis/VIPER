@@ -19,7 +19,7 @@ export interface PermissionsGetters {
  * @returns Object containing all permission utility methods
  */
 export function createPermissionUtils(state: PermissionsState, getters: PermissionsGetters) {
-    const { userPermissions, permissionSummary, error: errorState } = state
+    const { userPermissions, error: errorState } = state
     const { editableServices } = getters
 
     /**
@@ -66,7 +66,6 @@ export function createPermissionUtils(state: PermissionsState, getters: Permissi
      */
     function clearData(): void {
         userPermissions.value = null
-        permissionSummary.value = null
         errorState.value = null
     }
 

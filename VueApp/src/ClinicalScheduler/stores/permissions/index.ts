@@ -4,4 +4,4 @@ export type { PermissionsState } from "../permissions-actions"
 export { createPermissionActions } from "../permissions-actions"
 export { createPermissionUtils } from "../permissions-utils"
 
-export type { UserPermissions, PermissionSummary, User, Service } from "../../types"
+export type { UserPermissions, User, Service } from "../../types"

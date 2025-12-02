@@ -1,12 +1,5 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System.DirectoryServices;
 using System.DirectoryServices.Protocols;
-using System.Linq.Dynamic.Core;
-using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
-using System.Security.Cryptography;
-using System.Text.Json;
 
 namespace Viper.Areas.Directory.Models
 {

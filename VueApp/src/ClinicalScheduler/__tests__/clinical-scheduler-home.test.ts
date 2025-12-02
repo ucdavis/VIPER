@@ -210,7 +210,7 @@ describe("ClinicalSchedulerHome Component - Navigation", () => {
             expect(routerPush).toHaveBeenCalledWith("/ClinicalScheduler/clinician")
         })
 
-        it("does not show clinician card when user lacks access", async () => {
+        it("does not show clinician card when user lacks access", () => {
             mockPermissionsStore.hasAnyEditPermission = true
             mockPermissionsStore.hasOnlyServiceSpecificPermissions = true
             mockPermissionsStore.canAccessClinicianView = false

@@ -6,6 +6,7 @@
             id="mainLayoutHeader"
             height-hint="98"
             v-cloak
+            class="no-print"
         >
             <div
                 v-show="false"
@@ -170,7 +171,7 @@
 
         <q-footer
             elevated
-            class="bg-white"
+            class="bg-white no-print"
             v-cloak
         >
             <div
@@ -228,12 +229,19 @@
 </template>
 <script lang="ts">
 import { ref } from "vue"
+import type { PropType } from "vue"
 import { useUserStore } from "@/store/UserStore"
 import LeftNav from "@/layouts/LeftNav.vue"
 import MainNav from "@/layouts/MainNav.vue"
 import MiniNav from "@/layouts/MiniNav.vue"
 import ProfilePic from "@/layouts/ProfilePic.vue"
 import SessionTimeout from "@/components/SessionTimeout.vue"
+
+type BreadCrumb = {
+    url: string
+    name: string
+}
+
 export default {
     name: "ViperLayout",
     setup() {
@@ -244,7 +252,14 @@ export default {
     props: {
         nav: String,
         navarea: Boolean,
-        highlightedTopNav: String,
+        highlightedTopNav: {
+            type: String,
+            default: "",
+        },
+        breadcrumbs: {
+            type: Array as PropType<BreadCrumb[]>,
+            default: () => [],
+        },
     },
     components: {
         LeftNav,

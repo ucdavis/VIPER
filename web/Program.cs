@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 using NLog;
 using NLog.Web;
 using Polly;
@@ -37,7 +37,7 @@ if (string.Equals(aspNetEnv, "Development", StringComparison.OrdinalIgnoreCase)
 }
 
 // Centralized SPA application names to avoid duplication
-string[] VueAppNames = { "ClinicalScheduler", "CTS", "Computing", "Students" };
+string[] VueAppNames = { "ClinicalScheduler", "CTS", "Computing", "Students", "CMS", "CAHFS" };
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
@@ -83,9 +83,9 @@ try
     });
 
     // Add services to the container.
-    builder.Services.AddControllersWithViews().AddSessionStateTempDataProvider().AddNewtonsoftJson(options =>
+    builder.Services.AddControllersWithViews().AddSessionStateTempDataProvider().AddJsonOptions(options =>
         {
-            options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+            options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         });
 
     builder.Host.UseNLog();
@@ -187,6 +187,7 @@ try
     builder.Services.AddDbContext<RAPSContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<VIPERContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<ClinicalSchedulerContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<SISContext>(ConfigureDbContextOptions);
 
     // Clinical Scheduler services
     builder.Services.AddScoped<Viper.Areas.Curriculum.Services.TermCodeService>();
@@ -206,6 +207,12 @@ try
 
     // Register UserHelper service
     builder.Services.AddScoped<Viper.IUserHelper, Viper.UserHelper>();
+
+    // Photo Gallery services
+    builder.Services.AddScoped<Viper.Areas.Students.Services.IPhotoService, Viper.Areas.Students.Services.PhotoService>();
+    builder.Services.AddScoped<Viper.Areas.Students.Services.IStudentGroupService, Viper.Areas.Students.Services.StudentGroupService>();
+    builder.Services.AddScoped<Viper.Areas.Students.Services.IPhotoExportService, Viper.Areas.Students.Services.PhotoExportService>();
+    builder.Services.AddScoped<Viper.Areas.Students.Services.ICourseService, Viper.Areas.Students.Services.CourseService>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();

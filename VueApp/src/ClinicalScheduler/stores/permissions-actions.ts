@@ -5,7 +5,6 @@ import type {
     ServicePermissionCheck,
     RotationPermissionCheck,
     InstructorSchedulePermissionCheck,
-    PermissionSummary,
 } from "../types"
 
 /**
@@ -14,7 +13,6 @@ import type {
  */
 interface PermissionsState {
     userPermissions: ReturnType<typeof ref<UserPermissions | null>>
-    permissionSummary: ReturnType<typeof ref<PermissionSummary | null>>
     isLoading: ReturnType<typeof ref<boolean>>
     error: ReturnType<typeof ref<string | null>>
 }
@@ -53,7 +51,7 @@ async function executePermissionAction<T>(
  * @returns Object containing all permission action methods
  */
 export function createPermissionActions(state: PermissionsState) {
-    const { userPermissions, permissionSummary } = state
+    const { userPermissions } = state
 
     /**
      * Fetches the current user's permissions from the API.
@@ -68,23 +66,6 @@ export function createPermissionActions(state: PermissionsState) {
                 return permissions
             },
             "Failed to fetch user permissions",
-            state,
-        )
-    }
-
-    /**
-     * Fetches a summary of system-wide permission information.
-     * Useful for administrative views and permission management.
-     * @returns Promise resolving to permission summary object or null on error
-     */
-    function fetchPermissionSummary(): Promise<PermissionSummary | null> {
-        return executePermissionAction(
-            async () => {
-                const summary = await permissionService.getPermissionSummary()
-                permissionSummary.value = summary
-                return summary
-            },
-            "Failed to fetch permission summary",
             state,
         )
     }
@@ -135,7 +116,6 @@ export function createPermissionActions(state: PermissionsState) {
 
     return {
         fetchUserPermissions,
-        fetchPermissionSummary,
         checkServicePermission,
         checkRotationPermission,
         checkOwnSchedulePermission,

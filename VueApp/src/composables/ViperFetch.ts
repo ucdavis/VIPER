@@ -1,45 +1,200 @@
-import { useGenericErrorHandler } from './ErrorHandler'
-import { useUserStore } from '@/store/UserStore'
-const errorHandler = useGenericErrorHandler();
+import { useGenericErrorHandler } from "./ErrorHandler"
+import { useUserStore } from "@/store/UserStore"
+import { ValidationError } from "./validation-error"
+import { AuthError } from "./auth-error"
 
-export function useFetch() {
-    type Pagination = {
-        page: number,
-        perPage: number,
-        pages: number,
-        totalRecords: number,
-        next: string | null,
-        previous: string | null
+const errorHandler = useGenericErrorHandler()
+
+const HTTP_STATUS = {
+    UNAUTHORIZED: 401,
+    FORBIDDEN: 403,
+    NO_CONTENT: 204,
+    ACCEPTED: 202,
+} as const
+
+type Pagination = {
+    page: number
+    perPage: number
+    pages: number
+    totalRecords: number
+    next: string | null
+    previous: string | null
+}
+
+type Result = {
+    result: any
+    errors: any
+    success: boolean
+    pagination: Pagination | null
+}
+
+type UrlParams = {
+    [key: string]: string | number | null | undefined
+}
+
+function createUrlSearchParams(obj: UrlParams): URLSearchParams {
+    const params = new URLSearchParams()
+    for (const [key, value] of Object.entries(obj)) {
+        if (value != null && typeof key === "string") {
+            params.append(key, value.toString())
+        }
+    }
+    return params
+}
+
+function addHeader(options: any, headerName: string, headerValue: string) {
+    if (options.headers === undefined) {
+        options.headers = {}
+    }
+    if (typeof headerName === "string" && !Object.hasOwn(options.headers, headerName)) {
+        Object.defineProperty(options.headers, headerName, {
+            value: headerValue,
+            enumerable: true,
+            writable: true,
+            configurable: true,
+        })
+    }
+}
+
+async function handleViperFetchError(response: any) {
+    if (!response.ok) {
+        let result = null
+        let message = ""
+        let isAuthError = false
+        try {
+            try {
+                result = await response.json()
+            } catch {
+                result = response
+            }
+            if (response.status === HTTP_STATUS.UNAUTHORIZED || response.status === HTTP_STATUS.FORBIDDEN) {
+                isAuthError = true
+            } else if (result.errorMessage !== null && result.errorMessage !== undefined) {
+                message = result.errorMessage
+            } else if (result.detail !== null && result.detail !== undefined) {
+                message = result.detail
+            } else if (result.statusText !== null && result.statusText !== undefined) {
+                message = result.statusText
+            }
+        } catch {
+            throw new Error("An error occurred")
+        }
+        if (isAuthError) {
+            throw new AuthError(result.errorMessage ?? "Auth Error", response.status)
+        } else {
+            throw new ValidationError(message, result?.errors)
+        }
+    }
+    return response
+}
+
+async function fetchWrapper(url: string, options: any = {}) {
+    if (options.headers === undefined) {
+        options.headers = {}
     }
 
-    type Result = {
-        result: any,
-        errors: any,
-        success: boolean,
-        pagination: Pagination | null
+    const userStore = useUserStore()
+    const token = userStore.userInfo.token || ""
+    addHeader(options, "X-CSRF-TOKEN", token)
+
+    let errors: string[] = []
+    const result = await fetch(url, options)
+        .then((r) => handleViperFetchError(r))
+        .then((r) => (r.status === HTTP_STATUS.NO_CONTENT || r.status === HTTP_STATUS.ACCEPTED ? r : r.json()))
+        .then((r) => {
+            let intialResult = r
+            if (r.success !== undefined) {
+                if (!r.success || r.result === undefined) {
+                    errorHandler.handleError(r)
+                }
+                intialResult = r.result
+            }
+            return r.pagination ? { result: intialResult, pagination: r.pagination } : intialResult
+        })
+        .catch((error) => {
+            if (error?.status === undefined) {
+                errorHandler.handleError(error)
+                errors = errorHandler.errors.value
+            } else {
+                errorHandler.handleAuthError(error?.message, error.status)
+                errors = [error?.message || "Authentication error"]
+            }
+        })
+    const resultObj: Result = {
+        result: result,
+        errors: errors,
+        success: errors.length === 0,
+        pagination: null,
+    }
+    if (result && result.pagination) {
+        resultObj.pagination = result.pagination
+        resultObj.result = result.result
+    }
+    return resultObj
+}
+
+async function postForBlob(
+    url: string = "",
+    body: any = {},
+    options: any = {},
+): Promise<{ blob: Blob; filename: string | null }> {
+    options.method = "POST"
+    options.body = JSON.stringify(body)
+    addHeader(options, "Content-Type", "application/json")
+
+    if (options.headers === undefined) {
+        options.headers = {}
     }
 
-    type UrlParams = {
-        [key: string]: string | number | null | undefined
-    }
+    const userStore = useUserStore()
+    const token = userStore.userInfo.token || ""
+    addHeader(options, "X-CSRF-TOKEN", token)
 
-    class ValidationError extends Error {
-        constructor(message: string, errors: []) {
-            super(message)
-            this.errors = errors
+    const response = await fetch(url, options)
+
+    if (!response.ok) {
+        let message = ""
+        let isAuthError = false
+
+        if (response.status === HTTP_STATUS.UNAUTHORIZED || response.status === HTTP_STATUS.FORBIDDEN) {
+            isAuthError = true
+            message = "Authentication required"
+        } else {
+            try {
+                const result = await response.json()
+                message = result.errorMessage || result.detail || response.statusText
+            } catch {
+                message = response.statusText || "An error occurred"
+            }
         }
 
-        errors = []
-    }
-
-    class AuthError extends Error {
-        constructor(message: string, status: number) {
-            super(message)
-            this.status = status
+        if (isAuthError) {
+            errorHandler.handleAuthError(message, response.status)
+        } else {
+            errorHandler.handleError(message)
         }
-        status = 0
+
+        throw new Error(message)
     }
 
+    // Extract filename from Content-Disposition header
+    const contentDisposition = response.headers.get("Content-Disposition")
+    let filename: string | null = null
+
+    if (contentDisposition) {
+        // Try to extract filename from Content-Disposition header
+        // Format: attachment; filename="filename.ext" or attachment; filename=filename.ext
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+        if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1].replaceAll(/['"]/g, "")
+        }
+    }
+
+    const blob = await response.blob()
+    return { blob, filename }
+}
+
+function useFetch() {
     async function get(url: string = "", options: any = {}): Promise<Result> {
         options.method = "GET"
         addHeader(options, "Content-Type", "application/json")
@@ -66,123 +221,7 @@ export function useFetch() {
         return await fetchWrapper(url, options)
     }
 
-    function createUrlSearchParams(obj: UrlParams): URLSearchParams {
-        const params = new URLSearchParams
-        // Use Object.entries for safe iteration
-        for (const [key, value] of Object.entries(obj)) {
-            if (value != null && typeof key === 'string') {
-                params.append(key, value.toString())
-            }
-        }
-        return params
-    }
-
-    function addHeader(options: any, headerName: string, headerValue: string) {
-        if (options.headers === undefined) {
-            options.headers = {}
-        }
-        // Safe property access with validation
-        if (typeof headerName === 'string' && !Object.prototype.hasOwnProperty.call(options.headers, headerName)) {
-            Object.defineProperty(options.headers, headerName, {
-                value: headerValue,
-                enumerable: true,
-                writable: true,
-                configurable: true
-            })
-        }
-    }
-
-    async function fetchWrapper(url: string, options: any = {}) {
-        if (options.headers === undefined) {
-            options.headers = {}
-        }
-        
-        // Get antiforgery token from user store
-        const userStore = useUserStore()
-        const token = userStore.userInfo.token || ""
-        addHeader(options, "X-CSRF-TOKEN", token)
-
-        let errors: string[] = []
-        const result = await fetch(url, options)
-            //handle 4xx and 5xx status codes
-            .then(r => handleViperFetchError(r))
-            //return json (unless we got 204 No Content or 202 Accepted)
-            .then(r => (r.status == 204 || r.status == 202) ? r : r.json())
-            //check for success flag and result being defined.
-            .then(r => {
-                let intialResult = r
-                if (r.success !== undefined) {
-                    if (!r.success || typeof (r.result) == "undefined") {
-                        errorHandler.handleError(r)
-                    }
-                    intialResult = r.result
-                }
-                return r.pagination ? { result: intialResult, pagination: r.pagination } : intialResult
-            })
-            //catch errors, including those thrown by handleViperFetchError
-            .catch(e => {
-                if (e?.status !== undefined) {
-                    errorHandler.handleAuthError(e?.message, e.status)
-                }
-                else {
-                    errorHandler.handleError(e)
-                    errors = errorHandler.errors.value
-                }
-            })
-        const resultObj: Result = {
-            result: result,
-            errors: errors,
-            success: errors.length == 0,
-            pagination: null
-        }
-        if (result && result.pagination) {
-            resultObj.pagination = result.pagination
-            resultObj.result = result.result
-        }
-        return resultObj
-    }
-
-    async function handleViperFetchError(response: any) {
-        //handle 4XX and 5XX errors
-        if (!response.ok) {
-            let result = null
-            let message = ""
-            let isAuthError = false
-            try {
-                try {
-                    result = await response.json()
-                }
-                catch (e) {
-                    result = response
-                }
-                if (response.status == 401 || response.status == 403) {
-                    isAuthError = true
-                }
-                else {
-                    if (result.errorMessage != null) {
-                        message = result.errorMessage
-                    }
-                    else if (result.detail != null) {
-                        message = result.detail
-                    }
-                    else if (result.statusText != null) {
-                        message = result.statusText
-                    }
-                }
-            }
-            catch (e) {
-                throw Error("An error occurred")
-            }
-            if (!isAuthError) {
-                throw new ValidationError(message, result?.errors)
-            }
-            else {
-                throw new AuthError(result.errorMessage ?? "Auth Error", response.status)
-            }
-        }
-
-        return response
-    }
-
     return { get, post, put, del, createUrlSearchParams }
 }
+
+export { useFetch, postForBlob }

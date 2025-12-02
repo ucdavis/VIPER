@@ -39,39 +39,15 @@ interface UserPermissions {
 }
 
 interface ServicePermissionCheck {
-    serviceId: number
     canEdit: boolean
-    requiredPermission: string
-    user: User
 }
 
 interface RotationPermissionCheck {
-    rotationId: number
     canEdit: boolean
-    user: User
 }
 
 interface InstructorSchedulePermissionCheck {
-    instructorScheduleId: number
     canEditOwn: boolean
-    user: User
-}
-
-interface PermissionSummary {
-    user: User
-    summary: {
-        totalServices: number
-        editableServices: number
-        servicesWithCustomPermissions: number
-        defaultPermission: string
-    }
-    services: Array<{
-        serviceId: number
-        serviceName: string
-        shortName: string
-        requiredPermission: string
-        userCanEdit: boolean
-    }>
 }
 
 // Instructor Schedule types for edit functionality
@@ -120,7 +96,6 @@ export {
     type ServicePermissionCheck,
     type RotationPermissionCheck,
     type InstructorSchedulePermissionCheck,
-    type PermissionSummary,
     type InstructorScheduleRequest,
     type InstructorScheduleResponse,
     type ScheduleConflict,
