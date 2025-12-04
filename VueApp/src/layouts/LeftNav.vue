@@ -129,10 +129,10 @@ export default defineComponent({
                         clickable: r.menuItemURL.length > 0,
                         displayClass: r.menuItemURL.length
                             ? "leftNavLink"
-                            : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText == "" ? " leftNavSpacer" : ""),
+                            : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText === "" ? " leftNavSpacer" : ""),
                     }
                 })
-            } catch {
+            } catch (_e) {
                 this.navHeader = ""
                 this.menuItems = []
             }
