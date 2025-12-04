@@ -1,7 +1,6 @@
 @echo off
 REM RunCreateShadow.bat
 REM Launcher for Effort Migration Toolkit - Shadow Schema Creation
-REM This batch file is a convenience wrapper that calls the CreateEffortShadow script
 REM
 REM Usage:
 REM   RunCreateShadow.bat [environment] [options]
@@ -12,32 +11,9 @@ REM   RunCreateShadow.bat Production --apply   (apply mode - uses Production con
 
 setlocal
 
-REM Parse arguments to extract environment if provided
-set ASPNETCORE_ENVIRONMENT=Development
-set SCRIPT_ARGS=
-
-:parse_args
-if "%~1"=="" goto :done_parsing
-if /i "%~1"=="Development" (
-    set ASPNETCORE_ENVIRONMENT=Development
-    shift
-    goto :parse_args
-)
-if /i "%~1"=="Test" (
-    set ASPNETCORE_ENVIRONMENT=Test
-    shift
-    goto :parse_args
-)
-if /i "%~1"=="Production" (
-    set ASPNETCORE_ENVIRONMENT=Production
-    shift
-    goto :parse_args
-)
-set SCRIPT_ARGS=%SCRIPT_ARGS% %~1
-shift
-goto :parse_args
-
-:done_parsing
+REM Parse arguments using shared helper (allowed flags: --apply, --force, --drop)
+call "%~dp0ParseArgs.bat" "--apply,--force,--drop" "" %*
+if defined PARSE_ERROR exit /b 1
 
 echo ================================================================================
 echo Effort Shadow Schema Creation

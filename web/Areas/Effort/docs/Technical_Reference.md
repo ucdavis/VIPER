@@ -87,8 +87,9 @@ Reference documentation for the Effort system database schema and field mappings
 - Aggregated by person: `ExcludeClinicalTerms`, `ExcludeDidacticTerms` (comma-separated)
 
 **tblAudit → [effort].[Audits]**
-- Dual-column approach: `ChangesLegacy` (legacy data), `ChangeDetails` (JSON)
-- Added: `IsLegacyFormat`, `MigratedDate`
+- Single `Changes` column for audit text (legacy plain-text or JSON)
+- Legacy preservation columns: `LegacyAction`, `LegacyCRN`, `LegacyTermCode`, `LegacyMothraID`
+- Added: `MigratedDate`
 
 **userAccess → [effort].[UserAccess]** (Critical for authorization)
 - `PersonId` (FK), `DepartmentCode`, `IsActive`

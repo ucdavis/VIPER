@@ -1,7 +1,6 @@
 @echo off
 REM RunMigrateData.bat
 REM Launcher for Effort Migration Toolkit - Data Migration
-REM This batch file is a convenience wrapper that calls the MigrateEffortData script
 REM
 REM Usage:
 REM   RunMigrateData.bat [environment] [options]
@@ -12,32 +11,9 @@ REM   RunMigrateData.bat Production --apply   (apply mode - uses Production conf
 
 setlocal
 
-REM Parse arguments to extract environment if provided
-set ASPNETCORE_ENVIRONMENT=Development
-set SCRIPT_ARGS=
-
-:parse_args
-if "%~1"=="" goto :done_parsing
-if /i "%~1"=="Development" (
-    set ASPNETCORE_ENVIRONMENT=Development
-    shift
-    goto :parse_args
-)
-if /i "%~1"=="Test" (
-    set ASPNETCORE_ENVIRONMENT=Test
-    shift
-    goto :parse_args
-)
-if /i "%~1"=="Production" (
-    set ASPNETCORE_ENVIRONMENT=Production
-    shift
-    goto :parse_args
-)
-set SCRIPT_ARGS=%SCRIPT_ARGS% %~1
-shift
-goto :parse_args
-
-:done_parsing
+REM Parse arguments using shared helper (allowed flags: --apply)
+call "%~dp0ParseArgs.bat" "--apply" "" %*
+if defined PARSE_ERROR exit /b 1
 
 echo ================================================================================
 echo Effort Data Migration

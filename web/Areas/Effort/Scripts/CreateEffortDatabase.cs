@@ -24,337 +24,344 @@ namespace Viper.Areas.Effort.Scripts
     /// </summary>
     public class CreateEffortDatabase
     {
-    public static int Run(string[] args)
-    {
-        try
+        public static int Run(string[] args)
         {
-            // Parse command-line arguments
-            bool executeMode = args.Any(a => a.Equals("--apply", StringComparison.OrdinalIgnoreCase));
-            bool forceRecreate = args.Any(a => a.Equals("--force", StringComparison.OrdinalIgnoreCase) ||
-                                              a.Equals("--recreate", StringComparison.OrdinalIgnoreCase));
-            bool dropOnly = args.Any(a => a.Equals("--drop", StringComparison.OrdinalIgnoreCase) ||
-                                         a.Equals("--cleanup", StringComparison.OrdinalIgnoreCase));
+            try
+            {
+                // Parse command-line arguments
+                bool executeMode = args.Any(a => a.Equals("--apply", StringComparison.OrdinalIgnoreCase));
+                bool forceRecreate = args.Any(a => a.Equals("--force", StringComparison.OrdinalIgnoreCase) ||
+                                                  a.Equals("--recreate", StringComparison.OrdinalIgnoreCase));
+                bool dropOnly = args.Any(a => a.Equals("--drop", StringComparison.OrdinalIgnoreCase) ||
+                                             a.Equals("--cleanup", StringComparison.OrdinalIgnoreCase));
 
-            Console.WriteLine("============================================");
-            if (dropOnly)
-            {
-                Console.WriteLine("Dropping Effort Schema from VIPER Database");
-            }
-            else if (forceRecreate)
-            {
-                Console.WriteLine("Recreating Effort Schema in VIPER Database (with confirmation)");
-            }
-            else if (executeMode)
-            {
-                Console.WriteLine("Creating Effort Schema in VIPER Database (EXECUTE MODE)");
-            }
-            else
-            {
-                Console.WriteLine("Creating Effort Schema in VIPER Database (DRY-RUN MODE)");
-            }
-            Console.WriteLine($"Start Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            Console.WriteLine("============================================");
-            Console.WriteLine();
-
-            // Display mode information
-            if (!dropOnly && !forceRecreate)
-            {
-                if (executeMode)
+                Console.WriteLine("============================================");
+                if (dropOnly)
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("⚠ APPLY MODE: Tables will be created and changes committed.");
-                    Console.ResetColor();
+                    Console.WriteLine("Dropping Effort Schema from VIPER Database");
+                }
+                else if (forceRecreate)
+                {
+                    Console.WriteLine("Recreating Effort Schema in VIPER Database (with confirmation)");
+                }
+                else if (executeMode)
+                {
+                    Console.WriteLine("Creating Effort Schema in VIPER Database (EXECUTE MODE)");
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.WriteLine("ℹ DRY-RUN MODE: Schema will be created, tables tested, then rolled back.");
-                    Console.WriteLine("  No permanent changes to tables will be made.");
-                    Console.WriteLine("  To actually create tables, use: dotnet script CreateEffortDatabase.cs --apply");
-                    Console.ResetColor();
+                    Console.WriteLine("Creating Effort Schema in VIPER Database (DRY-RUN MODE)");
                 }
+                Console.WriteLine($"Start Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                Console.WriteLine("============================================");
                 Console.WriteLine();
-            }
 
-            var configuration = EffortScriptHelper.LoadConfiguration();
-            string connectionString = EffortScriptHelper.GetConnectionString(configuration, "VIPER");
-
-            Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(connectionString)}");
-            Console.WriteLine();
-
-            // Check if effort schema and tables exist in VIPER
-            bool schemaExists = SchemaExists(connectionString);
-            bool tablesExist = TablesExist(connectionString);
-
-            // Handle --drop or --force flags
-            if ((dropOnly || forceRecreate) && (schemaExists || tablesExist))
-            {
-                // Check for data in the schema
-                var dataCounts = CheckSchemaData(connectionString);
-                int totalRecords = dataCounts.Values.Sum();
-
-                if (totalRecords > 0)
+                // Display mode information
+                if (!dropOnly && !forceRecreate)
                 {
-                    // Data exists - require confirmation
-                    if (!ConfirmDeletion(dataCounts, totalRecords))
+                    if (executeMode)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("⚠ APPLY MODE: Tables will be created and changes committed.");
+                        Console.ResetColor();
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("ℹ DRY-RUN MODE: Schema will be created, tables tested, then rolled back.");
+                        Console.WriteLine("  No permanent changes to tables will be made.");
+                        Console.WriteLine("  To actually create tables, use: dotnet script CreateEffortDatabase.cs --apply");
+                        Console.ResetColor();
+                    }
+                    Console.WriteLine();
+                }
+
+                var configuration = EffortScriptHelper.LoadConfiguration();
+                string connectionString = EffortScriptHelper.GetConnectionString(configuration, "VIPER");
+
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(connectionString)}");
+                Console.WriteLine();
+
+                // Check if effort schema and tables exist in VIPER
+                bool schemaExists = SchemaExists(connectionString);
+                bool tablesExist = TablesExist(connectionString);
+
+                // Handle --drop or --force flags
+                if ((dropOnly || forceRecreate) && (schemaExists || tablesExist))
+                {
+                    // Check for data in the schema
+                    var dataCounts = CheckSchemaData(connectionString);
+                    int totalRecords = dataCounts.Values.Sum();
+
+                    if (totalRecords > 0)
+                    {
+                        // Data exists - require confirmation
+                        if (!ConfirmDeletion(dataCounts, totalRecords))
+                        {
+                            Console.WriteLine();
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine("Operation cancelled by user.");
+                            Console.ResetColor();
+                            return 0;
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Schema exists but is empty. Proceeding with drop...");
+                        Console.WriteLine();
+                    }
+
+                    // Drop schema and EffortShadow schema
+                    if (!DropEffortSchema(connectionString))
+                    {
+                        return 1;
+                    }
+
+                    // If --drop only, exit here
+                    if (dropOnly)
                     {
                         Console.WriteLine();
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine("Operation cancelled by user.");
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("✓ Effort schema dropped successfully!");
                         Console.ResetColor();
+                        Console.WriteLine("============================================");
+                        Console.WriteLine($"End Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                        Console.WriteLine("============================================");
                         return 0;
                     }
                 }
-                else
+                else if (dropOnly)
                 {
-                    Console.WriteLine("Schema exists but is empty. Proceeding with drop...");
-                    Console.WriteLine();
-                }
-
-                // Drop schema and EffortShadow schema
-                if (!DropEffortSchema(connectionString))
-                {
-                    return 1;
-                }
-
-                // If --drop only, exit here
-                if (dropOnly)
-                {
-                    Console.WriteLine();
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("✓ Effort schema dropped successfully!");
+                    // --drop requested but nothing exists to drop
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("⚠ Effort schema does not exist. Nothing to drop.");
                     Console.ResetColor();
-                    Console.WriteLine("============================================");
-                    Console.WriteLine($"End Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                    Console.WriteLine("============================================");
                     return 0;
                 }
-            }
-            else if (tablesExist && !forceRecreate)
-            {
-                // Default behavior: skip if tables exist
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("⚠ Effort tables already exist in VIPER database. Skipping creation.");
-                Console.WriteLine();
-                Console.WriteLine("To recreate the schema and tables, use:");
-                Console.WriteLine("  dotnet script CreateEffortDatabase.cs --force");
-                Console.WriteLine();
-                Console.WriteLine("To drop the schema and tables without recreating, use:");
-                Console.WriteLine("  dotnet script CreateEffortDatabase.cs --drop");
-                Console.ResetColor();
-                return 0;
-            }
-
-            // Create schema
-            if (!CreateSchema(connectionString))
-            {
-                return 1;
-            }
-
-            // Create all tables (with transaction-based dry-run support)
-            bool tablesCreated = CreateTables(connectionString, executeMode);
-
-            if (!tablesCreated && executeMode)
-            {
-                // Only fail if in execute mode and tables weren't created
-                return 1;
-            }
-
-            // Validate schema creation (only in execute mode, since tables are rolled back in dry-run)
-            if (executeMode)
-            {
-                Console.WriteLine();
-                if (!ValidateSchemaCreation(connectionString))
+                else if (tablesExist && !forceRecreate)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("✗ Schema validation failed!");
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("⚠ Effort tables already exist in VIPER database. Skipping creation.");
+                    Console.WriteLine();
+                    Console.WriteLine("To recreate the schema and tables, use:");
+                    Console.WriteLine("  dotnet script CreateEffortDatabase.cs --force");
+                    Console.WriteLine();
+                    Console.WriteLine("To drop the schema and tables without recreating, use:");
+                    Console.WriteLine("  dotnet script CreateEffortDatabase.cs --drop");
                     Console.ResetColor();
+                    return 0;
+                }
+
+                // Create schema
+                if (!CreateSchema(connectionString))
+                {
                     return 1;
                 }
-            }
 
-            Console.WriteLine();
-            if (executeMode)
+                // Create all tables (with transaction-based dry-run support)
+                bool tablesCreated = CreateTables(connectionString, executeMode);
+
+                if (!tablesCreated && executeMode)
+                {
+                    // Only fail if in execute mode and tables weren't created
+                    return 1;
+                }
+
+                // Validate schema creation (only in execute mode, since tables are rolled back in dry-run)
+                if (executeMode)
+                {
+                    Console.WriteLine();
+                    if (!ValidateSchemaCreation(connectionString))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("✗ Schema validation failed!");
+                        Console.ResetColor();
+                        return 1;
+                    }
+                }
+
+                Console.WriteLine();
+                if (executeMode)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("✓ Effort schema created successfully in VIPER database!");
+                    Console.ResetColor();
+                    Console.WriteLine();
+                    Console.WriteLine("Next Steps:");
+                    Console.WriteLine("  1. Run CreateEffortReportingProcedures.cs to create reporting stored procedures");
+                    Console.WriteLine("  2. Run MigrateEffortData.cs to migrate data from legacy database");
+                    Console.WriteLine("  3. Run CreateEffortShadow.cs to create shadow schema for ColdFusion");
+                    Console.WriteLine("  4. DBA will configure database permissions for applications");
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("✓ DRY-RUN SUCCESSFUL: All table creation SQL validated!");
+                    Console.ResetColor();
+                    Console.WriteLine();
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("Schema created (permanent), but tables were rolled back (no permanent changes).");
+                    Console.WriteLine();
+                    Console.WriteLine("To actually create the tables, run:");
+                    Console.WriteLine("  dotnet script CreateEffortDatabase.cs --apply");
+                    Console.ResetColor();
+                }
+                Console.WriteLine("============================================");
+                Console.WriteLine($"End Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                Console.WriteLine("============================================");
+
+                return 0;
+            }
+            catch (SqlException sqlEx)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("✓ Effort schema created successfully in VIPER database!");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {sqlEx.Message}");
+                Console.WriteLine($"SQL Error Number: {sqlEx.Number}");
+                Console.WriteLine(sqlEx.StackTrace);
                 Console.ResetColor();
-                Console.WriteLine();
-                Console.WriteLine("Next Steps:");
-                Console.WriteLine("  1. Run CreateEffortReportingProcedures.cs to create reporting stored procedures");
-                Console.WriteLine("  2. Run MigrateEffortData.cs to migrate data from legacy database");
-                Console.WriteLine("  3. Run CreateEffortShadow.cs to create shadow schema for ColdFusion");
-                Console.WriteLine("  4. DBA will configure database permissions for applications");
+                return 1;
             }
-            else
+            catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("✓ DRY-RUN SUCCESSFUL: All table creation SQL validated!");
+                // Rethrow critical exceptions that should never be handled
+                if (ex is OutOfMemoryException || ex is StackOverflowException || ex is System.Threading.ThreadAbortException)
+                    throw;
+
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"FATAL ERROR: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
                 Console.ResetColor();
-                Console.WriteLine();
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine("Schema created (permanent), but tables were rolled back (no permanent changes).");
-                Console.WriteLine();
-                Console.WriteLine("To actually create the tables, run:");
-                Console.WriteLine("  dotnet script CreateEffortDatabase.cs --apply");
-                Console.ResetColor();
+                return 1;
             }
-            Console.WriteLine("============================================");
-            Console.WriteLine($"End Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            Console.WriteLine("============================================");
-
-            return 0;
         }
-        catch (SqlException sqlEx)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"DATABASE ERROR: {sqlEx.Message}");
-            Console.WriteLine($"SQL Error Number: {sqlEx.Number}");
-            Console.WriteLine(sqlEx.StackTrace);
-            Console.ResetColor();
-            return 1;
-        }
-        catch (Exception ex)
-        {
-            // Rethrow critical exceptions that should never be handled
-            if (ex is OutOfMemoryException || ex is StackOverflowException || ex is System.Threading.ThreadAbortException)
-                throw;
 
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"FATAL ERROR: {ex.Message}");
-            Console.WriteLine(ex.StackTrace);
-            Console.ResetColor();
-            return 1;
-        }
-    }
-
-    static bool SchemaExists(string connectionString)
-    {
-        using var connection = new SqlConnection(connectionString);
-        connection.Open();
-
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM sys.schemas WHERE name = 'effort'";
-        int count = (int)cmd.ExecuteScalar();
-
-        return count > 0;
-    }
-
-    static bool TablesExist(string connectionString)
-    {
-        using var connection = new SqlConnection(connectionString);
-        connection.Open();
-
-        using var cmd = connection.CreateCommand();
-        // Check if at least one of the key tables exists in the effort schema
-        cmd.CommandText = @"
-            SELECT COUNT(*)
-            FROM sys.tables t
-            INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
-            WHERE s.name = 'effort' AND t.name IN ('Records', 'Persons', 'Courses')";
-        int count = (int)cmd.ExecuteScalar();
-
-        return count > 0;
-    }
-
-    static Dictionary<string, int> CheckSchemaData(string connectionString)
-    {
-        var dataCounts = new Dictionary<string, int>();
-
-        try
+        static bool SchemaExists(string connectionString)
         {
             using var connection = new SqlConnection(connectionString);
             connection.Open();
 
-            // Check all tables defined in EffortScriptHelper.EffortTables array
-            foreach (var table in EffortScriptHelper.EffortTables)
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM sys.schemas WHERE name = 'effort'";
+            int count = (int)cmd.ExecuteScalar();
+
+            return count > 0;
+        }
+
+        static bool TablesExist(string connectionString)
+        {
+            using var connection = new SqlConnection(connectionString);
+            connection.Open();
+
+            using var cmd = connection.CreateCommand();
+            // Check if at least one of the key tables exists in the effort schema
+            cmd.CommandText = @"
+            SELECT COUNT(*)
+            FROM sys.tables t
+            INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+            WHERE s.name = 'effort' AND t.name IN ('Records', 'Persons', 'Courses')";
+            int count = (int)cmd.ExecuteScalar();
+
+            return count > 0;
+        }
+
+        static Dictionary<string, int> CheckSchemaData(string connectionString)
+        {
+            var dataCounts = new Dictionary<string, int>();
+
+            try
             {
-                using var cmd = connection.CreateCommand();
-                cmd.CommandText = $"SELECT COUNT(*) FROM [effort].[{table}]";
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Check all tables defined in EffortScriptHelper.EffortTables array
+                foreach (var table in EffortScriptHelper.EffortTables)
+                {
+                    using var cmd = connection.CreateCommand();
+                    cmd.CommandText = $"SELECT COUNT(*) FROM [effort].[{table}]";
+                    try
+                    {
+                        int count = (int)cmd.ExecuteScalar();
+                        if (count > 0)
+                        {
+                            dataCounts[table] = count;
+                        }
+                    }
+                    catch (SqlException ex)
+                    {
+                        // Skip missing or inaccessible tables
+                        Console.Error.WriteLine($"Warning: Could not query table '{table}': {ex.Message}");
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                // Return empty counts if schema is inaccessible
+                Console.Error.WriteLine($"Warning: Could not access schema: {ex.Message}");
+            }
+
+            return dataCounts;
+        }
+
+        static bool ConfirmDeletion(Dictionary<string, int> dataCounts, int totalRecords)
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("╔════════════════════════════════════════════════════════════════╗");
+            Console.WriteLine("║                    ⚠ DESTRUCTIVE OPERATION ⚠                  ║");
+            Console.WriteLine("╚════════════════════════════════════════════════════════════════╝");
+            Console.ResetColor();
+            Console.WriteLine();
+            Console.WriteLine("The Effort schema contains data that will be PERMANENTLY DELETED:");
+            Console.WriteLine();
+
+            // Display data counts by table
+            foreach (var kvp in dataCounts.OrderByDescending(x => x.Value))
+            {
+                Console.WriteLine($"  • {kvp.Key,-25} {kvp.Value,8:N0} rows");
+            }
+
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"  TOTAL: {totalRecords:N0} records will be PERMANENTLY DELETED");
+            Console.ResetColor();
+            Console.WriteLine();
+            Console.WriteLine("This action cannot be undone.");
+            Console.WriteLine();
+            Console.Write("Type 'DELETE' (in capital letters) to confirm: ");
+
+            string confirmation = Console.ReadLine()?.Trim() ?? "";
+
+            if (confirmation == "DELETE")
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Confirmation received. Proceeding with deletion...");
+                Console.ResetColor();
+                return true;
+            }
+
+            return false;
+        }
+
+        static bool DropEffortSchema(string connectionString)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Dropping Effort schema and related objects...");
+
+            using var connection = new SqlConnection(connectionString);
+            connection.Open();
+
+            // Drop EffortShadow schema first (it depends on VIPER.effort schema)
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = "SELECT COUNT(*) FROM sys.schemas WHERE name = 'EffortShadow'";
                 try
                 {
                     int count = (int)cmd.ExecuteScalar();
                     if (count > 0)
                     {
-                        dataCounts[table] = count;
-                    }
-                }
-                catch (SqlException ex)
-                {
-                    // Skip missing or inaccessible tables
-                    Console.Error.WriteLine($"Warning: Could not query table '{table}': {ex.Message}");
-                }
-            }
-        }
-        catch (SqlException ex)
-        {
-            // Return empty counts if schema is inaccessible
-            Console.Error.WriteLine($"Warning: Could not access schema: {ex.Message}");
-        }
-
-        return dataCounts;
-    }
-
-    static bool ConfirmDeletion(Dictionary<string, int> dataCounts, int totalRecords)
-    {
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("╔════════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║                    ⚠ DESTRUCTIVE OPERATION ⚠                  ║");
-        Console.WriteLine("╚════════════════════════════════════════════════════════════════╝");
-        Console.ResetColor();
-        Console.WriteLine();
-        Console.WriteLine("The Effort schema contains data that will be PERMANENTLY DELETED:");
-        Console.WriteLine();
-
-        // Display data counts by table
-        foreach (var kvp in dataCounts.OrderByDescending(x => x.Value))
-        {
-            Console.WriteLine($"  • {kvp.Key,-25} {kvp.Value,8:N0} rows");
-        }
-
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"  TOTAL: {totalRecords:N0} records will be PERMANENTLY DELETED");
-        Console.ResetColor();
-        Console.WriteLine();
-        Console.WriteLine("This action cannot be undone.");
-        Console.WriteLine();
-        Console.Write("Type 'DELETE' (in capital letters) to confirm: ");
-
-        string confirmation = Console.ReadLine()?.Trim() ?? "";
-
-        if (confirmation == "DELETE")
-        {
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("Confirmation received. Proceeding with deletion...");
-            Console.ResetColor();
-            return true;
-        }
-
-        return false;
-    }
-
-    static bool DropEffortSchema(string connectionString)
-    {
-        Console.WriteLine();
-        Console.WriteLine("Dropping Effort schema and related objects...");
-
-        using var connection = new SqlConnection(connectionString);
-        connection.Open();
-
-        // Drop EffortShadow schema first (it depends on VIPER.effort schema)
-        using (var cmd = connection.CreateCommand())
-        {
-            cmd.CommandText = "SELECT COUNT(*) FROM sys.schemas WHERE name = 'EffortShadow'";
-            try
-            {
-                int count = (int)cmd.ExecuteScalar();
-                if (count > 0)
-                {
-                    Console.WriteLine("  Dropping EffortShadow schema (dependency)...");
-                    cmd.CommandText = @"
+                        Console.WriteLine("  Dropping EffortShadow schema (dependency)...");
+                        cmd.CommandText = @"
                         DECLARE @sql NVARCHAR(MAX) = '';
                         SELECT @sql += 'DROP VIEW [EffortShadow].[' + name + '];'
                         FROM sys.views WHERE schema_id = SCHEMA_ID('EffortShadow');
@@ -368,23 +375,23 @@ namespace Viper.Areas.Effort.Scripts
                         FROM sys.objects WHERE schema_id = SCHEMA_ID('EffortShadow') AND type IN ('FN','IF','TF');
                         EXEC sp_executesql @sql;
                         DROP SCHEMA [EffortShadow];";
-                    cmd.ExecuteNonQuery();
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("  ✓ EffortShadow schema dropped");
-                    Console.ResetColor();
+                        cmd.ExecuteNonQuery();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("  ✓ EffortShadow schema dropped");
+                        Console.ResetColor();
+                    }
+                }
+                catch (SqlException)
+                {
+                    // Ignore if database doesn't exist
                 }
             }
-            catch (SqlException)
-            {
-                // Ignore if database doesn't exist
-            }
-        }
 
-        // Drop all tables in effort schema
-        using (var cmd = connection.CreateCommand())
-        {
-            Console.WriteLine("  Dropping effort schema tables...");
-            cmd.CommandText = @"
+            // Drop all tables in effort schema
+            using (var cmd = connection.CreateCommand())
+            {
+                Console.WriteLine("  Dropping effort schema tables...");
+                cmd.CommandText = @"
                 DECLARE @sql NVARCHAR(MAX) = '';
 
                 -- Drop all foreign keys first
@@ -404,17 +411,17 @@ namespace Viper.Areas.Effort.Scripts
 
                 EXEC sp_executesql @sql;
             ";
-            cmd.ExecuteNonQuery();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("  ✓ All tables dropped");
-            Console.ResetColor();
-        }
+                cmd.ExecuteNonQuery();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  ✓ All tables dropped");
+                Console.ResetColor();
+            }
 
-        // Drop programmable objects (stored procedures, functions) in effort schema
-        using (var cmd = connection.CreateCommand())
-        {
-            Console.WriteLine("  Dropping programmable objects in effort schema...");
-            cmd.CommandText = @"
+            // Drop programmable objects (stored procedures, functions) in effort schema
+            using (var cmd = connection.CreateCommand())
+            {
+                Console.WriteLine("  Dropping programmable objects in effort schema...");
+                cmd.CommandText = @"
                 DECLARE @sql NVARCHAR(MAX) = '';
 
                 -- Drop all stored procedures
@@ -433,152 +440,152 @@ namespace Viper.Areas.Effort.Scripts
 
                 EXEC sp_executesql @sql;
             ";
-            cmd.ExecuteNonQuery();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("  ✓ All programmable objects dropped");
-            Console.ResetColor();
-        }
-
-        // Drop effort schema
-        using (var cmd = connection.CreateCommand())
-        {
-            Console.WriteLine("  Dropping effort schema...");
-            cmd.CommandText = "DROP SCHEMA IF EXISTS [effort]";
-            cmd.ExecuteNonQuery();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("  ✓ Effort schema dropped");
-            Console.ResetColor();
-        }
-
-        return true;
-    }
-
-    static bool CreateSchema(string connectionString)
-    {
-        Console.WriteLine("Step 1: Creating effort schema in VIPER database...");
-
-        using var connection = new SqlConnection(connectionString);
-        connection.Open();
-
-        // Check if schema already exists
-        using (var checkCmd = connection.CreateCommand())
-        {
-            checkCmd.CommandText = "SELECT COUNT(*) FROM sys.schemas WHERE name = 'effort'";
-            int count = (int)checkCmd.ExecuteScalar();
-
-            if (count > 0)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("  ⚠ Effort schema already exists, skipping schema creation");
-                Console.ResetColor();
-                return true;
-            }
-        }
-
-        // Create schema if it doesn't exist
-        using (var cmd = connection.CreateCommand())
-        {
-            cmd.CommandText = "CREATE SCHEMA [effort]";
-            cmd.ExecuteNonQuery();
-        }
-
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("  ✓ Effort schema created");
-        Console.ResetColor();
-        return true;
-    }
-
-    static bool CreateTables(string connectionString, bool executeMode)
-    {
-        Console.WriteLine();
-        Console.WriteLine("Step 2: Creating tables in effort schema...");
-
-        if (!executeMode)
-        {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("  (Transaction will be rolled back after validation)");
-            Console.ResetColor();
-        }
-        Console.WriteLine();
-
-        using var connection = new SqlConnection(connectionString);
-        connection.Open();
-
-        // Begin transaction for dry-run support
-        // Note: Transaction will be committed only in execute mode
-        using var transaction = connection.BeginTransaction();
-
-        try
-        {
-            // Execute each table creation in dependency order
-            // 1. Lookup tables (no dependencies)
-            CreateRolesTable(connection, transaction);
-            CreateEffortTypesTable(connection, transaction);
-            CreateSessionTypesTable(connection, transaction);
-            CreateUnitsTable(connection, transaction);
-            CreateJobCodesTable(connection, transaction);
-            CreateReportUnitsTable(connection, transaction);
-
-            // 2. Term and course tables
-            CreateTermStatusTable(connection, transaction);
-            CreateCoursesTable(connection, transaction);
-
-            // 3. Person tables
-            CreatePersonsTable(connection, transaction);
-            CreateAlternateTitlesTable(connection, transaction);
-            CreateUserAccessTable(connection, transaction);
-
-            // 4. Main data tables (depend on above)
-            CreateRecordsTable(connection, transaction);
-            CreatePercentagesTable(connection, transaction);
-            CreateSabbatic​alsTable(connection, transaction);
-
-            // 5. Relationship and audit tables
-            CreateCourseRelationshipsTable(connection, transaction);
-            CreateAuditsTable(connection, transaction);
-
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"  ✓ All {EffortScriptHelper.ExpectedTableCount} tables created successfully in transaction");
-            Console.ResetColor();
-
-            // Commit or rollback based on mode
-            if (executeMode)
-            {
-                transaction.Commit();
+                cmd.ExecuteNonQuery();
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("  ✓ Transaction committed - tables are permanent");
+                Console.WriteLine("  ✓ All programmable objects dropped");
                 Console.ResetColor();
             }
-            else
+
+            // Drop effort schema
+            using (var cmd = connection.CreateCommand())
             {
-                transaction.Rollback();
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine("  ↶ Transaction rolled back - no permanent changes to tables");
+                Console.WriteLine("  Dropping effort schema...");
+                cmd.CommandText = "DROP SCHEMA IF EXISTS [effort]";
+                cmd.ExecuteNonQuery();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  ✓ Effort schema dropped");
                 Console.ResetColor();
             }
 
             return true;
         }
-        catch (Exception ex)
+
+        static bool CreateSchema(string connectionString)
+        {
+            Console.WriteLine("Step 1: Creating effort schema in VIPER database...");
+
+            using var connection = new SqlConnection(connectionString);
+            connection.Open();
+
+            // Check if schema already exists
+            using (var checkCmd = connection.CreateCommand())
+            {
+                checkCmd.CommandText = "SELECT COUNT(*) FROM sys.schemas WHERE name = 'effort'";
+                int count = (int)checkCmd.ExecuteScalar();
+
+                if (count > 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Effort schema already exists, skipping schema creation");
+                    Console.ResetColor();
+                    return true;
+                }
+            }
+
+            // Create schema if it doesn't exist
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = "CREATE SCHEMA [effort]";
+                cmd.ExecuteNonQuery();
+            }
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("  ✓ Effort schema created");
+            Console.ResetColor();
+            return true;
+        }
+
+        static bool CreateTables(string connectionString, bool executeMode)
         {
             Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"  ✗ Error creating tables: {ex.Message}");
-            Console.ResetColor();
+            Console.WriteLine("Step 2: Creating tables in effort schema...");
 
-            transaction.Rollback();
-            Console.WriteLine("  ↶ Transaction rolled back");
+            if (!executeMode)
+            {
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("  (Transaction will be rolled back after validation)");
+                Console.ResetColor();
+            }
+            Console.WriteLine();
 
-            throw; // Re-throw to be caught by main error handler
+            using var connection = new SqlConnection(connectionString);
+            connection.Open();
+
+            // Begin transaction for dry-run support
+            // Note: Transaction will be committed only in execute mode
+            using var transaction = connection.BeginTransaction();
+
+            try
+            {
+                // Execute each table creation in dependency order
+                // 1. Lookup tables (no dependencies)
+                CreateRolesTable(connection, transaction);
+                CreateEffortTypesTable(connection, transaction);
+                CreateSessionTypesTable(connection, transaction);
+                CreateUnitsTable(connection, transaction);
+                CreateJobCodesTable(connection, transaction);
+                CreateReportUnitsTable(connection, transaction);
+
+                // 2. Term and course tables
+                CreateTermStatusTable(connection, transaction);
+                CreateCoursesTable(connection, transaction);
+
+                // 3. Person tables
+                CreatePersonsTable(connection, transaction);
+                CreateAlternateTitlesTable(connection, transaction);
+                CreateUserAccessTable(connection, transaction);
+
+                // 4. Main data tables (depend on above)
+                CreateRecordsTable(connection, transaction);
+                CreatePercentagesTable(connection, transaction);
+                CreateSabbatic​alsTable(connection, transaction);
+
+                // 5. Relationship and audit tables
+                CreateCourseRelationshipsTable(connection, transaction);
+                CreateAuditsTable(connection, transaction);
+
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  ✓ All {EffortScriptHelper.ExpectedTableCount} tables created successfully in transaction");
+                Console.ResetColor();
+
+                // Commit or rollback based on mode
+                if (executeMode)
+                {
+                    transaction.Commit();
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✓ Transaction committed - tables are permanent");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    transaction.Rollback();
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("  ↶ Transaction rolled back - no permanent changes to tables");
+                    Console.ResetColor();
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  ✗ Error creating tables: {ex.Message}");
+                Console.ResetColor();
+
+                transaction.Rollback();
+                Console.WriteLine("  ↶ Transaction rolled back");
+
+                throw; // Re-throw to be caught by main error handler
+            }
         }
-    }
 
-    static void CreateRolesTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateRolesTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'Roles')
 BEGIN
     CREATE TABLE [effort].[Roles] (
@@ -595,15 +602,15 @@ BEGIN
     ('2', 'Instructor', 1, 2),
     ('3', 'Facilitator', 1, 3);
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ Roles table created and seeded (3 rows)");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ Roles table created and seeded (3 rows)");
+        }
 
-    static void CreateEffortTypesTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateEffortTypesTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'EffortTypes')
 BEGIN
     CREATE TABLE [effort].[EffortTypes] (
@@ -646,15 +653,15 @@ BEGIN
     (26, 'Admin', 'Asst Director', 1);
     SET IDENTITY_INSERT [effort].[EffortTypes] OFF;
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ EffortTypes table created and seeded (26 rows)");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ EffortTypes table created and seeded (26 rows)");
+        }
 
-    static void CreateSessionTypesTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateSessionTypesTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'SessionTypes')
 BEGIN
     CREATE TABLE [effort].[SessionTypes] (
@@ -706,15 +713,15 @@ BEGIN
     ('WRK', 'Workshop', 0),
     ('WVL', 'Work-Variable Learning', 0);
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine($"  ✓ SessionTypes table created and seeded ({EffortScriptHelper.ValidSessionTypes.Length} rows)");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine($"  ✓ SessionTypes table created and seeded ({EffortScriptHelper.ValidSessionTypes.Length} rows)");
+        }
 
-    static void CreateTermStatusTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateTermStatusTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'TermStatus')
 BEGIN
     -- Term data comes from VIPER.dbo.vwTerms
@@ -735,15 +742,15 @@ BEGIN
 
     CREATE NONCLUSTERED INDEX IX_TermStatus_Status ON [effort].[TermStatus](Status);
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ TermStatus table created (workflow tracking)");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ TermStatus table created (workflow tracking)");
+        }
 
-    static void CreateCoursesTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateCoursesTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'Courses')
 BEGIN
     -- NOTE: Title field not included - course titles should be fetched from VIPER course catalog
@@ -770,15 +777,15 @@ BEGIN
     CREATE NONCLUSTERED INDEX IX_Courses_CustDept ON [effort].[Courses](CustDept);
     CREATE NONCLUSTERED INDEX IX_Courses_SubjCode_CrseNumb ON [effort].[Courses](SubjCode, CrseNumb);
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ Courses table created");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ Courses table created");
+        }
 
-    static void CreatePersonsTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreatePersonsTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'Persons')
 BEGIN
     CREATE TABLE [effort].[Persons] (
@@ -808,15 +815,15 @@ BEGIN
     CREATE NONCLUSTERED INDEX IX_Persons_EffortDept ON [effort].[Persons](EffortDept);
     CREATE NONCLUSTERED INDEX IX_Persons_TermCode ON [effort].[Persons](TermCode);
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ Persons table created");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ Persons table created");
+        }
 
-    static void CreateRecordsTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateRecordsTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'Records')
 BEGIN
     CREATE TABLE [effort].[Records] (
@@ -849,15 +856,15 @@ BEGIN
     CREATE NONCLUSTERED INDEX IX_Records_TermCode ON [effort].[Records](TermCode);
     CREATE NONCLUSTERED INDEX IX_Records_ModifiedDate ON [effort].[Records](ModifiedDate);
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ Records table created");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ Records table created");
+        }
 
-    static void CreatePercentagesTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreatePercentagesTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'Percentages')
 BEGIN
     CREATE TABLE [effort].[Percentages] (
@@ -886,15 +893,15 @@ BEGIN
     CREATE NONCLUSTERED INDEX IX_Percentages_PersonId ON [effort].[Percentages](PersonId);
     CREATE NONCLUSTERED INDEX IX_Percentages_TermCode ON [effort].[Percentages](TermCode);
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ Percentages table created");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ Percentages table created");
+        }
 
-    static void CreateSabbatic​alsTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateSabbatic​alsTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'Sabbaticals')
 BEGIN
     CREATE TABLE [effort].[Sabbaticals] (
@@ -911,15 +918,15 @@ BEGIN
 
     CREATE NONCLUSTERED INDEX IX_Sabbaticals_PersonId ON [effort].[Sabbaticals](PersonId);
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ Sabbaticals table created");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ Sabbaticals table created");
+        }
 
-    static void CreateUserAccessTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateUserAccessTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'UserAccess')
 BEGIN
     CREATE TABLE [effort].[UserAccess] (
@@ -938,15 +945,15 @@ BEGIN
     CREATE NONCLUSTERED INDEX IX_UserAccess_PersonId ON [effort].[UserAccess](PersonId) WHERE IsActive = 1;
     CREATE NONCLUSTERED INDEX IX_UserAccess_DeptCode ON [effort].[UserAccess](DepartmentCode) WHERE IsActive = 1;
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ UserAccess table created (CRITICAL)");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ UserAccess table created (CRITICAL)");
+        }
 
-    static void CreateUnitsTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateUnitsTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'Units')
 BEGIN
     CREATE TABLE [effort].[Units] (
@@ -962,36 +969,37 @@ BEGIN
 
     CREATE NONCLUSTERED INDEX IX_Units_IsActive ON [effort].[Units](IsActive, SortOrder);
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ Units table created (CRITICAL)");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ Units table created (CRITICAL)");
+        }
 
-    static void CreateJobCodesTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateJobCodesTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'JobCodes')
 BEGIN
+    -- Legacy tblJobCode has: jobcode, faculty (unused), include_clinschedule
+    -- No description/title exists in legacy - it's just a code-to-flags mapping
     CREATE TABLE [effort].[JobCodes] (
         Id int IDENTITY(1,1) NOT NULL,
-        Code varchar(10) NOT NULL,
-        Description varchar(100) NOT NULL,
-        Category varchar(50) NULL,
-        IsActive bit NOT NULL DEFAULT 1,
+        Code varchar(6) NOT NULL,                     -- Legacy: jobcode varchar(6)
+        IncludeClinSchedule bit NOT NULL DEFAULT 1,   -- Legacy: include_clinschedule
+        IsActive bit NOT NULL DEFAULT 1,              -- Soft delete (new)
         CONSTRAINT PK_JobCodes PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT UQ_JobCodes_Code UNIQUE (Code)
     );
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ JobCodes table created");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ JobCodes table created");
+        }
 
-    static void CreateReportUnitsTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateReportUnitsTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'ReportUnits')
 BEGIN
     CREATE TABLE [effort].[ReportUnits] (
@@ -1006,15 +1014,15 @@ BEGIN
         CONSTRAINT UQ_ReportUnits_Code UNIQUE (UnitCode)
     );
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ ReportUnits table created");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ ReportUnits table created");
+        }
 
-    static void CreateAlternateTitlesTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateAlternateTitlesTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'AlternateTitles')
 BEGIN
     CREATE TABLE [effort].[AlternateTitles] (
@@ -1034,16 +1042,16 @@ BEGIN
 
     CREATE NONCLUSTERED INDEX IX_AlternateTitles_PersonId ON [effort].[AlternateTitles](PersonId) WHERE IsActive = 1;
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ AlternateTitles table created");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ AlternateTitles table created");
+        }
 
 
-    static void CreateCourseRelationshipsTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateCourseRelationshipsTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'CourseRelationships')
 BEGIN
     CREATE TABLE [effort].[CourseRelationships] (
@@ -1058,192 +1066,173 @@ BEGIN
         CONSTRAINT CK_CourseRelationships_Type CHECK (RelationshipType IN ('Parent', 'Child', 'CrossList', 'Section'))
     );
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ CourseRelationships table created");
-    }
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ CourseRelationships table created");
+        }
 
-    static void CreateAuditsTable(SqlConnection connection, SqlTransaction transaction)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.Transaction = transaction;
-        cmd.CommandText = @"
+        static void CreateAuditsTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'Audits')
 BEGIN
-    -- Dual-column approach for backward compatibility with legacy audit data
-    -- ChangesLegacy: Preserves historical plain-text audit data from legacy system
-    -- ChangeDetails: New JSON format for structured querying (SQL Server 2016+)
-    -- IsLegacyFormat: Flag to distinguish between formats
-    -- Changes: Computed column for unified access to either format
     CREATE TABLE [effort].[Audits] (
         Id int IDENTITY(1,1) NOT NULL,
         TableName varchar(50) NOT NULL,
         RecordId int NOT NULL,
-        Action varchar(10) NOT NULL,
+        Action varchar(10) NOT NULL,           -- Normalized: INSERT/UPDATE/DELETE
         ChangedBy int NOT NULL,
         ChangedDate datetime2(7) NOT NULL DEFAULT GETDATE(),
-
-        -- Legacy format (for migrated historical data)
-        ChangesLegacy nvarchar(MAX) NULL,
-
-        -- New JSON format (structured data with CHECK constraint)
-        ChangeDetails nvarchar(MAX) NULL,
-
-        -- Metadata
-        IsLegacyFormat bit NOT NULL DEFAULT 0,
+        Changes nvarchar(MAX) NULL,            -- Audit text (legacy plain-text or JSON)
         MigratedDate datetime2(7) NULL,
-
-        -- Additional context
         UserAgent varchar(500) NULL,
         IpAddress varchar(50) NULL,
 
+        -- Legacy preservation columns (for 1:1 verification against legacy tblAudit)
+        -- Can be dropped after ColdFusion is decommissioned
+        LegacyAction varchar(100) NULL,        -- Original action text (e.g., 'CreateCourse')
+        LegacyCRN varchar(20) NULL,            -- Original audit_CRN
+        LegacyTermCode int NULL,               -- Original audit_TermCode
+        LegacyMothraID varchar(20) NULL,       -- Original audit_MothraID
+
         CONSTRAINT PK_Audits PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT FK_Audits_ChangedBy FOREIGN KEY (ChangedBy) REFERENCES [users].[Person](PersonId),
-        CONSTRAINT CK_Audits_Action CHECK (Action IN ('INSERT', 'UPDATE', 'DELETE')),
-        CONSTRAINT CK_Audits_ValidJSON CHECK (ChangeDetails IS NULL OR ISJSON(ChangeDetails) = 1)
+        CONSTRAINT CK_Audits_Action CHECK (Action IN ('INSERT', 'UPDATE', 'DELETE'))
     );
-
-    -- Add computed column for unified access
-    ALTER TABLE [effort].[Audits] ADD
-        Changes AS (
-            CASE
-                WHEN IsLegacyFormat = 1 THEN ChangesLegacy
-                ELSE ChangeDetails
-            END
-        ) PERSISTED;
 
     CREATE NONCLUSTERED INDEX IX_Audits_TableName_RecordId ON [effort].[Audits](TableName, RecordId);
     CREATE NONCLUSTERED INDEX IX_Audits_ChangedDate ON [effort].[Audits](ChangedDate DESC);
     CREATE NONCLUSTERED INDEX IX_Audits_ChangedBy ON [effort].[Audits](ChangedBy);
-    CREATE NONCLUSTERED INDEX IX_Audits_IsLegacyFormat ON [effort].[Audits](IsLegacyFormat) WHERE IsLegacyFormat = 0;
 END";
-        cmd.ExecuteNonQuery();
-        Console.WriteLine("  ✓ Audits table created (dual-column JSON approach)");
-    }
-
-    // Helper method to validate and report results (DRY principle)
-    static bool ValidateCount(SqlConnection connection, string sql, int expected, string successMessage, string errorMessage)
-    {
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = sql;
-        int actual = (int)cmd.ExecuteScalar();
-
-        if (actual == expected)
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"  ✓ {successMessage}");
-            Console.ResetColor();
-            return true;
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ Audits table created");
         }
-        else
+
+        // Helper method to validate and report results (DRY principle)
+        static bool ValidateCount(SqlConnection connection, string sql, int expected, string successMessage, string errorMessage)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"  ✗ {errorMessage.Replace("{expected}", expected.ToString()).Replace("{actual}", actual.ToString())}");
-            Console.ResetColor();
-            return false;
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = sql;
+            int actual = (int)cmd.ExecuteScalar();
+
+            if (actual == expected)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  ✓ {successMessage}");
+                Console.ResetColor();
+                return true;
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  ✗ {errorMessage.Replace("{expected}", expected.ToString()).Replace("{actual}", actual.ToString())}");
+                Console.ResetColor();
+                return false;
+            }
         }
-    }
 
-    static bool ValidateSchemaCreation(string connectionString)
-    {
-        Console.WriteLine("Validating schema creation...");
-        Console.WriteLine();
-
-        bool allValidationsPassed = true;
-
-        using var connection = new SqlConnection(connectionString);
-        connection.Open();
-
-        // 1. Validate all tables exist
-        allValidationsPassed &= ValidateCount(
-            connection,
-            "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('effort')",
-            EffortScriptHelper.ExpectedTableCount,
-            $"All {EffortScriptHelper.ExpectedTableCount} tables created",
-            "Expected {expected} tables, found {actual}"
-        );
-
-        // 2. Validate Roles table seeded data
-        allValidationsPassed &= ValidateCount(
-            connection,
-            "SELECT COUNT(*) FROM [effort].[Roles]",
-            3,
-            "Roles table seeded (3 rows)",
-            "Roles table: expected {expected} rows, found {actual}"
-        );
-
-        // 3. Validate SessionTypes table seeded data
-        // Use count from EffortScriptHelper.ValidSessionTypes to ensure consistency
-        allValidationsPassed &= ValidateCount(
-            connection,
-            "SELECT COUNT(*) FROM [effort].[SessionTypes]",
-            EffortScriptHelper.ValidSessionTypes.Length,
-            $"SessionTypes table seeded ({EffortScriptHelper.ValidSessionTypes.Length} rows)",
-            "SessionTypes table: expected {expected} rows, found {actual}"
-        );
-
-        // 4. Validate EffortTypes table seeded data
-        allValidationsPassed &= ValidateCount(
-            connection,
-            "SELECT COUNT(*) FROM [effort].[EffortTypes]",
-            26,
-            "EffortTypes table seeded (26 rows)",
-            "EffortTypes table: expected {expected} rows, found {actual}"
-        );
-
-        // 5. Validate Role column type in Records table
-        using (var cmd = connection.CreateCommand())
+        static bool ValidateSchemaCreation(string connectionString)
         {
-            cmd.CommandText = @"
+            Console.WriteLine("Validating schema creation...");
+            Console.WriteLine();
+
+            bool allValidationsPassed = true;
+
+            using var connection = new SqlConnection(connectionString);
+            connection.Open();
+
+            // 1. Validate all tables exist
+            allValidationsPassed &= ValidateCount(
+                connection,
+                "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('effort')",
+                EffortScriptHelper.ExpectedTableCount,
+                $"All {EffortScriptHelper.ExpectedTableCount} tables created",
+                "Expected {expected} tables, found {actual}"
+            );
+
+            // 2. Validate Roles table seeded data
+            allValidationsPassed &= ValidateCount(
+                connection,
+                "SELECT COUNT(*) FROM [effort].[Roles]",
+                3,
+                "Roles table seeded (3 rows)",
+                "Roles table: expected {expected} rows, found {actual}"
+            );
+
+            // 3. Validate SessionTypes table seeded data
+            // Use count from EffortScriptHelper.ValidSessionTypes to ensure consistency
+            allValidationsPassed &= ValidateCount(
+                connection,
+                "SELECT COUNT(*) FROM [effort].[SessionTypes]",
+                EffortScriptHelper.ValidSessionTypes.Length,
+                $"SessionTypes table seeded ({EffortScriptHelper.ValidSessionTypes.Length} rows)",
+                "SessionTypes table: expected {expected} rows, found {actual}"
+            );
+
+            // 4. Validate EffortTypes table seeded data
+            allValidationsPassed &= ValidateCount(
+                connection,
+                "SELECT COUNT(*) FROM [effort].[EffortTypes]",
+                26,
+                "EffortTypes table seeded (26 rows)",
+                "EffortTypes table: expected {expected} rows, found {actual}"
+            );
+
+            // 5. Validate Role column type in Records table
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = @"
                 SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH
                 FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_SCHEMA = 'effort'
                   AND TABLE_NAME = 'Records'
                   AND COLUMN_NAME = 'Role'";
 
-            using var reader = cmd.ExecuteReader();
-            if (reader.Read())
-            {
-                string dataType = reader.GetString(0);
-                int? maxLength = reader.IsDBNull(1) ? null : (int?)reader.GetInt32(1);
-
-                if (dataType == "char" && maxLength == 1)
+                using var reader = cmd.ExecuteReader();
+                if (reader.Read())
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"  ✓ Records.Role column type correct (char(1))");
-                    Console.ResetColor();
+                    string dataType = reader.GetString(0);
+                    int? maxLength = reader.IsDBNull(1) ? null : (int?)reader.GetInt32(1);
+
+                    if (dataType == "char" && maxLength == 1)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"  ✓ Records.Role column type correct (char(1))");
+                        Console.ResetColor();
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"  ✗ Records.Role column: expected char(1), found {dataType}({maxLength})");
+                        Console.ResetColor();
+                        allValidationsPassed = false;
+                    }
                 }
                 else
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"  ✗ Records.Role column: expected char(1), found {dataType}({maxLength})");
+                    Console.WriteLine($"  ✗ Records.Role column not found");
                     Console.ResetColor();
                     allValidationsPassed = false;
                 }
             }
+
+            Console.WriteLine();
+            if (allValidationsPassed)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("✓ All validations passed!");
+                Console.ResetColor();
+            }
             else
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"  ✗ Records.Role column not found");
+                Console.WriteLine("✗ Some validations failed!");
                 Console.ResetColor();
-                allValidationsPassed = false;
             }
-        }
 
-        Console.WriteLine();
-        if (allValidationsPassed)
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("✓ All validations passed!");
-            Console.ResetColor();
+            return allValidationsPassed;
         }
-        else
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("✗ Some validations failed!");
-            Console.ResetColor();
-        }
-
-        return allValidationsPassed;
-    }
     }
 }

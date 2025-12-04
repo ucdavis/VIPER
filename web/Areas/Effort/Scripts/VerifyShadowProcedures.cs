@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
 namespace Viper.Areas.Effort.Scripts
 {
@@ -28,6 +27,99 @@ namespace Viper.Areas.Effort.Scripts
      */
     public class VerifyShadowProcedures
     {
+        // ============================================================================
+        // View/Table Verification Configuration
+        // ============================================================================
+
+        // Mapping of shadow views to legacy tables (view name -> legacy table name)
+        // All views are in [EffortShadow] schema, tables are in legacy Efforts database
+        private static readonly Dictionary<string, string> ViewToLegacyTable = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tblEffort"] = "tblEffort",
+            ["tblPerson"] = "tblPerson",
+            ["tblCourses"] = "tblCourses",
+            ["tblPercent"] = "tblPercent",
+            ["tblStatus"] = "tblStatus",
+            ["tblSabbatic"] = "tblSabbatic",
+            ["tblRoles"] = "tblRoles",
+            ["tblEffortType_LU"] = "tblEffortType_LU",
+            ["userAccess"] = "userAccess",
+            ["tblUnits_LU"] = "tblUnits_LU",
+            ["tblJobCode"] = "tblJobCode",
+            ["tblReportUnits"] = "tblReportUnits",
+            ["tblAltTitles"] = "tblAltTitles",
+            ["tblCourseRelationships"] = "tblCourseRelationships",
+            ["tblAudit"] = "tblAudit"
+            // vw_InstructorEffort is a composite reporting view - verify separately if needed
+        };
+
+        // Views where row count differences are expected due to skipped migration records
+        private static readonly Dictionary<string, string> ViewsWithExpectedRowDifferences = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tblPercent"] = "Orphaned records (no tblPerson for that academic year) are skipped during migration",
+            ["tblPerson"] = "Records with invalid MothraId are skipped",
+            ["tblEffort"] = "Records referencing skipped persons are skipped"
+        };
+
+        // Primary key columns for each view (used for data comparison ordering)
+        // Use comma-separated columns for composite keys
+        private static readonly Dictionary<string, string> ViewPrimaryKeys = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tblEffort"] = "effort_ID",
+            ["tblPerson"] = "person_MothraID,person_TermCode",  // Composite: one row per person per term
+            ["tblCourses"] = "course_ID",
+            ["tblPercent"] = "percent_ID",
+            ["tblStatus"] = "status_TermCode",
+            ["tblSabbatic"] = "sab_ID",
+            ["tblRoles"] = "Role_ID",
+            ["tblEffortType_LU"] = "type_ID",
+            ["userAccess"] = "userAccessID",
+            ["tblUnits_LU"] = "unit_ID",
+            ["tblJobCode"] = "jobcode",
+            ["tblReportUnits"] = "ru_id",
+            ["tblAltTitles"] = "JobGrpID",
+            ["tblCourseRelationships"] = "cr_ParentID,cr_ChildID",  // Composite: parent + child
+            ["tblAudit"] = "audit_ID"
+        };
+
+        // Known value differences that are acceptable (legacy value → shadow value)
+        // These are intentional differences from data migration or view definition
+        private static readonly Dictionary<string, Dictionary<string, string>> KnownValueMappings = new(StringComparer.OrdinalIgnoreCase)
+        {
+            // tblPercent: NULL modifiedBy becomes 'unknown' in migration
+            ["percent_modifiedBy"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["NULL"] = "unknown"
+            },
+            // tblPerson: ClientID is NULL in legacy, populated from users.Person in shadow
+            ["person_ClientID"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["NULL"] = "*"  // * means any non-null value is acceptable
+            },
+            // tblPerson: MiddleIni empty string vs NULL
+            ["person_MiddleIni"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [""] = "NULL",
+                ["NULL"] = ""
+            }
+        };
+
+        // Views where term name format differs (legacy has verbose names, shadow uses vwTerms)
+        private static readonly HashSet<string> ViewsWithTermNameDifferences = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "tblStatus"  // status_TermName comes from different source views
+        };
+
+        // Views that are large - use random sampling instead of TOP N
+        private static readonly HashSet<string> LargeViewsForRandomSampling = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "tblAudit"  // 266K+ rows - use random sampling
+        };
+
+        // ============================================================================
+        // Stored Procedure Verification Configuration
+        // ============================================================================
+
         // Procedures where ORDER BY differences are acceptable because the application re-sorts results
         private static readonly HashSet<string> OrderInsensitiveProcedures = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -35,16 +127,23 @@ namespace Viper.Areas.Effort.Scripts
             "usp_getInstructorsWithClinicalEffort"         // No explicit ORDER BY; ColdFusion handles display order
         };
 
-        // Columns to ignore during comparison per procedure (identity columns that differ between Legacy and Shadow)
-        // Key: procedure name, Value: set of column names to ignore (case-insensitive)
-        // NOTE: As of the 1:1 ID mapping fix, percent_ID should now match between Legacy and Shadow.
-        // Keeping this configuration in case there are edge cases or if we need to revert.
-        private static readonly Dictionary<string, HashSet<string>> ColumnsToIgnore = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+        // Procedures where Shadow may return MORE rows than Legacy due to legacy NULL percent_AcademicYear bug
+        // These are NOT failures - Shadow is correct, Legacy silently drops rows with NULL academic year
+        private const string NullAcademicYearReason = "Legacy has NULL percent_AcademicYear that never matches; Shadow derives from TermCode/StartDate";
+        private static readonly HashSet<string> ProceduresAllowingMoreShadowRows = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            // percent_ID now uses 1:1 mapping from legacy percent_ID via SET IDENTITY_INSERT
-            // The ColdFusion code only uses mothraid from this procedure (valueList(clin_instructors.mothraid))
-            // Keeping this ignore rule until verified that all IDs match after migration
-            ["usp_getInstructorsWithClinicalEffort"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "percent_ID" }
+            "usp_getEffortPercentsForInstructor",
+            "usp_getInstructorsWithClinicalEffort",
+            "usp_getListOfEffortPercentsForInstructor",
+            "usp_getSumEffortPercentsForInstructor"
+        };
+
+        // Procedures where Legacy may return MORE rows than Shadow due to orphaned tblPercent records
+        // Orphaned = tblPercent record exists for an academic year but no corresponding tblPerson record
+        // Migration correctly skips these orphaned records, so Shadow has fewer rows
+        private static readonly HashSet<string> ProceduresWithPotentialOrphanedLegacyRows = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "usp_getInstructorsWithClinicalEffort"
         };
 
         public static int Run(string[] args)
@@ -142,6 +241,78 @@ namespace Viper.Areas.Effort.Scripts
             Console.WriteLine("against [EffortShadow] schema procedures to verify the shadow");
             Console.WriteLine("schema compatibility layer works correctly.");
             Console.WriteLine();
+
+            // ============================================================================
+            // Run View/Table Schema Verification
+            // ============================================================================
+            // Run BEFORE procedure verification - views are prerequisites for SPs
+            var viewReport = VerifyShadowViews(legacyConnectionString, shadowConnectionString, verboseMode);
+
+            // If view verification has failures, skip SP verification
+            // SPs depend on views, so results would be unreliable
+            if (viewReport.FailedViews > 0)
+            {
+                Console.WriteLine();
+                Console.WriteLine("================================================================================");
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"⚠ SKIPPING STORED PROCEDURE VERIFICATION");
+                Console.ResetColor();
+                Console.WriteLine($"   {viewReport.FailedViews} view(s) failed verification.");
+                Console.WriteLine("   Fix view issues first - SP results depend on correct view data.");
+                Console.WriteLine("================================================================================");
+                Console.WriteLine();
+
+                // Generate minimal report with view results only
+                var viewOnlyReport = new StringBuilder();
+                viewOnlyReport.AppendLine("================================================================================");
+                viewOnlyReport.AppendLine("EFFORT SHADOW SCHEMA VERIFICATION REPORT");
+                viewOnlyReport.AppendLine("================================================================================");
+                viewOnlyReport.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                viewOnlyReport.AppendLine($"Legacy Database: {GetDatabaseName(legacyConnectionString)}");
+                viewOnlyReport.AppendLine($"Shadow Schema: [VIPER].[EffortShadow] (within {GetDatabaseName(shadowConnectionString)})");
+                viewOnlyReport.AppendLine();
+                viewOnlyReport.AppendLine("SUMMARY");
+                viewOnlyReport.AppendLine("================================================================================");
+                viewOnlyReport.AppendLine();
+                viewOnlyReport.AppendLine("View/Table Verification:");
+                viewOnlyReport.AppendLine($"  Total Views: {viewReport.TotalViews}");
+                viewOnlyReport.AppendLine($"  Passed: {viewReport.PassedViews}");
+                viewOnlyReport.AppendLine($"  Failed: {viewReport.FailedViews}");
+                viewOnlyReport.AppendLine();
+                viewOnlyReport.AppendLine("Stored Procedure Verification:");
+                viewOnlyReport.AppendLine("  ⚠ SKIPPED - View verification must pass first");
+                viewOnlyReport.AppendLine();
+                viewOnlyReport.AppendLine("VIEW/TABLE VERIFICATION DETAILS");
+                viewOnlyReport.AppendLine("================================================================================");
+                foreach (var viewResult in viewReport.Results)
+                {
+                    string schemaStatus = viewResult.SchemaPassed ? "✓" : "✗";
+                    string dataStatus = viewResult.DataPassed ? "✓" : "✗";
+                    string contentStatus = viewResult.ContentPassed ? "✓" : "✗";
+                    string rowInfo = viewResult.LegacyRowCount == viewResult.ShadowRowCount
+                        ? $"{viewResult.LegacyRowCount} rows"
+                        : $"{viewResult.LegacyRowCount} legacy, {viewResult.ShadowRowCount} shadow";
+                    string contentInfo = viewResult.SampleRowsCompared > 0
+                        ? $", Content {contentStatus} ({viewResult.SampleRowsCompared} rows compared)"
+                        : "";
+                    viewOnlyReport.AppendLine($"  {viewResult.ViewName}: Schema {schemaStatus} ({viewResult.LegacyColumnCount} cols), Data {dataStatus} ({rowInfo}){contentInfo}");
+
+                    foreach (var diff in viewResult.ContentDifferences)
+                        viewOnlyReport.AppendLine($"    {diff}");
+                    foreach (var warning in viewResult.Warnings)
+                        viewOnlyReport.AppendLine($"    ⚠ {warning}");
+                    foreach (var error in viewResult.Errors)
+                        viewOnlyReport.AppendLine($"    ✗ {error}");
+                }
+                viewOnlyReport.AppendLine();
+                viewOnlyReport.AppendLine("================================================================================");
+                viewOnlyReport.AppendLine("END OF REPORT");
+                viewOnlyReport.AppendLine("================================================================================");
+
+                File.WriteAllText(reportFile, viewOnlyReport.ToString());
+                Console.WriteLine($"Report saved to: {reportFile}");
+                return 1;  // Exit with error code
+            }
 
             // ============================================================================
             // Dynamically Discover Test Procedures
@@ -270,8 +441,7 @@ namespace Viper.Areas.Effort.Scripts
                         {
                             // Both succeeded - compare results
                             bool orderInsensitive = OrderInsensitiveProcedures.Contains(test.Name);
-                            var ignoredColumns = ColumnsToIgnore.TryGetValue(test.Name, out var cols) ? cols : null;
-                            CompareResults(legacyData!, shadowData!, result, orderInsensitive, ignoredColumns);
+                            CompareResults(legacyData!, shadowData!, result, test.Name, orderInsensitive, legacyConn);
                             if (result.Differences.Count == 0)
                             {
                                 result.Status = TestStatus.Passed;
@@ -356,6 +526,12 @@ namespace Viper.Areas.Effort.Scripts
             }
 
             // ============================================================================
+            // Run tblPercent Migration Verification
+            // ============================================================================
+            // Run this BEFORE generating report so results can be included
+            var percentReport = VerifyTblPercentByTopUsers(legacyConnectionString, shadowConnectionString, verboseMode);
+
+            // ============================================================================
             // Generate Report
             // ============================================================================
 
@@ -363,22 +539,44 @@ namespace Viper.Areas.Effort.Scripts
             Console.WriteLine("================================================================================");
             Console.WriteLine("Verification Summary");
             Console.WriteLine("================================================================================");
-            Console.WriteLine($"Total Procedures Tested: {report.TotalProcedures}");
+
+            // View Verification Summary
+            Console.WriteLine("View/Table Verification:");
+            Console.WriteLine($"  Total Views: {viewReport.TotalViews}");
+            if (viewReport.FailedViews == 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  Passed: {viewReport.PassedViews} ✓");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  Passed: {viewReport.PassedViews}");
+                Console.ResetColor();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  Failed: {viewReport.FailedViews}");
+                Console.ResetColor();
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("Stored Procedure Verification:");
+            Console.WriteLine($"  Total Procedures Tested: {report.TotalProcedures}");
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Passed: {report.PassedProcedures}");
+            Console.WriteLine($"  Passed: {report.PassedProcedures}");
             Console.ResetColor();
 
             if (report.FailedProcedures > 0)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Failed (Shadow Defects): {report.FailedProcedures}");
+                Console.WriteLine($"  Failed (Shadow Defects): {report.FailedProcedures}");
                 Console.ResetColor();
             }
 
             if (report.NeedsInvestigation > 0)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"Needs Investigation (Both Failed): {report.NeedsInvestigation}");
+                Console.WriteLine($"  Needs Investigation (Both Failed): {report.NeedsInvestigation}");
                 Console.ResetColor();
             }
 
@@ -388,7 +586,24 @@ namespace Viper.Areas.Effort.Scripts
             if (proceduresWithOtherWarnings > 0)
             {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"Other Warnings (CRUD rollback, etc.): {proceduresWithOtherWarnings}");
+                Console.WriteLine($"  Other Warnings (CRUD rollback, etc.): {proceduresWithOtherWarnings}");
+                Console.ResetColor();
+            }
+
+            // tblPercent Migration Verification Summary
+            Console.WriteLine();
+            Console.WriteLine("tblPercent Migration Verification:");
+            Console.WriteLine($"  Users Checked: {percentReport.TotalUsersChecked}");
+            if (percentReport.UsersWithDiscrepancies == 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  All Matched: ✓");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  Users with Discrepancies: {percentReport.UsersWithDiscrepancies}");
                 Console.ResetColor();
             }
 
@@ -412,16 +627,90 @@ namespace Viper.Areas.Effort.Scripts
             sb.AppendLine();
             sb.AppendLine("SUMMARY");
             sb.AppendLine("================================================================================");
-            sb.AppendLine($"Total Procedures Tested: {report.TotalProcedures} (representative sample)");
-            sb.AppendLine($"Passed: {report.PassedProcedures} (shadow works correctly)");
-            sb.AppendLine($"Failed: {report.FailedProcedures} (shadow defects - shadow fails, legacy works)");
-            sb.AppendLine($"Needs Investigation: {report.NeedsInvestigation} (both legacy and shadow fail)");
+            sb.AppendLine();
+            sb.AppendLine("View/Table Verification:");
+            sb.AppendLine($"  Total Views: {viewReport.TotalViews}");
+            sb.AppendLine($"  Passed: {viewReport.PassedViews}");
+            sb.AppendLine($"  Failed: {viewReport.FailedViews}");
+            sb.AppendLine();
+            sb.AppendLine("Stored Procedure Verification:");
+            sb.AppendLine($"  Total Procedures Tested: {report.TotalProcedures} (representative sample)");
+            sb.AppendLine($"  Passed: {report.PassedProcedures} (shadow works correctly)");
+            sb.AppendLine($"  Failed: {report.FailedProcedures} (shadow defects - shadow fails, legacy works)");
+            sb.AppendLine($"  Needs Investigation: {report.NeedsInvestigation} (both legacy and shadow fail)");
 
             if (proceduresWithOtherWarnings > 0)
             {
-                sb.AppendLine($"Other Warnings: {proceduresWithOtherWarnings} (CRUD rollback tests, legacy-only failures, etc.)");
+                sb.AppendLine($"  Other Warnings: {proceduresWithOtherWarnings} (CRUD rollback tests, legacy-only failures, etc.)");
             }
 
+            sb.AppendLine();
+            sb.AppendLine("tblPercent Migration Verification (Top 25 Users):");
+            sb.AppendLine($"  Users Checked: {percentReport.TotalUsersChecked}");
+            sb.AppendLine($"  Users Matched: {percentReport.TotalUsersChecked - percentReport.UsersWithDiscrepancies}");
+            sb.AppendLine($"  Users with Discrepancies: {percentReport.UsersWithDiscrepancies}");
+
+            sb.AppendLine();
+
+            // View Verification Details
+            if (viewReport.FailedViews > 0)
+            {
+                sb.AppendLine("VIEW/TABLE VERIFICATION FAILURES");
+                sb.AppendLine("================================================================================");
+                sb.AppendLine("These shadow views have schema or data mismatches with legacy tables.");
+                sb.AppendLine();
+                sb.AppendLine("⚠ ACTION REQUIRED: Fix these view issues before stored procedure verification.");
+                sb.AppendLine();
+
+                foreach (var viewResult in viewReport.Results.Where(r => !r.SchemaPassed || !r.DataPassed))
+                {
+                    sb.AppendLine($"View: [EffortShadow].{viewResult.ViewName} vs Legacy {viewResult.LegacyTable}");
+                    sb.AppendLine($"  Schema: {(viewResult.SchemaPassed ? "✓ PASS" : "✗ FAIL")} ({viewResult.LegacyColumnCount} legacy cols, {viewResult.ShadowColumnCount} shadow cols)");
+                    sb.AppendLine($"  Data: {(viewResult.DataPassed ? "✓ PASS" : "✗ FAIL")} ({viewResult.LegacyRowCount} legacy rows, {viewResult.ShadowRowCount} shadow rows)");
+
+                    foreach (var error in viewResult.Errors)
+                    {
+                        sb.AppendLine($"  ERROR: {error}");
+                    }
+                    foreach (var warning in viewResult.Warnings)
+                    {
+                        sb.AppendLine($"  WARNING: {warning}");
+                    }
+                    sb.AppendLine();
+                    sb.AppendLine("---");
+                }
+
+                sb.AppendLine();
+            }
+
+            // View verification passed - show summary
+            sb.AppendLine("VIEW/TABLE VERIFICATION DETAILS");
+            sb.AppendLine("================================================================================");
+            foreach (var viewResult in viewReport.Results)
+            {
+                string schemaStatus = viewResult.SchemaPassed ? "✓" : "✗";
+                string dataStatus = viewResult.DataPassed ? "✓" : "✗";
+                string contentStatus = viewResult.ContentPassed ? "✓" : "✗";
+                string rowInfo = viewResult.LegacyRowCount == viewResult.ShadowRowCount
+                    ? $"{viewResult.LegacyRowCount} rows"
+                    : $"{viewResult.LegacyRowCount} legacy, {viewResult.ShadowRowCount} shadow";
+                string contentInfo = viewResult.SampleRowsCompared > 0
+                    ? $", Content {contentStatus} ({viewResult.SampleRowsCompared} rows compared)"
+                    : "";
+                sb.AppendLine($"  {viewResult.ViewName}: Schema {schemaStatus} ({viewResult.LegacyColumnCount} cols), Data {dataStatus} ({rowInfo}){contentInfo}");
+
+                // Show content differences if any (already formatted with indentation)
+                foreach (var diff in viewResult.ContentDifferences)
+                {
+                    sb.AppendLine($"    {diff}");
+                }
+
+                // Show warnings if any
+                foreach (var warning in viewResult.Warnings)
+                {
+                    sb.AppendLine($"    ⚠ {warning}");
+                }
+            }
             sb.AppendLine();
 
             // Needs Investigation Section (both failed - environmental issues)
@@ -548,6 +837,54 @@ namespace Viper.Areas.Effort.Scripts
                 sb.AppendLine();
             }
 
+            // tblPercent Migration Verification Details
+            sb.AppendLine();
+            sb.AppendLine("tblPercent MIGRATION VERIFICATION");
+            sb.AppendLine("================================================================================");
+            sb.AppendLine("Compares percentage records for top 25 users between Legacy and Shadow.");
+            sb.AppendLine("Orphaned records (no corresponding tblPerson entry) are excluded from comparison.");
+            sb.AppendLine();
+
+            if (percentReport.UsersWithDiscrepancies == 0)
+            {
+                sb.AppendLine($"✓ All {percentReport.TotalUsersChecked} users verified - records match between Legacy and Shadow");
+            }
+            else
+            {
+                sb.AppendLine($"✗ {percentReport.UsersWithDiscrepancies} of {percentReport.TotalUsersChecked} users have discrepancies");
+                sb.AppendLine();
+
+                foreach (var userResult in percentReport.Results.Where(r => !r.Matched))
+                {
+                    sb.AppendLine($"MothraID: {userResult.MothraId}");
+                    sb.AppendLine($"  Legacy Count: {userResult.LegacyCount}, Shadow Count: {userResult.ShadowCount}");
+
+                    if (userResult.MissingInShadow.Count > 0)
+                    {
+                        sb.AppendLine($"  Missing in Shadow: {userResult.MissingInShadow.Count}");
+                        foreach (var key in userResult.MissingInShadow.Take(5))
+                        {
+                            sb.AppendLine($"    - {key}");
+                        }
+                        if (userResult.MissingInShadow.Count > 5)
+                            sb.AppendLine($"    ... and {userResult.MissingInShadow.Count - 5} more");
+                    }
+
+                    if (userResult.ExtraInShadow.Count > 0)
+                    {
+                        sb.AppendLine($"  Extra in Shadow: {userResult.ExtraInShadow.Count}");
+                        foreach (var key in userResult.ExtraInShadow.Take(5))
+                        {
+                            sb.AppendLine($"    - {key}");
+                        }
+                        if (userResult.ExtraInShadow.Count > 5)
+                            sb.AppendLine($"    ... and {userResult.ExtraInShadow.Count - 5} more");
+                    }
+
+                    sb.AppendLine();
+                }
+            }
+
             sb.AppendLine("================================================================================");
             sb.AppendLine("END OF REPORT");
             sb.AppendLine("================================================================================");
@@ -559,12 +896,12 @@ namespace Viper.Areas.Effort.Scripts
             Console.ResetColor();
             Console.WriteLine("================================================================================");
 
-            // Run tblPercent migration verification (top 25 users comparison)
-            int percentDiscrepancies = VerifyTblPercentByTopUsers(legacyConnectionString, shadowConnectionString, verboseMode);
-
-            // Fail if any procedures failed OR need investigation OR percent migration has discrepancies
+            // Fail if any views failed, procedures failed OR need investigation, OR percent migration has discrepancies
             // NeedsInvestigation indicates environmental issues that prevent validation
-            return (report.FailedProcedures == 0 && report.NeedsInvestigation == 0 && percentDiscrepancies == 0) ? 0 : 1;
+            bool hasViewFailures = viewReport.FailedViews > 0;
+            bool hasProcedureFailures = report.FailedProcedures > 0 || report.NeedsInvestigation > 0;
+            bool hasPercentDiscrepancies = percentReport.UsersWithDiscrepancies > 0;
+            return (hasViewFailures || hasProcedureFailures || hasPercentDiscrepancies) ? 1 : 0;
         }
 
         // ============================================================================
@@ -1208,6 +1545,61 @@ namespace Viper.Areas.Effort.Scripts
             public List<ComparisonResult> Results { get; set; } = new List<ComparisonResult>();
         }
 
+        private class PercentVerificationReport
+        {
+            public int TotalUsersChecked { get; set; }
+            public int UsersWithDiscrepancies { get; set; }
+            public List<PercentUserResult> Results { get; set; } = new List<PercentUserResult>();
+        }
+
+        private class PercentUserResult
+        {
+            public string MothraId { get; set; } = string.Empty;
+            public int LegacyCount { get; set; }
+            public int ShadowCount { get; set; }
+            public bool Matched { get; set; }
+            public List<string> MissingInShadow { get; set; } = new List<string>();
+            public List<string> ExtraInShadow { get; set; } = new List<string>();
+        }
+
+        // View/Table Verification Data Models
+
+        private class ViewVerificationReport
+        {
+            public int TotalViews { get; set; }
+            public int PassedViews { get; set; }
+            public int FailedViews { get; set; }
+            public List<ViewVerificationResult> Results { get; set; } = new List<ViewVerificationResult>();
+        }
+
+        private class ViewVerificationResult
+        {
+            public string ViewName { get; set; } = string.Empty;
+            public string LegacyTable { get; set; } = string.Empty;
+            public bool SchemaPassed { get; set; }
+            public bool DataPassed { get; set; }
+            public bool ContentPassed { get; set; } = true;  // Data content comparison
+            public int LegacyColumnCount { get; set; }
+            public int ShadowColumnCount { get; set; }
+            public int LegacyRowCount { get; set; }
+            public int ShadowRowCount { get; set; }
+            public int SampleRowsCompared { get; set; }
+            public int ContentMismatches { get; set; }
+            public List<string> MissingColumns { get; set; } = new List<string>();
+            public List<string> ExtraColumns { get; set; } = new List<string>();
+            public List<string> ContentDifferences { get; set; } = new List<string>();
+            public List<string> Warnings { get; set; } = new List<string>();
+            public List<string> Errors { get; set; } = new List<string>();
+        }
+
+        private class ColumnInfo
+        {
+            public string ColumnName { get; set; } = string.Empty;
+            public string DataType { get; set; } = string.Empty;
+            public int MaxLength { get; set; }
+            public bool IsNullable { get; set; }
+        }
+
         // ============================================================================
         // Helper Functions
         // ============================================================================
@@ -1251,13 +1643,43 @@ namespace Viper.Areas.Effort.Scripts
             return dataTable;
         }
 
-        private static void CompareResults(DataTable legacy, DataTable shadow, ComparisonResult result, bool orderInsensitive = false, HashSet<string>? ignoredColumns = null)
+        private static void CompareResults(DataTable legacy, DataTable shadow, ComparisonResult result, string procedureName, bool orderInsensitive = false, SqlConnection? legacyConn = null)
         {
             // Row count comparison
             if (legacy.Rows.Count != shadow.Rows.Count)
             {
-                result.Differences.Add($"Row count mismatch: Legacy={legacy.Rows.Count}, Shadow={shadow.Rows.Count}");
-                return; // Can't meaningfully compare data if row counts differ
+                // Check if this is a known discrepancy (Shadow returns more due to legacy NULL academic year bug)
+                // Only downgrade to warning if the NULL academic year condition is actually present in legacy data
+                if (ProceduresAllowingMoreShadowRows.Contains(procedureName)
+                    && shadow.Rows.Count > legacy.Rows.Count)
+                {
+                    bool legacyHasNullAcademicYears = legacyConn != null && LegacyHasNullAcademicYears(legacyConn);
+                    if (legacyHasNullAcademicYears)
+                    {
+                        result.Warnings.Add($"Row count differs (KNOWN ISSUE): Legacy={legacy.Rows.Count}, Shadow={shadow.Rows.Count}");
+                        result.Warnings.Add($"  Reason: {NullAcademicYearReason}");
+                        // Don't return - continue with comparison of available rows
+                    }
+                    else
+                    {
+                        // No NULL academic years in legacy - this is a genuine mismatch
+                        result.Differences.Add($"Row count mismatch: Legacy={legacy.Rows.Count}, Shadow={shadow.Rows.Count}");
+                        return;
+                    }
+                }
+                else if (ProceduresWithPotentialOrphanedLegacyRows.Contains(procedureName)
+                    && legacy.Rows.Count > shadow.Rows.Count)
+                {
+                    // Legacy has more rows - will check if they're orphaned during detailed comparison
+                    result.Warnings.Add($"Row count differs: Legacy={legacy.Rows.Count}, Shadow={shadow.Rows.Count}");
+                    result.Warnings.Add($"  Will check if extra Legacy rows are orphaned (no tblPerson for that academic year)");
+                    // Don't return - continue with comparison to check for orphaned records
+                }
+                else
+                {
+                    result.Differences.Add($"Row count mismatch: Legacy={legacy.Rows.Count}, Shadow={shadow.Rows.Count}");
+                    return; // Can't meaningfully compare data if row counts differ
+                }
             }
 
             // Column count comparison
@@ -1279,17 +1701,11 @@ namespace Viper.Areas.Effort.Scripts
                 result.Warnings.Add($"Unmapped shadow columns: {string.Join(", ", columnMapping.UnmappedShadowColumns)}");
             }
 
-            // Note if any columns are being ignored
-            if (ignoredColumns != null && ignoredColumns.Any())
-            {
-                result.Warnings.Add($"Ignoring columns during comparison: {string.Join(", ", ignoredColumns)}");
-            }
-
             if (orderInsensitive)
             {
                 // For order-insensitive procedures, compare row sets instead of row-by-row
                 result.Warnings.Add("Order-insensitive comparison: checking for matching data sets (ORDER BY differences ignored)");
-                CompareResultSetsUnordered(legacy, shadow, columnMapping, result, ignoredColumns);
+                CompareResultSetsUnordered(legacy, shadow, columnMapping, result, procedureName, legacyConn);
             }
             else
             {
@@ -1298,7 +1714,7 @@ namespace Viper.Areas.Effort.Scripts
 
                 for (int i = 0; i < rowsToCheck && result.Differences.Count < 50; i++)
                 {
-                    CompareRows(legacy.Rows[i], shadow.Rows[i], columnMapping, result, i);
+                    CompareRows(legacy.Rows[i], shadow.Rows[i], columnMapping, result, i, procedureName);
                 }
 
                 if (legacy.Rows.Count > 100 || shadow.Rows.Count > 100)
@@ -1341,22 +1757,39 @@ namespace Viper.Areas.Effort.Scripts
 
         private static void CompareResultSetsUnordered(DataTable legacy, DataTable shadow,
             (Dictionary<string, string> Mapping, List<string> UnmappedLegacyColumns, List<string> UnmappedShadowColumns) columnMapping,
-            ComparisonResult result, HashSet<string>? ignoredColumns = null)
+            ComparisonResult result, string procedureName, SqlConnection? legacyConn = null)
         {
             // Build sets of row "signatures" to compare data sets without caring about order
             var legacyRowSignatures = new HashSet<string>();
             var shadowRowSignatures = new HashSet<string>();
 
+            // Also track MothraID -> signature mapping for orphan checking
+            var legacyMothraIdToSignatures = new Dictionary<string, List<string>>();
+
             // Create signatures for legacy rows
             foreach (DataRow row in legacy.Rows)
             {
-                legacyRowSignatures.Add(GetRowSignature(row, columnMapping.Mapping, ignoredColumns));
+                var sig = GetRowSignature(row, columnMapping.Mapping);
+                legacyRowSignatures.Add(sig);
+
+                // Track MothraID if this column exists (for orphan detection)
+                if (legacy.Columns.Contains("percent_MothraID") || legacy.Columns.Contains("mothraid"))
+                {
+                    var mothraIdCol = legacy.Columns.Contains("percent_MothraID") ? "percent_MothraID" : "mothraid";
+                    var mothraId = row[mothraIdCol]?.ToString()?.Trim() ?? "";
+                    if (!string.IsNullOrEmpty(mothraId))
+                    {
+                        if (!legacyMothraIdToSignatures.ContainsKey(mothraId))
+                            legacyMothraIdToSignatures[mothraId] = new List<string>();
+                        legacyMothraIdToSignatures[mothraId].Add(sig);
+                    }
+                }
             }
 
             // Create signatures for shadow rows
             foreach (DataRow row in shadow.Rows)
             {
-                shadowRowSignatures.Add(GetRowSignature(row, columnMapping.Mapping, ignoredColumns));
+                shadowRowSignatures.Add(GetRowSignature(row, columnMapping.Mapping));
             }
 
             // Find rows in legacy but not in shadow
@@ -1366,50 +1799,217 @@ namespace Viper.Areas.Effort.Scripts
 
             if (missingInShadow.Any())
             {
-                result.Differences.Add($"Rows in Legacy but NOT in Shadow: {missingInShadow.Count}");
-                // Show first few examples
-                foreach (var sig in missingInShadow.Take(5))
+                // Check if this procedure can have orphaned legacy records
+                if (ProceduresWithPotentialOrphanedLegacyRows.Contains(procedureName) && legacyConn != null)
                 {
-                    result.Differences.Add($"  Missing row: {sig}");
+                    // For each missing row, check if it's from an orphaned record
+                    int orphanedCount = 0;
+                    int realMissingCount = 0;
+                    var orphanedRows = new List<string>();
+                    var realMissingRows = new List<string>();
+
+                    // Find which MothraIDs have missing rows
+                    var mothraIdsWithMissingRows = new HashSet<string>();
+                    foreach (var sig in missingInShadow)
+                    {
+                        foreach (var kvp in legacyMothraIdToSignatures)
+                        {
+                            if (kvp.Value.Contains(sig))
+                            {
+                                mothraIdsWithMissingRows.Add(kvp.Key);
+                            }
+                        }
+                    }
+
+                    // Check each MothraID for orphan status
+                    var orphanedMothraIds = CheckForOrphanedMothraIds(legacyConn, mothraIdsWithMissingRows);
+
+                    foreach (var sig in missingInShadow)
+                    {
+                        bool isOrphaned = false;
+                        foreach (var kvp in legacyMothraIdToSignatures)
+                        {
+                            if (kvp.Value.Contains(sig) && orphanedMothraIds.Contains(kvp.Key))
+                            {
+                                isOrphaned = true;
+                                break;
+                            }
+                        }
+
+                        if (isOrphaned)
+                        {
+                            orphanedCount++;
+                            orphanedRows.Add(sig);
+                        }
+                        else
+                        {
+                            realMissingCount++;
+                            realMissingRows.Add(sig);
+                        }
+                    }
+
+                    // Report orphaned rows as warnings (expected behavior)
+                    if (orphanedCount > 0)
+                    {
+                        result.Warnings.Add($"Orphaned Legacy rows (KNOWN ISSUE - no tblPerson for that academic year): {orphanedCount}");
+                        foreach (var sig in orphanedRows.Take(5))
+                        {
+                            result.Warnings.Add($"  Orphaned row: {sig}");
+                        }
+                        if (orphanedRows.Count > 5)
+                            result.Warnings.Add($"  ... and {orphanedRows.Count - 5} more orphaned rows");
+                    }
+
+                    // Report real missing rows as errors
+                    if (realMissingCount > 0)
+                    {
+                        result.Differences.Add($"Rows in Legacy but NOT in Shadow (with valid tblPerson): {realMissingCount}");
+                        foreach (var sig in realMissingRows.Take(5))
+                        {
+                            result.Differences.Add($"  Missing row: {sig}");
+                        }
+                        if (realMissingRows.Count > 5)
+                            result.Differences.Add($"  ... and {realMissingRows.Count - 5} more missing rows");
+                    }
+                }
+                else
+                {
+                    // Standard handling - all missing rows are errors
+                    result.Differences.Add($"Rows in Legacy but NOT in Shadow: {missingInShadow.Count}");
+                    // Show first few examples
+                    foreach (var sig in missingInShadow.Take(5))
+                    {
+                        result.Differences.Add($"  Missing row: {sig}");
+                    }
                 }
             }
 
             if (extraInShadow.Any())
             {
-                result.Differences.Add($"Rows in Shadow but NOT in Legacy: {extraInShadow.Count}");
-                // Show first few examples
-                foreach (var sig in extraInShadow.Take(5))
+                // Check if extra rows in Shadow are expected for this procedure (known legacy bug)
+                // Only downgrade to warning if the NULL academic year condition is actually present
+                if (ProceduresAllowingMoreShadowRows.Contains(procedureName))
                 {
-                    result.Differences.Add($"  Extra row: {sig}");
+                    bool legacyHasNullAcademicYears = legacyConn != null && LegacyHasNullAcademicYears(legacyConn);
+                    if (legacyHasNullAcademicYears)
+                    {
+                        result.Warnings.Add($"Extra rows in Shadow (KNOWN ISSUE): {extraInShadow.Count}");
+                        result.Warnings.Add($"  Reason: {NullAcademicYearReason}");
+                        // Show first few examples as warnings
+                        foreach (var sig in extraInShadow.Take(5))
+                        {
+                            result.Warnings.Add($"  Extra row: {sig}");
+                        }
+                    }
+                    else
+                    {
+                        // No NULL academic years in legacy - this is a genuine mismatch
+                        result.Differences.Add($"Rows in Shadow but NOT in Legacy: {extraInShadow.Count}");
+                        foreach (var sig in extraInShadow.Take(5))
+                        {
+                            result.Differences.Add($"  Extra row: {sig}");
+                        }
+                    }
+                }
+                else
+                {
+                    result.Differences.Add($"Rows in Shadow but NOT in Legacy: {extraInShadow.Count}");
+                    // Show first few examples
+                    foreach (var sig in extraInShadow.Take(5))
+                    {
+                        result.Differences.Add($"  Extra row: {sig}");
+                    }
                 }
             }
         }
 
-        private static string GetRowSignature(DataRow row, Dictionary<string, string> columnMapping, HashSet<string>? ignoredColumns = null)
+        /// <summary>
+        /// Checks which MothraIDs have orphaned tblPercent records (no corresponding tblPerson for that academic year).
+        /// An orphaned record is a tblPercent entry where no tblPerson record exists for the same MothraID
+        /// in the academic year derived from the percent's start date.
+        /// </summary>
+        private static HashSet<string> CheckForOrphanedMothraIds(SqlConnection legacyConn, HashSet<string> mothraIds)
+        {
+            var orphanedIds = new HashSet<string>();
+            if (mothraIds.Count == 0) return orphanedIds;
+
+            // Use shared helper for academic year derivation
+            var academicYearExpr = EffortScriptHelper.GetAcademicYearFromDateSql("p.percent_start");
+
+            // For each MothraID, check if there's any percent record without a corresponding tblPerson entry
+            // for that academic year. If so, the MothraID has orphaned records.
+            var query = $@"
+                SELECT TOP 1 1
+                FROM tblPercent p
+                WHERE p.percent_MothraID = @MothraId
+                  AND p.percent_start IS NOT NULL
+                  AND NOT EXISTS (
+                    SELECT 1 FROM tblPerson per
+                    INNER JOIN tblStatus stat ON per.person_TermCode = stat.status_TermCode
+                    WHERE per.person_MothraID = p.percent_MothraID
+                      AND stat.status_AcademicYear = {academicYearExpr}
+                  )";
+
+            using var cmd = new SqlCommand(query, legacyConn);
+            cmd.Parameters.Add("@MothraId", SqlDbType.VarChar, 20);
+
+            foreach (var mothraId in mothraIds)
+            {
+                cmd.Parameters["@MothraId"].Value = mothraId;
+                var result = cmd.ExecuteScalar();
+                if (result != null)
+                {
+                    orphanedIds.Add(mothraId);
+                }
+            }
+
+            return orphanedIds;
+        }
+
+        /// <summary>
+        /// Checks if the legacy Efforts database has any tblPercent records with NULL percent_AcademicYear.
+        /// Used to gate the "known issue" downgrade for row count mismatches - only allow downgrade
+        /// when the legacy NULL academic year bug is actually present in the data.
+        /// </summary>
+        private static bool LegacyHasNullAcademicYears(SqlConnection legacyConn)
+        {
+            const string query = @"
+                SELECT TOP 1 1
+                FROM tblPercent
+                WHERE percent_AcademicYear IS NULL
+                  AND percent_start IS NOT NULL";
+
+            using var cmd = new SqlCommand(query, legacyConn);
+            var result = cmd.ExecuteScalar();
+            return result != null;
+        }
+
+        private static string GetRowSignature(DataRow row, Dictionary<string, string> columnMapping)
         {
             // Create a normalized string representation of the row for comparison
-            var values = new List<string>();
-            foreach (var col in columnMapping.Keys.OrderBy(k => k)
-                       .Where(col => ignoredColumns == null || !ignoredColumns.Contains(col)))
-            {
-                var value = row[col];
-                if (value == DBNull.Value)
-                    values.Add("NULL");
-                else if (value is string str)
-                    values.Add(str.Trim());
-                else if (value is DateTime dt)
-                    values.Add(dt.ToString("yyyy-MM-dd HH:mm:ss"));
-                else if (IsNumeric(value))
-                    values.Add(Convert.ToDecimal(value).ToString("F2"));
-                else
-                    values.Add(value.ToString() ?? "");
-            }
+            var values = columnMapping.Keys
+                .OrderBy(k => k)
+                .Select(col =>
+                {
+                    var value = row[col];
+                    if (value == DBNull.Value)
+                        return "NULL";
+                    else if (value is string str)
+                        return str.Trim();
+                    else if (value is DateTime dt)
+                        return dt.ToString("yyyy-MM-dd HH:mm:ss");
+                    else if (IsNumeric(value))
+                        return Convert.ToDecimal(value).ToString("F2");
+                    else
+                        return value.ToString() ?? "";
+                })
+                .ToList();
             return string.Join("|", values);
         }
 
         private static void CompareRows(DataRow legacyRow, DataRow shadowRow,
             (Dictionary<string, string> Mapping, List<string> UnmappedLegacyColumns, List<string> UnmappedShadowColumns) columnMapping,
-            ComparisonResult result, int rowIndex)
+            ComparisonResult result, int rowIndex, string procedureName)
         {
             foreach (var mapping in columnMapping.Mapping)
             {
@@ -1422,21 +2022,40 @@ namespace Viper.Areas.Effort.Scripts
                 // Detect whitespace padding differences (char vs varchar type mismatch)
                 // This catches cases where strings are semantically equal but have different lengths
                 // due to CHAR column padding with trailing spaces
-                if (legacyValue is string legacyStr && shadowValue is string shadowStr)
+                if (legacyValue is string legacyStr && shadowValue is string shadowStr &&
+                    legacyStr != shadowStr && legacyStr.Trim() == shadowStr.Trim())
                 {
-                    if (legacyStr != shadowStr && legacyStr.Trim() == shadowStr.Trim())
+                    result.Warnings.Add(
+                        $"Row {rowIndex}, Column '{legacyCol}': WHITESPACE PADDING DIFFERENCE - " +
+                        $"Legacy='{legacyStr}' ({legacyStr.Length} chars), " +
+                        $"Shadow='{shadowStr}' ({shadowStr.Length} chars). " +
+                        "This indicates a char/varchar type mismatch in the schema.");
+                    // Compare trimmed strings for actual difference
+                    if (legacyStr.Trim() != shadowStr.Trim())
                     {
-                        result.Warnings.Add(
-                            $"Row {rowIndex}, Column '{legacyCol}': WHITESPACE PADDING DIFFERENCE - " +
-                            $"Legacy='{legacyStr}' ({legacyStr.Length} chars), " +
-                            $"Shadow='{shadowStr}' ({shadowStr.Length} chars). " +
-                            "This indicates a char/varchar type mismatch in the schema.");
+                        result.Differences.Add($"Row {rowIndex}, Column '{legacyCol}': Legacy='{legacyStr}' vs Shadow='{shadowStr}'");
                     }
                 }
-
-                // Compare values (still uses trimmed comparison for compatibility)
-                if (!ValuesEqual(legacyValue, shadowValue))
+                else if (!ValuesEqual(legacyValue, shadowValue))
                 {
+                    // Check if this is a known issue procedure where Shadow returns more/higher values
+                    // due to legacy NULL percent_AcademicYear bug
+                    if (ProceduresAllowingMoreShadowRows.Contains(procedureName) &&
+                        IsNumeric(legacyValue) && IsNumeric(shadowValue))
+                    {
+                        decimal legacyNum = Convert.ToDecimal(legacyValue);
+                        decimal shadowNum = Convert.ToDecimal(shadowValue);
+
+                        // Shadow returning higher numeric value is expected for these procedures
+                        // (Legacy misses records with NULL percent_AcademicYear)
+                        if (shadowNum >= legacyNum)
+                        {
+                            result.Warnings.Add($"Row {rowIndex}, Column '{legacyCol}': Legacy='{legacyValue}' vs Shadow='{shadowValue}' (KNOWN ISSUE - Shadow includes records with NULL percent_AcademicYear)");
+                            continue;
+                        }
+                    }
+
+                    // Compare non-string values
                     result.Differences.Add($"Row {rowIndex}, Column '{legacyCol}': Legacy='{legacyValue}' vs Shadow='{shadowValue}'");
                 }
             }
@@ -1483,9 +2102,11 @@ namespace Viper.Areas.Effort.Scripts
         /// <param name="legacyConnectionString">Connection string for legacy Effort database</param>
         /// <param name="shadowConnectionString">Connection string for VIPER database with EffortShadow schema</param>
         /// <param name="verbose">Enable verbose output</param>
-        /// <returns>Number of discrepancies found (0 = all records match)</returns>
-        public static int VerifyTblPercentByTopUsers(string legacyConnectionString, string shadowConnectionString, bool verbose = false)
+        /// <returns>Report containing verification results</returns>
+        private static PercentVerificationReport VerifyTblPercentByTopUsers(string legacyConnectionString, string shadowConnectionString, bool verbose = false)
         {
+            var percentReport = new PercentVerificationReport();
+
             Console.WriteLine();
             Console.WriteLine("================================================================================");
             Console.WriteLine("tblPercent Migration Verification (Top 25 Users)");
@@ -1511,7 +2132,6 @@ namespace Viper.Areas.Effort.Scripts
                 ORDER BY cnt DESC";
 
             var topUsers = new List<(string MothraId, int LegacyCount)>();
-            int totalDiscrepancies = 0;
 
             using (var legacyConn = new SqlConnection(legacyConnectionString))
             {
@@ -1524,6 +2144,7 @@ namespace Viper.Areas.Effort.Scripts
                 }
             }
 
+            percentReport.TotalUsersChecked = topUsers.Count;
             Console.WriteLine($"Found {topUsers.Count} users with the most percentage records.");
             Console.WriteLine();
 
@@ -1545,7 +2166,18 @@ namespace Viper.Areas.Effort.Scripts
                 var missingInShadow = legacySet.Except(shadowSet).ToList();
                 var extraInShadow = shadowSet.Except(legacySet).ToList();
 
-                if (missingInShadow.Count == 0 && extraInShadow.Count == 0)
+                var userResult = new PercentUserResult
+                {
+                    MothraId = user.MothraId,
+                    LegacyCount = legacyRecords.Count,
+                    ShadowCount = shadowRecords.Count,
+                    Matched = missingInShadow.Count == 0 && extraInShadow.Count == 0,
+                    MissingInShadow = missingInShadow,
+                    ExtraInShadow = extraInShadow
+                };
+                percentReport.Results.Add(userResult);
+
+                if (userResult.Matched)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine($"✓ MATCH ({shadowRecords.Count} records)");
@@ -1556,7 +2188,7 @@ namespace Viper.Areas.Effort.Scripts
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine($"✗ MISMATCH");
                     Console.ResetColor();
-                    totalDiscrepancies++;
+                    percentReport.UsersWithDiscrepancies++;
 
                     if (missingInShadow.Count > 0)
                     {
@@ -1589,7 +2221,7 @@ namespace Viper.Areas.Effort.Scripts
             }
 
             Console.WriteLine();
-            if (totalDiscrepancies == 0)
+            if (percentReport.UsersWithDiscrepancies == 0)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("✓ All top users' percentage records verified successfully");
@@ -1598,12 +2230,12 @@ namespace Viper.Areas.Effort.Scripts
             else
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"✗ {totalDiscrepancies} of {topUsers.Count} users have discrepancies");
+                Console.WriteLine($"✗ {percentReport.UsersWithDiscrepancies} of {topUsers.Count} users have discrepancies");
                 Console.ResetColor();
             }
             Console.WriteLine("================================================================================");
 
-            return totalDiscrepancies;
+            return percentReport;
         }
 
         private static List<PercentRecord> GetLegacyPercentRecords(string connectionString, string mothraId)
@@ -1689,6 +2321,553 @@ namespace Viper.Areas.Effort.Scripts
             var unit = string.IsNullOrWhiteSpace(record.Unit) ? "NULL" : record.Unit.Trim();
             var modifier = string.IsNullOrWhiteSpace(record.Modifier) ? "NULL" : record.Modifier.Trim();
             return $"Type:{record.TypeId}|Start:{record.StartDate:yyyy-MM-dd}|Unit:{unit}|Mod:{modifier}";
+        }
+
+        // ============================================================================
+        // View/Table Schema Verification
+        // ============================================================================
+
+        /// <summary>
+        /// Verifies that shadow views match legacy table schemas and data.
+        /// This runs BEFORE stored procedure verification since views are prerequisites for SPs.
+        /// </summary>
+        private static ViewVerificationReport VerifyShadowViews(string legacyConnectionString, string shadowConnectionString, bool verbose)
+        {
+            var report = new ViewVerificationReport { TotalViews = ViewToLegacyTable.Count };
+
+            Console.WriteLine();
+            Console.WriteLine("================================================================================");
+            Console.WriteLine("Shadow View/Table Verification");
+            Console.WriteLine("================================================================================");
+            Console.WriteLine();
+
+            using var legacyConn = new SqlConnection(legacyConnectionString);
+            using var shadowConn = new SqlConnection(shadowConnectionString);
+            legacyConn.Open();
+            shadowConn.Open();
+
+            foreach (var viewMapping in ViewToLegacyTable)
+            {
+                string viewName = viewMapping.Key;
+                string legacyTable = viewMapping.Value;
+
+                Console.Write($"Checking {viewName}... ");
+
+                var result = new ViewVerificationResult
+                {
+                    ViewName = viewName,
+                    LegacyTable = legacyTable
+                };
+
+                try
+                {
+                    // Step 1: Schema verification
+                    VerifyViewSchema(legacyConn, shadowConn, viewName, legacyTable, result, verbose);
+
+                    // Step 2: Data verification (row counts with expected difference handling)
+                    VerifyViewData(legacyConn, shadowConn, viewName, legacyTable, result, verbose);
+
+                    // Step 3: Content verification (compare actual data values)
+                    VerifyViewContent(legacyConn, shadowConn, viewName, legacyTable, result, verbose);
+
+                    // Determine pass/fail
+                    bool passed = result.SchemaPassed && result.DataPassed && result.ContentPassed;
+                    if (passed)
+                    {
+                        report.PassedViews++;
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"✓ OK");
+                        Console.ResetColor();
+
+                        if (verbose)
+                        {
+                            Console.ForegroundColor = ConsoleColor.DarkGray;
+                            Console.WriteLine($"    Schema: {result.LegacyColumnCount} columns OK");
+                            if (result.LegacyRowCount == result.ShadowRowCount)
+                            {
+                                Console.WriteLine($"    Data: {result.LegacyRowCount} rows OK");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"    Data: {result.LegacyRowCount} legacy, {result.ShadowRowCount} shadow (expected difference) OK");
+                            }
+                            if (result.SampleRowsCompared > 0)
+                            {
+                                Console.WriteLine($"    Content: {result.SampleRowsCompared} rows compared OK");
+                            }
+                            Console.ResetColor();
+                        }
+                    }
+                    else
+                    {
+                        report.FailedViews++;
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"✗ FAIL");
+                        Console.ResetColor();
+
+                        foreach (var error in result.Errors)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine($"    {error}");
+                            Console.ResetColor();
+                        }
+
+                        // Show content differences in verbose mode (up to 5 rows)
+                        if (verbose && result.ContentDifferences.Count > 0)
+                        {
+                            Console.ForegroundColor = ConsoleColor.DarkYellow;
+                            Console.WriteLine($"    Data differences (up to 5 rows):");
+                            foreach (var diff in result.ContentDifferences)
+                            {
+                                Console.WriteLine($"    {diff}");
+                            }
+                            Console.ResetColor();
+                        }
+                    }
+
+                    // Show warnings in verbose mode
+                    if (verbose && result.Warnings.Count > 0)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        foreach (var warning in result.Warnings)
+                        {
+                            Console.WriteLine($"    ⚠ {warning}");
+                        }
+                        Console.ResetColor();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    report.FailedViews++;
+                    result.Errors.Add($"Exception: {ex.Message}");
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"✗ ERROR: {ex.Message}");
+                    Console.ResetColor();
+                }
+
+                report.Results.Add(result);
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("================================================================================");
+            Console.Write($"View Verification Summary: {report.TotalViews} views, ");
+            if (report.FailedViews == 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"0 failures");
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"{report.FailedViews} failures");
+            }
+            Console.ResetColor();
+            Console.WriteLine("================================================================================");
+            Console.WriteLine();
+
+            return report;
+        }
+
+        /// <summary>
+        /// Compares column schema between legacy table and shadow view.
+        /// </summary>
+        private static void VerifyViewSchema(SqlConnection legacyConn, SqlConnection shadowConn,
+            string viewName, string legacyTable, ViewVerificationResult result, bool verbose)
+        {
+            // Get legacy table columns
+            var legacyColumns = GetTableColumns(legacyConn, legacyTable, isLegacy: true);
+            result.LegacyColumnCount = legacyColumns.Count;
+
+            // Get shadow view columns
+            var shadowColumns = GetTableColumns(shadowConn, viewName, isLegacy: false);
+            result.ShadowColumnCount = shadowColumns.Count;
+
+            // Compare column names (case-insensitive)
+            var legacyColNames = legacyColumns.Select(c => c.ColumnName.ToLowerInvariant()).ToHashSet();
+            var shadowColNames = shadowColumns.Select(c => c.ColumnName.ToLowerInvariant()).ToHashSet();
+
+            // Find missing columns (in legacy but not in shadow)
+            var missingInShadow = legacyColNames.Except(shadowColNames).ToList();
+            foreach (var col in missingInShadow)
+            {
+                result.MissingColumns.Add(col);
+            }
+
+            // Find extra columns (in shadow but not in legacy)
+            var extraInShadow = shadowColNames.Except(legacyColNames).ToList();
+            foreach (var col in extraInShadow)
+            {
+                result.ExtraColumns.Add(col);
+            }
+
+            // Schema passes if all legacy columns exist in shadow
+            // Extra columns in shadow are OK (may be derived/computed columns)
+            if (missingInShadow.Count == 0)
+            {
+                result.SchemaPassed = true;
+            }
+            else
+            {
+                result.SchemaPassed = false;
+                result.Errors.Add($"Missing columns in shadow: {string.Join(", ", missingInShadow)}");
+            }
+
+            // Warn about extra columns
+            if (extraInShadow.Count > 0)
+            {
+                result.Warnings.Add($"Extra columns in shadow (OK): {string.Join(", ", extraInShadow)}");
+            }
+        }
+
+        /// <summary>
+        /// Compares row counts between legacy table and shadow view.
+        /// Accounts for expected differences due to skipped migration records.
+        /// </summary>
+        private static void VerifyViewData(SqlConnection legacyConn, SqlConnection shadowConn,
+            string viewName, string legacyTable, ViewVerificationResult result, bool verbose)
+        {
+            // Get row counts
+            result.LegacyRowCount = GetRowCount(legacyConn, legacyTable, isLegacy: true);
+            result.ShadowRowCount = GetRowCount(shadowConn, viewName, isLegacy: false);
+
+            // Check if row counts match
+            if (result.LegacyRowCount == result.ShadowRowCount)
+            {
+                result.DataPassed = true;
+                return;
+            }
+
+            // Check if this view has expected row differences
+            if (ViewsWithExpectedRowDifferences.TryGetValue(viewName, out string? reason))
+            {
+                // Shadow should have FEWER rows than legacy (skipped records)
+                if (result.ShadowRowCount < result.LegacyRowCount)
+                {
+                    result.DataPassed = true;
+                    int skipped = result.LegacyRowCount - result.ShadowRowCount;
+                    result.Warnings.Add($"Row count difference: {skipped} records skipped ({reason})");
+                }
+                else
+                {
+                    // Shadow has MORE rows than legacy - unexpected
+                    result.DataPassed = false;
+                    result.Errors.Add($"Shadow has MORE rows than legacy: Legacy={result.LegacyRowCount}, Shadow={result.ShadowRowCount}");
+                }
+            }
+            else
+            {
+                // No expected difference - this is a failure
+                result.DataPassed = false;
+                result.Errors.Add($"Row count mismatch: Legacy={result.LegacyRowCount}, Shadow={result.ShadowRowCount}");
+            }
+        }
+
+        /// <summary>
+        /// Compares actual data content between legacy table and shadow view.
+        /// Compares a sample of rows using only legacy columns (ignores extra shadow columns).
+        /// </summary>
+        private static void VerifyViewContent(SqlConnection legacyConn, SqlConnection shadowConn,
+            string viewName, string legacyTable, ViewVerificationResult result, bool verbose)
+        {
+            const int sampleSize = 100;
+
+            // Skip if schema failed (can't compare content without matching columns)
+            if (!result.SchemaPassed)
+            {
+                return;
+            }
+
+            // Get primary key column(s) for ordering - may be comma-separated for composite keys
+            if (!ViewPrimaryKeys.TryGetValue(viewName, out string? primaryKeySpec))
+            {
+                result.Warnings.Add($"Content comparison skipped (no primary key defined)");
+                return;
+            }
+
+            // Parse composite keys
+            var primaryKeys = primaryKeySpec.Split(',').Select(k => k.Trim()).ToList();
+            string orderByClause = string.Join(", ", primaryKeys.Select(k => $"[{k}]"));
+
+            // Get legacy columns (these are the columns we'll compare)
+            var legacyColumns = GetTableColumns(legacyConn, legacyTable, isLegacy: true);
+            if (legacyColumns.Count == 0)
+            {
+                result.Warnings.Add($"Content comparison skipped (no columns found)");
+                return;
+            }
+
+            // Build column list for SELECT (only legacy columns, case-insensitive match)
+            var columnList = string.Join(", ", legacyColumns.Select(c => $"[{c.ColumnName}]"));
+
+            // Determine sampling strategy
+            bool useRandomSampling = LargeViewsForRandomSampling.Contains(viewName);
+            string samplingNote = useRandomSampling ? " (random sample)" : "";
+
+            // Query legacy data - use random sampling for large tables
+            string legacyQuery;
+            string shadowQuery;
+            if (useRandomSampling)
+            {
+                legacyQuery = $@"
+                    SELECT TOP {sampleSize} {columnList}
+                    FROM [{legacyTable}]
+                    ORDER BY NEWID()";
+            }
+            else
+            {
+                legacyQuery = $"SELECT TOP {sampleSize} {columnList} FROM [{legacyTable}] ORDER BY {orderByClause}";
+            }
+
+            var legacyData = ExecuteQuery(legacyConn, legacyQuery);
+
+            // For random sampling, we need to get the same rows from shadow by matching primary keys
+            if (useRandomSampling && legacyData.Rows.Count > 0)
+            {
+                // Build WHERE clause with composite key matching
+                var whereConditions = new List<string>();
+                foreach (DataRow row in legacyData.Rows)
+                {
+                    var keyParts = new List<string>();
+                    foreach (var pk in primaryKeys)
+                    {
+                        var pkVal = row[pk];
+                        if (pkVal == null || pkVal == DBNull.Value)
+                            keyParts.Add($"[{pk}] IS NULL");
+                        else if (pkVal is string s)
+                            keyParts.Add($"[{pk}] = '{s.Replace("'", "''")}'");
+                        else
+                            keyParts.Add($"[{pk}] = {pkVal}");
+                    }
+                    whereConditions.Add($"({string.Join(" AND ", keyParts)})");
+                }
+
+                shadowQuery = $@"
+                    SELECT {columnList}
+                    FROM [EffortShadow].[{viewName}]
+                    WHERE {string.Join(" OR ", whereConditions)}
+                    ORDER BY {orderByClause}";
+
+                // Re-sort legacy data by primary key to match
+                legacyData.DefaultView.Sort = orderByClause.Replace("[", "").Replace("]", "");
+                legacyData = legacyData.DefaultView.ToTable();
+            }
+            else
+            {
+                shadowQuery = $"SELECT TOP {sampleSize} {columnList} FROM [EffortShadow].[{viewName}] ORDER BY {orderByClause}";
+            }
+
+            var shadowData = ExecuteQuery(shadowConn, shadowQuery);
+
+            // Compare row by row
+            int minRows = Math.Min(legacyData.Rows.Count, shadowData.Rows.Count);
+            result.SampleRowsCompared = minRows;
+
+            // Track row-level differences for better reporting
+            var rowDifferences = new Dictionary<string, List<(string Column, string Legacy, string Shadow)>>();
+
+            for (int rowIdx = 0; rowIdx < minRows; rowIdx++)
+            {
+                var legacyRow = legacyData.Rows[rowIdx];
+                var shadowRow = shadowData.Rows[rowIdx];
+
+                // Build composite primary key display value
+                var pkParts = primaryKeys.Select(pk => $"{pk}={legacyRow[pk]?.ToString() ?? "NULL"}");
+                var pkDisplay = string.Join(", ", pkParts);
+
+                for (int colIdx = 0; colIdx < legacyColumns.Count; colIdx++)
+                {
+                    var colName = legacyColumns[colIdx].ColumnName;
+                    var legacyValue = legacyRow[colIdx];
+                    var shadowValue = shadowRow[colIdx];
+
+                    // Normalize values for comparison
+                    string legacyStr = NormalizeValue(legacyValue);
+                    string shadowStr = NormalizeValue(shadowValue);
+
+                    // Check if this is a known acceptable difference
+                    if (IsKnownValueDifference(colName, legacyStr, shadowStr, viewName))
+                    {
+                        continue;  // Skip known differences
+                    }
+
+                    if (!string.Equals(legacyStr, shadowStr, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.ContentMismatches++;
+
+                        // Group differences by row (up to 5 rows)
+                        if (!rowDifferences.ContainsKey(pkDisplay))
+                        {
+                            if (rowDifferences.Count < 5)
+                            {
+                                rowDifferences[pkDisplay] = new List<(string, string, string)>();
+                            }
+                        }
+
+                        if (rowDifferences.TryGetValue(pkDisplay, out var diffs))
+                        {
+                            diffs.Add((colName, Truncate(legacyStr, 40), Truncate(shadowStr, 40)));
+                        }
+                    }
+                }
+            }
+
+            // Format row differences with highlighting
+            foreach (var (pkDisplay, diffs) in rowDifferences)
+            {
+                result.ContentDifferences.Add($"  [{pkDisplay}]{samplingNote}");
+                foreach (var (col, legacy, shadow) in diffs)
+                {
+                    result.ContentDifferences.Add($"    [{col}]: '{legacy}' → '{shadow}'");
+                }
+            }
+
+            // Determine pass/fail
+            if (result.ContentMismatches > 0)
+            {
+                result.ContentPassed = false;
+                result.Errors.Add($"Content mismatch: {result.ContentMismatches} differences found in {result.SampleRowsCompared} rows{samplingNote}");
+            }
+        }
+
+        /// <summary>
+        /// Checks if a value difference is a known acceptable difference.
+        /// </summary>
+        private static bool IsKnownValueDifference(string columnName, string legacyValue, string shadowValue, string viewName)
+        {
+            // Check column-specific known mappings
+            if (KnownValueMappings.TryGetValue(columnName, out var mappings))
+            {
+                if (mappings.TryGetValue(legacyValue, out var expectedShadow))
+                {
+                    // "*" means any non-null value is acceptable
+                    if (expectedShadow == "*" && shadowValue != "NULL")
+                        return true;
+                    if (string.Equals(expectedShadow, shadowValue, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+
+            // Check view-specific known differences
+            if (ViewsWithTermNameDifferences.Contains(viewName))
+            {
+                // Term name format differences are acceptable (e.g., "Summer Session II 2002" vs "Summer 2002")
+                if (columnName.EndsWith("_TermName", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Normalizes a database value for comparison.
+        /// </summary>
+        private static string NormalizeValue(object? value)
+        {
+            if (value == null || value == DBNull.Value)
+                return "NULL";
+
+            // Handle floating point precision differences
+            if (value is double d)
+                return Math.Round(d, 6).ToString("G");
+            if (value is float f)
+                return Math.Round(f, 6).ToString("G");
+            if (value is decimal dec)
+                return Math.Round(dec, 6).ToString("G");
+
+            // Handle datetime (ignore milliseconds)
+            if (value is DateTime dt)
+                return dt.ToString("yyyy-MM-dd HH:mm:ss");
+
+            // Trim strings
+            if (value is string s)
+                return s.Trim();
+
+            return value.ToString() ?? "NULL";
+        }
+
+        /// <summary>
+        /// Truncates a string to a maximum length.
+        /// </summary>
+        private static string Truncate(string value, int maxLength)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length <= maxLength)
+                return value;
+            return value.Substring(0, maxLength) + "...";
+        }
+
+        /// <summary>
+        /// Executes a query and returns the results as a DataTable.
+        /// </summary>
+        private static DataTable ExecuteQuery(SqlConnection conn, string query)
+        {
+            var dataTable = new DataTable();
+            using var cmd = new SqlCommand(query, conn);
+            cmd.CommandTimeout = 60;
+            using var adapter = new SqlDataAdapter(cmd);
+            adapter.Fill(dataTable);
+            return dataTable;
+        }
+
+        /// <summary>
+        /// Gets column metadata for a table or view.
+        /// </summary>
+        private static List<ColumnInfo> GetTableColumns(SqlConnection conn, string tableName, bool isLegacy)
+        {
+            var columns = new List<ColumnInfo>();
+
+            // For shadow views, use [EffortShadow] schema
+            string schemaPrefix = isLegacy ? "" : "[EffortShadow].";
+            _ = isLegacy ? tableName : $"{schemaPrefix}{tableName}";
+
+            // Query INFORMATION_SCHEMA for column metadata
+            string query;
+            if (isLegacy)
+            {
+                query = @"
+                    SELECT COLUMN_NAME, DATA_TYPE, ISNULL(CHARACTER_MAXIMUM_LENGTH, 0), IS_NULLABLE
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_NAME = @TableName
+                    ORDER BY ORDINAL_POSITION";
+            }
+            else
+            {
+                query = @"
+                    SELECT COLUMN_NAME, DATA_TYPE, ISNULL(CHARACTER_MAXIMUM_LENGTH, 0), IS_NULLABLE
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = 'EffortShadow' AND TABLE_NAME = @TableName
+                    ORDER BY ORDINAL_POSITION";
+            }
+
+            using var cmd = new SqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@TableName", tableName);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                columns.Add(new ColumnInfo
+                {
+                    ColumnName = reader.GetString(0),
+                    DataType = reader.GetString(1),
+                    MaxLength = reader.GetInt32(2),
+                    IsNullable = reader.GetString(3).Equals("YES", StringComparison.OrdinalIgnoreCase)
+                });
+            }
+
+            return columns;
+        }
+
+        /// <summary>
+        /// Gets the row count for a table or view.
+        /// </summary>
+        private static int GetRowCount(SqlConnection conn, string tableName, bool isLegacy)
+        {
+            string schemaPrefix = isLegacy ? "" : "[EffortShadow].";
+            string fullTableName = isLegacy ? tableName : $"{schemaPrefix}{tableName}";
+
+            string query = $"SELECT COUNT(*) FROM {fullTableName}";
+
+            using var cmd = new SqlCommand(query, conn);
+            return (int)cmd.ExecuteScalar();
         }
 
         private class PercentRecord

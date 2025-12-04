@@ -82,6 +82,43 @@ In ColdFusion Administrator:
 
 ---
 
+## INSTEAD OF Triggers
+
+The shadow schema uses **INSTEAD OF triggers** to intercept INSERT/UPDATE/DELETE operations on views and redirect them to the modern schema tables. This allows legacy ColdFusion code to write to "tables" that are actually views.
+
+### Why Triggers Are Needed
+
+Legacy ColdFusion code expects to INSERT/UPDATE/DELETE directly on tables like `tblEffort`, `tblPercent`, etc. Since these are now views over the modern schema, we use INSTEAD OF triggers to:
+
+1. **Map identifiers**: Convert MothraId → PersonId, AcademicYear → TermCode
+2. **Handle derived columns**: Skip columns that are computed in the view
+3. **Maintain data integrity**: Ensure foreign keys are resolved correctly
+
+### Trigger-Enabled Views
+
+| View | Triggers | Purpose |
+|------|----------|---------|
+| **tblEffort** | INSERT, UPDATE, DELETE | Effort records CRUD |
+| **tblPerson** | INSERT, UPDATE, DELETE | Instructor person records |
+| **tblPercent** | INSERT, UPDATE, DELETE | Percentage allocation records |
+| **tblAudit** | INSERT | Audit log entries (insert-only) |
+
+### Internal Columns
+
+Some views include **internal columns** that are not in legacy tables but are required by triggers:
+
+| View | Internal Column | Purpose |
+|------|-----------------|---------|
+| **tblPercent** | `percent_PersonId_Internal` | Allows trigger to use PersonId directly |
+| **tblPercent** | `percent_TermCode_Internal` | Allows trigger to use TermCode directly |
+| **tblAudit** | `audit_TableName` | Maps action to table for modern schema |
+| **tblAudit** | `audit_RecordID` | Record ID for audit trail |
+| **tblAudit** | `audit_ChangedBy_PersonId` | PersonId of modifier |
+
+These columns appear as "extra columns" in verification but are required for correct trigger operation.
+
+---
+
 ## View Mappings
 
 ### Core Views

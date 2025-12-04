@@ -146,6 +146,14 @@ namespace Viper.Areas.Effort.Scripts
             Console.WriteLine("\nTask 11: Fixing course relationships with invalid types...");
             FixCourseRelationshipTypes();
 
+            // Task 12: Fix NULL academic years in tblPercent
+            Console.WriteLine("\nTask 12: Fixing NULL academic years in tblPercent...");
+            FixNullAcademicYears();
+
+            // Task 13: Fix audit_ModBy to use MothraId instead of LoginId
+            Console.WriteLine("\nTask 13: Normalizing audit_ModBy to MothraId...");
+            NormalizeAuditModBy();
+
             // Generate final report
             Console.WriteLine("\nGenerating remediation report...");
             GenerateReport();
@@ -694,7 +702,7 @@ namespace Viper.Areas.Effort.Scripts
             }
 
             Console.WriteLine($"  {(_dryRun ? "Would delete" : "Deleting")} MothraId: {mothraId}");
-            foreach (var (table, column, count) in tablesToDelete)
+            foreach (var (table, _, count) in tablesToDelete)
             {
                 Console.WriteLine($"    Found {count} record(s) in {table}");
             }
@@ -914,7 +922,7 @@ namespace Viper.Areas.Effort.Scripts
             }
 
             Console.WriteLine($"  {(_dryRun ? "Would remap" : "Remapping")} {oldMothraId} → {newMothraId}");
-            foreach (var (table, column, count) in tablesToUpdate)
+            foreach (var (table, _, count) in tablesToUpdate)
             {
                 Console.WriteLine($"    Found {count} record(s) in {table}");
             }
@@ -1472,6 +1480,240 @@ namespace Viper.Areas.Effort.Scripts
 
         #endregion
 
+        #region Task 12: Fix NULL Academic Years
+
+        private void FixNullAcademicYears()
+        {
+            var task = new RemediationTask { TaskName = "Fix NULL Academic Years" };
+            _report.Tasks.Add(task);
+
+            using (var conn = new SqlConnection(_effortsConnectionString))
+            {
+                conn.Open();
+
+                var query = @"
+                    SELECT percent_ID, percent_MothraID, percent_start
+                    FROM tblPercent
+                    WHERE percent_AcademicYear IS NULL
+                      AND percent_start IS NOT NULL";
+
+                var recordsToFix = new List<(int id, string mothraId, DateTime startDate)>();
+                using (var cmd = new SqlCommand(query, conn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        recordsToFix.Add((
+                            reader.GetInt32(0),
+                            reader.GetString(1).Trim(),
+                            reader.GetDateTime(2)
+                        ));
+                    }
+                }
+
+                if (recordsToFix.Count == 0)
+                {
+                    task.Status = "Skipped - No records with NULL academic year found";
+                    Console.WriteLine("  ✓ No records with NULL academic year found");
+                    return;
+                }
+
+                Console.WriteLine($"  Found {recordsToFix.Count} percentage records with NULL academic year");
+
+                if (!_dryRun && !_skipBackup)
+                {
+                    BackupRecords(conn, "tblPercent", "percent_AcademicYear IS NULL AND percent_start IS NOT NULL");
+                }
+
+                using (var transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        // Uses shared helper to ensure consistent logic with shadow view
+                        var academicYearExpr = EffortScriptHelper.GetAcademicYearFromDateSql("percent_start");
+                        var updateQuery = $@"
+                            UPDATE tblPercent
+                            SET percent_AcademicYear = {academicYearExpr}
+                            WHERE percent_ID = @Id";
+
+                        int updatedCount = 0;
+                        foreach (var (id, mothraId, startDate) in recordsToFix)
+                        {
+                            using (var cmd = new SqlCommand(updateQuery, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@Id", id);
+                                int updated = cmd.ExecuteNonQuery();
+                                updatedCount += updated;
+                            }
+                        }
+
+                        if (recordsToFix.Count > 0)
+                        {
+                            var sampleCount = Math.Min(5, recordsToFix.Count);
+                            Console.WriteLine($"  Sample of {sampleCount} records being updated:");
+                            foreach (var (id, mothraId, startDate) in recordsToFix.Take(sampleCount))
+                            {
+                                var derivedYear = EffortScriptHelper.GetAcademicYearFromDate(startDate);
+                                Console.WriteLine($"    {(_dryRun ? "Would update" : "✓ Updated")} ID {id} (MothraID: {mothraId}, StartDate: {startDate:yyyy-MM-dd}) → AcademicYear: {derivedYear}");
+                            }
+                            if (recordsToFix.Count > sampleCount)
+                            {
+                                Console.WriteLine($"    ... and {recordsToFix.Count - sampleCount} more records");
+                            }
+                        }
+
+                        if (_dryRun)
+                        {
+                            transaction.Rollback();
+                            task.Status = "Dry-run";
+                        }
+                        else
+                        {
+                            transaction.Commit();
+                            task.Status = "Completed";
+                            task.RecordsAffected = updatedCount;
+                            task.Details.Add($"Updated {updatedCount} records with NULL academic year");
+                            task.Details.Add("Academic year derived from percent_start date using July 1 boundary");
+                        }
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        #endregion
+
+        #region Task 13: Normalize audit_ModBy to MothraId
+
+        private void NormalizeAuditModBy()
+        {
+            var task = new RemediationTask { TaskName = "Normalize audit_ModBy to MothraId" };
+            _report.Tasks.Add(task);
+
+            HashSet<string> mothraIds;
+            Dictionary<string, string> loginIdToMothraId;
+
+            using (var viperConn = new SqlConnection(_viperConnectionString))
+            {
+                viperConn.Open();
+                (mothraIds, loginIdToMothraId) = EffortScriptHelper.BuildLoginIdMappings(viperConn);
+            }
+
+            Console.WriteLine($"    Loaded {mothraIds.Count} MothraIds and {loginIdToMothraId.Count} LoginId mappings from VIPER");
+
+            using (var conn = new SqlConnection(_effortsConnectionString))
+            {
+                conn.Open();
+
+                var loginIdsToUpdate = new List<(string LoginId, string MothraId, int Count)>();
+                var unmappedValues = new List<(string Value, int Count)>();
+
+                var query = @"
+                    SELECT RTRIM(audit_ModBy) as ModBy, COUNT(*) as RecordCount
+                    FROM tblAudit
+                    WHERE audit_ModBy IS NOT NULL
+                    GROUP BY RTRIM(audit_ModBy)";
+
+                using (var cmd = new SqlCommand(query, conn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string modBy = reader.GetString(0).Trim();
+                        int count = reader.GetInt32(1);
+
+                        if (mothraIds.Contains(modBy))
+                        {
+                            continue;
+                        }
+                        else if (loginIdToMothraId.TryGetValue(modBy, out string? mappedMothraId))
+                        {
+                            loginIdsToUpdate.Add((modBy, mappedMothraId, count));
+                        }
+                        else
+                        {
+                            unmappedValues.Add((modBy, count));
+                        }
+                    }
+                }
+
+                Console.WriteLine($"    Found {loginIdsToUpdate.Count} distinct LoginIds to update");
+                Console.WriteLine($"    Found {unmappedValues.Count} unmapped values (will not be changed)");
+
+                if (loginIdsToUpdate.Count == 0)
+                {
+                    task.RecordsAffected = 0;
+                    task.Status = "Completed";
+                    task.Details.Add("No LoginIds found to update - all audit_ModBy values are already MothraIds or unmapped.");
+                    Console.WriteLine("    ✓ No updates needed");
+                    return;
+                }
+
+                int totalUpdated = 0;
+                using (var transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        foreach (var (loginId, mothraId, count) in loginIdsToUpdate)
+                        {
+                            using var updateCmd = new SqlCommand(
+                                "UPDATE tblAudit SET audit_ModBy = @MothraId WHERE RTRIM(audit_ModBy) = @LoginId",
+                                conn, transaction);
+                            updateCmd.Parameters.AddWithValue("@MothraId", mothraId);
+                            updateCmd.Parameters.AddWithValue("@LoginId", loginId);
+
+                            int rowsAffected = updateCmd.ExecuteNonQuery();
+                            totalUpdated += rowsAffected;
+                            Console.WriteLine($"      {(_dryRun ? "Would update" : "Updated")} {loginId} -> {mothraId} ({rowsAffected} records)");
+                        }
+
+                        if (_dryRun)
+                        {
+                            transaction.Rollback();
+                            task.Status = "Dry-run";
+                            task.Details.Add($"Dry-run: would update {loginIdsToUpdate.Count} distinct LoginIds affecting {totalUpdated} audit records");
+                            Console.WriteLine($"    DRY-RUN: rollback - no audit records updated");
+                        }
+                        else
+                        {
+                            transaction.Commit();
+                            task.RecordsAffected = totalUpdated;
+                            task.Status = "Completed";
+                            task.Details.Add($"Updated {loginIdsToUpdate.Count} distinct LoginIds to MothraIds, affecting {totalUpdated} audit records.");
+                            Console.WriteLine($"    ✓ Updated {totalUpdated} audit records");
+                        }
+
+                        if (unmappedValues.Count > 0)
+                        {
+                            int unmappedTotal = unmappedValues.Sum(v => v.Count);
+                            Console.WriteLine($"    ⚠ {unmappedTotal} records with unmapped audit_ModBy values were not changed:");
+                            foreach (var (value, count) in unmappedValues.Take(10))
+                            {
+                                Console.WriteLine($"        {value}: {count} records");
+                            }
+                            if (unmappedValues.Count > 10)
+                            {
+                                Console.WriteLine($"        ... and {unmappedValues.Count - 10} more distinct values");
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        task.Status = "Failed";
+                        task.Details.Add("Transaction rolled back due to error.");
+                        throw;
+                    }
+                }
+            }
+        }
+
+        #endregion
+
         #region Helper Methods
         private static readonly HashSet<string> AllowedTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -1480,7 +1722,8 @@ namespace Viper.Areas.Effort.Scripts
             "tblPerson",
             "tblPercent",
             "tblSabbatic",
-            "tblCourseRelationships"  // Legacy table name is plural
+            "tblCourseRelationships",  // Legacy table name is plural
+            "tblAudit"  // For audit_ModBy normalization
         };
 
         /// <summary>

@@ -472,43 +472,34 @@ GO
 -- Description: Comprehensive audit trail for all effort data changes
 -- Legacy: tblAudit
 --
--- Dual-column approach for backward compatibility:
--- - ChangesLegacy: Preserves historical plain-text audit data
--- - ChangeDetails: New JSON format for structured querying
--- - IsLegacyFormat: Flag to distinguish between formats
--- - Changes: Computed column for unified access
+-- Legacy preservation columns (LegacyAction, LegacyCRN, LegacyTermCode, LegacyMothraID)
+-- enable 1:1 verification against legacy tblAudit during migration.
+-- These can be dropped after ColdFusion is decommissioned.
 -- ----------------------------------------------------------------------------
 CREATE TABLE [effort].[Audits] (
     Id int IDENTITY(1,1) NOT NULL,
     TableName varchar(50) NOT NULL,
     RecordId int NOT NULL,
-    Action varchar(10) NOT NULL,
+    Action varchar(10) NOT NULL,           -- Normalized: INSERT/UPDATE/DELETE
     ChangedBy int NOT NULL,
     ChangedDate datetime2(7) NOT NULL DEFAULT GETDATE(),
-    ChangesLegacy nvarchar(MAX) NULL,
-    ChangeDetails nvarchar(MAX) NULL,
-    IsLegacyFormat bit NOT NULL DEFAULT 0,
+    Changes nvarchar(MAX) NULL,            -- Audit text (legacy plain-text or JSON)
     MigratedDate datetime2(7) NULL,
     UserAgent varchar(500) NULL,
     IpAddress varchar(50) NULL,
+    -- Legacy preservation columns (for 1:1 verification against legacy tblAudit)
+    LegacyAction varchar(100) NULL,        -- Original action text (e.g., 'CreateCourse')
+    LegacyCRN varchar(20) NULL,            -- Original audit_CRN
+    LegacyTermCode int NULL,               -- Original audit_TermCode
+    LegacyMothraID varchar(20) NULL,       -- Original audit_MothraID
     CONSTRAINT PK_Audits PRIMARY KEY CLUSTERED (Id),
     CONSTRAINT FK_Audits_ChangedBy FOREIGN KEY (ChangedBy) REFERENCES [users].[Person](PersonId),
-    CONSTRAINT CK_Audits_Action CHECK (Action IN ('INSERT', 'UPDATE', 'DELETE')),
-    CONSTRAINT CK_Audits_ValidJSON CHECK (ChangeDetails IS NULL OR ISJSON(ChangeDetails) = 1)
+    CONSTRAINT CK_Audits_Action CHECK (Action IN ('INSERT', 'UPDATE', 'DELETE'))
 );
-
-ALTER TABLE [effort].[Audits] ADD
-    Changes AS (
-        CASE
-            WHEN IsLegacyFormat = 1 THEN ChangesLegacy
-            ELSE ChangeDetails
-        END
-    ) PERSISTED;
 
 CREATE NONCLUSTERED INDEX IX_Audits_TableName_RecordId ON [effort].[Audits](TableName, RecordId);
 CREATE NONCLUSTERED INDEX IX_Audits_ChangedDate ON [effort].[Audits](ChangedDate DESC);
 CREATE NONCLUSTERED INDEX IX_Audits_ChangedBy ON [effort].[Audits](ChangedBy);
-CREATE NONCLUSTERED INDEX IX_Audits_IsLegacyFormat ON [effort].[Audits](IsLegacyFormat) WHERE IsLegacyFormat = 0;
 GO
 
 -- ============================================================================

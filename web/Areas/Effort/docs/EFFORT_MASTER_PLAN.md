@@ -697,6 +697,50 @@ Each 2-week sprint delivers a complete, testable feature with database, API, and
 
 ---
 
+## Post-Deployment Cleanup
+
+After the legacy ColdFusion Effort system is fully decommissioned and all features are migrated to the new VueJS/.NET application, the following cleanup steps should be performed:
+
+### Database Cleanup
+
+1. **Drop Legacy Preservation Columns from `effort.Audits`**:
+   ```sql
+   ALTER TABLE [effort].[Audits] DROP COLUMN LegacyAction;
+   ALTER TABLE [effort].[Audits] DROP COLUMN LegacyCRN;
+   ALTER TABLE [effort].[Audits] DROP COLUMN LegacyTermCode;
+   ALTER TABLE [effort].[Audits] DROP COLUMN LegacyMothraID;
+   ```
+
+2. **Drop `[EffortShadow]` Schema** (views, triggers, wrapper stored procedures):
+   ```sql
+   -- Drop all views, triggers, and stored procedures in EffortShadow schema
+   DROP SCHEMA [EffortShadow];
+   ```
+
+3. **Update ColdFusion Datasource Configuration**:
+   - Remove the `EffortShadow` datasource from ColdFusion (if still configured)
+   - Ensure no remaining references to the legacy Efforts database
+
+4. **Archive/Drop Legacy Efforts Database**:
+   - Take a final backup of the legacy `Efforts` database for historical reference
+   - Drop the legacy database after confirming all data is safely migrated
+
+### Code Cleanup
+
+1. Remove any shadow view verification scripts that are no longer needed
+2. Update documentation to remove references to the legacy compatibility layer
+3. Remove any feature flags or conditional logic for legacy support
+
+### Verification
+
+Before performing cleanup:
+- [ ] Confirm all ColdFusion Effort pages are disabled/retired
+- [ ] Verify all users are using the new VueJS interface
+- [ ] Run final data integrity checks between legacy and modern tables
+- [ ] Take complete database backups
+
+---
+
 ## Timeline Summary
 
 | Sprint | Focus Area | Key Deliverables | Value Delivered |

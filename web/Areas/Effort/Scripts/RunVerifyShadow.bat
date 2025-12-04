@@ -17,33 +17,9 @@ REM ============================================================================
 
 setlocal
 
-REM Parse arguments to extract environment
-set ASPNETCORE_ENVIRONMENT=Development
-set SCRIPT_ARGS=
-
-:parse_args
-if "%~1"=="" goto :done_parsing
-
-if /i "%~1"=="Development" (
-    set ASPNETCORE_ENVIRONMENT=Development
-    shift
-    goto :parse_args
-)
-if /i "%~1"=="Test" (
-    set ASPNETCORE_ENVIRONMENT=Test
-    shift
-    goto :parse_args
-)
-if /i "%~1"=="Production" (
-    set ASPNETCORE_ENVIRONMENT=Production
-    shift
-    goto :parse_args
-)
-set SCRIPT_ARGS=%SCRIPT_ARGS% %~1
-shift
-goto :parse_args
-
-:done_parsing
+REM Parse arguments using shared helper (allowed flags: --verbose; value flags: --test-mothraid)
+call "%~dp0ParseArgs.bat" "--verbose" "--test-mothraid" %*
+if defined PARSE_ERROR exit /b 1
 
 echo ================================================================================
 echo Effort Shadow Schema Verification

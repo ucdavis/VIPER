@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Amazon;
@@ -318,5 +317,110 @@ namespace Viper.Areas.Effort.Scripts
 
             return fullPath;
         }
+
+        #region Person Lookup Helpers
+
+        private static Dictionary<string, int>? _mothraIdToPersonIdCache;
+        private static (HashSet<string> MothraIds, Dictionary<string, string> LoginIdToMothraId)? _loginIdMappingsCache;
+
+        /// <summary>
+        /// Clears all cached person lookups. Call this at the start of a new script run
+        /// or if the underlying Person data may have changed.
+        /// </summary>
+        public static void ClearPersonLookupCache()
+        {
+            _mothraIdToPersonIdCache = null;
+            _loginIdMappingsCache = null;
+        }
+
+        /// <summary>
+        /// Builds (or returns cached) MothraId → PersonId lookup dictionary.
+        /// Used by migration scripts to convert legacy MothraId references to PersonId.
+        /// Results are cached for performance when called multiple times.
+        /// </summary>
+        /// <param name="connection">Open connection to VIPER database</param>
+        /// <param name="transaction">Optional transaction (for migration scripts)</param>
+        /// <returns>Dictionary mapping MothraId (string) to PersonId (int)</returns>
+        public static Dictionary<string, int> BuildMothraIdToPersonIdMap(
+            SqlConnection connection,
+            SqlTransaction? transaction = null)
+        {
+            if (_mothraIdToPersonIdCache != null)
+            {
+                return _mothraIdToPersonIdCache;
+            }
+
+            var map = new Dictionary<string, int>();
+
+            using var cmd = new SqlCommand(
+                "SELECT MothraId, PersonId FROM [users].[Person] WHERE MothraId IS NOT NULL",
+                connection,
+                transaction);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                map[reader.GetString(0)] = reader.GetInt32(1);
+            }
+
+            _mothraIdToPersonIdCache = map;
+            return map;
+        }
+
+        /// <summary>
+        /// Builds (or returns cached) lookup structures for LoginId → MothraId conversion and MothraId validation.
+        /// Used by analysis and remediation scripts to normalize audit_ModBy values.
+        /// Results are cached for performance when called multiple times.
+        /// </summary>
+        /// <param name="connection">Open connection to VIPER database</param>
+        /// <returns>
+        /// Tuple containing:
+        /// - MothraIds: HashSet of all valid MothraIds for validation
+        /// - LoginIdToMothraId: Dictionary mapping LoginId to MothraId for conversion
+        /// </returns>
+        public static (HashSet<string> MothraIds, Dictionary<string, string> LoginIdToMothraId) BuildLoginIdMappings(
+            SqlConnection connection)
+        {
+            if (_loginIdMappingsCache.HasValue)
+            {
+                return _loginIdMappingsCache.Value;
+            }
+
+            var mothraIds = new HashSet<string>();
+            var loginIdToMothraId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            using (var cmd = new SqlCommand(
+                "SELECT MothraId FROM [users].[Person] WHERE MothraId IS NOT NULL",
+                connection))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    mothraIds.Add(reader.GetString(0));
+                }
+            }
+
+            using (var cmd = new SqlCommand(
+                "SELECT LoginId, MothraId FROM [users].[Person] WHERE LoginId IS NOT NULL AND MothraId IS NOT NULL",
+                connection))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    string loginId = reader.GetString(0);
+                    string mothraId = reader.GetString(1);
+                    // First mapping wins (in case of duplicates)
+                    if (!loginIdToMothraId.ContainsKey(loginId))
+                    {
+                        loginIdToMothraId[loginId] = mothraId;
+                    }
+                }
+            }
+
+            _loginIdMappingsCache = (mothraIds, loginIdToMothraId);
+            return _loginIdMappingsCache.Value;
+        }
+
+        #endregion
     }
 }

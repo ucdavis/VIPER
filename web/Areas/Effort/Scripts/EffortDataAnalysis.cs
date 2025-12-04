@@ -5,11 +5,7 @@ using Microsoft.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Xml.Linq;
 using Microsoft.Extensions.Configuration;
-using Amazon;
-using Amazon.Extensions.NETCore.Setup;
-using Amazon.Runtime.CredentialManagement;
 
 namespace Viper.Areas.Effort.Scripts
 {
@@ -1115,6 +1111,9 @@ namespace Viper.Areas.Effort.Scripts
                 // Check for percentages with invalid references (discovered during migration)
                 CheckPercentagesWithInvalidReferences(conn);
 
+                // Check for percentage records with NULL academic year (causes legacy SPs to silently drop rows)
+                CheckNullAcademicYears(conn);
+
                 // Check for course relationships with invalid types or references (discovered during migration)
                 CheckCourseRelationshipIssues(conn);
             }
@@ -1288,6 +1287,31 @@ namespace Viper.Areas.Effort.Scripts
                     _report.DataQualityIssues.PercentagesWithInvalidPersonTermCombos = count;
                     Console.WriteLine($"  Percentage records with no matching (PersonId, TermCode) - orphaned records: {count}");
                 }
+            }
+        }
+
+        private void CheckNullAcademicYears(SqlConnection conn)
+        {
+            // CRITICAL: Records with NULL percent_AcademicYear are silently dropped by legacy SPs
+            // Legacy SPs filter on percent_AcademicYear = @AcademicYear, which never matches NULL
+            // This causes 4 stored procedures to return incorrect (fewer) results:
+            //   - usp_getEffortPercentsForInstructor
+            //   - usp_getInstructorsWithClinicalEffort
+            //   - usp_getListOfEffortPercentsForInstructor
+            //   - usp_getSumEffortPercentsForInstructor
+            var nullAcademicYearQuery = @"
+                SELECT COUNT(*)
+                FROM tblPercent
+                WHERE percent_AcademicYear IS NULL
+                  AND percent_start IS NOT NULL";
+            using (var cmd = new SqlCommand(nullAcademicYearQuery, conn))
+            {
+                int count = (int)cmd.ExecuteScalar();
+                if (count > 0)
+                {
+                    _report.DataQualityIssues.PercentagesWithNullAcademicYear = count;
+                }
+                WriteColoredCount("  Percentage records with NULL AcademicYear (causes legacy SPs to drop rows)", count, isCritical: true);
             }
         }
 
@@ -1700,12 +1724,91 @@ namespace Viper.Areas.Effort.Scripts
                     Console.ForegroundColor = _report.AuditDataQuality.RecordsUnmappable > 0 ? ConsoleColor.Yellow : ConsoleColor.Green;
                     Console.WriteLine($"  Unmappable records (all fields NULL): {_report.AuditDataQuality.RecordsUnmappable}");
                     Console.ResetColor();
+
+                    // Analyze audit_ModBy field (mix of LoginIds and MothraIds)
+                    Console.WriteLine("\n  Analyzing audit_ModBy field (LoginId vs MothraId)...");
+                    AnalyzeAuditModBy(effortConn);
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"  ERROR: Failed to analyze audit data quality: {ex.Message}");
                 Console.WriteLine($"  Audit data quality analysis will be skipped.");
+            }
+        }
+
+        private void AnalyzeAuditModBy(SqlConnection effortConn)
+        {
+            HashSet<string> mothraIds;
+            Dictionary<string, string> loginIdToMothraId;
+
+            using (var viperConn = new SqlConnection(_viperConnectionString))
+            {
+                viperConn.Open();
+                (mothraIds, loginIdToMothraId) = EffortScriptHelper.BuildLoginIdMappings(viperConn);
+            }
+
+            var modByQuery = @"
+                SELECT RTRIM(audit_ModBy) as ModBy, COUNT(*) as RecordCount
+                FROM tblAudit
+                WHERE audit_ModBy IS NOT NULL
+                GROUP BY RTRIM(audit_ModBy)
+                ORDER BY COUNT(*) DESC";
+
+            using (var cmd = new SqlCommand(modByQuery, effortConn))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    string modBy = reader.GetString(0).Trim();
+                    int count = reader.GetInt32(1);
+
+                    if (mothraIds.Contains(modBy))
+                    {
+                        _report.AuditDataQuality.ModByAsMothraId += count;
+                    }
+                    else if (loginIdToMothraId.TryGetValue(modBy, out string? mappedMothraId))
+                    {
+                        _report.AuditDataQuality.ModByAsLoginId += count;
+                        _report.AuditDataQuality.LoginIdToMothraIdMappings.Add(new AuditModByMapping
+                        {
+                            LoginId = modBy,
+                            MothraId = mappedMothraId,
+                            RecordCount = count
+                        });
+                    }
+                    else
+                    {
+                        _report.AuditDataQuality.ModByUnmapped += count;
+                        if (_report.AuditDataQuality.UnmappedModByValues.Count < 20)
+                        {
+                            _report.AuditDataQuality.UnmappedModByValues.Add($"{modBy} ({count} records)");
+                        }
+                    }
+                }
+            }
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"    audit_ModBy already as MothraId: {_report.AuditDataQuality.ModByAsMothraId}");
+            Console.ResetColor();
+            Console.ForegroundColor = _report.AuditDataQuality.ModByAsLoginId > 0 ? ConsoleColor.Yellow : ConsoleColor.Green;
+            Console.WriteLine($"    audit_ModBy as LoginId (can be mapped): {_report.AuditDataQuality.ModByAsLoginId}");
+            Console.ResetColor();
+            Console.ForegroundColor = _report.AuditDataQuality.ModByUnmapped > 0 ? ConsoleColor.Red : ConsoleColor.Green;
+            Console.WriteLine($"    audit_ModBy unmapped (unknown): {_report.AuditDataQuality.ModByUnmapped}");
+            Console.ResetColor();
+
+            if (_report.AuditDataQuality.LoginIdToMothraIdMappings.Count > 0)
+            {
+                Console.WriteLine($"    LoginId -> MothraId mappings needed: {_report.AuditDataQuality.LoginIdToMothraIdMappings.Count} distinct values");
+                foreach (var mapping in _report.AuditDataQuality.LoginIdToMothraIdMappings.Take(10))
+                {
+                    Console.WriteLine($"      {mapping.LoginId} -> {mapping.MothraId} ({mapping.RecordCount} records)");
+                }
+                if (_report.AuditDataQuality.LoginIdToMothraIdMappings.Count > 10)
+                {
+                    Console.WriteLine($"      ... and {_report.AuditDataQuality.LoginIdToMothraIdMappings.Count - 10} more");
+                }
             }
         }
 
@@ -1848,6 +1951,7 @@ namespace Viper.Areas.Effort.Scripts
                 count += DataQualityIssues.RecordsWithInvalidHours;
                 count += DataQualityIssues.RecordsWithInvalidWeeks;
                 count += DataQualityIssues.RelationshipsWithInvalidTypes;
+                count += DataQualityIssues.PercentagesWithNullAcademicYear;
             }
 
             return count;
@@ -2086,6 +2190,18 @@ namespace Viper.Areas.Effort.Scripts
                     hasCriticalIssues = true;
                 }
                 sb.AppendLine($"  Course relationships with invalid types (not Parent/Child/CrossList/Section): {DataQualityIssues.RelationshipsWithInvalidTypes}");
+            }
+
+            if (DataQualityIssues.PercentagesWithNullAcademicYear > 0)
+            {
+                if (!hasCriticalIssues)
+                {
+                    sb.AppendLine("Critical Issues (block migration):");
+                    hasCriticalIssues = true;
+                }
+                sb.AppendLine($"  Percentage records with NULL AcademicYear (legacy SPs silently drop these): {DataQualityIssues.PercentagesWithNullAcademicYear}");
+                sb.AppendLine("    → Affected SPs: usp_getEffortPercentsForInstructor, usp_getInstructorsWithClinicalEffort,");
+                sb.AppendLine("                    usp_getListOfEffortPercentsForInstructor, usp_getSumEffortPercentsForInstructor");
             }
 
             if (hasCriticalIssues)
@@ -2502,6 +2618,7 @@ namespace Viper.Areas.Effort.Scripts
         public int RecordsWithInvalidWeeks { get; set; }
         public int PercentagesWithUnmappedPersons { get; set; }
         public int PercentagesWithInvalidPersonTermCombos { get; set; }
+        public int PercentagesWithNullAcademicYear { get; set; }
         public int RelationshipsWithInvalidTypes { get; set; }
         public int RelationshipsWithInvalidCourses { get; set; }
     }
@@ -2576,10 +2693,24 @@ namespace Viper.Areas.Effort.Scripts
         public OrphanedRecordSet InvalidCrns { get; set; } = new OrphanedRecordSet();
         public OrphanedRecordSet InvalidMothraIds { get; set; } = new OrphanedRecordSet();
 
+        // audit_ModBy analysis (LoginId vs MothraId)
+        public int ModByAsMothraId { get; set; }
+        public int ModByAsLoginId { get; set; }
+        public int ModByUnmapped { get; set; }
+        public List<AuditModByMapping> LoginIdToMothraIdMappings { get; set; } = new List<AuditModByMapping>();
+        public List<string> UnmappedModByValues { get; set; } = new List<string>();
+
         public int GetTotalIssues()
         {
             return InvalidTermCodes.Count + InvalidCrns.Count + InvalidMothraIds.Count;
         }
+    }
+
+    public class AuditModByMapping
+    {
+        public string LoginId { get; set; } = null!;
+        public string MothraId { get; set; } = null!;
+        public int RecordCount { get; set; }
     }
 
     #endregion

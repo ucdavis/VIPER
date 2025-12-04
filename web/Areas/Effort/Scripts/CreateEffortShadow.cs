@@ -27,7 +27,6 @@ using System;
 using System.Data;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using Microsoft.Data.SqlClient;
@@ -45,688 +44,689 @@ namespace Viper.Areas.Effort.Scripts
             bool dropMode = args.Any(arg => arg.Equals("--drop", StringComparison.OrdinalIgnoreCase));
             bool forceMode = args.Any(arg => arg.Equals("--force", StringComparison.OrdinalIgnoreCase));
 
-var configuration = EffortScriptHelper.LoadConfiguration();
-string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "VIPER");
+            var configuration = EffortScriptHelper.LoadConfiguration();
+            string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "VIPER");
 
-// Handle --drop or --force mode
-if (dropMode || forceMode)
-{
-    // Check if schema exists
-    bool schemaExists = CheckSchemaExists(viperConnectionString);
-
-    if (schemaExists)
-    {
-        // Check for data accessible through shadow schema views
-        var dataCounts = CheckShadowSchemaData(viperConnectionString);
-        int totalRecords = dataCounts.Values.Sum();
-
-        if (totalRecords > 0)
-        {
-            // Objects exist - require confirmation
-            if (!ConfirmDeletion(dataCounts, totalRecords))
+            // Handle --drop or --force mode
+            if (dropMode || forceMode)
             {
-                Console.WriteLine();
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("Operation cancelled by user.");
-                Console.ResetColor();
-                return 2;  // User cancelled - distinct from success (0) and error (1)
-            }
-        }
-        else
-        {
-            Console.WriteLine("EffortShadow schema exists but has no objects. Proceeding with drop...");
-            Console.WriteLine();
-        }
+                // Check if schema exists
+                bool schemaExists = CheckSchemaExists(viperConnectionString);
 
-        // Drop the schema
-        DropEffortShadowSchemaWithoutConfirmation(viperConnectionString);
-
-        // If --drop only, exit here
-        if (dropMode)
-        {
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("✓ EffortShadow schema dropped successfully!");
-            Console.ResetColor();
-            return 0;  // Success
-        }
-    }
-    else
-    {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("⚠ EffortShadow schema does not exist. Nothing to drop.");
-        Console.ResetColor();
-
-        if (dropMode)
-        {
-            return 0;  // Nothing to drop - not an error
-        }
-    }
-
-    // If --force mode, continue with creation
-    if (forceMode)
-    {
-        executeMode = true; // Force apply mode after dropping
-    }
-}
-
-Console.WriteLine("============================================");
-Console.WriteLine("Creating EffortShadow Compatibility Schema");
-Console.WriteLine($"Mode: {(executeMode ? "APPLY (permanent changes)" : "DRY-RUN (validates SQL only, no schema creation)")}");
-Console.WriteLine($"Start Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-Console.WriteLine("============================================");
-Console.WriteLine();
-
-Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
-Console.WriteLine();
-
-int totalFailures = 0;  // Track migration failures
-
-try
-{
-    // Step 1: Verify prerequisites
-    if (!VerifyPrerequisites(viperConnectionString))
-    {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("ERROR: Prerequisites not met. Exiting.");
-        Console.ResetColor();
-        Environment.Exit(1);
-    }
-
-    Console.WriteLine();
-
-    // Step 2: Create shadow schema, views, and stored procedures
-    // Wrap everything in a transaction for dry-run support
-    using (var connection = new SqlConnection(viperConnectionString))
-    {
-        connection.Open();
-        using var transaction = connection.BeginTransaction();
-
-        try
-        {
-            // Check if schema already exists
-            bool schemaExists = CheckSchemaExists(viperConnectionString, connection, transaction);
-
-            if (!schemaExists)
-            {
-                Console.WriteLine("Creating EffortShadow schema...");
-                using var createSchemaCmd = new SqlCommand("CREATE SCHEMA [EffortShadow];", connection, transaction);
-                createSchemaCmd.ExecuteNonQuery();
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("  ✓ EffortShadow schema created");
-                Console.ResetColor();
-            }
-            else if (executeMode)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("  ⚠ EffortShadow schema already exists. Skipping schema creation.");
-                Console.WriteLine("  Views and procedures will be updated.");
-                Console.ResetColor();
-            }
-
-            Console.WriteLine();
-            Console.WriteLine("============================================");
-            Console.WriteLine("Step 1: Create Compatibility Views");
-            Console.WriteLine("============================================");
-            Console.WriteLine();
-
-            CreateViewsInTransaction(connection, transaction);
-
-            Console.WriteLine();
-            Console.WriteLine("============================================");
-            Console.WriteLine("Step 2: Migrate Functions");
-            Console.WriteLine("============================================");
-            Console.WriteLine();
-
-            int functionFailures = MigrateFunctionsInTransaction(connection, transaction);
-            totalFailures += functionFailures;
-
-            Console.WriteLine();
-            Console.WriteLine("============================================");
-            Console.WriteLine("Step 3: Migrate Stored Procedures");
-            Console.WriteLine("============================================");
-            Console.WriteLine();
-
-            int procedureFailures = MigrateStoredProceduresInTransaction(connection, transaction);
-            totalFailures += procedureFailures;
-
-            // Recompile all procedures to refresh dependencies on views
-            Console.WriteLine();
-            Console.WriteLine("============================================");
-            Console.WriteLine("Step 4: Recompile Stored Procedures");
-            Console.WriteLine("============================================");
-            Console.WriteLine();
-            RecompileAllProcedures(connection, transaction);
-
-            // Commit or rollback based on mode
-            if (executeMode)
-            {
-                // Only commit if there were no failures
-                if (totalFailures == 0)
+                if (schemaExists)
                 {
-                    transaction.Commit();
-                    Console.WriteLine();
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("✓ All changes committed to database");
-                    Console.ResetColor();
+                    // Check for data accessible through shadow schema views
+                    var dataCounts = CheckShadowSchemaData(viperConnectionString);
+                    int totalRecords = dataCounts.Values.Sum();
+
+                    if (totalRecords > 0)
+                    {
+                        // Objects exist - require confirmation
+                        if (!ConfirmDeletion(dataCounts, totalRecords))
+                        {
+                            Console.WriteLine();
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine("Operation cancelled by user.");
+                            Console.ResetColor();
+                            return 2;  // User cancelled - distinct from success (0) and error (1)
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("EffortShadow schema exists but has no objects. Proceeding with drop...");
+                        Console.WriteLine();
+                    }
+
+                    // Drop the schema
+                    DropEffortShadowSchemaWithoutConfirmation(viperConnectionString);
+
+                    // If --drop only, exit here
+                    if (dropMode)
+                    {
+                        Console.WriteLine();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("✓ EffortShadow schema dropped successfully!");
+                        Console.ResetColor();
+                        return 0;  // Success
+                    }
                 }
                 else
-                {
-                    transaction.Rollback();
-                    Console.WriteLine();
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"✗ Migration had {totalFailures} failures - changes rolled back");
-                    Console.WriteLine("  Fix the errors and try again");
-                    Console.ResetColor();
-                }
-            }
-            else
-            {
-                transaction.Rollback();
-                Console.WriteLine();
-                if (totalFailures == 0)
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("✓ DRY-RUN: All SQL validated successfully, changes rolled back");
+                    Console.WriteLine("⚠ EffortShadow schema does not exist. Nothing to drop.");
+                    Console.ResetColor();
+
+                    if (dropMode)
+                    {
+                        return 0;  // Nothing to drop - not an error
+                    }
+                }
+
+                // If --force mode, continue with creation
+                if (forceMode)
+                {
+                    executeMode = true; // Force apply mode after dropping
+                }
+            }
+
+            Console.WriteLine("============================================");
+            Console.WriteLine("Creating EffortShadow Compatibility Schema");
+            Console.WriteLine($"Mode: {(executeMode ? "APPLY (permanent changes)" : "DRY-RUN (validates SQL only, no schema creation)")}");
+            Console.WriteLine($"Start Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            Console.WriteLine("============================================");
+            Console.WriteLine();
+
+            Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+            Console.WriteLine();
+
+            int totalFailures = 0;  // Track migration failures
+
+            try
+            {
+                // Step 1: Verify prerequisites
+                if (!VerifyPrerequisites(viperConnectionString))
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("ERROR: Prerequisites not met. Exiting.");
+                    Console.ResetColor();
+                    Environment.Exit(1);
+                }
+
+                Console.WriteLine();
+
+                // Step 2: Create shadow schema, views, and stored procedures
+                // Wrap everything in a transaction for dry-run support
+                using (var connection = new SqlConnection(viperConnectionString))
+                {
+                    connection.Open();
+                    using var transaction = connection.BeginTransaction();
+
+                    try
+                    {
+                        // Check if schema already exists
+                        bool schemaExists = CheckSchemaExists(viperConnectionString, connection, transaction);
+
+                        if (!schemaExists)
+                        {
+                            Console.WriteLine("Creating EffortShadow schema...");
+                            using var createSchemaCmd = new SqlCommand("CREATE SCHEMA [EffortShadow];", connection, transaction);
+                            createSchemaCmd.ExecuteNonQuery();
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine("  ✓ EffortShadow schema created");
+                            Console.ResetColor();
+                        }
+                        else if (executeMode)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine("  ⚠ EffortShadow schema already exists. Skipping schema creation.");
+                            Console.WriteLine("  Views and procedures will be updated.");
+                            Console.ResetColor();
+                        }
+
+                        Console.WriteLine();
+                        Console.WriteLine("============================================");
+                        Console.WriteLine("Step 1: Create Compatibility Views");
+                        Console.WriteLine("============================================");
+                        Console.WriteLine();
+
+                        CreateViewsInTransaction(connection, transaction);
+
+                        Console.WriteLine();
+                        Console.WriteLine("============================================");
+                        Console.WriteLine("Step 2: Migrate Functions");
+                        Console.WriteLine("============================================");
+                        Console.WriteLine();
+
+                        int functionFailures = MigrateFunctionsInTransaction(connection, transaction);
+                        totalFailures += functionFailures;
+
+                        Console.WriteLine();
+                        Console.WriteLine("============================================");
+                        Console.WriteLine("Step 3: Migrate Stored Procedures");
+                        Console.WriteLine("============================================");
+                        Console.WriteLine();
+
+                        int procedureFailures = MigrateStoredProceduresInTransaction(connection, transaction);
+                        totalFailures += procedureFailures;
+
+                        // Recompile all procedures to refresh dependencies on views
+                        Console.WriteLine();
+                        Console.WriteLine("============================================");
+                        Console.WriteLine("Step 4: Recompile Stored Procedures");
+                        Console.WriteLine("============================================");
+                        Console.WriteLine();
+                        RecompileAllProcedures(connection, transaction);
+
+                        // Commit or rollback based on mode
+                        if (executeMode)
+                        {
+                            // Only commit if there were no failures
+                            if (totalFailures == 0)
+                            {
+                                transaction.Commit();
+                                Console.WriteLine();
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.WriteLine("✓ All changes committed to database");
+                                Console.ResetColor();
+                            }
+                            else
+                            {
+                                transaction.Rollback();
+                                Console.WriteLine();
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.WriteLine($"✗ Migration had {totalFailures} failures - changes rolled back");
+                                Console.WriteLine("  Fix the errors and try again");
+                                Console.ResetColor();
+                            }
+                        }
+                        else
+                        {
+                            transaction.Rollback();
+                            Console.WriteLine();
+                            if (totalFailures == 0)
+                            {
+                                Console.ForegroundColor = ConsoleColor.Yellow;
+                                Console.WriteLine("✓ DRY-RUN: All SQL validated successfully, changes rolled back");
+                                Console.ResetColor();
+                            }
+                            else
+                            {
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.WriteLine($"✗ DRY-RUN: Validation had {totalFailures} failures");
+                                Console.WriteLine("  Fix the errors before running with --apply");
+                                Console.ResetColor();
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
+
+                Console.WriteLine();
+                Console.WriteLine("============================================");
+                Console.WriteLine("EffortShadow Schema Creation Summary");
+                Console.WriteLine("============================================");
+                Console.WriteLine();
+                Console.WriteLine($"Mode: {(executeMode ? "EXECUTE" : "DRY-RUN")}");
+                Console.WriteLine($"Result: {(totalFailures == 0 ? "SUCCESS" : $"FAILED ({totalFailures} errors)")}");
+                Console.WriteLine("Schema: [VIPER].[EffortShadow]");
+                Console.WriteLine("Purpose: Legacy compatibility layer for ColdFusion application");
+                Console.WriteLine("Contents: 19 views + ~58 stored procedures (no data storage)");
+                Console.WriteLine("Data Source: All data lives in [VIPER].[effort] schema");
+                Console.WriteLine();
+
+                if (!executeMode)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("⚠ DRY-RUN MODE:");
+                    Console.WriteLine("  - Schema creation, views, and stored procedures were tested");
+                    Console.WriteLine("  - All SQL validated successfully");
+                    Console.WriteLine("  - Changes rolled back - no permanent changes made");
+                    Console.WriteLine();
+                    Console.WriteLine("  To apply changes permanently, run:");
+                    Console.WriteLine("    .\\RunCreateShadow.bat --apply");
                     Console.ResetColor();
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"✗ DRY-RUN: Validation had {totalFailures} failures");
-                    Console.WriteLine("  Fix the errors before running with --apply");
-                    Console.ResetColor();
+                    Console.WriteLine("Next Steps:");
+                    Console.WriteLine("  1. Run RunVerifyShadow.bat to verify shadow schema procedures");
+                    Console.WriteLine("  2. DBA will configure database permissions for applications");
+                    Console.WriteLine("  3. Test ColdFusion application against [EffortShadow] schema");
                 }
+
+                Console.WriteLine("============================================");
+                Console.WriteLine($"End Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                Console.WriteLine("============================================");
+
+                // Return exit code based on results
+                return totalFailures == 0 ? 0 : 1;
+            }
+            catch (SqlException sqlEx)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {sqlEx.Message}");
+                Console.WriteLine($"SQL Error Number: {sqlEx.Number}");
+                Console.WriteLine($"Stack Trace: {sqlEx.StackTrace}");
+                Console.ResetColor();
+                return 1;  // Error exit code
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"ERROR: {ex.Message}");
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                Console.ResetColor();
+                return 1;  // Error exit code
             }
         }
-        catch
+
+        static Dictionary<string, int> CheckShadowSchemaData(string connectionString)
         {
-            transaction.Rollback();
-            throw;
-        }
-    }
+            var objectCounts = new Dictionary<string, int>();
 
-    Console.WriteLine();
-    Console.WriteLine("============================================");
-    Console.WriteLine("EffortShadow Schema Creation Summary");
-    Console.WriteLine("============================================");
-    Console.WriteLine();
-    Console.WriteLine($"Mode: {(executeMode ? "EXECUTE" : "DRY-RUN")}");
-    Console.WriteLine($"Result: {(totalFailures == 0 ? "SUCCESS" : $"FAILED ({totalFailures} errors)")}");
-    Console.WriteLine("Schema: [VIPER].[EffortShadow]");
-    Console.WriteLine("Purpose: Legacy compatibility layer for ColdFusion application");
-    Console.WriteLine("Contents: 19 views + ~58 stored procedures (no data storage)");
-    Console.WriteLine("Data Source: All data lives in [VIPER].[effort] schema");
-    Console.WriteLine();
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
 
-    if (!executeMode)
-    {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("⚠ DRY-RUN MODE:");
-        Console.WriteLine("  - Schema creation, views, and stored procedures were tested");
-        Console.WriteLine("  - All SQL validated successfully");
-        Console.WriteLine("  - Changes rolled back - no permanent changes made");
-        Console.WriteLine();
-        Console.WriteLine("  To apply changes permanently, run:");
-        Console.WriteLine("    .\\RunCreateShadow.bat --apply");
-        Console.ResetColor();
-    }
-    else
-    {
-        Console.WriteLine("Next Steps:");
-        Console.WriteLine("  1. Run RunVerifyShadow.bat to verify shadow schema procedures");
-        Console.WriteLine("  2. DBA will configure database permissions for applications");
-        Console.WriteLine("  3. Test ColdFusion application against [EffortShadow] schema");
-    }
-
-    Console.WriteLine("============================================");
-    Console.WriteLine($"End Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-    Console.WriteLine("============================================");
-
-    // Return exit code based on results
-    return totalFailures == 0 ? 0 : 1;
-}
-catch (SqlException sqlEx)
-{
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine($"DATABASE ERROR: {sqlEx.Message}");
-    Console.WriteLine($"SQL Error Number: {sqlEx.Number}");
-    Console.WriteLine($"Stack Trace: {sqlEx.StackTrace}");
-    Console.ResetColor();
-    return 1;  // Error exit code
-}
-catch (Exception ex) when (ex is not OutOfMemoryException && ex is not StackOverflowException)
-{
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine($"ERROR: {ex.Message}");
-    Console.WriteLine($"Stack Trace: {ex.StackTrace}");
-    Console.ResetColor();
-    return 1;  // Error exit code
-}
-        }
-
-static Dictionary<string, int> CheckShadowSchemaData(string connectionString)
-{
-    var objectCounts = new Dictionary<string, int>();
-
-    try
-    {
-        using var connection = new SqlConnection(connectionString);
-        connection.Open();
-
-        // Count stored procedures
-        using (var cmd = new SqlCommand(@"
+                // Count stored procedures
+                using (var cmd = new SqlCommand(@"
             SELECT COUNT(*)
             FROM sys.procedures
             WHERE schema_id = SCHEMA_ID('EffortShadow')", connection))
-        {
-            int count = (int)cmd.ExecuteScalar();
-            if (count > 0)
-            {
-                objectCounts["Stored Procedures"] = count;
-            }
-        }
+                {
+                    int count = (int)cmd.ExecuteScalar();
+                    if (count > 0)
+                    {
+                        objectCounts["Stored Procedures"] = count;
+                    }
+                }
 
-        // Count functions
-        using (var cmd = new SqlCommand(@"
+                // Count functions
+                using (var cmd = new SqlCommand(@"
             SELECT COUNT(*)
             FROM sys.objects
             WHERE schema_id = SCHEMA_ID('EffortShadow') AND type IN ('FN', 'IF', 'TF')", connection))
-        {
-            int count = (int)cmd.ExecuteScalar();
-            if (count > 0)
-            {
-                objectCounts["Functions"] = count;
-            }
-        }
+                {
+                    int count = (int)cmd.ExecuteScalar();
+                    if (count > 0)
+                    {
+                        objectCounts["Functions"] = count;
+                    }
+                }
 
-        // Count views
-        using (var cmd = new SqlCommand(@"
+                // Count views
+                using (var cmd = new SqlCommand(@"
             SELECT COUNT(*)
             FROM sys.views
             WHERE schema_id = SCHEMA_ID('EffortShadow')", connection))
-        {
-            int count = (int)cmd.ExecuteScalar();
-            if (count > 0)
-            {
-                objectCounts["Views"] = count;
-            }
-        }
+                {
+                    int count = (int)cmd.ExecuteScalar();
+                    if (count > 0)
+                    {
+                        objectCounts["Views"] = count;
+                    }
+                }
 
-        // Count tables
-        using (var cmd = new SqlCommand(@"
+                // Count tables
+                using (var cmd = new SqlCommand(@"
             SELECT COUNT(*)
             FROM sys.tables
             WHERE schema_id = SCHEMA_ID('EffortShadow')", connection))
-        {
-            int count = (int)cmd.ExecuteScalar();
-            if (count > 0)
+                {
+                    int count = (int)cmd.ExecuteScalar();
+                    if (count > 0)
+                    {
+                        objectCounts["Tables"] = count;
+                    }
+                }
+            }
+            catch (SqlException ex)
             {
-                objectCounts["Tables"] = count;
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"⚠ Warning: Could not check shadow schema objects: {ex.Message}");
+                Console.ResetColor();
+            }
+
+            return objectCounts;
+        }
+
+        static bool ConfirmDeletion(Dictionary<string, int> objectCounts, int totalObjects)
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("╔════════════════════════════════════════════════════════════════╗");
+            Console.WriteLine("║                    ⚠ DESTRUCTIVE OPERATION ⚠                  ║");
+            Console.WriteLine("╚════════════════════════════════════════════════════════════════╝");
+            Console.ResetColor();
+            Console.WriteLine();
+            Console.WriteLine("The following EffortShadow schema objects will be PERMANENTLY DELETED:");
+            Console.WriteLine();
+
+            // Display object counts
+            foreach (var kvp in objectCounts.OrderByDescending(x => x.Value))
+            {
+                Console.WriteLine($"  • {kvp.Key,-25} {kvp.Value,8:N0} object(s)");
+            }
+
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"  TOTAL: {totalObjects:N0} database objects will be PERMANENTLY DELETED");
+            Console.ResetColor();
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("  NOTE: Underlying data in [effort] schema will NOT be deleted.");
+            Console.WriteLine("        Only the shadow compatibility layer (views, procedures, functions) will be removed.");
+            Console.ResetColor();
+            Console.WriteLine();
+            Console.WriteLine("This action cannot be undone.");
+            Console.WriteLine();
+            Console.Write("Type 'DELETE' (in capital letters) to confirm: ");
+
+            string confirmation = Console.ReadLine()?.Trim() ?? "";
+
+            if (confirmation == "DELETE")
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("✓ Deletion confirmed. Proceeding...");
+                Console.ResetColor();
+                return true;
+            }
+            else
+            {
+                return false;
             }
         }
-    }
-    catch (SqlException ex)
-    {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"⚠ Warning: Could not check shadow schema objects: {ex.Message}");
-        Console.ResetColor();
-    }
 
-    return objectCounts;
-}
+        static void DropEffortShadowSchemaWithoutConfirmation(string connectionString)
+        {
+            Console.WriteLine("============================================");
+            Console.WriteLine("Dropping EffortShadow Schema");
+            Console.WriteLine("============================================");
+            Console.WriteLine();
 
-static bool ConfirmDeletion(Dictionary<string, int> objectCounts, int totalObjects)
-{
-    Console.WriteLine();
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine("╔════════════════════════════════════════════════════════════════╗");
-    Console.WriteLine("║                    ⚠ DESTRUCTIVE OPERATION ⚠                  ║");
-    Console.WriteLine("╚════════════════════════════════════════════════════════════════╝");
-    Console.ResetColor();
-    Console.WriteLine();
-    Console.WriteLine("The following EffortShadow schema objects will be PERMANENTLY DELETED:");
-    Console.WriteLine();
+            using var connection = new SqlConnection(connectionString);
+            connection.Open();
 
-    // Display object counts
-    foreach (var kvp in objectCounts.OrderByDescending(x => x.Value))
-    {
-        Console.WriteLine($"  • {kvp.Key,-25} {kvp.Value,8:N0} object(s)");
-    }
+            Console.WriteLine("Dropping EffortShadow schema objects...");
 
-    Console.WriteLine();
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine($"  TOTAL: {totalObjects:N0} database objects will be PERMANENTLY DELETED");
-    Console.ResetColor();
-    Console.WriteLine();
-    Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine("  NOTE: Underlying data in [effort] schema will NOT be deleted.");
-    Console.WriteLine("        Only the shadow compatibility layer (views, procedures, functions) will be removed.");
-    Console.ResetColor();
-    Console.WriteLine();
-    Console.WriteLine("This action cannot be undone.");
-    Console.WriteLine();
-    Console.Write("Type 'DELETE' (in capital letters) to confirm: ");
-
-    string confirmation = Console.ReadLine()?.Trim() ?? "";
-
-    if (confirmation == "DELETE")
-    {
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("✓ Deletion confirmed. Proceeding...");
-        Console.ResetColor();
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-static void DropEffortShadowSchemaWithoutConfirmation(string connectionString)
-{
-    Console.WriteLine("============================================");
-    Console.WriteLine("Dropping EffortShadow Schema");
-    Console.WriteLine("============================================");
-    Console.WriteLine();
-
-    using var connection = new SqlConnection(connectionString);
-    connection.Open();
-
-    Console.WriteLine("Dropping EffortShadow schema objects...");
-
-    try
-    {
-        // Drop all stored procedures
-        Console.WriteLine("  Dropping stored procedures...");
-        var dropProcsQuery = @"
+            try
+            {
+                // Drop all stored procedures
+                Console.WriteLine("  Dropping stored procedures...");
+                var dropProcsQuery = @"
             DECLARE @sql NVARCHAR(MAX) = ''
             SELECT @sql = @sql + 'DROP PROCEDURE [EffortShadow].[' + name + ']; '
             FROM sys.procedures
             WHERE schema_id = SCHEMA_ID('EffortShadow')
             EXEC sp_executesql @sql";
 
-        using (var cmd = new SqlCommand(dropProcsQuery, connection))
-        {
-            cmd.CommandTimeout = 60;
-            cmd.ExecuteNonQuery();
-        }
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("  ✓ Stored procedures dropped");
-        Console.ResetColor();
+                using (var cmd = new SqlCommand(dropProcsQuery, connection))
+                {
+                    cmd.CommandTimeout = 60;
+                    cmd.ExecuteNonQuery();
+                }
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  ✓ Stored procedures dropped");
+                Console.ResetColor();
 
-        // Drop all functions
-        Console.WriteLine("  Dropping functions...");
-        var dropFuncsQuery = @"
+                // Drop all functions
+                Console.WriteLine("  Dropping functions...");
+                var dropFuncsQuery = @"
             DECLARE @sql NVARCHAR(MAX) = ''
             SELECT @sql = @sql + 'DROP FUNCTION [EffortShadow].[' + name + ']; '
             FROM sys.objects
             WHERE schema_id = SCHEMA_ID('EffortShadow') AND type IN ('FN', 'IF', 'TF')
             EXEC sp_executesql @sql";
 
-        using (var cmd = new SqlCommand(dropFuncsQuery, connection))
-        {
-            cmd.CommandTimeout = 60;
-            cmd.ExecuteNonQuery();
-        }
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("  ✓ Functions dropped");
-        Console.ResetColor();
+                using (var cmd = new SqlCommand(dropFuncsQuery, connection))
+                {
+                    cmd.CommandTimeout = 60;
+                    cmd.ExecuteNonQuery();
+                }
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  ✓ Functions dropped");
+                Console.ResetColor();
 
-        // Drop all views
-        Console.WriteLine("  Dropping views...");
-        var dropViewsQuery = @"
+                // Drop all views
+                Console.WriteLine("  Dropping views...");
+                var dropViewsQuery = @"
             DECLARE @sql NVARCHAR(MAX) = ''
             SELECT @sql = @sql + 'DROP VIEW [EffortShadow].[' + name + ']; '
             FROM sys.views
             WHERE schema_id = SCHEMA_ID('EffortShadow')
             EXEC sp_executesql @sql";
 
-        using (var cmd = new SqlCommand(dropViewsQuery, connection))
-        {
-            cmd.CommandTimeout = 60;
-            cmd.ExecuteNonQuery();
-        }
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("  ✓ Views dropped");
-        Console.ResetColor();
+                using (var cmd = new SqlCommand(dropViewsQuery, connection))
+                {
+                    cmd.CommandTimeout = 60;
+                    cmd.ExecuteNonQuery();
+                }
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  ✓ Views dropped");
+                Console.ResetColor();
 
-        // Drop all tables
-        Console.WriteLine("  Dropping tables...");
-        var dropTablesQuery = @"
+                // Drop all tables
+                Console.WriteLine("  Dropping tables...");
+                var dropTablesQuery = @"
             DECLARE @sql NVARCHAR(MAX) = ''
             SELECT @sql = @sql + 'DROP TABLE [EffortShadow].[' + name + ']; '
             FROM sys.tables
             WHERE schema_id = SCHEMA_ID('EffortShadow')
             EXEC sp_executesql @sql";
 
-        using (var cmd = new SqlCommand(dropTablesQuery, connection))
-        {
-            cmd.CommandTimeout = 60;
-            cmd.ExecuteNonQuery();
+                using (var cmd = new SqlCommand(dropTablesQuery, connection))
+                {
+                    cmd.CommandTimeout = 60;
+                    cmd.ExecuteNonQuery();
+                }
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  ✓ Tables dropped");
+                Console.ResetColor();
+
+                // Drop the schema
+                Console.WriteLine("  Dropping schema...");
+                var dropSchemaQuery = "DROP SCHEMA [EffortShadow]";
+                using (var cmd = new SqlCommand(dropSchemaQuery, connection))
+                {
+                    cmd.ExecuteNonQuery();
+                }
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  ✓ Schema dropped");
+                Console.ResetColor();
+
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("============================================");
+                Console.WriteLine("EffortShadow schema dropped successfully!");
+                Console.WriteLine("============================================");
+                Console.ResetColor();
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"ERROR dropping schema: {ex.Message}");
+                Console.ResetColor();
+                Environment.Exit(1);
+            }
         }
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("  ✓ Tables dropped");
-        Console.ResetColor();
 
-        // Drop the schema
-        Console.WriteLine("  Dropping schema...");
-        var dropSchemaQuery = "DROP SCHEMA [EffortShadow]";
-        using (var cmd = new SqlCommand(dropSchemaQuery, connection))
+        static bool VerifyPrerequisites(string connectionString)
         {
-            cmd.ExecuteNonQuery();
-        }
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("  ✓ Schema dropped");
-        Console.ResetColor();
+            Console.WriteLine("Verifying prerequisites...");
 
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("============================================");
-        Console.WriteLine("EffortShadow schema dropped successfully!");
-        Console.WriteLine("============================================");
-        Console.ResetColor();
-    }
-    catch (SqlException ex)
-    {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"ERROR dropping schema: {ex.Message}");
-        Console.ResetColor();
-        Environment.Exit(1);
-    }
-}
+            using var connection = new SqlConnection(connectionString);
+            connection.Open();
 
-static bool VerifyPrerequisites(string connectionString)
-{
-    Console.WriteLine("Verifying prerequisites...");
-
-    using var connection = new SqlConnection(connectionString);
-    connection.Open();
-
-    // Check if VIPER.effort schema exists
-    using var cmdEffort = new SqlCommand("SELECT COUNT(*) FROM [VIPER].sys.schemas WHERE name = 'effort'", connection);
-    int effortExists = (int)cmdEffort.ExecuteScalar();
-    if (effortExists == 0)
-    {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("  ✗ [VIPER].[effort] schema not found. Run CreateEffortDatabase.cs first.");
-        Console.ResetColor();
-        return false;
-    }
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine("  ✓ [VIPER].[effort] schema found");
-    Console.ResetColor();
-
-    // Check if effort schema has data
-    string checkDataSql = "SELECT COUNT(*) FROM [effort].[Records];";
-    using var cmdData = new SqlCommand(checkDataSql, connection);
-    int recordCount = 0;
-    try
-    {
-        recordCount = (int)cmdData.ExecuteScalar();
-    }
-    catch (SqlException ex)
-    {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("  ⚠ WARNING: Could not check [VIPER].[effort] schema for data.");
-        Console.WriteLine($"     Exception: {ex.Message}");
-        Console.ResetColor();
-    }
-
-    if (recordCount == 0)
-    {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("  ⚠ WARNING: [VIPER].[effort] schema has no records. Run MigrateEffortData.cs first.");
-        Console.WriteLine("  Continuing with database creation...");
-        Console.ResetColor();
-    }
-    else
-    {
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"  ✓ [VIPER].[effort] schema contains {recordCount} records");
-        Console.ResetColor();
-    }
-
-    // Check if Effort_Database_Schema_And_Data_LEGACY.txt exists
-    string exportFilePath = Path.Join(Environment.CurrentDirectory, "Effort_Database_Schema_And_Data_LEGACY.txt");
-    if (!File.Exists(exportFilePath))
-    {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"  ✗ Export file not found: {exportFilePath}");
-        Console.WriteLine("  Run RunExportSchema.bat first to export stored procedures");
-        Console.ResetColor();
-        return false;
-    }
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine($"  ✓ Export file found: Effort_Database_Schema_And_Data_LEGACY.txt");
-    Console.ResetColor();
-
-    return true;
-}
-
-static bool CheckSchemaExists(string connectionString)
-{
-    using var connection = new SqlConnection(connectionString);
-    connection.Open();
-
-    using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sys.schemas WHERE name = 'EffortShadow'", connection);
-    int exists = (int)checkCmd.ExecuteScalar();
-
-    return exists > 0;
-}
-
-static bool CheckSchemaExists(string connectionString, SqlConnection connection, SqlTransaction transaction)
-{
-    using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sys.schemas WHERE name = 'EffortShadow'", connection, transaction);
-    int exists = (int)checkCmd.ExecuteScalar();
-
-    return exists > 0;
-}
-
-static bool CreateSchema(string connectionString)
-{
-    using var connection = new SqlConnection(connectionString);
-    connection.Open();
-
-    Console.WriteLine("Creating EffortShadow schema...");
-
-    // Check if schema already exists
-    if (CheckSchemaExists(connectionString))
-    {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("  ⚠ EffortShadow schema already exists. Skipping creation.");
-        Console.WriteLine("  To recreate, manually drop the schema first.");
-        Console.ResetColor();
-        return false;
-    }
-
-    // Create schema permanently
-    using var createCmd = new SqlCommand("CREATE SCHEMA [EffortShadow];", connection);
-    createCmd.ExecuteNonQuery();
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine("  ✓ EffortShadow schema created successfully.");
-    Console.ResetColor();
-    return true;
-}
-
-static void CreateViewsInTransaction(SqlConnection connection, SqlTransaction transaction)
-{
-    // Create 19 compatibility views
-    CreateTblEffortView(connection, transaction);
-    CreateTblPersonView(connection, transaction);
-    CreateTblCoursesView(connection, transaction);
-    CreateTblPercentView(connection, transaction);
-    CreateTblStatusView(connection, transaction);
-    CreateTblSabbaticView(connection, transaction);
-    CreateTblRolesView(connection, transaction);
-    CreateTblEffortTypeLUView(connection, transaction);
-    CreateUserAccessView(connection, transaction);
-    CreateTblUnitsLUView(connection, transaction);
-    CreateTblJobCodeView(connection, transaction);
-    CreateTblReportUnitsView(connection, transaction);
-    CreateTblAltTitlesView(connection, transaction);
-    CreateTblCourseRelationshipsView(connection, transaction);
-    CreateTblAuditView(connection, transaction);
-
-    // Additional composite views used by stored procedures
-    CreateVwInstructorEffortView(connection, transaction);
-
-    Console.WriteLine();
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine("✓ All 16 views created successfully");
-    Console.ResetColor();
-}
-
-static void CreateViews(string connectionString, bool executeMode)
-{
-    using var connection = new SqlConnection(connectionString);
-    connection.Open();
-
-    // Start transaction for dry-run support
-    using var transaction = connection.BeginTransaction();
-
-    try
-    {
-        CreateViewsInTransaction(connection, transaction);
-
-        // Commit or rollback based on mode
-        if (executeMode)
-        {
-            transaction.Commit();
+            // Check if VIPER.effort schema exists
+            using var cmdEffort = new SqlCommand("SELECT COUNT(*) FROM [VIPER].sys.schemas WHERE name = 'effort'", connection);
+            int effortExists = (int)cmdEffort.ExecuteScalar();
+            if (effortExists == 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("  ✗ [VIPER].[effort] schema not found. Run CreateEffortDatabase.cs first.");
+                Console.ResetColor();
+                return false;
+            }
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("✓ Views committed to database");
+            Console.WriteLine("  ✓ [VIPER].[effort] schema found");
             Console.ResetColor();
+
+            // Check if effort schema has data
+            string checkDataSql = "SELECT COUNT(*) FROM [effort].[Records];";
+            using var cmdData = new SqlCommand(checkDataSql, connection);
+            int recordCount = 0;
+            try
+            {
+                recordCount = (int)cmdData.ExecuteScalar();
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("  ⚠ WARNING: Could not check [VIPER].[effort] schema for data.");
+                Console.WriteLine($"     Exception: {ex.Message}");
+                Console.ResetColor();
+            }
+
+            if (recordCount == 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("  ⚠ WARNING: [VIPER].[effort] schema has no records. Run MigrateEffortData.cs first.");
+                Console.WriteLine("  Continuing with database creation...");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  ✓ [VIPER].[effort] schema contains {recordCount} records");
+                Console.ResetColor();
+            }
+
+            // Check if Effort_Database_Schema_And_Data_LEGACY.txt exists
+            string exportFilePath = Path.Join(Environment.CurrentDirectory, "Effort_Database_Schema_And_Data_LEGACY.txt");
+            if (!File.Exists(exportFilePath))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  ✗ Export file not found: {exportFilePath}");
+                Console.WriteLine("  Run RunExportSchema.bat first to export stored procedures");
+                Console.ResetColor();
+                return false;
+            }
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"  ✓ Export file found: Effort_Database_Schema_And_Data_LEGACY.txt");
+            Console.ResetColor();
+
+            return true;
         }
-        else
+
+        static bool CheckSchemaExists(string connectionString)
         {
-            transaction.Rollback();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("⚠ DRY-RUN: Views rolled back (not saved)");
+            using var connection = new SqlConnection(connectionString);
+            connection.Open();
+
+            using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sys.schemas WHERE name = 'EffortShadow'", connection);
+            int exists = (int)checkCmd.ExecuteScalar();
+
+            return exists > 0;
+        }
+
+        static bool CheckSchemaExists(string connectionString, SqlConnection connection, SqlTransaction transaction)
+        {
+            using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sys.schemas WHERE name = 'EffortShadow'", connection, transaction);
+            int exists = (int)checkCmd.ExecuteScalar();
+
+            return exists > 0;
+        }
+
+        static bool CreateSchema(string connectionString)
+        {
+            using var connection = new SqlConnection(connectionString);
+            connection.Open();
+
+            Console.WriteLine("Creating EffortShadow schema...");
+
+            // Check if schema already exists
+            if (CheckSchemaExists(connectionString))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("  ⚠ EffortShadow schema already exists. Skipping creation.");
+                Console.WriteLine("  To recreate, manually drop the schema first.");
+                Console.ResetColor();
+                return false;
+            }
+
+            // Create schema permanently
+            using var createCmd = new SqlCommand("CREATE SCHEMA [EffortShadow];", connection);
+            createCmd.ExecuteNonQuery();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("  ✓ EffortShadow schema created successfully.");
+            Console.ResetColor();
+            return true;
+        }
+
+        static void CreateViewsInTransaction(SqlConnection connection, SqlTransaction transaction)
+        {
+            // Create 19 compatibility views
+            CreateTblEffortView(connection, transaction);
+            CreateTblPersonView(connection, transaction);
+            CreateTblCoursesView(connection, transaction);
+            CreateTblPercentView(connection, transaction);
+            CreateTblStatusView(connection, transaction);
+            CreateTblSabbaticView(connection, transaction);
+            CreateTblRolesView(connection, transaction);
+            CreateTblEffortTypeLUView(connection, transaction);
+            CreateUserAccessView(connection, transaction);
+            CreateTblUnitsLUView(connection, transaction);
+            CreateTblJobCodeView(connection, transaction);
+            CreateTblReportUnitsView(connection, transaction);
+            CreateTblAltTitlesView(connection, transaction);
+            CreateTblCourseRelationshipsView(connection, transaction);
+            CreateTblAuditView(connection, transaction);
+
+            // Additional composite views used by stored procedures
+            CreateVwInstructorEffortView(connection, transaction);
+
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("✓ All 16 views created successfully");
             Console.ResetColor();
         }
-    }
-    catch (Exception ex)
-    {
-        transaction.Rollback();
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"✗ Error creating views: {ex.Message}");
-        Console.ResetColor();
-        throw;
-    }
-}
 
-static void CreateTblEffortView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: tblEffort (effort records)...");
+        static void CreateViews(string connectionString, bool executeMode)
+        {
+            using var connection = new SqlConnection(connectionString);
+            connection.Open();
 
-    string sql = @"
+            // Start transaction for dry-run support
+            using var transaction = connection.BeginTransaction();
+
+            try
+            {
+                CreateViewsInTransaction(connection, transaction);
+
+                // Commit or rollback based on mode
+                if (executeMode)
+                {
+                    transaction.Commit();
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("✓ Views committed to database");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    transaction.Rollback();
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("⚠ DRY-RUN: Views rolled back (not saved)");
+                    Console.ResetColor();
+                }
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"✗ Error creating views: {ex.Message}");
+                Console.ResetColor();
+                throw;
+            }
+        }
+
+        static void CreateTblEffortView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: tblEffort (effort records)...");
+
+            string sql = @"
         CREATE OR ALTER VIEW [EffortShadow].[tblEffort]
         AS
         SELECT
             r.Id as effort_ID,
             r.CourseId as effort_CourseID,
             p.MothraId as effort_MothraID,  -- Map PersonId back to MothraId
+            p.ClientId as effort_clientid,  -- Client ID from users.Person
             r.TermCode as effort_termCode,  -- lowercase 't' to match legacy casing
             r.SessionType as effort_SessionType,
             CAST(r.Role as char(1)) as effort_Role,  -- Convert int to char for legacy
@@ -737,21 +737,21 @@ static void CreateTblEffortView(SqlConnection connection, SqlTransaction transac
         INNER JOIN [users].[Person] p ON r.PersonId = p.PersonId
         LEFT JOIN [effort].[Courses] c ON r.CourseId = c.Id;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
 
-    // Create INSTEAD OF triggers for tblEffort
-    CreateTblEffortInsertTrigger(connection, transaction);
-    CreateTblEffortUpdateTrigger(connection, transaction);
-    CreateTblEffortDeleteTrigger(connection, transaction);
-}
+            // Create INSTEAD OF triggers for tblEffort
+            CreateTblEffortInsertTrigger(connection, transaction);
+            CreateTblEffortUpdateTrigger(connection, transaction);
+            CreateTblEffortDeleteTrigger(connection, transaction);
+        }
 
-static void CreateTblEffortInsertTrigger(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("  Creating INSTEAD OF INSERT trigger for tblEffort...");
+        static void CreateTblEffortInsertTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF INSERT trigger for tblEffort...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblEffort_Insert]
         ON [EffortShadow].[tblEffort]
         INSTEAD OF INSERT
@@ -788,16 +788,16 @@ static void CreateTblEffortInsertTrigger(SqlConnection connection, SqlTransactio
             INNER JOIN [users].[Person] p ON i.effort_MothraID = p.MothraId;
         END;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ INSTEAD OF INSERT trigger created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF INSERT trigger created");
+        }
 
-static void CreateTblEffortUpdateTrigger(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("  Creating INSTEAD OF UPDATE trigger for tblEffort...");
+        static void CreateTblEffortUpdateTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF UPDATE trigger for tblEffort...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblEffort_Update]
         ON [EffortShadow].[tblEffort]
         INSTEAD OF UPDATE
@@ -817,16 +817,16 @@ static void CreateTblEffortUpdateTrigger(SqlConnection connection, SqlTransactio
             INNER JOIN inserted i ON r.Id = i.effort_ID;
         END;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ INSTEAD OF UPDATE trigger created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF UPDATE trigger created");
+        }
 
-static void CreateTblEffortDeleteTrigger(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("  Creating INSTEAD OF DELETE trigger for tblEffort...");
+        static void CreateTblEffortDeleteTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF DELETE trigger for tblEffort...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblEffort_Delete]
         ON [EffortShadow].[tblEffort]
         INSTEAD OF DELETE
@@ -840,16 +840,16 @@ static void CreateTblEffortDeleteTrigger(SqlConnection connection, SqlTransactio
             INNER JOIN deleted d ON r.Id = d.effort_ID;
         END;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ INSTEAD OF DELETE trigger created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF DELETE trigger created");
+        }
 
-static void CreateTblPersonView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: tblPerson...");
+        static void CreateTblPersonView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: tblPerson...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER VIEW [EffortShadow].[tblPerson]
         AS
         SELECT
@@ -872,21 +872,21 @@ static void CreateTblPersonView(SqlConnection connection, SqlTransaction transac
         FROM [effort].[Persons] ps
         INNER JOIN [users].[Person] p ON ps.PersonId = p.PersonId;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
 
-    // Create INSTEAD OF triggers for tblPerson
-    CreateTblPersonInsertTrigger(connection, transaction);
-    CreateTblPersonUpdateTrigger(connection, transaction);
-    CreateTblPersonDeleteTrigger(connection, transaction);
-}
+            // Create INSTEAD OF triggers for tblPerson
+            CreateTblPersonInsertTrigger(connection, transaction);
+            CreateTblPersonUpdateTrigger(connection, transaction);
+            CreateTblPersonDeleteTrigger(connection, transaction);
+        }
 
-static void CreateTblPersonInsertTrigger(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("  Creating INSTEAD OF INSERT trigger for tblPerson...");
+        static void CreateTblPersonInsertTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF INSERT trigger for tblPerson...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblPerson_Insert]
         ON [EffortShadow].[tblPerson]
         INSTEAD OF INSERT
@@ -933,16 +933,16 @@ static void CreateTblPersonInsertTrigger(SqlConnection connection, SqlTransactio
             INNER JOIN [users].[Person] p ON i.person_MothraID = p.MothraId;
         END;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ INSTEAD OF INSERT trigger created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF INSERT trigger created");
+        }
 
-static void CreateTblPersonUpdateTrigger(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("  Creating INSTEAD OF UPDATE trigger for tblPerson...");
+        static void CreateTblPersonUpdateTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF UPDATE trigger for tblPerson...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblPerson_Update]
         ON [EffortShadow].[tblPerson]
         INSTEAD OF UPDATE
@@ -973,16 +973,16 @@ static void CreateTblPersonUpdateTrigger(SqlConnection connection, SqlTransactio
             ) AND ps.TermCode = i.person_TermCode;
         END;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ INSTEAD OF UPDATE trigger created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF UPDATE trigger created");
+        }
 
-static void CreateTblPersonDeleteTrigger(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("  Creating INSTEAD OF DELETE trigger for tblPerson...");
+        static void CreateTblPersonDeleteTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF DELETE trigger for tblPerson...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblPerson_Delete]
         ON [EffortShadow].[tblPerson]
         INSTEAD OF DELETE
@@ -999,16 +999,16 @@ static void CreateTblPersonDeleteTrigger(SqlConnection connection, SqlTransactio
             ) AND ps.TermCode = d.person_TermCode;
         END;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ INSTEAD OF DELETE trigger created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF DELETE trigger created");
+        }
 
-static void CreateTblCoursesView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: tblCourses...");
+        static void CreateTblCoursesView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: tblCourses...");
 
-    string sql = @"
+            string sql = @"
         -- NOTE: course_Title not included - ColdFusion should fetch from VIPER course catalog
         -- To get course title: JOIN [VIPER].[courses].[Catalog] ON SubjCode + CrseNumb
         CREATE OR ALTER VIEW [EffortShadow].[tblCourses]
@@ -1025,16 +1025,16 @@ static void CreateTblCoursesView(SqlConnection connection, SqlTransaction transa
             CustDept as course_custDept
         FROM [effort].[Courses];";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
+        }
 
-static void CreateTblPercentView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: tblPercent...");
+        static void CreateTblPercentView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: tblPercent...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER VIEW [EffortShadow].[tblPercent]
         AS
         SELECT
@@ -1072,21 +1072,21 @@ static void CreateTblPercentView(SqlConnection connection, SqlTransaction transa
         LEFT JOIN [dbo].[vwTerms] t ON pct.TermCode = t.TermCode
         LEFT JOIN [users].[Person] mp ON pct.ModifiedBy = mp.PersonId;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
 
-    // Create INSTEAD OF triggers for tblPercent
-    CreateTblPercentInsertTrigger(connection, transaction);
-    CreateTblPercentUpdateTrigger(connection, transaction);
-    CreateTblPercentDeleteTrigger(connection, transaction);
-}
+            // Create INSTEAD OF triggers for tblPercent
+            CreateTblPercentInsertTrigger(connection, transaction);
+            CreateTblPercentUpdateTrigger(connection, transaction);
+            CreateTblPercentDeleteTrigger(connection, transaction);
+        }
 
-static void CreateTblPercentInsertTrigger(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("  Creating INSTEAD OF INSERT trigger for tblPercent...");
+        static void CreateTblPercentInsertTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF INSERT trigger for tblPercent...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblPercent_Insert]
         ON [EffortShadow].[tblPercent]
         INSTEAD OF INSERT
@@ -1136,16 +1136,16 @@ static void CreateTblPercentInsertTrigger(SqlConnection connection, SqlTransacti
             LEFT JOIN [users].[Person] mp ON i.percent_modifiedBy = mp.MailId;
         END;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ INSTEAD OF INSERT trigger created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF INSERT trigger created");
+        }
 
-static void CreateTblPercentUpdateTrigger(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("  Creating INSTEAD OF UPDATE trigger for tblPercent...");
+        static void CreateTblPercentUpdateTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF UPDATE trigger for tblPercent...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblPercent_Update]
         ON [EffortShadow].[tblPercent]
         INSTEAD OF UPDATE
@@ -1171,16 +1171,16 @@ static void CreateTblPercentUpdateTrigger(SqlConnection connection, SqlTransacti
             LEFT JOIN [users].[Person] mp ON i.percent_modifiedBy = mp.MailId;
         END;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ INSTEAD OF UPDATE trigger created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF UPDATE trigger created");
+        }
 
-static void CreateTblPercentDeleteTrigger(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("  Creating INSTEAD OF DELETE trigger for tblPercent...");
+        static void CreateTblPercentDeleteTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF DELETE trigger for tblPercent...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblPercent_Delete]
         ON [EffortShadow].[tblPercent]
         INSTEAD OF DELETE
@@ -1194,16 +1194,21 @@ static void CreateTblPercentDeleteTrigger(SqlConnection connection, SqlTransacti
             INNER JOIN deleted d ON pct.Id = d.percent_ID;
         END;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ INSTEAD OF DELETE trigger created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF DELETE trigger created");
+        }
 
-static void CreateTblStatusView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: tblStatus...");
+        static void CreateTblStatusView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: tblStatus...");
 
-    string sql = @"
+            // Calculate academic year from term code:
+            // - Term codes are YYYYMM format (e.g., 200207 = July 2002)
+            // - Effort system academic year runs Summer through Spring
+            // - Summer/Fall terms (05-12) START a new academic year (e.g., 200207 -> 2002-2003)
+            // - Winter/Spring terms (01-04) are CONTINUATION of previous year (e.g., 200301 -> 2002-2003)
+            string sql = @"
         CREATE OR ALTER VIEW [EffortShadow].[tblStatus]
         AS
         SELECT
@@ -1211,21 +1216,35 @@ static void CreateTblStatusView(SqlConnection connection, SqlTransaction transac
             ts.HarvestedDate as status_Harvested,
             ts.OpenedDate as status_Opened,
             ts.ClosedDate as status_Closed,
-            t.Description as status_TermName,
-            CAST(t.AcademicYear - 1 AS varchar(4)) + '-' + CAST(t.AcademicYear AS varchar(4)) as status_AcademicYear
+            ISNULL(t.Description,
+                CASE
+                    WHEN ts.TermCode % 100 IN (1, 2, 3, 4) THEN 'Winter/Spring ' + CAST(ts.TermCode / 100 AS varchar(4))
+                    WHEN ts.TermCode % 100 IN (5, 6, 7, 8) THEN 'Summer ' + CAST(ts.TermCode / 100 AS varchar(4))
+                    ELSE 'Fall ' + CAST(ts.TermCode / 100 AS varchar(4))
+                END
+            ) as status_TermName,
+            -- Calculate academic year from term code (matches GetAcademicYearFromTermCode logic):
+            -- Terms 01, 02, 03 (Winter Quarter, Spring Semester, Spring Quarter): previous year's academic year
+            -- All other terms (04+): current year's academic year (e.g., 201404 -> 2014-2015)
+            CASE
+                WHEN ts.TermCode % 100 BETWEEN 1 AND 3  -- Winter/Spring terms only (01, 02, 03)
+                THEN CAST((ts.TermCode / 100) - 1 AS varchar(4)) + '-' + CAST(ts.TermCode / 100 AS varchar(4))
+                ELSE  -- All other terms (04+)
+                CAST(ts.TermCode / 100 AS varchar(4)) + '-' + CAST((ts.TermCode / 100) + 1 AS varchar(4))
+            END as status_AcademicYear
         FROM [effort].[TermStatus] ts
-        INNER JOIN [dbo].[vwTerms] t ON ts.TermCode = t.TermCode;";
+        LEFT JOIN [dbo].[vwTerms] t ON ts.TermCode = t.TermCode;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
+        }
 
-static void CreateTblSabbaticView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: tblSabbatic...");
+        static void CreateTblSabbaticView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: tblSabbatic...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER VIEW [EffortShadow].[tblSabbatic]
         AS
         SELECT
@@ -1236,57 +1255,52 @@ static void CreateTblSabbaticView(SqlConnection connection, SqlTransaction trans
         FROM [effort].[Sabbaticals] s
         INNER JOIN [users].[Person] p ON s.PersonId = p.PersonId;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
+        }
 
-static void CreateTblRolesView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: tblRoles...");
+        static void CreateTblRolesView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: tblRoles...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER VIEW [EffortShadow].[tblRoles]
         AS
         SELECT
             Id as Role_ID,
-            Description as Role_Desc,
-            SortOrder as Role_SortOrder
+            Description as Role_Desc
         FROM [effort].[Roles];";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
+        }
 
-static void CreateTblEffortTypeLUView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: tblEffortType_LU...");
+        static void CreateTblEffortTypeLUView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: tblEffortType_LU...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER VIEW [EffortShadow].[tblEffortType_LU]
         AS
         SELECT
-            Id as effortType_ID,
-            Name as effortType_Name,
-            Id as effortType_SortOrder,  -- Use Id as sort order (legacy had explicit SortOrder)
-            -- Add type_* aliases for legacy stored procedures
             Id as type_ID,
             Name as type_Name,
             Class as type_Class,
             ShowOnTemplate as type_showOnMPVoteTemplate
         FROM [effort].[EffortTypes];";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
+        }
 
-static void CreateUserAccessView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: userAccess (CRITICAL - user authorization)...");
+        static void CreateUserAccessView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: userAccess (CRITICAL - user authorization)...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER VIEW [EffortShadow].[userAccess]
         AS
         SELECT
@@ -1297,68 +1311,74 @@ static void CreateUserAccessView(SqlConnection connection, SqlTransaction transa
         INNER JOIN [users].[Person] p ON ua.PersonId = p.PersonId
         WHERE ua.IsActive = 1;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
+        }
 
-static void CreateTblUnitsLUView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: tblUnits_LU...");
+        static void CreateTblUnitsLUView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: tblUnits_LU...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER VIEW [EffortShadow].[tblUnits_LU]
         AS
         SELECT
             Id as unit_ID,
-            Name as unit_Name,
-            SortOrder as unit_SortOrder
+            Name as unit_Name
         FROM [effort].[Units];";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
+        }
 
-static void CreateTblJobCodeView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: tblJobCode...");
+        static void CreateTblJobCodeView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: tblJobCode...");
 
-    string sql = @"
+            // Legacy schema: jobcode, faculty (unused), include_clinschedule
+            // Note: Legacy has NO jobTitle/description column - don't expose one
+            string sql = @"
         CREATE OR ALTER VIEW [EffortShadow].[tblJobCode]
         AS
         SELECT
             Code as jobCode,
-            Description as jobTitle
-        FROM [effort].[JobCodes];";
+            CAST(1 AS bit) as faculty,              -- All rows have faculty=1, column unused
+            IncludeClinSchedule as include_clinschedule
+        FROM [effort].[JobCodes]
+        WHERE IsActive = 1;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
+        }
 
-static void CreateTblReportUnitsView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: tblReportUnits...");
+        static void CreateTblReportUnitsView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: tblReportUnits...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER VIEW [EffortShadow].[tblReportUnits]
         AS
-        SELECT UnitName as reportUnit
+        SELECT
+            Id as ru_id,
+            UnitCode as ru_abbrev,
+            UnitName as ru_unit
         FROM [effort].[ReportUnits];";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
+        }
 
-static void CreateTblAltTitlesView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating table: tblAltTitles...");
+        static void CreateTblAltTitlesView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating table: tblAltTitles...");
 
-    // Legacy tblAltTitles was a static lookup table with 5 special "V*" job codes
-    // These are special job groups not found in the dictionary database
-    string sql = @"
+            // Legacy tblAltTitles was a static lookup table with 5 special "V*" job codes
+            // These are special job groups not found in the dictionary database
+            string sql = @"
         IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('EffortShadow') AND name = 'tblAltTitles')
         BEGIN
             CREATE TABLE [EffortShadow].[tblAltTitles]
@@ -1376,18 +1396,18 @@ static void CreateTblAltTitlesView(SqlConnection connection, SqlTransaction tran
                 ('V3V', 'SRA');
         END;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ Table created (5 special job codes)");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ Table created (5 special job codes)");
+        }
 
-static void CreateUspGetJobGroups(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("  Creating stored procedure: usp_getJobGroups...");
+        static void CreateUspGetJobGroups(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating stored procedure: usp_getJobGroups...");
 
-    // This procedure queries the external dictionary database and UNIONs with tblAltTitles
-    // Replicates the legacy usp_getJobGroups behavior
-    string sql = @"
+            // This procedure queries the external dictionary database and UNIONs with tblAltTitles
+            // Replicates the legacy usp_getJobGroups behavior
+            string sql = @"
         CREATE OR ALTER PROCEDURE [EffortShadow].[usp_getJobGroups]
         AS
         BEGIN
@@ -1409,19 +1429,19 @@ static void CreateUspGetJobGroups(SqlConnection connection, SqlTransaction trans
             ORDER BY jobGrpName;
         END;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ Stored procedure created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ Stored procedure created");
+        }
 
-static void CreateTblCourseRelationshipsView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: tblCourseRelationships...");
+        static void CreateTblCourseRelationshipsView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: tblCourseRelationships...");
 
-    // Note: Modern schema normalizes relationship types (e.g., "Cross" -> "CrossList")
-    // but Legacy stored procedures concatenate cr_Relationship into display strings.
-    // Map "CrossList" back to "Cross" for byte-for-byte compatibility with Legacy output.
-    string sql = @"
+            // Note: Modern schema normalizes relationship types (e.g., "Cross" -> "CrossList")
+            // but Legacy stored procedures concatenate cr_Relationship into display strings.
+            // Map "CrossList" back to "Cross" for byte-for-byte compatibility with Legacy output.
+            string sql = @"
         CREATE OR ALTER VIEW [EffortShadow].[tblCourseRelationships]
         AS
         SELECT
@@ -1430,19 +1450,18 @@ static void CreateTblCourseRelationshipsView(SqlConnection connection, SqlTransa
             CASE WHEN RelationshipType = 'CrossList' THEN 'Cross' ELSE RelationshipType END as cr_Relationship
         FROM [effort].[CourseRelationships];";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
+        }
 
-static void CreateTblAuditView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: tblAudit...");
+        static void CreateTblAuditView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: tblAudit...");
 
-    string sql = @"
-        -- Maps new Audits table (dual-column format) to legacy tblAudit view
-        -- Uses computed 'Changes' column for unified access to legacy/JSON formats
-        -- Maps PersonId back to MothraId for ColdFusion compatibility
+            string sql = @"
+        -- Maps Audits table to legacy tblAudit view for ColdFusion compatibility
+        -- Uses legacy preservation columns for 1:1 verification against legacy tblAudit
         -- Note: This view requires an INSTEAD OF INSERT trigger to handle legacy audit writes
         CREATE OR ALTER VIEW [EffortShadow].[tblAudit]
         AS
@@ -1450,32 +1469,31 @@ static void CreateTblAuditView(SqlConnection connection, SqlTransaction transact
             a.Id as audit_ID,
             pModBy.MothraId as audit_ModBy,  -- MothraId of person making change (for INSERT)
             a.ChangedDate as audit_ModTime,  -- Timestamp of change
-            NULL as audit_CRN,  -- Course CRN (nullable, extracted from audit text)
-            NULL as audit_TermCode,  -- Term code (nullable, extracted from audit text)
-            pSubject.MothraId as audit_MothraID,  -- MothraId of affected person
-            CAST(a.Action as varchar(50)) as audit_Action,  -- Action type
-            a.ChangesLegacy as Audit_Audit,  -- Legacy audit text (writable via trigger)
+            a.LegacyCRN as audit_CRN,  -- Preserved from legacy audit_CRN
+            a.LegacyTermCode as audit_TermCode,  -- Preserved from legacy audit_TermCode
+            COALESCE(a.LegacyMothraID, pSubject.MothraId) as audit_MothraID,  -- Preserved or derived
+            COALESCE(a.LegacyAction, a.Action) as audit_Action,  -- Preserved original or normalized
+            a.Changes as Audit_Audit,  -- Audit text
             a.TableName as audit_TableName,
             a.RecordId as audit_RecordID,
-            a.ChangedBy as audit_ChangedBy_PersonId,  -- PersonId for internal use
-            a.IsLegacyFormat as audit_IsLegacyFormat
+            a.ChangedBy as audit_ChangedBy_PersonId  -- PersonId for internal use
         FROM [effort].[Audits] a
         LEFT JOIN [users].[Person] pModBy ON a.ChangedBy = pModBy.PersonId
         LEFT JOIN [users].[Person] pSubject ON a.RecordId = pSubject.PersonId AND a.TableName IN ('Records', 'Persons', 'Percentages');";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
 
-    // Create INSTEAD OF INSERT trigger for tblAudit
-    CreateTblAuditInsertTrigger(connection, transaction);
-}
+            // Create INSTEAD OF INSERT trigger for tblAudit
+            CreateTblAuditInsertTrigger(connection, transaction);
+        }
 
-static void CreateTblAuditInsertTrigger(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("  Creating INSTEAD OF INSERT trigger for tblAudit...");
+        static void CreateTblAuditInsertTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF INSERT trigger for tblAudit...");
 
-    string sql = @"
+            string sql = @"
         CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblAudit_Insert]
         ON [EffortShadow].[tblAudit]
         INSTEAD OF INSERT
@@ -1490,8 +1508,11 @@ static void CreateTblAuditInsertTrigger(SqlConnection connection, SqlTransaction
                 Action,
                 ChangedBy,
                 ChangedDate,
-                ChangesLegacy,
-                IsLegacyFormat
+                Changes,
+                LegacyAction,
+                LegacyCRN,
+                LegacyTermCode,
+                LegacyMothraID
             )
             SELECT
                 -- Map legacy action to table name
@@ -1516,22 +1537,26 @@ static void CreateTblAuditInsertTrigger(SqlConnection connection, SqlTransaction
                 -- Map MothraId to PersonId, fallback to system user (PersonId = 1) if not found
                 COALESCE(p.PersonId, 1),
                 COALESCE(i.audit_ModTime, GETDATE()),  -- Use provided timestamp or current time
-                i.Audit_Audit,  -- Legacy audit text
-                1  -- Mark as legacy format
+                i.Audit_Audit,  -- Audit text
+                -- Legacy preservation columns
+                i.audit_Action,  -- Preserve original action text
+                i.audit_CRN,     -- Preserve original CRN
+                i.audit_TermCode,-- Preserve original TermCode
+                i.audit_MothraID -- Preserve original MothraID
             FROM inserted i
             LEFT JOIN [users].[Person] p ON i.audit_ModBy = p.MothraId;
         END;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ INSTEAD OF INSERT trigger created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF INSERT trigger created");
+        }
 
-static void CreateVwInstructorEffortView(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Creating view: vw_InstructorEffort (composite instructor effort data)...");
+        static void CreateVwInstructorEffortView(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Creating view: vw_InstructorEffort (composite instructor effort data)...");
 
-    string sql = @"
+            string sql = @"
         -- Composite view joining instructor effort with person, course, and role information
         -- Used by various reporting and query stored procedures
         CREATE OR ALTER VIEW [EffortShadow].[vw_InstructorEffort]
@@ -1564,18 +1589,18 @@ static void CreateVwInstructorEffortView(SqlConnection connection, SqlTransactio
         LEFT JOIN [EffortShadow].[tblCourses] c ON e.effort_CourseID = c.course_id
         LEFT JOIN [EffortShadow].[tblRoles] r ON e.effort_Role = r.Role_ID;";
 
-    using var cmd = new SqlCommand(sql, connection, transaction);
-    cmd.ExecuteNonQuery();
-    Console.WriteLine("  ✓ View created");
-}
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ View created");
+        }
 
-static string RewriteStoredProcedure(string procName, string procBody)
-{
-    // Rewrite legacy table references to EffortShadow views
-    // This allows stored procedures to use legacy column names through the shadow layer
-    // Views handle the mapping to modern [effort] tables
+        static string RewriteStoredProcedure(string procName, string procBody)
+        {
+            // Rewrite legacy table references to EffortShadow views
+            // This allows stored procedures to use legacy column names through the shadow layer
+            // Views handle the mapping to modern [effort] tables
 
-    var tableMapping = new Dictionary<string, string>
+            var tableMapping = new Dictionary<string, string>
     {
         { "vw_InstructorEffort", "[EffortShadow].[vw_InstructorEffort]" },  // Process views first (longer names)
         { "tblEffort", "[EffortShadow].[tblEffort]" },
@@ -1595,28 +1620,28 @@ static string RewriteStoredProcedure(string procName, string procBody)
         { "tblAudit", "[EffortShadow].[tblAudit]" }
     };
 
-    string rewritten = procBody;
+            string rewritten = procBody;
 
-    // Replace table names in DML statements (INSERT, UPDATE, DELETE, FROM)
-    // Process in descending name-length order so longer names (e.g., tblEffortType_LU)
-    // are substituted before their prefixes (e.g., tblEffort) to prevent partial matches
-    foreach (var (legacyTable, modernTable) in tableMapping
-                 .OrderByDescending(kvp => kvp.Key.Length))
-    {
-        // Match table names with optional [dbo] schema qualifier
-        // Pattern matches: [dbo].[tblEffort], dbo.tblEffort, [tblEffort], or tblEffort
-        // Uses word boundaries and bracket matching to prevent partial identifier matches
-        var pattern =
-            $@"(?ix)
+            // Replace table names in DML statements (INSERT, UPDATE, DELETE, FROM)
+            // Process in descending name-length order so longer names (e.g., tblEffortType_LU)
+            // are substituted before their prefixes (e.g., tblEffort) to prevent partial matches
+            foreach (var (legacyTable, modernTable) in tableMapping
+                         .OrderByDescending(kvp => kvp.Key.Length))
+            {
+                // Match table names with optional [dbo] schema qualifier
+                // Pattern matches: [dbo].[tblEffort], dbo.tblEffort, [tblEffort], or tblEffort
+                // Uses word boundaries and bracket matching to prevent partial identifier matches
+                var pattern =
+                    $@"(?ix)
                (?:\[\s*dbo\s*\]\.|\bdbo\.)?   # optional dbo qualifier
                (\[\s*{Regex.Escape(legacyTable)}\s*\]  # bracketed identifier
                 |\b{Regex.Escape(legacyTable)}\b)       # or bare identifier with word boundaries";
-        rewritten = Regex.Replace(rewritten, pattern, modernTable);
-    }
+                rewritten = Regex.Replace(rewritten, pattern, modernTable);
+            }
 
-    // Replace references to dbo functions with EffortShadow functions
-    // Handle all variations: dbo.funcRef, [dbo].funcRef, dbo.[funcRef], [dbo].[funcRef]
-    var functionReferences = new[] {
+            // Replace references to dbo functions with EffortShadow functions
+            // Handle all variations: dbo.funcRef, [dbo].funcRef, dbo.[funcRef], [dbo].[funcRef]
+            var functionReferences = new[] {
         "fn_checkJobGroupAndEffortCode",
         "fn_TsqlSplit",
         "fn_getEffortDept",
@@ -1629,154 +1654,155 @@ static string RewriteStoredProcedure(string procName, string procBody)
         "isClinicalEffort"
     };
 
-    foreach (var funcRef in functionReferences)
-    {
-        // Pattern matches: dbo.funcRef, [dbo].funcRef, dbo.[funcRef], [dbo].[funcRef]
-        var pattern = $@"(?:\[?\s*dbo\s*\]?\.)\s*\[?\s*{Regex.Escape(funcRef)}\s*\]?";
-        rewritten = Regex.Replace(rewritten,
-            pattern,
-            $"[EffortShadow].[{funcRef}]",
-            RegexOptions.IgnoreCase);
-    }
+            foreach (var funcRef in functionReferences)
+            {
+                // Pattern matches: dbo.funcRef, [dbo].funcRef, dbo.[funcRef], [dbo].[funcRef]
+                var pattern = $@"(?:\[?\s*dbo\s*\]?\.)\s*\[?\s*{Regex.Escape(funcRef)}\s*\]?";
+                rewritten = Regex.Replace(rewritten,
+                    pattern,
+                    $"[EffortShadow].[{funcRef}]",
+                    RegexOptions.IgnoreCase);
+            }
 
-    // Fix isdate() function calls on datetime2 columns
-    // The legacy database used datetime, but modern uses datetime2(7)
-    // isdate() requires a string input, so we need to cast datetime2 to varchar first
-    // Pattern matches: isdate(column_name) and replaces with: CASE WHEN column_name IS NULL THEN 0 ELSE 1 END
-    rewritten = Regex.Replace(rewritten,
-        @"isdate\s*\(\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\)",
-        "CASE WHEN $1 IS NULL THEN 0 ELSE 1 END",
-        RegexOptions.IgnoreCase);
+            // Fix isdate() function calls on datetime2 columns
+            // The legacy database used datetime, but modern uses datetime2(7)
+            // isdate() requires a string input, so we need to cast datetime2 to varchar first
+            // Pattern matches: isdate(column_name) and replaces with: CASE WHEN column_name IS NULL THEN 0 ELSE 1 END
+            rewritten = Regex.Replace(rewritten,
+                @"isdate\s*\(\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\)",
+                "CASE WHEN $1 IS NULL THEN 0 ELSE 1 END",
+                RegexOptions.IgnoreCase);
 
-    return rewritten;
-}
+            return rewritten;
+        }
 
-static void RecompileAllProcedures(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Recompiling all stored procedures to refresh view dependencies...");
-    Console.WriteLine();
+        static void RecompileAllProcedures(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Recompiling all stored procedures to refresh view dependencies...");
+            Console.WriteLine();
 
-    try
-    {
-        string sql = @"
+            try
+            {
+                string sql = @"
             DECLARE @sql NVARCHAR(MAX) = '';
             SELECT @sql = @sql + 'EXEC sp_recompile ''[EffortShadow].[' + name + ']'';' + CHAR(13)
             FROM sys.procedures
             WHERE schema_id = SCHEMA_ID('EffortShadow');
             EXEC sp_executesql @sql;";
 
-        using var cmd = new SqlCommand(sql, connection, transaction);
-        cmd.CommandTimeout = 120;
-        cmd.ExecuteNonQuery();
+                using var cmd = new SqlCommand(sql, connection, transaction);
+                cmd.CommandTimeout = 120;
+                cmd.ExecuteNonQuery();
 
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("✓ All stored procedures recompiled successfully");
-        Console.ResetColor();
-    }
-    catch (Exception ex)
-    {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"⚠ Warning: Some procedures may not have recompiled: {ex.Message}");
-        Console.ResetColor();
-    }
-}
-
-static int MigrateFunctionsInTransaction(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Migrating functions from legacy database...");
-    Console.WriteLine();
-
-    // Read exported schema file
-    string exportFilePath = Path.Join(Environment.CurrentDirectory, "Effort_Database_Schema_And_Data_LEGACY.txt");
-    string exportContent = File.ReadAllText(exportFilePath);
-
-    // Extract all function definitions
-    // Pattern matches: FUNCTION: [schema].[name] (type)
-    // followed by CREATE FUNCTION definition (with optional comments in between)
-    // Ends when it hits ### or === delimiters or end of string
-    var functionPattern = @"FUNCTION: \[([\w]+)\]\.\[([\w]+)\] \(([\w_]+)\)\s*#{78,}(.*?)(CREATE\s+(FUNCTION|PROCEDURE)\s+.*?)(?=\s*[#=]{78,}|\z)";
-    var matches = Regex.Matches(exportContent, functionPattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
-
-    Console.WriteLine($"Found {matches.Count} functions in legacy schema");
-    Console.WriteLine();
-
-    int successCount = 0;
-    int skippedCount = 0;
-    var failedFunctions = new List<(string Name, string Error)>();
-
-    foreach (Match match in matches)
-    {
-        var name = match.Groups[2].Value;
-        var comments = match.Groups[4].Value;  // Optional comments before CREATE
-        var definition = match.Groups[5].Value;  // CREATE FUNCTION ... statement
-
-        // Check if function should be excluded
-        if (EffortSchemaConfig.ShouldExcludeFunction(name))
-        {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  ⊘ Skipping: {name} - {EffortSchemaConfig.GetExclusionReason(name)}");
-            Console.ResetColor();
-            skippedCount++;
-            continue;
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("✓ All stored procedures recompiled successfully");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"⚠ Warning: Some procedures may not have recompiled: {ex.Message}");
+                Console.ResetColor();
+            }
         }
 
-        // Rewrite function to use EffortShadow schema and shadow views
-        var rewritten = RewriteFunction(name, definition);
-
-        // DEBUG: Show first 200 chars of rewritten SQL
-        var preview = rewritten.Length > 200 ? rewritten.Substring(0, 200) + "..." : rewritten;
-        Console.WriteLine($"  → {name}: {preview.Replace(Environment.NewLine, " ")}");
-
-        try
+        static int MigrateFunctionsInTransaction(SqlConnection connection, SqlTransaction transaction)
         {
-            using var cmd = new SqlCommand(rewritten, connection, transaction);
-            cmd.ExecuteNonQuery();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"  ✓ Migrated: {name}");
-            Console.ResetColor();
-            successCount++;
+            Console.WriteLine("Migrating functions from legacy database...");
+            Console.WriteLine();
+
+            // Read exported schema file
+            string exportFilePath = Path.Join(Environment.CurrentDirectory, "Effort_Database_Schema_And_Data_LEGACY.txt");
+            string exportContent = File.ReadAllText(exportFilePath);
+
+            // Extract all function definitions
+            // Pattern matches: FUNCTION: [schema].[name] (type)
+            // followed by CREATE FUNCTION definition (with optional ### delimiter and comments in between)
+            // Some functions have ### delimiter after header, some don't (e.g., academic_year_start, Fiscal_Year)
+            // Ends when it hits ### or === delimiters or end of string
+            var functionPattern = @"FUNCTION: \[([\w]+)\]\.\[([\w]+)\] \(([\w_]+)\)\s*(?:#{78,})?(.*?)(CREATE\s+(FUNCTION|PROCEDURE)\s+.*?)(?=\s*[#=]{78,}|\z)";
+            var matches = Regex.Matches(exportContent, functionPattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+            Console.WriteLine($"Found {matches.Count} functions in legacy schema");
+            Console.WriteLine();
+
+            int successCount = 0;
+            int skippedCount = 0;
+            var failedFunctions = new List<(string Name, string Error)>();
+
+            foreach (Match match in matches)
+            {
+                var name = match.Groups[2].Value;
+                // Note: match.Groups[4] contains optional comments before CREATE, currently unused
+                var definition = match.Groups[5].Value;  // CREATE FUNCTION ... statement
+
+                // Check if function should be excluded
+                if (EffortSchemaConfig.ShouldExcludeFunction(name))
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine($"  ⊘ Skipping: {name} - {EffortSchemaConfig.GetExclusionReason(name)}");
+                    Console.ResetColor();
+                    skippedCount++;
+                    continue;
+                }
+
+                // Rewrite function to use EffortShadow schema and shadow views
+                var rewritten = RewriteFunction(name, definition);
+
+                // DEBUG: Show first 200 chars of rewritten SQL
+                var preview = rewritten.Length > 200 ? rewritten.Substring(0, 200) + "..." : rewritten;
+                Console.WriteLine($"  → {name}: {preview.Replace(Environment.NewLine, " ")}");
+
+                try
+                {
+                    using var cmd = new SqlCommand(rewritten, connection, transaction);
+                    cmd.ExecuteNonQuery();
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"  ✓ Migrated: {name}");
+                    Console.ResetColor();
+                    successCount++;
+                }
+                catch (SqlException ex)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"  ✗ FAILED: {name} - {ex.Message}");
+                    Console.ResetColor();
+                    failedFunctions.Add((name, ex.Message));
+                }
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("============================================");
+            Console.WriteLine("Function Migration Summary");
+            Console.WriteLine("============================================");
+            Console.WriteLine($"✓ Successfully migrated: {successCount} functions");
+            Console.WriteLine($"⊘ Skipped (unused): {skippedCount} functions");
+
+            if (failedFunctions.Any())
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"✗ Failed to migrate: {failedFunctions.Count} functions");
+                Console.WriteLine();
+                Console.WriteLine("Failed functions (require manual review):");
+                foreach (var (funcName, error) in failedFunctions)
+                {
+                    Console.WriteLine($"  - {funcName}");
+                    Console.WriteLine($"    Error: {error}");
+                }
+                Console.ResetColor();
+            }
+
+            Console.WriteLine();
+
+            return failedFunctions.Count;
         }
-        catch (SqlException ex)
+
+        static string RewriteFunction(string funcName, string funcBody)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"  ✗ FAILED: {name} - {ex.Message}");
-            Console.ResetColor();
-            failedFunctions.Add((name, ex.Message));
-        }
-    }
+            // Rewrite legacy table references to EffortShadow views
+            // Similar to RewriteStoredProcedure but for functions
 
-    Console.WriteLine();
-    Console.WriteLine("============================================");
-    Console.WriteLine("Function Migration Summary");
-    Console.WriteLine("============================================");
-    Console.WriteLine($"✓ Successfully migrated: {successCount} functions");
-    Console.WriteLine($"⊘ Skipped (unused): {skippedCount} functions");
-
-    if (failedFunctions.Any())
-    {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"✗ Failed to migrate: {failedFunctions.Count} functions");
-        Console.WriteLine();
-        Console.WriteLine("Failed functions (require manual review):");
-        foreach (var (funcName, error) in failedFunctions)
-        {
-            Console.WriteLine($"  - {funcName}");
-            Console.WriteLine($"    Error: {error}");
-        }
-        Console.ResetColor();
-    }
-
-    Console.WriteLine();
-
-    return failedFunctions.Count;
-}
-
-static string RewriteFunction(string funcName, string funcBody)
-{
-    // Rewrite legacy table references to EffortShadow views
-    // Similar to RewriteStoredProcedure but for functions
-
-    var tableMapping = new Dictionary<string, string>
+            var tableMapping = new Dictionary<string, string>
     {
         { "vw_InstructorEffort", "[EffortShadow].[vw_InstructorEffort]" },  // Process views first (longer names)
         { "tblEffort", "[EffortShadow].[tblEffort]" },
@@ -1796,29 +1822,29 @@ static string RewriteFunction(string funcName, string funcBody)
         { "tblAudit", "[EffortShadow].[tblAudit]" }
     };
 
-    string rewritten = funcBody;
+            string rewritten = funcBody;
 
-    // Replace CREATE FUNCTION [dbo].[name] with CREATE OR ALTER FUNCTION [EffortShadow].[name]
-    // Handle both formats: "CREATE FUNCTION [dbo].[name]" and "CREATE FUNCTION name" (no schema)
-    rewritten = Regex.Replace(rewritten,
-        @"CREATE\s+FUNCTION\s+(?:\[?\s*dbo\s*\]?\.\s*)?\[?\s*" + Regex.Escape(funcName) + @"\s*\]?",
-        $"CREATE OR ALTER FUNCTION [EffortShadow].[{funcName}]",
-        RegexOptions.IgnoreCase);
+            // Replace CREATE FUNCTION [dbo].[name] with CREATE OR ALTER FUNCTION [EffortShadow].[name]
+            // Handle both formats: "CREATE FUNCTION [dbo].[name]" and "CREATE FUNCTION name" (no schema)
+            rewritten = Regex.Replace(rewritten,
+                @"CREATE\s+FUNCTION\s+(?:\[?\s*dbo\s*\]?\.\s*)?\[?\s*" + Regex.Escape(funcName) + @"\s*\]?",
+                $"CREATE OR ALTER FUNCTION [EffortShadow].[{funcName}]",
+                RegexOptions.IgnoreCase);
 
-    // Replace table names
-    foreach (var (legacyTable, modernTable) in tableMapping.OrderByDescending(kvp => kvp.Key.Length))
-    {
-        var pattern =
-            $@"(?ix)
+            // Replace table names
+            foreach (var (legacyTable, modernTable) in tableMapping.OrderByDescending(kvp => kvp.Key.Length))
+            {
+                var pattern =
+                    $@"(?ix)
                (?:\[\s*dbo\s*\]\.|\bdbo\.)?
                (\[\s*{Regex.Escape(legacyTable)}\s*\]
                 |\b{Regex.Escape(legacyTable)}\b)";
-        rewritten = Regex.Replace(rewritten, pattern, modernTable);
-    }
+                rewritten = Regex.Replace(rewritten, pattern, modernTable);
+            }
 
-    // Replace references to other dbo functions with EffortShadow functions
-    // Handle all variations: dbo.funcRef, [dbo].funcRef, dbo.[funcRef], [dbo].[funcRef]
-    var functionReferences = new[] {
+            // Replace references to other dbo functions with EffortShadow functions
+            // Handle all variations: dbo.funcRef, [dbo].funcRef, dbo.[funcRef], [dbo].[funcRef]
+            var functionReferences = new[] {
         "fn_checkJobGroupAndEffortCode",
         "fn_TsqlSplit",
         "fn_getEffortDept",
@@ -1831,244 +1857,244 @@ static string RewriteFunction(string funcName, string funcBody)
         "isClinicalEffort"
     };
 
-    foreach (var funcRef in functionReferences)
-    {
-        // Pattern matches: dbo.funcRef, [dbo].funcRef, dbo.[funcRef], [dbo].[funcRef]
-        var pattern = $@"(?:\[?\s*dbo\s*\]?\.)\s*\[?\s*{Regex.Escape(funcRef)}\s*\]?";
-        rewritten = Regex.Replace(rewritten,
-            pattern,
-            $"[EffortShadow].[{funcRef}]",
-            RegexOptions.IgnoreCase);
-    }
+            foreach (var funcRef in functionReferences)
+            {
+                // Pattern matches: dbo.funcRef, [dbo].funcRef, dbo.[funcRef], [dbo].[funcRef]
+                var pattern = $@"(?:\[?\s*dbo\s*\]?\.)\s*\[?\s*{Regex.Escape(funcRef)}\s*\]?";
+                rewritten = Regex.Replace(rewritten,
+                    pattern,
+                    $"[EffortShadow].[{funcRef}]",
+                    RegexOptions.IgnoreCase);
+            }
 
-    return rewritten;
-}
-
-static int MigrateStoredProceduresInTransaction(SqlConnection connection, SqlTransaction transaction)
-{
-    Console.WriteLine("Migrating stored procedures from legacy database...");
-    Console.WriteLine();
-
-    // Read exported schema file
-    string exportFilePath = Path.Join(Environment.CurrentDirectory, "Effort_Database_Schema_And_Data_LEGACY.txt");
-    string exportContent = File.ReadAllText(exportFilePath);
-
-    // Extract all CREATE PROCEDURE statements using regex
-    // Match from CREATE PROCEDURE to the next CREATE PROCEDURE or end of file
-    // Handle both "CREATE PROCEDURE [dbo].[name]" and "CREATE PROCEDURE name" (no schema)
-    var procedurePattern = new Regex(
-        @"(?ms)^CREATE\s+PROCEDURE\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s+(.*?)(?=^CREATE\s+PROCEDURE|\z)",
-        RegexOptions.Multiline | RegexOptions.Singleline | RegexOptions.IgnoreCase
-    );
-
-    var matches = procedurePattern.Matches(exportContent);
-    var procedures = new List<(string Name, string Definition)>();
-    int skippedCount = 0;
-
-    Console.WriteLine($"Found {matches.Count} stored procedures in legacy schema");
-
-    foreach (Match match in matches)
-    {
-        string procName = match.Groups[1].Value;
-        string procBody = match.Groups[2].Value;
-
-        // Check if procedure should be excluded (obsolete or unused)
-        if (EffortSchemaConfig.ShouldExcludeProcedure(procName))
-        {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  ⊘ Skipping: {procName} - {EffortSchemaConfig.GetExclusionReason(procName)}");
-            Console.ResetColor();
-            skippedCount++;
-            continue;
+            return rewritten;
         }
 
-        // Remove header sections like:
-        // ################################################################################
-        // STORED PROCEDURE: [dbo].[usp_foo]
-        // ################################################################################
-        procBody = Regex.Replace(procBody, @"^\s*#{20,}.*?#{20,}\s*$", "", RegexOptions.Multiline);
-        procBody = Regex.Replace(procBody, @"^\s*STORED PROCEDURE:.*?$", "", RegexOptions.Multiline);
-
-        procedures.Add((procName, procBody));
-    }
-
-    Console.WriteLine();
-    Console.WriteLine($"Migrating {procedures.Count} stored procedures (skipped {skippedCount} unused/obsolete)");
-    Console.WriteLine();
-
-    int successCount = 0;
-    int failureCount = 0;
-    var failedProcedures = new List<(string Name, string Error)>();
-
-    foreach (var (procName, procBody) in procedures)
-    {
-        try
+        static int MigrateStoredProceduresInTransaction(SqlConnection connection, SqlTransaction transaction)
         {
-            // Rewrite procedure to use modern table names
-            string rewrittenBody = RewriteStoredProcedure(procName, procBody);
-
-            // Reconstruct full CREATE PROCEDURE statement with EffortShadow schema
-            string fullProcedure = $"CREATE PROCEDURE [EffortShadow].[{procName}] {rewrittenBody}";
-
-            // Use CREATE OR ALTER for idempotency
-            fullProcedure = fullProcedure.Replace("CREATE PROCEDURE", "CREATE OR ALTER PROCEDURE");
-
-            using var cmd = new SqlCommand(fullProcedure, connection, transaction);
-            cmd.CommandTimeout = 60; // 60 seconds timeout
-            cmd.ExecuteNonQuery();
-
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"  ✓ Migrated: {procName}");
-            Console.ResetColor();
-            successCount++;
-        }
-        catch (SqlException ex)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"  ✗ FAILED: {procName} - {ex.Message}");
-            Console.ResetColor();
-            failedProcedures.Add((procName, ex.Message));
-            failureCount++;
-        }
-    }
-
-    Console.WriteLine();
-    Console.WriteLine("============================================");
-    Console.WriteLine("Stored Procedure Migration Summary");
-    Console.WriteLine("============================================");
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine($"✓ Successfully migrated: {successCount} procedures");
-    Console.ResetColor();
-    Console.WriteLine($"⊘ Skipped (unused/obsolete): {skippedCount} procedures");
-
-    if (failureCount > 0)
-    {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"✗ Failed to migrate: {failureCount} procedures");
-        Console.ResetColor();
-        Console.WriteLine();
-        Console.WriteLine("Failed procedures (require manual review):");
-        foreach (var (name, error) in failedProcedures)
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  - {name}");
-            Console.WriteLine($"    Error: {error}");
-            Console.ResetColor();
-        }
-    }
-
-    Console.WriteLine();
-    Console.WriteLine("Creating special procedures that query external databases...");
-
-    // Create usp_getJobGroups - queries external dictionary database
-    try
-    {
-        CreateUspGetJobGroups(connection, transaction);
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("  ✓ Created: usp_getJobGroups");
-        Console.ResetColor();
-    }
-    catch (Exception ex)
-    {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"  ✗ FAILED: usp_getJobGroups - {ex.Message}");
-        Console.ResetColor();
-        failureCount++;
-    }
-
-    return failureCount;
-}
-
-static void MigrateStoredProcedures(string connectionString, bool executeMode)
-{
-    Console.WriteLine("Migrating stored procedures from legacy database...");
-    Console.WriteLine();
-
-    // Read exported schema file
-    string exportFilePath = Path.Join(Environment.CurrentDirectory, "Effort_Database_Schema_And_Data_LEGACY.txt");
-    string exportContent = File.ReadAllText(exportFilePath);
-
-    // Extract all CREATE PROCEDURE statements using regex
-    // Match from CREATE PROCEDURE to the next CREATE PROCEDURE or end of file
-    // Handle both "CREATE PROCEDURE [dbo].[name]" and "CREATE PROCEDURE name" (no schema)
-    var procedurePattern = new Regex(
-        @"(?ms)^CREATE\s+PROCEDURE\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s+(.*?)(?=^CREATE\s+PROCEDURE|\z)",
-        RegexOptions.Multiline | RegexOptions.Singleline | RegexOptions.IgnoreCase
-    );
-
-    var matches = procedurePattern.Matches(exportContent);
-    var procedures = new List<(string Name, string Definition)>();
-    int totalFound = matches.Count;
-    int skippedCount = 0;
-
-    foreach (Match match in matches)
-    {
-        string procName = match.Groups[1].Value;
-        string procBody = match.Groups[2].Value;
-
-        // Check if procedure should be excluded (obsolete or unused)
-        if (EffortSchemaConfig.ShouldExcludeProcedure(procName))
-        {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  ⊘ Skipping: {procName} - {EffortSchemaConfig.GetExclusionReason(procName)}");
-            Console.ResetColor();
-            skippedCount++;
-            continue;
-        }
-
-        // Remove header sections like:
-        // ################################################################################
-        // STORED PROCEDURE: [dbo].[usp_foo]
-        // ################################################################################
-        procBody = Regex.Replace(procBody, @"^\s*#{20,}.*?#{20,}\s*$", "", RegexOptions.Multiline);
-        procBody = Regex.Replace(procBody, @"^\s*STORED PROCEDURE:.*?$", "", RegexOptions.Multiline);
-
-        procedures.Add((procName, procBody));
-    }
-
-    Console.WriteLine();
-    Console.WriteLine($"Found {totalFound} procedures in legacy schema");
-    Console.WriteLine($"Migrating {procedures.Count} procedures (skipped {skippedCount} unused/obsolete)");
-    Console.WriteLine();
-
-    // NOTE: CRUD procedures will be rewritten to work with [effort] tables
-    // Read-only reporting procedures can reference views directly
-    using var connection = new SqlConnection(connectionString);
-    connection.Open();
-
-    // Start transaction for dry-run support
-    using var transaction = connection.BeginTransaction();
-
-    try
-    {
-        MigrateStoredProceduresInTransaction(connection, transaction);
-
-        // Commit or rollback based on mode
-        if (executeMode)
-        {
-            transaction.Commit();
+            Console.WriteLine("Migrating stored procedures from legacy database...");
             Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("✓ Stored procedures committed to database");
-            Console.ResetColor();
-        }
-        else
-        {
-            transaction.Rollback();
+
+            // Read exported schema file
+            string exportFilePath = Path.Join(Environment.CurrentDirectory, "Effort_Database_Schema_And_Data_LEGACY.txt");
+            string exportContent = File.ReadAllText(exportFilePath);
+
+            // Extract all CREATE PROCEDURE statements using regex
+            // Match from CREATE PROCEDURE to the next CREATE PROCEDURE or end of file
+            // Handle both "CREATE PROCEDURE [dbo].[name]" and "CREATE PROCEDURE name" (no schema)
+            var procedurePattern = new Regex(
+                @"(?ms)^CREATE\s+PROCEDURE\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s+(.*?)(?=^CREATE\s+PROCEDURE|\z)",
+                RegexOptions.Multiline | RegexOptions.Singleline | RegexOptions.IgnoreCase
+            );
+
+            var matches = procedurePattern.Matches(exportContent);
+            var procedures = new List<(string Name, string Definition)>();
+            int skippedCount = 0;
+
+            Console.WriteLine($"Found {matches.Count} stored procedures in legacy schema");
+
+            foreach (Match match in matches)
+            {
+                string procName = match.Groups[1].Value;
+                string procBody = match.Groups[2].Value;
+
+                // Check if procedure should be excluded (obsolete or unused)
+                if (EffortSchemaConfig.ShouldExcludeProcedure(procName))
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine($"  ⊘ Skipping: {procName} - {EffortSchemaConfig.GetExclusionReason(procName)}");
+                    Console.ResetColor();
+                    skippedCount++;
+                    continue;
+                }
+
+                // Remove header sections like:
+                // ################################################################################
+                // STORED PROCEDURE: [dbo].[usp_foo]
+                // ################################################################################
+                procBody = Regex.Replace(procBody, @"^\s*#{20,}.*?#{20,}\s*$", "", RegexOptions.Multiline);
+                procBody = Regex.Replace(procBody, @"^\s*STORED PROCEDURE:.*?$", "", RegexOptions.Multiline);
+
+                procedures.Add((procName, procBody));
+            }
+
             Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("⚠ DRY-RUN: Stored procedures rolled back (not saved)");
+            Console.WriteLine($"Migrating {procedures.Count} stored procedures (skipped {skippedCount} unused/obsolete)");
+            Console.WriteLine();
+
+            int successCount = 0;
+            int failureCount = 0;
+            var failedProcedures = new List<(string Name, string Error)>();
+
+            foreach (var (procName, procBody) in procedures)
+            {
+                try
+                {
+                    // Rewrite procedure to use modern table names
+                    string rewrittenBody = RewriteStoredProcedure(procName, procBody);
+
+                    // Reconstruct full CREATE PROCEDURE statement with EffortShadow schema
+                    string fullProcedure = $"CREATE PROCEDURE [EffortShadow].[{procName}] {rewrittenBody}";
+
+                    // Use CREATE OR ALTER for idempotency
+                    fullProcedure = fullProcedure.Replace("CREATE PROCEDURE", "CREATE OR ALTER PROCEDURE");
+
+                    using var cmd = new SqlCommand(fullProcedure, connection, transaction);
+                    cmd.CommandTimeout = 60; // 60 seconds timeout
+                    cmd.ExecuteNonQuery();
+
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"  ✓ Migrated: {procName}");
+                    Console.ResetColor();
+                    successCount++;
+                }
+                catch (SqlException ex)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"  ✗ FAILED: {procName} - {ex.Message}");
+                    Console.ResetColor();
+                    failedProcedures.Add((procName, ex.Message));
+                    failureCount++;
+                }
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("============================================");
+            Console.WriteLine("Stored Procedure Migration Summary");
+            Console.WriteLine("============================================");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"✓ Successfully migrated: {successCount} procedures");
             Console.ResetColor();
+            Console.WriteLine($"⊘ Skipped (unused/obsolete): {skippedCount} procedures");
+
+            if (failureCount > 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"✗ Failed to migrate: {failureCount} procedures");
+                Console.ResetColor();
+                Console.WriteLine();
+                Console.WriteLine("Failed procedures (require manual review):");
+                foreach (var (name, error) in failedProcedures)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"  - {name}");
+                    Console.WriteLine($"    Error: {error}");
+                    Console.ResetColor();
+                }
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("Creating special procedures that query external databases...");
+
+            // Create usp_getJobGroups - queries external dictionary database
+            try
+            {
+                CreateUspGetJobGroups(connection, transaction);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  ✓ Created: usp_getJobGroups");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  ✗ FAILED: usp_getJobGroups - {ex.Message}");
+                Console.ResetColor();
+                failureCount++;
+            }
+
+            return failureCount;
         }
-    }
-    catch (Exception ex)
-    {
-        transaction.Rollback();
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"✗ Error migrating stored procedures: {ex.Message}");
-        Console.ResetColor();
-        throw;
-    }
-}
+
+        static void MigrateStoredProcedures(string connectionString, bool executeMode)
+        {
+            Console.WriteLine("Migrating stored procedures from legacy database...");
+            Console.WriteLine();
+
+            // Read exported schema file
+            string exportFilePath = Path.Join(Environment.CurrentDirectory, "Effort_Database_Schema_And_Data_LEGACY.txt");
+            string exportContent = File.ReadAllText(exportFilePath);
+
+            // Extract all CREATE PROCEDURE statements using regex
+            // Match from CREATE PROCEDURE to the next CREATE PROCEDURE or end of file
+            // Handle both "CREATE PROCEDURE [dbo].[name]" and "CREATE PROCEDURE name" (no schema)
+            var procedurePattern = new Regex(
+                @"(?ms)^CREATE\s+PROCEDURE\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s+(.*?)(?=^CREATE\s+PROCEDURE|\z)",
+                RegexOptions.Multiline | RegexOptions.Singleline | RegexOptions.IgnoreCase
+            );
+
+            var matches = procedurePattern.Matches(exportContent);
+            var procedures = new List<(string Name, string Definition)>();
+            int totalFound = matches.Count;
+            int skippedCount = 0;
+
+            foreach (Match match in matches)
+            {
+                string procName = match.Groups[1].Value;
+                string procBody = match.Groups[2].Value;
+
+                // Check if procedure should be excluded (obsolete or unused)
+                if (EffortSchemaConfig.ShouldExcludeProcedure(procName))
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine($"  ⊘ Skipping: {procName} - {EffortSchemaConfig.GetExclusionReason(procName)}");
+                    Console.ResetColor();
+                    skippedCount++;
+                    continue;
+                }
+
+                // Remove header sections like:
+                // ################################################################################
+                // STORED PROCEDURE: [dbo].[usp_foo]
+                // ################################################################################
+                procBody = Regex.Replace(procBody, @"^\s*#{20,}.*?#{20,}\s*$", "", RegexOptions.Multiline);
+                procBody = Regex.Replace(procBody, @"^\s*STORED PROCEDURE:.*?$", "", RegexOptions.Multiline);
+
+                procedures.Add((procName, procBody));
+            }
+
+            Console.WriteLine();
+            Console.WriteLine($"Found {totalFound} procedures in legacy schema");
+            Console.WriteLine($"Migrating {procedures.Count} procedures (skipped {skippedCount} unused/obsolete)");
+            Console.WriteLine();
+
+            // NOTE: CRUD procedures will be rewritten to work with [effort] tables
+            // Read-only reporting procedures can reference views directly
+            using var connection = new SqlConnection(connectionString);
+            connection.Open();
+
+            // Start transaction for dry-run support
+            using var transaction = connection.BeginTransaction();
+
+            try
+            {
+                MigrateStoredProceduresInTransaction(connection, transaction);
+
+                // Commit or rollback based on mode
+                if (executeMode)
+                {
+                    transaction.Commit();
+                    Console.WriteLine();
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("✓ Stored procedures committed to database");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    transaction.Rollback();
+                    Console.WriteLine();
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("⚠ DRY-RUN: Stored procedures rolled back (not saved)");
+                    Console.ResetColor();
+                }
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"✗ Error migrating stored procedures: {ex.Message}");
+                Console.ResetColor();
+                throw;
+            }
+        }
     }
 }
