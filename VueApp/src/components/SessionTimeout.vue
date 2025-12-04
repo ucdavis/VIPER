@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref } from "vue"
 import { useUserStore } from "@/store/UserStore"
+import { getLoginUrl } from "@/composables/RequireLogin"
 
 const userStore = useUserStore()
 //https://" + HttpHelper.HttpContext?.Request.Host.Value
 const onDev = import.meta.env.VITE_ENVIRONMENT === "DEVELOPMENT"
 const viperHome = import.meta.env.VITE_VIPER_HOME
+const loginHref = getLoginUrl()
 const sessionRefreshUrl =
     (onDev ? "http://localhost/" : "/") +
     "public/timeout/seconds_until_timeout_v2.cfm?id=" +
@@ -103,7 +105,7 @@ sessionTimeoutCheckEventId = window.setTimeout(checkSessionTimeout, 60000)
                     class="q-px-md"
                     label="Log in"
                     v-if="sessionExpired"
-                    :href="viperHome + 'login'"
+                    :href="loginHref"
                 ></q-btn>
                 <q-btn
                     dense

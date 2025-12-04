@@ -143,7 +143,10 @@
         )
 
         <q-page-container id="mainLayoutBody">
-            @if (UserHelper.GetCurrentUser() != null)
+            @{
+                var allowAnonymousContent = ViewData["AllowAnonymousContent"] as bool? ?? false;
+            }
+            @if (UserHelper.GetCurrentUser() != null || allowAnonymousContent)
             {
                 <div class="q-pa-md" v-cloak>
                 @RenderBody()
@@ -161,7 +164,7 @@
                             </div>
                         </q-card-section>
                         <q-card-actions align="center" class="q-pb-md">
-                            <q-btn color="primary" label="Log In" href="@Url.Content("~/login")" no-caps />
+                            <q-btn color="primary" label="Log In" href="@Url.Content("~/login")?ReturnUrl=@Uri.EscapeDataString((Context.Request.PathBase + Context.Request.Path).Value + Context.Request.QueryString)" no-caps />
                         </q-card-actions>
                     </q-card>
                 </div>

@@ -253,6 +253,7 @@
 import { ref } from "vue"
 import type { PropType } from "vue"
 import { useUserStore } from "@/store/UserStore"
+import { getLoginUrl } from "@/composables/RequireLogin"
 import LeftNav from "@/layouts/LeftNav.vue"
 import MainNav from "@/layouts/MainNav.vue"
 import MiniNav from "@/layouts/MiniNav.vue"
@@ -269,7 +270,11 @@ export default {
     setup() {
         const userStore = useUserStore()
         const mainLeftDrawer = ref(false)
-        return { userStore, mainLeftDrawer }
+        const clearEmulationHref = import.meta.env.VITE_VIPER_HOME + "ClearEmulation"
+        const environment = import.meta.env.VITE_ENVIRONMENT
+        const viperHome = import.meta.env.VITE_VIPER_HOME
+        const loginHref = getLoginUrl()
+        return { userStore, mainLeftDrawer, clearEmulationHref, environment, viperHome, loginHref }
     },
     props: {
         nav: {
@@ -297,10 +302,6 @@ export default {
         return {
             topNav: [],
             leftNav: [],
-            clearEmulationHref: ref(import.meta.env.VITE_VIPER_HOME + "ClearEmulation"),
-            environment: ref(import.meta.env.VITE_ENVIRONMENT),
-            viperHome: ref(import.meta.env.VITE_VIPER_HOME),
-            loginHref: ref(import.meta.env.VITE_VIPER_HOME + "login"),
         }
     },
     methods: {
