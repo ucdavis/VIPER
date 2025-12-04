@@ -60,11 +60,20 @@ export default defineComponent({
     },
     methods: {
         async getTopNav() {
-            var d = await fetch(import.meta.env.VITE_API_URL + "layout/topnav").then((r) =>
-                r.status == 204 || r.status == 202 ? r : r.json(),
-            )
-            this.helpNav = d.result.pop()
-            this.topNav = d.result
+            try {
+                var response = await fetch(import.meta.env.VITE_API_URL + "layout/topnav")
+                if (!response.ok) {
+                    this.topNav = []
+                    return
+                }
+                var d = await response.json()
+                if (d.result && d.result.length > 0) {
+                    this.helpNav = d.result.pop()
+                    this.topNav = d.result
+                }
+            } catch {
+                this.topNav = []
+            }
         },
     },
     mounted: async function () {

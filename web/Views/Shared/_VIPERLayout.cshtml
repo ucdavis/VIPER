@@ -112,15 +112,13 @@
                 }
                 <q-space></q-space>
 
-                @*Don't show the search until it does something*@
-                @if (HttpHelper.Environment?.EnvironmentName == "Development")
-                {
-                    <q-input rounded dense standout dark v-model="searchText" label="Search" bg-color="white" label-color="black" class="q-pa-xs">
-                        <template v-slot:append>
-                            <q-icon name="search" color="black"></q-icon>
-                        </template>
-                    </q-input>
-                }
+                @* TODO: Implement search functionality - currently just a placeholder with no backing code
+                <q-input rounded dense standout dark v-model="searchText" label="Search" bg-color="white" label-color="black" class="q-pa-xs">
+                    <template v-slot:append>
+                        <q-icon name="search" color="black"></q-icon>
+                    </template>
+                </q-input>
+                *@
 
                 @await Component.InvokeAsync("ProfilePic",
                 new {
@@ -145,9 +143,29 @@
         )
 
         <q-page-container id="mainLayoutBody">
-            <div class="q-pa-md" v-cloak>
-            @RenderBody()
-            </div>
+            @if (UserHelper.GetCurrentUser() != null)
+            {
+                <div class="q-pa-md" v-cloak>
+                @RenderBody()
+                </div>
+            }
+            else
+            {
+                IgnoreBody();
+                <div class="q-pa-xl flex flex-center" v-cloak>
+                    <q-card class="text-center" style="max-width: 400px">
+                        <q-card-section>
+                            <div class="text-h6">Welcome to VIPER</div>
+                            <div class="text-body1 q-mt-sm text-grey-7">
+                                Please log in to access this application.
+                            </div>
+                        </q-card-section>
+                        <q-card-actions align="center" class="q-pb-md">
+                            <q-btn color="primary" label="Log In" href="@Url.Content("~/login")" no-caps />
+                        </q-card-actions>
+                    </q-card>
+                </div>
+            }
         </q-page-container>
 
         <q-footer elevated class="bg-white" v-cloak>
