@@ -5,12 +5,10 @@ using Viper.Areas.CTS.Services;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Web.Authorization;
 
 namespace Viper.Controllers
 {
     [Route("/api/layout")]
-    [Permission(Allow = "SVMSecure")]
     public class LayoutController : ApiController
     {
         private readonly RAPSContext _context;

@@ -94,38 +94,48 @@ export default defineComponent({
     },
     methods: {
         async getLeftNav() {
-            var u = new URL(
-                import.meta.env.VITE_API_URL + "layout/leftnav/?area=" + this.navarea + "&nav=" + this.nav,
-                document.baseURI,
-            )
-            const { get } = useFetch()
-            const r = await get(u.toString())
-            this.navHeader = r.result.menuHeaderText
-            this.rawItems = r.result.menuItems
-            this.menuItems = r.result.menuItems.map((r: any) => {
-                const isExternalUrl = r.menuItemURL.length > 4 && r.menuItemURL.startsWith("http")
-                const isRelativeUrl = r.menuItemURL.length > 0 && !isExternalUrl && !r.menuItemURL.startsWith("/")
+            try {
+                var u = new URL(
+                    import.meta.env.VITE_API_URL + "layout/leftnav/?area=" + this.navarea + "&nav=" + this.nav,
+                    document.baseURI,
+                )
+                const { get } = useFetch()
+                const r = await get(u.toString())
+                if (!r.success || !r.result) {
+                    this.navHeader = ""
+                    this.menuItems = []
+                    return
+                }
+                this.navHeader = r.result.menuHeaderText ?? ""
+                this.rawItems = r.result.menuItems ?? []
+                this.menuItems = (r.result.menuItems ?? []).map((r: any) => {
+                    const isExternalUrl = r.menuItemURL.length > 4 && r.menuItemURL.startsWith("http")
+                    const isRelativeUrl = r.menuItemURL.length > 0 && !isExternalUrl && !r.menuItemURL.startsWith("/")
 
-                let routeToUrl = null
-                if (!isExternalUrl && r.menuItemURL.length > 0) {
-                    if (isRelativeUrl && this.navarea && this.nav) {
-                        // For area-based navigation, prefix relative URLs with the area path
-                        routeToUrl = `/${this.nav.toUpperCase()}/${r.menuItemURL}`
-                    } else {
-                        routeToUrl = r.menuItemURL
+                    let routeToUrl = null
+                    if (!isExternalUrl && r.menuItemURL.length > 0) {
+                        if (isRelativeUrl && this.navarea && this.nav) {
+                            // For area-based navigation, prefix relative URLs with the area path
+                            routeToUrl = `/${this.nav.toUpperCase()}/${r.menuItemURL}`
+                        } else {
+                            routeToUrl = r.menuItemURL
+                        }
                     }
-                }
 
-                return {
-                    menuItemUrl: isExternalUrl ? r.menuItemURL : null,
-                    routeTo: routeToUrl,
-                    menuItemText: r.menuItemText,
-                    clickable: r.menuItemURL.length > 0,
-                    displayClass: r.menuItemURL.length
-                        ? "leftNavLink"
-                        : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText == "" ? " leftNavSpacer" : ""),
-                }
-            })
+                    return {
+                        menuItemUrl: isExternalUrl ? r.menuItemURL : null,
+                        routeTo: routeToUrl,
+                        menuItemText: r.menuItemText,
+                        clickable: r.menuItemURL.length > 0,
+                        displayClass: r.menuItemURL.length
+                            ? "leftNavLink"
+                            : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText == "" ? " leftNavSpacer" : ""),
+                    }
+                })
+            } catch {
+                this.navHeader = ""
+                this.menuItems = []
+            }
         },
         emitLeftDrawerChange() {
             this.$emit("drawer-change", this.myMainLeftDrawer)
