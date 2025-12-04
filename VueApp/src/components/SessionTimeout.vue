@@ -4,7 +4,7 @@ import { useUserStore } from "@/store/UserStore"
 
 const userStore = useUserStore()
 //https://" + HttpHelper.HttpContext?.Request.Host.Value
-const onDev = import.meta.env.VITE_ENVIRONMENT == "DEVELOPMENT"
+const onDev = import.meta.env.VITE_ENVIRONMENT === "DEVELOPMENT"
 const viperHome = import.meta.env.VITE_VIPER_HOME
 const sessionRefreshUrl =
     (onDev ? "http://localhost/" : "/") +
@@ -22,7 +22,7 @@ async function checkSessionTimeout() {
     //try to get the session timeout from an external application
     try {
         fetch(sessionRefreshUrl)
-            .then((r) => (r.status == 200 ? r.json() : r))
+            .then((r) => (r.status === 200 ? r.json() : r))
             .then((r) => {
                 let nextCheck = 300
                 //show timeout warning if the session will time out in 5 minutes or less
@@ -47,7 +47,7 @@ async function checkSessionTimeout() {
 }
 async function extendSession() {
     fetch(viperHome + "RefreshSession")
-        .then((r) => (r.status == 200 ? r.json() : r))
+        .then((r) => (r.status === 200 ? r.json() : r))
         .then((r) => {
             try {
                 clearTimeout(sessionTimeoutCheckEventId)

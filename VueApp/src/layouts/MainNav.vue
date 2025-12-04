@@ -71,7 +71,7 @@ export default defineComponent({
                     this.helpNav = d.result.pop()
                     this.topNav = d.result
                 }
-            } catch {
+            } catch (_e) {
                 this.topNav = []
             }
         },
