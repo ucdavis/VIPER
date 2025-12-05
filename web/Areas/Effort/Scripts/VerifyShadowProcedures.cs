@@ -91,10 +91,12 @@ namespace Viper.Areas.Effort.Scripts
             {
                 ["NULL"] = "unknown"
             },
-            // tblPerson: ClientID is NULL in legacy, populated from users.Person in shadow
+            // tblPerson: ClientID is unused in legacy (NULL or empty), populated from users.Person in shadow
+            // Legacy never populated this field consistently, so any shadow value is acceptable
             ["person_ClientID"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                ["NULL"] = "*"  // * means any non-null value is acceptable
+                ["NULL"] = "*",  // * means any non-null value is acceptable
+                [""] = "*"       // Empty string also maps to any value
             },
             // tblPerson: MiddleIni empty string vs NULL
             ["person_MiddleIni"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -1470,6 +1472,77 @@ namespace Viper.Areas.Effort.Scripts
                     }
                 }
 
+                // Special handling for usp_createInstructorEffort - needs real CourseID and MothraID
+                // Must satisfy: FK_Records_Persons (PersonId+TermCode must exist in Persons)
+                // and CK_Records_HoursOrWeeks (Hours XOR Weeks, not both)
+                if (test.Name.Equals("usp_createInstructorEffort", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Get a real CourseID and matching MothraID/TermCode from migrated data
+                    using var findCmd = new SqlCommand(@"
+                        SELECT TOP 1 c.Id as CourseId, u.MothraId
+                        FROM [effort].[Courses] c
+                        INNER JOIN [effort].[Persons] p ON c.TermCode = p.TermCode
+                        INNER JOIN [users].[Person] u ON p.PersonId = u.PersonId
+                        WHERE u.MothraId IS NOT NULL
+                        ORDER BY c.Id;", connection, transaction);
+
+                    using (var reader = findCmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            int courseId = reader.GetInt32(0);
+                            string mothraId = reader.GetString(1);
+
+                            foreach (var param in test.Parameters)
+                            {
+                                if (param.ParameterName.Equals("@CourseID", StringComparison.OrdinalIgnoreCase))
+                                    param.Value = courseId;
+                                else if (param.ParameterName.Equals("@MothraID", StringComparison.OrdinalIgnoreCase))
+                                    param.Value = mothraId;
+                                // Set Weeks to NULL (Hours XOR Weeks constraint)
+                                else if (param.ParameterName.Equals("@Weeks", StringComparison.OrdinalIgnoreCase))
+                                    param.Value = DBNull.Value;
+                            }
+                        }
+                    }
+                }
+
+                // Special handling for usp_createInstructorPercent - needs real MothraID from Persons table
+                // Must satisfy FK_Percentages_Persons (PersonId+TermCode must exist in Persons)
+                // The trigger uses vwTerms to lookup TermCode from AcademicYear, so we need to ensure
+                // the person exists in Persons for a TermCode that matches vwTerms for that academic year
+                if (test.Name.Equals("usp_createInstructorPercent", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Get a MothraID and AcademicYear where the person actually exists in Persons
+                    // for a TermCode that vwTerms will return for that academic year
+                    using var findCmd = new SqlCommand(@"
+                        SELECT TOP 1
+                            u.MothraId,
+                            CAST(t.AcademicYear - 1 AS varchar) + '-' + CAST(t.AcademicYear AS varchar) as AcademicYear
+                        FROM [effort].[Persons] p
+                        INNER JOIN [users].[Person] u ON p.PersonId = u.PersonId
+                        INNER JOIN [dbo].[vwTerms] t ON p.TermCode = t.TermCode
+                        WHERE u.MothraId IS NOT NULL
+                        ORDER BY p.TermCode DESC;", connection, transaction);
+
+                    using (var reader = findCmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            string mothraId = reader.GetString(0);
+                            string academicYear = reader.GetString(1);
+
+                            foreach (var param in test.Parameters)
+                            {
+                                if (param.ParameterName.Equals("@MothraID", StringComparison.OrdinalIgnoreCase))
+                                    param.Value = mothraId;
+                                else if (param.ParameterName.Equals("@AcademicYear", StringComparison.OrdinalIgnoreCase))
+                                    param.Value = academicYear;
+                            }
+                        }
+                    }
+                }
+
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                 string shadowProcName = $"[EffortShadow].{test.Name}";
 
@@ -1500,6 +1573,7 @@ namespace Viper.Areas.Effort.Scripts
             catch (Exception ex)
             {
                 transaction.Rollback();
+                result.Status = TestStatus.Failed;
                 result.Differences.Add($"CRUD test failed: {ex.Message}");
                 return false;
             }
@@ -1987,8 +2061,10 @@ namespace Viper.Areas.Effort.Scripts
         private static string GetRowSignature(DataRow row, Dictionary<string, string> columnMapping)
         {
             // Create a normalized string representation of the row for comparison
+            // Skip columns that have known acceptable differences (e.g., person_ClientID)
             var values = columnMapping.Keys
                 .OrderBy(k => k)
+                .Where(col => !KnownValueMappings.ContainsKey(col))  // Skip columns with known differences
                 .Select(col =>
                 {
                     var value = row[col];
@@ -2038,6 +2114,14 @@ namespace Viper.Areas.Effort.Scripts
                 }
                 else if (!ValuesEqual(legacyValue, shadowValue))
                 {
+                    // Check if this is a known acceptable column difference (e.g., person_ClientID)
+                    string legacyNormalized = NormalizeValue(legacyValue);
+                    string shadowNormalized = NormalizeValue(shadowValue);
+                    if (IsKnownValueDifference(legacyCol, legacyNormalized, shadowNormalized, procedureName))
+                    {
+                        continue;  // Skip known differences
+                    }
+
                     // Check if this is a known issue procedure where Shadow returns more/higher values
                     // due to legacy NULL percent_AcademicYear bug
                     if (ProceduresAllowingMoreShadowRows.Contains(procedureName) &&

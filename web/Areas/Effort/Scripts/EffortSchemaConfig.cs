@@ -90,7 +90,6 @@ namespace Viper.Areas.Effort.Scripts
             "usp_getInstructorEvalsAverageWithExclude",
             "usp_getInstructorEvalsMultiYear",
             "usp_getInstructorEvalsMultiYear_fromEvalTable",
-            "usp_getInstructor",
 
             // Unused administrative effort variants
             "usp_getNonAdminEffort",

@@ -140,6 +140,7 @@ namespace Viper.Areas.Effort.Scripts
                 }
                 else if (tablesExist && !forceRecreate)
                 {
+                    // Tables exist but user didn't specify --force
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.WriteLine("⚠ Effort tables already exist in VIPER database. Skipping creation.");
                     Console.WriteLine();
@@ -589,21 +590,16 @@ namespace Viper.Areas.Effort.Scripts
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'Roles')
 BEGIN
     CREATE TABLE [effort].[Roles] (
-        Id char(1) NOT NULL,  -- FIXED: Changed from int to char(1) to match legacy database
-        Description varchar(25) NOT NULL,
+        Id int NOT NULL,  -- Matches legacy tblRoles.Role_ID
+        Description varchar(50) NOT NULL,  -- Matches legacy tblRoles.Role_Desc
         IsActive bit NOT NULL DEFAULT 1,
         SortOrder int NULL,
         CONSTRAINT PK_Roles PRIMARY KEY CLUSTERED (Id)
     );
-
-    -- Seed with legacy values (char IDs: '1', '2', '3')
-    INSERT INTO [effort].[Roles] (Id, Description, IsActive, SortOrder) VALUES
-    ('1', 'Instructor of Record', 1, 1),
-    ('2', 'Instructor', 1, 2),
-    ('3', 'Facilitator', 1, 3);
+    -- Data migrated from legacy tblRoles by MigrateEffortData.cs
 END";
             cmd.ExecuteNonQuery();
-            Console.WriteLine("  ✓ Roles table created and seeded (3 rows)");
+            Console.WriteLine("  ✓ Roles table created");
         }
 
         static void CreateEffortTypesTable(SqlConnection connection, SqlTransaction transaction)
@@ -621,40 +617,10 @@ BEGIN
         IsActive bit NOT NULL DEFAULT 1,
         CONSTRAINT PK_EffortTypes PRIMARY KEY CLUSTERED (Id)
     );
-
-    -- Seed with legacy data (26 rows from tblEffortType_LU)
-    SET IDENTITY_INSERT [effort].[EffortTypes] ON;
-    INSERT INTO [effort].[EffortTypes] (Id, Class, Name, ShowOnTemplate) VALUES
-    (1, 'Clinical', 'Clinical', 1),
-    (2, 'Admin', 'Dean', 1),
-    (3, 'Admin', 'Assoc Dean', 1),
-    (4, 'Admin', 'Director', 1),
-    (5, 'Other', 'None', 1),
-    (6, 'Admin', 'None', 1),
-    (7, 'Clinical', 'None', 1),
-    (8, 'Admin', 'Co-Director', 1),
-    (9, 'Admin', 'Exec Director', 1),
-    (10, 'Admin', 'Assoc Director', 1),
-    (11, 'Admin', 'Exec Assoc Dean', 1),
-    (12, 'Admin', 'Dept Chair', 1),
-    (13, 'Admin', 'Dept Vice Chair', 1),
-    (14, 'Admin', 'Chair', 1),
-    (15, 'Admin', 'Officer', 1),
-    (16, 'Admin', 'Service Chief', 1),
-    (17, 'Admin', 'Branch Chief', 1),
-    (18, 'Admin', 'Section Head', 1),
-    (19, 'Admin', 'Graduate Group Chair', 1),
-    (20, 'Admin', 'Graduate Group Advisor', 1),
-    (21, 'Admin', 'Unknown', 1),
-    (22, 'Admin', 'Associate Vice Provost', 1),
-    (23, 'Admin', 'Faculty Assistant', 1),
-    (24, 'Admin', 'Faculty Chair', 1),
-    (25, 'Clinical', 'Non VMTH Clinical', 0),
-    (26, 'Admin', 'Asst Director', 1);
-    SET IDENTITY_INSERT [effort].[EffortTypes] OFF;
+    -- Data migrated from legacy tblEffortType_LU by MigrateEffortData.cs
 END";
             cmd.ExecuteNonQuery();
-            Console.WriteLine("  ✓ EffortTypes table created and seeded (26 rows)");
+            Console.WriteLine("  ✓ EffortTypes table created");
         }
 
         static void CreateSessionTypesTable(SqlConnection connection, SqlTransaction transaction)
@@ -832,7 +798,7 @@ BEGIN
         PersonId int NOT NULL,
         TermCode int NOT NULL,
         SessionType varchar(3) NOT NULL,
-        Role char(1) NOT NULL,  -- FIXED: Changed from int to char(1) to match Roles table
+        Role int NOT NULL,  -- Matches legacy tblRoles.Role_ID (int)
         Hours int NULL,
         Weeks int NULL,
         Crn varchar(5) NOT NULL,
@@ -1151,14 +1117,25 @@ END";
                 "Expected {expected} tables, found {actual}"
             );
 
-            // 2. Validate Roles table seeded data
-            allValidationsPassed &= ValidateCount(
-                connection,
-                "SELECT COUNT(*) FROM [effort].[Roles]",
-                3,
-                "Roles table seeded (3 rows)",
-                "Roles table: expected {expected} rows, found {actual}"
-            );
+            // 2. Validate Roles table exists (data migrated by MigrateEffortData.cs)
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'Roles'";
+                int tableExists = (int)cmd.ExecuteScalar();
+                if (tableExists == 1)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✓ Roles table created (data populated by MigrateEffortData.cs)");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("  ✗ Roles table not found");
+                    Console.ResetColor();
+                    allValidationsPassed = false;
+                }
+            }
 
             // 3. Validate SessionTypes table seeded data
             // Use count from EffortScriptHelper.ValidSessionTypes to ensure consistency
@@ -1170,41 +1147,50 @@ END";
                 "SessionTypes table: expected {expected} rows, found {actual}"
             );
 
-            // 4. Validate EffortTypes table seeded data
-            allValidationsPassed &= ValidateCount(
-                connection,
-                "SELECT COUNT(*) FROM [effort].[EffortTypes]",
-                26,
-                "EffortTypes table seeded (26 rows)",
-                "EffortTypes table: expected {expected} rows, found {actual}"
-            );
+            // 4. Validate EffortTypes table exists (data migrated by MigrateEffortData.cs)
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'EffortTypes'";
+                int tableExists = (int)cmd.ExecuteScalar();
+                if (tableExists == 1)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✓ EffortTypes table created (data populated by MigrateEffortData.cs)");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("  ✗ EffortTypes table not found");
+                    Console.ResetColor();
+                    allValidationsPassed = false;
+                }
+            }
 
             // 5. Validate Role column type in Records table
             using (var cmd = connection.CreateCommand())
             {
                 cmd.CommandText = @"
-                SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH
+                SELECT DATA_TYPE
                 FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_SCHEMA = 'effort'
                   AND TABLE_NAME = 'Records'
                   AND COLUMN_NAME = 'Role'";
 
-                using var reader = cmd.ExecuteReader();
-                if (reader.Read())
+                var result = cmd.ExecuteScalar();
+                if (result != null)
                 {
-                    string dataType = reader.GetString(0);
-                    int? maxLength = reader.IsDBNull(1) ? null : (int?)reader.GetInt32(1);
-
-                    if (dataType == "char" && maxLength == 1)
+                    string dataType = (string)result;
+                    if (dataType == "int")
                     {
                         Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"  ✓ Records.Role column type correct (char(1))");
+                        Console.WriteLine($"  ✓ Records.Role column type correct (int)");
                         Console.ResetColor();
                     }
                     else
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine($"  ✗ Records.Role column: expected char(1), found {dataType}({maxLength})");
+                        Console.WriteLine($"  ✗ Records.Role column: expected int, found {dataType}");
                         Console.ResetColor();
                         allValidationsPassed = false;
                     }

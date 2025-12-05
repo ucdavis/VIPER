@@ -1028,6 +1028,72 @@ namespace Viper.Areas.Effort.Scripts
             using var cmd = new SqlCommand(sql, connection, transaction);
             cmd.ExecuteNonQuery();
             Console.WriteLine("  ✓ View created");
+
+            // Create INSTEAD OF triggers for tblCourses
+            // Required because the view has a derived column (CAST(Units AS float))
+            CreateTblCoursesInsertTrigger(connection, transaction);
+            CreateTblCoursesUpdateTrigger(connection, transaction);
+        }
+
+        static void CreateTblCoursesInsertTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF INSERT trigger for tblCourses...");
+
+            string sql = @"
+        CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblCourses_Insert]
+        ON [EffortShadow].[tblCourses]
+        INSTEAD OF INSERT
+        AS
+        BEGIN
+            SET NOCOUNT ON;
+
+            INSERT INTO [effort].[Courses] (Crn, TermCode, SubjCode, CrseNumb, SeqNumb, Enrollment, Units, CustDept)
+            SELECT
+                i.course_CRN,
+                i.course_TermCode,
+                i.course_subjCode,
+                i.course_crseNumb,
+                i.course_seqNumb,
+                i.course_enrollment,
+                i.course_units,
+                i.course_custDept
+            FROM inserted i;
+        END;";
+
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF INSERT trigger created");
+        }
+
+        static void CreateTblCoursesUpdateTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF UPDATE trigger for tblCourses...");
+
+            string sql = @"
+        CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblCourses_Update]
+        ON [EffortShadow].[tblCourses]
+        INSTEAD OF UPDATE
+        AS
+        BEGIN
+            SET NOCOUNT ON;
+
+            UPDATE c
+            SET
+                c.Crn = i.course_CRN,
+                c.TermCode = i.course_TermCode,
+                c.SubjCode = i.course_subjCode,
+                c.CrseNumb = i.course_crseNumb,
+                c.SeqNumb = i.course_seqNumb,
+                c.Enrollment = i.course_enrollment,
+                c.Units = i.course_units,
+                c.CustDept = i.course_custDept
+            FROM [effort].[Courses] c
+            INNER JOIN inserted i ON c.Id = i.course_id;
+        END;";
+
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF UPDATE trigger created");
         }
 
         static void CreateTblPercentView(SqlConnection connection, SqlTransaction transaction)
@@ -1453,6 +1519,36 @@ namespace Viper.Areas.Effort.Scripts
             using var cmd = new SqlCommand(sql, connection, transaction);
             cmd.ExecuteNonQuery();
             Console.WriteLine("  ✓ View created");
+
+            // Create INSTEAD OF INSERT trigger for tblCourseRelationships
+            // Required because the view has a derived column (CASE expression for cr_Relationship)
+            CreateTblCourseRelationshipsInsertTrigger(connection, transaction);
+        }
+
+        static void CreateTblCourseRelationshipsInsertTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF INSERT trigger for tblCourseRelationships...");
+
+            // Map legacy "Cross" back to normalized "CrossList" on insert
+            string sql = @"
+        CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblCourseRelationships_Insert]
+        ON [EffortShadow].[tblCourseRelationships]
+        INSTEAD OF INSERT
+        AS
+        BEGIN
+            SET NOCOUNT ON;
+
+            INSERT INTO [effort].[CourseRelationships] (ParentCourseId, ChildCourseId, RelationshipType)
+            SELECT
+                i.cr_ParentID,
+                i.cr_ChildID,
+                CASE WHEN i.cr_Relationship = 'Cross' THEN 'CrossList' ELSE i.cr_Relationship END
+            FROM inserted i;
+        END;";
+
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF INSERT trigger created");
         }
 
         static void CreateTblAuditView(SqlConnection connection, SqlTransaction transaction)

@@ -323,8 +323,14 @@ namespace Viper.Areas.Effort.Scripts
 
         static void MigrateLookupTables(SqlConnection viperConnection, SqlConnection effortConnection, SqlTransaction transaction)
         {
-            // NOTE: Roles, EffortTypes, SessionTypes, and Months are already seeded during CreateEffortDatabase.cs
-            // No migration needed for these tables - they use reference data, not legacy data
+            // NOTE: SessionTypes is seeded during CreateEffortDatabase.cs (no legacy lookup table exists)
+            // Roles and EffortTypes are migrated from legacy tables to preserve IDs
+
+            // Migrate Roles (from tblRoles - preserves IDs for FK integrity)
+            MigrateRoles(viperConnection, effortConnection, transaction);
+
+            // Migrate EffortTypes (from tblEffortType_LU - preserves IDs for FK integrity)
+            MigrateEffortTypes(viperConnection, effortConnection, transaction);
 
             // Migrate TermStatus (from tblStatus - maps Effort-specific workflow tracking)
             MigrateTermStatus(viperConnection, effortConnection, transaction);
@@ -342,8 +348,108 @@ namespace Viper.Areas.Effort.Scripts
             MigrateAlternateTitles(viperConnection, effortConnection, transaction);
         }
 
-        // NOTE: Roles, EffortTypes, and SessionTypes tables are seeded during CreateEffortDatabase.cs
-        // No migration needed - they contain reference data, not migrated legacy data
+        // NOTE: SessionTypes table is seeded during CreateEffortDatabase.cs (no legacy lookup table)
+        // Roles and EffortTypes are migrated from legacy tables to preserve IDs
+
+        static void MigrateRoles(SqlConnection viperConnection, SqlConnection effortConnection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Migrating Roles (from tblRoles)...");
+
+            // Step 1: Read from legacy database
+            // SCHEMA: tblRoles has Role_ID (int), Role_Desc (varchar(50))
+            var legacyData = new List<(int Id, string Description)>();
+            using (var cmd = new SqlCommand("SELECT Role_ID, Role_Desc FROM [dbo].[tblRoles] ORDER BY Role_ID", effortConnection))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    legacyData.Add((
+                        reader.GetInt32(0),   // Role_ID
+                        reader.GetString(1)   // Role_Desc
+                    ));
+                }
+            }
+
+            // Step 2: Write to VIPER database with transaction (preserve IDs)
+            using var insertCmd = new SqlCommand(@"
+            INSERT INTO [effort].[Roles] (Id, Description, IsActive, SortOrder)
+            VALUES (@Id, @Description, 1, @SortOrder)", viperConnection, transaction);
+
+            insertCmd.Parameters.Add("@Id", SqlDbType.Int);
+            insertCmd.Parameters.Add("@Description", SqlDbType.VarChar, 50);
+            insertCmd.Parameters.Add("@SortOrder", SqlDbType.Int);
+
+            int rows = 0;
+            foreach (var item in legacyData)
+            {
+                // Check if already exists
+                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[Roles] WHERE Id = @Id", viperConnection, transaction);
+                checkCmd.Parameters.AddWithValue("@Id", item.Id);
+                int exists = (int)checkCmd.ExecuteScalar();
+                if (exists > 0) continue;
+
+                insertCmd.Parameters["@Id"].Value = item.Id;
+                insertCmd.Parameters["@Description"].Value = item.Description;
+                insertCmd.Parameters["@SortOrder"].Value = item.Id; // Use ID as SortOrder
+                insertCmd.ExecuteNonQuery();
+                rows++;
+            }
+
+            Console.WriteLine($"  ✓ Migrated {rows} roles");
+        }
+
+        static void MigrateEffortTypes(SqlConnection viperConnection, SqlConnection effortConnection, SqlTransaction transaction)
+        {
+            Console.WriteLine("Migrating EffortTypes (from tblEffortType_LU)...");
+
+            // Step 1: Read from legacy database
+            // SCHEMA: tblEffortType_LU has type_ID, type_Name, type_Class, type_showOnMPVoteTemplate
+            var legacyData = new List<(int Id, string Name, string Class, bool ShowOnTemplate)>();
+            using (var cmd = new SqlCommand("SELECT type_ID, type_Name, type_Class, type_showOnMPVoteTemplate FROM [dbo].[tblEffortType_LU] ORDER BY type_ID", effortConnection))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    legacyData.Add((
+                        reader.GetInt32(0),   // type_ID
+                        reader.GetString(1),  // type_Name
+                        reader.GetString(2),  // type_Class
+                        reader.GetBoolean(3)  // type_showOnMPVoteTemplate
+                    ));
+                }
+            }
+
+            // Step 2: Write to VIPER database with transaction (preserve IDs)
+            using var insertCmd = new SqlCommand(@"
+            SET IDENTITY_INSERT [effort].[EffortTypes] ON;
+            INSERT INTO [effort].[EffortTypes] (Id, Name, Class, ShowOnTemplate, IsActive)
+            VALUES (@Id, @Name, @Class, @ShowOnTemplate, 1);
+            SET IDENTITY_INSERT [effort].[EffortTypes] OFF;", viperConnection, transaction);
+
+            insertCmd.Parameters.Add("@Id", SqlDbType.Int);
+            insertCmd.Parameters.Add("@Name", SqlDbType.VarChar, 50);
+            insertCmd.Parameters.Add("@Class", SqlDbType.VarChar, 20);
+            insertCmd.Parameters.Add("@ShowOnTemplate", SqlDbType.Bit);
+
+            int rows = 0;
+            foreach (var item in legacyData)
+            {
+                // Check if already exists
+                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[EffortTypes] WHERE Id = @Id", viperConnection, transaction);
+                checkCmd.Parameters.AddWithValue("@Id", item.Id);
+                int exists = (int)checkCmd.ExecuteScalar();
+                if (exists > 0) continue;
+
+                insertCmd.Parameters["@Id"].Value = item.Id;
+                insertCmd.Parameters["@Name"].Value = item.Name;
+                insertCmd.Parameters["@Class"].Value = item.Class;
+                insertCmd.Parameters["@ShowOnTemplate"].Value = item.ShowOnTemplate;
+                insertCmd.ExecuteNonQuery();
+                rows++;
+            }
+
+            Console.WriteLine($"  ✓ Migrated {rows} effort types");
+        }
 
         static void MigrateTermStatus(SqlConnection viperConnection, SqlConnection effortConnection, SqlTransaction transaction)
         {
@@ -748,13 +854,8 @@ namespace Viper.Areas.Effort.Scripts
             int totalRecords = legacyData.Count;
             foreach (var item in legacyData)
             {
+                EffortScriptHelper.ShowProgress(processed, totalRecords, 5000, "persons");
                 processed++;
-
-                // Progress indicator every 5000 records
-                if (processed % 5000 == 0)
-                {
-                    Console.WriteLine($"    Processing: {processed:N0} / {totalRecords:N0} persons ({processed * 100 / totalRecords}%)...");
-                }
 
                 // Map MothraId to PersonId (skip if not found to satisfy FK constraint)
                 int personId = 0;
@@ -879,7 +980,8 @@ namespace Viper.Areas.Effort.Scripts
                 rows++;
             }
 
-            Console.WriteLine($"  ✓ Migrated {rows} courses");
+            int existing = legacyData.Count - rows - skipped;
+            Console.WriteLine($"  ✓ Migrated {rows} courses ({existing} already existed)");
             if (skipped > 0)
             {
                 Console.WriteLine($"  ⚠ Skipped {skipped} courses with Units < 0 (violates CHECK constraint)");
@@ -921,7 +1023,7 @@ namespace Viper.Areas.Effort.Scripts
             // SCHEMA: effort_CourseID, effort_MothraID, effort_SessionType, effort_Hours, effort_Role,
             //         effort_ClientID, effort_CRN, effort_termCode, effort_ID, effort_Weeks
             // Note: We select in order we want, not schema order
-            var legacyData = new List<(int Id, int CourseId, string MothraId, int TermCode, string SessionType, string Role, int? Hours, int? Weeks, string Crn)>();
+            var legacyData = new List<(int Id, int CourseId, string MothraId, int TermCode, string SessionType, int Role, int? Hours, int? Weeks, string Crn)>();
             using (var cmd = new SqlCommand("SELECT effort_ID, effort_CourseID, effort_MothraID, effort_termCode, effort_SessionType, effort_Role, effort_Hours, effort_Weeks, effort_CRN FROM [dbo].[tblEffort]", effortConnection))
             using (var reader = cmd.ExecuteReader())
             {
@@ -933,7 +1035,7 @@ namespace Viper.Areas.Effort.Scripts
                         reader.GetString(2),  // effort_MothraID
                         reader.GetInt32(3),   // effort_termCode (lowercase 't')
                         reader.GetString(4),  // effort_SessionType
-                        reader.GetString(5),  // effort_Role
+                        int.Parse(reader.GetString(5).Trim()),  // effort_Role (char(1) -> int)
                         reader.IsDBNull(6) ? null : reader.GetInt32(6),  // effort_Hours
                         reader.IsDBNull(7) ? null : reader.GetInt32(7),  // effort_Weeks
                         reader.GetString(8)   // effort_CRN (NOT NULL in schema)
@@ -954,7 +1056,7 @@ namespace Viper.Areas.Effort.Scripts
             insertCmd.Parameters.Add("@PersonId", SqlDbType.Int);
             insertCmd.Parameters.Add("@TermCode", SqlDbType.Int);
             insertCmd.Parameters.Add("@SessionType", SqlDbType.NVarChar, 10);
-            insertCmd.Parameters.Add("@Role", SqlDbType.Char, 1);
+            insertCmd.Parameters.Add("@Role", SqlDbType.Int);
             insertCmd.Parameters.Add("@Hours", SqlDbType.Decimal);
             insertCmd.Parameters.Add("@Weeks", SqlDbType.Int);
             insertCmd.Parameters.Add("@Crn", SqlDbType.NVarChar, 10);
@@ -967,13 +1069,8 @@ namespace Viper.Areas.Effort.Scripts
             int totalRecords = legacyData.Count;
             foreach (var item in legacyData)
             {
+                EffortScriptHelper.ShowProgress(processed, totalRecords, 5000, "effort records");
                 processed++;
-
-                // Progress indicator every 5000 records
-                if (processed % 5000 == 0)
-                {
-                    Console.WriteLine($"    Processing: {processed:N0} / {totalRecords:N0} records ({processed * 100 / totalRecords}%)...");
-                }
 
                 // Skip records with invalid CourseId (FK constraint requires CourseId exists in Courses table)
                 if (!validCourseIds.Contains(item.CourseId))
@@ -1022,7 +1119,7 @@ namespace Viper.Areas.Effort.Scripts
                 insertCmd.Parameters["@PersonId"].Value = personId;
                 insertCmd.Parameters["@TermCode"].Value = item.TermCode;
                 insertCmd.Parameters["@SessionType"].Value = item.SessionType;
-                insertCmd.Parameters["@Role"].Value = item.Role; // Keep as char(1)
+                insertCmd.Parameters["@Role"].Value = item.Role; // Converted from char(1) to int
                 insertCmd.Parameters["@Hours"].Value = (object?)item.Hours ?? DBNull.Value;
                 insertCmd.Parameters["@Weeks"].Value = (object?)item.Weeks ?? DBNull.Value;
                 insertCmd.Parameters["@Crn"].Value = item.Crn;  // NOT NULL in legacy schema
@@ -1252,7 +1349,7 @@ namespace Viper.Areas.Effort.Scripts
                 if (skippedNoTermCode > 0)
                     Console.WriteLine($"     - {skippedNoTermCode} with no matching (PersonId, TermCode) in effort.Persons (orphaned records)");
             }
-            Console.WriteLine($"     Mapped legacy percent_TypeID to EffortTypeId (26 effort types)");
+            Console.WriteLine($"     Mapped legacy percent_TypeID to EffortTypeId (migrated from tblEffortType_LU)");
         }
 
         static void MigrateSabbaticals(SqlConnection viperConnection, SqlConnection effortConnection, SqlTransaction transaction)
@@ -1478,8 +1575,12 @@ namespace Viper.Areas.Effort.Scripts
             insertCmd.Parameters.Add("@LegacyMothraID", SqlDbType.NVarChar, 20);
 
             int rows = 0;
+            int total = legacyData.Count;
+
             foreach (var item in legacyData)
             {
+                EffortScriptHelper.ShowProgress(rows, total, 10000, "audit records");
+
                 // Map audit_ModBy (MothraId) to PersonId (default to 1 if not found)
                 int changedBy = 1;
                 if (!string.IsNullOrEmpty(item.ModBy) && mothraIdMap.TryGetValue(item.ModBy, out int mappedId))
@@ -1491,7 +1592,7 @@ namespace Viper.Areas.Effort.Scripts
                 using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[Audits] WHERE Id = @Id", viperConnection, transaction);
                 checkCmd.Parameters.AddWithValue("@Id", item.Id);
                 int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) continue;
+                if (exists > 0) { rows++; continue; }
 
                 // Derive TableName and RecordId from audit_Action and context
                 string tableName = "Unknown";
@@ -1661,7 +1762,9 @@ namespace Viper.Areas.Effort.Scripts
             Console.WriteLine("Validating migration...");
             Console.WriteLine();
 
-            // Validate each table - Note: Roles, EffortTypes, SessionTypes, Months are seeded, not migrated
+            // Validate each table - Note: SessionTypes is seeded (no legacy lookup table)
+            ValidateTable(viperConnection, effortConnection, transaction, "Roles", "[dbo].[tblRoles]");
+            ValidateTable(viperConnection, effortConnection, transaction, "EffortTypes", "[dbo].[tblEffortType_LU]");
             ValidateTable(viperConnection, effortConnection, transaction, "TermStatus", "[dbo].[tblStatus]");
             ValidateTable(viperConnection, effortConnection, transaction, "Units", "[dbo].[tblUnits_LU]");
             ValidateTable(viperConnection, effortConnection, transaction, "JobCodes", "[dbo].[tblJobCode]");
@@ -1757,7 +1860,7 @@ namespace Viper.Areas.Effort.Scripts
                 }
             }
 
-            // 3. Verify Role column has char values  ('1', '2', '3')
+            // 3. Verify Role column has int values (1, 2, 3)
             using (var cmd = new SqlCommand(@"
             SELECT TOP 3 Role, COUNT(*) as Count
             FROM [effort].[Records]
@@ -1768,8 +1871,8 @@ namespace Viper.Areas.Effort.Scripts
                 bool hasValidRoles = true;
                 while (reader.Read() && hasValidRoles)
                 {
-                    string role = reader.GetString(0);
-                    if (role != "1" && role != "2" && role != "3")
+                    int role = reader.GetInt32(0);
+                    if (role != 1 && role != 2 && role != 3)
                     {
                         hasValidRoles = false;
                     }
@@ -1778,13 +1881,13 @@ namespace Viper.Areas.Effort.Scripts
                 if (hasValidRoles)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"  ✓ Records.Role column: char values ('1', '2', '3') correct");
+                    Console.WriteLine($"  ✓ Records.Role column: int values (1, 2, 3) correct");
                     Console.ResetColor();
                 }
                 else
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"  ✗ Records.Role column: unexpected values (should be '1', '2', '3')");
+                    Console.WriteLine($"  ✗ Records.Role column: unexpected values (should be 1, 2, 3)");
                     Console.ResetColor();
                     hasIssues = true;
                 }

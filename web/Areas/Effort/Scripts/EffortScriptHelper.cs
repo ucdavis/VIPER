@@ -318,6 +318,35 @@ namespace Viper.Areas.Effort.Scripts
             return fullPath;
         }
 
+        #region Progress Indicator
+
+        /// <summary>
+        /// Writes a progress message to the console if the current count is at the specified interval.
+        /// Provides consistent progress output format across all migration scripts.
+        /// </summary>
+        /// <param name="current">Current record count (0-based)</param>
+        /// <param name="total">Total number of records</param>
+        /// <param name="interval">How often to show progress (default: every 5000 records)</param>
+        /// <param name="itemName">Name of items being processed (default: "records")</param>
+        /// <example>
+        /// foreach (var item in items)
+        /// {
+        ///     EffortScriptHelper.ShowProgress(processed, totalRecords, 5000, "persons");
+        ///     // ... process item ...
+        ///     processed++;
+        /// }
+        /// </example>
+        public static void ShowProgress(int current, int total, int interval = 5000, string itemName = "records")
+        {
+            if (current % interval == 0)
+            {
+                int percent = total > 0 ? current * 100 / total : 0;
+                Console.WriteLine($"    Processing: {current:N0} / {total:N0} {itemName} ({percent}%)...");
+            }
+        }
+
+        #endregion
+
         #region Person Lookup Helpers
 
         private static Dictionary<string, int>? _mothraIdToPersonIdCache;
