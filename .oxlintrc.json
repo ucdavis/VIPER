@@ -135,7 +135,8 @@
         {
             "files": ["VueApp/**/*"],
             "rules": {
-                "no-duplicate-imports": "off" // Allow separate type-only imports for better tree-shaking in Vue 3 TypeScript projects
+                "no-duplicate-imports": "off", // Allow separate type-only imports for better tree-shaking in Vue 3 TypeScript projects
+                "import/no-named-export": "off" // Vue ecosystem uses named exports for composables, stores, and utilities
             }
         },
         {
@@ -165,10 +166,11 @@
         },
         {
             "files": [
-                "VueApp/src/composables/ViperFetch.ts"
+                "VueApp/src/composables/ViperFetch.ts",
+                "VueApp/src/composables/RequireLogin.ts"
             ],
             "rules": {
-                "unicorn/filename-case": "off" // Legacy core file - keep PascalCase naming for backwards compatibility
+                "unicorn/filename-case": "off" // Legacy core files - keep PascalCase naming for backwards compatibility
             }
         }
     ],

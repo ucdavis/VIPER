@@ -65,19 +65,16 @@
 </template>
 
 <script lang="ts">
-import { ref, defineComponent, computed } from "vue"
+import { defineComponent, computed } from "vue"
 import { useUserStore } from "@/store/UserStore"
+import { getLoginUrl } from "@/composables/RequireLogin"
 export default defineComponent({
     name: "ProfilePic",
-    data() {
-        return {
-            clearEmulationHref: ref(import.meta.env.VITE_VIPER_HOME + "ClearEmulation"),
-            logoutHref: ref(import.meta.env.VITE_VIPER_HOME + "logout"),
-            loginHref: ref(import.meta.env.VITE_VIPER_HOME + "login"),
-        }
-    },
     setup() {
         const userStore = useUserStore()
+        const clearEmulationHref = import.meta.env.VITE_VIPER_HOME + "ClearEmulation"
+        const logoutHref = import.meta.env.VITE_VIPER_HOME + "logout"
+        const loginHref = getLoginUrl()
         const picSrc = computed(
             () =>
                 "https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid=" +
@@ -94,6 +91,9 @@ export default defineComponent({
             userName,
             isLoggedIn,
             isEmulating,
+            clearEmulationHref,
+            logoutHref,
+            loginHref,
         }
     },
 })
