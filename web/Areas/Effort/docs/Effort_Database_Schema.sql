@@ -10,7 +10,7 @@ Date: 2025-11-06
 Architecture:
 - Creates [VIPER].[effort] schema (NOT a separate database)
 - Shadow Schema: [VIPER].[EffortShadow] schema with views pointing to [effort] tables
-- 20 tables total with proper dependency ordering
+- 16 tables total with proper dependency ordering
 
 Tables:
 1. Lookup Tables (no dependencies): Roles, EffortTypes, SessionTypes, Units,
@@ -49,20 +49,15 @@ GO
 -- ----------------------------------------------------------------------------
 -- Table: Roles
 -- Description: Faculty role types for course instruction
--- Legacy: tblRoles_LU (modified to use char(1) primary key)
+-- Legacy: tblRoles
 -- ----------------------------------------------------------------------------
 CREATE TABLE [effort].[Roles] (
-    Id char(1) NOT NULL,  -- Changed from int to char(1) to match legacy database
-    Description varchar(25) NOT NULL,
+    Id int NOT NULL,
+    Description varchar(50) NOT NULL,  -- Matches legacy tblRoles.Role_Desc
     IsActive bit NOT NULL DEFAULT 1,
     SortOrder int NULL,
     CONSTRAINT PK_Roles PRIMARY KEY CLUSTERED (Id)
 );
-
-INSERT INTO [effort].[Roles] (Id, Description, IsActive, SortOrder) VALUES
-('1', 'Instructor of Record', 1, 1),
-('2', 'Instructor', 1, 2),
-('3', 'Facilitator', 1, 3);
 GO
 
 -- ----------------------------------------------------------------------------
@@ -401,8 +396,8 @@ GO
 CREATE TABLE [effort].[Percentages] (
     Id int IDENTITY(1,1) NOT NULL,
     PersonId int NOT NULL,
-    TermCode int NOT NULL,
-    Percentage decimal(5,2) NOT NULL,
+    AcademicYear char(9) NOT NULL,  -- Format: 'YYYY-YYYY' (e.g., '2019-2020'), derived from StartDate if missing
+    Percentage float NOT NULL,  -- Match legacy float(53)
     EffortTypeId int NOT NULL,
     Unit varchar(50) NULL,
     Modifier varchar(50) NULL,
@@ -414,7 +409,6 @@ CREATE TABLE [effort].[Percentages] (
     Compensated bit NOT NULL DEFAULT 0,
     CONSTRAINT PK_Percentages PRIMARY KEY CLUSTERED (Id),
     CONSTRAINT FK_Percentages_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
-    CONSTRAINT FK_Percentages_Persons FOREIGN KEY (PersonId, TermCode) REFERENCES [effort].[Persons](PersonId, TermCode),
     CONSTRAINT FK_Percentages_EffortTypes FOREIGN KEY (EffortTypeId) REFERENCES [effort].[EffortTypes](Id),
     CONSTRAINT FK_Percentages_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
     CONSTRAINT CK_Percentages_Percentage CHECK (Percentage BETWEEN 0 AND 100),
@@ -422,7 +416,9 @@ CREATE TABLE [effort].[Percentages] (
 );
 
 CREATE NONCLUSTERED INDEX IX_Percentages_PersonId ON [effort].[Percentages](PersonId);
-CREATE NONCLUSTERED INDEX IX_Percentages_TermCode ON [effort].[Percentages](TermCode);
+CREATE NONCLUSTERED INDEX IX_Percentages_AcademicYear ON [effort].[Percentages](AcademicYear);
+CREATE NONCLUSTERED INDEX IX_Percentages_StartDate ON [effort].[Percentages](StartDate);
+CREATE NONCLUSTERED INDEX IX_Percentages_EndDate ON [effort].[Percentages](EndDate) WHERE EndDate IS NOT NULL;
 GO
 
 -- ----------------------------------------------------------------------------

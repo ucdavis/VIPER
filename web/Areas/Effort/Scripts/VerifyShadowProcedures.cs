@@ -56,7 +56,7 @@ namespace Viper.Areas.Effort.Scripts
         // Views where row count differences are expected due to skipped migration records
         private static readonly Dictionary<string, string> ViewsWithExpectedRowDifferences = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["tblPercent"] = "Orphaned records (no tblPerson for that academic year) are skipped during migration",
+            ["tblPercent"] = "Records with unmapped MothraId are skipped during migration",
             ["tblPerson"] = "Records with invalid MothraId are skipped",
             ["tblEffort"] = "Records referencing skipped persons are skipped"
         };
@@ -140,10 +140,9 @@ namespace Viper.Areas.Effort.Scripts
             "usp_getSumEffortPercentsForInstructor"
         };
 
-        // Procedures where Legacy may return MORE rows than Shadow due to orphaned tblPercent records
-        // Orphaned = tblPercent record exists for an academic year but no corresponding tblPerson record
-        // Migration correctly skips these orphaned records, so Shadow has fewer rows
-        private static readonly HashSet<string> ProceduresWithPotentialOrphanedLegacyRows = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        // Procedures where Legacy may return MORE rows than Shadow due to records with unmapped MothraId
+        // Migration correctly skips these records (MothraId not in VIPER.users.Person), so Shadow has fewer rows
+        private static readonly HashSet<string> ProceduresWithPotentialUnmappedLegacyRows = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "usp_getInstructorsWithClinicalEffort"
         };
@@ -1422,11 +1421,24 @@ namespace Viper.Areas.Effort.Scripts
         {
             // Test CRUD procedures using transactions with rollback
             // This allows us to test write operations without leaving test data
+            // AND verify that the procedure actually performs the expected data changes
 
             using var transaction = connection.BeginTransaction();
 
             try
             {
+                // Special handling for usp_delCourse - verify actual deletion
+                if (test.Name.Equals("usp_delCourse", StringComparison.OrdinalIgnoreCase))
+                {
+                    return TestDeleteCourse(connection, transaction, test, result);
+                }
+
+                // Special handling for usp_delInstructorEffort - verify actual deletion
+                if (test.Name.Equals("usp_delInstructorEffort", StringComparison.OrdinalIgnoreCase))
+                {
+                    return TestDeleteEffort(connection, transaction, test, result);
+                }
+
                 // Special handling for procedures that need pre-existing test data
                 if (test.Name.Equals("usp_createCourseRelationship", StringComparison.OrdinalIgnoreCase))
                 {
@@ -1569,6 +1581,237 @@ namespace Viper.Areas.Effort.Scripts
                 result.Warnings.Add("CRUD procedure tested with transaction rollback");
 
                 return true; // Success - procedure executed without errors
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                result.Status = TestStatus.Failed;
+                result.Differences.Add($"CRUD test failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Tests usp_delCourse by verifying actual data deletion.
+        /// Finds a real course with effort records, deletes it, verifies deletion, then rolls back.
+        /// </summary>
+        private static bool TestDeleteCourse(SqlConnection connection, SqlTransaction transaction, ProcedureTest test, ComparisonResult result)
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            // Find a course that has effort records (so we can verify cascade deletion)
+            using var findCmd = new SqlCommand(@"
+                SELECT TOP 1 c.Id as CourseId, c.Crn, u.MothraId, COUNT(r.Id) as EffortCount
+                FROM [effort].[Courses] c
+                INNER JOIN [effort].[Records] r ON c.Id = r.CourseId
+                INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
+                INNER JOIN [users].[Person] u ON p.PersonId = u.PersonId
+                WHERE u.MothraId IS NOT NULL
+                GROUP BY c.Id, c.Crn, u.MothraId
+                HAVING COUNT(r.Id) > 0
+                ORDER BY COUNT(r.Id);", connection, transaction);
+
+            int courseId;
+            string mothraId;
+            int effortCountBefore;
+
+            using (var reader = findCmd.ExecuteReader())
+            {
+                if (!reader.Read())
+                {
+                    result.Warnings.Add("No course with effort records found for delete test - executing without verification");
+                    transaction.Rollback();
+                    return TestCrudProcedureFallback(connection, test, result);
+                }
+                courseId = reader.GetInt32(0);
+                mothraId = reader.GetString(2);
+                effortCountBefore = reader.GetInt32(3);
+            }
+
+            // Verify course exists before deletion
+            using var courseCountBeforeCmd = new SqlCommand(
+                "SELECT COUNT(*) FROM [EffortShadow].[tblCourses] WHERE course_ID = @CourseID",
+                connection, transaction);
+            courseCountBeforeCmd.Parameters.AddWithValue("@CourseID", courseId);
+            int courseCountBefore = (int)courseCountBeforeCmd.ExecuteScalar();
+
+            if (courseCountBefore == 0)
+            {
+                result.Differences.Add($"Course {courseId} not visible in shadow view before deletion");
+                result.Status = TestStatus.Failed;
+                result.Passed = false;
+                transaction.Rollback();
+                return false;
+            }
+
+            // Execute usp_delCourse through the shadow schema
+            using var delCmd = new SqlCommand("[EffortShadow].[usp_delCourse]", connection, transaction);
+            delCmd.CommandType = CommandType.StoredProcedure;
+            delCmd.CommandTimeout = 120;
+            delCmd.Parameters.AddWithValue("@CourseID", courseId);
+            delCmd.Parameters.AddWithValue("@ModBy", mothraId);
+            delCmd.ExecuteNonQuery();
+
+            // Verify effort records were deleted
+            using var effortCountAfterCmd = new SqlCommand(
+                "SELECT COUNT(*) FROM [effort].[Records] WHERE CourseId = @CourseID",
+                connection, transaction);
+            effortCountAfterCmd.Parameters.AddWithValue("@CourseID", courseId);
+            int effortCountAfter = (int)effortCountAfterCmd.ExecuteScalar();
+
+            // Verify course was deleted
+            using var courseCountAfterCmd = new SqlCommand(
+                "SELECT COUNT(*) FROM [effort].[Courses] WHERE Id = @CourseID",
+                connection, transaction);
+            courseCountAfterCmd.Parameters.AddWithValue("@CourseID", courseId);
+            int courseCountAfter = (int)courseCountAfterCmd.ExecuteScalar();
+
+            stopwatch.Stop();
+            transaction.Rollback();
+
+            result.ShadowExecutionMs = stopwatch.ElapsedMilliseconds;
+            result.ShadowRowCount = effortCountBefore + 1; // Effort records + 1 course
+
+            // Verify deletions occurred
+            bool success = true;
+
+            if (effortCountAfter != 0)
+            {
+                result.Differences.Add($"Expected 0 effort records after deletion, found {effortCountAfter}");
+                result.Status = TestStatus.Failed;
+                result.Passed = false;
+                success = false;
+            }
+
+            if (courseCountAfter != 0)
+            {
+                result.Differences.Add($"Expected 0 courses after deletion, found {courseCountAfter}");
+                result.Status = TestStatus.Failed;
+                result.Passed = false;
+                success = false;
+            }
+
+            if (success)
+            {
+                result.Status = TestStatus.Passed;
+                result.Passed = true;
+                result.Warnings.Add($"Verified: Deleted {effortCountBefore} effort record(s) + 1 course (rolled back)");
+            }
+
+            return success;
+        }
+
+        /// <summary>
+        /// Tests usp_delInstructorEffort by verifying actual data deletion.
+        /// </summary>
+        private static bool TestDeleteEffort(SqlConnection connection, SqlTransaction transaction, ProcedureTest test, ComparisonResult result)
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            // Find an effort record to delete
+            using var findCmd = new SqlCommand(@"
+                SELECT TOP 1 r.Id as EffortId, u.MothraId
+                FROM [effort].[Records] r
+                INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
+                INNER JOIN [users].[Person] u ON p.PersonId = u.PersonId
+                WHERE u.MothraId IS NOT NULL
+                ORDER BY r.Id;", connection, transaction);
+
+            int effortId;
+            string mothraId;
+
+            using (var reader = findCmd.ExecuteReader())
+            {
+                if (!reader.Read())
+                {
+                    result.Warnings.Add("No effort record found for delete test - executing without verification");
+                    transaction.Rollback();
+                    return TestCrudProcedureFallback(connection, test, result);
+                }
+                effortId = reader.GetInt32(0);
+                mothraId = reader.GetString(1);
+            }
+
+            // Verify record exists before deletion
+            using var countBeforeCmd = new SqlCommand(
+                "SELECT COUNT(*) FROM [effort].[Records] WHERE Id = @EffortID",
+                connection, transaction);
+            countBeforeCmd.Parameters.AddWithValue("@EffortID", effortId);
+            int countBefore = (int)countBeforeCmd.ExecuteScalar();
+
+            if (countBefore == 0)
+            {
+                result.Differences.Add($"Effort record {effortId} not found before deletion");
+                result.Status = TestStatus.Failed;
+                result.Passed = false;
+                transaction.Rollback();
+                return false;
+            }
+
+            // Execute usp_delInstructorEffort through the shadow schema
+            using var delCmd = new SqlCommand("[EffortShadow].[usp_delInstructorEffort]", connection, transaction);
+            delCmd.CommandType = CommandType.StoredProcedure;
+            delCmd.CommandTimeout = 120;
+            delCmd.Parameters.AddWithValue("@EffortID", effortId);
+            delCmd.Parameters.AddWithValue("@ModBy", mothraId);
+            delCmd.ExecuteNonQuery();
+
+            // Verify record was deleted
+            using var countAfterCmd = new SqlCommand(
+                "SELECT COUNT(*) FROM [effort].[Records] WHERE Id = @EffortID",
+                connection, transaction);
+            countAfterCmd.Parameters.AddWithValue("@EffortID", effortId);
+            int countAfter = (int)countAfterCmd.ExecuteScalar();
+
+            stopwatch.Stop();
+            transaction.Rollback();
+
+            result.ShadowExecutionMs = stopwatch.ElapsedMilliseconds;
+            result.ShadowRowCount = 1; // 1 effort record deleted
+
+            if (countAfter != 0)
+            {
+                result.Differences.Add($"Expected 0 effort records after deletion, found {countAfter}");
+                result.Status = TestStatus.Failed;
+                result.Passed = false;
+                return false;
+            }
+
+            result.Status = TestStatus.Passed;
+            result.Passed = true;
+            result.Warnings.Add("Verified: Deleted 1 effort record (rolled back)");
+            return true;
+        }
+
+        /// <summary>
+        /// Fallback for CRUD procedures when we can't find test data - just verify it executes without error.
+        /// </summary>
+        private static bool TestCrudProcedureFallback(SqlConnection connection, ProcedureTest test, ComparisonResult result)
+        {
+            using var transaction = connection.BeginTransaction();
+            try
+            {
+                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+                string shadowProcName = $"[EffortShadow].{test.Name}";
+
+                using var cmd = new SqlCommand(shadowProcName, connection, transaction);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.CommandTimeout = 120;
+
+                foreach (var param in test.Parameters)
+                {
+                    cmd.Parameters.Add(new SqlParameter(param.ParameterName, param.Value));
+                }
+
+                cmd.ExecuteNonQuery();
+                stopwatch.Stop();
+                transaction.Rollback();
+
+                result.ShadowExecutionMs = stopwatch.ElapsedMilliseconds;
+                result.ShadowRowCount = 0;
+                result.Warnings.Add("CRUD procedure tested with transaction rollback (no verification)");
+
+                return true;
             }
             catch (Exception ex)
             {
@@ -1741,13 +1984,13 @@ namespace Viper.Areas.Effort.Scripts
                         return;
                     }
                 }
-                else if (ProceduresWithPotentialOrphanedLegacyRows.Contains(procedureName)
+                else if (ProceduresWithPotentialUnmappedLegacyRows.Contains(procedureName)
                     && legacy.Rows.Count > shadow.Rows.Count)
                 {
-                    // Legacy has more rows - will check if they're orphaned during detailed comparison
+                    // Legacy has more rows - will check if they're from unmapped MothraIds during detailed comparison
                     result.Warnings.Add($"Row count differs: Legacy={legacy.Rows.Count}, Shadow={shadow.Rows.Count}");
-                    result.Warnings.Add($"  Will check if extra Legacy rows are orphaned (no tblPerson for that academic year)");
-                    // Don't return - continue with comparison to check for orphaned records
+                    result.Warnings.Add($"  Will check if extra Legacy rows have unmapped MothraId (not in VIPER.users.Person)");
+                    // Don't return - continue with comparison to check for unmapped records
                 }
                 else
                 {
@@ -1873,8 +2116,8 @@ namespace Viper.Areas.Effort.Scripts
 
             if (missingInShadow.Any())
             {
-                // Check if this procedure can have orphaned legacy records
-                if (ProceduresWithPotentialOrphanedLegacyRows.Contains(procedureName) && legacyConn != null)
+                // Check if this procedure can have records with unmapped MothraIds
+                if (ProceduresWithPotentialUnmappedLegacyRows.Contains(procedureName) && legacyConn != null)
                 {
                     // For each missing row, check if it's from an orphaned record
                     int orphanedCount = 0;
@@ -2196,22 +2439,11 @@ namespace Viper.Areas.Effort.Scripts
             Console.WriteLine("tblPercent Migration Verification (Top 25 Users)");
             Console.WriteLine("================================================================================");
 
-            // Use shared helper to get academic year SQL expression
-            var academicYearExpr = EffortScriptHelper.GetAcademicYearFromDateSql("p.percent_start");
-
-            // Step 1: Find top 25 people with most non-orphaned records in legacy
-            // IMPORTANT: Only count records that have a corresponding tblPerson entry
-            // (orphaned records are intentionally not migrated per tblPercent-tblPerson-relationship.md)
-            var topUsersQuery = $@"
+            // Step 1: Find top 25 people with most records in legacy
+            var topUsersQuery = @"
                 SELECT TOP 25 p.percent_MothraID, COUNT(*) as cnt
                 FROM tblPercent p
                 WHERE p.percent_start IS NOT NULL
-                  AND EXISTS (
-                    SELECT 1 FROM tblPerson per
-                    INNER JOIN tblStatus stat ON per.person_TermCode = stat.status_TermCode
-                    WHERE per.person_MothraID = p.percent_MothraID
-                      AND stat.status_AcademicYear = {academicYearExpr}
-                )
                 GROUP BY p.percent_MothraID
                 ORDER BY cnt DESC";
 
@@ -2232,12 +2464,11 @@ namespace Viper.Areas.Effort.Scripts
             Console.WriteLine($"Found {topUsers.Count} users with the most percentage records.");
             Console.WriteLine();
 
-            // Step 2: For each user, compare legacy (excluding orphans) vs shadow
+            // Step 2: For each user, compare legacy vs shadow
             foreach (var user in topUsers)
             {
                 Console.Write($"Checking MothraID {user.MothraId} ({user.LegacyCount} records in legacy)... ");
 
-                // Get legacy records (excluding orphans)
                 var legacyRecords = GetLegacyPercentRecords(legacyConnectionString, user.MothraId);
 
                 // Get shadow records
@@ -2325,21 +2556,13 @@ namespace Viper.Areas.Effort.Scripts
         private static List<PercentRecord> GetLegacyPercentRecords(string connectionString, string mothraId)
         {
             var records = new List<PercentRecord>();
-            var academicYearExpr = EffortScriptHelper.GetAcademicYearFromDateSql("p.percent_start");
 
-            // Query legacy records, excluding orphans (records without corresponding tblPerson entry)
-            var query = $@"
+            var query = @"
                 SELECT p.percent_ID, p.percent_TypeID, p.percent_start, p.percent_end,
                        p.percent_Percent, p.percent_Unit, p.percent_Modifier
                 FROM tblPercent p
                 WHERE p.percent_MothraID = @MothraId
                   AND p.percent_start IS NOT NULL
-                  AND EXISTS (
-                    SELECT 1 FROM tblPerson per
-                    INNER JOIN tblStatus stat ON per.person_TermCode = stat.status_TermCode
-                    WHERE per.person_MothraID = p.percent_MothraID
-                      AND stat.status_AcademicYear = {academicYearExpr}
-                )
                 ORDER BY p.percent_start, p.percent_TypeID";
 
             using var conn = new SqlConnection(connectionString);

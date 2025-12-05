@@ -133,9 +133,17 @@ See [QUICK_START.md](QUICK_START.md) for simple command reference.
 **When dry-run succeeds, you can safely execute**:
 
 ```powershell
-# Actually migrate the data
 .\RunMigrateData.bat --apply
 ```
+
+**Important**: The `--apply` flag will:
+
+1. Prompt you to type 'DELETE' to confirm (prevents accidental data loss)
+2. Clear ALL existing data from [effort] schema tables
+3. Reseed all IDENTITY columns to start fresh
+4. Migrate all data from legacy database
+
+This ensures a clean, repeatable migration every time.
 
 ---
 

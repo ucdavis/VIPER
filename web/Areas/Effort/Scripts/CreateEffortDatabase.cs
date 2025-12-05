@@ -836,7 +836,7 @@ BEGIN
     CREATE TABLE [effort].[Percentages] (
         Id int IDENTITY(1,1) NOT NULL,
         PersonId int NOT NULL,
-        TermCode int NOT NULL,
+        AcademicYear char(9) NOT NULL,  -- Format: 'YYYY-YYYY' (e.g., '2019-2020'), derived from StartDate if missing
         Percentage float NOT NULL,  -- Match legacy float(53)
         EffortTypeId int NOT NULL,
         Unit varchar(50) NULL,
@@ -849,7 +849,6 @@ BEGIN
         Compensated bit NOT NULL DEFAULT 0,
         CONSTRAINT PK_Percentages PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT FK_Percentages_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
-        CONSTRAINT FK_Percentages_Persons FOREIGN KEY (PersonId, TermCode) REFERENCES [effort].[Persons](PersonId, TermCode),
         CONSTRAINT FK_Percentages_EffortTypes FOREIGN KEY (EffortTypeId) REFERENCES [effort].[EffortTypes](Id),
         CONSTRAINT FK_Percentages_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
         CONSTRAINT CK_Percentages_Percentage CHECK (Percentage BETWEEN 0 AND 100),
@@ -857,7 +856,9 @@ BEGIN
     );
 
     CREATE NONCLUSTERED INDEX IX_Percentages_PersonId ON [effort].[Percentages](PersonId);
-    CREATE NONCLUSTERED INDEX IX_Percentages_TermCode ON [effort].[Percentages](TermCode);
+    CREATE NONCLUSTERED INDEX IX_Percentages_AcademicYear ON [effort].[Percentages](AcademicYear);
+    CREATE NONCLUSTERED INDEX IX_Percentages_StartDate ON [effort].[Percentages](StartDate);
+    CREATE NONCLUSTERED INDEX IX_Percentages_EndDate ON [effort].[Percentages](EndDate) WHERE EndDate IS NOT NULL;
 END";
             cmd.ExecuteNonQuery();
             Console.WriteLine("  ✓ Percentages table created");

@@ -50,8 +50,10 @@ Reference documentation for the Effort system database schema and field mappings
 
 **tblPercent → [effort].[Percentages]** (Percentage allocations)
 - Normalized from wide format (Teaching, Research, ClinicalService, etc. columns)
-- To narrow format: `PersonId`, `TermCode`, `EffortTypeId` (FK), `Percentage`
+- To narrow format: `PersonId`, `AcademicYear` (char 9, e.g., '2019-2020'), `EffortTypeId` (FK), `Percentage`
+- All records with valid PersonId are migrated (AcademicYear derived from StartDate if missing)
 - Added: `Unit`, `StartDate`, `EndDate`, audit fields
+- Indexed on: PersonId, AcademicYear, StartDate, EndDate
 
 **tblStatus → [effort].[TermStatus]** (Term lifecycle management)
 - `status_id` → `Id` (int IDENTITY)

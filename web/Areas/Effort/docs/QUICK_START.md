@@ -75,9 +75,12 @@ See [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for detailed validation queries.
 .\RunMigrateData.bat --apply
 ```
 
-**What it migrates:**
-- All data from legacy Efforts → [VIPER].[effort]
-- Includes automatic validation of record counts and data quality
+**What it does:**
+
+- Clears all existing data from [effort] tables (with confirmation prompt)
+- Migrates all data from legacy Efforts → [VIPER].[effort]
+- Reseeds IDENTITY columns for consistent IDs
+- Validates record counts and data quality
 - Should report 0% unmapped MothraIds (due to Step 1 remediation)
 
 See [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for detailed validation queries.

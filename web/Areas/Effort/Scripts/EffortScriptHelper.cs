@@ -199,41 +199,6 @@ namespace Viper.Areas.Effort.Scripts
         }
 
         /// <summary>
-        /// Generates all possible TermCodes for an academic year.
-        /// UC Davis SVM uses: 07=Summer II, 08=Summer Quarter, 10=Fall Quarter,
-        /// 01=Winter Quarter, 02=Spring Semester, 03=Spring Quarter, 04=Summer Semester, 05=Summer I, 06=Special.
-        /// Academic year "2002-2003" spans July 2002 - June 2003.
-        /// Use this as a fallback when tblStatus doesn't have an entry for an old academic year.
-        /// </summary>
-        /// <param name="academicYear">Academic year string (e.g., "2002-2003")</param>
-        /// <returns>HashSet of valid TermCodes for that academic year</returns>
-        public static HashSet<int> GetTermCodesForAcademicYear(string academicYear)
-        {
-            var parts = academicYear.Split('-');
-            if (parts.Length != 2
-                || !int.TryParse(parts[0], out int startYear)
-                || !int.TryParse(parts[1], out int endYear))
-            {
-                throw new ArgumentException($"Invalid academic year format: '{academicYear}'. Expected 'YYYY-YYYY'.", nameof(academicYear));
-            }
-
-            // Start year terms: 07 (Summer II), 08 (Summer Quarter), 10 (Fall Quarter)
-            // End year terms: 01 (Winter), 02 (Spring Sem), 03 (Spring Qtr), 04 (Summer Sem), 05 (Summer I), 06 (Special)
-            return new HashSet<int>
-            {
-                startYear * 100 + 7,   // Summer II
-                startYear * 100 + 8,   // Summer Quarter
-                startYear * 100 + 10,  // Fall Quarter
-                endYear * 100 + 1,     // Winter Quarter
-                endYear * 100 + 2,     // Spring Semester
-                endYear * 100 + 3,     // Spring Quarter
-                endYear * 100 + 4,     // Summer Semester
-                endYear * 100 + 5,     // Summer I
-                endYear * 100 + 6      // Special
-            };
-        }
-
-        /// <summary>
         /// Loads configuration from appsettings.json files and AWS Parameter Store.
         /// Falls back gracefully to appsettings.json only if AWS is unavailable.
         /// </summary>

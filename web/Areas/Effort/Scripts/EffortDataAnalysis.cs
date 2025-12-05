@@ -140,19 +140,12 @@ namespace Viper.Areas.Effort.Scripts
         {
             _report.MothraIdIssues = new MothraIdAnalysis();
 
-            // Get all MothraIds from VIPER.users.Person for comparison
-            var viperMothraIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Get all MothraIds from VIPER.users.Person for comparison (reuse shared helper)
+            HashSet<string> viperMothraIds;
             using (var conn = new SqlConnection(_viperConnectionString))
             {
                 conn.Open();
-                using (var cmd = new SqlCommand("SELECT MothraId FROM users.Person WHERE MothraId IS NOT NULL", conn))
-                using (var reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        viperMothraIds.Add(reader.GetString(0));
-                    }
-                }
+                (viperMothraIds, _) = EffortScriptHelper.BuildLoginIdMappings(conn);
             }
 
             Console.WriteLine($"  Found {viperMothraIds.Count} MothraIds in VIPER.users.Person");
@@ -397,11 +390,6 @@ namespace Viper.Areas.Effort.Scripts
                 _report.ReferentialIntegrityIssues.InvalidRoleReferences = invalidRoles;
                 WriteColoredCount("  Effort records with invalid roles", invalidRoles.Count);
 
-                // Check for percentages without valid persons
-                var orphanedPercentages = CheckOrphanedPercentageRecords(conn);
-                _report.ReferentialIntegrityIssues.OrphanedPercentages = orphanedPercentages;
-                WriteColoredCount("  Percentage records with invalid person/term combinations", orphanedPercentages.Count);
-
                 // Check for alternate titles without valid persons
                 var orphanedAltTitles = CheckOrphanedAlternateTitles(conn, viperConn);
                 _report.ReferentialIntegrityIssues.OrphanedAlternateTitles = orphanedAltTitles;
@@ -500,17 +488,8 @@ namespace Viper.Areas.Effort.Scripts
                 ParentTable = "tblPerson → VIPER.users.Person"
             };
 
-            // Build MothraId lookup from VIPER (same pattern as migration script)
-            var viperMothraIds = new HashSet<string>();
-            var viperQuery = "SELECT MothraId FROM [users].[Person] WHERE MothraId IS NOT NULL";
-            using (var cmd = new SqlCommand(viperQuery, viperConn))
-            using (var reader = cmd.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    viperMothraIds.Add(reader.GetString(0));
-                }
-            }
+            // Build MothraId lookup from VIPER (reuse shared helper)
+            (var viperMothraIds, _) = EffortScriptHelper.BuildLoginIdMappings(viperConn);
 
             // Query AlternateTitles and tblPerson from Effort database
             // Check for AlternateTitles where:
@@ -1249,44 +1228,41 @@ namespace Viper.Areas.Effort.Scripts
 
         private void CheckPercentagesWithInvalidReferences(SqlConnection conn)
         {
-            // Migration will fail to map PersonId without matching VIPER record
-            var unmappedPersonQuery = @"
-                SELECT COUNT(*)
-                FROM tblPercent
-                WHERE percent_MothraID NOT IN (SELECT person_MothraID FROM tblPerson WHERE person_MothraID IS NOT NULL)
-                   OR percent_MothraID IS NULL";
-            using (var cmd = new SqlCommand(unmappedPersonQuery, conn))
+            // Migration will fail to map PersonId without matching VIPER.users.Person record
+            // Build lookup from VIPER (reuse shared helper)
+            HashSet<string> viperMothraIds;
+            using (var viperConn = new SqlConnection(_viperConnectionString))
             {
-                int count = (int)cmd.ExecuteScalar();
-                if (count > 0)
+                viperConn.Open();
+                (viperMothraIds, _) = EffortScriptHelper.BuildLoginIdMappings(viperConn);
+            }
+
+            // Count percentage records with MothraIds that don't exist in VIPER
+            int unmappedCount = 0;
+            var query = @"
+                SELECT percent_MothraID, COUNT(*) as cnt
+                FROM tblPercent
+                WHERE percent_start IS NOT NULL
+                GROUP BY percent_MothraID";
+            using (var cmd = new SqlCommand(query, conn))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
                 {
-                    _report.DataQualityIssues.PercentagesWithUnmappedPersons = count;
-                    Console.WriteLine($"  Percentage records with unmapped PersonId: {count}");
+                    string? mothraId = reader.IsDBNull(0) ? null : reader.GetString(0);
+                    int count = reader.GetInt32(1);
+
+                    if (string.IsNullOrEmpty(mothraId) || !viperMothraIds.Contains(mothraId))
+                    {
+                        unmappedCount += count;
+                    }
                 }
             }
 
-            // Foreign key constraint requires person record to exist for ANY term within the academic year
-            // Migration uses ANY term in the range, not just Fall term
-            // Derive academic year from percent_start to handle NULL percent_AcademicYear records
-            var academicYearExpr = EffortScriptHelper.GetAcademicYearFromDateSql("perc.percent_start");
-            var invalidComboQuery = $@"
-                SELECT COUNT(*)
-                FROM tblPercent perc
-                WHERE perc.percent_start IS NOT NULL
-                  AND NOT EXISTS (
-                    SELECT 1 FROM tblPerson pers
-                    INNER JOIN tblStatus stat ON pers.person_TermCode = stat.status_TermCode
-                    WHERE pers.person_MothraID = perc.percent_MothraID
-                      AND stat.status_AcademicYear = {academicYearExpr}
-                )";
-            using (var cmd = new SqlCommand(invalidComboQuery, conn))
+            if (unmappedCount > 0)
             {
-                int count = (int)cmd.ExecuteScalar();
-                if (count > 0)
-                {
-                    _report.DataQualityIssues.PercentagesWithInvalidPersonTermCombos = count;
-                    Console.WriteLine($"  Percentage records with no matching (PersonId, TermCode) - orphaned records: {count}");
-                }
+                _report.DataQualityIssues.PercentagesWithUnmappedPersons = unmappedCount;
+                Console.WriteLine($"  Percentage records with unmapped PersonId: {unmappedCount}");
             }
         }
 
@@ -2023,11 +1999,11 @@ namespace Viper.Areas.Effort.Scripts
             sb.AppendLine("TERMCODE MAPPING ISSUES");
             sb.AppendLine("-----------------------");
 
+            // Note: OrphanedPercentages removed - no longer relevant (FK to effort.Persons removed)
             var orphanedSets = new[] {
                 ("Orphaned Courses", ReferentialIntegrityIssues.OrphanedCourses),
                 ("Effort records with invalid courses", ReferentialIntegrityIssues.OrphanedEffortRecords),
                 ("Effort records with invalid roles", ReferentialIntegrityIssues.InvalidRoleReferences),
-                ("Percentage records with invalid person/term combinations", ReferentialIntegrityIssues.OrphanedPercentages),
                 ("Alternate titles with unmapped or missing persons", ReferentialIntegrityIssues.OrphanedAlternateTitles),
                 ("Courses records with invalid TermCode (not in tblStatus)", ReferentialIntegrityIssues.InvalidCoursesTermCodeReferences),
                 ("Person records with invalid TermCode (not in tblStatus)", ReferentialIntegrityIssues.InvalidPersonsTermCodeReferences),
@@ -2239,16 +2215,6 @@ namespace Viper.Areas.Effort.Scripts
                     hasWarnings = true;
                 }
                 sb.AppendLine($"  Percentage records with unmapped PersonId: {DataQualityIssues.PercentagesWithUnmappedPersons}");
-            }
-
-            if (DataQualityIssues.PercentagesWithInvalidPersonTermCombos > 0)
-            {
-                if (!hasWarnings)
-                {
-                    sb.AppendLine("Warnings (will be skipped during migration):");
-                    hasWarnings = true;
-                }
-                sb.AppendLine($"  Percentage records with invalid (PersonId, TermCode) combination: {DataQualityIssues.PercentagesWithInvalidPersonTermCombos}");
             }
 
             if (DataQualityIssues.RelationshipsWithInvalidCourses > 0)

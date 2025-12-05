@@ -28,7 +28,7 @@
 // USAGE:
 // Dry-run mode (tests migration with rollback):
 //   dotnet script MigrateEffortData.cs
-// Execute mode (commits migration):
+// Execute mode (clears all data, then migrates - requires 'DELETE' confirmation):
 //   dotnet script MigrateEffortData.cs --apply
 // Set environment: $env:ASPNETCORE_ENVIRONMENT="Test" (PowerShell) or set ASPNETCORE_ENVIRONMENT=Test (CMD)
 // ============================================
@@ -36,6 +36,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using Microsoft.Data.SqlClient;
 
@@ -48,6 +49,9 @@ namespace Viper.Areas.Effort.Scripts
             // Check for --apply flag (default: dry-run mode)
             bool executeMode = args.Contains("--apply");
             bool isDryRun = !executeMode;
+
+            // Start timing
+            var stopwatch = Stopwatch.StartNew();
 
             Console.WriteLine("============================================");
             Console.WriteLine("Migrating Data from Efforts to Effort Database");
@@ -64,7 +68,15 @@ namespace Viper.Areas.Effort.Scripts
             }
             else
             {
-                Console.WriteLine("✓ APPLY MODE: Data will be permanently migrated.");
+                Console.WriteLine("⚠ APPLY MODE: All existing effort data will be DELETED and re-migrated.");
+                Console.WriteLine("  This cannot be undone. Type 'DELETE' to confirm:");
+                Console.Write("  > ");
+                string? confirmation = Console.ReadLine();
+                if (!string.Equals(confirmation, "DELETE", StringComparison.Ordinal))
+                {
+                    Console.WriteLine("Migration cancelled.");
+                    return;
+                }
                 Console.WriteLine();
             }
 
@@ -100,6 +112,9 @@ namespace Viper.Areas.Effort.Scripts
                         Console.WriteLine("Transaction started - all changes will be rolled back.");
                         Console.WriteLine();
                     }
+
+                    // Clear all tables before migration (ensures clean slate)
+                    ClearAllTables(viperConnection, transaction);
 
                     Console.WriteLine("============================================");
                     Console.WriteLine("Step 1: Migrate Lookup Tables");
@@ -171,8 +186,10 @@ namespace Viper.Areas.Effort.Scripts
                         Console.WriteLine("  1. Run RunCreateReportingProcedures.bat to create reporting stored procedures");
                         Console.WriteLine("  2. Run RunCreateShadow.bat to create shadow schema for ColdFusion");
                     }
+                    stopwatch.Stop();
                     Console.WriteLine("============================================");
                     Console.WriteLine($"End Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    Console.WriteLine($"Elapsed Time: {stopwatch.Elapsed:hh\\:mm\\:ss\\.fff}");
                     Console.WriteLine("============================================");
                 }
                 catch (Exception ex)
@@ -321,6 +338,56 @@ namespace Viper.Areas.Effort.Scripts
             return true;
         }
 
+        /// <summary>
+        /// Clears all effort schema tables in FK-safe order and reseeds IDENTITY columns.
+        /// Must be called before migration to ensure clean slate.
+        /// </summary>
+        static void ClearAllTables(SqlConnection conn, SqlTransaction tx)
+        {
+            Console.WriteLine("Clearing all effort tables for re-migration...");
+
+            // Clear in reverse FK order (tables with FK dependencies first)
+            var tablesToClear = new[]
+            {
+                "CourseRelationships",
+                "Records",
+                "Audits",
+                "Percentages",
+                "Sabbaticals",
+                "UserAccess",
+                "AlternateTitles",
+                "Persons",
+                "Courses",
+                "ReportUnits",
+                "JobCodes",
+                "Units",
+                "TermStatus",
+                "EffortTypes",
+                "Roles"
+            };
+
+            // Tables without IDENTITY columns (use char/varchar PK or composite PK)
+            var tablesWithoutIdentity = new HashSet<string> { "Roles", "SessionTypes", "TermStatus", "Persons" };
+
+            foreach (var table in tablesToClear)
+            {
+                using var cmd = new SqlCommand($"DELETE FROM [effort].[{table}]", conn, tx);
+                int deleted = cmd.ExecuteNonQuery();
+                Console.WriteLine($"  Cleared {deleted} records from {table}");
+
+                // Reseed IDENTITY column to start fresh (skip tables without IDENTITY)
+                if (!tablesWithoutIdentity.Contains(table))
+                {
+                    using var reseedCmd = new SqlCommand(
+                        $"DBCC CHECKIDENT ('[effort].[{table}]', RESEED, 0)", conn, tx);
+                    reseedCmd.ExecuteNonQuery();
+                }
+            }
+
+            Console.WriteLine("  ✓ All tables cleared and IDENTITY columns reseeded");
+            Console.WriteLine();
+        }
+
         static void MigrateLookupTables(SqlConnection viperConnection, SqlConnection effortConnection, SqlTransaction transaction)
         {
             // NOTE: SessionTypes is seeded during CreateEffortDatabase.cs (no legacy lookup table exists)
@@ -382,12 +449,6 @@ namespace Viper.Areas.Effort.Scripts
             int rows = 0;
             foreach (var item in legacyData)
             {
-                // Check if already exists
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[Roles] WHERE Id = @Id", viperConnection, transaction);
-                checkCmd.Parameters.AddWithValue("@Id", item.Id);
-                int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) continue;
-
                 insertCmd.Parameters["@Id"].Value = item.Id;
                 insertCmd.Parameters["@Description"].Value = item.Description;
                 insertCmd.Parameters["@SortOrder"].Value = item.Id; // Use ID as SortOrder
@@ -434,12 +495,6 @@ namespace Viper.Areas.Effort.Scripts
             int rows = 0;
             foreach (var item in legacyData)
             {
-                // Check if already exists
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[EffortTypes] WHERE Id = @Id", viperConnection, transaction);
-                checkCmd.Parameters.AddWithValue("@Id", item.Id);
-                int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) continue;
-
                 insertCmd.Parameters["@Id"].Value = item.Id;
                 insertCmd.Parameters["@Name"].Value = item.Name;
                 insertCmd.Parameters["@Class"].Value = item.Class;
@@ -490,12 +545,6 @@ namespace Viper.Areas.Effort.Scripts
             int rows = 0;
             foreach (var item in legacyData)
             {
-                // Check if already exists
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[TermStatus] WHERE TermCode = @TermCode", viperConnection, transaction);
-                checkCmd.Parameters.AddWithValue("@TermCode", item.TermCode);
-                int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) continue;
-
                 // Determine status based on dates
                 string status = item.Closed.HasValue ? "Closed" : item.Opened.HasValue ? "Opened" : item.Harvested.HasValue ? "Harvested" : "Created";
                 DateTime createdDate = item.Harvested ?? item.Opened ?? item.Closed ?? DateTime.Now;
@@ -554,12 +603,6 @@ namespace Viper.Areas.Effort.Scripts
             int rows = 0;
             foreach (var item in legacyData)
             {
-                // Check if already exists
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[Units] WHERE Id = @Id", viperConnection, transaction);
-                checkCmd.Parameters.AddWithValue("@Id", item.Id);
-                int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) continue;
-
                 insertCmd.Parameters["@Id"].Value = item.Id;
                 insertCmd.Parameters["@Code"].Value = item.Id.ToString(); // Legacy doesn't have Code, use ID
                 insertCmd.Parameters["@Name"].Value = item.Name;
@@ -603,12 +646,6 @@ namespace Viper.Areas.Effort.Scripts
             int rows = 0;
             foreach (var (code, includeClinSchedule) in legacyData)
             {
-                // Check if already exists
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[JobCodes] WHERE Code = @Code", viperConnection, transaction);
-                checkCmd.Parameters.AddWithValue("@Code", code);
-                int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) continue;
-
                 insertCmd.Parameters["@Code"].Value = code;
                 insertCmd.Parameters["@IncludeClinSchedule"].Value = includeClinSchedule;
                 insertCmd.ExecuteNonQuery();
@@ -638,18 +675,7 @@ namespace Viper.Areas.Effort.Scripts
                 }
             }
 
-            // Step 2: Clear existing ReportUnits to allow re-migration with correct IDs
-            // (ReportUnits is a lookup table with no foreign key dependencies)
-            using (var deleteCmd = new SqlCommand("DELETE FROM [effort].[ReportUnits]", viperConnection, transaction))
-            {
-                int deleted = deleteCmd.ExecuteNonQuery();
-                if (deleted > 0)
-                {
-                    Console.WriteLine($"  ℹ Cleared {deleted} existing report units for re-migration");
-                }
-            }
-
-            // Step 3: Enable IDENTITY_INSERT to preserve legacy IDs
+            // Step 2: Enable IDENTITY_INSERT to preserve legacy IDs
             using (var identityOnCmd = new SqlCommand("SET IDENTITY_INSERT [effort].[ReportUnits] ON", viperConnection, transaction))
             {
                 identityOnCmd.ExecuteNonQuery();
@@ -740,13 +766,6 @@ namespace Viper.Areas.Effort.Scripts
                     continue;
                 }
 
-                // Check if already exists
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[AlternateTitles] WHERE PersonId = @PersonId AND AlternateTitle = @AlternateTitle", viperConnection, transaction);
-                checkCmd.Parameters.AddWithValue("@PersonId", personId);
-                checkCmd.Parameters.AddWithValue("@AlternateTitle", item.JobGrpName);
-                int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) continue;
-
                 insertCmd.Parameters["@PersonId"].Value = personId;
                 insertCmd.Parameters["@AlternateTitle"].Value = item.JobGrpName;  // JobGrpName is the title
                 insertCmd.Parameters["@EffectiveDate"].Value = DateTime.Now; // Legacy doesn't track effective date
@@ -792,6 +811,7 @@ namespace Viper.Areas.Effort.Scripts
         static void MigratePersons(SqlConnection viperConnection, SqlConnection effortConnection, SqlTransaction transaction)
         {
             Console.WriteLine("Migrating Persons (with MothraId → PersonId mapping)...");
+            var stopwatch = Stopwatch.StartNew();
 
             // Step 1: Build MothraId → PersonId lookup from VIPER
             var mothraIdMap = EffortScriptHelper.BuildMothraIdToPersonIdMap(viperConnection, transaction);
@@ -854,7 +874,7 @@ namespace Viper.Areas.Effort.Scripts
             int totalRecords = legacyData.Count;
             foreach (var item in legacyData)
             {
-                EffortScriptHelper.ShowProgress(processed, totalRecords, 5000, "persons");
+                EffortScriptHelper.ShowProgress(processed, totalRecords, 10000, "persons");
                 processed++;
 
                 // Map MothraId to PersonId (skip if not found to satisfy FK constraint)
@@ -870,13 +890,6 @@ namespace Viper.Areas.Effort.Scripts
                     skipped++;
                     continue;
                 }
-
-                // Check if already exists
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[Persons] WHERE PersonId = @PersonId AND TermCode = @TermCode", viperConnection, transaction);
-                checkCmd.Parameters.AddWithValue("@PersonId", personId);
-                checkCmd.Parameters.AddWithValue("@TermCode", item.TermCode);
-                int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) continue;
 
                 insertCmd.Parameters["@PersonId"].Value = personId;
                 insertCmd.Parameters["@TermCode"].Value = item.TermCode;
@@ -898,7 +911,8 @@ namespace Viper.Areas.Effort.Scripts
                 rows++;
             }
 
-            Console.WriteLine($"  ✓ Migrated {rows} persons");
+            stopwatch.Stop();
+            Console.WriteLine($"  ✓ Migrated {rows} persons ({stopwatch.Elapsed:mm\\:ss\\.fff})");
             if (skipped > 0)
             {
                 Console.WriteLine($"  ⚠ Skipped {skipped} person records with unmapped MothraId (violates FK constraint)");
@@ -960,12 +974,6 @@ namespace Viper.Areas.Effort.Scripts
                     continue;
                 }
 
-                // Check if already exists
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[Courses] WHERE Id = @Id", viperConnection, transaction);
-                checkCmd.Parameters.AddWithValue("@Id", item.Id);
-                int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) continue;
-
                 insertCmd.Parameters["@Id"].Value = item.Id;
                 insertCmd.Parameters["@Crn"].Value = item.Crn;
                 insertCmd.Parameters["@TermCode"].Value = item.TermCode;
@@ -980,8 +988,7 @@ namespace Viper.Areas.Effort.Scripts
                 rows++;
             }
 
-            int existing = legacyData.Count - rows - skipped;
-            Console.WriteLine($"  ✓ Migrated {rows} courses ({existing} already existed)");
+            Console.WriteLine($"  ✓ Migrated {rows} courses");
             if (skipped > 0)
             {
                 Console.WriteLine($"  ⚠ Skipped {skipped} courses with Units < 0 (violates CHECK constraint)");
@@ -991,6 +998,7 @@ namespace Viper.Areas.Effort.Scripts
         static void MigrateRecords(SqlConnection viperConnection, SqlConnection effortConnection, SqlTransaction transaction)
         {
             Console.WriteLine("Migrating Records (effort records with MothraId → PersonId mapping)...");
+            var stopwatch = Stopwatch.StartNew();
 
             // Step 1: Build MothraId → PersonId lookup from VIPER
             var mothraIdMap = EffortScriptHelper.BuildMothraIdToPersonIdMap(viperConnection, transaction);
@@ -1069,7 +1077,7 @@ namespace Viper.Areas.Effort.Scripts
             int totalRecords = legacyData.Count;
             foreach (var item in legacyData)
             {
-                EffortScriptHelper.ShowProgress(processed, totalRecords, 5000, "effort records");
+                EffortScriptHelper.ShowProgress(processed, totalRecords, 10000, "effort records");
                 processed++;
 
                 // Skip records with invalid CourseId (FK constraint requires CourseId exists in Courses table)
@@ -1108,12 +1116,6 @@ namespace Viper.Areas.Effort.Scripts
                     continue;
                 }
 
-                // Check if already exists
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[Records] WHERE Id = @Id", viperConnection, transaction);
-                checkCmd.Parameters.AddWithValue("@Id", item.Id);
-                int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) continue;
-
                 insertCmd.Parameters["@Id"].Value = item.Id;
                 insertCmd.Parameters["@CourseId"].Value = item.CourseId;  // NOT NULL in legacy schema
                 insertCmd.Parameters["@PersonId"].Value = personId;
@@ -1130,7 +1132,8 @@ namespace Viper.Areas.Effort.Scripts
                 rows++;
             }
 
-            Console.WriteLine($"  ✓ Migrated {rows} effort records");
+            stopwatch.Stop();
+            Console.WriteLine($"  ✓ Migrated {rows} effort records ({stopwatch.Elapsed:mm\\:ss\\.fff})");
             if (skipped > 0)
             {
                 Console.WriteLine($"  ⚠ Skipped {skipped} records with invalid CourseId, unmapped PersonId, Hours, or Weeks (violates FK/CHECK constraints)");
@@ -1139,64 +1142,14 @@ namespace Viper.Areas.Effort.Scripts
 
         static void MigratePercentages(SqlConnection viperConnection, SqlConnection effortConnection, SqlTransaction transaction)
         {
-            Console.WriteLine("Migrating Percentages (with MothraId → PersonId mapping, preserving legacy IDs)...");
-
-            // Clear existing data to allow re-running migration (idempotent)
-            using (var clearCmd = new SqlCommand("DELETE FROM [effort].[Percentages]", viperConnection, transaction))
-            {
-                int cleared = clearCmd.ExecuteNonQuery();
-                if (cleared > 0)
-                {
-                    Console.WriteLine($"  ℹ Cleared {cleared} existing records from effort.Percentages");
-                }
-            }
+            Console.WriteLine("Migrating Percentages (all records with MothraId → PersonId mapping, preserving legacy IDs)...");
+            var stopwatch = Stopwatch.StartNew();
 
             // Step 1: Build MothraId → PersonId lookup from VIPER
             var mothraIdMap = EffortScriptHelper.BuildMothraIdToPersonIdMap(viperConnection, transaction);
 
-            // Step 1a: Build AcademicYear -> TermCodes mapping from Legacy tblStatus
-            // Use Legacy's exact TermCode mappings to ensure we match their AcademicYear assignments
-            var academicYearTermCodes = new Dictionary<string, HashSet<int>>();
-            using (var cmd = new SqlCommand(@"
-            SELECT status_TermCode, status_AcademicYear
-            FROM [dbo].[tblStatus]
-            WHERE status_AcademicYear IS NOT NULL
-            ORDER BY status_TermCode", effortConnection))
-            using (var reader = cmd.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    int termCode = reader.GetInt32(0);
-                    string academicYear = reader.GetString(1);
-
-                    if (!academicYearTermCodes.ContainsKey(academicYear))
-                        academicYearTermCodes[academicYear] = new HashSet<int>();
-
-                    academicYearTermCodes[academicYear].Add(termCode);
-                }
-            }
-
-            // Step 1b: Build lookup of valid TermCodes per PersonId from migrated Persons table
-            // Percentages FK references effort.Persons on composite key (PersonId, TermCode)
-            var personTermCodes = new Dictionary<int, List<int>>();
-            using (var cmd = new SqlCommand("SELECT PersonId, TermCode FROM [effort].[Persons]", viperConnection, transaction))
-            using (var reader = cmd.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    int personId = reader.GetInt32(0);
-                    int termCode = reader.GetInt32(1);
-                    if (!personTermCodes.TryGetValue(personId, out var terms))
-                    {
-                        terms = new List<int>();
-                        personTermCodes[personId] = terms;
-                    }
-                    terms.Add(termCode);
-                }
-            }
-
-            // Step 2: Read from legacy database - include ALL records (no NULL filter on percent_AcademicYear)
-            // We derive academic year from percent_start using EffortScriptHelper.GetAcademicYearFromDate()
+            // Step 2: Read ALL records from legacy database
+            // AcademicYear is derived from StartDate if missing (no longer tied to term snapshots)
             var legacyData = new List<(int Id, string MothraId, string? AcademicYear, int TypeId, decimal? Percentage, string? Unit, string? Modifier, string? Comment, DateTime StartDate, DateTime? EndDate, bool Compensated)>();
             using (var cmd = new SqlCommand(@"
             SELECT percent_ID, percent_MothraID, percent_AcademicYear, percent_TypeID, percent_Percent,
@@ -1232,19 +1185,19 @@ namespace Viper.Areas.Effort.Scripts
 
             int rows = 0;
             int skippedNoPersonId = 0;
-            int skippedNoTermCode = 0;
 
             try
             {
                 // Step 4: Write to VIPER with transaction - include Id column for 1:1 mapping
+                // Note: No TermCode - Percentages now use AcademicYear directly
                 using var insertCmd = new SqlCommand(@"
-                INSERT INTO [effort].[Percentages] (Id, PersonId, TermCode, EffortTypeId, Percentage, Unit, Modifier, Comment, StartDate, EndDate, ModifiedDate, ModifiedBy, Compensated)
-                VALUES (@Id, @PersonId, @TermCode, @EffortTypeId, @Percentage, @Unit, @Modifier, @Comment, @StartDate, @EndDate, @ModifiedDate, @ModifiedBy, @Compensated)",
+                INSERT INTO [effort].[Percentages] (Id, PersonId, AcademicYear, EffortTypeId, Percentage, Unit, Modifier, Comment, StartDate, EndDate, ModifiedDate, ModifiedBy, Compensated)
+                VALUES (@Id, @PersonId, @AcademicYear, @EffortTypeId, @Percentage, @Unit, @Modifier, @Comment, @StartDate, @EndDate, @ModifiedDate, @ModifiedBy, @Compensated)",
                     viperConnection, transaction);
 
                 insertCmd.Parameters.Add("@Id", SqlDbType.Int);
                 insertCmd.Parameters.Add("@PersonId", SqlDbType.Int);
-                insertCmd.Parameters.Add("@TermCode", SqlDbType.Int);
+                insertCmd.Parameters.Add("@AcademicYear", SqlDbType.Char, 9);
                 insertCmd.Parameters.Add("@EffortTypeId", SqlDbType.Int);
                 insertCmd.Parameters.Add("@Percentage", SqlDbType.Decimal);
                 insertCmd.Parameters.Add("@Unit", SqlDbType.NVarChar, 50);
@@ -1272,50 +1225,14 @@ namespace Viper.Areas.Effort.Scripts
                         continue;
                     }
 
-                    // Derive academic year: use stored value if available in tblStatus lookup,
-                    // otherwise derive from StartDate (handles NULL or malformed percent_AcademicYear)
+                    // Derive academic year: use stored value if valid, otherwise derive from StartDate
                     string academicYear = item.AcademicYear ?? EffortScriptHelper.GetAcademicYearFromDate(item.StartDate);
-
-                    // Find ANY TermCode for this person within the academic year
-                    // Use Legacy tblStatus mappings to get the exact TermCodes for this AcademicYear
-                    int termCode = 0;
-                    HashSet<int> validTermCodes;
-
-                    if (academicYearTermCodes.TryGetValue(academicYear, out var statusTermCodes))
-                    {
-                        // Use TermCodes from tblStatus (normal case)
-                        validTermCodes = statusTermCodes;
-                    }
-                    else
-                    {
-                        // Fallback: tblStatus doesn't have this academic year (old years like 2002-2003)
-                        // or stored value is malformed. Derive from StartDate which always produces valid format.
-                        var derivedYear = EffortScriptHelper.GetAcademicYearFromDate(item.StartDate);
-                        validTermCodes = EffortScriptHelper.GetTermCodesForAcademicYear(derivedYear);
-                    }
-
-                    // Find the first matching term for this person within the academic year
-                    if (personTermCodes.TryGetValue(personId, out var personTerms))
-                    {
-                        termCode = personTerms
-                            .Where(tc => validTermCodes.Contains(tc))
-                            .OrderBy(tc => tc)  // Prefer earlier terms in the academic year
-                            .FirstOrDefault();
-                    }
-
-                    // Skip if person has no terms in this academic year (orphaned/invisible in legacy UI)
-                    // Per tblPercent-tblPerson-relationship.md: tblPerson acts as gatekeeper
-                    if (termCode == 0)
-                    {
-                        skippedNoTermCode++;
-                        continue;
-                    }
 
                     // No dedup check needed - using 1:1 ID mapping with percent_ID preserves uniqueness
 
                     insertCmd.Parameters["@Id"].Value = item.Id;
                     insertCmd.Parameters["@PersonId"].Value = personId;
-                    insertCmd.Parameters["@TermCode"].Value = termCode;
+                    insertCmd.Parameters["@AcademicYear"].Value = academicYear;
                     insertCmd.Parameters["@EffortTypeId"].Value = item.TypeId;
                     insertCmd.Parameters["@Percentage"].Value = (object?)item.Percentage ?? DBNull.Value;
                     insertCmd.Parameters["@Unit"].Value = (object?)item.Unit ?? DBNull.Value;
@@ -1339,15 +1256,11 @@ namespace Viper.Areas.Effort.Scripts
                 identityOffCmd.ExecuteNonQuery();
             }
 
-            Console.WriteLine($"  ✓ Migrated {rows} percentage records (all effort types, 1:1 ID mapping)");
-            int totalSkipped = skippedNoPersonId + skippedNoTermCode;
-            if (totalSkipped > 0)
+            stopwatch.Stop();
+            Console.WriteLine($"  ✓ Migrated {rows} percentage records ({stopwatch.Elapsed:mm\\:ss\\.fff})");
+            if (skippedNoPersonId > 0)
             {
-                Console.WriteLine($"  ⚠ Skipped {totalSkipped} percentage records:");
-                if (skippedNoPersonId > 0)
-                    Console.WriteLine($"     - {skippedNoPersonId} with unmapped PersonId (MothraId not in VIPER.users.Person)");
-                if (skippedNoTermCode > 0)
-                    Console.WriteLine($"     - {skippedNoTermCode} with no matching (PersonId, TermCode) in effort.Persons (orphaned records)");
+                Console.WriteLine($"  ⚠ Skipped {skippedNoPersonId} percentage records with unmapped PersonId (MothraId not in VIPER.users.Person)");
             }
             Console.WriteLine($"     Mapped legacy percent_TypeID to EffortTypeId (migrated from tblEffortType_LU)");
         }
@@ -1405,12 +1318,6 @@ namespace Viper.Areas.Effort.Scripts
                     skipped++;
                     continue;
                 }
-
-                // Check if already exists
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[Sabbaticals] WHERE PersonId = @PersonId", viperConnection, transaction);
-                checkCmd.Parameters.AddWithValue("@PersonId", personId);
-                int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) continue;
 
                 insertCmd.Parameters["@PersonId"].Value = personId;
                 insertCmd.Parameters["@ExcludeClinicalTerms"].Value = (object?)item.ClinicalTerms ?? DBNull.Value;
@@ -1483,12 +1390,6 @@ namespace Viper.Areas.Effort.Scripts
                     continue;
                 }
 
-                // Check if already exists
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[UserAccess] WHERE Id = @Id", viperConnection, transaction);
-                checkCmd.Parameters.AddWithValue("@Id", item.Id);
-                int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) continue;
-
                 insertCmd.Parameters["@Id"].Value = item.Id;
                 insertCmd.Parameters["@PersonId"].Value = personId;
                 insertCmd.Parameters["@DepartmentCode"].Value = item.DepartmentCode;
@@ -1510,17 +1411,7 @@ namespace Viper.Areas.Effort.Scripts
         static void MigrateAuditLog(SqlConnection viperConnection, SqlConnection effortConnection, SqlTransaction transaction)
         {
             Console.WriteLine("Migrating Audits (with legacy preservation columns for 1:1 verification)...");
-
-            // Step 0: Clear existing Audits to allow re-migration with correct ChangedBy mappings
-            // (This is safe because Audits is a log table with no foreign key dependencies)
-            using (var deleteCmd = new SqlCommand("DELETE FROM [effort].[Audits]", viperConnection, transaction))
-            {
-                int deleted = deleteCmd.ExecuteNonQuery();
-                if (deleted > 0)
-                {
-                    Console.WriteLine($"  ℹ Cleared {deleted} existing audit records for re-migration");
-                }
-            }
+            var stopwatch = Stopwatch.StartNew();
 
             // Step 1: Build MothraId → PersonId lookup from VIPER
             var mothraIdMap = EffortScriptHelper.BuildMothraIdToPersonIdMap(viperConnection, transaction);
@@ -1588,12 +1479,6 @@ namespace Viper.Areas.Effort.Scripts
                     changedBy = mappedId;
                 }
 
-                // Check if already exists
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[Audits] WHERE Id = @Id", viperConnection, transaction);
-                checkCmd.Parameters.AddWithValue("@Id", item.Id);
-                int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) { rows++; continue; }
-
                 // Derive TableName and RecordId from audit_Action and context
                 string tableName = "Unknown";
                 int recordId = 0;
@@ -1636,7 +1521,8 @@ namespace Viper.Areas.Effort.Scripts
                 rows++;
             }
 
-            Console.WriteLine($"  ✓ Migrated {rows} audit records");
+            stopwatch.Stop();
+            Console.WriteLine($"  ✓ Migrated {rows} audit records ({stopwatch.Elapsed:mm\\:ss\\.fff})");
 
             // Check for unmapped ChangedBy (migrated records have MigratedDate set)
             string checkSql = "SELECT COUNT(*) FROM [effort].[Audits] WHERE ChangedBy = 1 AND MigratedDate IS NOT NULL";
@@ -1701,13 +1587,6 @@ namespace Viper.Areas.Effort.Scripts
             int skippedFk = 0;
             foreach (var item in legacyData)
             {
-                // Check if already exists (by parent/child pair)
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM [effort].[CourseRelationships] WHERE ParentCourseId = @ParentCourseId AND ChildCourseId = @ChildCourseId", viperConnection, transaction);
-                checkCmd.Parameters.AddWithValue("@ParentCourseId", item.ParentCourseId);
-                checkCmd.Parameters.AddWithValue("@ChildCourseId", item.ChildCourseId);
-                int exists = (int)checkCmd.ExecuteScalar();
-                if (exists > 0) continue;
-
                 // Skip relationships with invalid course IDs (FK constraint requires both IDs exist in effort.Courses)
                 if (!validCourseIds.Contains(item.ParentCourseId) || !validCourseIds.Contains(item.ChildCourseId))
                 {

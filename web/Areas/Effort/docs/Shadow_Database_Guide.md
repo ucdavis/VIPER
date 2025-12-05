@@ -110,7 +110,6 @@ Some views include **internal columns** that are not in legacy tables but are re
 | View | Internal Column | Purpose |
 |------|-----------------|---------|
 | **tblPercent** | `percent_PersonId_Internal` | Allows trigger to use PersonId directly |
-| **tblPercent** | `percent_TermCode_Internal` | Allows trigger to use TermCode directly |
 | **tblAudit** | `audit_TableName` | Maps action to table for modern schema |
 | **tblAudit** | `audit_RecordID` | Record ID for audit trail |
 | **tblAudit** | `audit_ChangedBy_PersonId` | PersonId of modifier |

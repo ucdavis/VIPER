@@ -865,7 +865,7 @@ namespace Viper.Areas.Effort.Scripts
             ps.Title as person_Title,
             ps.AdminUnit as person_AdminUnit,
             p.ClientId as person_ClientID,
-            ps.EffortVerified as person_EffortVerified,
+            CAST(ps.EffortVerified AS datetime) as person_EffortVerified,
             ps.ReportUnit as person_ReportUnit,
             ps.VolunteerWos as person_Volunteer_WOS,
             ps.PercentClinical as person_PercentClinical
@@ -1106,36 +1106,20 @@ namespace Viper.Areas.Effort.Scripts
         SELECT
             pct.Id as percent_ID,
             p.MothraId as percent_MothraID,
-            -- Calculate academic year from TermCode via Terms table lookup
-            -- Legacy system used tblStatus to map TermCode -> AcademicYear
-            -- Academic year format is 'YYYY-YYYY' (e.g., '2019-2020')
-            -- NOTE: vwTerms.AcademicYear contains the ENDING year of the academic year
-            --       So AcademicYear=2020 means '2019-2020', not '2020-2021'
-            -- For records without TermCode, fall back to StartDate calculation
-            CASE
-                WHEN t.AcademicYear IS NOT NULL THEN
-                    CAST(t.AcademicYear - 1 AS varchar(4)) + '-' + CAST(t.AcademicYear AS varchar(4))
-                WHEN pct.StartDate IS NULL THEN NULL
-                WHEN MONTH(pct.StartDate) >= 7 THEN
-                    CAST(YEAR(pct.StartDate) AS varchar(4)) + '-' + CAST(YEAR(pct.StartDate) + 1 AS varchar(4))
-                ELSE
-                    CAST(YEAR(pct.StartDate) - 1 AS varchar(4)) + '-' + CAST(YEAR(pct.StartDate) AS varchar(4))
-            END as percent_AcademicYear,
+            pct.AcademicYear as percent_AcademicYear,
             CAST(pct.Percentage AS FLOAT) as percent_Percent,
             pct.EffortTypeId as percent_TypeID,
             pct.Unit as percent_Unit,
             pct.Modifier as percent_Modifier,
             pct.Comment as percent_Comment,
-            pct.ModifiedDate as percent_modifiedOn,
+            CAST(pct.ModifiedDate AS datetime) as percent_modifiedOn,
             COALESCE(mp.MailId, 'unknown') as percent_modifiedBy,
-            pct.StartDate as percent_start,
-            pct.EndDate as percent_end,
+            CAST(pct.StartDate AS datetime) as percent_start,
+            CAST(pct.EndDate AS datetime) as percent_end,
             pct.Compensated as percent_compensated,
-            pct.PersonId as percent_PersonId_Internal,  -- Internal use only
-            pct.TermCode as percent_TermCode_Internal   -- Internal use only
+            pct.PersonId as percent_PersonId_Internal  -- Internal use only
         FROM [effort].[Percentages] pct
         INNER JOIN [users].[Person] p ON pct.PersonId = p.PersonId
-        LEFT JOIN [dbo].[vwTerms] t ON pct.TermCode = t.TermCode
         LEFT JOIN [users].[Person] mp ON pct.ModifiedBy = mp.PersonId;";
 
             using var cmd = new SqlCommand(sql, connection, transaction);
@@ -1152,19 +1136,20 @@ namespace Viper.Areas.Effort.Scripts
         {
             Console.WriteLine("  Creating INSTEAD OF INSERT trigger for tblPercent...");
 
+            // Note: SET NOCOUNT OFF so ColdFusion receives the SELECT result
+            // ColdFusion expects: SELECT @@IDENTITY AS [id] after INSERT
+            // With INSTEAD OF trigger, we must explicitly SELECT SCOPE_IDENTITY() AS [id]
             string sql = @"
         CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblPercent_Insert]
         ON [EffortShadow].[tblPercent]
         INSTEAD OF INSERT
         AS
         BEGIN
-            SET NOCOUNT ON;
+            SET NOCOUNT OFF;
 
-            -- Parse academic year (e.g., '2023-2024') to get the ending year
-            -- The academic year string is in format 'YYYY-YYYY' where second year is the AcademicYear value
             INSERT INTO [effort].[Percentages] (
                 PersonId,
-                TermCode,
+                AcademicYear,
                 Percentage,
                 EffortTypeId,
                 Unit,
@@ -1178,12 +1163,16 @@ namespace Viper.Areas.Effort.Scripts
             )
             SELECT
                 p.PersonId,
-                -- Get TermCode: Use the internal column if provided, otherwise derive from academic year
+                -- Use provided academic year, or derive from start date
                 COALESCE(
-                    i.percent_TermCode_Internal,
-                    (SELECT TOP 1 TermCode FROM [dbo].[vwTerms]
-                     WHERE AcademicYear = CAST(RIGHT(i.percent_AcademicYear, 4) AS int)
-                     ORDER BY TermCode)
+                    i.percent_AcademicYear,
+                    -- Derive from start date: July+ = YYYY-YYYY+1, Jan-June = YYYY-1-YYYY
+                    CASE
+                        WHEN MONTH(i.percent_start) >= 7 THEN
+                            CAST(YEAR(i.percent_start) AS char(4)) + '-' + CAST(YEAR(i.percent_start) + 1 AS char(4))
+                        ELSE
+                            CAST(YEAR(i.percent_start) - 1 AS char(4)) + '-' + CAST(YEAR(i.percent_start) AS char(4))
+                    END
                 ),
                 i.percent_Percent,
                 i.percent_TypeID,
@@ -1200,6 +1189,9 @@ namespace Viper.Areas.Effort.Scripts
             FROM inserted i
             INNER JOIN [users].[Person] p ON i.percent_MothraID = p.MothraId
             LEFT JOIN [users].[Person] mp ON i.percent_modifiedBy = mp.MailId;
+
+            -- Return the new ID for ColdFusion (replaces @@IDENTITY behavior)
+            SELECT SCOPE_IDENTITY() AS [id];
         END;";
 
             using var cmd = new SqlCommand(sql, connection, transaction);
@@ -1220,8 +1212,18 @@ namespace Viper.Areas.Effort.Scripts
             SET NOCOUNT ON;
 
             -- Update the Percentages table (only non-derived columns)
+            -- Note: AcademicYear can be updated via percent_AcademicYear or derived from new start date
             UPDATE pct
             SET
+                pct.AcademicYear = COALESCE(
+                    i.percent_AcademicYear,
+                    CASE
+                        WHEN MONTH(i.percent_start) >= 7 THEN
+                            CAST(YEAR(i.percent_start) AS char(4)) + '-' + CAST(YEAR(i.percent_start) + 1 AS char(4))
+                        ELSE
+                            CAST(YEAR(i.percent_start) - 1 AS char(4)) + '-' + CAST(YEAR(i.percent_start) AS char(4))
+                    END
+                ),
                 pct.Percentage = i.percent_Percent,
                 pct.EffortTypeId = i.percent_TypeID,
                 pct.Unit = i.percent_Unit,
@@ -1279,9 +1281,9 @@ namespace Viper.Areas.Effort.Scripts
         AS
         SELECT
             ts.TermCode as status_TermCode,
-            ts.HarvestedDate as status_Harvested,
-            ts.OpenedDate as status_Opened,
-            ts.ClosedDate as status_Closed,
+            CAST(ts.HarvestedDate AS datetime) as status_Harvested,
+            CAST(ts.OpenedDate AS datetime) as status_Opened,
+            CAST(ts.ClosedDate AS datetime) as status_Closed,
             ISNULL(t.Description,
                 CASE
                     WHEN ts.TermCode % 100 IN (1, 2, 3, 4) THEN 'Winter/Spring ' + CAST(ts.TermCode / 100 AS varchar(4))
@@ -1304,6 +1306,36 @@ namespace Viper.Areas.Effort.Scripts
             using var cmd = new SqlCommand(sql, connection, transaction);
             cmd.ExecuteNonQuery();
             Console.WriteLine("  ✓ View created");
+
+            // Create INSTEAD OF UPDATE trigger for tblStatus
+            // Required because the view has derived columns (status_TermName, status_AcademicYear)
+            CreateTblStatusUpdateTrigger(connection, transaction);
+        }
+
+        static void CreateTblStatusUpdateTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF UPDATE trigger for tblStatus...");
+
+            string sql = @"
+        CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblStatus_Update]
+        ON [EffortShadow].[tblStatus]
+        INSTEAD OF UPDATE
+        AS
+        BEGIN
+            SET NOCOUNT ON;
+
+            UPDATE ts
+            SET
+                ts.HarvestedDate = i.status_Harvested,
+                ts.OpenedDate = i.status_Opened,
+                ts.ClosedDate = i.status_Closed
+            FROM [effort].[TermStatus] ts
+            INNER JOIN inserted i ON ts.TermCode = i.status_TermCode;
+        END;";
+
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF UPDATE trigger created");
         }
 
         static void CreateTblSabbaticView(SqlConnection connection, SqlTransaction transaction)
@@ -1564,7 +1596,7 @@ namespace Viper.Areas.Effort.Scripts
         SELECT
             a.Id as audit_ID,
             pModBy.MothraId as audit_ModBy,  -- MothraId of person making change (for INSERT)
-            a.ChangedDate as audit_ModTime,  -- Timestamp of change
+            CAST(a.ChangedDate AS datetime) as audit_ModTime,
             a.LegacyCRN as audit_CRN,  -- Preserved from legacy audit_CRN
             a.LegacyTermCode as audit_TermCode,  -- Preserved from legacy audit_TermCode
             COALESCE(a.LegacyMothraID, pSubject.MothraId) as audit_MothraID,  -- Preserved or derived
