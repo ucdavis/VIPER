@@ -61,6 +61,9 @@ export default [
             "vue/no-v-html": "error", // Prevents XSS via v-html
             "vue/no-v-text-v-html-on-component": "error", // Component XSS protection
 
+            // Code quality
+            "eqeqeq": "warn",
+
             // CRITICAL RULES - WCAG 2.1 Level A (Required for AA compliance):
             "vuejs-accessibility/alt-text": "error", // WCAG 1.1.1 Non-text Content (A)
             "vuejs-accessibility/anchor-has-content": "error", // WCAG 2.4.4 Link Purpose (A)

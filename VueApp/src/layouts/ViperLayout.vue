@@ -145,14 +145,10 @@
                 <ProfilePic></ProfilePic>
             </q-toolbar>
 
-            <MainNav
-                v-if="userStore.isLoggedIn"
-                :highlighted-top-nav="highlightedTopNav"
-            ></MainNav>
+            <MainNav :highlighted-top-nav="highlightedTopNav"></MainNav>
         </q-header>
 
         <LeftNav
-            v-if="userStore.isLoggedIn"
             :nav="nav"
             :navarea="navarea"
             :main-left-drawer="mainLeftDrawer"
@@ -166,6 +162,32 @@
                 v-show="userStore.isLoggedIn"
             >
                 <router-view></router-view>
+            </div>
+            <div
+                v-show="!userStore.isLoggedIn"
+                class="q-pa-xl flex flex-center"
+                v-cloak
+            >
+                <q-card
+                    class="text-center"
+                    style="max-width: 400px"
+                >
+                    <q-card-section>
+                        <div class="text-h6">Welcome to VIPER</div>
+                        <div class="text-body1 q-mt-sm text-grey-7">Please log in to access this application.</div>
+                    </q-card-section>
+                    <q-card-actions
+                        align="center"
+                        class="q-pb-md"
+                    >
+                        <q-btn
+                            color="primary"
+                            label="Log In"
+                            :href="loginHref"
+                            no-caps
+                        />
+                    </q-card-actions>
+                </q-card>
             </div>
         </q-page-container>
 
@@ -231,6 +253,7 @@
 import { ref } from "vue"
 import type { PropType } from "vue"
 import { useUserStore } from "@/store/UserStore"
+import { getLoginUrl } from "@/composables/RequireLogin"
 import LeftNav from "@/layouts/LeftNav.vue"
 import MainNav from "@/layouts/MainNav.vue"
 import MiniNav from "@/layouts/MiniNav.vue"
@@ -247,10 +270,17 @@ export default {
     setup() {
         const userStore = useUserStore()
         const mainLeftDrawer = ref(false)
-        return { userStore, mainLeftDrawer }
+        const clearEmulationHref = import.meta.env.VITE_VIPER_HOME + "ClearEmulation"
+        const environment = import.meta.env.VITE_ENVIRONMENT
+        const viperHome = import.meta.env.VITE_VIPER_HOME
+        const loginHref = getLoginUrl()
+        return { userStore, mainLeftDrawer, clearEmulationHref, environment, viperHome, loginHref }
     },
     props: {
-        nav: String,
+        nav: {
+            type: String,
+            default: "",
+        },
         navarea: Boolean,
         highlightedTopNav: {
             type: String,
@@ -272,9 +302,6 @@ export default {
         return {
             topNav: [],
             leftNav: [],
-            clearEmulationHref: ref(import.meta.env.VITE_VIPER_HOME + "ClearEmulation"),
-            environment: ref(import.meta.env.VITE_ENVIRONMENT),
-            viperHome: ref(import.meta.env.VITE_VIPER_HOME),
         }
     },
     methods: {
