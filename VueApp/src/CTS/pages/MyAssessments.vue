@@ -38,7 +38,7 @@
         const params = route.query
         if (params.student != null) {
             let result = await get(apiUrl + "cts/permissions?access=ViewStudentAssessments&studentId=" + params.student)
-            let canAccess = result.result
+            let canAccess = result.result.hasAccess
             const studentParam = parseInt(params.student.toString())
             if (studentParam != undefined && canAccess) {
                 studentUserId = studentParam
@@ -117,7 +117,7 @@
                     <div class="row">
                         <div class="col-12">
                             <strong>Rating:</strong> 
-                            <AssessmentBubble class="q-ml-sm" :maxValue="5" :value=epaAssessment.levelValue></AssessmentBubble>
+                            <AssessmentBubble class="q-ml-sm" :max-value="5" :value=epaAssessment.levelValue></AssessmentBubble>
                             {{ epaAssessment.levelName }}
                         </div>
                     </div>
@@ -156,19 +156,21 @@
                 {{ epa.name }}
             </div>
             <div class="col col-md-6 col-lg-4">
-                <AssessmentBubble :maxValue="5" :value=a.levelValue :text="getText(a.encounterDate, a.enteredByName, a.levelName, a?.comment, a?.serviceName)" :id="a.encounterId"
-                                  @bubbleClick="handleAssessmentClick"
+                <AssessmentBubble
+:max-value="5" :value=a.levelValue :text="getText(a.encounterDate, a.enteredByName, a.levelName, a?.comment, a?.serviceName)" :id="a.encounterId"
+                                  @bubble-click="handleAssessmentClick"
                                   v-for="a in getAssessmentsForEpa(epa.epaId)" :type="bubbleType"></AssessmentBubble>
             </div>
             <div class="col-1">
-                <q-btn dense :icon="showDetails[index] ? 'expand_less' : 'expand_more'" @click="showDetails[index] = !showDetails[index]"
+                <q-btn
+dense :icon="showDetails[index] ? 'expand_less' : 'expand_more'" @click="showDetails[index] = !showDetails[index]"
                        v-if="getAssessmentsForEpa(epa.epaId).length > 0"></q-btn>
             </div>
             <q-slide-transition>
                 <div class="col-12 q-mb-md" v-if="showDetails[index]" :key="'epadetails' + index">
                     <div v-for="a in getAssessmentsForEpa(epa.epaId)" class="row q-mb-sm">
                         <div class="col-2 col-sm-auto q-pr-sm">
-                            <AssessmentBubble :maxValue="5" :value=a.levelValue></AssessmentBubble>
+                            <AssessmentBubble :max-value="5" :value=a.levelValue></AssessmentBubble>
                         </div>
                         <div class="col-10 col-sm-5 col-md-3 col-lg-2">
                             {{ formatDate(a.encounterDate.toString()) }}
