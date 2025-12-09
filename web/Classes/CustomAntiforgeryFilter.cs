@@ -46,12 +46,11 @@ namespace Viper.Classes
             }
             catch (AntiforgeryValidationException)
             {
-                context.Result = new JsonResult(new
-                {
-                    title = "Antiforgery token validation failed",
-                    status = 400,
-                    errorMessage = "Your session token has expired. Please refresh the page."
-                })
+                context.Result = new ObjectResult(
+                    new ApiResponse(HttpStatusCode.BadRequest, false)
+                    {
+                        ErrorMessage = "Antiforgery token validation failed. Please refresh the page."
+                    })
                 {
                     StatusCode = (int)HttpStatusCode.BadRequest
                 };

@@ -36,7 +36,7 @@ type UrlParams = {
 function createUrlSearchParams(obj: UrlParams): URLSearchParams {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(obj)) {
-        if (value != null && typeof key === "string") {
+        if (value !== null && value !== undefined && typeof key === "string") {
             params.append(key, value.toString())
         }
     }
@@ -70,10 +70,10 @@ async function handleViperFetchError(response: any) {
             }
             if (response.status === HTTP_STATUS.UNAUTHORIZED || response.status === HTTP_STATUS.FORBIDDEN) {
                 isAuthError = true
-            } else if (response.status === HTTP_STATUS.BAD_REQUEST && result?.title?.includes("Antiforgery")) {
+            } else if (response.status === HTTP_STATUS.BAD_REQUEST && result?.errorMessage?.includes("Antiforgery")) {
                 // CSRF token expired or invalid - treat as auth error so user refreshes
                 isAuthError = true
-                message = "Your session token has expired. Please refresh the page."
+                message = result.errorMessage
             } else if (result.errorMessage !== null && result.errorMessage !== undefined) {
                 message = result.errorMessage
             } else if (result.detail !== null && result.detail !== undefined) {
@@ -85,7 +85,7 @@ async function handleViperFetchError(response: any) {
             throw new Error("An error occurred")
         }
         if (isAuthError) {
-            throw new AuthError(result.errorMessage ?? "Auth Error", response.status)
+            throw new AuthError(message || result?.errorMessage || "Auth Error", response.status)
         } else {
             throw new ValidationError(message, result?.errors)
         }
