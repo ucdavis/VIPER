@@ -151,19 +151,17 @@
                 <q-btn dense color="secondary" :icon="showDetails.find(s => s) != undefined ? 'expand_less' : 'expand_more'" @click="toggleExpandAll()"></q-btn>
             </div>
         </div>
-        <div v-for="(epa, index) in epas" class="row q-mt-sm q-pt-sm assessmentGroup">
+        <div v-for="(epa, index) in epas" :key="epaId" class="row q-mt-sm q-pt-sm assessmentGroup">
             <div class="col col-md-4 col-lg-3 q-mr-sm">
                 {{ epa.name }}
             </div>
             <div class="col col-md-6 col-lg-4">
-                <AssessmentBubble
-:max-value="5" :value=a.levelValue :text="getText(a.encounterDate, a.enteredByName, a.levelName, a?.comment, a?.serviceName)" :id="a.encounterId"
+                <AssessmentBubble :max-value="5" :value=a.levelValue :text="getText(a.encounterDate, a.enteredByName, a.levelName, a?.comment, a?.serviceName)" :id="a.encounterId"
                                   @bubble-click="handleAssessmentClick"
-                                  v-for="a in getAssessmentsForEpa(epa.epaId)" :type="bubbleType"></AssessmentBubble>
+                                  v-for="a in getAssessmentsForEpa(epa.epaId)" :type="bubbleType" :key="epaAssessmentId"></AssessmentBubble>
             </div>
             <div class="col-1">
-                <q-btn
-dense :icon="showDetails[index] ? 'expand_less' : 'expand_more'" @click="showDetails[index] = !showDetails[index]"
+                <q-btn dense :icon="showDetails[index] ? 'expand_less' : 'expand_more'" @click="showDetails[index] = !showDetails[index]"
                        v-if="getAssessmentsForEpa(epa.epaId).length > 0"></q-btn>
             </div>
             <q-slide-transition>
