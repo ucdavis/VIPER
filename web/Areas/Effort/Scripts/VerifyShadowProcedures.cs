@@ -2129,12 +2129,9 @@ namespace Viper.Areas.Effort.Scripts
                     var mothraIdsWithMissingRows = new HashSet<string>();
                     foreach (var sig in missingInShadow)
                     {
-                        foreach (var kvp in legacyMothraIdToSignatures)
+                        foreach (var kvp in legacyMothraIdToSignatures.Where(kvp => kvp.Value.Contains(sig)))
                         {
-                            if (kvp.Value.Contains(sig))
-                            {
-                                mothraIdsWithMissingRows.Add(kvp.Key);
-                            }
+                            mothraIdsWithMissingRows.Add(kvp.Key);
                         }
                     }
 
@@ -2144,13 +2141,11 @@ namespace Viper.Areas.Effort.Scripts
                     foreach (var sig in missingInShadow)
                     {
                         bool isOrphaned = false;
-                        foreach (var kvp in legacyMothraIdToSignatures)
+                        foreach (var kvp in legacyMothraIdToSignatures
+                            .Where(kvp => kvp.Value.Contains(sig) && orphanedMothraIds.Contains(kvp.Key)))
                         {
-                            if (kvp.Value.Contains(sig) && orphanedMothraIds.Contains(kvp.Key))
-                            {
-                                isOrphaned = true;
-                                break;
-                            }
+                            isOrphaned = true;
+                            break;
                         }
 
                         if (isOrphaned)
@@ -2911,19 +2906,13 @@ namespace Viper.Areas.Effort.Scripts
             string samplingNote = useRandomSampling ? " (random sample)" : "";
 
             // Query legacy data - use random sampling for large tables
-            string legacyQuery;
             string shadowQuery;
-            if (useRandomSampling)
-            {
-                legacyQuery = $@"
+            string legacyQuery = useRandomSampling
+                ? $@"
                     SELECT TOP {sampleSize} {columnList}
                     FROM [{legacyTable}]
-                    ORDER BY NEWID()";
-            }
-            else
-            {
-                legacyQuery = $"SELECT TOP {sampleSize} {columnList} FROM [{legacyTable}] ORDER BY {orderByClause}";
-            }
+                    ORDER BY NEWID()"
+                : $"SELECT TOP {sampleSize} {columnList} FROM [{legacyTable}] ORDER BY {orderByClause}";
 
             var legacyData = ExecuteQuery(legacyConn, legacyQuery);
 
@@ -3002,12 +2991,9 @@ namespace Viper.Areas.Effort.Scripts
                         result.ContentMismatches++;
 
                         // Group differences by row (up to 5 rows)
-                        if (!rowDifferences.ContainsKey(pkDisplay))
+                        if (!rowDifferences.ContainsKey(pkDisplay) && rowDifferences.Count < 5)
                         {
-                            if (rowDifferences.Count < 5)
-                            {
-                                rowDifferences[pkDisplay] = new List<(string, string, string)>();
-                            }
+                            rowDifferences[pkDisplay] = new List<(string, string, string)>();
                         }
 
                         if (rowDifferences.TryGetValue(pkDisplay, out var diffs))
@@ -3047,19 +3033,18 @@ namespace Viper.Areas.Effort.Scripts
                 if (mappings.TryGetValue(legacyValue, out var expectedShadow))
                 {
                     // "*" means any non-null value is acceptable
-                    if (expectedShadow == "*" && shadowValue != "NULL")
-                        return true;
-                    if (string.Equals(expectedShadow, shadowValue, StringComparison.OrdinalIgnoreCase))
+                    if ((expectedShadow == "*" && shadowValue != "NULL") ||
+                        string.Equals(expectedShadow, shadowValue, StringComparison.OrdinalIgnoreCase))
                         return true;
                 }
             }
 
             // Check view-specific known differences
-            if (ViewsWithTermNameDifferences.Contains(viewName))
+            if (ViewsWithTermNameDifferences.Contains(viewName) &&
+                columnName.EndsWith("_TermName", StringComparison.OrdinalIgnoreCase))
             {
                 // Term name format differences are acceptable (e.g., "Summer Session II 2002" vs "Summer 2002")
-                if (columnName.EndsWith("_TermName", StringComparison.OrdinalIgnoreCase))
-                    return true;
+                return true;
             }
 
             return false;
@@ -3127,23 +3112,17 @@ namespace Viper.Areas.Effort.Scripts
             _ = isLegacy ? tableName : $"{schemaPrefix}{tableName}";
 
             // Query INFORMATION_SCHEMA for column metadata
-            string query;
-            if (isLegacy)
-            {
-                query = @"
+            string query = isLegacy
+                ? @"
                     SELECT COLUMN_NAME, DATA_TYPE, ISNULL(CHARACTER_MAXIMUM_LENGTH, 0), IS_NULLABLE
                     FROM INFORMATION_SCHEMA.COLUMNS
                     WHERE TABLE_NAME = @TableName
-                    ORDER BY ORDINAL_POSITION";
-            }
-            else
-            {
-                query = @"
+                    ORDER BY ORDINAL_POSITION"
+                : @"
                     SELECT COLUMN_NAME, DATA_TYPE, ISNULL(CHARACTER_MAXIMUM_LENGTH, 0), IS_NULLABLE
                     FROM INFORMATION_SCHEMA.COLUMNS
                     WHERE TABLE_SCHEMA = 'EffortShadow' AND TABLE_NAME = @TableName
                     ORDER BY ORDINAL_POSITION";
-            }
 
             using var cmd = new SqlCommand(query, conn);
             cmd.Parameters.AddWithValue("@TableName", tableName);

@@ -1584,7 +1584,7 @@ namespace Viper.Areas.Effort.Scripts
                             if (!hasMothraId) _report.AuditDataQuality.RecordsWithNullMothraId += count;
 
                             // Collect invalid TermCodes
-                            if (hasTermCode && termCode.HasValue && !validTermCodes.Contains(termCode.Value))
+                            if (hasTermCode && !validTermCodes.Contains(termCode!.Value))
                             {
                                 // Get TermName from lookup dictionary
                                 string termInfo = termCode.Value.ToString();
@@ -1604,7 +1604,8 @@ namespace Viper.Areas.Effort.Scripts
                             if (hasCrn && !string.IsNullOrWhiteSpace(crn))
                             {
                                 var termListPresent = validCrns.TryGetValue(crn, out var allowedTerms);
-                                var crnMatchesTerm = termListPresent && allowedTerms != null && (!hasTermCode || (termCode.HasValue && allowedTerms.Contains(termCode.Value)));
+                                var crnMatchesTerm = termListPresent && allowedTerms != null &&
+                                    (!hasTermCode || allowedTerms.Contains(termCode!.Value));
 
                                 if (!termListPresent || !crnMatchesTerm)
                                 {
@@ -1628,10 +1629,10 @@ namespace Viper.Areas.Effort.Scripts
                             }
 
                             // Categorize mappability - only consider records with valid, populated fields as mappable
-                            bool termCodeValid = hasTermCode && termCode.HasValue && validTermCodes.Contains(termCode.Value);
+                            bool termCodeValid = hasTermCode && validTermCodes.Contains(termCode!.Value);
                             bool crnValid = hasCrn && !string.IsNullOrWhiteSpace(crn) &&
                                             validCrns.TryGetValue(crn, out var crnTerms) &&
-                                            (!hasTermCode || (termCode.HasValue && crnTerms.Contains(termCode.Value)));
+                                            (!hasTermCode || crnTerms.Contains(termCode!.Value));
                             bool mothraIdValid = hasMothraId && mothraId != null && validMothraIds.Contains(mothraId);
                             bool hasAnyReference = hasTermCode || hasCrn || hasMothraId;
 
