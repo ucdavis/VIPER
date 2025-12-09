@@ -46,10 +46,15 @@ namespace Viper.Classes
             }
             catch (AntiforgeryValidationException)
             {
+                var correlationId = context.HttpContext.Items["CorrelationId"]?.ToString()
+                    ?? context.HttpContext.TraceIdentifier;
+                context.HttpContext.Items["CorrelationId"] = correlationId;
+
                 context.Result = new ObjectResult(
                     new ApiResponse(HttpStatusCode.BadRequest, false)
                     {
-                        ErrorMessage = "Antiforgery token validation failed. Please refresh the page."
+                        ErrorMessage = "Antiforgery token validation failed. Please refresh the page.",
+                        CorrelationId = correlationId
                     })
                 {
                     StatusCode = (int)HttpStatusCode.BadRequest
