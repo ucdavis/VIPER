@@ -70,7 +70,11 @@ async function handleViperFetchError(response: any) {
             }
             if (response.status === HTTP_STATUS.UNAUTHORIZED || response.status === HTTP_STATUS.FORBIDDEN) {
                 isAuthError = true
-            } else if (response.status === HTTP_STATUS.BAD_REQUEST && result?.errorMessage?.includes("Antiforgery")) {
+            } else if (
+                response.status === HTTP_STATUS.BAD_REQUEST &&
+                typeof result?.errorMessage === "string" &&
+                result.errorMessage.toLowerCase().includes("antiforgery")
+            ) {
                 // CSRF token expired or invalid - treat as auth error so user refreshes
                 isAuthError = true
                 message = result.errorMessage
