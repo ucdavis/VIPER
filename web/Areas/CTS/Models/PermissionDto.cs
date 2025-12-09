@@ -1,5 +1,7 @@
-namespace Viper.Areas.CTS.Models;
-public class PermissionDto
+namespace Viper.Areas.CTS.Models
 {
-	public bool HasAccess { get; set; }
+    public class PermissionDto
+    {
+        public bool HasAccess { get; set; }
+    }
 }

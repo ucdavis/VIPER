@@ -23,7 +23,7 @@ const props = defineProps({
     },
 })
 
-const emit = defineEmits(["bubbleClick"])
+const emit = defineEmits(["bubble-click"])
 
 const classes5 = [
     "assessmentBubble5_1",
@@ -57,7 +57,7 @@ watch(props, () => {
 
 function clickBubble() {
     if (props.id !== undefined) {
-        emit("bubbleClick", props.id)
+        emit("bubble-click", props.id)
     }
 }
 
