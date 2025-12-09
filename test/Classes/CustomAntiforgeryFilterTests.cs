@@ -100,6 +100,8 @@ namespace Test.Classes
             Assert.False(apiResponse.Success);
             Assert.Equal((int)HttpStatusCode.BadRequest, apiResponse.StatusCode);
             Assert.Contains("Antiforgery", apiResponse.ErrorMessage);
+            Assert.NotNull(apiResponse.CorrelationId);
+            Assert.NotEmpty(apiResponse.CorrelationId);
         }
 
         [Fact]
