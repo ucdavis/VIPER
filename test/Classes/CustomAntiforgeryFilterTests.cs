@@ -124,5 +124,37 @@ namespace Test.Classes
             // Assert
             Assert.Equal(1000, _filter.Order);
         }
+
+        [Fact]
+        public async Task OnAuthorizationAsync_IgnoreAntiforgeryTokenAttribute_SkipsValidation()
+        {
+            // Arrange
+            var httpContext = new DefaultHttpContext();
+            httpContext.Request.Method = "POST";
+
+            var endpoint = new Endpoint(
+                requestDelegate: null,
+                metadata: new EndpointMetadataCollection(new IgnoreAntiforgeryTokenAttribute()),
+                displayName: "Test endpoint");
+            httpContext.SetEndpoint(endpoint);
+
+            var actionContext = new ActionContext(
+                httpContext,
+                new RouteData(),
+                new ActionDescriptor());
+
+            var context = new AuthorizationFilterContext(
+                actionContext,
+                []);
+
+            // Act
+            await _filter.OnAuthorizationAsync(context);
+
+            // Assert
+            Assert.Null(context.Result);
+            _mockAntiforgery.Verify(
+                a => a.ValidateRequestAsync(It.IsAny<HttpContext>()),
+                Times.Never);
+        }
     }
 }
