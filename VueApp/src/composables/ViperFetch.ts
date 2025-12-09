@@ -6,6 +6,7 @@ import { AuthError } from "./auth-error"
 const errorHandler = useGenericErrorHandler()
 
 const HTTP_STATUS = {
+    BAD_REQUEST: 400,
     UNAUTHORIZED: 401,
     FORBIDDEN: 403,
     NO_CONTENT: 204,
@@ -69,6 +70,10 @@ async function handleViperFetchError(response: any) {
             }
             if (response.status === HTTP_STATUS.UNAUTHORIZED || response.status === HTTP_STATUS.FORBIDDEN) {
                 isAuthError = true
+            } else if (response.status === HTTP_STATUS.BAD_REQUEST && result?.title?.includes("Antiforgery")) {
+                // CSRF token expired or invalid - treat as auth error so user refreshes
+                isAuthError = true
+                message = "Your session token has expired. Please refresh the page."
             } else if (result.errorMessage !== null && result.errorMessage !== undefined) {
                 message = result.errorMessage
             } else if (result.detail !== null && result.detail !== undefined) {

@@ -84,7 +84,13 @@ try
     });
 
     // Add services to the container.
-    builder.Services.AddControllersWithViews().AddSessionStateTempDataProvider().AddJsonOptions(options =>
+    builder.Services.AddControllersWithViews(options =>
+        {
+            // Add global CSRF validation filter for POST/PUT/PATCH/DELETE requests
+            options.Filters.Add<Viper.Classes.CustomAntiforgeryFilter>();
+        })
+        .AddSessionStateTempDataProvider()
+        .AddJsonOptions(options =>
         {
             options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         });
