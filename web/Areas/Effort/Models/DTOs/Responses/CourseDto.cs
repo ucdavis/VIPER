@@ -1,0 +1,23 @@
+namespace Viper.Areas.Effort.Models.DTOs.Responses;
+
+/// <summary>
+/// DTO for course information in the Effort system.
+/// </summary>
+public class CourseDto
+{
+    public int Id { get; set; }
+    public string Crn { get; set; } = string.Empty;
+    public int TermCode { get; set; }
+    public string SubjCode { get; set; } = string.Empty;
+    public string CrseNumb { get; set; } = string.Empty;
+    public string SeqNumb { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Combined course identifier (e.g., "VET 410").
+    /// </summary>
+    public string CourseCode => $"{SubjCode.Trim()} {CrseNumb.Trim()}";
+
+    public int Enrollment { get; set; }
+    public decimal Units { get; set; }
+    public string CustDept { get; set; } = string.Empty;
+}
