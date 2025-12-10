@@ -86,10 +86,28 @@ namespace Viper.Areas.Effort.Scripts
 
                 remediation.RunFullRemediation();
             }
-            catch (Exception ex)
+            catch (SqlException ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\nERROR: {ex.Message}");
+                Console.WriteLine($"\nDATABASE ERROR: {ex.Message}");
+                Console.WriteLine("\nStack Trace:");
+                Console.WriteLine(ex.StackTrace);
+                Console.ResetColor();
+                Environment.Exit(1);
+            }
+            catch (IOException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\nFILE I/O ERROR: {ex.Message}");
+                Console.WriteLine("\nStack Trace:");
+                Console.WriteLine(ex.StackTrace);
+                Console.ResetColor();
+                Environment.Exit(1);
+            }
+            catch (ArgumentException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\nARGUMENT ERROR: {ex.Message}");
                 Console.WriteLine("\nStack Trace:");
                 Console.WriteLine(ex.StackTrace);
                 Console.ResetColor();

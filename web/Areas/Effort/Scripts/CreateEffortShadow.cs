@@ -1826,7 +1826,7 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine("✓ All stored procedures recompiled successfully");
                 Console.ResetColor();
             }
-            catch (Exception ex)
+            catch (SqlException ex)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine($"⚠ Warning: Some procedures may not have recompiled: {ex.Message}");
@@ -2122,7 +2122,7 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine("  ✓ Created: usp_getJobGroups");
                 Console.ResetColor();
             }
-            catch (Exception ex)
+            catch (SqlException ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"  ✗ FAILED: usp_getJobGroups - {ex.Message}");
