@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Dynamic.Core;
-using System.Text.Json.Serialization;
 using Viper.Areas.CTS.Models;
 using Viper.Areas.CTS.Services;
 using Viper.Classes;
@@ -51,7 +50,7 @@ namespace Viper.Areas.CTS.Controllers
         {
             if (!ctsSecurityService.CheckStudentAssessmentViewAccess(studentUserId, enteredById, serviceId))
             {
-                return (ActionResult<List<StudentAssessment>>)ForbidApi();
+                return ForbidApi();
             }
 
             var assessments = context.Encounters
@@ -126,8 +125,7 @@ namespace Viper.Areas.CTS.Controllers
             }
             if (pagination != null)
             {
-                var s = (pagination.PerPage - 1) * pagination.Page;
-                pagination.TotalRecords = assessments.Count();
+                pagination.TotalRecords = await assessments.CountAsync();
                 assessments = assessments
                     .Skip((pagination.Page - 1) * pagination.PerPage)
                     .Take(pagination.PerPage);
@@ -135,9 +133,6 @@ namespace Viper.Areas.CTS.Controllers
 
             var assessmentsList = await assessments
                 .ToListAsync();
-
-            //if this is not a student viewing their own assessments, set the editable flag
-            var userHelper = new UserHelper();
 
             List<StudentAssessment> studentAssessments = new();
             foreach (var a in assessmentsList)
@@ -218,7 +213,7 @@ namespace Viper.Areas.CTS.Controllers
             }
             if (!ctsSecurityService.CheckStudentAssessmentViewAccess(encounter.StudentUserId, encounter.EnteredBy, encounter.ServiceId))
             {
-                return (ActionResult<StudentAssessment>)ForbidApi();
+                return ForbidApi();
             }
             var sa = CreateStudentAssessment(encounter);
             sa.Editable = ctsSecurityService.CanEditStudentAssessment(sa.EnteredBy, sa.EnteredOn);
@@ -236,7 +231,6 @@ namespace Viper.Areas.CTS.Controllers
         public async Task<ActionResult<List<EvaluateeWithEpaCompletion>>> EvalauteeStudentsWithEpas(int instanceId)
         {
             List<EvaluateeWithEpaCompletion> evaluateesWithCompletion = new();
-            var userHelper = new UserHelper();
             var user = userHelper.GetCurrentUser();
             //get instance and check to make sure it belongs to the logged in user, or the logged in user has an admin permission
             var instance = await context.Instances.FindAsync(instanceId);
@@ -299,7 +293,7 @@ namespace Viper.Areas.CTS.Controllers
                 return Unauthorized(); //shouldn't happen
             }
 
-            using var trans = context.Database.BeginTransaction();
+            using var trans = await context.Database.BeginTransactionAsync();
             var encounter = EncounterCreationService.CreateEncounterForEpa(epaData.StudentId, student.StudentInfo.ClassLevel, (int)personId, epaData.ServiceId,
                 epaData.EpaId, epaData.LevelId, epaData.Comment);
             context.Add(encounter);
@@ -348,7 +342,7 @@ namespace Viper.Areas.CTS.Controllers
                 return Unauthorized(); //shouldn't happen
             }
 
-            using var trans = context.Database.BeginTransaction();
+            using var trans = await context.Database.BeginTransactionAsync();
             encounter.Comment = epaData.Comment;
             encounter.LevelId = epaData.LevelId;
             if (epaData.EncounterDate != null)
