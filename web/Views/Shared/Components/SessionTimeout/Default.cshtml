@@ -5,7 +5,7 @@
                     :color="sessionExpired ? 'red' : 'orange'"></q-icon>
             <q-space></q-space>
             <div v-if="sessionExpired">
-                Your session has expired. Please reload the page to log in again.
+                Your session has expired. Please log in again.
             </div>
             <div v-else-if="!sessionExpired && !sessionReloaded">
                 Your session will expire at {{sessionExpireTime}}. Click Refresh Session to continue working.
@@ -14,13 +14,14 @@
                 Your session has been extended to {{sessionExpireTime}}.
             </div>
             <q-space></q-space>
-            <q-btn dense color="secondary" class="q-px-md" label="Log in" v-if="sessionExpired" @@click="reloadPage"></q-btn>
+            <q-btn dense color="secondary" class="q-px-md" label="Log in" v-if="sessionExpired" href="@Url.Content("~/login")"></q-btn>
             <q-btn dense color="secondary" class="q-px-md" label="Refresh Session" v-if="!sessionExpired && !sessionReloaded" @@click="extendSession"></q-btn>
         </q-card-section>
     </q-card>
 </q-dialog>
 
 <script asp-add-nonce="true">
+    /* global window, fetch, clearTimeout, createVueApp */
     createVueApp({
         data() {
             return {
@@ -34,18 +35,16 @@
         },
         methods: {
             checkSessionTimeout: async function () {
-                //try to get the session timeout from an external application
                 try {
                     fetch(this.sessionRefreshUrl)
-                        .then(r => r.status == "200" ? r.json() : r)
+                        .then(r => r.status === 200 ? r.json() : r)
                         .then(r => {
                             var nextCheck = 300
-                            //show timeout warning if the session will time out in 5 minutes or less
                             if (r.secondsUntilTimeout !== undefined && r.secondsUntilTimeout < 300) {
                                 this.showSessionTimeoutWarning = true
-                                this.sessionExpired = r.secondsUntilTimeout < 15 //consider session timing out in 15 seconds to be timed out already
+                                this.sessionExpired = r.secondsUntilTimeout < 15
                                 var d = new Date(r.sessionTimeoutDateTime)
-                                this.sessionExpireTime = (d.getHours() > 12 ? d.getHours() - 12 : d.getHours()) + ":" 
+                                this.sessionExpireTime = (d.getHours() > 12 ? d.getHours() - 12 : d.getHours()) + ":"
                                     + ("0" + d.getMinutes()).slice(-2)
                                     + (d.getHours() >= 12 ? " PM" : " AM")
                                 nextCheck = this.sessionExpired ? 0 : Math.max(r.secondsUntilTimeout - 15, 5)
@@ -55,35 +54,31 @@
                             }
                         })
                 }
-                catch { }
+                catch (e) { void e }
             },
             extendSession: async function() {
                 fetch("/RefreshSession")
-                    .then(r => r.status == "200" ? r.json() : r)
+                    .then(r => r.status === 200 ? r.json() : r)
                     .then(r => {
                         try {
                             clearTimeout(this.sessionTimeoutCheckEventId)
                         }
-                        catch{}
-                        
+                        catch(e) { void e }
+
                         var d = new Date(r.sessionTimeoutDateTime)
                         this.sessionExpireTime = (d.getHours() > 12 ? d.getHours() - 12 : d.getHours()) + ":"
                             + ("0" + d.getMinutes()).slice(-2)
                             + (d.getHours() >= 12 ? " PM" : " AM")
                         this.sessionReloaded = true
                         this.sessionTimeoutCheckEventId = window.setTimeout(this.checkSessionTimeout, 5000)
-                        
+
                         window.setTimeout(this.hideSessionTimeoutWarning, 1000)
                     })
             },
             hideSessionTimeoutWarning: function() {
                 this.showSessionTimeoutWarning = false
                 this.sessionReloaded = false
-            },
-            reloadPage: function() {
-                location.reload()
             }
-            
         },
         mounted() {
             this.sessionTimeoutCheckEventId = window.setTimeout(this.checkSessionTimeout, 60000)

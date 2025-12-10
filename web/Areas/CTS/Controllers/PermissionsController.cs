@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Viper.Areas.CTS.Models;
 using Viper.Areas.CTS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -23,17 +23,23 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpGet]
-        public ActionResult<bool> HasAccess(string access, int studentId)
+        public ActionResult<PermissionDto> HasAccess(string access, int studentId)
         {
-            var userHelper = new UserHelper();
             switch(access)
             {
                 case "ViewStudentAssessments":
-                    return ctsSecurityService.CheckStudentAssessmentViewAccess(studentId);
+                    return new PermissionDto {
+						HasAccess = ctsSecurityService.CheckStudentAssessmentViewAccess(studentId)
+					};
                 case "ViewAllAssessments":
-                    return ctsSecurityService.CheckStudentAssessmentViewAccess();
+					return new PermissionDto {
+                    	HasAccess = ctsSecurityService.CheckStudentAssessmentViewAccess()
+					};
             }
-            return false;
+            return new PermissionDto
+			{
+				HasAccess = false
+			};
         }
     }
 }

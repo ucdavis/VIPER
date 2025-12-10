@@ -1,0 +1,65 @@
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
+using System.Net;
+
+namespace Viper.Classes
+{
+    /// <summary>
+    /// Custom antiforgery validation filter that returns a user-friendly error response
+    /// when CSRF token validation fails. This replaces the default behavior which returns
+    /// a generic 400 Bad Request.
+    /// </summary>
+    public class CustomAntiforgeryFilter : IAsyncAuthorizationFilter, IOrderedFilter
+    {
+        private readonly IAntiforgery _antiforgery;
+
+        public int Order => 1000;
+
+        public CustomAntiforgeryFilter(IAntiforgery antiforgery)
+        {
+            _antiforgery = antiforgery;
+        }
+
+        public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
+        {
+            // Skip validation for safe HTTP methods
+            var method = context.HttpContext.Request.Method;
+            if (HttpMethods.IsGet(method) ||
+                HttpMethods.IsHead(method) ||
+                HttpMethods.IsOptions(method) ||
+                HttpMethods.IsTrace(method))
+            {
+                return;
+            }
+
+            // Skip if endpoint has [IgnoreAntiforgeryToken]
+            var endpoint = context.HttpContext.GetEndpoint();
+            if (endpoint?.Metadata.GetMetadata<IgnoreAntiforgeryTokenAttribute>() != null)
+            {
+                return;
+            }
+
+            try
+            {
+                await _antiforgery.ValidateRequestAsync(context.HttpContext);
+            }
+            catch (AntiforgeryValidationException)
+            {
+                var correlationId = context.HttpContext.Items["CorrelationId"]?.ToString()
+                    ?? context.HttpContext.TraceIdentifier;
+                context.HttpContext.Items["CorrelationId"] = correlationId;
+
+                context.Result = new ObjectResult(
+                    new ApiResponse(HttpStatusCode.BadRequest, false)
+                    {
+                        ErrorMessage = "Antiforgery token validation failed. Please refresh the page.",
+                        CorrelationId = correlationId
+                    })
+                {
+                    StatusCode = (int)HttpStatusCode.BadRequest
+                };
+            }
+        }
+    }
+}

@@ -10,6 +10,7 @@ const logger = createLogger("Build Verify")
 
 // Configuration
 const TIMEOUT_MS = 60_000 // 1 minute timeout for builds
+const { env } = process
 
 // Helper function to run commands with color output preserved
 function runCommand(command, args, options = {}) {
@@ -51,7 +52,7 @@ async function verifyVueTypeScript() {
         const vueAppDir = path.resolve(process.cwd(), "VueApp")
         await runCommand("npx", ["vue-tsc", "--build", "--force"], {
             cwd: vueAppDir,
-            env: { ...process.env, NODE_ENV: "development" },
+            env: { ...env, NODE_ENV: "development" },
         })
 
         logger.success("Vue.js TypeScript compilation passed ✓")
@@ -69,7 +70,7 @@ async function verifyVueBuild() {
         const vueAppDir = path.resolve(process.cwd(), "VueApp")
         await runCommand("npm", ["run", "build-only-dev"], {
             cwd: vueAppDir,
-            env: { ...process.env, NODE_ENV: "development" },
+            env: { ...env, NODE_ENV: "development" },
         })
 
         logger.success("Vue.js build passed ✓")
@@ -84,9 +85,21 @@ async function verifyDotNetBuild() {
     logger.info("Checking .NET compilation...")
 
     try {
-        await runCommand("dotnet", ["build", "./web/Viper.csproj", "--no-restore", "--nologo"], {
-            env: { ...process.env, DOTNET_USE_COMPILER_SERVER: "1", DOTNET_CLI_FORCE_UTF8_ENCODING: "true" },
-        })
+        await runCommand(
+            "dotnet",
+            [
+                "build",
+                "./web/Viper.csproj",
+                "--no-restore",
+                "--nologo",
+                "--verbosity",
+                "quiet",
+                "/property:WarningLevel=0",
+            ],
+            {
+                env: { ...env, DOTNET_USE_COMPILER_SERVER: "1", DOTNET_CLI_FORCE_UTF8_ENCODING: "true" },
+            },
+        )
 
         logger.success(".NET compilation passed ✓")
         return true
@@ -100,9 +113,21 @@ async function verifyDotNetTests() {
     logger.info("Checking .NET test compilation...")
 
     try {
-        await runCommand("dotnet", ["build", "./test/Viper.test.csproj", "--no-restore", "--nologo"], {
-            env: { ...process.env, DOTNET_USE_COMPILER_SERVER: "1", DOTNET_CLI_FORCE_UTF8_ENCODING: "true" },
-        })
+        await runCommand(
+            "dotnet",
+            [
+                "build",
+                "./test/Viper.test.csproj",
+                "--no-restore",
+                "--nologo",
+                "--verbosity",
+                "quiet",
+                "/property:WarningLevel=0",
+            ],
+            {
+                env: { ...env, DOTNET_USE_COMPILER_SERVER: "1", DOTNET_CLI_FORCE_UTF8_ENCODING: "true" },
+            },
+        )
 
         logger.success(".NET test compilation passed ✓")
         return true
@@ -151,7 +176,7 @@ process.on("SIGTERM", () => {
 })
 
 // Run the verification
-async function runMain() {
+void (async () => {
     try {
         await main()
     } catch (error) {
@@ -159,6 +184,4 @@ async function runMain() {
         console.error(error)
         process.exit(1)
     }
-}
-
-runMain()
+})()

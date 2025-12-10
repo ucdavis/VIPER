@@ -66,7 +66,7 @@ async function loadAssessmentsManual() {
 
 async function getCanViewAllAssessments() {
     let result = await get(baseUrl + "permissions?access=ViewAllAssessments")
-    canViewAll.value = result.result
+    canViewAll.value = result.result.hasAccess
 }
 
 async function loadAssessments(page: number, perPage: number, sortBy: string, descending: boolean) {

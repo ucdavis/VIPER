@@ -6,6 +6,7 @@ import { AuthError } from "./auth-error"
 const errorHandler = useGenericErrorHandler()
 
 const HTTP_STATUS = {
+    BAD_REQUEST: 400,
     UNAUTHORIZED: 401,
     FORBIDDEN: 403,
     NO_CONTENT: 204,
@@ -35,7 +36,7 @@ type UrlParams = {
 function createUrlSearchParams(obj: UrlParams): URLSearchParams {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(obj)) {
-        if (value != null && typeof key === "string") {
+        if (value !== null && value !== undefined && typeof key === "string") {
             params.append(key, value.toString())
         }
     }
@@ -69,6 +70,14 @@ async function handleViperFetchError(response: any) {
             }
             if (response.status === HTTP_STATUS.UNAUTHORIZED || response.status === HTTP_STATUS.FORBIDDEN) {
                 isAuthError = true
+            } else if (
+                response.status === HTTP_STATUS.BAD_REQUEST &&
+                typeof result?.errorMessage === "string" &&
+                result.errorMessage.toLowerCase().includes("antiforgery")
+            ) {
+                // CSRF token expired or invalid - treat as auth error so user refreshes
+                isAuthError = true
+                message = result.errorMessage
             } else if (result.errorMessage !== null && result.errorMessage !== undefined) {
                 message = result.errorMessage
             } else if (result.detail !== null && result.detail !== undefined) {
@@ -80,7 +89,7 @@ async function handleViperFetchError(response: any) {
             throw new Error("An error occurred")
         }
         if (isAuthError) {
-            throw new AuthError(result.errorMessage ?? "Auth Error", response.status)
+            throw new AuthError(message || result?.errorMessage || "Auth Error", response.status)
         } else {
             throw new ValidationError(message, result?.errors)
         }
