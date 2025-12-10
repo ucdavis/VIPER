@@ -208,9 +208,11 @@ namespace Viper.Areas.Effort.Scripts
                     {
                         transaction.Rollback();
                     }
-                    catch
+                    catch (Exception rollbackEx)
                     {
-                        // Transaction already rolled back
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine($"⚠ WARNING: Transaction rollback failed: {rollbackEx.Message}");
+                        Console.ResetColor();
                     }
                     throw;
                 }
@@ -224,7 +226,7 @@ namespace Viper.Areas.Effort.Scripts
                 Console.ResetColor();
                 Environment.Exit(1);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException and not System.Threading.ThreadAbortException)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"ERROR: {ex.Message}");

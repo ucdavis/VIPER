@@ -2140,13 +2140,8 @@ namespace Viper.Areas.Effort.Scripts
 
                     foreach (var sig in missingInShadow)
                     {
-                        bool isOrphaned = false;
-                        foreach (var kvp in legacyMothraIdToSignatures
-                            .Where(kvp => kvp.Value.Contains(sig) && orphanedMothraIds.Contains(kvp.Key)))
-                        {
-                            isOrphaned = true;
-                            break;
-                        }
+                        bool isOrphaned = legacyMothraIdToSignatures
+                            .Any(kvp => kvp.Value.Contains(sig) && orphanedMothraIds.Contains(kvp.Key));
 
                         if (isOrphaned)
                         {
@@ -3028,15 +3023,13 @@ namespace Viper.Areas.Effort.Scripts
         private static bool IsKnownValueDifference(string columnName, string legacyValue, string shadowValue, string viewName)
         {
             // Check column-specific known mappings
-            if (KnownValueMappings.TryGetValue(columnName, out var mappings))
+            // "*" means any non-null value is acceptable
+            if (KnownValueMappings.TryGetValue(columnName, out var mappings) &&
+                mappings.TryGetValue(legacyValue, out var expectedShadow) &&
+                ((expectedShadow == "*" && shadowValue != "NULL") ||
+                 string.Equals(expectedShadow, shadowValue, StringComparison.OrdinalIgnoreCase)))
             {
-                if (mappings.TryGetValue(legacyValue, out var expectedShadow))
-                {
-                    // "*" means any non-null value is acceptable
-                    if ((expectedShadow == "*" && shadowValue != "NULL") ||
-                        string.Equals(expectedShadow, shadowValue, StringComparison.OrdinalIgnoreCase))
-                        return true;
-                }
+                return true;
             }
 
             // Check view-specific known differences
