@@ -19,14 +19,9 @@ namespace Viper.Classes
             }
             HttpStatusCode statusCode = objectResult.StatusCode != null ? (HttpStatusCode)objectResult.StatusCode : HttpStatusCode.InternalServerError;
             bool isSuccess = IsSuccessCode(statusCode);
-            if (isSuccess)
-            {
-                objectResult.Value = new ApiResponse(statusCode, isSuccess, objectResult.Value);
-            }
-            else
-            {
-                objectResult.Value = CreateErrorResponse(objectResult, statusCode);
-            }
+            objectResult.Value = isSuccess
+                ? new ApiResponse(statusCode, isSuccess, objectResult.Value)
+                : CreateErrorResponse(objectResult, statusCode);
             // Sync declared type with wrapped value; otherwise JsonDerivedType causes cast failures
             objectResult.DeclaredType = typeof(ApiResponse);
         }

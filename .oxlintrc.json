@@ -80,10 +80,12 @@
             "plugins": ["node"],
             "rules": {
                 "no-console": "off",
+                "no-void": "off",
                 "import/no-commonjs": "off",
                 "import/unambiguous": "off",
                 "import/no-default-export": "off",
                 "unicorn/prefer-module": "off",
+                "unicorn/prefer-top-level-await": "off",
                 "unicorn/no-process-exit": "off",
                 "max-lines": "off",
                 "max-params": "off",
