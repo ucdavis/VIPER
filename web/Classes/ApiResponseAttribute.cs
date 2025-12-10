@@ -1,32 +1,34 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using System.Net;
 
 namespace Viper.Classes
 {
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, Inherited = true, AllowMultiple = false)]
     public class ApiResponseAttribute : ActionFilterAttribute
     {
-        public override void OnResultExecuting(ResultExecutingContext filterContext)
+        public override void OnResultExecuting(ResultExecutingContext context)
         {
-            if (filterContext.Result is not ObjectResult objectResult)
+            if (context.Result is not ObjectResult objectResult)
             {
                 return;
             }
-            if(objectResult.Value is ApiResponse apiResponseAlreadyCreated)
+            if (objectResult.Value is ApiResponse)
             {
                 return;
             }
             HttpStatusCode statusCode = objectResult.StatusCode != null ? (HttpStatusCode)objectResult.StatusCode : HttpStatusCode.InternalServerError;
             bool isSuccess = IsSuccessCode(statusCode);
-            if(isSuccess)
+            if (isSuccess)
             {
                 objectResult.Value = new ApiResponse(statusCode, isSuccess, objectResult.Value);
             }
             else
             {
                 objectResult.Value = CreateErrorResponse(objectResult, statusCode);
-                
             }
+            // Sync declared type with wrapped value; otherwise JsonDerivedType causes cast failures
+            objectResult.DeclaredType = typeof(ApiResponse);
         }
 
         private static bool IsSuccessCode(HttpStatusCode statusCode)
