@@ -145,7 +145,7 @@ namespace Viper.Controllers
             {
                 var viper1 = HttpHelper.GetOldViperRootURL();
 
-                //Fix VIPER 1.0 links
+                // Fix VIPER 1.0 links
                 foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 0
                     && item.MenuItemURL[..1] == "/"
                     && (item.MenuItemURL.Length < 2 || item.MenuItemURL[..2] != "/2")))
@@ -153,13 +153,17 @@ namespace Viper.Controllers
                     item.MenuItemURL = $"{viper1}{item.MenuItemURL}";
                 }
 
-                //Fix VIPER 2.0 links
-                foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 1
-                    && (item.MenuItemURL[..2] == "~/" || item.MenuItemURL[..2] == "/2")))
+                // Fix VIPER 2.0 links
+                foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 1))
                 {
-                    item.MenuItemURL = item.MenuItemURL
-                        .Replace("~/", "/")
-                        .Replace("/2", "");
+                    if (item.MenuItemURL[..2] == "~/")
+                    {
+                        item.MenuItemURL = item.MenuItemURL[1..]; //strip '~'
+                    }
+                    else if (item.MenuItemURL[..2] == "/2")
+                    {
+                        item.MenuItemURL = (item.MenuItemURL.Length > 2 ? item.MenuItemURL[2..] : ""); //strip '/2'
+                    }
                 }
             }
         }
