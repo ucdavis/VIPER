@@ -4,82 +4,78 @@ const { execFileSync } = require("node:child_process")
 const path = require("node:path")
 const fs = require("node:fs")
 const { createLogger } = require("./lib/script-utils")
-const { needsBuild, markAsBuilt } = require("./lib/build-cache")
+const {
+    needsBuild,
+    markAsBuilt,
+    wasBuildSuccessful,
+    getCachedBuildOutput,
+    filterBuildErrors,
+} = require("./lib/build-cache")
 
+const { env } = process
 const logger = createLogger("TEST")
 
 const projectPath = "test"
 const projectName = "Viper.test.csproj"
-const testBinPath = path.join(projectPath, "bin")
+const precommitBinPath = path.join(projectPath, "bin", "Precommit")
+const precommitDll = path.join(precommitBinPath, "Viper.test.dll")
 
 /**
- * Stop dev services before running tests
+ * Check if precommit build exists (called from pre-commit hook)
  */
-function stopDevServices() {
-    try {
-        logger.info("Stopping dev services...")
-        execFileSync("npm", ["run", "dev:stop"], {
-            encoding: "utf8",
-            stdio: "inherit",
-            timeout: 30_000,
-        })
-    } catch {
-        // dev:stop may fail if services aren't running, that's okay
-        logger.info("Dev services stopped (or were not running)")
-    }
+function precommitBuildExists() {
+    return fs.existsSync(precommitDll)
 }
 
 /**
- * Check if build output exists
- */
-function buildOutputExists() {
-    try {
-        return fs.existsSync(testBinPath) && fs.readdirSync(testBinPath).length > 0
-    } catch {
-        return false
-    }
-}
-
-/**
- * Run dotnet build for the test project
+ * Build to bin/Precommit if needed (for standalone runs)
  * @returns {boolean} - Success status
  */
-function runBuild() {
-    const buildArgs = ["build", "--verbosity", "quiet", "--nologo", "/p:WarningLevel=0"]
+function ensureBuild() {
+    // Check if precommit build exists and cache says no rebuild needed
+    if (precommitBuildExists() && !needsBuild(projectPath, projectName)) {
+        // Check if cached build was successful
+        if (wasBuildSuccessful(projectName) === false) {
+            logger.error("Build failed (cached) - fix the error below and try again:")
+            console.error(filterBuildErrors(getCachedBuildOutput(projectName)))
+            return false
+        }
+        logger.success("Using existing precommit build")
+        return true
+    }
+
+    logger.info(`Building test project → ${precommitBinPath}`)
 
     try {
-        logger.info("Building test project...")
-        const result = execFileSync("dotnet", buildArgs, {
-            cwd: projectPath,
-            encoding: "utf8",
-            timeout: 120_000, // 2 minute timeout
-            stdio: ["inherit", "pipe", "pipe"],
-        })
+        const result = execFileSync(
+            "dotnet",
+            [
+                "build",
+                `${projectPath}/`,
+                "-o",
+                precommitBinPath,
+                "--verbosity",
+                "quiet",
+                "--nologo",
+                "/p:WarningLevel=0",
+            ],
+            {
+                encoding: "utf8",
+                timeout: 120_000,
+                stdio: ["inherit", "pipe", "pipe"],
+                env: { ...env, DOTNET_USE_COMPILER_SERVER: "1" },
+            },
+        )
 
-        // Cache successful build
-        try {
-            markAsBuilt(projectPath, projectName, result)
-            logger.success("Build completed and cached")
-        } catch (error) {
-            logger.warning(`Failed to cache build result: ${error.message}`)
-        }
-
+        markAsBuilt(projectPath, projectName, result, true)
+        logger.success("Build completed")
         return true
     } catch (error) {
-        // Capture build output even on failure
         const output = (error.stdout || "") + (error.stderr || "")
-
-        // Still cache the output for debugging
-        try {
-            markAsBuilt(projectPath, projectName, output)
-        } catch (error) {
-            logger.warning(`Failed to cache build output: ${error.message}`)
-        }
-
+        // Cache failure to avoid redundant rebuild attempts
+        markAsBuilt(projectPath, projectName, output, false)
         logger.error("Build failed!")
-        if (output) {
-            console.error(output)
-        }
+        console.error(output)
         return false
     }
 }
@@ -89,12 +85,9 @@ function runBuild() {
  * @returns {boolean} - Success status
  */
 function runTests() {
-    const testArgs = ["test", "--no-build", "--verbosity=normal", "--nologo"]
-
+    logger.info("Running tests...")
     try {
-        logger.info("Running tests...")
-        execFileSync("dotnet", testArgs, {
-            cwd: projectPath,
+        execFileSync("dotnet", ["test", precommitDll, "--no-build", "--verbosity=normal", "--nologo"], {
             encoding: "utf8",
             timeout: 300_000, // 5 minute timeout for tests
             stdio: "inherit",
@@ -112,30 +105,8 @@ function runTests() {
  * Main execution
  */
 function main() {
-    // Stop dev services
-    stopDevServices()
-
-    // Check if build is needed
-    try {
-        if (needsBuild(projectPath, projectName)) {
-            // Build is needed, continue to build step below
-        } else if (buildOutputExists()) {
-            // Build not needed and output exists, skip to tests
-            logger.success("Build not needed (using cached results)")
-            const testSuccess = runTests()
-            process.exit(testSuccess ? 0 : 1)
-        } else {
-            // Cache says no build needed, but output is missing
-            logger.warning("Cache indicates no build needed, but build output missing. Rebuilding...")
-        }
-    } catch (error) {
-        // If cache check fails, proceed with fresh build
-        logger.info(`Cache check failed, proceeding with fresh build: ${error.message}`)
-    }
-
-    // Run build
-    const buildSuccess = runBuild()
-    if (!buildSuccess) {
+    // Ensure build exists (either from precommit or build now)
+    if (!ensureBuild()) {
         process.exit(1)
     }
 
