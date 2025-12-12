@@ -53,6 +53,59 @@ function runCommand(command, args, options = {}) {
     })
 }
 
+// Helper to create error with output property
+function createErrorWithOutput(message, output) {
+    const error = new Error(message)
+    error.output = output
+    return error
+}
+
+// Helper function to run commands and capture output for caching
+function runCommandWithOutput(command, args, options = {}) {
+    return new Promise((resolve, reject) => {
+        let stdout = ""
+        let stderr = ""
+
+        const child = spawn(command, args, {
+            shell: true,
+            ...options,
+        })
+
+        child.stdout.on("data", (data) => {
+            stdout += data.toString()
+            process.stdout.write(data)
+        })
+
+        child.stderr.on("data", (data) => {
+            stderr += data.toString()
+            process.stderr.write(data)
+        })
+
+        let timeout = null
+        if (TIMEOUT_MS) {
+            timeout = setTimeout(() => {
+                child.kill("SIGTERM")
+                reject(createErrorWithOutput(`Command timed out after ${TIMEOUT_MS}ms`, stdout + stderr))
+            }, TIMEOUT_MS)
+        }
+
+        child.on("exit", (code) => {
+            clearTimeout(timeout)
+            const output = stdout + stderr
+            if (code === 0) {
+                resolve(output)
+            } else {
+                reject(createErrorWithOutput(`Command failed with exit code ${code}`, output))
+            }
+        })
+
+        child.on("error", (err) => {
+            clearTimeout(timeout)
+            reject(createErrorWithOutput(err.message, stdout + stderr))
+        })
+    })
+}
+
 async function verifyVueTypeScript() {
     logger.info("Checking Vue.js TypeScript compilation...")
 
@@ -110,7 +163,7 @@ async function verifyDotNetBuild() {
 
     try {
         // Build test project (includes web via ProjectReference)
-        await runCommand(
+        const output = await runCommandWithOutput(
             "dotnet",
             [
                 "build",
@@ -127,15 +180,16 @@ async function verifyDotNetBuild() {
             },
         )
 
-        // Cache success
-        markAsBuilt("web", "Viper.csproj", "", true)
-        markAsBuilt("test", "Viper.test.csproj", "", true)
+        // Cache success with output
+        markAsBuilt("web", "Viper.csproj", output, true)
+        markAsBuilt("test", "Viper.test.csproj", output, true)
         logger.success(".NET compilation passed ✓")
         return true
-    } catch {
-        // Cache failure
-        markAsBuilt("web", "Viper.csproj", "", false)
-        markAsBuilt("test", "Viper.test.csproj", "", false)
+    } catch (error) {
+        // Cache failure with captured output
+        const output = error.output || ""
+        markAsBuilt("web", "Viper.csproj", output, false)
+        markAsBuilt("test", "Viper.test.csproj", output, false)
         logger.error(".NET compilation failed")
         return false
     }

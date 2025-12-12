@@ -4,7 +4,13 @@ const { execFileSync } = require("node:child_process")
 const path = require("node:path")
 const fs = require("node:fs")
 const { createLogger } = require("./lib/script-utils")
-const { needsBuild, markAsBuilt } = require("./lib/build-cache")
+const {
+    needsBuild,
+    markAsBuilt,
+    wasBuildSuccessful,
+    getCachedBuildOutput,
+    filterBuildErrors,
+} = require("./lib/build-cache")
 
 const { env } = process
 const logger = createLogger("TEST")
@@ -28,6 +34,12 @@ function precommitBuildExists() {
 function ensureBuild() {
     // Check if precommit build exists and cache says no rebuild needed
     if (precommitBuildExists() && !needsBuild(projectPath, projectName)) {
+        // Check if cached build was successful
+        if (wasBuildSuccessful(projectName) === false) {
+            logger.error("Build failed (cached) - fix the error below and try again:")
+            console.error(filterBuildErrors(getCachedBuildOutput(projectName)))
+            return false
+        }
         logger.success("Using existing precommit build")
         return true
     }
@@ -55,12 +67,15 @@ function ensureBuild() {
             },
         )
 
-        markAsBuilt(projectPath, projectName, result)
+        markAsBuilt(projectPath, projectName, result, true)
         logger.success("Build completed")
         return true
     } catch (error) {
+        const output = (error.stdout || "") + (error.stderr || "")
+        // Cache failure to avoid redundant rebuild attempts
+        markAsBuilt(projectPath, projectName, output, false)
         logger.error("Build failed!")
-        console.error((error.stdout || "") + (error.stderr || ""))
+        console.error(output)
         return false
     }
 }

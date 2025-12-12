@@ -131,6 +131,9 @@ const testFiles = rawFiles.filter((f) => TEST_PATH_REGEX.test(f))
 const runBuild = (projectPath) => {
     // Use actual project file names to match build-dotnet.js cache keys
     const projectName = projectPath === "web" ? "Viper.csproj" : "Viper.test.csproj"
+    if (projectPath !== "web" && projectPath !== "test") {
+        throw new Error(`Unknown projectPath "${projectPath}" passed to runBuild. Expected "web" or "test".`)
+    }
 
     // Check if build is needed (unless forced)
     if (forceFlag) {
