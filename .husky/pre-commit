@@ -3,6 +3,9 @@
 # Check if this is a merge commit or rebase
 if git rev-parse -q --verify MERGE_HEAD > /dev/null 2>&1; then
     echo "🔀 Merge commit detected - skipping linting, running tests and build verification..."
+    # Build first to avoid race condition between TEST and VERIFY writing to same output dir
+    echo "🔨 Building .NET projects..."
+    node scripts/build-dotnet.js || exit 1
     node scripts/run-parallel.js \
         "TEST:npm run test" \
         "VERIFY:npm run verify:build"

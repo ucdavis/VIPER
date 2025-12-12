@@ -153,10 +153,17 @@ async function verifyDotNetBuild() {
     const testCached = !needsBuild("test", "Viper.test.csproj")
 
     if (webCached && testCached) {
-        // Check if cached build was successful
-        if (wasBuildSuccessful("Viper.csproj") === false) {
-            logger.error(".NET compilation failed (cached) - fix the error below:")
-            console.error(filterBuildErrors(getCachedBuildOutput("Viper.csproj")))
+        // Check if cached build was successful (check both projects)
+        const webFailed = wasBuildSuccessful("Viper.csproj") === false
+        const testFailed = wasBuildSuccessful("Viper.test.csproj") === false
+        if (webFailed || testFailed) {
+            logger.error(".NET compilation failed (cached) - fix the error(s) below:")
+            if (webFailed) {
+                console.error(filterBuildErrors(getCachedBuildOutput("Viper.csproj")))
+            }
+            if (testFailed) {
+                console.error(filterBuildErrors(getCachedBuildOutput("Viper.test.csproj")))
+            }
             return false
         }
         logger.success(".NET compilation passed ✓ (cached)")

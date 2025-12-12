@@ -27,10 +27,17 @@ const webNeedsBuild = needsBuild("web", "Viper.csproj")
 const testNeedsBuild = needsBuild("test", "Viper.test.csproj")
 
 if (!webNeedsBuild && !testNeedsBuild) {
-    // Hash unchanged - return cached result
-    if (wasBuildSuccessful("Viper.csproj") === false) {
-        logger.error("Build failed (cached) - fix the error below and try again:")
-        console.error(filterBuildErrors(getCachedBuildOutput("Viper.csproj")))
+    // Hash unchanged - return cached result (check both projects)
+    const webFailed = wasBuildSuccessful("Viper.csproj") === false
+    const testFailed = wasBuildSuccessful("Viper.test.csproj") === false
+    if (webFailed || testFailed) {
+        logger.error("Build failed (cached) - fix the error(s) below and try again:")
+        if (webFailed) {
+            console.error(filterBuildErrors(getCachedBuildOutput("Viper.csproj")))
+        }
+        if (testFailed) {
+            console.error(filterBuildErrors(getCachedBuildOutput("Viper.test.csproj")))
+        }
         process.exit(1)
     }
     logger.success("Build skipped (cached)")

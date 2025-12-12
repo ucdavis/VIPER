@@ -29,7 +29,7 @@ let bashPath = null
 for (const p of bashPaths) {
     try {
         // Test if bash works
-        const result = spawnSync(p, ["--version"], { encoding: "utf8", timeout: 5000 })
+        const result = spawnSync(p, ["--version"], { encoding: "utf8", timeout: 2000 })
         if (result.status === 0) {
             bashPath = p
             break
