@@ -3,16 +3,37 @@
 # Check if this is a merge commit or rebase
 if git rev-parse -q --verify MERGE_HEAD > /dev/null 2>&1; then
     echo "🔀 Merge commit detected - skipping linting, running tests and build verification..."
-    npm run dev:stop
-    npm run test
-    npm run verify:build
+    node scripts/run-parallel.js \
+        "TEST:npm run test" \
+        "VERIFY:npm run verify:build"
+    exit $?
 elif [ -d ".git/rebase-merge" ] || [ -d ".git/rebase-apply" ]; then
     echo "🔄 Rebase in progress - skipping pre-commit checks..."
     exit 0
-else
-    echo "🔍 Running pre-commit checks..."
-    npm run dev:stop
-    npx lint-staged
-    npm run test
-    npm run verify:build
 fi
+
+echo "🔍 Running pre-commit checks..."
+
+# Suppress verbose cache logging during precommit
+export QUIET_CACHE=1
+
+# Get staged files (excluding deleted files)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=d)
+export STAGED_FILES
+
+# Check if any .cs files are staged (need dotnet build)
+CS_FILES=$(echo "$STAGED_FILES" | grep '\.cs$' || true)
+
+# Phase 1: Build .NET if needed (required for tests and .cs linting)
+if [ -n "$CS_FILES" ] || [ -n "$(echo "$STAGED_FILES" | grep -E '\.(ts|vue|js)$')" ]; then
+    echo "🔨 Building .NET projects..."
+    node scripts/build-dotnet.js || exit 1
+fi
+
+# Phase 2: Run all validation in parallel (suppress output, show only on failure)
+echo "🧪 Running lint, tests, and build verification in parallel..."
+node scripts/run-parallel.js \
+    "LINT:node scripts/precommit-lint.js" \
+    "TEST:npm run test" \
+    "VERIFY:npm run verify:build"
+exit $?

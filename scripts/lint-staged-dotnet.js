@@ -129,7 +129,8 @@ const testFiles = rawFiles.filter((f) => TEST_PATH_REGEX.test(f))
 
 // Function to run dotnet build for SonarAnalyzer on a specific project
 const runBuild = (projectPath) => {
-    const projectName = `${projectPath}.csproj`
+    // Use actual project file names to match build-dotnet.js cache keys
+    const projectName = projectPath === "web" ? "Viper.csproj" : "Viper.test.csproj"
 
     // Check if build is needed (unless forced)
     if (forceFlag) {

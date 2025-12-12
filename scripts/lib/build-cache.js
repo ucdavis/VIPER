@@ -6,7 +6,12 @@ const crypto = require("node:crypto")
 const { execFileSync } = require("node:child_process")
 const { createLogger } = require("./script-utils")
 
+const { env } = process
 const logger = createLogger("Cache")
+
+// Quiet mode suppresses info logs (only show warnings/errors)
+// Enable via QUIET_CACHE=1 environment variable
+const quietMode = env.QUIET_CACHE === "1"
 
 /**
  * Build caching utilities using content hashing
@@ -63,7 +68,7 @@ function findFiles(dir, extensions = [".cs", ".csproj"], excludeDirs = ["bin", "
     }
 
     scan(dir)
-    return files.sort() // Sort for consistent ordering
+    return files.toSorted((a, b) => a.localeCompare(b)) // Sort for consistent ordering
 }
 
 /**
@@ -158,7 +163,9 @@ function needsBuild(projectPath, projectName) {
 
     // Always rebuild if no cache entry exists
     if (!cacheEntry || typeof cacheEntry !== "object") {
-        logger.info(`📝 Build needed for ${projectName}: no valid cache entry found`)
+        if (!quietMode) {
+            logger.info(`📝 Build needed for ${projectName}: no valid cache entry found`)
+        }
         return true
     }
 
@@ -167,35 +174,56 @@ function needsBuild(projectPath, projectName) {
     // Compare content hashes
     const needsRebuild = currentHash !== cachedHash
 
-    if (needsRebuild) {
-        logger.info(
-            `📝 Build needed for ${projectName}: file content has changed (hash: ${currentHash.slice(0, HASH_DISPLAY_LENGTH)}... != cached: ${cachedHash.slice(0, HASH_DISPLAY_LENGTH)}...)`,
-        )
-    } else {
-        logger.info(
-            `✅ Skipping build for ${projectName}: no changes detected (hash: ${currentHash.slice(0, HASH_DISPLAY_LENGTH)}...)`,
-        )
+    if (!quietMode) {
+        if (needsRebuild) {
+            logger.info(
+                `📝 Build needed for ${projectName}: file content has changed (hash: ${currentHash.slice(0, HASH_DISPLAY_LENGTH)}... != cached: ${cachedHash.slice(0, HASH_DISPLAY_LENGTH)}...)`,
+            )
+        } else {
+            logger.info(
+                `✅ Skipping build for ${projectName}: no changes detected (hash: ${currentHash.slice(0, HASH_DISPLAY_LENGTH)}...)`,
+            )
+        }
     }
 
     return needsRebuild
 }
 
 /**
- * Mark a project as successfully built and cache the build output
+ * Mark a project as built and cache the build output
  * @param {string} projectPath - Path to the project directory
  * @param {string} projectName - Name of the project
  * @param {string} buildOutput - Build output to cache
+ * @param {boolean} success - Whether the build succeeded (default: true)
  */
-function markAsBuilt(projectPath, projectName, buildOutput = "") {
+function markAsBuilt(projectPath, projectName, buildOutput = "", success = true) {
     const cache = loadBuildCache()
     const currentHash = computeProjectHash(projectPath)
 
     cache[projectName] = {
         hash: currentHash,
-        timestamp: Date.now(), // Keep timestamp for informational purposes
+        timestamp: Date.now(),
         output: buildOutput,
+        success,
     }
     saveBuildCache(cache)
+}
+
+/**
+ * Check if a cached build was successful
+ * @param {string} projectName - Name of the project
+ * @returns {boolean|null} - true if successful, false if failed, null if not cached
+ */
+function wasBuildSuccessful(projectName) {
+    const cache = loadBuildCache()
+    const cacheEntry = cache[projectName]
+
+    if (!cacheEntry || typeof cacheEntry !== "object") {
+        return null
+    }
+
+    // Legacy cache entries without success field are assumed successful
+    return cacheEntry.success !== false
 }
 
 /**
@@ -295,7 +323,7 @@ function needsFormatCheck(filePaths, cacheKey) {
 
     // Compute combined hash of all specified files
     const currentHash = crypto.createHash("sha256")
-    const sortedPaths = [...filePaths].sort() // Ensure consistent ordering
+    const sortedPaths = [...filePaths].toSorted((a, b) => a.localeCompare(b)) // Ensure consistent ordering
 
     for (const filePath of sortedPaths) {
         try {
@@ -311,21 +339,25 @@ function needsFormatCheck(filePaths, cacheKey) {
 
     // Check if cache entry exists and hash matches
     if (!cacheEntry || typeof cacheEntry !== "object") {
-        logger.info(`📝 Format check needed for ${cacheKey}: no valid cache entry found`)
+        if (!quietMode) {
+            logger.info(`📝 Format check needed for ${cacheKey}: no valid cache entry found`)
+        }
         return true
     }
 
     const cachedHash = cacheEntry.hash || "0"
     const needsCheck = currentHashDigest !== cachedHash
 
-    if (needsCheck) {
-        logger.info(
-            `📝 Format check needed for ${cacheKey}: file content changed (hash: ${currentHashDigest.slice(0, HASH_DISPLAY_LENGTH)}... != cached: ${cachedHash.slice(0, HASH_DISPLAY_LENGTH)}...)`,
-        )
-    } else {
-        logger.info(
-            `✅ Skipping format check for ${cacheKey}: no changes detected (hash: ${currentHashDigest.slice(0, HASH_DISPLAY_LENGTH)}...)`,
-        )
+    if (!quietMode) {
+        if (needsCheck) {
+            logger.info(
+                `📝 Format check needed for ${cacheKey}: file content changed (hash: ${currentHashDigest.slice(0, HASH_DISPLAY_LENGTH)}... != cached: ${cachedHash.slice(0, HASH_DISPLAY_LENGTH)}...)`,
+            )
+        } else {
+            logger.info(
+                `✅ Skipping format check for ${cacheKey}: no changes detected (hash: ${currentHashDigest.slice(0, HASH_DISPLAY_LENGTH)}...)`,
+            )
+        }
     }
 
     return needsCheck
@@ -342,7 +374,7 @@ function markFormatChecked(filePaths, cacheKey, formatOutput = "") {
 
     // Compute hash of all specified files
     const currentHash = crypto.createHash("sha256")
-    const sortedPaths = [...filePaths].sort()
+    const sortedPaths = [...filePaths].toSorted((a, b) => a.localeCompare(b))
 
     for (const filePath of sortedPaths) {
         try {
@@ -382,10 +414,28 @@ function getCachedFormatOutput(cacheKey) {
     return cacheEntry.output || ""
 }
 
+/**
+ * Filter build output to show only error lines (not warnings)
+ * @param {string} output - Full build output
+ * @returns {string} - Filtered output with only errors, or original if no errors found
+ */
+function filterBuildErrors(output) {
+    if (!output) {
+        return ""
+    }
+    const errorLines = output
+        .split("\n")
+        .filter((line) => line.includes(": error ") || line.includes("Build FAILED") || line.includes("Error(s)"))
+        .join("\n")
+    return errorLines || output
+}
+
 module.exports = {
     needsBuild,
     markAsBuilt,
+    wasBuildSuccessful,
     getCachedBuildOutput,
+    filterBuildErrors,
     clearBuildCache,
     buildIfNeeded,
     computeProjectHash,

@@ -2,7 +2,7 @@
 
 // Shared utilities for Node.js scripts (cross-platform)
 
-const { exec } = require("node:child_process")
+const { exec, execFileSync } = require("node:child_process")
 const { promisify } = require("node:util")
 const dotenv = require("dotenv")
 const path = require("node:path")
@@ -10,6 +10,55 @@ const fs = require("node:fs")
 const os = require("node:os")
 
 const execAsync = promisify(exec)
+
+const { env } = process
+
+// Process termination wait settings (Windows)
+const DEFAULT_TERMINATION_WAIT_MS = 5000
+const TERMINATION_CHECK_INTERVAL_MS = 100
+const KILL_TERMINATION_WAIT_MS = 3000
+
+/**
+ * Get staged files that have unstaged changes (partially staged files)
+ * @param {string[]} stagedFiles - Array of staged file paths
+ * @returns {string[]} Array of partially staged file paths
+ */
+function getPartiallyStaged(stagedFiles) {
+    if (stagedFiles.length === 0) {
+        return []
+    }
+    try {
+        const result = execFileSync("git", ["diff", "--name-only", "--", ...stagedFiles], {
+            encoding: "utf8",
+        })
+        return result.trim().split("\n").filter(Boolean)
+    } catch {
+        return []
+    }
+}
+
+/**
+ * Check for partially staged files and exit with error if found
+ * @param {string[]} stagedFiles - Array of staged file paths
+ * @param {Object} logger - Logger instance with error method
+ * @returns {void} Exits process with code 1 if partially staged files found
+ */
+function checkPartiallyStaged(stagedFiles, logger) {
+    const partiallyStaged = getPartiallyStaged(stagedFiles)
+    if (partiallyStaged.length > 0) {
+        logger.error("Some staged files have unstaged changes:")
+        for (const file of partiallyStaged) {
+            console.error(`   - ${file}`)
+        }
+        console.error("")
+        console.error("The linter would check your working directory, but the staged")
+        console.error("content is different. Please either:")
+        console.error("  1. Stage all changes: git add <files>")
+        console.error("  2. Stash unstaged changes: git stash -k")
+        console.error("")
+        process.exit(1)
+    }
+}
 
 // Default environment variables for Vite and ASP.NET Core
 const DEFAULT_ENV_VARS = {
@@ -67,7 +116,7 @@ function getDevServerEnv() {
     const mergedEnv = { ...DEFAULT_ENV_VARS }
     for (const key in DEFAULT_ENV_VARS) {
         if (Object.hasOwn(DEFAULT_ENV_VARS, key)) {
-            const value = Number.parseInt(envConfig[key] || process.env[key], 10)
+            const value = Number.parseInt(envConfig[key] || env[key], 10)
             if (!Number.isNaN(value)) {
                 mergedEnv[key] = value
             }
@@ -126,33 +175,44 @@ async function killProcess(name) {
     }
 }
 
+// Check if a process exists by PID (Windows only)
+async function checkProcessExists(pid) {
+    try {
+        // The /FI "PID eq ${pid}" filter ensures exact PID matching (no false positives)
+        const { stdout } = await execAsync(`tasklist /FI "PID eq ${pid}" /NH`)
+        // If the process is gone, tasklist will show "INFO: No tasks are running"
+        return !stdout.includes("No tasks")
+    } catch {
+        // If tasklist fails, assume process is gone
+        return false
+    }
+}
+
 // Helper function to wait for a process to fully terminate (Windows-specific)
-async function waitForProcessTermination(pid, maxWaitMs = 5000) {
+// Uses recursive polling to avoid no-await-in-loop warnings
+function waitForProcessTermination(pid, maxWaitMs = DEFAULT_TERMINATION_WAIT_MS) {
     const isWindows = os.platform() === "win32"
     if (!isWindows) {
-        return true // Non-Windows doesn't need explicit waiting
+        return Promise.resolve(true) // Non-Windows doesn't need explicit waiting
     }
 
     const startTime = Date.now()
-    const checkInterval = 100 // Check every 100ms
 
-    while (Date.now() - startTime < maxWaitMs) {
-        try {
-            // Check if process still exists using tasklist with exact PID filter
-            // The /FI "PID eq ${pid}" filter ensures exact PID matching (no false positives)
-            const { stdout } = await execAsync(`tasklist /FI "PID eq ${pid}" /NH`)
-            // If the process is gone, tasklist will show "INFO: No tasks are running"
-            if (stdout.includes("No tasks")) {
-                return true // Process is terminated
-            }
-        } catch {
-            // If tasklist fails, assume process is gone
-            return true
+    // Recursive polling function
+    async function poll() {
+        if (Date.now() - startTime >= maxWaitMs) {
+            return false // Timeout reached
         }
-        // Wait before checking again
-        await new Promise((resolve) => setTimeout(resolve, checkInterval))
+        const exists = await checkProcessExists(pid)
+        if (!exists) {
+            return true // Process is terminated
+        }
+        // Wait then poll again
+        await new Promise((resolve) => setTimeout(resolve, TERMINATION_CHECK_INTERVAL_MS))
+        return poll()
     }
-    return false // Timeout reached, process may still be terminating
+
+    return poll()
 }
 
 // Kill a process by the port it's listening on (cross-platform)
@@ -188,7 +248,7 @@ async function killProcessOnPort(port) {
                 try {
                     await execAsync(`taskkill /F /PID ${pid}`)
                     // Wait for the process to fully terminate before continuing
-                    await waitForProcessTermination(pid, 3000) // Wait up to 3 seconds
+                    await waitForProcessTermination(pid, KILL_TERMINATION_WAIT_MS)
                     return true
                 } catch (error) {
                     // taskkill throws an error if the process doesn't exist, which is fine.
@@ -217,8 +277,10 @@ async function killProcessOnPort(port) {
 }
 
 module.exports = {
+    checkPartiallyStaged,
     createLogger,
     getDevServerEnv,
+    getPartiallyStaged,
     killProcess,
     killProcessOnPort,
     openBrowser,

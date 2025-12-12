@@ -1,11 +1,19 @@
 #!/usr/bin/env node
 
 // Build verification script for pre-commit hooks
-// Runs quick compilation checks without producing output files
+// Runs compilation checks with caching to avoid redundant builds
 
 const { spawn } = require("node:child_process")
 const path = require("node:path")
 const { createLogger } = require("./lib/script-utils")
+const {
+    needsBuild,
+    markAsBuilt,
+    wasBuildSuccessful,
+    getCachedBuildOutput,
+    filterBuildErrors,
+} = require("./lib/build-cache")
+
 const logger = createLogger("Build Verify")
 
 // Configuration
@@ -82,57 +90,53 @@ async function verifyVueBuild() {
 }
 
 async function verifyDotNetBuild() {
+    // Check cache - if build-dotnet.js already built both projects, skip
+    // Building test/ also builds web/ (via ProjectReference)
+    const webCached = !needsBuild("web", "Viper.csproj")
+    const testCached = !needsBuild("test", "Viper.test.csproj")
+
+    if (webCached && testCached) {
+        // Check if cached build was successful
+        if (wasBuildSuccessful("Viper.csproj") === false) {
+            logger.error(".NET compilation failed (cached) - fix the error below:")
+            console.error(filterBuildErrors(getCachedBuildOutput("Viper.csproj")))
+            return false
+        }
+        logger.success(".NET compilation passed ✓ (cached)")
+        return true
+    }
+
     logger.info("Checking .NET compilation...")
 
     try {
-        await runCommand(
-            "dotnet",
-            [
-                "build",
-                "./web/Viper.csproj",
-                "--no-restore",
-                "--nologo",
-                "--verbosity",
-                "quiet",
-                "/property:WarningLevel=0",
-            ],
-            {
-                env: { ...env, DOTNET_USE_COMPILER_SERVER: "1", DOTNET_CLI_FORCE_UTF8_ENCODING: "true" },
-            },
-        )
-
-        logger.success(".NET compilation passed ✓")
-        return true
-    } catch {
-        logger.error(".NET compilation failed")
-        return false
-    }
-}
-
-async function verifyDotNetTests() {
-    logger.info("Checking .NET test compilation...")
-
-    try {
+        // Build test project (includes web via ProjectReference)
         await runCommand(
             "dotnet",
             [
                 "build",
                 "./test/Viper.test.csproj",
+                "-o",
+                "test/bin/Precommit",
                 "--no-restore",
                 "--nologo",
                 "--verbosity",
                 "quiet",
-                "/property:WarningLevel=0",
             ],
             {
                 env: { ...env, DOTNET_USE_COMPILER_SERVER: "1", DOTNET_CLI_FORCE_UTF8_ENCODING: "true" },
             },
         )
 
-        logger.success(".NET test compilation passed ✓")
+        // Cache success
+        markAsBuilt("web", "Viper.csproj", "", true)
+        markAsBuilt("test", "Viper.test.csproj", "", true)
+        logger.success(".NET compilation passed ✓")
         return true
     } catch {
-        logger.error(".NET test compilation failed")
+        // Cache failure
+        markAsBuilt("web", "Viper.csproj", "", false)
+        markAsBuilt("test", "Viper.test.csproj", "", false)
+        logger.error(".NET compilation failed")
         return false
     }
 }
@@ -140,12 +144,11 @@ async function verifyDotNetTests() {
 async function main() {
     logger.info("Starting build verification...")
 
-    // Run checks in parallel for speed
+    // Run checks in parallel (.NET uses cache - skips if already built by build-dotnet.js)
     const checks = await Promise.allSettled([
         verifyVueTypeScript(),
         verifyVueBuild(),
-        verifyDotNetBuild(),
-        verifyDotNetTests(),
+        verifyDotNetBuild(), // Builds test/ which includes web/ via ProjectReference
     ])
 
     const results = checks.map((result) => (result.status === "fulfilled" ? result.value : false))
