@@ -23,6 +23,7 @@ const {
 // Regex patterns for robust path classification (handle both "web" and "web/file.cs")
 const WEB_PATH_REGEX = /(^|[\\/])web([\\/]|$)/
 const TEST_PATH_REGEX = /(^|[\\/])test([\\/]|$)/
+const EFFORT_SCRIPTS_PATH_REGEX = /(^|[\\/])web[\\/]Areas[\\/]Effort[\\/]Scripts([\\/]|$)/
 
 /**
  * Parse dotnet build output to extract SonarAnalyzer issues
@@ -123,22 +124,22 @@ if (rawFiles.length === 0) {
     process.exit(0)
 }
 
-// Separate files by project (web vs test) - handle absolute and relative paths
-const webFiles = rawFiles.filter((f) => WEB_PATH_REGEX.test(f))
+// Effort Scripts must be filtered FIRST since it's a subdirectory of web
+const effortScriptsFiles = rawFiles.filter((f) => EFFORT_SCRIPTS_PATH_REGEX.test(f))
+const webFiles = rawFiles.filter((f) => WEB_PATH_REGEX.test(f) && !EFFORT_SCRIPTS_PATH_REGEX.test(f))
 const testFiles = rawFiles.filter((f) => TEST_PATH_REGEX.test(f))
 
-// Function to run dotnet build for SonarAnalyzer on a specific project
-const runBuild = (projectPath) => {
-    const projectName = `${projectPath}.csproj`
+const runBuild = (projectPath, projectName = null) => {
+    const effectiveProjectName = projectName || `${path.basename(projectPath)}.csproj`
 
     // Check if build is needed (unless forced)
     if (forceFlag) {
         logger.info(`Force flag enabled, skipping cache for ${projectPath}/ project`)
     } else {
         try {
-            if (!needsBuild(projectPath, projectName)) {
+            if (!needsBuild(projectPath, effectiveProjectName)) {
                 // Get cached analyzer output instead of skipping analysis
-                const cachedOutput = getCachedBuildOutput(projectName)
+                const cachedOutput = getCachedBuildOutput(effectiveProjectName)
                 logger.success(`Build not needed for ${projectPath}/ project (using cached results)`)
 
                 // Check for analyzer warnings in cached output
@@ -164,7 +165,7 @@ const runBuild = (projectPath) => {
 
         // Store successful build in cache
         try {
-            markAsBuilt(projectPath, projectName, result)
+            markAsBuilt(projectPath, effectiveProjectName, result)
         } catch (error) {
             logger.warning(`Failed to cache build result: ${error.message}`)
         }
@@ -181,7 +182,7 @@ const runBuild = (projectPath) => {
 
             // Store build output even for failed builds so analyzers can process it
             try {
-                markAsBuilt(projectPath, projectName, output)
+                markAsBuilt(projectPath, effectiveProjectName, output)
             } catch (error) {
                 logger.warning(`Failed to cache build output: ${error.message}`)
             }
@@ -393,6 +394,14 @@ function isRelevantIssue(issue, requestedFiles) {
 try {
     let allFormatOutput = ""
     let allBuildOutput = ""
+
+    if (effortScriptsFiles.length > 0) {
+        const buildResult = runBuild("web/Areas/Effort/Scripts", "EffortMigration.csproj")
+        allBuildOutput += buildResult.output || ""
+
+        const formatResult = runFormat("web/Areas/Effort/Scripts", effortScriptsFiles)
+        allFormatOutput += formatResult.output || ""
+    }
 
     // Run build for SonarAnalyzer on web project if there are web files
     if (webFiles.length > 0) {
