@@ -90,7 +90,9 @@ function runCommandWithOutput(command, args, options = {}) {
         }
 
         child.on("exit", (code) => {
-            clearTimeout(timeout)
+            if (timeout) {
+                clearTimeout(timeout)
+            }
             const output = stdout + stderr
             if (code === 0) {
                 resolve(output)
@@ -100,7 +102,9 @@ function runCommandWithOutput(command, args, options = {}) {
         })
 
         child.on("error", (err) => {
-            clearTimeout(timeout)
+            if (timeout) {
+                clearTimeout(timeout)
+            }
             reject(createErrorWithOutput(err.message, stdout + stderr))
         })
     })

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* oxlint-disable no-await-in-loop -- Polling requires sequential await */
 
 // Shared utilities for Node.js scripts (cross-platform)
 
@@ -189,30 +190,21 @@ async function checkProcessExists(pid) {
 }
 
 // Helper function to wait for a process to fully terminate (Windows-specific)
-// Uses recursive polling to avoid no-await-in-loop warnings
-function waitForProcessTermination(pid, maxWaitMs = DEFAULT_TERMINATION_WAIT_MS) {
+async function waitForProcessTermination(pid, maxWaitMs = DEFAULT_TERMINATION_WAIT_MS) {
     const isWindows = os.platform() === "win32"
     if (!isWindows) {
-        return Promise.resolve(true) // Non-Windows doesn't need explicit waiting
+        return true // Non-Windows doesn't need explicit waiting
     }
 
     const startTime = Date.now()
-
-    // Recursive polling function
-    async function poll() {
-        if (Date.now() - startTime >= maxWaitMs) {
-            return false // Timeout reached
-        }
+    while (Date.now() - startTime < maxWaitMs) {
         const exists = await checkProcessExists(pid)
         if (!exists) {
             return true // Process is terminated
         }
-        // Wait then poll again
         await new Promise((resolve) => setTimeout(resolve, TERMINATION_CHECK_INTERVAL_MS))
-        return poll()
     }
-
-    return poll()
+    return false // Timeout reached
 }
 
 // Kill a process by the port it's listening on (cross-platform)
