@@ -11,6 +11,12 @@ type TermDto = {
     closedDate: string | null
     isOpen: boolean
     canEdit: boolean
+    // State transition properties for term management UI
+    canOpen: boolean
+    canClose: boolean
+    canReopen: boolean
+    canUnopen: boolean
+    canDelete: boolean
 }
 
 type PersonDto = {
@@ -60,4 +66,10 @@ type RecordDto = {
     effortLabel: string
 }
 
-export type { TermDto, PersonDto, CourseDto, RecordDto }
+type AvailableTermDto = {
+    termCode: number
+    termName: string
+    startDate: string
+}
+
+export type { TermDto, PersonDto, CourseDto, RecordDto, AvailableTermDto }

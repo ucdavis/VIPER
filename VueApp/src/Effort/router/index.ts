@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router"
 import { effortRoutes as routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
+import checkHasOnePermission from "@/composables/CheckPagePermission"
 
 const baseUrl = import.meta.env.VITE_VIPER_HOME
 const router = createRouter({
@@ -9,9 +10,18 @@ const router = createRouter({
     routes,
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
     const { requireLogin } = useRequireLogin(to)
-    return requireLogin(true, "SVMSecure.Effort")
+    const loginResult = await requireLogin(true, "SVMSecure.Effort")
+    if (loginResult !== null && !loginResult) {
+        return false
+    }
+    if (to.meta.permissions !== null && to.meta.permissions !== undefined) {
+        const hasPerm = checkHasOnePermission(to.meta.permissions as string[])
+        if (!hasPerm) {
+            return { name: "EffortHome" }
+        }
+    }
 })
 
 export { router as effortRouter }
