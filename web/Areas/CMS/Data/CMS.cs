@@ -96,21 +96,28 @@ namespace Viper.Areas.CMS.Data
             AaudUser? currentUser = UserHelper.GetCurrentUser();
             List<ContentBlock> goodBlocks = new();
 
-            if (blocks != null && currentUser != null && _rapsContext != null)
+            if (blocks != null && _rapsContext != null)
             {
-
                 foreach (var b in blocks)
                 {
-
-                    if (b.AllowPublicAccess ||
-                        UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.CMS.ManageContentBlocks") ||
-                        (b.ContentBlockToPermissions.Count == 0 && UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure")) ||
-                        (b.ContentBlockToPermissions.Count > 0 && b.ContentBlockToPermissions.Any(cp => UserHelper.GetAllPermissions(_rapsContext, currentUser).Any(p => string.Compare(cp.Permission, p.Permission, true) == 0))))
-                    {
-                        // only include blocks that the user has permission to see
+					var hasAccess = b.AllowPublicAccess; //block is available without authentication
+					if (!hasAccess && currentUser != null)
+					{
+						hasAccess = 
+							//CMS admin
+							UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.CMS.ManageContentBlocks") || 
+							//available to all logged in users
+							b.ContentBlockToPermissions.Count == 0 && UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure") ||
+							//available due to having specific permission(s)
+							b.ContentBlockToPermissions.Count > 0 && b.ContentBlockToPermissions
+								.Any(cp => UserHelper.GetAllPermissions(_rapsContext, currentUser)
+									.Any(p => string.Compare(cp.Permission, p.Permission, true) == 0));
+					}
+					// only include blocks that the user has permission to see
+                    if (hasAccess)
+                    {                        
                         goodBlocks.Add(b);
                     }
-
                 }
 
                 if(goodBlocks.Any())

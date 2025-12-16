@@ -21,6 +21,9 @@ let sessionTimeoutCheckEventId = 0
 const sessionReloaded = ref(false)
 
 async function checkSessionTimeout() {
+	if (userStore.userInfo.loginId === undefined || userStore.userInfo.loginId === null || userStore.userInfo.loginId.length === 0) {
+		return //don't check the session if the user is not logged in
+	}
     //try to get the session timeout from an external application
     try {
         fetch(sessionRefreshUrl)
