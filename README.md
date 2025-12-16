@@ -194,8 +194,8 @@ The project includes VS Code launch configurations for debugging both frontend a
 ### Code Quality
 
 - `npm run lint` - Check code style for specified files or directories
-- `npm run lint:staged` - Run pre-commit checks manually
-- `npm run lint:precommit` - Run lint-staged (used by pre-commit hooks)
+- `npm run lint:staged` - Lint only git-staged files
+- `npm run precommit` - Run full pre-commit checks manually (lint, test, build verify)
 
 ## Troubleshooting
 

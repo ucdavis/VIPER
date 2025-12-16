@@ -143,9 +143,9 @@ const runBuild = (projectPath) => {
         logger.info(`Force flag enabled, skipping cache for ${projectPath}/ project`)
     } else {
         try {
-            if (!needsBuild(projectPath, effectiveProjectName)) {
+            if (!needsBuild(projectPath, projectName)) {
                 // Get cached analyzer output instead of skipping analysis
-                const cachedOutput = getCachedBuildOutput(effectiveProjectName)
+                const cachedOutput = getCachedBuildOutput(projectName)
                 logger.success(`Build not needed for ${projectPath}/ project (using cached results)`)
 
                 // Check for analyzer warnings in cached output
@@ -171,7 +171,7 @@ const runBuild = (projectPath) => {
 
         // Store successful build in cache
         try {
-            markAsBuilt(projectPath, effectiveProjectName, result)
+            markAsBuilt(projectPath, projectName, result)
         } catch (error) {
             logger.warning(`Failed to cache build result: ${error.message}`)
         }
@@ -188,7 +188,7 @@ const runBuild = (projectPath) => {
 
             // Store build output even for failed builds so analyzers can process it
             try {
-                markAsBuilt(projectPath, effectiveProjectName, output)
+                markAsBuilt(projectPath, projectName, output)
             } catch (error) {
                 logger.warning(`Failed to cache build output: ${error.message}`)
             }
