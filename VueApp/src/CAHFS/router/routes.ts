@@ -3,7 +3,7 @@ import ViperLayout from '@/layouts/ViperLayout.vue'
 const routes = [
     {
         path: '/CAHFS/',
-        meta: { layout: ViperLayout, allowUnAuth: true },
+        meta: { layout: ViperLayout, allowUnAuth: true, showViewWhenNotLoggedIn: true },
         component: () => import('@/CAHFS/pages/CAHFSAuth.vue'),
         name: 'CAHFSAuth',
     },

@@ -159,7 +159,7 @@
             <div
                 class="q-pa-md"
                 v-cloak
-                v-show="userStore.isLoggedIn"
+                v-show="userStore.isLoggedIn || showViewWhenNotLoggedIn"
             >
                 <router-view></router-view>
             </div>
@@ -290,6 +290,9 @@ export default {
             type: Array as PropType<BreadCrumb[]>,
             default: () => [],
         },
+		showViewWhenNotLoggedIn: {
+			type: Boolean,
+		},
     },
     components: {
         LeftNav,
