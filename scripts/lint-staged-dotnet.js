@@ -129,8 +129,14 @@ const effortScriptsFiles = rawFiles.filter((f) => EFFORT_SCRIPTS_PATH_REGEX.test
 const webFiles = rawFiles.filter((f) => WEB_PATH_REGEX.test(f) && !EFFORT_SCRIPTS_PATH_REGEX.test(f))
 const testFiles = rawFiles.filter((f) => TEST_PATH_REGEX.test(f))
 
-const runBuild = (projectPath, projectName = null) => {
-    const effectiveProjectName = projectName || `${path.basename(projectPath)}.csproj`
+// Function to run dotnet build for SonarAnalyzer on a specific project
+const runBuild = (projectPath) => {
+    // Fail fast - validate before computing derived values
+    if (projectPath !== "web" && projectPath !== "test") {
+        throw new Error(`Unknown projectPath "${projectPath}" passed to runBuild. Expected "web" or "test".`)
+    }
+    // Use actual project file names to match build-dotnet.js cache keys
+    const projectName = projectPath === "web" ? "Viper.csproj" : "Viper.test.csproj"
 
     // Check if build is needed (unless forced)
     if (forceFlag) {

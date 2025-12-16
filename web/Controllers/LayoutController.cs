@@ -115,24 +115,55 @@ namespace Viper.Controllers
             return menu;
         }
 
+        /// <summary>
+        /// For the development environment, links starting with '/' (but not /2) need to be changed to use http://localhost
+        /// (Viper 2 will be using https locally with a custom port)
+        /// </summary>
+        /// <param name="menu"></param>
         private static void ConvertNavLinksForDevelopment(NavMenu menu)
         {
             if (HttpHelper.Environment?.EnvironmentName == "Development" && menu?.MenuItems != null)
             {
-                foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 0 && item.MenuItemURL.Substring(0, 1) == "/"))
+                foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 0
+                    && item.MenuItemURL[..1] == "/"
+                    && (item.MenuItemURL.Length < 2 || item.MenuItemURL[..2] != "/2")))
                 {
                     item.MenuItemURL = "http://localhost" + item.MenuItemURL;
                 }
             }
         }
 
+        /// <summary>
+        /// Modify the base path to handle two cases:
+        ///     Links starting with "/" are VIPER 1.0 links and should be changed to start with https://{{host}}/, otherwise they will point to /2/
+        ///     Links starting with "~/" or "/2" are VIPER 2.0 links and should be changed to start with "/"
+        /// </summary>
+        /// <param name="menu"></param>
         private static void AdjustBasePath(NavMenu menu)
         {
             if (menu.MenuItems != null)
             {
-                foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 0 && item.MenuItemURL.Substring(0, 2) == "~/"))
+                var viper1 = HttpHelper.GetOldViperRootURL();
+
+                // Fix VIPER 1.0 links
+                foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 0
+                    && item.MenuItemURL[..1] == "/"
+                    && (item.MenuItemURL.Length < 2 || item.MenuItemURL[..2] != "/2")))
                 {
-                    item.MenuItemURL = item.MenuItemURL.Replace("~/", "/");
+                    item.MenuItemURL = $"{viper1}{item.MenuItemURL}";
+                }
+
+                // Fix VIPER 2.0 links
+                foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 1))
+                {
+                    if (item.MenuItemURL[..2] == "~/")
+                    {
+                        item.MenuItemURL = item.MenuItemURL[1..]; //strip '~'
+                    }
+                    else if (item.MenuItemURL[..2] == "/2")
+                    {
+                        item.MenuItemURL = (item.MenuItemURL.Length > 2 ? item.MenuItemURL[2..] : ""); //strip '/2'
+                    }
                 }
             }
         }
