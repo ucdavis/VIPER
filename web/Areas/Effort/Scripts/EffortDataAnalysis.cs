@@ -793,6 +793,14 @@ namespace Viper.Areas.Effort.Scripts
             }
 
             WriteColoredCount("  Required fields with null/empty values", _report.BusinessRuleViolations.RequiredFieldViolations.Sum(v => v.NullCount), isCritical: true);
+
+            // Print details of which fields have issues
+            foreach (var violation in _report.BusinessRuleViolations.RequiredFieldViolations)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"    - {violation.Table}.{violation.Column}: {violation.NullCount} records");
+                Console.ResetColor();
+            }
         }
 
         private void CheckConstraintViolations(SqlConnection conn)
@@ -1684,13 +1692,13 @@ namespace Viper.Areas.Effort.Scripts
                     _report.AuditDataQuality.InvalidCrns.Count = _report.AuditDataQuality.InvalidCrns.OrphanedRecords.Sum(r => r.RecordCount);
                     _report.AuditDataQuality.InvalidMothraIds.Count = _report.AuditDataQuality.InvalidMothraIds.OrphanedRecords.Sum(r => r.RecordCount);
 
-                    // Console summary
-                    WriteColoredCount("  Records with NULL TermCode", _report.AuditDataQuality.RecordsWithNullTermCode);
-                    WriteColoredCount("  Records with NULL CRN", _report.AuditDataQuality.RecordsWithNullCrn);
-                    WriteColoredCount("  Records with NULL MothraID", _report.AuditDataQuality.RecordsWithNullMothraId);
-                    WriteColoredCount("  Records with invalid TermCode", _report.AuditDataQuality.InvalidTermCodes.Count, isCritical: true);
-                    WriteColoredCount("  Records with invalid CRN", _report.AuditDataQuality.InvalidCrns.Count, isCritical: true);
-                    WriteColoredCount("  Records with invalid MothraID", _report.AuditDataQuality.InvalidMothraIds.Count, isCritical: true);
+                    // Console summary - show what happens to each category during migration
+                    WriteColoredCount("  Records with NULL TermCode (migrated with NULL)", _report.AuditDataQuality.RecordsWithNullTermCode);
+                    WriteColoredCount("  Records with NULL CRN (migrated with NULL)", _report.AuditDataQuality.RecordsWithNullCrn);
+                    WriteColoredCount("  Records with NULL MothraID (migrated with NULL)", _report.AuditDataQuality.RecordsWithNullMothraId);
+                    WriteColoredCount("  Records with invalid TermCode (migrated, recordId=0)", _report.AuditDataQuality.InvalidTermCodes.Count, isCritical: true);
+                    WriteColoredCount("  Records with invalid CRN (migrated, recordId=0)", _report.AuditDataQuality.InvalidCrns.Count, isCritical: true);
+                    WriteColoredCount("  Records with invalid MothraID (migrated, recordId=0)", _report.AuditDataQuality.InvalidMothraIds.Count, isCritical: true);
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine($"  Fully mappable records: {_report.AuditDataQuality.RecordsFullyMappable}");
                     Console.ResetColor();
@@ -1771,8 +1779,8 @@ namespace Viper.Areas.Effort.Scripts
             Console.ForegroundColor = _report.AuditDataQuality.ModByAsLoginId > 0 ? ConsoleColor.Yellow : ConsoleColor.Green;
             Console.WriteLine($"    audit_ModBy as LoginId (can be mapped): {_report.AuditDataQuality.ModByAsLoginId}");
             Console.ResetColor();
-            Console.ForegroundColor = _report.AuditDataQuality.ModByUnmapped > 0 ? ConsoleColor.Red : ConsoleColor.Green;
-            Console.WriteLine($"    audit_ModBy unmapped (unknown): {_report.AuditDataQuality.ModByUnmapped}");
+            Console.ForegroundColor = _report.AuditDataQuality.ModByUnmapped > 0 ? ConsoleColor.Yellow : ConsoleColor.Green;
+            Console.WriteLine($"    audit_ModBy unmapped (will be SKIPPED): {_report.AuditDataQuality.ModByUnmapped}");
             Console.ResetColor();
 
             if (_report.AuditDataQuality.LoginIdToMothraIdMappings.Count > 0)

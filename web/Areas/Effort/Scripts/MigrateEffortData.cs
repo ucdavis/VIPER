@@ -1410,6 +1410,27 @@ namespace Viper.Areas.Effort.Scripts
             }
         }
 
+        /// <summary>
+        /// Maps legacy audit action names to their modern equivalents.
+        /// Most actions are preserved as-is (24 active actions).
+        /// Only truly deprecated actions (2008/2009 only) are mapped.
+        /// </summary>
+        private static string MapLegacyAction(string? legacyAction)
+        {
+            if (string.IsNullOrEmpty(legacyAction))
+                return "UpdateEffort";
+
+            return legacyAction switch
+            {
+                // Deprecated actions (only 2008/2009 entries)
+                "Create" => "CreateEffort",
+                "ImportCrest" => "ImportEffort",
+
+                // All other actions preserved as-is (24 active actions)
+                _ => legacyAction
+            };
+        }
+
         static void MigrateAuditLog(SqlConnection viperConnection, SqlConnection effortConnection, SqlTransaction transaction)
         {
             Console.WriteLine("Migrating Audits (with legacy preservation columns for 1:1 verification)...");
@@ -1445,10 +1466,10 @@ namespace Viper.Areas.Effort.Scripts
             SET IDENTITY_INSERT [effort].[Audits] ON;
             INSERT INTO [effort].[Audits] (Id, TableName, RecordId, Action, ChangedBy, ChangedDate,
                 Changes, MigratedDate, UserAgent, IpAddress,
-                LegacyAction, LegacyCRN, LegacyTermCode, LegacyMothraID)
+                LegacyAction, LegacyCRN, LegacyMothraID, TermCode)
             VALUES (@Id, @TableName, @RecordId, @Action, @ChangedBy, @ChangedDate,
                 @Changes, @MigratedDate, @UserAgent, @IpAddress,
-                @LegacyAction, @LegacyCRN, @LegacyTermCode, @LegacyMothraID);
+                @LegacyAction, @LegacyCRN, @LegacyMothraID, @TermCode);
             SET IDENTITY_INSERT [effort].[Audits] OFF;",
                 viperConnection, transaction);
 
@@ -1464,44 +1485,80 @@ namespace Viper.Areas.Effort.Scripts
             insertCmd.Parameters.Add("@IpAddress", SqlDbType.NVarChar, 50);
             insertCmd.Parameters.Add("@LegacyAction", SqlDbType.NVarChar, 100);
             insertCmd.Parameters.Add("@LegacyCRN", SqlDbType.NVarChar, 20);
-            insertCmd.Parameters.Add("@LegacyTermCode", SqlDbType.Int);
             insertCmd.Parameters.Add("@LegacyMothraID", SqlDbType.NVarChar, 20);
+            insertCmd.Parameters.Add("@TermCode", SqlDbType.Int);
 
             int rows = 0;
+            int skipped = 0;
             int total = legacyData.Count;
+
+            // Build lookup dictionaries for proper RecordId mapping
+            Console.WriteLine("  Building Course ID lookup...");
+            var courseIdMap = EffortScriptHelper.BuildCourseIdMap(viperConnection, transaction);
+            Console.WriteLine($"    Loaded {courseIdMap.Count:N0} courses");
+
+            Console.WriteLine("  Building Record ID lookup...");
+            var recordIdMap = EffortScriptHelper.BuildRecordIdMap(viperConnection, transaction);
+            Console.WriteLine($"    Loaded {recordIdMap.Count:N0} records");
 
             foreach (var item in legacyData)
             {
                 EffortScriptHelper.ShowProgress(rows, total, 10000, "audit records");
 
-                // Map audit_ModBy (MothraId) to PersonId (default to 1 if not found)
-                int changedBy = 1;
-                if (!string.IsNullOrEmpty(item.ModBy) && mothraIdMap.TryGetValue(item.ModBy, out int mappedId))
+                // Map audit_ModBy (MothraId/LoginId) to PersonId - skip if unmapped
+                string modBy = item.ModBy?.Trim() ?? string.Empty;
+                if (string.IsNullOrEmpty(modBy) || !mothraIdMap.TryGetValue(modBy, out int changedBy))
                 {
-                    changedBy = mappedId;
+                    skipped++;
+                    continue;
                 }
 
                 // Derive TableName and RecordId from audit_Action and context
                 string tableName = "Unknown";
                 int recordId = 0;
-                string action = "UPDATE"; // Default to UPDATE for unknown legacy actions
+
+                // Use granular action names (24 active legacy actions preserved)
+                string action = MapLegacyAction(item.Action);
 
                 if (!string.IsNullOrEmpty(item.Action))
                 {
                     // Extract table name from legacy action text (e.g., "DeleteEffort" -> "Records")
-                    if (item.Action.Contains("Person")) tableName = "Persons";
+                    if (item.Action.Contains("Person") || item.Action.Contains("Instructor") || item.Action.Contains("Verified") || item.Action.Contains("VerifyEmail")) tableName = "Persons";
                     else if (item.Action.Contains("Course")) tableName = "Courses";
-                    else if (item.Action.Contains("Effort")) tableName = "Records";
+                    else if (item.Action.Contains("Effort") || item.Action.Contains("Eval") || item.Action.Contains("Import")) tableName = "Records";
                     else if (item.Action.Contains("Percent")) tableName = "Percentages";
-
-                    // Extract SQL operation type from legacy action text
-                    // Legacy format: "InsertEffort", "UpdatePerson", "DeleteCourse", etc.
-                    if (item.Action.StartsWith("Insert", StringComparison.OrdinalIgnoreCase)) action = "INSERT";
-                    else if (item.Action.StartsWith("Delete", StringComparison.OrdinalIgnoreCase)) action = "DELETE";
-                    else if (item.Action.StartsWith("Update", StringComparison.OrdinalIgnoreCase)) action = "UPDATE";
+                    else if (item.Action.Contains("Term")) tableName = "Terms";
                 }
-                // Try to use TermCode or MothraId as RecordId placeholder
-                if (item.TermCode.HasValue) recordId = item.TermCode.Value;
+
+                // Map RecordId based on TableName using legacy CRN/TermCode/MothraId
+                switch (tableName)
+                {
+                    case "Courses":
+                        if (!string.IsNullOrEmpty(item.Crn) && item.TermCode.HasValue)
+                        {
+                            var key = (item.Crn.Trim(), item.TermCode.Value);
+                            if (courseIdMap.TryGetValue(key, out var courseId))
+                                recordId = courseId;
+                        }
+                        break;
+
+                    case "Records":
+                        if (!string.IsNullOrEmpty(item.Crn) && item.TermCode.HasValue &&
+                            !string.IsNullOrEmpty(item.MothraId) && mothraIdMap.TryGetValue(item.MothraId, out var personId))
+                        {
+                            var key = (item.Crn.Trim(), item.TermCode.Value, personId);
+                            if (recordIdMap.TryGetValue(key, out var recId))
+                                recordId = recId;
+                        }
+                        break;
+
+                    case "Persons":
+                    case "Percentages":
+                        // Use PersonId as RecordId (best we can do - Percentages have many per person)
+                        if (!string.IsNullOrEmpty(item.MothraId) && mothraIdMap.TryGetValue(item.MothraId, out var pId))
+                            recordId = pId;
+                        break;
+                }
 
                 insertCmd.Parameters["@Id"].Value = item.Id;
                 insertCmd.Parameters["@TableName"].Value = tableName;
@@ -1516,15 +1573,15 @@ namespace Viper.Areas.Effort.Scripts
                                                                          // Legacy preservation columns for 1:1 verification
                 insertCmd.Parameters["@LegacyAction"].Value = (object?)item.Action ?? DBNull.Value;
                 insertCmd.Parameters["@LegacyCRN"].Value = (object?)item.Crn ?? DBNull.Value;
-                insertCmd.Parameters["@LegacyTermCode"].Value = item.TermCode.HasValue ? item.TermCode.Value : DBNull.Value;
                 insertCmd.Parameters["@LegacyMothraID"].Value = (object?)item.MothraId ?? DBNull.Value;
+                insertCmd.Parameters["@TermCode"].Value = item.TermCode.HasValue ? item.TermCode.Value : DBNull.Value;
 
                 insertCmd.ExecuteNonQuery();
                 rows++;
             }
 
             stopwatch.Stop();
-            Console.WriteLine($"  ✓ Migrated {rows} audit records ({stopwatch.Elapsed:mm\\:ss\\.fff})");
+            Console.WriteLine($"  ✓ Migrated {rows} audit records, skipped {skipped} with unmapped ModBy ({stopwatch.Elapsed:mm\\:ss\\.fff})");
 
             // Check for unmapped ChangedBy (migrated records have MigratedDate set)
             string checkSql = "SELECT COUNT(*) FROM [effort].[Audits] WHERE ChangedBy = 1 AND MigratedDate IS NOT NULL";

@@ -1,0 +1,119 @@
+/**
+ * TypeScript types for the Effort system.
+ */
+
+type TermDto = {
+    termCode: number
+    termName: string
+    status: string
+    harvestedDate: string | null
+    openedDate: string | null
+    closedDate: string | null
+    isOpen: boolean
+    canEdit: boolean
+    // State transition properties for term management UI
+    canOpen: boolean
+    canClose: boolean
+    canReopen: boolean
+    canUnopen: boolean
+    canDelete: boolean
+}
+
+type PersonDto = {
+    personId: number
+    termCode: number
+    firstName: string
+    lastName: string
+    middleInitial: string | null
+    fullName: string
+    effortTitleCode: string
+    effortDept: string
+    percentAdmin: number
+    title: string | null
+    adminUnit: string | null
+    effortVerified: string | null
+    reportUnit: string | null
+    percentClinical: number | null
+    isVerified: boolean
+}
+
+type CourseDto = {
+    id: number
+    crn: string
+    termCode: number
+    subjCode: string
+    crseNumb: string
+    seqNumb: string
+    courseCode: string
+    enrollment: number
+    units: number
+    custDept: string
+}
+
+type RecordDto = {
+    id: number
+    courseId: number
+    personId: number
+    termCode: number
+    sessionType: string
+    role: number
+    roleDescription: string
+    hours: number | null
+    weeks: number | null
+    crn: string
+    modifiedDate: string | null
+    effortValue: number | null
+    effortLabel: string
+}
+
+type AvailableTermDto = {
+    termCode: number
+    termName: string
+    startDate: string
+}
+
+// Audit types
+type ChangeDetail = {
+    oldValue: string | null
+    newValue: string | null
+}
+
+type EffortAuditRow = {
+    id: number
+    tableName: string
+    recordId: number
+    action: string
+    changedDate: string
+    changedBy: number
+    changedByName: string
+    instructorPersonId: number | null
+    instructorName: string | null
+    termCode: number | null
+    termName: string | null
+    courseCode: string | null
+    crn: string | null
+    changes: string | null
+    changesDetail: Record<string, ChangeDetail> | null
+}
+
+type ModifierInfo = {
+    personId: number
+    fullName: string
+}
+
+type TermOptionDto = {
+    termCode: number
+    termName: string
+}
+
+export type {
+    TermDto,
+    PersonDto,
+    CourseDto,
+    RecordDto,
+    AvailableTermDto,
+    EffortAuditRow,
+    ChangeDetail,
+    ModifierInfo,
+    TermOptionDto,
+}
