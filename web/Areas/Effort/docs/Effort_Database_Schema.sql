@@ -468,15 +468,16 @@ GO
 -- Description: Comprehensive audit trail for all effort data changes
 -- Legacy: tblAudit
 --
--- Legacy preservation columns (LegacyAction, LegacyCRN, LegacyTermCode, LegacyMothraID)
+-- Legacy preservation columns (LegacyAction, LegacyCRN, LegacyMothraID)
 -- enable 1:1 verification against legacy tblAudit during migration.
 -- These can be dropped after ColdFusion is decommissioned.
+-- TermCode provides term context for audit records.
 -- ----------------------------------------------------------------------------
 CREATE TABLE [effort].[Audits] (
     Id int IDENTITY(1,1) NOT NULL,
     TableName varchar(50) NOT NULL,
     RecordId int NOT NULL,
-    Action varchar(10) NOT NULL,           -- Normalized: INSERT/UPDATE/DELETE
+    Action varchar(50) NOT NULL,           -- Granular action names (e.g., CreateEffort, UpdateCourse)
     ChangedBy int NOT NULL,
     ChangedDate datetime2(7) NOT NULL DEFAULT GETDATE(),
     Changes nvarchar(MAX) NULL,            -- Audit text (legacy plain-text or JSON)
@@ -486,16 +487,17 @@ CREATE TABLE [effort].[Audits] (
     -- Legacy preservation columns (for 1:1 verification against legacy tblAudit)
     LegacyAction varchar(100) NULL,        -- Original action text (e.g., 'CreateCourse')
     LegacyCRN varchar(20) NULL,            -- Original audit_CRN
-    LegacyTermCode int NULL,               -- Original audit_TermCode
     LegacyMothraID varchar(20) NULL,       -- Original audit_MothraID
+    -- Term context for audit record
+    TermCode int NULL,
     CONSTRAINT PK_Audits PRIMARY KEY CLUSTERED (Id),
-    CONSTRAINT FK_Audits_ChangedBy FOREIGN KEY (ChangedBy) REFERENCES [users].[Person](PersonId),
-    CONSTRAINT CK_Audits_Action CHECK (Action IN ('INSERT', 'UPDATE', 'DELETE'))
+    CONSTRAINT FK_Audits_ChangedBy FOREIGN KEY (ChangedBy) REFERENCES [users].[Person](PersonId)
 );
 
 CREATE NONCLUSTERED INDEX IX_Audits_TableName_RecordId ON [effort].[Audits](TableName, RecordId);
 CREATE NONCLUSTERED INDEX IX_Audits_ChangedDate ON [effort].[Audits](ChangedDate DESC);
 CREATE NONCLUSTERED INDEX IX_Audits_ChangedBy ON [effort].[Audits](ChangedBy);
+CREATE NONCLUSTERED INDEX IX_Audits_TermCode ON [effort].[Audits](TermCode) WHERE TermCode IS NOT NULL;
 GO
 
 -- ============================================================================

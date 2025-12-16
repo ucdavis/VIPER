@@ -90,7 +90,8 @@ Reference documentation for the Effort system database schema and field mappings
 
 **tblAudit → [effort].[Audits]**
 - Single `Changes` column for audit text (legacy plain-text or JSON)
-- Legacy preservation columns: `LegacyAction`, `LegacyCRN`, `LegacyTermCode`, `LegacyMothraID`
+- Legacy preservation columns: `LegacyAction`, `LegacyCRN`, `LegacyMothraID`
+- `TermCode` provides term context for audit records
 - Added: `MigratedDate`
 
 **userAccess → [effort].[UserAccess]** (Critical for authorization)

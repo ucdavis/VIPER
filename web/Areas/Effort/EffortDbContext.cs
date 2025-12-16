@@ -76,14 +76,14 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.MiddleInitial).HasColumnName("MiddleInitial").HasMaxLength(1);
             entity.Property(e => e.EffortTitleCode).HasColumnName("EffortTitleCode").HasMaxLength(6);
             entity.Property(e => e.EffortDept).HasColumnName("EffortDept").HasMaxLength(6);
-            entity.Property(e => e.PercentAdmin).HasColumnName("PercentAdmin").HasColumnType("decimal(5,2)");
+            entity.Property(e => e.PercentAdmin).HasColumnName("PercentAdmin");
             entity.Property(e => e.JobGroupId).HasColumnName("JobGroupId").HasMaxLength(3).IsFixedLength();
             entity.Property(e => e.Title).HasColumnName("Title").HasMaxLength(50);
             entity.Property(e => e.AdminUnit).HasColumnName("AdminUnit").HasMaxLength(25);
             entity.Property(e => e.EffortVerified).HasColumnName("EffortVerified");
             entity.Property(e => e.ReportUnit).HasColumnName("ReportUnit").HasMaxLength(50);
             entity.Property(e => e.VolunteerWos).HasColumnName("VolunteerWos");
-            entity.Property(e => e.PercentClinical).HasColumnName("PercentClinical").HasColumnType("decimal(5,2)");
+            entity.Property(e => e.PercentClinical).HasColumnName("PercentClinical");
 
             entity.HasOne(e => e.Term)
                 .WithMany(t => t.Persons)
@@ -329,7 +329,7 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("Id");
             entity.Property(e => e.TableName).HasColumnName("TableName").HasMaxLength(50);
             entity.Property(e => e.RecordId).HasColumnName("RecordId");
-            entity.Property(e => e.Action).HasColumnName("Action").HasMaxLength(10);
+            entity.Property(e => e.Action).HasColumnName("Action").HasMaxLength(50);
             entity.Property(e => e.ChangedBy).HasColumnName("ChangedBy");
             entity.Property(e => e.ChangedDate).HasColumnName("ChangedDate");
             entity.Property(e => e.Changes).HasColumnName("Changes");
@@ -338,8 +338,8 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.IpAddress).HasColumnName("IpAddress").HasMaxLength(50);
             entity.Property(e => e.LegacyAction).HasColumnName("LegacyAction").HasMaxLength(100);
             entity.Property(e => e.LegacyCRN).HasColumnName("LegacyCRN").HasMaxLength(20);
-            entity.Property(e => e.LegacyTermCode).HasColumnName("LegacyTermCode");
             entity.Property(e => e.LegacyMothraID).HasColumnName("LegacyMothraID").HasMaxLength(20);
+            entity.Property(e => e.TermCode).HasColumnName("TermCode");
         });
     }
 }

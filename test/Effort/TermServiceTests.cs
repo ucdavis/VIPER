@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Moq;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
@@ -9,24 +11,40 @@ namespace Viper.test.Effort;
 /// <summary>
 /// Unit tests for TermService term management operations.
 /// </summary>
-public class TermServiceTests : IDisposable
+public sealed class TermServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
+    private readonly Mock<IEffortAuditService> _auditServiceMock;
     private readonly TermService _termService;
 
     public TermServiceTests()
     {
         var options = new DbContextOptionsBuilder<EffortDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
 
         _context = new EffortDbContext(options);
         _viperContext = new VIPERContext(
             new DbContextOptionsBuilder<VIPERContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
                 .Options);
-        _termService = new TermService(_context, _viperContext);
+        _auditServiceMock = new Mock<IEffortAuditService>();
+        // Setup synchronous audit methods used within transactions
+        _auditServiceMock
+            .Setup(s => s.AddTermChangeAudit(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>()));
+        _auditServiceMock
+            .Setup(s => s.AddImportAudit(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>()));
+        // Keep async methods for backward compatibility
+        _auditServiceMock
+            .Setup(s => s.LogTermChangeAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _auditServiceMock
+            .Setup(s => s.LogImportAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _termService = new TermService(_context, _viperContext, _auditServiceMock.Object);
     }
 
     public void Dispose()

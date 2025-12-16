@@ -91,10 +91,11 @@
                                     icon="add_circle"
                                     label="Open"
                                     color="positive"
+                                    text-color="white"
                                     dense
-                                    flat
                                     no-caps
                                     size="sm"
+                                    padding="2px sm"
                                     @click="confirmOpenTerm(props.row)"
                                     @keyup.enter="confirmOpenTerm(props.row)"
                                     @keyup.space="confirmOpenTerm(props.row)"
@@ -102,12 +103,13 @@
                                 <q-btn
                                     v-if="props.row.canUnopen"
                                     icon="history"
-                                    label="Revert to Unopened"
+                                    label="Unopen"
                                     color="warning"
+                                    text-color="dark"
                                     dense
-                                    flat
                                     no-caps
                                     size="sm"
+                                    padding="2px sm"
                                     @click="confirmUnopenTerm(props.row)"
                                     @keyup.enter="confirmUnopenTerm(props.row)"
                                     @keyup.space="confirmUnopenTerm(props.row)"
@@ -126,10 +128,11 @@
                                     icon="lock"
                                     label="Close"
                                     color="negative"
+                                    text-color="white"
                                     dense
-                                    flat
                                     no-caps
                                     size="sm"
+                                    padding="2px sm"
                                     @click="confirmCloseTerm(props.row)"
                                     @keyup.enter="confirmCloseTerm(props.row)"
                                     @keyup.space="confirmCloseTerm(props.row)"
@@ -138,11 +141,12 @@
                                     v-if="props.row.canReopen"
                                     icon="lock_open"
                                     label="Reopen"
-                                    color="grey-7"
+                                    color="secondary"
+                                    text-color="white"
                                     dense
-                                    flat
                                     no-caps
                                     size="sm"
+                                    padding="2px sm"
                                     @click="confirmReopenTerm(props.row)"
                                     @keyup.enter="confirmReopenTerm(props.row)"
                                     @keyup.space="confirmReopenTerm(props.row)"
@@ -194,10 +198,11 @@
                             icon="add_circle"
                             label="Open"
                             color="positive"
+                            text-color="white"
                             dense
-                            flat
                             no-caps
                             size="sm"
+                            padding="2px sm"
                             @click="confirmOpenTerm(term)"
                             @keyup.enter="confirmOpenTerm(term)"
                             @keyup.space="confirmOpenTerm(term)"
@@ -205,12 +210,13 @@
                         <q-btn
                             v-if="term.canUnopen"
                             icon="history"
-                            label="Revert"
+                            label="Unopen"
                             color="warning"
+                            text-color="dark"
                             dense
-                            flat
                             no-caps
                             size="sm"
+                            padding="2px sm"
                             @click="confirmUnopenTerm(term)"
                             @keyup.enter="confirmUnopenTerm(term)"
                             @keyup.space="confirmUnopenTerm(term)"
@@ -220,10 +226,11 @@
                             icon="lock"
                             label="Close"
                             color="negative"
+                            text-color="white"
                             dense
-                            flat
                             no-caps
                             size="sm"
+                            padding="2px sm"
                             @click="confirmCloseTerm(term)"
                             @keyup.enter="confirmCloseTerm(term)"
                             @keyup.space="confirmCloseTerm(term)"
@@ -232,11 +239,12 @@
                             v-if="term.canReopen"
                             icon="lock_open"
                             label="Reopen"
-                            color="grey-7"
+                            color="secondary"
+                            text-color="white"
                             dense
-                            flat
                             no-caps
                             size="sm"
+                            padding="2px sm"
                             @click="confirmReopenTerm(term)"
                             @keyup.enter="confirmReopenTerm(term)"
                             @keyup.space="confirmReopenTerm(term)"
@@ -246,10 +254,11 @@
                             icon="delete"
                             label="Delete"
                             color="negative"
+                            text-color="white"
                             dense
-                            flat
                             no-caps
                             size="sm"
+                            padding="2px sm"
                             @click="confirmDeleteTerm(term)"
                             @keyup.enter="confirmDeleteTerm(term)"
                             @keyup.space="confirmDeleteTerm(term)"
@@ -308,121 +317,82 @@ async function loadTerms() {
     }
 }
 
+interface TermActionConfig {
+    title: string
+    message: string
+    successMessage: string
+    action: () => Promise<unknown>
+}
+
+function confirmTermAction(config: TermActionConfig) {
+    $q.dialog({
+        title: config.title,
+        message: config.message,
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        const result = await config.action()
+        if (result && (typeof result !== "object" || (result as { success?: boolean }).success !== false)) {
+            $q.notify({ type: "positive", message: config.successMessage })
+            await loadTerms()
+        }
+    })
+}
+
 function confirmAddTerm() {
     if (!selectedNewTerm.value) return
     const term = selectedNewTerm.value
-    $q.dialog({
+    confirmTermAction({
         title: "Add Term",
         message: `Add "${term.termName}" to the Effort system?`,
-        cancel: true,
-        persistent: true,
-    }).onOk(async () => {
-        await addTerm(term.termCode)
+        successMessage: "Term added successfully",
+        action: () => effortService.createTerm(term.termCode),
     })
-}
-
-async function addTerm(termCode: number) {
-    const result = await effortService.createTerm(termCode)
-    if (result) {
-        $q.notify({ type: "positive", message: "Term added successfully" })
-        await loadTerms()
-    }
 }
 
 function confirmOpenTerm(term: TermDto) {
-    $q.dialog({
+    confirmTermAction({
         title: "Open Term",
         message: `Are you sure you want to open "${term.termName}" for effort entry?`,
-        cancel: true,
-        persistent: true,
-    }).onOk(async () => {
-        await openTerm(term.termCode)
+        successMessage: "Term opened successfully",
+        action: () => effortService.openTerm(term.termCode),
     })
-}
-
-async function openTerm(termCode: number) {
-    const result = await effortService.openTerm(termCode)
-    if (result) {
-        $q.notify({ type: "positive", message: "Term opened successfully" })
-        await loadTerms()
-    }
 }
 
 function confirmCloseTerm(term: TermDto) {
-    $q.dialog({
+    confirmTermAction({
         title: "Close Term",
         message: `Are you sure you want to close "${term.termName}"?`,
-        cancel: true,
-        persistent: true,
-    }).onOk(async () => {
-        await closeTerm(term.termCode)
+        successMessage: "Term closed successfully",
+        action: () => effortService.closeTerm(term.termCode),
     })
-}
-
-async function closeTerm(termCode: number) {
-    const result = await effortService.closeTerm(termCode)
-    if (result.success) {
-        $q.notify({ type: "positive", message: "Term closed successfully" })
-        await loadTerms()
-    }
-    // Errors are handled by the global error handler (GenericError.vue)
 }
 
 function confirmReopenTerm(term: TermDto) {
-    $q.dialog({
+    confirmTermAction({
         title: "Reopen Term",
         message: `Are you sure you want to reopen "${term.termName}"?`,
-        cancel: true,
-        persistent: true,
-    }).onOk(async () => {
-        await reopenTerm(term.termCode)
+        successMessage: "Term reopened successfully",
+        action: () => effortService.reopenTerm(term.termCode),
     })
-}
-
-async function reopenTerm(termCode: number) {
-    const result = await effortService.reopenTerm(termCode)
-    if (result) {
-        $q.notify({ type: "positive", message: "Term reopened successfully" })
-        await loadTerms()
-    }
 }
 
 function confirmUnopenTerm(term: TermDto) {
-    $q.dialog({
+    confirmTermAction({
         title: "Revert Term",
         message: `Are you sure you want to revert "${term.termName}" to unopened status?`,
-        cancel: true,
-        persistent: true,
-    }).onOk(async () => {
-        await unopenTerm(term.termCode)
+        successMessage: "Term reverted to unopened status",
+        action: () => effortService.unopenTerm(term.termCode),
     })
-}
-
-async function unopenTerm(termCode: number) {
-    const result = await effortService.unopenTerm(termCode)
-    if (result) {
-        $q.notify({ type: "positive", message: "Term reverted to unopened status" })
-        await loadTerms()
-    }
 }
 
 function confirmDeleteTerm(term: TermDto) {
-    $q.dialog({
+    confirmTermAction({
         title: "Delete Term",
         message: `Are you sure you want to delete "${term.termName}"? This cannot be undone.`,
-        cancel: true,
-        persistent: true,
-    }).onOk(async () => {
-        await deleteTerm(term.termCode)
+        successMessage: "Term deleted successfully",
+        action: () => effortService.deleteTerm(term.termCode),
     })
-}
-
-async function deleteTerm(termCode: number) {
-    const success = await effortService.deleteTerm(termCode)
-    if (success) {
-        $q.notify({ type: "positive", message: "Term deleted successfully" })
-        await loadTerms()
-    }
 }
 
 onMounted(loadTerms)

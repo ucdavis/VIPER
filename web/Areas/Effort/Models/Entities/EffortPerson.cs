@@ -14,14 +14,14 @@ public class EffortPerson
     public string? MiddleInitial { get; set; }
     public string EffortTitleCode { get; set; } = string.Empty;
     public string EffortDept { get; set; } = string.Empty;
-    public decimal PercentAdmin { get; set; }
+    public double PercentAdmin { get; set; }
     public string? JobGroupId { get; set; }
     public string? Title { get; set; }
     public string? AdminUnit { get; set; }
     public DateTime? EffortVerified { get; set; }
     public string? ReportUnit { get; set; }
     public byte? VolunteerWos { get; set; }
-    public decimal? PercentClinical { get; set; }
+    public double? PercentClinical { get; set; }
 
     // Navigation properties
     public virtual EffortTerm Term { get; set; } = null!;

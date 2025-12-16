@@ -20,6 +20,8 @@ public class Audit
     // Legacy preservation columns
     public string? LegacyAction { get; set; }
     public string? LegacyCRN { get; set; }
-    public int? LegacyTermCode { get; set; }
     public string? LegacyMothraID { get; set; }
+
+    // Term context for audit record
+    public int? TermCode { get; set; }
 }

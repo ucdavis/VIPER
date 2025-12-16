@@ -72,4 +72,48 @@ type AvailableTermDto = {
     startDate: string
 }
 
-export type { TermDto, PersonDto, CourseDto, RecordDto, AvailableTermDto }
+// Audit types
+type ChangeDetail = {
+    oldValue: string | null
+    newValue: string | null
+}
+
+type EffortAuditRow = {
+    id: number
+    tableName: string
+    recordId: number
+    action: string
+    changedDate: string
+    changedBy: number
+    changedByName: string
+    instructorPersonId: number | null
+    instructorName: string | null
+    termCode: number | null
+    termName: string | null
+    courseCode: string | null
+    crn: string | null
+    changes: string | null
+    changesDetail: Record<string, ChangeDetail> | null
+}
+
+type ModifierInfo = {
+    personId: number
+    fullName: string
+}
+
+type TermOptionDto = {
+    termCode: number
+    termName: string
+}
+
+export type {
+    TermDto,
+    PersonDto,
+    CourseDto,
+    RecordDto,
+    AvailableTermDto,
+    EffortAuditRow,
+    ChangeDetail,
+    ModifierInfo,
+    TermOptionDto,
+}

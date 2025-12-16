@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Curriculum.Services;
+using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Extensions;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Classes.SQLContext;
@@ -13,11 +14,13 @@ public class TermService : ITermService
 {
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
+    private readonly IEffortAuditService _auditService;
 
-    public TermService(EffortDbContext context, VIPERContext viperContext)
+    public TermService(EffortDbContext context, VIPERContext viperContext, IEffortAuditService auditService)
     {
         _context = context;
         _viperContext = viperContext;
+        _auditService = auditService;
     }
 
     public async Task<List<TermDto>> GetTermsAsync(CancellationToken ct = default)
@@ -104,8 +107,13 @@ public class TermService : ITermService
             ModifiedBy = modifiedBy
         };
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _context.Terms.Add(term);
+        _auditService.AddTermChangeAudit(termCode, EffortAuditActions.CreateTerm,
+            null,
+            new { term.Status, term.CreatedDate });
         await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
 
         return term.ToDto(GetTermName(termCode));
     }
@@ -123,8 +131,15 @@ public class TermService : ITermService
             return false;
         }
 
+        var oldStatus = term.Status;
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _context.Terms.Remove(term);
+        _auditService.AddTermChangeAudit(termCode, EffortAuditActions.DeleteTerm,
+            new { Status = oldStatus },
+            null);
         await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
         return true;
     }
 
@@ -141,13 +156,20 @@ public class TermService : ITermService
             throw new InvalidOperationException("Term must be in Created or Harvested status to open");
         }
 
+        var oldStatus = term.Status;
         term.Status = "Opened";
         term.OpenedDate = DateTime.Now;
         term.ClosedDate = null;
         term.ModifiedDate = DateTime.Now;
         term.ModifiedBy = modifiedBy;
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        _auditService.AddTermChangeAudit(termCode, EffortAuditActions.OpenTerm,
+            new { Status = oldStatus },
+            new { Status = term.Status, term.OpenedDate });
         await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
         return term.ToDto(GetTermName(termCode));
     }
 
@@ -170,12 +192,19 @@ public class TermService : ITermService
             return (false, "Term must be opened before it can be closed");
         }
 
+        var oldStatus = term.Status;
         term.Status = "Closed";
         term.ClosedDate = DateTime.Now;
         term.ModifiedDate = DateTime.Now;
         term.ModifiedBy = modifiedBy;
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        _auditService.AddTermChangeAudit(termCode, EffortAuditActions.CloseTerm,
+            new { Status = oldStatus },
+            new { Status = term.Status, term.ClosedDate });
         await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
         return (true, null);
     }
 
@@ -192,12 +221,19 @@ public class TermService : ITermService
             throw new InvalidOperationException("Only closed terms can be reopened");
         }
 
+        var oldStatus = term.Status;
         term.Status = "Opened";
         term.ClosedDate = null;
         term.ModifiedDate = DateTime.Now;
         term.ModifiedBy = modifiedBy;
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        _auditService.AddTermChangeAudit(termCode, EffortAuditActions.ReopenTerm,
+            new { Status = oldStatus },
+            new { Status = term.Status });
         await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
         return term.ToDto(GetTermName(termCode));
     }
 
@@ -214,6 +250,7 @@ public class TermService : ITermService
             throw new InvalidOperationException("Only opened terms can be reverted to unopened");
         }
 
+        var oldStatus = term.Status;
         // Revert to previous status based on whether it was harvested
         term.Status = term.HarvestedDate.HasValue ? "Harvested" : "Created";
         term.OpenedDate = null;
@@ -221,7 +258,13 @@ public class TermService : ITermService
         term.ModifiedDate = DateTime.Now;
         term.ModifiedBy = modifiedBy;
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        _auditService.AddTermChangeAudit(termCode, EffortAuditActions.UnopenTerm,
+            new { Status = oldStatus },
+            new { Status = term.Status });
         await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
         return term.ToDto(GetTermName(termCode));
     }
 

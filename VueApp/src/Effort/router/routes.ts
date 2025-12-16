@@ -25,6 +25,12 @@ const routes = [
         name: "TermManagement",
     },
     {
+        path: "/Effort/audit",
+        meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAudit"] },
+        component: () => import("@/Effort/pages/AuditList.vue"),
+        name: "EffortAudit",
+    },
+    {
         path: "/Effort/:termCode(\\d+)",
         meta: { layout: EffortLayout },
         component: () => import("@/Effort/pages/EffortHome.vue"),

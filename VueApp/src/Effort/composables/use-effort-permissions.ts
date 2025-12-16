@@ -11,6 +11,7 @@ const EffortPermissions = {
     EditEffort: "SVMSecure.Effort.EditEffort",
     ManageTerms: "SVMSecure.Effort.ManageTerms",
     VerifyEffort: "SVMSecure.Effort.VerifyEffort",
+    ViewAudit: "SVMSecure.Effort.ViewAudit",
 } as const
 
 /**
@@ -32,6 +33,7 @@ function useEffortPermissions() {
     const hasEditEffort = computed(() => hasPermission(EffortPermissions.EditEffort))
     const hasManageTerms = computed(() => hasPermission(EffortPermissions.ManageTerms))
     const hasVerifyEffort = computed(() => hasPermission(EffortPermissions.VerifyEffort))
+    const hasViewAudit = computed(() => hasPermission(EffortPermissions.ViewAudit))
     const isAdmin = computed(() => hasViewAllDepartments.value)
 
     return {
@@ -41,6 +43,7 @@ function useEffortPermissions() {
         hasEditEffort,
         hasManageTerms,
         hasVerifyEffort,
+        hasViewAudit,
         isAdmin,
         permissions: computed(() => userStore.userInfo.permissions),
     }

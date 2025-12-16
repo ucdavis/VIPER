@@ -707,8 +707,8 @@ After the legacy ColdFusion Effort system is fully decommissioned and all featur
    ```sql
    ALTER TABLE [effort].[Audits] DROP COLUMN LegacyAction;
    ALTER TABLE [effort].[Audits] DROP COLUMN LegacyCRN;
-   ALTER TABLE [effort].[Audits] DROP COLUMN LegacyTermCode;
    ALTER TABLE [effort].[Audits] DROP COLUMN LegacyMothraID;
+   -- Note: TermCode is retained as it provides term context for audit records
    ```
 
 2. **Drop `[EffortShadow]` Schema** (views, triggers, wrapper stored procedures):

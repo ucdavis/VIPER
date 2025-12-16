@@ -224,6 +224,7 @@ try
     // Effort services
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortPermissionService, Viper.Areas.Effort.Services.EffortPermissionService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.ITermService, Viper.Areas.Effort.Services.TermService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortAuditService, Viper.Areas.Effort.Services.EffortAuditService>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
@@ -372,8 +373,7 @@ try
                 catch (Exception ex)
                 {
                     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-                    logger.LogDebug("Vite server not available ({Message}), falling back to static files for {Path}",
-                        ex.Message,
+                    logger.LogDebug(ex, "Vite server not available, falling back to static files for {Path}",
                         Uri.EscapeDataString(context.Request.Path.Value ?? "unknown"));
                     // Fall through to static file serving
                 }

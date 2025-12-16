@@ -194,6 +194,19 @@
                         </q-item-section>
                     </q-item>
 
+                    <!-- Audit - only for ViewAudit users -->
+                    <q-item
+                        v-if="hasViewAudit"
+                        clickable
+                        v-ripple
+                        :to="{ name: 'EffortAudit', query: currentTerm ? { termCode: currentTerm.termCode } : {} }"
+                        class="leftNavLink"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Audit Trail</q-item-label>
+                        </q-item-section>
+                    </q-item>
+
                     <!-- Spacer -->
                     <q-item class="leftNavSpacer">
                         <q-item-section></q-item-section>
@@ -331,7 +344,7 @@ import type { TermDto } from "../types"
 
 const userStore = useUserStore()
 const route = useRoute()
-const { hasManageTerms } = useEffortPermissions()
+const { hasManageTerms, hasViewAudit } = useEffortPermissions()
 
 const leftDrawerOpen = ref(false)
 const currentTerm = ref<TermDto | null>(null)

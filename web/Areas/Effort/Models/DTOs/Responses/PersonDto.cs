@@ -15,11 +15,11 @@ public class PersonDto
         : $"{LastName}, {FirstName} {MiddleInitial}.";
     public string EffortTitleCode { get; set; } = string.Empty;
     public string EffortDept { get; set; } = string.Empty;
-    public decimal PercentAdmin { get; set; }
+    public double PercentAdmin { get; set; }
     public string? Title { get; set; }
     public string? AdminUnit { get; set; }
     public DateTime? EffortVerified { get; set; }
     public string? ReportUnit { get; set; }
-    public decimal? PercentClinical { get; set; }
+    public double? PercentClinical { get; set; }
     public bool IsVerified => EffortVerified.HasValue;
 }
