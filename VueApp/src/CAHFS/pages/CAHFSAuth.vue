@@ -1,5 +1,5 @@
 <template>
-    <p></p>
+    <ContentBlock content-block-name="cahfs-login"></ContentBlock>
 </template>
 
 <script setup lang="ts">
@@ -7,6 +7,7 @@ import { useQuasar } from "quasar"
 import { ref, defineComponent, inject } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"
+import ContentBlock from '@/CMS/components/ContentBlock.vue'
 </script>
 <script lang="ts">
 export default defineComponent({
