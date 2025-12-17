@@ -619,19 +619,21 @@ public class EffortAuditService : IEffortAuditService
                               equals new { TableName = EffortAuditTables.Records, RecordId = r.Id }
                               into records
                           from r in records.DefaultIfEmpty()
+                          let recordTermCode = r == null ? default(int?) : r.TermCode
+                          let termsTermCode = a.TableName != EffortAuditTables.Terms
+                              ? default(int?)
+                              : a.RecordId
+                          let personsTermCode = a.TableName != EffortAuditTables.Persons
+                              ? default(int?)
+                              : _context.Persons
+                                  .Where(p => p.PersonId == a.RecordId)
+                                  .OrderByDescending(p => p.TermCode)
+                                  .Select(p => (int?)p.TermCode)
+                                  .FirstOrDefault()
                           select new
                           {
                               Audit = a,
-                              SortKey = a.TermCode
-                                  ?? (r != null ? (int?)r.TermCode : null)
-                                  ?? (a.TableName == EffortAuditTables.Terms ? (int?)a.RecordId : null)
-                                  ?? (a.TableName == EffortAuditTables.Persons
-                                      ? _context.Persons
-                                          .Where(p => p.PersonId == a.RecordId)
-                                          .OrderByDescending(p => p.TermCode)
-                                          .Select(p => (int?)p.TermCode)
-                                          .FirstOrDefault()
-                                      : null)
+                              SortKey = a.TermCode ?? recordTermCode ?? termsTermCode ?? personsTermCode
                           };
 
         return descending
