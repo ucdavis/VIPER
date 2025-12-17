@@ -1801,6 +1801,22 @@ namespace Viper.Areas.Effort.Scripts
                 "CASE WHEN $1 IS NULL THEN 0 ELSE 1 END",
                 RegexOptions.IgnoreCase);
 
+            // Fix usp_delCourse: Modern schema has FK constraints that require deleting
+            // course relationships before deleting the course. Legacy had no FK constraints.
+            // Insert DELETE statements for CourseRelationships before the course deletion.
+            if (procName.Equals("usp_delCourse", StringComparison.OrdinalIgnoreCase))
+            {
+                // Find the DELETE FROM tblCourses statement and insert relationship deletions before it
+                rewritten = Regex.Replace(rewritten,
+                    @"(DELETE\s+FROM\s+\[EffortShadow\]\.\[tblCourses\])",
+                    @"-- Delete course relationships first (modern schema has FK constraints)
+    DELETE FROM [EffortShadow].[tblCourseRelationships] WHERE cr_ParentID = @CourseID;
+    DELETE FROM [EffortShadow].[tblCourseRelationships] WHERE cr_ChildID = @CourseID;
+
+    $1",
+                    RegexOptions.IgnoreCase);
+            }
+
             return rewritten;
         }
 
