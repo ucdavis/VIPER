@@ -623,8 +623,8 @@ public class EffortAuditService : IEffortAuditService
                           {
                               Audit = a,
                               SortKey = a.TermCode
-                                  ?? (a.TableName == EffortAuditTables.Terms ? (int?)a.RecordId : null)
                                   ?? (r != null ? (int?)r.TermCode : null)
+                                  ?? (a.TableName == EffortAuditTables.Terms ? (int?)a.RecordId : null)
                                   ?? (a.TableName == EffortAuditTables.Persons
                                       ? _context.Persons
                                           .Where(p => p.PersonId == a.RecordId)
