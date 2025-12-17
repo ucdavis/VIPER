@@ -623,8 +623,8 @@ public class EffortAuditService : IEffortAuditService
                           {
                               Audit = a,
                               SortKey = a.TermCode
-                                  ?? (a.TableName == EffortAuditTables.Terms ? (int?)a.RecordId : null)
-                                  ?? (r != null ? (int?)r.TermCode : null)
+                                  ?? (a.TableName == EffortAuditTables.Terms ? a.RecordId : (int?)null)
+                                  ?? (r != null ? r.TermCode : (int?)null)
                                   ?? (a.TableName == EffortAuditTables.Persons
                                       ? _context.Persons
                                           .Where(p => p.PersonId == a.RecordId)
@@ -884,9 +884,9 @@ public class EffortAuditService : IEffortAuditService
                 };
             }
         }
-        else if (oldValues != null)
+        else
         {
-            var oldDict = ObjectToDictionary(oldValues);
+            var oldDict = ObjectToDictionary(oldValues!);
             foreach (var kvp in oldDict)
             {
                 changes[kvp.Key] = new ChangeDetail
