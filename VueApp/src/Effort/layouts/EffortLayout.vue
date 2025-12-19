@@ -186,7 +186,11 @@
                         v-if="hasManageTerms"
                         clickable
                         v-ripple
-                        :to="{ name: 'TermManagement' }"
+                        :to="
+                            currentTerm
+                                ? { name: 'TermManagement', query: { termCode: currentTerm.termCode } }
+                                : { name: 'TermManagement' }
+                        "
                         class="leftNavLink"
                     >
                         <q-item-section>
@@ -196,10 +200,10 @@
 
                     <!-- Courses - for users with course permissions -->
                     <q-item
-                        v-if="canViewCourses"
+                        v-if="canViewCourses && currentTerm"
                         clickable
                         v-ripple
-                        :to="{ name: 'CourseList' }"
+                        :to="{ name: 'CourseList', params: { termCode: currentTerm.termCode } }"
                         class="leftNavLink"
                     >
                         <q-item-section>
@@ -207,12 +211,16 @@
                         </q-item-section>
                     </q-item>
 
-                    <!-- Audit - only for ViewAudit users -->
+                    <!-- Audit - only for ViewAudit users (term optional) -->
                     <q-item
                         v-if="hasViewAudit"
                         clickable
                         v-ripple
-                        :to="{ name: 'EffortAudit', query: currentTerm ? { termCode: currentTerm.termCode } : {} }"
+                        :to="
+                            currentTerm
+                                ? { name: 'EffortAuditWithTerm', params: { termCode: currentTerm.termCode } }
+                                : { name: 'EffortAudit' }
+                        "
                         class="leftNavLink"
                     >
                         <q-item-section>
@@ -390,13 +398,14 @@ async function loadCurrentTerm(termCode: number | null) {
     if (termCode) {
         currentTerm.value = await effortService.getTerm(termCode)
     } else {
-        // Try to get the currently open term as default display
-        currentTerm.value = await effortService.getCurrentTerm()
+        // No term selected - don't show any term until user picks one
+        currentTerm.value = null
     }
 }
 
+// Watch both route params and query params for termCode
 watch(
-    () => route.params.termCode,
+    () => route.params.termCode || route.query.termCode,
     (newTermCode) => {
         const termCode = newTermCode ? parseInt(newTermCode as string, 10) : null
         loadCurrentTerm(termCode)
