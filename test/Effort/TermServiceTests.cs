@@ -1,7 +1,9 @@
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Moq;
 using Viper.Areas.Effort;
+using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
 using Viper.Classes.SQLContext;
@@ -16,6 +18,7 @@ public sealed class TermServiceTests : IDisposable
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
     private readonly Mock<IEffortAuditService> _auditServiceMock;
+    private readonly IMapper _mapper;
     private readonly TermService _termService;
 
     public TermServiceTests()
@@ -44,7 +47,11 @@ public sealed class TermServiceTests : IDisposable
         _auditServiceMock
             .Setup(s => s.LogImportAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        _termService = new TermService(_context, _viperContext, _auditServiceMock.Object);
+
+        var mapperConfig = new MapperConfiguration(cfg => cfg.AddProfile<AutoMapperProfileEffort>());
+        _mapper = mapperConfig.CreateMapper();
+
+        _termService = new TermService(_context, _viperContext, _auditServiceMock.Object, _mapper);
     }
 
     public void Dispose()

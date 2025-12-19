@@ -1,7 +1,7 @@
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Effort.Constants;
-using Viper.Areas.Effort.Extensions;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Classes.SQLContext;
 
@@ -15,12 +15,14 @@ public class TermService : ITermService
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
     private readonly IEffortAuditService _auditService;
+    private readonly IMapper _mapper;
 
-    public TermService(EffortDbContext context, VIPERContext viperContext, IEffortAuditService auditService)
+    public TermService(EffortDbContext context, VIPERContext viperContext, IEffortAuditService auditService, IMapper mapper)
     {
         _context = context;
         _viperContext = viperContext;
         _auditService = auditService;
+        _mapper = mapper;
     }
 
     public async Task<List<TermDto>> GetTermsAsync(CancellationToken ct = default)
@@ -56,7 +58,8 @@ public class TermService : ITermService
 
         return terms.Select(t =>
         {
-            var dto = t.ToDto(GetTermName(t.TermCode));
+            var dto = _mapper.Map<TermDto>(t);
+            dto.TermName = GetTermName(t.TermCode);
             dto.CanDelete = !termsWithData.Contains(t.TermCode);
             return dto;
         }).ToList();
@@ -68,7 +71,10 @@ public class TermService : ITermService
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
 
-        return term?.ToDto(GetTermName(termCode));
+        if (term == null) return null;
+        var dto = _mapper.Map<TermDto>(term);
+        dto.TermName = GetTermName(termCode);
+        return dto;
     }
 
     public async Task<TermDto?> GetCurrentTermAsync(CancellationToken ct = default)
@@ -79,7 +85,10 @@ public class TermService : ITermService
             .OrderByDescending(t => t.TermCode)
             .FirstOrDefaultAsync(ct);
 
-        return term?.ToDto(GetTermName(term.TermCode));
+        if (term == null) return null;
+        var dto = _mapper.Map<TermDto>(term);
+        dto.TermName = GetTermName(term.TermCode);
+        return dto;
     }
 
     public string GetTermName(int termCode)
@@ -115,7 +124,9 @@ public class TermService : ITermService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        return term.ToDto(GetTermName(termCode));
+        var dto = _mapper.Map<TermDto>(term);
+        dto.TermName = GetTermName(termCode);
+        return dto;
     }
 
     public async Task<bool> DeleteTermAsync(int termCode, CancellationToken ct = default)
@@ -170,7 +181,9 @@ public class TermService : ITermService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        return term.ToDto(GetTermName(termCode));
+        var dto = _mapper.Map<TermDto>(term);
+        dto.TermName = GetTermName(termCode);
+        return dto;
     }
 
     public async Task<(bool Success, string? ErrorMessage)> CloseTermAsync(int termCode, int modifiedBy, CancellationToken ct = default)
@@ -234,7 +247,9 @@ public class TermService : ITermService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        return term.ToDto(GetTermName(termCode));
+        var dto = _mapper.Map<TermDto>(term);
+        dto.TermName = GetTermName(termCode);
+        return dto;
     }
 
     public async Task<TermDto?> UnopenTermAsync(int termCode, int modifiedBy, CancellationToken ct = default)
@@ -265,7 +280,9 @@ public class TermService : ITermService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        return term.ToDto(GetTermName(termCode));
+        var dto = _mapper.Map<TermDto>(term);
+        dto.TermName = GetTermName(termCode);
+        return dto;
     }
 
     public async Task<bool> CanDeleteTermAsync(int termCode, CancellationToken ct = default)
