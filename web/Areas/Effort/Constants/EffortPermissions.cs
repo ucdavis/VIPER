@@ -95,6 +95,11 @@ public static class EffortPermissions
     public const string LinkCourses = "SVMSecure.Effort.LinkCourses";
 
     /// <summary>
+    /// Ability to assign which units people have access to.
+    /// </summary>
+    public const string ManageAccess = "SVMSecure.Effort.ManageAccess";
+
+    /// <summary>
     /// Manage R course enrollment.
     /// </summary>
     public const string ManageRCourseEnrollment = "SVMSecure.Effort.ManageRCourseEnrollment";
@@ -108,6 +113,11 @@ public static class EffortPermissions
     /// Manage the list of units which appear in the effort percent dropdowns.
     /// </summary>
     public const string ManageUnits = "SVMSecure.Effort.ManageUnits";
+
+    /// <summary>
+    /// Access to all reports in the nav.
+    /// </summary>
+    public const string Reports = "SVMSecure.Effort.Reports";
 
     /// <summary>
     /// Access to the School Summary Report.

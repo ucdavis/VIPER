@@ -58,7 +58,8 @@ namespace Viper.Areas.Effort.Scripts
         {
             ["tblPercent"] = "Records with unmapped MothraId are skipped during migration",
             ["tblPerson"] = "Records with invalid MothraId are skipped",
-            ["tblEffort"] = "Records referencing skipped persons are skipped"
+            ["tblEffort"] = "Records referencing skipped persons are skipped",
+            ["tblAudit"] = "Records with unmapped audit_ModBy (ChangedBy) are skipped during migration"
         };
 
         // Primary key columns for each view (used for data comparison ordering)
@@ -249,70 +250,19 @@ namespace Viper.Areas.Effort.Scripts
             // Run BEFORE procedure verification - views are prerequisites for SPs
             var viewReport = VerifyShadowViews(legacyConnectionString, shadowConnectionString, verboseMode);
 
-            // If view verification has failures, skip SP verification
-            // SPs depend on views, so results would be unreliable
+            // If view verification has failures, warn but continue with SP verification
+            // This allows seeing all issues at once rather than fixing views first
             if (viewReport.FailedViews > 0)
             {
                 Console.WriteLine();
                 Console.WriteLine("================================================================================");
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"⚠ SKIPPING STORED PROCEDURE VERIFICATION");
+                Console.WriteLine($"⚠ VIEW VERIFICATION HAS {viewReport.FailedViews} FAILURE(S)");
                 Console.ResetColor();
-                Console.WriteLine($"   {viewReport.FailedViews} view(s) failed verification.");
-                Console.WriteLine("   Fix view issues first - SP results depend on correct view data.");
+                Console.WriteLine("   Continuing with stored procedure verification...");
+                Console.WriteLine("   Note: SP results may be affected by view issues.");
                 Console.WriteLine("================================================================================");
                 Console.WriteLine();
-
-                // Generate minimal report with view results only
-                var viewOnlyReport = new StringBuilder();
-                viewOnlyReport.AppendLine("================================================================================");
-                viewOnlyReport.AppendLine("EFFORT SHADOW SCHEMA VERIFICATION REPORT");
-                viewOnlyReport.AppendLine("================================================================================");
-                viewOnlyReport.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                viewOnlyReport.AppendLine($"Legacy Database: {GetDatabaseName(legacyConnectionString)}");
-                viewOnlyReport.AppendLine($"Shadow Schema: [VIPER].[EffortShadow] (within {GetDatabaseName(shadowConnectionString)})");
-                viewOnlyReport.AppendLine();
-                viewOnlyReport.AppendLine("SUMMARY");
-                viewOnlyReport.AppendLine("================================================================================");
-                viewOnlyReport.AppendLine();
-                viewOnlyReport.AppendLine("View/Table Verification:");
-                viewOnlyReport.AppendLine($"  Total Views: {viewReport.TotalViews}");
-                viewOnlyReport.AppendLine($"  Passed: {viewReport.PassedViews}");
-                viewOnlyReport.AppendLine($"  Failed: {viewReport.FailedViews}");
-                viewOnlyReport.AppendLine();
-                viewOnlyReport.AppendLine("Stored Procedure Verification:");
-                viewOnlyReport.AppendLine("  ⚠ SKIPPED - View verification must pass first");
-                viewOnlyReport.AppendLine();
-                viewOnlyReport.AppendLine("VIEW/TABLE VERIFICATION DETAILS");
-                viewOnlyReport.AppendLine("================================================================================");
-                foreach (var viewResult in viewReport.Results)
-                {
-                    string schemaStatus = viewResult.SchemaPassed ? "✓" : "✗";
-                    string dataStatus = viewResult.DataPassed ? "✓" : "✗";
-                    string contentStatus = viewResult.ContentPassed ? "✓" : "✗";
-                    string rowInfo = viewResult.LegacyRowCount == viewResult.ShadowRowCount
-                        ? $"{viewResult.LegacyRowCount} rows"
-                        : $"{viewResult.LegacyRowCount} legacy, {viewResult.ShadowRowCount} shadow";
-                    string contentInfo = viewResult.SampleRowsCompared > 0
-                        ? $", Content {contentStatus} ({viewResult.SampleRowsCompared} rows compared)"
-                        : "";
-                    viewOnlyReport.AppendLine($"  {viewResult.ViewName}: Schema {schemaStatus} ({viewResult.LegacyColumnCount} cols), Data {dataStatus} ({rowInfo}){contentInfo}");
-
-                    foreach (var diff in viewResult.ContentDifferences)
-                        viewOnlyReport.AppendLine($"    {diff}");
-                    foreach (var warning in viewResult.Warnings)
-                        viewOnlyReport.AppendLine($"    ⚠ {warning}");
-                    foreach (var error in viewResult.Errors)
-                        viewOnlyReport.AppendLine($"    ✗ {error}");
-                }
-                viewOnlyReport.AppendLine();
-                viewOnlyReport.AppendLine("================================================================================");
-                viewOnlyReport.AppendLine("END OF REPORT");
-                viewOnlyReport.AppendLine("================================================================================");
-
-                File.WriteAllText(reportFile, viewOnlyReport.ToString());
-                Console.WriteLine($"Report saved to: {reportFile}");
-                return 1;  // Exit with error code
             }
 
             // ============================================================================
