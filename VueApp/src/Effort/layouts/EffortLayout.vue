@@ -194,6 +194,19 @@
                         </q-item-section>
                     </q-item>
 
+                    <!-- Courses - for users with course permissions -->
+                    <q-item
+                        v-if="canViewCourses"
+                        clickable
+                        v-ripple
+                        :to="{ name: 'CourseList' }"
+                        class="leftNavLink"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Courses</q-item-label>
+                        </q-item-section>
+                    </q-item>
+
                     <!-- Audit - only for ViewAudit users -->
                     <q-item
                         v-if="hasViewAudit"
@@ -330,7 +343,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue"
+import { ref, watch, computed } from "vue"
 import { useRoute } from "vue-router"
 import { useUserStore } from "@/store/UserStore"
 import { getLoginUrl } from "@/composables/RequireLogin"
@@ -344,7 +357,25 @@ import type { TermDto } from "../types"
 
 const userStore = useUserStore()
 const route = useRoute()
-const { hasManageTerms, hasViewAudit } = useEffortPermissions()
+const {
+    hasManageTerms,
+    hasViewAudit,
+    hasImportCourse,
+    hasEditCourse,
+    hasDeleteCourse,
+    hasManageRCourseEnrollment,
+    isAdmin,
+} = useEffortPermissions()
+
+// Users who can add/edit/delete courses or manage R-course enrollment should see the Courses link
+const canViewCourses = computed(
+    () =>
+        hasImportCourse.value ||
+        hasEditCourse.value ||
+        hasDeleteCourse.value ||
+        hasManageRCourseEnrollment.value ||
+        isAdmin.value,
+)
 
 const leftDrawerOpen = ref(false)
 const currentTerm = ref<TermDto | null>(null)

@@ -1,7 +1,15 @@
 import { useFetch } from "@/composables/ViperFetch"
-import type { TermDto, AvailableTermDto } from "../types"
+import type {
+    TermDto,
+    AvailableTermDto,
+    CourseDto,
+    BannerCourseDto,
+    CreateCourseRequest,
+    UpdateCourseRequest,
+    ImportCourseRequest,
+} from "../types"
 
-const { get, post, del } = useFetch()
+const { get, post, put, del, patch } = useFetch()
 
 /**
  * Service for Effort API calls.
@@ -110,6 +118,173 @@ class EffortService {
             return []
         }
         return response.result as AvailableTermDto[]
+    }
+
+    // Course Operations
+
+    /**
+     * Get all courses for a term, optionally filtered by department.
+     */
+    async getCourses(termCode: number, dept?: string): Promise<CourseDto[]> {
+        const params = new URLSearchParams({ termCode: termCode.toString() })
+        if (dept) {
+            params.append("dept", dept)
+        }
+        const response = await get(`${this.baseUrl}/courses?${params.toString()}`)
+        if (!response.success || !Array.isArray(response.result)) {
+            return []
+        }
+        return response.result as CourseDto[]
+    }
+
+    /**
+     * Get a single course by ID.
+     */
+    async getCourse(courseId: number): Promise<CourseDto | null> {
+        const response = await get(`${this.baseUrl}/courses/${courseId}`)
+        if (!response.success || !response.result) {
+            return null
+        }
+        return response.result as CourseDto
+    }
+
+    /**
+     * Search for courses in Banner.
+     */
+    async searchBannerCourses(
+        termCode: number,
+        filters: { subjCode?: string; crseNumb?: string; crn?: string } = {},
+    ): Promise<BannerCourseDto[]> {
+        const params = new URLSearchParams({ termCode: termCode.toString() })
+        if (filters.subjCode) {
+            params.append("subjCode", filters.subjCode)
+        }
+        if (filters.crseNumb) {
+            params.append("crseNumb", filters.crseNumb)
+        }
+        if (filters.crn) {
+            params.append("crn", filters.crn)
+        }
+
+        const response = await get(`${this.baseUrl}/courses/search?${params.toString()}`)
+        if (!response.success || !Array.isArray(response.result)) {
+            let errorMessage = "Search failed"
+            if (typeof response.errors === "string") {
+                errorMessage = response.errors
+            } else if (Array.isArray(response.errors)) {
+                errorMessage = response.errors.join(", ")
+            }
+            throw new Error(errorMessage)
+        }
+        return response.result as BannerCourseDto[]
+    }
+
+    /**
+     * Import a course from Banner.
+     */
+    async importCourse(
+        request: ImportCourseRequest,
+    ): Promise<{ success: boolean; course?: CourseDto; error?: string }> {
+        const response = await post(`${this.baseUrl}/courses/import`, request)
+        if (!response.success) {
+            let errorMessage = "Failed to import course"
+            if (typeof response.errors === "string") {
+                errorMessage = response.errors
+            } else if (Array.isArray(response.errors)) {
+                errorMessage = response.errors.join(", ")
+            }
+            return { success: false, error: errorMessage }
+        }
+        return { success: true, course: response.result as CourseDto }
+    }
+
+    /**
+     * Create a course manually.
+     */
+    async createCourse(
+        request: CreateCourseRequest,
+    ): Promise<{ success: boolean; course?: CourseDto; error?: string }> {
+        const response = await post(`${this.baseUrl}/courses`, request)
+        if (!response.success) {
+            let errorMessage = "Failed to create course"
+            if (typeof response.errors === "string") {
+                errorMessage = response.errors
+            } else if (Array.isArray(response.errors)) {
+                errorMessage = response.errors.join(", ")
+            }
+            return { success: false, error: errorMessage }
+        }
+        return { success: true, course: response.result as CourseDto }
+    }
+
+    /**
+     * Update a course (full update - requires EditCourse permission).
+     */
+    async updateCourse(
+        courseId: number,
+        request: UpdateCourseRequest,
+    ): Promise<{ success: boolean; course?: CourseDto; error?: string }> {
+        const response = await put(`${this.baseUrl}/courses/${courseId}`, request)
+        if (!response.success) {
+            let errorMessage = "Failed to update course"
+            if (typeof response.errors === "string") {
+                errorMessage = response.errors
+            } else if (Array.isArray(response.errors)) {
+                errorMessage = response.errors.join(", ")
+            }
+            return { success: false, error: errorMessage }
+        }
+        return { success: true, course: response.result as CourseDto }
+    }
+
+    /**
+     * Update only the enrollment for an R-course (requires ManageRCourseEnrollment permission).
+     */
+    async updateCourseEnrollment(
+        courseId: number,
+        enrollment: number,
+    ): Promise<{ success: boolean; course?: CourseDto; error?: string }> {
+        const response = await patch(`${this.baseUrl}/courses/${courseId}/enrollment`, { enrollment })
+        if (!response.success) {
+            let errorMessage = "Failed to update enrollment"
+            if (typeof response.errors === "string") {
+                errorMessage = response.errors
+            } else if (Array.isArray(response.errors)) {
+                errorMessage = response.errors.join(", ")
+            }
+            return { success: false, error: errorMessage }
+        }
+        return { success: true, course: response.result as CourseDto }
+    }
+
+    /**
+     * Delete a course.
+     */
+    async deleteCourse(courseId: number): Promise<boolean> {
+        const response = await del(`${this.baseUrl}/courses/${courseId}`)
+        return response.success
+    }
+
+    /**
+     * Check if a course can be deleted.
+     */
+    async canDeleteCourse(courseId: number): Promise<{ canDelete: boolean; recordCount: number }> {
+        const response = await get(`${this.baseUrl}/courses/${courseId}/can-delete`)
+        if (!response.success || !response.result) {
+            return { canDelete: false, recordCount: 0 }
+        }
+        return response.result as { canDelete: boolean; recordCount: number }
+    }
+
+    /**
+     * Get valid custodial department codes.
+     */
+    async getDepartments(): Promise<string[]> {
+        const response = await get(`${this.baseUrl}/courses/departments`)
+        if (!response.success || !Array.isArray(response.result)) {
+            return []
+        }
+        return response.result as string[]
     }
 }
 
