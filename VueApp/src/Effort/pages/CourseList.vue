@@ -16,7 +16,6 @@
                     dense
                     options-dense
                     outlined
-                    @update:model-value="loadCourses"
                 />
             </div>
             <div class="col-6 col-sm-3 col-md-2">
@@ -28,7 +27,6 @@
                     options-dense
                     outlined
                     clearable
-                    @update:model-value="loadCourses"
                 />
             </div>
             <div class="col-6 col-sm-3 col-md-2">
@@ -105,8 +103,8 @@
             <template #body-cell-courseCode="props">
                 <q-td :props="props">
                     <div>
-                        <span class="text-weight-medium">{{ props.row.courseCode }}</span>
-                        <span class="text-grey-7 q-ml-xs">-{{ props.row.seqNumb }}</span>
+                        <span class="text-weight-medium">{{ props.row.courseCode }}</span
+                        ><span class="text-grey-7">-{{ props.row.seqNumb }}</span>
                     </div>
                     <div class="text-caption text-grey-7 lt-sm">
                         {{ props.row.enrollment }} enrolled &bull; {{ props.row.units }} units
@@ -179,8 +177,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue"
+import { ref, computed, onMounted, watch } from "vue"
 import { useQuasar } from "quasar"
+import { useRoute, useRouter } from "vue-router"
 import { effortService } from "../services/effort-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import type { CourseDto, TermDto } from "../types"
@@ -190,6 +189,8 @@ import CourseEditDialog from "../components/CourseEditDialog.vue"
 import CourseAddDialog from "../components/CourseAddDialog.vue"
 
 const $q = useQuasar()
+const route = useRoute()
+const router = useRouter()
 const { hasImportCourse, hasEditCourse, hasDeleteCourse, hasManageRCourseEnrollment, isAdmin } = useEffortPermissions()
 
 // State
@@ -294,14 +295,37 @@ function canEditCourse(course: CourseDto): boolean {
 }
 
 async function loadTerms() {
+    const paramTermCode = route.params.termCode ? parseInt(route.params.termCode as string, 10) : null
+
     terms.value = await effortService.getTerms()
-    if (terms.value.length > 0) {
-        // Default to the most recent open term, or the first term
-        const openTerm = terms.value.find((t) => t.isOpen)
-        selectedTermCode.value = openTerm?.termCode ?? terms.value[0]?.termCode ?? null
+
+    // Set termCode after terms loaded to prevent flash of raw number in dropdown
+    if (paramTermCode && terms.value.some((t) => t.termCode === paramTermCode)) {
+        selectedTermCode.value = paramTermCode
         await loadCourses()
+    } else {
+        router.replace({ name: "EffortHome" })
     }
 }
+
+// Keep URL in sync with selected term when user changes the dropdown
+watch(selectedTermCode, (newTermCode, oldTermCode) => {
+    if (newTermCode && oldTermCode !== null) {
+        router.replace({ name: "CourseList", params: { termCode: newTermCode.toString() } })
+        loadCourses()
+    }
+})
+
+// Handle browser back/forward navigation that changes the termCode param
+watch(
+    () => route.params.termCode,
+    (newTermCode) => {
+        const parsed = newTermCode ? parseInt(newTermCode as string, 10) : null
+        if (parsed && parsed !== selectedTermCode.value && terms.value.some((t) => t.termCode === parsed)) {
+            selectedTermCode.value = parsed
+        }
+    },
+)
 
 async function loadCourses() {
     if (!selectedTermCode.value) return
