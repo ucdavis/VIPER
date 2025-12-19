@@ -198,15 +198,9 @@ public class CourseService : ICourseService
     {
         // Determine units - controller has validated units are in range if variable
         var isVariable = bannerCourse.UnitType == "V";
-        decimal units;
-        if (isVariable && request.Units.HasValue)
-        {
-            units = request.Units.Value;
-        }
-        else
-        {
-            units = bannerCourse.UnitLow;
-        }
+        var units = isVariable && request.Units.HasValue
+            ? request.Units.Value
+            : bannerCourse.UnitLow;
 
         // Determine custodial department from Banner department mapping
         var custDept = GetCustodialDepartment(bannerCourse.DeptCode);
