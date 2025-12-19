@@ -17,6 +17,22 @@ const { get, post, put, del, patch } = useFetch()
 class EffortService {
     private baseUrl = `${import.meta.env.VITE_API_URL}effort`
 
+    private static extractErrorMessage(errors: unknown, fallback: string): string {
+        if (typeof errors === "string") {
+            return errors
+        }
+        if (Array.isArray(errors)) {
+            return errors.join(", ")
+        }
+        if (errors && typeof errors === "object") {
+            const values = Object.values(errors)
+            if (values.length > 0) {
+                return values.flat().join(", ")
+            }
+        }
+        return fallback
+    }
+
     /**
      * Get all terms with effort status.
      */
@@ -82,13 +98,7 @@ class EffortService {
     async closeTerm(termCode: number): Promise<{ success: boolean; error?: string }> {
         const response = await post(`${this.baseUrl}/terms/${termCode}/close`, {})
         if (!response.success) {
-            let errorMessage = "Failed to close term"
-            if (typeof response.errors === "string") {
-                errorMessage = response.errors
-            } else if (Array.isArray(response.errors)) {
-                errorMessage = response.errors.join(", ")
-            }
-            return { success: false, error: errorMessage }
+            return { success: false, error: EffortService.extractErrorMessage(response.errors, "Failed to close term") }
         }
         return { success: true }
     }
@@ -168,13 +178,7 @@ class EffortService {
 
         const response = await get(`${this.baseUrl}/courses/search?${params.toString()}`)
         if (!response.success || !Array.isArray(response.result)) {
-            let errorMessage = "Search failed"
-            if (typeof response.errors === "string") {
-                errorMessage = response.errors
-            } else if (Array.isArray(response.errors)) {
-                errorMessage = response.errors.join(", ")
-            }
-            throw new Error(errorMessage)
+            throw new Error(EffortService.extractErrorMessage(response.errors, "Search failed"))
         }
         return response.result as BannerCourseDto[]
     }
@@ -187,13 +191,10 @@ class EffortService {
     ): Promise<{ success: boolean; course?: CourseDto; error?: string }> {
         const response = await post(`${this.baseUrl}/courses/import`, request)
         if (!response.success) {
-            let errorMessage = "Failed to import course"
-            if (typeof response.errors === "string") {
-                errorMessage = response.errors
-            } else if (Array.isArray(response.errors)) {
-                errorMessage = response.errors.join(", ")
+            return {
+                success: false,
+                error: EffortService.extractErrorMessage(response.errors, "Failed to import course"),
             }
-            return { success: false, error: errorMessage }
         }
         return { success: true, course: response.result as CourseDto }
     }
@@ -206,13 +207,10 @@ class EffortService {
     ): Promise<{ success: boolean; course?: CourseDto; error?: string }> {
         const response = await post(`${this.baseUrl}/courses`, request)
         if (!response.success) {
-            let errorMessage = "Failed to create course"
-            if (typeof response.errors === "string") {
-                errorMessage = response.errors
-            } else if (Array.isArray(response.errors)) {
-                errorMessage = response.errors.join(", ")
+            return {
+                success: false,
+                error: EffortService.extractErrorMessage(response.errors, "Failed to create course"),
             }
-            return { success: false, error: errorMessage }
         }
         return { success: true, course: response.result as CourseDto }
     }
@@ -226,13 +224,10 @@ class EffortService {
     ): Promise<{ success: boolean; course?: CourseDto; error?: string }> {
         const response = await put(`${this.baseUrl}/courses/${courseId}`, request)
         if (!response.success) {
-            let errorMessage = "Failed to update course"
-            if (typeof response.errors === "string") {
-                errorMessage = response.errors
-            } else if (Array.isArray(response.errors)) {
-                errorMessage = response.errors.join(", ")
+            return {
+                success: false,
+                error: EffortService.extractErrorMessage(response.errors, "Failed to update course"),
             }
-            return { success: false, error: errorMessage }
         }
         return { success: true, course: response.result as CourseDto }
     }
@@ -246,13 +241,10 @@ class EffortService {
     ): Promise<{ success: boolean; course?: CourseDto; error?: string }> {
         const response = await patch(`${this.baseUrl}/courses/${courseId}/enrollment`, { enrollment })
         if (!response.success) {
-            let errorMessage = "Failed to update enrollment"
-            if (typeof response.errors === "string") {
-                errorMessage = response.errors
-            } else if (Array.isArray(response.errors)) {
-                errorMessage = response.errors.join(", ")
+            return {
+                success: false,
+                error: EffortService.extractErrorMessage(response.errors, "Failed to update enrollment"),
             }
-            return { success: false, error: errorMessage }
         }
         return { success: true, course: response.result as CourseDto }
     }
