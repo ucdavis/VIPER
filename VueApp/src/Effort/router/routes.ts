@@ -25,6 +25,12 @@ const routes = [
         name: "TermManagement",
     },
     {
+        path: "/Effort/courses",
+        meta: { layout: EffortLayout },
+        component: () => import("@/Effort/pages/CourseList.vue"),
+        name: "CourseList",
+    },
+    {
         path: "/Effort/audit",
         meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAudit"] },
         component: () => import("@/Effort/pages/AuditList.vue"),

@@ -230,7 +230,14 @@ function useFetch() {
         return await fetchWrapper(url, options)
     }
 
-    return { get, post, put, del, createUrlSearchParams }
+    async function patch(url: string = "", body: any = {}, options: any = {}): Promise<Result> {
+        options.method = "PATCH"
+        options.body = JSON.stringify(body)
+        addHeader(options, "Content-Type", "application/json")
+        return await fetchWrapper(url, options)
+    }
+
+    return { get, post, put, del, patch, createUrlSearchParams }
 }
 
 export { useFetch, postForBlob }

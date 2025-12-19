@@ -87,6 +87,11 @@ public class EffortAuditService : IEffortAuditService
         AddAuditEntry(EffortAuditTables.Terms, termCode, termCode, action, SerializeChanges(oldValues, newValues));
     }
 
+    public void AddCourseChangeAudit(int courseId, int termCode, string action, object? oldValues, object? newValues)
+    {
+        AddAuditEntry(EffortAuditTables.Courses, courseId, termCode, action, SerializeChanges(oldValues, newValues));
+    }
+
     public void AddImportAudit(int termCode, string action, string details)
     {
         AddAuditEntry(EffortAuditTables.Terms, termCode, termCode, action, details);
