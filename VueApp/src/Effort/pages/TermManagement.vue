@@ -269,10 +269,10 @@
 
             <div class="q-mt-lg">
                 <router-link
-                    to="/Effort/terms"
+                    :to="backLink"
                     class="text-primary"
                 >
-                    Back to Term Selection
+                    {{ currentTermCode ? "Back" : "Back to Term Selection" }}
                 </router-link>
             </div>
         </template>
@@ -280,15 +280,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue"
+import { ref, computed, onMounted } from "vue"
 import { useQuasar } from "quasar"
+import { useRoute } from "vue-router"
 import { effortService } from "../services/effort-service"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import type { TermDto, AvailableTermDto } from "../types"
 import type { QTableColumn } from "quasar"
 
 const $q = useQuasar()
+const route = useRoute()
 const { formatDate } = useDateFunctions()
+
+// Get termCode from query param to maintain context
+const currentTermCode = computed(() => {
+    const parsed = route.query.termCode ? parseInt(route.query.termCode as string, 10) : null
+    return Number.isFinite(parsed) ? parsed : null
+})
+
+// Build back link - go to term home if we have a term, otherwise term selection
+const backLink = computed(() => (currentTermCode.value ? `/Effort/${currentTermCode.value}` : "/Effort/terms"))
 
 const terms = ref<TermDto[]>([])
 const availableTerms = ref<AvailableTermDto[]>([])

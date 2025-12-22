@@ -106,6 +106,47 @@ type TermOptionDto = {
     termName: string
 }
 
+// Course management types
+type BannerCourseDto = {
+    crn: string
+    subjCode: string
+    crseNumb: string
+    seqNumb: string
+    title: string
+    enrollment: number
+    unitType: string // F=Fixed, V=Variable
+    unitLow: number
+    unitHigh: number
+    deptCode: string
+    courseCode: string
+    isVariableUnits: boolean
+    alreadyImported: boolean
+    importedUnitValues: number[]
+}
+
+type CreateCourseRequest = {
+    termCode: number
+    crn: string
+    subjCode: string
+    crseNumb: string
+    seqNumb: string
+    enrollment: number
+    units: number
+    custDept: string
+}
+
+type UpdateCourseRequest = {
+    enrollment: number
+    units: number
+    custDept: string
+}
+
+type ImportCourseRequest = {
+    termCode: number
+    crn: string
+    units?: number // For variable-unit courses
+}
+
 export type {
     TermDto,
     PersonDto,
@@ -116,4 +157,8 @@ export type {
     ChangeDetail,
     ModifierInfo,
     TermOptionDto,
+    BannerCourseDto,
+    CreateCourseRequest,
+    UpdateCourseRequest,
+    ImportCourseRequest,
 }

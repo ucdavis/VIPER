@@ -66,7 +66,11 @@
                     v-if="hasManageTerms"
                     clickable
                     v-ripple
-                    :to="{ name: 'TermManagement' }"
+                    :to="
+                        currentTerm
+                            ? { name: 'TermManagement', query: { termCode: currentTerm.termCode } }
+                            : { name: 'TermManagement' }
+                    "
                     class="leftNavLink"
                 >
                     <q-item-section>
@@ -74,12 +78,29 @@
                     </q-item-section>
                 </q-item>
 
-                <!-- Audit - only for ViewAudit users -->
+                <!-- Courses - for users with course permissions -->
+                <q-item
+                    v-if="canViewCourses && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'CourseList', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Courses</q-item-label>
+                    </q-item-section>
+                </q-item>
+
+                <!-- Audit - only for ViewAudit users (term optional) -->
                 <q-item
                     v-if="hasViewAudit"
                     clickable
                     v-ripple
-                    :to="{ name: 'EffortAudit', query: currentTerm ? { termCode: currentTerm.termCode } : {} }"
+                    :to="
+                        currentTerm
+                            ? { name: 'EffortAuditWithTerm', params: { termCode: currentTerm.termCode } }
+                            : { name: 'EffortAudit' }
+                    "
                     class="leftNavLink"
                 >
                     <q-item-section>
@@ -117,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue"
+import { ref, watch, computed } from "vue"
 import { useRoute } from "vue-router"
 import { effortService } from "../services/effort-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
@@ -129,7 +150,25 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
-const { hasManageTerms, hasViewAudit } = useEffortPermissions()
+const {
+    hasManageTerms,
+    hasViewAudit,
+    hasImportCourse,
+    hasEditCourse,
+    hasDeleteCourse,
+    hasManageRCourseEnrollment,
+    isAdmin,
+} = useEffortPermissions()
+
+// Users who can add/edit/delete courses or manage R-course enrollment should see the Courses link
+const canViewCourses = computed(
+    () =>
+        hasImportCourse.value ||
+        hasEditCourse.value ||
+        hasDeleteCourse.value ||
+        hasManageRCourseEnrollment.value ||
+        isAdmin.value,
+)
 
 const localDrawerOpen = ref(props.drawerOpen)
 const currentTerm = ref<TermDto | null>(null)
@@ -151,12 +190,14 @@ async function loadCurrentTerm(termCode: number | null) {
     if (termCode) {
         currentTerm.value = await effortService.getTerm(termCode)
     } else {
-        currentTerm.value = await effortService.getCurrentTerm()
+        // No term selected - don't show any term until user picks one
+        currentTerm.value = null
     }
 }
 
+// Watch both route params and query params for termCode
 watch(
-    () => route.params.termCode,
+    () => route.params.termCode || route.query.termCode,
     (newTermCode) => {
         const termCode = newTermCode ? parseInt(newTermCode as string, 10) : null
         loadCurrentTerm(termCode)
