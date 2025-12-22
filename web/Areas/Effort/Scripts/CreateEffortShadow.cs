@@ -1598,7 +1598,7 @@ namespace Viper.Areas.Effort.Scripts
             pModBy.MothraId as audit_ModBy,  -- MothraId of person making change (for INSERT)
             CAST(a.ChangedDate AS datetime) as audit_ModTime,
             a.LegacyCRN as audit_CRN,  -- Preserved from legacy audit_CRN
-            a.LegacyTermCode as audit_TermCode,  -- Preserved from legacy audit_TermCode
+            a.TermCode as audit_TermCode,  -- Term context for audit record
             COALESCE(a.LegacyMothraID, pSubject.MothraId) as audit_MothraID,  -- Preserved or derived
             COALESCE(a.LegacyAction, a.Action) as audit_Action,  -- Preserved original or normalized
             a.Changes as Audit_Audit,  -- Audit text
@@ -1639,28 +1639,28 @@ namespace Viper.Areas.Effort.Scripts
                 Changes,
                 LegacyAction,
                 LegacyCRN,
-                LegacyTermCode,
-                LegacyMothraID
+                LegacyMothraID,
+                TermCode
             )
             SELECT
                 -- Map legacy action to table name
                 CASE
                     WHEN i.audit_Action LIKE '%Course%' THEN 'Courses'
-                    WHEN i.audit_Action LIKE '%Effort%' OR i.audit_Action LIKE '%Record%' THEN 'Records'
-                    WHEN i.audit_Action LIKE '%Person%' OR i.audit_Action LIKE '%Instructor%' THEN 'Persons'
+                    WHEN i.audit_Action LIKE '%Effort%' OR i.audit_Action LIKE '%Record%' OR
+                         i.audit_Action LIKE '%Eval%' OR i.audit_Action LIKE '%Import%' THEN 'Records'
+                    WHEN i.audit_Action LIKE '%Person%' OR i.audit_Action LIKE '%Instructor%' OR
+                         i.audit_Action LIKE '%Verified%' OR i.audit_Action LIKE '%VerifyEmail%' THEN 'Persons'
                     WHEN i.audit_Action LIKE '%Percent%' THEN 'Percentages'
-                    WHEN i.audit_Action LIKE '%Term%' THEN 'TermStatus'
+                    WHEN i.audit_Action LIKE '%Term%' THEN 'Terms'
                     ELSE 'Unknown'
                 END,
                 COALESCE(i.audit_RecordID, 0),  -- Record ID if available
-                -- Map to standardized action types (modern schema only allows INSERT/UPDATE/DELETE)
+                -- Preserve granular action names (map only deprecated actions)
                 CASE
-                    WHEN i.audit_Action LIKE 'Create%' OR i.audit_Action LIKE 'Insert%' OR
-                         i.audit_Action LIKE 'Open%' THEN 'INSERT'
-                    WHEN i.audit_Action LIKE 'Update%' OR i.audit_Action LIKE 'Close%' OR
-                         i.audit_Action LIKE 'Reopen%' OR i.audit_Action LIKE 'Verified%' THEN 'UPDATE'
-                    WHEN i.audit_Action LIKE 'Delete%' THEN 'DELETE'
-                    ELSE 'UPDATE'  -- Default to UPDATE for unknown actions
+                    WHEN i.audit_Action = 'Create' THEN 'CreateEffort'
+                    WHEN i.audit_Action = 'ImportCrest' THEN 'ImportEffort'
+                    WHEN i.audit_Action IS NULL OR i.audit_Action = '' THEN 'UpdateEffort'
+                    ELSE i.audit_Action  -- Preserve all other actions as-is
                 END,
                 -- Map MothraId to PersonId, fallback to system user (PersonId = 1) if not found
                 COALESCE(p.PersonId, 1),
@@ -1669,8 +1669,8 @@ namespace Viper.Areas.Effort.Scripts
                 -- Legacy preservation columns
                 i.audit_Action,  -- Preserve original action text
                 i.audit_CRN,     -- Preserve original CRN
-                i.audit_TermCode,-- Preserve original TermCode
-                i.audit_MothraID -- Preserve original MothraID
+                i.audit_MothraID,-- Preserve original MothraID
+                i.audit_TermCode -- Term context for audit record
             FROM inserted i
             LEFT JOIN [users].[Person] p ON i.audit_ModBy = p.MothraId;
         END;";
@@ -1800,6 +1800,22 @@ namespace Viper.Areas.Effort.Scripts
                 @"isdate\s*\(\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\)",
                 "CASE WHEN $1 IS NULL THEN 0 ELSE 1 END",
                 RegexOptions.IgnoreCase);
+
+            // Fix usp_delCourse: Modern schema has FK constraints that require deleting
+            // course relationships before deleting the course. Legacy had no FK constraints.
+            // Insert DELETE statements for CourseRelationships before the course deletion.
+            if (procName.Equals("usp_delCourse", StringComparison.OrdinalIgnoreCase))
+            {
+                // Find the DELETE FROM tblCourses statement and insert relationship deletions before it
+                rewritten = Regex.Replace(rewritten,
+                    @"(DELETE\s+FROM\s+\[EffortShadow\]\.\[tblCourses\])",
+                    @"-- Delete course relationships first (modern schema has FK constraints)
+    DELETE FROM [EffortShadow].[tblCourseRelationships] WHERE cr_ParentID = @CourseID;
+    DELETE FROM [EffortShadow].[tblCourseRelationships] WHERE cr_ChildID = @CourseID;
+
+    $1",
+                    RegexOptions.IgnoreCase);
+            }
 
             return rewritten;
         }

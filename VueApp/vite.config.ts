@@ -123,6 +123,10 @@ export default defineConfig(({ mode }) => {
                     target,
                     secure: false,
                 },
+                "^/Effort": {
+                    target,
+                    secure: false,
+                },
                 "^/api": {
                     target,
                     secure: false,
@@ -152,6 +156,7 @@ export default defineConfig(({ mode }) => {
                     cms: resolve(__dirname, "src/cms/index.html"),
                     cahfs: resolve(__dirname, "src/cahfs/index.html"),
                     clinicalscheduler: resolve(__dirname, "src/clinicalscheduler/index.html"),
+                    effort: resolve(__dirname, "src/Effort/index.html"),
                 },
             },
         },

@@ -148,12 +148,18 @@
             <MainNav :highlighted-top-nav="highlightedTopNav"></MainNav>
         </q-header>
 
-        <LeftNav
-            :nav="nav"
-            :navarea="navarea"
-            :main-left-drawer="mainLeftDrawer"
-            @drawer-change="handleDrawerChange"
-        ></LeftNav>
+        <slot
+            name="left-nav"
+            :drawer-open="mainLeftDrawer"
+            :on-drawer-change="handleDrawerChange"
+        >
+            <LeftNav
+                :nav="nav"
+                :navarea="navarea"
+                :main-left-drawer="mainLeftDrawer"
+                @drawer-change="handleDrawerChange"
+            ></LeftNav>
+        </slot>
 
         <q-page-container id="mainLayoutBody">
             <div
@@ -291,9 +297,9 @@ export default {
             type: Array as PropType<BreadCrumb[]>,
             default: () => [],
         },
-		showViewWhenNotLoggedIn: {
-			type: Boolean,
-		},
+        showViewWhenNotLoggedIn: {
+            type: Boolean,
+        },
     },
     components: {
         LeftNav,

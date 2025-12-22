@@ -416,5 +416,71 @@ namespace Viper.Areas.Effort.Scripts
         }
 
         #endregion
+
+        #region Audit Migration Lookup Helpers
+
+        private static Dictionary<(string crn, int termCode), int>? _courseIdMapCache;
+        private static Dictionary<(string crn, int termCode, int personId), int>? _recordIdMapCache;
+
+        /// <summary>
+        /// Builds (or returns cached) (CRN, TermCode) → CourseId lookup dictionary.
+        /// Used by audit migration to map legacy CRN+TermCode to actual Course.Id.
+        /// </summary>
+        public static Dictionary<(string crn, int termCode), int> BuildCourseIdMap(
+            SqlConnection connection,
+            SqlTransaction? transaction = null)
+        {
+            if (_courseIdMapCache != null)
+                return _courseIdMapCache;
+
+            var map = new Dictionary<(string crn, int termCode), int>();
+
+            using var cmd = new SqlCommand(
+                "SELECT Id, Crn, TermCode FROM [effort].[Courses]",
+                connection, transaction);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var crn = reader.GetString(1).Trim();
+                var termCode = reader.GetInt32(2);
+                map[(crn, termCode)] = reader.GetInt32(0);
+            }
+
+            _courseIdMapCache = map;
+            return map;
+        }
+
+        /// <summary>
+        /// Builds (or returns cached) (CRN, TermCode, PersonId) → RecordId lookup dictionary.
+        /// Used by audit migration to map legacy CRN+TermCode+PersonId to actual Record.Id.
+        /// </summary>
+        public static Dictionary<(string crn, int termCode, int personId), int> BuildRecordIdMap(
+            SqlConnection connection,
+            SqlTransaction? transaction = null)
+        {
+            if (_recordIdMapCache != null)
+                return _recordIdMapCache;
+
+            var map = new Dictionary<(string crn, int termCode, int personId), int>();
+
+            using var cmd = new SqlCommand(
+                "SELECT Id, Crn, TermCode, PersonId FROM [effort].[Records]",
+                connection, transaction);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var crn = reader.GetString(1).Trim();
+                var termCode = reader.GetInt32(2);
+                var personId = reader.GetInt32(3);
+                map[(crn, termCode, personId)] = reader.GetInt32(0);
+            }
+
+            _recordIdMapCache = map;
+            return map;
+        }
+
+        #endregion
     }
 }
