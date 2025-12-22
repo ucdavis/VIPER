@@ -4,7 +4,7 @@
             :is="$route.meta.layout || 'div'"
             nav="viper-effort"
             :navarea="true"
-            highlighted-top-nav="Effort"
+            highlighted-top-nav="Faculty"
         />
     </main>
     <GenericError />
