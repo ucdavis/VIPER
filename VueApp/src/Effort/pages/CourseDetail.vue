@@ -54,7 +54,7 @@
                         <q-tooltip>Edit course</q-tooltip>
                     </q-btn>
                     <q-btn
-                        v-if="hasLinkCourses"
+                        v-if="hasLinkCourses && !parentRelationship"
                         icon="link"
                         color="secondary"
                         dense
@@ -208,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue"
+import { ref, computed, onMounted, watch } from "vue"
 import { useRoute } from "vue-router"
 import { useQuasar } from "quasar"
 import type { QTableColumn } from "quasar"
@@ -294,16 +294,24 @@ const childColumns = computed<QTableColumn[]>(() => [
 ])
 
 // Methods
+let loadToken = 0
+
 async function loadCourse() {
+    const token = ++loadToken
+    const requestedCourseId = courseId.value
+
     isLoading.value = true
     loadError.value = null
 
     try {
         const [courseResult, deptsResult, relationshipsResult] = await Promise.all([
-            effortService.getCourse(courseId.value),
+            effortService.getCourse(requestedCourseId),
             effortService.getDepartments(),
-            effortService.getCourseRelationships(courseId.value),
+            effortService.getCourseRelationships(requestedCourseId),
         ])
+
+        // Abort if a newer request has been initiated
+        if (token !== loadToken) return
 
         if (!courseResult) {
             loadError.value = "Course not found or you do not have permission to view it."
@@ -315,9 +323,12 @@ async function loadCourse() {
         parentRelationship.value = relationshipsResult.parentRelationship
         childRelationships.value = relationshipsResult.childRelationships
     } catch {
+        if (token !== loadToken) return
         loadError.value = "Failed to load course. Please try again."
     } finally {
-        isLoading.value = false
+        if (token === loadToken) {
+            isLoading.value = false
+        }
     }
 }
 
@@ -370,4 +381,7 @@ async function onRelationshipsUpdated() {
 }
 
 onMounted(loadCourse)
+
+// Reload course data when navigating between courses (same component, different route params)
+watch(courseId, loadCourse)
 </script>

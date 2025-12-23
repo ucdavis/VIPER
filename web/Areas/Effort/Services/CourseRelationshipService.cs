@@ -75,6 +75,17 @@ public class CourseRelationshipService : ICourseRelationshipService
             return new List<CourseDto>();
         }
 
+        // A child course cannot become a parent - return empty list
+        // This enforces flat hierarchy (prevents multi-level: A -> B -> C)
+        var isAlreadyChild = await _context.CourseRelationships
+            .AsNoTracking()
+            .AnyAsync(r => r.ChildCourseId == parentCourseId, ct);
+
+        if (isAlreadyChild)
+        {
+            return new List<CourseDto>();
+        }
+
         // Get IDs of courses that are already children (of any parent)
         var existingChildIds = await _context.CourseRelationships
             .AsNoTracking()
