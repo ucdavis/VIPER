@@ -10,16 +10,16 @@ public class PersonDto
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string? MiddleInitial { get; set; }
-    public string FullName => string.IsNullOrEmpty(MiddleInitial)
-        ? $"{LastName}, {FirstName}"
-        : $"{LastName}, {FirstName} {MiddleInitial}.";
+    public string FullName => $"{LastName}, {FirstName}";
     public string EffortTitleCode { get; set; } = string.Empty;
     public string EffortDept { get; set; } = string.Empty;
     public double PercentAdmin { get; set; }
+    public string? JobGroupId { get; set; }
     public string? Title { get; set; }
     public string? AdminUnit { get; set; }
     public DateTime? EffortVerified { get; set; }
     public string? ReportUnit { get; set; }
+    public bool VolunteerWos { get; set; }
     public double? PercentClinical { get; set; }
     public bool IsVerified => EffortVerified.HasValue;
 }
