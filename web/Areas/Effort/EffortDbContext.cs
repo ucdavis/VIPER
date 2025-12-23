@@ -311,6 +311,10 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.ChildCourseId).HasColumnName("ChildCourseId");
             entity.Property(e => e.RelationshipType).HasColumnName("RelationshipType").HasMaxLength(20);
 
+            // Each child course can only have one parent
+            entity.HasIndex(e => e.ChildCourseId, "IX_CourseRelationships_ChildCourseId")
+                .IsUnique();
+
             entity.HasOne(e => e.ParentCourse)
                 .WithMany(c => c.ParentRelationships)
                 .HasForeignKey(e => e.ParentCourseId);

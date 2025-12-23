@@ -147,6 +147,26 @@ type ImportCourseRequest = {
     units?: number // For variable-unit courses
 }
 
+// Course relationship types
+type CourseRelationshipDto = {
+    id: number
+    parentCourseId: number
+    childCourseId: number
+    relationshipType: "CrossList" | "Section"
+    childCourse?: CourseDto
+    parentCourse?: CourseDto
+}
+
+type CourseRelationshipsResult = {
+    parentRelationship: CourseRelationshipDto | null
+    childRelationships: CourseRelationshipDto[]
+}
+
+type CreateCourseRelationshipRequest = {
+    childCourseId: number
+    relationshipType: "CrossList" | "Section"
+}
+
 export type {
     TermDto,
     PersonDto,
@@ -161,4 +181,7 @@ export type {
     CreateCourseRequest,
     UpdateCourseRequest,
     ImportCourseRequest,
+    CourseRelationshipDto,
+    CourseRelationshipsResult,
+    CreateCourseRelationshipRequest,
 }
