@@ -45,6 +45,21 @@ const routes = [
         name: "CourseList",
     },
     {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/courses/:courseId(\\d+)`,
+        meta: {
+            layout: EffortLayout,
+            permissions: [
+                "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ImportCourse",
+                "SVMSecure.Effort.EditCourse",
+                "SVMSecure.Effort.DeleteCourse",
+                "SVMSecure.Effort.ManageRCourseEnrollment",
+            ],
+        },
+        component: () => import("@/Effort/pages/CourseDetail.vue"),
+        name: "CourseDetail",
+    },
+    {
         path: "/Effort/audit",
         meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAudit"] },
         component: () => import("@/Effort/pages/AuditList.vue"),
