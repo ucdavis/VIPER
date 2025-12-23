@@ -61,13 +61,18 @@ public class CourseService : ICourseService
             query = query.Where(c => c.CustDept == department);
         }
 
+        // Get parent course IDs for all child courses (to determine which courses have parents)
+        var childToParentMap = await _context.CourseRelationships
+            .AsNoTracking()
+            .ToDictionaryAsync(r => r.ChildCourseId, r => r.ParentCourseId, ct);
+
         var courses = await query
             .OrderBy(c => c.SubjCode)
             .ThenBy(c => c.CrseNumb)
             .ThenBy(c => c.SeqNumb)
             .ToListAsync(ct);
 
-        return courses.Select(ToDto).ToList();
+        return courses.Select(c => ToDto(c, childToParentMap.GetValueOrDefault(c.Id))).ToList();
     }
 
     public async Task<CourseDto?> GetCourseAsync(int courseId, CancellationToken ct = default)
@@ -451,7 +456,7 @@ public class CourseService : ICourseService
         return "UNK";
     }
 
-    private static CourseDto ToDto(EffortCourse course)
+    private static CourseDto ToDto(EffortCourse course, int? parentCourseId = null)
     {
         return new CourseDto
         {
@@ -463,7 +468,8 @@ public class CourseService : ICourseService
             SeqNumb = course.SeqNumb.Trim(),
             Enrollment = course.Enrollment,
             Units = course.Units,
-            CustDept = course.CustDept.Trim()
+            CustDept = course.CustDept.Trim(),
+            ParentCourseId = parentCourseId
         };
     }
 }

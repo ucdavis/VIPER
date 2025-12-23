@@ -120,7 +120,7 @@
             <template #body-cell-actions="props">
                 <q-td :props="props">
                     <q-btn
-                        v-if="hasLinkCourses"
+                        v-if="hasLinkCourses && !props.row.parentCourseId"
                         icon="link"
                         color="secondary"
                         dense

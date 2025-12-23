@@ -48,6 +48,8 @@ type CourseDto = {
     enrollment: number
     units: number
     custDept: string
+    /** Parent course ID if this course is linked as a child. Null/undefined if not a child. */
+    parentCourseId?: number | null
 }
 
 type RecordDto = {
