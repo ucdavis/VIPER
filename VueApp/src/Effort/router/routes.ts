@@ -54,6 +54,7 @@ const routes = [
                 "SVMSecure.Effort.EditCourse",
                 "SVMSecure.Effort.DeleteCourse",
                 "SVMSecure.Effort.ManageRCourseEnrollment",
+                "SVMSecure.Effort.LinkCourses",
             ],
         },
         component: () => import("@/Effort/pages/CourseDetail.vue"),

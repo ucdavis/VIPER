@@ -61,9 +61,10 @@ public class CourseService : ICourseService
             query = query.Where(c => c.CustDept == department);
         }
 
-        // Get parent course IDs for all child courses (to determine which courses have parents)
+        // Get parent course IDs for child courses in this term only
         var childToParentMap = await _context.CourseRelationships
             .AsNoTracking()
+            .Where(r => _context.Courses.Any(c => c.Id == r.ParentCourseId && c.TermCode == termCode))
             .ToDictionaryAsync(r => r.ChildCourseId, r => r.ParentCourseId, ct);
 
         var courses = await query
@@ -81,7 +82,16 @@ public class CourseService : ICourseService
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == courseId, ct);
 
-        return course == null ? null : ToDto(course);
+        if (course == null) return null;
+
+        // Check if this course is a child in any relationship
+        var parentCourseId = await _context.CourseRelationships
+            .AsNoTracking()
+            .Where(r => r.ChildCourseId == courseId)
+            .Select(r => (int?)r.ParentCourseId)
+            .FirstOrDefaultAsync(ct);
+
+        return ToDto(course, parentCourseId);
     }
 
     public async Task<List<BannerCourseDto>> SearchBannerCoursesAsync(int termCode, string? subjCode = null,
