@@ -1030,8 +1030,12 @@ BEGIN
         CONSTRAINT FK_CourseRelationships_Parent FOREIGN KEY (ParentCourseId) REFERENCES [effort].[Courses](Id),
         CONSTRAINT FK_CourseRelationships_Child FOREIGN KEY (ChildCourseId) REFERENCES [effort].[Courses](Id),
         CONSTRAINT UQ_CourseRelationships UNIQUE (ParentCourseId, ChildCourseId),
-        CONSTRAINT CK_CourseRelationships_Type CHECK (RelationshipType IN ('Parent', 'Child', 'CrossList', 'Section'))
+        CONSTRAINT CK_CourseRelationships_Type CHECK (RelationshipType IN ('CrossList', 'Section'))
     );
+
+    -- Unique index to ensure each child course can only have one parent
+    CREATE UNIQUE NONCLUSTERED INDEX IX_CourseRelationships_ChildCourseId
+    ON [effort].[CourseRelationships](ChildCourseId);
 END";
             cmd.ExecuteNonQuery();
             Console.WriteLine("  ✓ CourseRelationships table created");

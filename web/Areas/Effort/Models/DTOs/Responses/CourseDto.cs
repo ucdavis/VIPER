@@ -20,4 +20,10 @@ public class CourseDto
     public int Enrollment { get; set; }
     public decimal Units { get; set; }
     public string CustDept { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Parent course ID if this course is linked as a child. Null if not a child.
+    /// Used to determine if the link button should be hidden (child courses cannot become parents).
+    /// </summary>
+    public int? ParentCourseId { get; set; }
 }
