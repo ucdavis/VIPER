@@ -11,7 +11,8 @@ public class CreateCourseRelationshipRequest
     /// The ID of the course to be linked as a child.
     /// </summary>
     [Required]
-    public required int ChildCourseId { get; set; }
+    [Range(1, int.MaxValue, ErrorMessage = "ChildCourseId must be a positive integer")]
+    public int ChildCourseId { get; set; }
 
     /// <summary>
     /// The type of relationship: "CrossList" or "Section".

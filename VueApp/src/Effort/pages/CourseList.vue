@@ -431,7 +431,8 @@ function onCourseCreated() {
 }
 
 function onRelationshipsUpdated() {
-    // Relationships were updated - no need to reload courses as relationships don't affect the course list display
+    // Reload courses so ParentCourseId changes are reflected (affects link button visibility)
+    loadCourses()
 }
 
 onMounted(loadTerms)

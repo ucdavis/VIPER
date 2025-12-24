@@ -475,9 +475,31 @@ public sealed class CourseRelationshipServiceTests : IDisposable
     #region GetRelationshipsForCourseAsync Tests
 
     [Fact]
-    public async Task GetRelationshipsForCourseAsync_ReturnsBothParentAndChildren()
+    public async Task GetRelationshipsForCourseAsync_ReturnsParentWhenCourseIsChild()
     {
-        // Arrange
+        // Arrange - Course 2 is a child of Course 1
+        _context.Courses.AddRange(
+            new EffortCourse { Id = 1, TermCode = TestTermCode, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" },
+            new EffortCourse { Id = 2, TermCode = TestTermCode, Crn = "12346", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 3, CustDept = "VME" }
+        );
+        _context.CourseRelationships.Add(
+            new CourseRelationship { Id = 1, ParentCourseId = 1, ChildCourseId = 2, RelationshipType = CrossListType }
+        );
+        await _context.SaveChangesAsync();
+
+        // Act - Get relationships for the child course
+        var result = await _service.GetRelationshipsForCourseAsync(2);
+
+        // Assert - Course 2 should show its parent relationship
+        Assert.NotNull(result.ParentRelationship);
+        Assert.Equal(1, result.ParentRelationship.ParentCourseId);
+        Assert.Empty(result.ChildRelationships);
+    }
+
+    [Fact]
+    public async Task GetRelationshipsForCourseAsync_ReturnsChildrenWhenCourseIsParent()
+    {
+        // Arrange - Course 1 is parent of Course 2 and Course 3
         _context.Courses.AddRange(
             new EffortCourse { Id = 1, TermCode = TestTermCode, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" },
             new EffortCourse { Id = 2, TermCode = TestTermCode, Crn = "12346", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 3, CustDept = "VME" },
@@ -485,18 +507,18 @@ public sealed class CourseRelationshipServiceTests : IDisposable
         );
         _context.CourseRelationships.AddRange(
             new CourseRelationship { Id = 1, ParentCourseId = 1, ChildCourseId = 2, RelationshipType = CrossListType },
-            new CourseRelationship { Id = 2, ParentCourseId = 3, ChildCourseId = 1, RelationshipType = SectionType }
+            new CourseRelationship { Id = 2, ParentCourseId = 1, ChildCourseId = 3, RelationshipType = SectionType }
         );
         await _context.SaveChangesAsync();
 
-        // Act
+        // Act - Get relationships for the parent course
         var result = await _service.GetRelationshipsForCourseAsync(1);
 
-        // Assert - Course 1 is parent of 2 and child of 3
-        Assert.NotNull(result.ParentRelationship);
-        Assert.Equal(3, result.ParentRelationship.ParentCourseId);
-        Assert.Single(result.ChildRelationships);
-        Assert.Equal(2, result.ChildRelationships[0].ChildCourseId);
+        // Assert - Course 1 should show its child relationships
+        Assert.Null(result.ParentRelationship);
+        Assert.Equal(2, result.ChildRelationships.Count);
+        Assert.Contains(result.ChildRelationships, r => r.ChildCourseId == 2);
+        Assert.Contains(result.ChildRelationships, r => r.ChildCourseId == 3);
     }
 
     [Fact]
