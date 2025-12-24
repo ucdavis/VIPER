@@ -13,8 +13,9 @@ public class AutoMapperProfileEffort : Profile
             .ForMember(d => d.TermName, opt => opt.Ignore())
             .ForMember(d => d.CanDelete, opt => opt.Ignore());
 
-        // All properties auto-map by convention
-        CreateMap<EffortPerson, PersonDto>();
+        // VolunteerWos: byte? (1=true) → bool
+        CreateMap<EffortPerson, PersonDto>()
+            .ForMember(d => d.VolunteerWos, opt => opt.MapFrom(s => s.VolunteerWos == 1));
         CreateMap<EffortCourse, CourseDto>();
 
         // RoleDescription comes from lookup

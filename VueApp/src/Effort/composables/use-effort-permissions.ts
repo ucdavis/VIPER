@@ -57,6 +57,9 @@ function useEffortPermissions() {
     const hasDeleteCourse = computed(() => hasPermission(EffortPermissions.DeleteCourse))
     const hasManageRCourseEnrollment = computed(() => hasPermission(EffortPermissions.ManageRCourseEnrollment))
     const hasLinkCourses = computed(() => hasPermission(EffortPermissions.LinkCourses))
+    const hasImportInstructor = computed(() => hasPermission(EffortPermissions.ImportInstructor))
+    const hasEditInstructor = computed(() => hasPermission(EffortPermissions.EditInstructor))
+    const hasDeleteInstructor = computed(() => hasPermission(EffortPermissions.DeleteInstructor))
     const isAdmin = computed(() => hasViewAllDepartments.value)
 
     return {
@@ -72,6 +75,9 @@ function useEffortPermissions() {
         hasDeleteCourse,
         hasManageRCourseEnrollment,
         hasLinkCourses,
+        hasImportInstructor,
+        hasEditInstructor,
+        hasDeleteInstructor,
         isAdmin,
         permissions: computed(() => userStore.userInfo.permissions),
     }

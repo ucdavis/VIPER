@@ -97,6 +97,11 @@ public class EffortAuditService : IEffortAuditService
         AddAuditEntry(EffortAuditTables.Terms, termCode, termCode, action, details);
     }
 
+    public void AddPersonChangeAudit(int personId, int termCode, string action, object? oldValues, object? newValues)
+    {
+        AddAuditEntry(EffortAuditTables.Persons, personId, termCode, action, SerializeChanges(oldValues, newValues));
+    }
+
     /// <summary>
     /// Add an audit entry to the context without saving.
     /// Use within a transaction where the caller manages SaveChangesAsync.

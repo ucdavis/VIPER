@@ -1,0 +1,205 @@
+<template>
+    <q-dialog
+        :model-value="modelValue"
+        persistent
+        @update:model-value="emit('update:modelValue', $event)"
+    >
+        <q-card style="min-width: 400px; max-width: 600px">
+            <q-card-section class="row items-center q-pb-none">
+                <div class="text-h6">Add Instructor</div>
+                <q-space />
+                <q-btn
+                    v-close-popup
+                    icon="close"
+                    flat
+                    round
+                    dense
+                />
+            </q-card-section>
+
+            <q-card-section>
+                <q-select
+                    v-model="selectedPerson"
+                    :options="searchResults"
+                    :loading="isSearching"
+                    label="Search for instructor"
+                    use-input
+                    input-debounce="300"
+                    option-label="fullName"
+                    option-value="personId"
+                    dense
+                    options-dense
+                    outlined
+                    clearable
+                    @filter="onFilter"
+                >
+                    <template #no-option>
+                        <q-item>
+                            <q-item-section class="text-grey">
+                                {{
+                                    searchTerm.length < 2 ? "Type at least 2 characters to search" : "No results found"
+                                }}
+                            </q-item-section>
+                        </q-item>
+                    </template>
+                    <template #option="scope">
+                        <q-item v-bind="scope.itemProps">
+                            <q-item-section>
+                                <q-item-label>{{ scope.opt.fullName }}</q-item-label>
+                                <q-item-label caption>
+                                    {{ scope.opt.effortDept || "No dept" }}
+                                    <span v-if="scope.opt.titleCode"> &bull; {{ scope.opt.titleCode }}</span>
+                                </q-item-label>
+                            </q-item-section>
+                        </q-item>
+                    </template>
+                    <template #selected-item="scope">
+                        <div>
+                            {{ scope.opt.fullName }}
+                            <span
+                                v-if="scope.opt.effortDept"
+                                class="text-grey-7"
+                            >
+                                ({{ scope.opt.effortDept }})
+                            </span>
+                        </div>
+                    </template>
+                </q-select>
+
+                <!-- Selected person preview -->
+                <div
+                    v-if="selectedPerson"
+                    class="q-mt-md q-pa-sm bg-grey-2 rounded-borders"
+                >
+                    <div class="text-subtitle2">Selected Instructor</div>
+                    <div class="q-mt-xs">
+                        <strong>{{ selectedPerson.fullName }}</strong>
+                    </div>
+                    <div class="text-caption text-grey-7">
+                        <span v-if="selectedPerson.effortDept">Department: {{ selectedPerson.effortDept }}</span>
+                        <span v-else>No department assigned</span>
+                    </div>
+                    <div
+                        v-if="selectedPerson.titleCode"
+                        class="text-caption text-grey-7"
+                    >
+                        Title Code: {{ selectedPerson.titleCode }}
+                    </div>
+                </div>
+
+                <div
+                    v-if="errorMessage"
+                    class="text-negative q-mt-sm"
+                >
+                    {{ errorMessage }}
+                </div>
+            </q-card-section>
+
+            <q-card-actions align="right">
+                <q-btn
+                    v-close-popup
+                    flat
+                    label="Cancel"
+                />
+                <q-btn
+                    color="primary"
+                    label="Add Instructor"
+                    :loading="isSaving"
+                    :disable="!selectedPerson"
+                    @click="addInstructor"
+                />
+            </q-card-actions>
+        </q-card>
+    </q-dialog>
+</template>
+
+<script setup lang="ts">
+import { ref, watch } from "vue"
+import { effortService } from "../services/effort-service"
+import type { AaudPersonDto } from "../types"
+
+const props = defineProps<{
+    modelValue: boolean
+    termCode: number | null
+}>()
+
+const emit = defineEmits<{
+    "update:modelValue": [value: boolean]
+    created: []
+}>()
+
+const searchTerm = ref("")
+const searchResults = ref<AaudPersonDto[]>([])
+const selectedPerson = ref<AaudPersonDto | null>(null)
+const isSearching = ref(false)
+const isSaving = ref(false)
+const errorMessage = ref("")
+
+// Reset state when dialog opens
+watch(
+    () => props.modelValue,
+    (isOpen) => {
+        if (isOpen) {
+            searchTerm.value = ""
+            searchResults.value = []
+            selectedPerson.value = null
+            errorMessage.value = ""
+        }
+    },
+)
+
+async function onFilter(val: string, update: (fn: () => void) => void, abort: () => void) {
+    searchTerm.value = val
+
+    if (val.length < 2) {
+        update(() => {
+            searchResults.value = []
+        })
+        return
+    }
+
+    if (!props.termCode) {
+        abort()
+        return
+    }
+
+    isSearching.value = true
+    try {
+        const results = await effortService.searchPossibleInstructors(props.termCode, val)
+        update(() => {
+            searchResults.value = results
+        })
+    } catch {
+        update(() => {
+            searchResults.value = []
+        })
+    } finally {
+        isSearching.value = false
+    }
+}
+
+async function addInstructor() {
+    if (!selectedPerson.value || !props.termCode) return
+
+    isSaving.value = true
+    errorMessage.value = ""
+
+    try {
+        const result = await effortService.createInstructor({
+            personId: selectedPerson.value.personId,
+            termCode: props.termCode,
+        })
+
+        if (result.success) {
+            emit("update:modelValue", false)
+            emit("created")
+        } else {
+            errorMessage.value = result.error || "Failed to add instructor"
+        }
+    } catch {
+        errorMessage.value = "An unexpected error occurred"
+    } finally {
+        isSaving.value = false
+    }
+}
+</script>
