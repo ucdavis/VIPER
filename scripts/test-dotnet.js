@@ -87,7 +87,7 @@ function ensureBuild() {
 function runTests() {
     logger.info("Running tests...")
     try {
-        execFileSync("dotnet", ["test", precommitDll, "--no-build", "--verbosity=normal", "--nologo"], {
+        execFileSync("dotnet", ["test", precommitDll, "--verbosity=normal", "--nologo"], {
             encoding: "utf8",
             timeout: 300_000, // 5 minute timeout for tests
             stdio: "inherit",
