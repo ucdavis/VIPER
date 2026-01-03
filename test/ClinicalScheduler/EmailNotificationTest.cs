@@ -695,7 +695,7 @@ namespace Viper.test.ClinicalScheduler
             var rotationId = 50; // Use unique rotation ID to avoid conflict
             var weekIds = new[] { 50 }; // Use unique week ID to avoid conflict
             var weekNum = 15;
-            var testYear = 2025;
+            var testYear = DateTime.Now.Year;
 
             // Add test data
             await AddTestPersonAsync(oldPrimaryMothraId, "Alice", "Johnson");
