@@ -168,7 +168,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                             WeekId = weekId,
                             Evaluator = isPrimaryEvaluator,
                             ModifiedBy = currentUser.MothraId,
-                            ModifiedDate = DateTime.UtcNow
+                            ModifiedDate = DateTime.Now
                         };
 
                         _context.InstructorSchedules.Add(schedule);
@@ -410,13 +410,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                         schedule.Evaluator = true;
                         schedule.ModifiedBy = currentUser.MothraId;
-                        schedule.ModifiedDate = DateTime.UtcNow;
+                        schedule.ModifiedDate = DateTime.Now;
                     }
                     else
                     {
                         schedule.Evaluator = false;
                         schedule.ModifiedBy = currentUser.MothraId;
-                        schedule.ModifiedDate = DateTime.UtcNow;
+                        schedule.ModifiedDate = DateTime.Now;
                     }
 
                     await _context.SaveChangesAsync(cancellationToken);
@@ -587,7 +587,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 cancellationToken.ThrowIfCancellationRequested();
                 schedule.Evaluator = false;
                 schedule.ModifiedBy = modifiedByMothraId;
-                schedule.ModifiedDate = DateTime.UtcNow;
+                schedule.ModifiedDate = DateTime.Now;
             }
 
             if (existingPrimary.Any())

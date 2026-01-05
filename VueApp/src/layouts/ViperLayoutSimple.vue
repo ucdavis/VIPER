@@ -19,6 +19,7 @@
     const clearEmulationHref = ref(import.meta.env.VITE_VIPER_HOME + "ClearEmulation")
     const environment = ref(import.meta.env.VITE_ENVIRONMENT)
     const viperHome = import.meta.env.VITE_VIPER_HOME
+    const currentYear = new Date().getFullYear()
 </script>
 
 <template>
@@ -95,7 +96,7 @@
                 </div>
                 <div class="">
                     <div class="text-black">
-                        &copy; 2023 School of Veterinary Medicine
+                        &copy; {{ currentYear }} School of Veterinary Medicine
                     </div>
                 </div>
                 <div class="q-pr-md">

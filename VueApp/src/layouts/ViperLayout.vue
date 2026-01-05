@@ -249,7 +249,7 @@
                         UC Davis
                     </a>
                 </div>
-                <div class="col-12 col-md-auto gt-sm text-black">&copy; 2023 School of Veterinary Medicine</div>
+                <div class="col-12 col-md-auto gt-sm text-black">&copy; {{ currentYear }} School of Veterinary Medicine</div>
             </div>
         </q-footer>
         <SessionTimeout />
@@ -280,7 +280,8 @@ export default {
         const environment = import.meta.env.VITE_ENVIRONMENT
         const viperHome = import.meta.env.VITE_VIPER_HOME
         const loginHref = getLoginUrl()
-        return { userStore, mainLeftDrawer, clearEmulationHref, environment, viperHome, loginHref }
+        const currentYear = new Date().getFullYear()
+        return { userStore, mainLeftDrawer, clearEmulationHref, environment, viperHome, loginHref, currentYear }
     },
     props: {
         nav: {
