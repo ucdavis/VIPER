@@ -21,5 +21,9 @@ public class AutoMapperProfileEffort : Profile
         // RoleDescription comes from lookup
         CreateMap<EffortRecord, RecordDto>()
             .ForMember(d => d.RoleDescription, opt => opt.Ignore());
+
+        // EffortType mapping - InstructorCount set by service
+        CreateMap<EffortType, EffortTypeDto>()
+            .ForMember(d => d.InstructorCount, opt => opt.Ignore());
     }
 }
