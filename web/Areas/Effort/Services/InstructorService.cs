@@ -218,16 +218,13 @@ public class InstructorService : IInstructorService
                     (job, ids) => new { ids.IdsMothraid, job.JobDepartmentCode })
                 .ToListAsync(ct);
 
-            foreach (var item in jobData)
-            {
-                if (item.IdsMothraid == null) continue;
-                if (!jobDeptsByMothraId.TryGetValue(item.IdsMothraid, out var list))
-                {
-                    list = new List<string>();
-                    jobDeptsByMothraId[item.IdsMothraid] = list;
-                }
-                list.Add(item.JobDepartmentCode);
-            }
+            jobDeptsByMothraId = jobData
+                .Where(item => item.IdsMothraid != null)
+                .GroupBy(item => item.IdsMothraid!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(item => item.JobDepartmentCode).ToList(),
+                    StringComparer.OrdinalIgnoreCase);
         }
 
         return people.Select(p =>
@@ -589,13 +586,13 @@ public class InstructorService : IInstructorService
                     (job, ids) => job.JobDepartmentCode)
                 .ToListAsync(ct);
 
-            foreach (var deptCode in jobDepts)
+            var firstAcademicDept = jobDepts
+                .Select(ToSimpleName)
+                .FirstOrDefault(simpleName => simpleName != null && AcademicDepts.Contains(simpleName));
+
+            if (firstAcademicDept != null)
             {
-                var simpleName = ToSimpleName(deptCode);
-                if (simpleName != null && AcademicDepts.Contains(simpleName))
-                {
-                    return simpleName.ToUpperInvariant();
-                }
+                return firstAcademicDept.ToUpperInvariant();
             }
         }
 
@@ -674,13 +671,13 @@ public class InstructorService : IInstructorService
         if (!string.IsNullOrEmpty(mothraId) && jobDeptsByMothraId != null &&
             jobDeptsByMothraId.TryGetValue(mothraId, out var jobDepts))
         {
-            foreach (var deptCode in jobDepts)
+            var firstAcademicDept = jobDepts
+                .Select(ToSimpleName)
+                .FirstOrDefault(simpleName => simpleName != null && AcademicDepts.Contains(simpleName));
+
+            if (firstAcademicDept != null)
             {
-                var simpleName = ToSimpleName(deptCode);
-                if (simpleName != null && AcademicDepts.Contains(simpleName))
-                {
-                    return simpleName.ToUpperInvariant();
-                }
+                return firstAcademicDept.ToUpperInvariant();
             }
         }
 
