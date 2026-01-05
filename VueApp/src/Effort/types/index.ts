@@ -214,6 +214,32 @@ type CanDeleteResult = {
     recordCount: number
 }
 
+// Effort Type types (read-only)
+type EffortTypeDto = {
+    id: number
+    class: string
+    name: string
+    showOnTemplate: boolean
+    isActive: boolean
+    instructorCount: number
+}
+
+// Instructor by type types
+type InstructorByTypeDto = {
+    personId: number
+    firstName: string
+    lastName: string
+    fullName: string
+    academicYear: string
+}
+
+type InstructorsByTypeResponseDto = {
+    typeId: number
+    typeName: string
+    typeClass: string
+    instructors: InstructorByTypeDto[]
+}
+
 type InstructorEffortRecordDto = {
     id: number
     courseId: number
@@ -267,4 +293,7 @@ export type {
     InstructorEffortRecordDto,
     TitleCodeDto,
     JobGroupDto,
+    EffortTypeDto,
+    InstructorByTypeDto,
+    InstructorsByTypeResponseDto,
 }

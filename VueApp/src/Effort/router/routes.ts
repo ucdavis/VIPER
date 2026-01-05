@@ -30,6 +30,30 @@ const routes = [
         name: "TermManagement",
     },
     {
+        path: "/Effort/types",
+        meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAllDepartments"] },
+        component: () => import("@/Effort/pages/EffortTypeList.vue"),
+        name: "EffortTypeList",
+    },
+    {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/types`,
+        meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAllDepartments"] },
+        component: () => import("@/Effort/pages/EffortTypeList.vue"),
+        name: "EffortTypeListWithTerm",
+    },
+    {
+        path: `/Effort/types/:typeId(\\d+)/instructors`,
+        meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAllDepartments"] },
+        component: () => import("@/Effort/pages/EffortTypeInstructors.vue"),
+        name: "EffortTypeInstructors",
+    },
+    {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/types/:typeId(\\d+)/instructors`,
+        meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAllDepartments"] },
+        component: () => import("@/Effort/pages/EffortTypeInstructors.vue"),
+        name: "EffortTypeInstructorsWithTerm",
+    },
+    {
         path: `/Effort/:termCode(${TERM_CODE_PATTERN})/courses`,
         meta: {
             layout: EffortLayout,
