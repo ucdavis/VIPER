@@ -25,6 +25,7 @@ public class InstructorService : IInstructorService
     private readonly IMemoryCache _cache;
 
     private const string TitleCacheKey = "effort_title_lookup";
+    private const string DeptSimpleNameCacheKey = "effort_dept_simple_name_lookup";
 
     /// <summary>
     /// Valid academic department codes.
@@ -101,6 +102,27 @@ public class InstructorService : IInstructorService
         return dtos;
     }
 
+    public async Task<List<PersonDto>> GetInstructorsByDepartmentsAsync(int termCode, IReadOnlyList<string> departments, CancellationToken ct = default)
+    {
+        if (departments.Count == 0)
+        {
+            return [];
+        }
+
+        var instructors = await _context.Persons
+            .AsNoTracking()
+            .Where(p => p.TermCode == termCode && departments.Contains(p.EffortDept))
+            .OrderBy(p => p.LastName)
+            .ThenBy(p => p.FirstName)
+            .ToListAsync(ct);
+
+        var dtos = _mapper.Map<List<PersonDto>>(instructors);
+
+        await EnrichWithTitlesAsync(dtos, ct);
+
+        return dtos;
+    }
+
     public async Task<PersonDto?> GetInstructorAsync(int personId, int termCode, CancellationToken ct = default)
     {
         var instructor = await _context.Persons
@@ -147,25 +169,102 @@ public class InstructorService : IInstructorService
             .ToListAsync(ct);
 
         // Get employee info from AAUD for department/title lookup
+        // Need to go through the Ids table to map MothraId -> pKey -> Employee
         var mothraIds = people.Select(p => p.MothraId).ToList();
+        var termCodeStr = termCode.ToString();
+
+        // Look up pKeys from Ids table using MothraId
+        var idsRecords = await _aaudContext.Ids
+            .AsNoTracking()
+            .Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && mothraIds.Contains(i.IdsMothraid))
+            .ToListAsync(ct);
+
+        // Build MothraId -> pKey mapping
+        var mothraIdToPKey = idsRecords
+            .Where(i => i.IdsMothraid != null)
+            .ToDictionary(i => i.IdsMothraid!, i => i.IdsPKey, StringComparer.OrdinalIgnoreCase);
+
+        // Get employees using pKeys
+        var pKeys = mothraIdToPKey.Values.ToList();
         var employees = await _aaudContext.Employees
             .AsNoTracking()
-            .Where(e => mothraIds.Contains(e.EmpPKey))
+            .Where(e => e.EmpTermCode == termCodeStr && pKeys.Contains(e.EmpPKey))
             .ToListAsync(ct);
 
         var employeeDict = employees.ToDictionary(e => e.EmpPKey, StringComparer.OrdinalIgnoreCase);
 
+        // Get title lookup for human-readable title names
+        var titleLookup = await GetTitleLookupAsync(ct);
+
+        // Get department simple name lookup (raw code like "072030" -> simple name like "VME")
+        var deptSimpleNameLookup = await GetDepartmentSimpleNameLookupAsync(ct);
+
+        // Build simple department code -> display name lookup (e.g., "VME" -> "Medicine & Epidemiology")
+        var deptDisplayNameLookup = Departments.ToDictionary(d => d.Code, d => d.Name, StringComparer.OrdinalIgnoreCase);
+
+        // Batch-fetch job departments for all people (matches legacy jobs query)
+        var validMothraIds = mothraIds.Where(m => !string.IsNullOrEmpty(m)).ToList();
+        var jobDeptsByMothraId = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        if (validMothraIds.Count > 0)
+        {
+            var jobData = await _aaudContext.Jobs
+                .AsNoTracking()
+                .Where(job => job.JobTermCode == termCodeStr)
+                .Join(
+                    _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && validMothraIds.Contains(i.IdsMothraid)),
+                    job => job.JobPKey,
+                    ids => ids.IdsPKey,
+                    (job, ids) => new { ids.IdsMothraid, job.JobDepartmentCode })
+                .ToListAsync(ct);
+
+            foreach (var item in jobData)
+            {
+                if (item.IdsMothraid == null) continue;
+                if (!jobDeptsByMothraId.TryGetValue(item.IdsMothraid, out var list))
+                {
+                    list = new List<string>();
+                    jobDeptsByMothraId[item.IdsMothraid] = list;
+                }
+                list.Add(item.JobDepartmentCode);
+            }
+        }
+
         return people.Select(p =>
         {
-            employeeDict.TryGetValue(p.MothraId, out var emp);
+            Viper.Models.AAUD.Employee? emp = null;
+            if (mothraIdToPKey.TryGetValue(p.MothraId, out var pKey))
+            {
+                employeeDict.TryGetValue(pKey, out emp);
+            }
+
+            var deptCode = DetermineDepartmentFromJobs(p.MothraId, emp, jobDeptsByMothraId, deptSimpleNameLookup);
+            var titleCode = emp?.EmpEffortTitleCode?.Trim() ?? emp?.EmpTeachingTitleCode?.Trim();
+
+            // Look up human-readable names
+            string? deptName = null;
+            if (deptCode != null && deptDisplayNameLookup.TryGetValue(deptCode, out var name))
+            {
+                deptName = name;
+            }
+
+            string? title = null;
+            if (titleCode != null && titleLookup != null)
+            {
+                var paddedCode = titleCode.PadLeft(6, '0');
+                titleLookup.TryGetValue(paddedCode, out title);
+            }
+
             return new AaudPersonDto
             {
                 PersonId = p.PersonId,
                 FirstName = p.FirstName,
                 LastName = p.LastName,
                 MiddleInitial = p.MiddleName?.Length > 0 ? p.MiddleName.Substring(0, 1) : null,
-                EffortDept = DetermineDepartment(emp),
-                TitleCode = emp?.EmpEffortTitleCode?.Trim() ?? emp?.EmpTeachingTitleCode?.Trim(),
+                EffortDept = deptCode,
+                DeptName = deptName,
+                TitleCode = titleCode,
+                Title = title,
                 JobGroupId = null // Job group would need additional lookup if required
             };
         }).ToList();
@@ -189,12 +288,27 @@ public class InstructorService : IInstructorService
             throw new InvalidOperationException($"Person with PersonId {request.PersonId} not found");
         }
 
-        // Look up employee info from AAUD
-        var employee = await _aaudContext.Employees
-            .AsNoTracking()
-            .FirstOrDefaultAsync(e => e.EmpPKey == person.MothraId, ct);
+        // Look up employee info from AAUD through Ids table (MothraId -> pKey -> Employee)
+        var termCodeStr = request.TermCode.ToString();
+        Viper.Models.AAUD.Id? idsRecord = null;
+        if (!string.IsNullOrEmpty(person.MothraId))
+        {
+            idsRecord = await _aaudContext.Ids
+                .AsNoTracking()
+                .FirstOrDefaultAsync(i => i.IdsTermCode == termCodeStr && i.IdsMothraid == person.MothraId, ct);
+        }
 
-        var dept = DetermineDepartment(employee) ?? "UNK";
+        Viper.Models.AAUD.Employee? employee = null;
+        if (idsRecord != null)
+        {
+            employee = await _aaudContext.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.EmpTermCode == termCodeStr && e.EmpPKey == idsRecord.IdsPKey, ct);
+        }
+
+        // Get department simple name lookup to convert raw codes to simple names
+        var deptSimpleNameLookup = await GetDepartmentSimpleNameLookupAsync(ct);
+        var dept = await DetermineDepartmentAsync(person.MothraId, request.TermCode, employee, deptSimpleNameLookup, ct) ?? "UNK";
         var titleCode = employee?.EmpEffortTitleCode?.Trim() ?? employee?.EmpTeachingTitleCode?.Trim() ?? "";
 
         var instructor = new EffortPerson
@@ -248,8 +362,9 @@ public class InstructorService : IInstructorService
             return null;
         }
 
-        // Validate department
-        if (!IsValidDepartment(request.EffortDept))
+        // Validate department - allow known departments or keeping the current one (legacy data may have non-standard departments)
+        var isCurrentDept = string.Equals(instructor.EffortDept, request.EffortDept, StringComparison.OrdinalIgnoreCase);
+        if (!isCurrentDept && !IsValidDepartment(request.EffortDept))
         {
             throw new ArgumentException($"Invalid department: {request.EffortDept}");
         }
@@ -269,7 +384,7 @@ public class InstructorService : IInstructorService
         instructor.ReportUnit = request.ReportUnits != null && request.ReportUnits.Count > 0
             ? string.Join(",", request.ReportUnits)
             : null;
-        instructor.VolunteerWos = request.VolunteerWos ? (byte)1 : null;
+        instructor.VolunteerWos = request.VolunteerWos ? (byte)1 : (byte)0;
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
@@ -351,7 +466,7 @@ public class InstructorService : IInstructorService
             .AnyAsync(p => p.PersonId == personId && p.TermCode == termCode, ct);
     }
 
-    public async Task<string?> ResolveInstructorDepartmentAsync(int personId, CancellationToken ct = default)
+    public async Task<string?> ResolveInstructorDepartmentAsync(int personId, int termCode, CancellationToken ct = default)
     {
         var person = await _viperContext.People
             .AsNoTracking()
@@ -362,11 +477,27 @@ public class InstructorService : IInstructorService
             return null;
         }
 
-        var employee = await _aaudContext.Employees
-            .AsNoTracking()
-            .FirstOrDefaultAsync(e => e.EmpPKey == person.MothraId, ct);
+        // Look up employee info from AAUD through Ids table (MothraId -> pKey -> Employee)
+        var termCodeStr = termCode.ToString();
+        Viper.Models.AAUD.Id? idsRecord = null;
+        if (!string.IsNullOrEmpty(person.MothraId))
+        {
+            idsRecord = await _aaudContext.Ids
+                .AsNoTracking()
+                .FirstOrDefaultAsync(i => i.IdsTermCode == termCodeStr && i.IdsMothraid == person.MothraId, ct);
+        }
 
-        return DetermineDepartment(employee) ?? "UNK";
+        Viper.Models.AAUD.Employee? employee = null;
+        if (idsRecord != null)
+        {
+            employee = await _aaudContext.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.EmpTermCode == termCodeStr && e.EmpPKey == idsRecord.IdsPKey, ct);
+        }
+
+        // Get department simple name lookup to convert raw codes to simple names
+        var deptSimpleNameLookup = await GetDepartmentSimpleNameLookupAsync(ct);
+        return await DetermineDepartmentAsync(person.MothraId, termCode, employee, deptSimpleNameLookup, ct) ?? "UNK";
     }
 
     public List<DepartmentDto> GetDepartments()
@@ -401,43 +532,185 @@ public class InstructorService : IInstructorService
     }
 
     /// <summary>
-    /// Determine the effort department from AAUD employee data.
-    /// Priority: Effort dept, then teaching dept, then home dept.
-    /// Only use if it's an academic SVM department.
+    /// Determine the effort department from AAUD data.
+    /// Priority: 1) Special overrides, 2) First academic dept from jobs, 3) Employee fields, 4) Fallback.
     /// </summary>
-    private static string? DetermineDepartment(Viper.Models.AAUD.Employee? employee)
+    /// <remarks>
+    /// Matches legacy Instructor.cfc logic (lines 61-104):
+    /// - First queries AAUD jobs table for academic departments
+    /// - Then falls back to employee-level fields (effort/home/alt dept)
+    /// - Includes hardcoded overrides for special cases
+    /// </remarks>
+    private async Task<string?> DetermineDepartmentAsync(
+        string? mothraId,
+        int termCode,
+        Viper.Models.AAUD.Employee? employee,
+        Dictionary<string, string>? deptSimpleNameLookup,
+        CancellationToken ct = default)
     {
+        // Mison override - he only has a VMTH job, but needs his effort recorded to VSR
+        if (mothraId == "02493928")
+        {
+            return "VSR";
+        }
+
+        // Helper to resolve raw code to simple name
+        string? ToSimpleName(string? rawCode)
+        {
+            if (string.IsNullOrWhiteSpace(rawCode))
+            {
+                return null;
+            }
+            var trimmed = rawCode.Trim();
+            // If lookup available, use it; otherwise return raw value (fallback for simple codes)
+            if (deptSimpleNameLookup != null && deptSimpleNameLookup.TryGetValue(trimmed, out var simpleName))
+            {
+                return simpleName;
+            }
+            // If raw code is already a valid department code (academic or center), return it
+            if (Departments.Any(d => string.Equals(d.Code, trimmed, StringComparison.OrdinalIgnoreCase)))
+            {
+                return trimmed.ToUpperInvariant();
+            }
+            return null;
+        }
+
+        // Step 1: Check AAUD jobs for first academic department (matches legacy qInstructorJobs query)
+        if (!string.IsNullOrEmpty(mothraId))
+        {
+            var termCodeStr = termCode.ToString();
+            var jobDepts = await _aaudContext.Jobs
+                .AsNoTracking()
+                .Where(job => job.JobTermCode == termCodeStr)
+                .Join(
+                    _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid == mothraId),
+                    job => job.JobPKey,
+                    ids => ids.IdsPKey,
+                    (job, ids) => job.JobDepartmentCode)
+                .ToListAsync(ct);
+
+            foreach (var deptCode in jobDepts)
+            {
+                var simpleName = ToSimpleName(deptCode);
+                if (simpleName != null && AcademicDepts.Contains(simpleName))
+                {
+                    return simpleName.ToUpperInvariant();
+                }
+            }
+        }
+
+        // Step 2: Fall back to employee fields (matches legacy qDetails checks)
         if (employee == null)
         {
             return null;
         }
 
         // Check effort dept first
-        if (!string.IsNullOrWhiteSpace(employee.EmpEffortHomeDept) &&
-            AcademicDepts.Contains(employee.EmpEffortHomeDept.Trim()))
+        var effortDeptSimple = ToSimpleName(employee.EmpEffortHomeDept);
+        if (effortDeptSimple != null && AcademicDepts.Contains(effortDeptSimple))
         {
-            return employee.EmpEffortHomeDept.Trim().ToUpperInvariant();
-        }
-
-        // Check teaching dept
-        if (!string.IsNullOrWhiteSpace(employee.EmpTeachingHomeDept) &&
-            AcademicDepts.Contains(employee.EmpTeachingHomeDept.Trim()))
-        {
-            return employee.EmpTeachingHomeDept.Trim().ToUpperInvariant();
+            return effortDeptSimple.ToUpperInvariant();
         }
 
         // Check home dept
-        if (!string.IsNullOrWhiteSpace(employee.EmpHomeDept) &&
-            AcademicDepts.Contains(employee.EmpHomeDept.Trim()))
+        var homeDeptSimple = ToSimpleName(employee.EmpHomeDept);
+        if (homeDeptSimple != null && AcademicDepts.Contains(homeDeptSimple))
         {
-            return employee.EmpHomeDept.Trim().ToUpperInvariant();
+            return homeDeptSimple.ToUpperInvariant();
         }
 
         // Check alt dept
-        if (!string.IsNullOrWhiteSpace(employee.EmpAltDeptCode) &&
-            AcademicDepts.Contains(employee.EmpAltDeptCode.Trim()))
+        var altDeptSimple = ToSimpleName(employee.EmpAltDeptCode);
+        if (altDeptSimple != null && AcademicDepts.Contains(altDeptSimple))
         {
-            return employee.EmpAltDeptCode.Trim().ToUpperInvariant();
+            return altDeptSimple.ToUpperInvariant();
+        }
+
+        // No academic dept found - fall back to effort dept even if non-academic (matches legacy line 97)
+        if (effortDeptSimple != null)
+        {
+            return effortDeptSimple.ToUpperInvariant();
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Determine the effort department from AAUD data using pre-fetched job departments.
+    /// Used by batch operations to avoid N+1 queries.
+    /// </summary>
+    private static string? DetermineDepartmentFromJobs(
+        string? mothraId,
+        Viper.Models.AAUD.Employee? employee,
+        Dictionary<string, List<string>>? jobDeptsByMothraId,
+        Dictionary<string, string>? deptSimpleNameLookup)
+    {
+        // Mison override - he only has a VMTH job, but needs his effort recorded to VSR
+        if (mothraId == "02493928")
+        {
+            return "VSR";
+        }
+
+        // Helper to resolve raw code to simple name
+        string? ToSimpleName(string? rawCode)
+        {
+            if (string.IsNullOrWhiteSpace(rawCode))
+            {
+                return null;
+            }
+            var trimmed = rawCode.Trim();
+            if (deptSimpleNameLookup != null && deptSimpleNameLookup.TryGetValue(trimmed, out var simpleName))
+            {
+                return simpleName;
+            }
+            if (Departments.Any(d => string.Equals(d.Code, trimmed, StringComparison.OrdinalIgnoreCase)))
+            {
+                return trimmed.ToUpperInvariant();
+            }
+            return null;
+        }
+
+        // Step 1: Check jobs for first academic department
+        if (!string.IsNullOrEmpty(mothraId) && jobDeptsByMothraId != null &&
+            jobDeptsByMothraId.TryGetValue(mothraId, out var jobDepts))
+        {
+            foreach (var deptCode in jobDepts)
+            {
+                var simpleName = ToSimpleName(deptCode);
+                if (simpleName != null && AcademicDepts.Contains(simpleName))
+                {
+                    return simpleName.ToUpperInvariant();
+                }
+            }
+        }
+
+        // Step 2: Fall back to employee fields
+        if (employee == null)
+        {
+            return null;
+        }
+
+        var effortDeptSimple = ToSimpleName(employee.EmpEffortHomeDept);
+        if (effortDeptSimple != null && AcademicDepts.Contains(effortDeptSimple))
+        {
+            return effortDeptSimple.ToUpperInvariant();
+        }
+
+        var homeDeptSimple = ToSimpleName(employee.EmpHomeDept);
+        if (homeDeptSimple != null && AcademicDepts.Contains(homeDeptSimple))
+        {
+            return homeDeptSimple.ToUpperInvariant();
+        }
+
+        var altDeptSimple = ToSimpleName(employee.EmpAltDeptCode);
+        if (altDeptSimple != null && AcademicDepts.Contains(altDeptSimple))
+        {
+            return altDeptSimple.ToUpperInvariant();
+        }
+
+        if (effortDeptSimple != null)
+        {
+            return effortDeptSimple.ToUpperInvariant();
         }
 
         return null;
@@ -460,10 +733,8 @@ public class InstructorService : IInstructorService
         var titleLookup = await GetTitleLookupAsync(ct);
         if (titleLookup == null) return;
 
-        foreach (var instructor in instructors)
+        foreach (var instructor in instructors.Where(i => !string.IsNullOrWhiteSpace(i.EffortTitleCode)))
         {
-            if (string.IsNullOrWhiteSpace(instructor.EffortTitleCode)) continue;
-
             var paddedCode = instructor.EffortTitleCode.PadLeft(6, '0');
             if (titleLookup.TryGetValue(paddedCode, out var title))
             {
@@ -533,6 +804,75 @@ public class InstructorService : IInstructorService
         }
     }
 
+    /// <summary>
+    /// Gets a cached lookup of raw department codes to simple names from the dictionary database.
+    /// Replicates the logic in dictionary.dbo.fn_get_deptSimpleName function using dvtSVMUnit table.
+    /// </summary>
+    private async Task<Dictionary<string, string>?> GetDepartmentSimpleNameLookupAsync(CancellationToken ct)
+    {
+        if (_cache.TryGetValue<Dictionary<string, string>>(DeptSimpleNameCacheKey, out var cached) && cached != null)
+        {
+            return cached;
+        }
+
+        var connectionString = _configuration.GetConnectionString("VIPER");
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            _logger.LogWarning("VIPER connection string not found, cannot load department lookup");
+            return null;
+        }
+
+        try
+        {
+            var deptLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            await using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync(ct);
+
+            // Query dvtSVMUnit table to get raw code -> simple name mapping
+            // This matches the logic in dictionary.dbo.fn_get_deptSimpleName function
+            var query = @"
+                SELECT DISTINCT
+                    dvtSVMUnit_code AS DeptCode,
+                    dvtSVMUnit_name_simple AS SimpleName
+                FROM [dictionary].[dbo].[dvtSVMUnit]
+                WHERE dvtSVMUnit_code IS NOT NULL
+                    AND dvtSVMUnit_name_simple IS NOT NULL
+                    AND dvtSVMUnit_name_simple <> ''
+                    AND dvtSVMUnit_name_simple != 'CCEH'
+                    AND ((dvtSvmUnit_Parent_ID IS NULL AND dvtSVMUnit_code = '072000')
+                        OR (dvtSvmUnit_Parent_ID = 1 AND dvtSVMUnit_code != '072000')
+                        OR (dvtSvmUnit_Parent_ID = 47 AND dvtSVMUnit_code = '072100'))";
+
+            await using var cmd = new SqlCommand(query, connection);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+            while (await reader.ReadAsync(ct))
+            {
+                var code = reader["DeptCode"]?.ToString();
+                var simpleName = reader["SimpleName"]?.ToString();
+                if (!string.IsNullOrEmpty(code) && !string.IsNullOrEmpty(simpleName))
+                {
+                    deptLookup[code] = simpleName;
+                }
+            }
+
+            var cacheOptions = new MemoryCacheEntryOptions()
+                .SetSlidingExpiration(TimeSpan.FromHours(24));
+
+            _cache.Set(DeptSimpleNameCacheKey, deptLookup, cacheOptions);
+
+            _logger.LogInformation("Loaded {Count} department simple names from dictionary database", deptLookup.Count);
+
+            return deptLookup;
+        }
+        catch (SqlException ex)
+        {
+            _logger.LogWarning(ex, "Failed to load department lookup from dictionary database");
+            return null;
+        }
+    }
+
     public async Task<List<InstructorEffortRecordDto>> GetInstructorEffortRecordsAsync(
         int personId, int termCode, CancellationToken ct = default)
     {
@@ -573,5 +913,139 @@ public class InstructorService : IInstructorService
                 CustDept = r.Course.CustDept
             }
         }).ToList();
+    }
+
+    private const string TitleCodesCacheKey = "effort_title_codes_list";
+    private const string JobGroupsCacheKey = "effort_job_groups_list";
+
+    public async Task<List<TitleCodeDto>> GetTitleCodesAsync(CancellationToken ct = default)
+    {
+        if (_cache.TryGetValue<List<TitleCodeDto>>(TitleCodesCacheKey, out var cached) && cached != null)
+        {
+            return cached;
+        }
+
+        var connectionString = _configuration.GetConnectionString("VIPER");
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            _logger.LogWarning("VIPER connection string not found, cannot load title codes");
+            return [];
+        }
+
+        try
+        {
+            var titleCodes = new List<TitleCodeDto>();
+
+            await using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync(ct);
+
+            var query = @"
+                SELECT DISTINCT
+                    dvtTitle_Code AS TitleCode,
+                    dvtTitle_name AS TitleName
+                FROM [dictionary].[dbo].[dvtTitle]
+                WHERE dvtTitle_Code IS NOT NULL
+                ORDER BY dvtTitle_name, dvtTitle_Code";
+
+            await using var cmd = new SqlCommand(query, connection);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+            while (await reader.ReadAsync(ct))
+            {
+                var code = reader["TitleCode"]?.ToString()?.Trim();
+                var name = reader["TitleName"]?.ToString()?.Trim();
+
+                if (!string.IsNullOrEmpty(code))
+                {
+                    titleCodes.Add(new TitleCodeDto
+                    {
+                        Code = code,
+                        Name = name ?? string.Empty
+                    });
+                }
+            }
+
+            var cacheOptions = new MemoryCacheEntryOptions()
+                .SetSlidingExpiration(TimeSpan.FromHours(24));
+
+            _cache.Set(TitleCodesCacheKey, titleCodes, cacheOptions);
+
+            _logger.LogInformation("Loaded {Count} title codes from dictionary database", titleCodes.Count);
+
+            return titleCodes;
+        }
+        catch (SqlException ex)
+        {
+            _logger.LogWarning(ex, "Failed to load title codes from dictionary database");
+            return [];
+        }
+    }
+
+    public async Task<List<JobGroupDto>> GetJobGroupsAsync(CancellationToken ct = default)
+    {
+        if (_cache.TryGetValue<List<JobGroupDto>>(JobGroupsCacheKey, out var cached) && cached != null)
+        {
+            return cached;
+        }
+
+        var connectionString = _configuration.GetConnectionString("VIPER");
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            _logger.LogWarning("VIPER connection string not found, cannot load job groups");
+            return [];
+        }
+
+        try
+        {
+            var jobGroups = new List<JobGroupDto>();
+
+            await using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync(ct);
+
+            // Get job groups that are actually in use by instructors, joined with dictionary for names
+            var query = @"
+                SELECT DISTINCT
+                    p.JobGroupId AS JobGroupCode,
+                    t.dvtTitle_JobGroup_Name AS JobGroupName
+                FROM [effort].[Persons] p
+                LEFT JOIN [dictionary].[dbo].[dvtTitle] t
+                    ON p.JobGroupId = t.dvtTitle_JobGroupID
+                WHERE p.JobGroupId IS NOT NULL
+                    AND p.JobGroupId != ''
+                ORDER BY JobGroupName, JobGroupCode";
+
+            await using var cmd = new SqlCommand(query, connection);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+            while (await reader.ReadAsync(ct))
+            {
+                var code = reader["JobGroupCode"]?.ToString()?.Trim();
+                var name = reader["JobGroupName"]?.ToString()?.Trim();
+
+                if (!string.IsNullOrEmpty(code))
+                {
+                    jobGroups.Add(new JobGroupDto
+                    {
+                        Code = code,
+                        // If name is NULL, just use empty string (UI will show code only)
+                        Name = name ?? string.Empty
+                    });
+                }
+            }
+
+            var cacheOptions = new MemoryCacheEntryOptions()
+                .SetSlidingExpiration(TimeSpan.FromHours(24));
+
+            _cache.Set(JobGroupsCacheKey, jobGroups, cacheOptions);
+
+            _logger.LogInformation("Loaded {Count} job groups from database", jobGroups.Count);
+
+            return jobGroups;
+        }
+        catch (SqlException ex)
+        {
+            _logger.LogWarning(ex, "Failed to load job groups from database");
+            return [];
+        }
     }
 }

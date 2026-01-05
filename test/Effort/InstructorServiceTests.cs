@@ -465,6 +465,194 @@ public sealed class InstructorServiceTests : IDisposable
 
     #endregion
 
+    #region ResolveInstructorDepartmentAsync / DetermineDepartment Tests
+
+    [Fact]
+    public async Task ResolveInstructorDepartmentAsync_ReturnsMisonOverride_ForMothraId02493928()
+    {
+        // Arrange - Mison override should return VSR regardless of jobs/employee data
+        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        {
+            PersonId = 100,
+            ClientId = "02493928",
+            FirstName = "Michael",
+            LastName = "Mison",
+            FullName = "Mison, Michael",
+            MothraId = "02493928", // This is the key - Mison's MothraId triggers the override
+            CurrentEmployee = true
+        });
+        await _viperContext.SaveChangesAsync();
+
+        // Add VMDO job (should be ignored due to override)
+        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        {
+            IdsPKey = "MISON001",
+            IdsTermCode = "202410",
+            IdsMothraid = "02493928",
+            IdsClientid = "02493928"
+        });
+        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        {
+            EmpPKey = "MISON001",
+            EmpTermCode = "202410",
+            EmpClientid = "02493928",
+            EmpHomeDept = "072000", // VMDO
+            EmpAltDeptCode = "",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "99",
+            EmpStatus = "A"
+        });
+        await _aaudContext.SaveChangesAsync();
+
+        // Act
+        var dept = await _instructorService.ResolveInstructorDepartmentAsync(100, 202410);
+
+        // Assert - Should return VSR due to hardcoded override
+        Assert.Equal("VSR", dept);
+    }
+
+    [Fact]
+    public async Task ResolveInstructorDepartmentAsync_ReturnsAcademicDeptFromJobs_WhenAvailable()
+    {
+        // Arrange
+        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        {
+            PersonId = 1,
+            ClientId = "12345678",
+            FirstName = "Test",
+            LastName = "User",
+            FullName = "User, Test",
+            MothraId = "12345678",
+            CurrentEmployee = true
+        });
+        await _viperContext.SaveChangesAsync();
+
+        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        {
+            IdsPKey = "TEST001",
+            IdsTermCode = "202410",
+            IdsMothraid = "12345678",
+            IdsClientid = "12345678"
+        });
+
+        // Add employee with non-academic dept
+        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        {
+            EmpPKey = "TEST001",
+            EmpTermCode = "202410",
+            EmpClientid = "12345678",
+            EmpHomeDept = "072000", // Non-academic
+            EmpAltDeptCode = "",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "99",
+            EmpStatus = "A"
+        });
+
+        // Add job with academic dept code (VME = 072030)
+        _aaudContext.Jobs.Add(new Viper.Models.AAUD.Job
+        {
+            JobPKey = "TEST001",
+            JobSeqNum = 1,
+            JobTermCode = "202410",
+            JobClientid = "12345678",
+            JobDepartmentCode = "VME", // Academic dept - should be found
+            JobPercentFulltime = 100,
+            JobTitleCode = "1234",
+            JobBargainingUnit = "99",
+            JobSchoolDivision = "VM"
+        });
+        await _aaudContext.SaveChangesAsync();
+
+        // Act
+        var dept = await _instructorService.ResolveInstructorDepartmentAsync(1, 202410);
+
+        // Assert - Should return VME from jobs table
+        Assert.Equal("VME", dept);
+    }
+
+    [Fact]
+    public async Task ResolveInstructorDepartmentAsync_FallsBackToEmployeeFields_WhenNoAcademicJobDept()
+    {
+        // Arrange
+        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        {
+            PersonId = 2,
+            ClientId = "87654321",
+            FirstName = "Test",
+            LastName = "User2",
+            FullName = "User2, Test",
+            MothraId = "87654321",
+            CurrentEmployee = true
+        });
+        await _viperContext.SaveChangesAsync();
+
+        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        {
+            IdsPKey = "TEST002",
+            IdsTermCode = "202410",
+            IdsMothraid = "87654321",
+            IdsClientid = "87654321"
+        });
+
+        // Add employee with academic effort dept
+        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        {
+            EmpPKey = "TEST002",
+            EmpTermCode = "202410",
+            EmpClientid = "87654321",
+            EmpEffortHomeDept = "APC", // Academic dept in employee record
+            EmpHomeDept = "072000",
+            EmpAltDeptCode = "",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "99",
+            EmpStatus = "A"
+        });
+
+        // No jobs or only non-academic jobs
+        await _aaudContext.SaveChangesAsync();
+
+        // Act
+        var dept = await _instructorService.ResolveInstructorDepartmentAsync(2, 202410);
+
+        // Assert - Should return APC from employee effort dept
+        Assert.Equal("APC", dept);
+    }
+
+    [Fact]
+    public async Task ResolveInstructorDepartmentAsync_ReturnsNull_WhenNoPersonFound()
+    {
+        // Act
+        var dept = await _instructorService.ResolveInstructorDepartmentAsync(99999, 202410);
+
+        // Assert - Returns null when person doesn't exist (distinct from "UNK" for person exists but no dept)
+        Assert.Null(dept);
+    }
+
+    [Fact]
+    public async Task ResolveInstructorDepartmentAsync_ReturnsUNK_WhenNoEmployeeOrJobsFound()
+    {
+        // Arrange - Person exists but no AAUD data
+        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        {
+            PersonId = 3,
+            ClientId = "00000000",
+            FirstName = "No",
+            LastName = "Data",
+            FullName = "Data, No",
+            MothraId = "00000000",
+            CurrentEmployee = true
+        });
+        await _viperContext.SaveChangesAsync();
+
+        // Act
+        var dept = await _instructorService.ResolveInstructorDepartmentAsync(3, 202410);
+
+        // Assert
+        Assert.Equal("UNK", dept);
+    }
+
+    #endregion
+
     #region AutoMapper PersonDto Mapping Tests
 
     [Fact]
@@ -484,6 +672,34 @@ public sealed class InstructorServiceTests : IDisposable
         Assert.True(instructor1.VolunteerWos);
         Assert.NotNull(instructor2);
         Assert.False(instructor2.VolunteerWos);
+    }
+
+    #endregion
+
+    #region GetTitleCodesAsync Tests
+
+    [Fact]
+    public async Task GetTitleCodesAsync_ReturnsEmptyList_WhenConnectionStringEmpty()
+    {
+        // The test setup uses empty connection strings, so the method should return empty list
+        // This tests the graceful fallback behavior when the database is not available
+        var titleCodes = await _instructorService.GetTitleCodesAsync();
+
+        Assert.Empty(titleCodes);
+    }
+
+    #endregion
+
+    #region GetJobGroupsAsync Tests
+
+    [Fact]
+    public async Task GetJobGroupsAsync_ReturnsEmptyList_WhenConnectionStringEmpty()
+    {
+        // The test setup uses empty connection strings, so the method should return empty list
+        // This tests the graceful fallback behavior when the database is not available
+        var jobGroups = await _instructorService.GetJobGroupsAsync();
+
+        Assert.Empty(jobGroups);
     }
 
     #endregion

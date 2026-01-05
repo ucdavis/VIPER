@@ -10,10 +10,10 @@ public class AaudPersonDto
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string? MiddleInitial { get; set; }
-    public string FullName => string.IsNullOrEmpty(MiddleInitial)
-        ? $"{LastName}, {FirstName}"
-        : $"{LastName}, {FirstName} {MiddleInitial}.";
+    public string FullName => $"{LastName}, {FirstName}";
     public string? EffortDept { get; set; }
+    public string? DeptName { get; set; }
     public string? TitleCode { get; set; }
+    public string? Title { get; set; }
     public string? JobGroupId { get; set; }
 }

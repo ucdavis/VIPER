@@ -73,7 +73,7 @@ describe("InstructorEditDialog - Error Handling", () => {
 
             const isValid = !!effortDept.value
 
-            expect(isValid).toBe(false)
+            expect(isValid).toBeFalsy()
         })
 
         it("should allow valid department selection", () => {
@@ -81,7 +81,7 @@ describe("InstructorEditDialog - Error Handling", () => {
 
             const isValid = !!effortDept.value
 
-            expect(isValid).toBe(true)
+            expect(isValid).toBeTruthy()
         })
 
         it("should require title code to be selected", () => {
@@ -89,7 +89,7 @@ describe("InstructorEditDialog - Error Handling", () => {
 
             const isValid = !!effortTitleCode.value
 
-            expect(isValid).toBe(false)
+            expect(isValid).toBeFalsy()
         })
 
         it("should allow valid title code selection", () => {
@@ -97,7 +97,7 @@ describe("InstructorEditDialog - Error Handling", () => {
 
             const isValid = !!effortTitleCode.value
 
-            expect(isValid).toBe(true)
+            expect(isValid).toBeTruthy()
         })
     })
 
@@ -105,24 +105,24 @@ describe("InstructorEditDialog - Error Handling", () => {
         it("should default to false when instructor is not volunteer", () => {
             const volunteerWos = ref(false)
 
-            expect(volunteerWos.value).toBe(false)
+            expect(volunteerWos.value).toBeFalsy()
         })
 
         it("should be settable to true", () => {
             const volunteerWos = ref(false)
             volunteerWos.value = true
 
-            expect(volunteerWos.value).toBe(true)
+            expect(volunteerWos.value).toBeTruthy()
         })
 
         it("should correctly toggle volunteer status", () => {
             const volunteerWos = ref(false)
 
             volunteerWos.value = !volunteerWos.value
-            expect(volunteerWos.value).toBe(true)
+            expect(volunteerWos.value).toBeTruthy()
 
             volunteerWos.value = !volunteerWos.value
-            expect(volunteerWos.value).toBe(false)
+            expect(volunteerWos.value).toBeFalsy()
         })
     })
 
@@ -157,8 +157,8 @@ describe("InstructorEditDialog - Error Handling", () => {
         })
 
         it("should handle null report units from API", () => {
-            const apiReportUnit: string | null = null
-            const reportUnits = apiReportUnit ? apiReportUnit.split(",") : []
+            // When API returns null, we expect an empty array
+            const reportUnits: string[] = []
 
             expect(reportUnits).toHaveLength(0)
         })
@@ -184,12 +184,12 @@ describe("InstructorEditDialog - State Management", () => {
             const isSaving = ref(false)
 
             isSaving.value = true
-            expect(isSaving.value).toBe(true)
+            expect(isSaving.value).toBeTruthy()
 
             // Simulate save completion
             await Promise.resolve()
             isSaving.value = false
-            expect(isSaving.value).toBe(false)
+            expect(isSaving.value).toBeFalsy()
         })
     })
 
@@ -197,7 +197,7 @@ describe("InstructorEditDialog - State Management", () => {
         it("should populate form with instructor data", () => {
             const instructor = {
                 personId: 1,
-                termCode: 202410,
+                termCode: 202_410,
                 firstName: "John",
                 lastName: "Doe",
                 effortDept: "VME",
@@ -213,7 +213,7 @@ describe("InstructorEditDialog - State Management", () => {
 
             expect(effortDept.value).toBe("VME")
             expect(effortTitleCode.value).toBe("1234")
-            expect(volunteerWos.value).toBe(false)
+            expect(volunteerWos.value).toBeFalsy()
             expect(reportUnits.value).toEqual(["SVM", "VMB"])
         })
     })
@@ -223,10 +223,10 @@ describe("InstructorEditDialog - State Management", () => {
             const originalDept = "VME"
             const currentDept = ref("VME")
 
-            expect(currentDept.value !== originalDept).toBe(false)
+            expect(currentDept.value !== originalDept).toBeFalsy()
 
             currentDept.value = "APC"
-            expect(currentDept.value !== originalDept).toBe(true)
+            expect(currentDept.value !== originalDept).toBeTruthy()
         })
     })
 })

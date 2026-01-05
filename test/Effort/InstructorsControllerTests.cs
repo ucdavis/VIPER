@@ -176,7 +176,7 @@ public sealed class InstructorsControllerTests
         var createdInstructor = new PersonDto { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME" };
 
         _instructorServiceMock.Setup(s => s.InstructorExistsAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _instructorServiceMock.Setup(s => s.ResolveInstructorDepartmentAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync("VME");
+        _instructorServiceMock.Setup(s => s.ResolveInstructorDepartmentAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync("VME");
         _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _instructorServiceMock.Setup(s => s.CreateInstructorAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(createdInstructor);
@@ -223,7 +223,7 @@ public sealed class InstructorsControllerTests
         };
 
         _instructorServiceMock.Setup(s => s.InstructorExistsAsync(999, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _instructorServiceMock.Setup(s => s.ResolveInstructorDepartmentAsync(999, It.IsAny<CancellationToken>())).ReturnsAsync("VME");
+        _instructorServiceMock.Setup(s => s.ResolveInstructorDepartmentAsync(999, 202410, It.IsAny<CancellationToken>())).ReturnsAsync("VME");
         _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _instructorServiceMock.Setup(s => s.CreateInstructorAsync(request, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Person not found in AAUD"));
@@ -247,7 +247,7 @@ public sealed class InstructorsControllerTests
         };
 
         _instructorServiceMock.Setup(s => s.InstructorExistsAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _instructorServiceMock.Setup(s => s.ResolveInstructorDepartmentAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync("VME");
+        _instructorServiceMock.Setup(s => s.ResolveInstructorDepartmentAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync("VME");
         _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _instructorServiceMock.Setup(s => s.CreateInstructorAsync(request, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DbUpdateException("Database constraint violation"));
@@ -550,6 +550,88 @@ public sealed class InstructorsControllerTests
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
+    }
+
+    #endregion
+
+    #region GetTitleCodes Tests
+
+    [Fact]
+    public async Task GetTitleCodes_ReturnsOk_WithTitleCodes()
+    {
+        // Arrange
+        var titleCodes = new List<TitleCodeDto>
+        {
+            new TitleCodeDto { Code = "000353", Name = "VETERINARIAN" },
+            new TitleCodeDto { Code = "000521", Name = "PROFESSOR" }
+        };
+        _instructorServiceMock.Setup(s => s.GetTitleCodesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(titleCodes);
+
+        // Act
+        var result = await _controller.GetTitleCodes();
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedTitleCodes = Assert.IsAssignableFrom<IEnumerable<TitleCodeDto>>(okResult.Value);
+        Assert.Equal(2, returnedTitleCodes.Count());
+    }
+
+    [Fact]
+    public async Task GetTitleCodes_ReturnsOk_WithEmptyList_WhenNoTitleCodes()
+    {
+        // Arrange
+        _instructorServiceMock.Setup(s => s.GetTitleCodesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<TitleCodeDto>());
+
+        // Act
+        var result = await _controller.GetTitleCodes();
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedTitleCodes = Assert.IsAssignableFrom<IEnumerable<TitleCodeDto>>(okResult.Value);
+        Assert.Empty(returnedTitleCodes);
+    }
+
+    #endregion
+
+    #region GetJobGroups Tests
+
+    [Fact]
+    public async Task GetJobGroups_ReturnsOk_WithJobGroups()
+    {
+        // Arrange
+        var jobGroups = new List<JobGroupDto>
+        {
+            new JobGroupDto { Code = "I15", Name = "STAFF VET" },
+            new JobGroupDto { Code = "B24", Name = "" } // NULL name in legacy data shows code only
+        };
+        _instructorServiceMock.Setup(s => s.GetJobGroupsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(jobGroups);
+
+        // Act
+        var result = await _controller.GetJobGroups();
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedJobGroups = Assert.IsAssignableFrom<IEnumerable<JobGroupDto>>(okResult.Value);
+        Assert.Equal(2, returnedJobGroups.Count());
+    }
+
+    [Fact]
+    public async Task GetJobGroups_ReturnsOk_WithEmptyList_WhenNoJobGroups()
+    {
+        // Arrange
+        _instructorServiceMock.Setup(s => s.GetJobGroupsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<JobGroupDto>());
+
+        // Act
+        var result = await _controller.GetJobGroups();
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedJobGroups = Assert.IsAssignableFrom<IEnumerable<JobGroupDto>>(okResult.Value);
+        Assert.Empty(returnedJobGroups);
     }
 
     #endregion
