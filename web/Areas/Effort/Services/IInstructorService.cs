@@ -18,6 +18,16 @@ public interface IInstructorService
     Task<List<PersonDto>> GetInstructorsAsync(int termCode, string? department = null, CancellationToken ct = default);
 
     /// <summary>
+    /// Get all instructors for a term filtered by multiple departments.
+    /// Uses a single query with IN clause for better performance.
+    /// </summary>
+    /// <param name="termCode">The term code.</param>
+    /// <param name="departments">List of department codes to include.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>List of instructors sorted by last name, first name.</returns>
+    Task<List<PersonDto>> GetInstructorsByDepartmentsAsync(int termCode, IReadOnlyList<string> departments, CancellationToken ct = default);
+
+    /// <summary>
     /// Get a single instructor by person ID and term code.
     /// </summary>
     /// <param name="personId">The person ID.</param>
@@ -87,9 +97,10 @@ public interface IInstructorService
     /// Used for authorization checks before creating.
     /// </summary>
     /// <param name="personId">The person ID.</param>
+    /// <param name="termCode">The term code for AAUD lookup.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The resolved department code, or null if person not found.</returns>
-    Task<string?> ResolveInstructorDepartmentAsync(int personId, CancellationToken ct = default);
+    Task<string?> ResolveInstructorDepartmentAsync(int personId, int termCode, CancellationToken ct = default);
 
     /// <summary>
     /// Get the list of valid department codes with grouping information.
@@ -125,4 +136,18 @@ public interface IInstructorService
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of effort records with course info.</returns>
     Task<List<InstructorEffortRecordDto>> GetInstructorEffortRecordsAsync(int personId, int termCode, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get all title codes from the dictionary database for the dropdown.
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>List of title codes with human-readable names.</returns>
+    Task<List<TitleCodeDto>> GetTitleCodesAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Get all job groups currently in use by instructors for the dropdown.
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>List of job groups with human-readable names.</returns>
+    Task<List<JobGroupDto>> GetJobGroupsAsync(CancellationToken ct = default);
 }

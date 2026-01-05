@@ -18,6 +18,8 @@ import type {
     DepartmentDto,
     CanDeleteResult,
     InstructorEffortRecordDto,
+    TitleCodeDto,
+    JobGroupDto,
 } from "../types"
 
 const { get, post, put, del, patch } = useFetch()
@@ -469,6 +471,28 @@ class EffortService {
             return []
         }
         return response.result as InstructorEffortRecordDto[]
+    }
+
+    /**
+     * Get all title codes from dictionary database for the dropdown.
+     */
+    async getTitleCodes(): Promise<TitleCodeDto[]> {
+        const response = await get(`${this.baseUrl}/instructors/title-codes`)
+        if (!response.success || !Array.isArray(response.result)) {
+            return []
+        }
+        return response.result as TitleCodeDto[]
+    }
+
+    /**
+     * Get all job groups currently in use for the dropdown.
+     */
+    async getJobGroups(): Promise<JobGroupDto[]> {
+        const response = await get(`${this.baseUrl}/instructors/job-groups`)
+        if (!response.success || !Array.isArray(response.result)) {
+            return []
+        }
+        return response.result as JobGroupDto[]
     }
 }
 
