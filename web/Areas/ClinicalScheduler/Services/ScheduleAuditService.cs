@@ -167,7 +167,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     WeekId = weekId,
                     Action = action,
                     Area = ScheduleAuditAreas.Clinicians,
-                    TimeStamp = DateTime.UtcNow,
+                    TimeStamp = DateTime.Now,
                     ModifiedBy = modifiedByMothraId
                 };
 
