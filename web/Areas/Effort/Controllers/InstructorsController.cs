@@ -74,16 +74,11 @@ public class InstructorsController : BaseEffortController
                 return Ok(Array.Empty<PersonDto>());
             }
 
-            // If no dept specified, get instructors for all authorized departments
+            // If no dept specified, get instructors for all authorized departments in a single query
             if (string.IsNullOrEmpty(dept))
             {
-                var allInstructors = new List<PersonDto>();
-                foreach (var authorizedDept in authorizedDepts)
-                {
-                    var deptInstructors = await _instructorService.GetInstructorsAsync(termCode, authorizedDept, ct);
-                    allInstructors.AddRange(deptInstructors);
-                }
-                return Ok(allInstructors.OrderBy(i => i.LastName).ThenBy(i => i.FirstName));
+                var allInstructors = await _instructorService.GetInstructorsByDepartmentsAsync(termCode, authorizedDepts, ct);
+                return Ok(allInstructors);
             }
         }
 
@@ -157,10 +152,10 @@ public class InstructorsController : BaseEffortController
         }
 
         // Verify the user is authorized to add instructors to the resolved department
-        var resolvedDept = await _instructorService.ResolveInstructorDepartmentAsync(request.PersonId, ct);
+        var resolvedDept = await _instructorService.ResolveInstructorDepartmentAsync(request.PersonId, request.TermCode, ct);
         if (resolvedDept == null)
         {
-            return BadRequest("Person not found");
+            return NotFound("Person not found.");
         }
 
         if (!await _permissionService.CanViewDepartmentAsync(resolvedDept, ct))
@@ -340,5 +335,25 @@ public class InstructorsController : BaseEffortController
 
         var records = await _instructorService.GetInstructorEffortRecordsAsync(personId, termCode, ct);
         return Ok(records);
+    }
+
+    /// <summary>
+    /// Get all title codes from the dictionary database for the dropdown.
+    /// </summary>
+    [HttpGet("title-codes")]
+    public async Task<ActionResult<IEnumerable<TitleCodeDto>>> GetTitleCodes(CancellationToken ct = default)
+    {
+        var titleCodes = await _instructorService.GetTitleCodesAsync(ct);
+        return Ok(titleCodes);
+    }
+
+    /// <summary>
+    /// Get all job groups currently in use for the dropdown.
+    /// </summary>
+    [HttpGet("job-groups")]
+    public async Task<ActionResult<IEnumerable<JobGroupDto>>> GetJobGroups(CancellationToken ct = default)
+    {
+        var jobGroups = await _instructorService.GetJobGroupsAsync(ct);
+        return Ok(jobGroups);
     }
 }

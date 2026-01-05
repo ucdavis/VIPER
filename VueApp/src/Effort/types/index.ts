@@ -179,7 +179,9 @@ type AaudPersonDto = {
     middleInitial: string | null
     fullName: string
     effortDept: string | null
+    deptName: string | null
     titleCode: string | null
+    title: string | null
     jobGroupId: string | null
 }
 
@@ -229,6 +231,16 @@ type InstructorEffortRecordDto = {
     course: CourseDto
 }
 
+type TitleCodeDto = {
+    code: string
+    name: string
+}
+
+type JobGroupDto = {
+    code: string
+    name: string
+}
+
 export type {
     TermDto,
     PersonDto,
@@ -253,4 +265,6 @@ export type {
     DepartmentDto,
     CanDeleteResult,
     InstructorEffortRecordDto,
+    TitleCodeDto,
+    JobGroupDto,
 }

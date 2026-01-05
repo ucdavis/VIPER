@@ -4,7 +4,7 @@
         persistent
         @update:model-value="emit('update:modelValue', $event)"
     >
-        <q-card style="min-width: 450px; max-width: 600px">
+        <q-card style="width: 100%; max-width: 600px">
             <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">Edit Instructor</div>
                 <q-space />
@@ -45,23 +45,63 @@
                     </template>
                 </q-select>
 
-                <q-input
+                <q-select
                     v-model="form.effortTitleCode"
+                    :options="filteredTitleCodes"
                     label="Title Code"
+                    option-value="value"
+                    option-label="label"
+                    emit-value
+                    map-options
+                    use-input
+                    input-debounce="0"
                     dense
+                    options-dense
                     outlined
-                    maxlength="6"
+                    clearable
                     class="q-mb-sm"
-                />
+                    @filter="filterTitleCodes"
+                >
+                    <template #before-options>
+                        <q-banner
+                            v-if="isOrphanedTitleCode"
+                            class="bg-warning text-white q-mb-sm"
+                            dense
+                        >
+                            Current value "{{ form.effortTitleCode }}" is not in the standard list
+                        </q-banner>
+                    </template>
+                    <template #no-option>
+                        <q-item>
+                            <q-item-section class="text-grey"> No results found </q-item-section>
+                        </q-item>
+                    </template>
+                </q-select>
 
-                <q-input
+                <q-select
                     v-model="form.jobGroupId"
-                    label="Job Group ID"
+                    :options="jobGroupOptions"
+                    label="Job Group"
+                    option-value="value"
+                    option-label="label"
+                    emit-value
+                    map-options
                     dense
+                    options-dense
                     outlined
-                    maxlength="3"
+                    clearable
                     class="q-mb-sm"
-                />
+                >
+                    <template #before-options>
+                        <q-banner
+                            v-if="isOrphanedJobGroup"
+                            class="bg-warning text-white q-mb-sm"
+                            dense
+                        >
+                            Current value "{{ form.jobGroupId }}" is not in the standard list
+                        </q-banner>
+                    </template>
+                </q-select>
 
                 <q-select
                     v-model="form.reportUnits"
@@ -81,10 +121,12 @@
 
                 <q-checkbox
                     v-model="form.volunteerWos"
-                    label="Volunteer / WOS"
                     class="q-mb-sm"
                 >
-                    <q-tooltip>Excludes instructor from M&amp;P reports</q-tooltip>
+                    Volunteer / WOS
+                    <span class="text-caption text-grey-7">
+                        - This will prevent the instructor from showing up in the M&amp;P reports.
+                    </span>
                 </q-checkbox>
 
                 <div
@@ -115,7 +157,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue"
 import { effortService } from "../services/effort-service"
-import type { PersonDto, DepartmentDto, ReportUnitDto } from "../types"
+import type { PersonDto, DepartmentDto, ReportUnitDto, TitleCodeDto, JobGroupDto } from "../types"
 
 const props = defineProps<{
     modelValue: boolean
@@ -139,6 +181,9 @@ const form = ref({
 
 const departments = ref<DepartmentDto[]>([])
 const reportUnits = ref<ReportUnitDto[]>([])
+const titleCodes = ref<TitleCodeDto[]>([])
+const jobGroups = ref<JobGroupDto[]>([])
+const filteredTitleCodes = ref<{ label: string; value: string }[]>([])
 const isSaving = ref(false)
 const errorMessage = ref("")
 
@@ -170,11 +215,56 @@ const reportUnitOptions = computed(() => {
     }))
 })
 
+const titleCodeOptions = computed(() => {
+    return titleCodes.value.map((t) => ({
+        label: t.name ? `${t.code} - ${t.name}` : t.code,
+        value: t.code,
+    }))
+})
+
+const jobGroupOptions = computed(() => {
+    return jobGroups.value.map((j) => ({
+        label: j.name ? `${j.code} - ${j.name}` : j.code,
+        value: j.code,
+    }))
+})
+
+// Check if the current title code value is not in the dropdown options (orphaned)
+const isOrphanedTitleCode = computed(() => {
+    if (!form.value.effortTitleCode) return false
+    return !titleCodes.value.some((t) => t.code === form.value.effortTitleCode)
+})
+
+// Check if the current job group value is not in the dropdown options (orphaned)
+const isOrphanedJobGroup = computed(() => {
+    if (!form.value.jobGroupId) return false
+    return !jobGroups.value.some((j) => j.code === form.value.jobGroupId)
+})
+
+// Filter function for title code dropdown - searches by code OR name
+function filterTitleCodes(val: string, update: (fn: () => void) => void) {
+    update(() => {
+        const needle = val.toLowerCase()
+        filteredTitleCodes.value = titleCodeOptions.value.filter(
+            (opt) => opt.label.toLowerCase().includes(needle) || opt.value.toLowerCase().includes(needle),
+        )
+    })
+}
+
 // Load lookup data
 onMounted(async () => {
-    const [depts, units] = await Promise.all([effortService.getInstructorDepartments(), effortService.getReportUnits()])
+    const [depts, units, titles, groups] = await Promise.all([
+        effortService.getInstructorDepartments(),
+        effortService.getReportUnits(),
+        effortService.getTitleCodes(),
+        effortService.getJobGroups(),
+    ])
     departments.value = depts
     reportUnits.value = units
+    titleCodes.value = titles
+    jobGroups.value = groups
+    // Initialize filtered title codes with all options
+    filteredTitleCodes.value = titleCodeOptions.value
 })
 
 // Reset form when dialog opens with instructor

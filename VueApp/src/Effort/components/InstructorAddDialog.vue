@@ -4,7 +4,7 @@
         persistent
         @update:model-value="emit('update:modelValue', $event)"
     >
-        <q-card style="min-width: 400px; max-width: 600px">
+        <q-card style="width: 100%; max-width: 600px">
             <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">Add Instructor</div>
                 <q-space />
@@ -31,13 +31,18 @@
                     options-dense
                     outlined
                     clearable
+                    behavior="menu"
                     @filter="onFilter"
                 >
                     <template #no-option>
                         <q-item>
                             <q-item-section class="text-grey">
                                 {{
-                                    searchTerm.length < 2 ? "Type at least 2 characters to search" : "No results found"
+                                    searchTerm.length < 2
+                                        ? "Type at least 2 characters to search"
+                                        : isSearching
+                                          ? "Searching..."
+                                          : "No results found"
                                 }}
                             </q-item-section>
                         </q-item>
@@ -47,8 +52,10 @@
                             <q-item-section>
                                 <q-item-label>{{ scope.opt.fullName }}</q-item-label>
                                 <q-item-label caption>
-                                    {{ scope.opt.effortDept || "No dept" }}
-                                    <span v-if="scope.opt.titleCode"> &bull; {{ scope.opt.titleCode }}</span>
+                                    {{ scope.opt.deptName || scope.opt.effortDept || "No dept" }}
+                                    <span v-if="scope.opt.title || scope.opt.titleCode">
+                                        &bull; {{ scope.opt.title || scope.opt.titleCode }}
+                                    </span>
                                 </q-item-label>
                             </q-item-section>
                         </q-item>
@@ -57,10 +64,10 @@
                         <div>
                             {{ scope.opt.fullName }}
                             <span
-                                v-if="scope.opt.effortDept"
+                                v-if="scope.opt.deptName || scope.opt.effortDept"
                                 class="text-grey-7"
                             >
-                                ({{ scope.opt.effortDept }})
+                                ({{ scope.opt.deptName || scope.opt.effortDept }})
                             </span>
                         </div>
                     </template>
@@ -76,14 +83,16 @@
                         <strong>{{ selectedPerson.fullName }}</strong>
                     </div>
                     <div class="text-caption text-grey-7">
-                        <span v-if="selectedPerson.effortDept">Department: {{ selectedPerson.effortDept }}</span>
+                        <span v-if="selectedPerson.deptName || selectedPerson.effortDept">
+                            Department: {{ selectedPerson.deptName || selectedPerson.effortDept }}
+                        </span>
                         <span v-else>No department assigned</span>
                     </div>
                     <div
-                        v-if="selectedPerson.titleCode"
+                        v-if="selectedPerson.title || selectedPerson.titleCode"
                         class="text-caption text-grey-7"
                     >
-                        Title Code: {{ selectedPerson.titleCode }}
+                        Title: {{ selectedPerson.title || selectedPerson.titleCode }}
                     </div>
                 </div>
 
