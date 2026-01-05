@@ -236,6 +236,7 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.ICourseService, Viper.Areas.Effort.Services.CourseService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.ICourseRelationshipService, Viper.Areas.Effort.Services.CourseRelationshipService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IInstructorService, Viper.Areas.Effort.Services.InstructorService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortTypeService, Viper.Areas.Effort.Services.EffortTypeService>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
