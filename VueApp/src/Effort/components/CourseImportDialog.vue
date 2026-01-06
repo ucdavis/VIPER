@@ -4,55 +4,71 @@
         persistent
         maximized-on-mobile
     >
-        <q-card style="min-width: 600px; max-width: 900px">
-            <q-card-section class="row items-center q-pb-none">
-                <div class="text-h6">Import Course from Banner</div>
-                <q-space />
-                <q-btn
-                    v-close-popup
-                    icon="close"
-                    flat
-                    round
-                    dense
-                />
+        <q-card style="width: 100%; max-width: 900px; position: relative">
+            <q-btn
+                v-close-popup
+                icon="close"
+                flat
+                round
+                dense
+                class="absolute-top-right q-ma-sm"
+                style="z-index: 1"
+            />
+            <q-card-section class="q-pb-none q-pr-xl">
+                <div class="text-h6">Import Course from Banner ({{ termName }})</div>
+                <div class="text-caption text-grey-7">Enter one or more fields to search</div>
             </q-card-section>
 
             <q-card-section>
                 <!-- Search Form -->
                 <div class="row q-col-gutter-sm items-end q-mb-md">
-                    <div class="col">
+                    <div class="col-12 col-sm-3">
                         <q-input
                             v-model="searchSubjCode"
                             label="Subject Code"
                             dense
                             outlined
+                            placeholder="e.g., VME"
                             @keyup.enter="searchCourses"
                         />
                     </div>
-                    <div class="col">
+                    <div class="col-12 col-sm-3">
                         <q-input
                             v-model="searchCrseNumb"
                             label="Course Number"
                             dense
                             outlined
+                            placeholder="e.g., 443"
                             @keyup.enter="searchCourses"
                         />
                     </div>
-                    <div class="col">
+                    <div class="col-12 col-sm-2">
+                        <q-input
+                            v-model="searchSeqNumb"
+                            label="Section"
+                            dense
+                            outlined
+                            placeholder="e.g., 001"
+                            @keyup.enter="searchCourses"
+                        />
+                    </div>
+                    <div class="col-12 col-sm-2">
                         <q-input
                             v-model="searchCrn"
                             label="CRN"
                             dense
                             outlined
+                            placeholder="e.g., 5-digit number"
                             @keyup.enter="searchCourses"
                         />
                     </div>
-                    <div class="col-auto">
+                    <div class="col-12 col-sm-auto self-center">
                         <q-btn
                             label="Search"
                             color="primary"
                             :loading="isSearching"
                             :disable="!canSearch"
+                            class="full-width-xs"
                             @click="searchCourses"
                         />
                     </div>
@@ -65,9 +81,76 @@
                     {{ searchError }}
                 </div>
 
-                <!-- Search Results -->
+                <!-- Search Results - Card view for mobile -->
+                <div
+                    v-if="searchResults.length > 0"
+                    class="lt-sm"
+                >
+                    <q-card
+                        v-for="course in searchResults"
+                        :key="course.crn"
+                        flat
+                        bordered
+                        class="q-mb-sm"
+                    >
+                        <q-card-section class="q-py-sm">
+                            <div class="row items-center justify-between q-mb-xs">
+                                <div>
+                                    <span class="text-weight-bold">{{ course.courseCode }}</span
+                                    ><span class="text-grey-7">-{{ course.seqNumb }}</span>
+                                </div>
+                                <q-badge
+                                    v-if="course.alreadyImported"
+                                    color="grey"
+                                    >Already Imported</q-badge
+                                >
+                                <q-badge
+                                    v-else-if="course.importedUnitValues.length > 0"
+                                    color="orange"
+                                    >Imported: {{ course.importedUnitValues.join(", ") }} units</q-badge
+                                >
+                                <q-badge
+                                    v-else
+                                    color="positive"
+                                    >Available</q-badge
+                                >
+                            </div>
+                            <div class="text-body2">{{ course.title }}</div>
+                            <div class="text-caption text-grey-7">
+                                CRN: {{ course.crn }} |
+                                <template v-if="course.isVariableUnits">
+                                    Units: {{ course.unitLow }}-{{ course.unitHigh }}
+                                    <q-badge
+                                        color="info"
+                                        dense
+                                        class="q-ml-xs"
+                                        >Variable</q-badge
+                                    >
+                                </template>
+                                <template v-else> Units: {{ course.unitLow }} </template>
+                                | Enrollment: {{ course.enrollment }}
+                            </div>
+                            <div
+                                v-if="!course.alreadyImported"
+                                class="q-mt-sm"
+                            >
+                                <q-btn
+                                    label="Import"
+                                    color="primary"
+                                    dense
+                                    size="sm"
+                                    :loading="importingCrn === course.crn"
+                                    @click="startImport(course)"
+                                />
+                            </div>
+                        </q-card-section>
+                    </q-card>
+                </div>
+
+                <!-- Search Results - Table view for larger screens -->
                 <q-table
                     v-if="searchResults.length > 0"
+                    class="gt-xs"
                     :rows="searchResults"
                     :columns="columns"
                     row-key="crn"
@@ -78,12 +161,15 @@
                 >
                     <template #body-cell-courseCode="slotProps">
                         <q-td :props="slotProps">
-                            <span class="text-weight-medium">{{ slotProps.row.courseCode }}</span>
-                            <span class="text-grey-7 q-ml-xs">-{{ slotProps.row.seqNumb }}</span>
+                            <span class="text-weight-medium">{{ slotProps.row.courseCode }}</span
+                            ><span class="text-grey-7">-{{ slotProps.row.seqNumb }}</span>
                         </q-td>
                     </template>
                     <template #body-cell-units="slotProps">
-                        <q-td :props="slotProps">
+                        <q-td
+                            :props="slotProps"
+                            class="text-center"
+                        >
                             <template v-if="slotProps.row.isVariableUnits">
                                 {{ slotProps.row.unitLow }} - {{ slotProps.row.unitHigh }}
                                 <q-badge
@@ -225,6 +311,7 @@ import type { QTableColumn } from "quasar"
 const props = defineProps<{
     modelValue: boolean
     termCode: number | null
+    termName: string
 }>()
 
 const emit = defineEmits<{
@@ -243,6 +330,7 @@ const dialogOpen = computed({
 // Search state
 const searchSubjCode = ref("")
 const searchCrseNumb = ref("")
+const searchSeqNumb = ref("")
 const searchCrn = ref("")
 const searchResults = ref<BannerCourseDto[]>([])
 const isSearching = ref(false)
@@ -258,7 +346,12 @@ const importingCrn = ref<string | null>(null)
 const importError = ref<string | null>(null)
 
 const canSearch = computed(
-    () => props.termCode && (searchSubjCode.value.trim() || searchCrseNumb.value.trim() || searchCrn.value.trim()),
+    () =>
+        props.termCode &&
+        (searchSubjCode.value.trim() ||
+            searchCrseNumb.value.trim() ||
+            searchSeqNumb.value.trim() ||
+            searchCrn.value.trim()),
 )
 
 const canImport = computed(() => {
@@ -281,8 +374,8 @@ const columns: QTableColumn[] = [
     { name: "courseCode", label: "Course", field: "courseCode", align: "left" },
     { name: "crn", label: "CRN", field: "crn", align: "left" },
     { name: "title", label: "Title", field: "title", align: "left" },
-    { name: "enrollment", label: "Enrollment", field: "enrollment", align: "right" },
-    { name: "units", label: "Units", field: "unitLow", align: "right" },
+    { name: "enrollment", label: "Enrollment", field: "enrollment", align: "center" },
+    { name: "units", label: "Units", field: "unitLow", align: "center" },
     { name: "status", label: "Status", field: "alreadyImported", align: "center" },
     { name: "actions", label: "", field: "actions", align: "center" },
 ]
@@ -292,6 +385,7 @@ watch(dialogOpen, (open) => {
     if (open) {
         searchSubjCode.value = ""
         searchCrseNumb.value = ""
+        searchSeqNumb.value = ""
         searchCrn.value = ""
         searchResults.value = []
         hasSearched.value = false
@@ -310,6 +404,7 @@ async function searchCourses() {
         searchResults.value = await effortService.searchBannerCourses(props.termCode, {
             subjCode: searchSubjCode.value.trim() || undefined,
             crseNumb: searchCrseNumb.value.trim() || undefined,
+            seqNumb: searchSeqNumb.value.trim() || undefined,
             crn: searchCrn.value.trim() || undefined,
         })
     } catch (err) {

@@ -712,7 +712,7 @@ public sealed class CoursesControllerTests
         {
             new BannerCourseDto { Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20 }
         };
-        _courseServiceMock.Setup(s => s.SearchBannerCoursesAsync(202410, "DVM", null, null, It.IsAny<CancellationToken>()))
+        _courseServiceMock.Setup(s => s.SearchBannerCoursesAsync(202410, "DVM", null, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(bannerCourses);
 
         // Act
