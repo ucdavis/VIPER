@@ -3,6 +3,7 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
+using Viper.Classes.Utilities;
 using Web.Authorization;
 
 namespace Viper.Areas.Effort.Controllers;
@@ -95,7 +96,7 @@ public class TermsController : BaseEffortController
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Cannot create term {TermCode}: {Message}", request.TermCode, ex.Message);
+            _logger.LogWarning(ex, "Cannot create term {TermCode}: {Message}", request.TermCode, LogSanitizer.SanitizeString(ex.Message));
             return Conflict(ex.Message);
         }
     }
@@ -138,7 +139,7 @@ public class TermsController : BaseEffortController
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Cannot open term {TermCode}: {Message}", termCode, ex.Message);
+            _logger.LogWarning(ex, "Cannot open term {TermCode}: {Message}", termCode, LogSanitizer.SanitizeString(ex.Message));
             return BadRequest(ex.Message);
         }
 
@@ -166,7 +167,7 @@ public class TermsController : BaseEffortController
 
         if (!success)
         {
-            _logger.LogWarning("Cannot close term {TermCode}: {ErrorMessage}", termCode, errorMessage);
+            _logger.LogWarning("Cannot close term {TermCode}: {ErrorMessage}", termCode, LogSanitizer.SanitizeString(errorMessage));
             return BadRequest(errorMessage);
         }
 
@@ -192,7 +193,7 @@ public class TermsController : BaseEffortController
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Cannot reopen term {TermCode}: {Message}", termCode, ex.Message);
+            _logger.LogWarning(ex, "Cannot reopen term {TermCode}: {Message}", termCode, LogSanitizer.SanitizeString(ex.Message));
             return BadRequest(ex.Message);
         }
 
@@ -223,7 +224,7 @@ public class TermsController : BaseEffortController
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Cannot unopen term {TermCode}: {Message}", termCode, ex.Message);
+            _logger.LogWarning(ex, "Cannot unopen term {TermCode}: {Message}", termCode, LogSanitizer.SanitizeString(ex.Message));
             return BadRequest(ex.Message);
         }
 
