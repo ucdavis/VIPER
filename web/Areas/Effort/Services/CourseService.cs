@@ -4,6 +4,7 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -113,7 +114,7 @@ public class CourseService : ICourseService
                 SubjCode = reader.GetString(1).Trim(),
                 CrseNumb = reader.GetString(2).Trim(),
                 SeqNumb = reader.GetString(3).Trim(),
-                Title = reader.IsDBNull(4) ? null : reader.GetString(4),
+                Title = await reader.IsDBNullAsync(4, ct) ? null : reader.GetString(4),
                 Enrollment = Convert.ToInt32(reader.GetValue(5)),
                 UnitType = reader.GetString(6),
                 UnitLow = Convert.ToDecimal(reader.GetValue(7)),
@@ -207,7 +208,7 @@ public class CourseService : ICourseService
         await transaction.CommitAsync(ct);
 
         _logger.LogInformation("Imported course {SubjCode} {CrseNumb}-{SeqNumb} (CRN: {Crn}) for term {TermCode}",
-            course.SubjCode, course.CrseNumb, course.SeqNumb, course.Crn, course.TermCode);
+            LogSanitizer.SanitizeId(course.SubjCode), LogSanitizer.SanitizeId(course.CrseNumb), LogSanitizer.SanitizeId(course.SeqNumb), LogSanitizer.SanitizeId(course.Crn), course.TermCode);
 
         return ToDto(course);
     }
@@ -247,7 +248,7 @@ public class CourseService : ICourseService
         await transaction.CommitAsync(ct);
 
         _logger.LogInformation("Created manual course {SubjCode} {CrseNumb}-{SeqNumb} (CRN: {Crn}) for term {TermCode}",
-            course.SubjCode, course.CrseNumb, course.SeqNumb, course.Crn, course.TermCode);
+            LogSanitizer.SanitizeId(course.SubjCode), LogSanitizer.SanitizeId(course.CrseNumb), LogSanitizer.SanitizeId(course.SeqNumb), LogSanitizer.SanitizeId(course.Crn), course.TermCode);
 
         return ToDto(course);
     }
@@ -291,7 +292,7 @@ public class CourseService : ICourseService
         await transaction.CommitAsync(ct);
 
         _logger.LogInformation("Updated course {CourseId} ({SubjCode} {CrseNumb})",
-            courseId, course.SubjCode, course.CrseNumb);
+            courseId, LogSanitizer.SanitizeId(course.SubjCode), LogSanitizer.SanitizeId(course.CrseNumb));
 
         return ToDto(course);
     }
@@ -323,7 +324,7 @@ public class CourseService : ICourseService
         await transaction.CommitAsync(ct);
 
         _logger.LogInformation("Updated R-course enrollment {CourseId} ({SubjCode} {CrseNumb}): {OldEnrollment} -> {NewEnrollment}",
-            courseId, course.SubjCode, course.CrseNumb, oldEnrollment, enrollment);
+            courseId, LogSanitizer.SanitizeId(course.SubjCode), LogSanitizer.SanitizeId(course.CrseNumb), oldEnrollment, enrollment);
 
         return ToDto(course);
     }
@@ -371,7 +372,7 @@ public class CourseService : ICourseService
         await transaction.CommitAsync(ct);
 
         _logger.LogInformation("Deleted course {CourseId} ({SubjCode} {CrseNumb})",
-            courseId, courseInfo.SubjCode, courseInfo.CrseNumb);
+            courseId, LogSanitizer.SanitizeId(courseInfo.SubjCode), LogSanitizer.SanitizeId(courseInfo.CrseNumb));
 
         return true;
     }

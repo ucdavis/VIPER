@@ -4,6 +4,7 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
+using Viper.Classes.Utilities;
 using Web.Authorization;
 
 namespace Viper.Areas.Effort.Controllers;
@@ -181,7 +182,7 @@ public class CoursesController : BaseEffortController
         var bannerCourse = await _courseService.GetBannerCourseAsync(request.TermCode, request.Crn, ct);
         if (bannerCourse == null)
         {
-            _logger.LogWarning("Course {Crn} not found in Banner for term {TermCode}", request.Crn, request.TermCode);
+            _logger.LogWarning("Course {Crn} not found in Banner for term {TermCode}", LogSanitizer.SanitizeId(request.Crn), request.TermCode);
             return NotFound($"Course with CRN {request.Crn} not found in Banner for term {request.TermCode}");
         }
 
@@ -194,7 +195,7 @@ public class CoursesController : BaseEffortController
             if (units < bannerCourse.UnitLow || units > bannerCourse.UnitHigh)
             {
                 _logger.LogWarning("Units {Units} out of range [{Low}-{High}] for course {Crn}",
-                    units, bannerCourse.UnitLow, bannerCourse.UnitHigh, request.Crn);
+                    units, bannerCourse.UnitLow, bannerCourse.UnitHigh, LogSanitizer.SanitizeId(request.Crn));
                 return BadRequest($"Units {units} must be between {bannerCourse.UnitLow} and {bannerCourse.UnitHigh}");
             }
         }
@@ -207,7 +208,7 @@ public class CoursesController : BaseEffortController
         if (await _courseService.CourseExistsAsync(request.TermCode, request.Crn, units, ct))
         {
             _logger.LogWarning("Course {Crn} with {Units} units already exists for term {TermCode}",
-                request.Crn, units, request.TermCode);
+                LogSanitizer.SanitizeId(request.Crn), units, request.TermCode);
             return Conflict($"Course {bannerCourse.SubjCode} {bannerCourse.CrseNumb} with {units} units already exists for this term");
         }
 
@@ -215,7 +216,7 @@ public class CoursesController : BaseEffortController
         if (!await _permissionService.CanViewDepartmentAsync(targetDept, ct))
         {
             _logger.LogWarning("User not authorized for department {CustDept} when importing course {Crn}",
-                targetDept, request.Crn);
+                targetDept, LogSanitizer.SanitizeId(request.Crn));
             return NotFound($"Course with CRN {request.Crn} not found in Banner for term {request.TermCode}");
         }
 
@@ -223,12 +224,12 @@ public class CoursesController : BaseEffortController
         {
             var course = await _courseService.ImportCourseFromBannerAsync(request, bannerCourse, ct);
             _logger.LogInformation("Course imported: {Crn} for term {TermCode}",
-                request.Crn, request.TermCode);
+                LogSanitizer.SanitizeId(request.Crn), request.TermCode);
             return CreatedAtAction(nameof(GetCourse), new { id = course.Id }, course);
         }
         catch (DbUpdateException ex)
         {
-            _logger.LogWarning(ex, "Database error importing course {Crn}: {Message}", request.Crn, ex.InnerException?.Message ?? ex.Message);
+            _logger.LogWarning(ex, "Database error importing course {Crn}: {Message}", LogSanitizer.SanitizeId(request.Crn), LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
             return BadRequest("Failed to import course. Please check all field values are valid.");
         }
     }
@@ -246,13 +247,13 @@ public class CoursesController : BaseEffortController
         // Validate: Custodial department is valid
         if (!_courseService.IsValidCustodialDepartment(request.CustDept))
         {
-            _logger.LogWarning("Invalid custodial department: {CustDept}", request.CustDept);
+            _logger.LogWarning("Invalid custodial department: {CustDept}", LogSanitizer.SanitizeId(request.CustDept));
             return BadRequest($"Invalid custodial department: {request.CustDept}");
         }
 
         if (!await _permissionService.CanViewDepartmentAsync(request.CustDept, ct))
         {
-            _logger.LogWarning("User not authorized for department {CustDept}", request.CustDept);
+            _logger.LogWarning("User not authorized for department {CustDept}", LogSanitizer.SanitizeId(request.CustDept));
             return BadRequest($"Invalid custodial department: {request.CustDept}");
         }
 
@@ -260,7 +261,7 @@ public class CoursesController : BaseEffortController
         if (await _courseService.CourseExistsAsync(request.TermCode, request.Crn, request.Units, ct))
         {
             _logger.LogWarning("Course {Crn} with {Units} units already exists for term {TermCode}",
-                request.Crn, request.Units, request.TermCode);
+                LogSanitizer.SanitizeId(request.Crn), request.Units, request.TermCode);
             return Conflict($"Course with CRN {request.Crn} and {request.Units} units already exists for this term");
         }
 
@@ -268,12 +269,12 @@ public class CoursesController : BaseEffortController
         {
             var course = await _courseService.CreateCourseAsync(request, ct);
             _logger.LogInformation("Course created manually: {SubjCode} {CrseNumb} for term {TermCode}",
-                request.SubjCode, request.CrseNumb, request.TermCode);
+                LogSanitizer.SanitizeId(request.SubjCode), LogSanitizer.SanitizeId(request.CrseNumb), request.TermCode);
             return CreatedAtAction(nameof(GetCourse), new { id = course.Id }, course);
         }
         catch (DbUpdateException ex)
         {
-            _logger.LogWarning(ex, "Database error creating course: {Message}", ex.InnerException?.Message ?? ex.Message);
+            _logger.LogWarning(ex, "Database error creating course: {Message}", LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
             return BadRequest("Failed to save course. Please check all field values are valid.");
         }
     }
@@ -311,12 +312,12 @@ public class CoursesController : BaseEffortController
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning(ex, "Invalid course update data: {Message}", ex.Message);
+            _logger.LogWarning(ex, "Invalid course update data: {Message}", LogSanitizer.SanitizeString(ex.Message));
             return BadRequest(ex.Message);
         }
         catch (DbUpdateException ex)
         {
-            _logger.LogWarning(ex, "Database error updating course: {Message}", ex.InnerException?.Message ?? ex.Message);
+            _logger.LogWarning(ex, "Database error updating course: {Message}", LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
             return BadRequest("Failed to update course. Please check all field values are valid.");
         }
     }
@@ -348,7 +349,7 @@ public class CoursesController : BaseEffortController
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Cannot update enrollment for course {CourseId}: {Message}", id, ex.Message);
+            _logger.LogWarning(ex, "Cannot update enrollment for course {CourseId}: {Message}", id, LogSanitizer.SanitizeString(ex.Message));
             return BadRequest(ex.Message);
         }
     }
