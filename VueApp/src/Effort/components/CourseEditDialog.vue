@@ -4,7 +4,7 @@
         persistent
         maximized-on-mobile
     >
-        <q-card style="min-width: 400px; max-width: 500px">
+        <q-card style="width: 100%; max-width: 500px">
             <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">{{ enrollmentOnly ? "Edit R-Course Enrollment" : "Edit Course" }}</div>
                 <q-space />
@@ -25,7 +25,7 @@
 
                 <q-form
                     ref="formRef"
-                    class="q-gutter-md"
+                    class="q-gutter-sm"
                 >
                     <q-input
                         v-model.number="formData.enrollment"

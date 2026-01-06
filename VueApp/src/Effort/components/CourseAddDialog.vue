@@ -4,7 +4,7 @@
         persistent
         maximized-on-mobile
     >
-        <q-card style="min-width: 500px; max-width: 600px">
+        <q-card style="width: 100%; max-width: 600px">
             <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">Add Course Manually</div>
                 <q-space />
@@ -24,8 +24,8 @@
                 </p>
 
                 <q-form ref="formRef">
-                    <div class="row q-col-gutter-sm q-mb-sm">
-                        <div class="col-5">
+                    <div class="row q-col-gutter-sm">
+                        <div class="col-12 col-sm-5">
                             <q-input
                                 v-model="formData.subjCode"
                                 label="Subject Code"
@@ -38,7 +38,7 @@
                                 ]"
                             />
                         </div>
-                        <div class="col-4">
+                        <div class="col-12 col-sm-4">
                             <q-input
                                 v-model="formData.crseNumb"
                                 label="Course Number"
@@ -48,7 +48,7 @@
                                 :rules="[(v: string) => !!v?.trim() || 'Required']"
                             />
                         </div>
-                        <div class="col-3">
+                        <div class="col-12 col-sm-3">
                             <q-input
                                 v-model="formData.seqNumb"
                                 label="Section"
@@ -58,22 +58,19 @@
                                 :rules="[(v: string) => !!v?.trim() || 'Required']"
                             />
                         </div>
-                    </div>
-
-                    <q-input
-                        v-model="formData.crn"
-                        label="CRN"
-                        dense
-                        outlined
-                        maxlength="5"
-                        class="q-mb-sm"
-                        :rules="[
-                            (v: string) => !!v?.trim() || 'CRN is required',
-                            (v: string) => /^\d{5}$/.test(v?.trim()) || 'CRN must be 5 digits',
-                        ]"
-                    />
-
-                    <div class="row q-col-gutter-sm q-mb-sm">
+                        <div class="col-12">
+                            <q-input
+                                v-model="formData.crn"
+                                label="CRN"
+                                dense
+                                outlined
+                                maxlength="5"
+                                :rules="[
+                                    (v: string) => !!v?.trim() || 'CRN is required',
+                                    (v: string) => /^\d{5}$/.test(v?.trim()) || 'CRN must be 5 digits',
+                                ]"
+                            />
+                        </div>
                         <div class="col-6">
                             <q-input
                                 v-model.number="formData.enrollment"
@@ -98,17 +95,18 @@
                                 :rules="[(v: number) => v >= 0 || 'Must be non-negative']"
                             />
                         </div>
+                        <div class="col-12">
+                            <q-select
+                                v-model="formData.custDept"
+                                :options="departments"
+                                label="Custodial Department"
+                                dense
+                                options-dense
+                                outlined
+                                :rules="[(v: string) => !!v || 'Department is required']"
+                            />
+                        </div>
                     </div>
-
-                    <q-select
-                        v-model="formData.custDept"
-                        :options="departments"
-                        label="Custodial Department"
-                        dense
-                        options-dense
-                        outlined
-                        :rules="[(v: string) => !!v || 'Department is required']"
-                    />
                 </q-form>
             </q-card-section>
 

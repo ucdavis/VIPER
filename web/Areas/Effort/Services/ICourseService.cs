@@ -26,16 +26,20 @@ public interface ICourseService
     Task<CourseDto?> GetCourseAsync(int courseId, CancellationToken ct = default);
 
     /// <summary>
-    /// Search for courses in Banner by subject code, course number, and/or CRN.
+    /// Search for courses in Banner by subject code, course number, sequence number, and/or CRN.
+    /// Queries Banner directly via linked server stored procedure.
+    /// At least one search parameter is required.
     /// </summary>
     /// <param name="termCode">The term code to search in.</param>
-    /// <param name="subjCode">Optional subject code filter.</param>
-    /// <param name="crseNumb">Optional course number filter.</param>
+    /// <param name="subjCode">Optional subject code filter (e.g., "VME", "PHI").</param>
+    /// <param name="crseNumb">Optional course number filter (e.g., "443").</param>
+    /// <param name="seqNumb">Optional sequence number filter (e.g., "001").</param>
     /// <param name="crn">Optional CRN filter.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of Banner courses matching the criteria.</returns>
+    /// <exception cref="ArgumentException">Thrown if no search parameters are provided.</exception>
     Task<List<BannerCourseDto>> SearchBannerCoursesAsync(int termCode, string? subjCode = null,
-        string? crseNumb = null, string? crn = null, CancellationToken ct = default);
+        string? crseNumb = null, string? seqNumb = null, string? crn = null, CancellationToken ct = default);
 
     /// <summary>
     /// Get a single Banner course by term code and CRN.

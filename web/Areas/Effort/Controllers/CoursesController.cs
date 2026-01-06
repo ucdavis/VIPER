@@ -120,7 +120,8 @@ public class CoursesController : BaseEffortController
     }
 
     /// <summary>
-    /// Search for courses in Banner by subject code, course number, and/or CRN.
+    /// Search for courses in Banner by subject code, course number, sequence number, and/or CRN.
+    /// Queries Banner directly via linked server.
     /// </summary>
     [HttpGet("search")]
     [Permission(Allow = EffortPermissions.ImportCourse)]
@@ -128,18 +129,42 @@ public class CoursesController : BaseEffortController
         [FromQuery] int termCode,
         [FromQuery] string? subjCode = null,
         [FromQuery] string? crseNumb = null,
+        [FromQuery] string? seqNumb = null,
         [FromQuery] string? crn = null,
         CancellationToken ct = default)
     {
         SetExceptionContext("termCode", termCode);
 
-        if (string.IsNullOrWhiteSpace(subjCode) && string.IsNullOrWhiteSpace(crseNumb) && string.IsNullOrWhiteSpace(crn))
+        if (string.IsNullOrWhiteSpace(subjCode) && string.IsNullOrWhiteSpace(crseNumb) &&
+            string.IsNullOrWhiteSpace(seqNumb) && string.IsNullOrWhiteSpace(crn))
         {
-            return BadRequest("At least one search parameter (subjCode, crseNumb, or crn) is required");
+            return BadRequest("At least one search parameter (subjCode, crseNumb, seqNumb, or crn) is required");
         }
 
-        var courses = await _courseService.SearchBannerCoursesAsync(termCode, subjCode, crseNumb, crn, ct);
-        return Ok(courses);
+        try
+        {
+            var courses = await _courseService.SearchBannerCoursesAsync(termCode, subjCode, crseNumb, seqNumb, crn, ct);
+            return Ok(courses);
+        }
+        catch (Microsoft.Data.SqlClient.SqlException ex)
+        {
+            // Check for linked server / connectivity issues
+            if (ex.Message.Contains("UCDBanner") || ex.Message.Contains("OPENQUERY") || ex.Message.Contains("linked server"))
+            {
+                _logger.LogError(ex, "Banner linked server connection failed");
+                return StatusCode(503, "Banner system is temporarily unavailable. Please try again later.");
+            }
+
+            // Check for stored procedure not found
+            if (ex.Message.Contains("Could not find stored procedure") || ex.Number == 2812)
+            {
+                _logger.LogError(ex, "Banner search stored procedure not found");
+                return StatusCode(503, "Banner search is not configured. Please contact support.");
+            }
+
+            _logger.LogError(ex, "Database error during Banner course search");
+            return StatusCode(500, "An error occurred while searching Banner. Please try again.");
+        }
     }
 
     /// <summary>

@@ -143,7 +143,7 @@ namespace Viper.Areas.Effort.Scripts
             return true;
         }
 
-        // List of all managed stored procedures (16 total)
+        // List of all managed stored procedures (17 total)
         static readonly HashSet<string> ManagedProcedures = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             // Merit & Promotion Reports (6 procedures)
@@ -165,7 +165,9 @@ namespace Viper.Areas.Effort.Scripts
             "sp_instructor_evals_average",
             // Other Reports (2 procedures)
             "sp_effort_general_report",
-            "sp_zero_effort_check"
+            "sp_zero_effort_check",
+            // Banner Integration (1 procedure)
+            "sp_search_banner_courses"
         };
 
         static void CreateReportingProcedures(string connectionString, bool executeMode, bool cleanMode)
@@ -207,6 +209,9 @@ namespace Viper.Areas.Effort.Scripts
                 // Other Reports (2 procedures)
                 CreateProcedure(connection, transaction, "sp_effort_general_report", GetEffortGeneralReportSql(), ref successCount, ref failureCount, failedProcedures);
                 CreateProcedure(connection, transaction, "sp_zero_effort_check", GetZeroEffortCheckSql(), ref successCount, ref failureCount, failedProcedures);
+
+                // Banner Integration (1 procedure)
+                CreateProcedure(connection, transaction, "sp_search_banner_courses", GetSearchBannerCoursesSql(), ref successCount, ref failureCount, failedProcedures);
 
                 Console.WriteLine();
                 Console.WriteLine($"Summary: {successCount} succeeded, {failureCount} failed");
@@ -1232,6 +1237,105 @@ BEGIN
         AND r.Weeks = 0
         AND (@Department IS NULL OR p.EffortDept = @Department)
     ORDER BY p.EffortDept, p.LastName, p.FirstName;
+END;
+";
+        }
+
+        // ============================================
+        // Banner Integration Procedures
+        // ============================================
+
+        static string GetSearchBannerCoursesSql()
+        {
+            return @"
+CREATE OR ALTER PROCEDURE [effort].[sp_search_banner_courses]
+    @TermCode VARCHAR(6),
+    @SubjCode VARCHAR(4) = NULL,
+    @CrseNumb VARCHAR(5) = NULL,
+    @SeqNumb VARCHAR(3) = NULL,
+    @Crn VARCHAR(5) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Search Banner courses directly via linked server
+    -- Based on legacy usp_get_foreign_course but returns multiple results
+    -- Allows flexible searching by any combination of parameters
+
+    -- Validate TermCode format (must be exactly 6 digits)
+    IF @TermCode IS NULL OR @TermCode LIKE '%[^0-9]%' OR LEN(@TermCode) <> 6
+    BEGIN
+        RAISERROR('TermCode must be a 6-digit number', 16, 1);
+        RETURN;
+    END
+
+    -- Require at least one search parameter to prevent returning all courses
+    IF @SubjCode IS NULL AND @CrseNumb IS NULL AND @SeqNumb IS NULL AND @Crn IS NULL
+    BEGIN
+        RAISERROR('At least one search parameter (SubjCode, CrseNumb, SeqNumb, or Crn) is required', 16, 1);
+        RETURN;
+    END
+
+    -- Validate inputs to prevent injection and malformed queries
+    IF @SubjCode IS NOT NULL AND @SubjCode LIKE '%[^A-Za-z0-9]%'
+    BEGIN
+        RAISERROR('SubjCode must be alphanumeric', 16, 1);
+        RETURN;
+    END
+    IF @CrseNumb IS NOT NULL AND @CrseNumb LIKE '%[^A-Za-z0-9]%'
+    BEGIN
+        RAISERROR('CrseNumb must be alphanumeric', 16, 1);
+        RETURN;
+    END
+    IF @SeqNumb IS NOT NULL AND @SeqNumb LIKE '%[^0-9]%'
+    BEGIN
+        RAISERROR('SeqNumb must be numeric', 16, 1);
+        RETURN;
+    END
+    IF @Crn IS NOT NULL AND @Crn LIKE '%[^0-9]%'
+    BEGIN
+        RAISERROR('Crn must be numeric', 16, 1);
+        RETURN;
+    END
+
+    DECLARE @bannerCmd NVARCHAR(MAX);
+    DECLARE @whereClause NVARCHAR(1000) = '';
+
+    -- Build dynamic WHERE clause based on provided parameters
+    IF @SubjCode IS NOT NULL
+        SET @whereClause = @whereClause + ' AND SSBSECT_SUBJ_CODE = ''''' + REPLACE(@SubjCode, '''', '''''''''') + ''''' ';
+    IF @CrseNumb IS NOT NULL
+        SET @whereClause = @whereClause + ' AND SSBSECT_CRSE_NUMB = ''''' + REPLACE(@CrseNumb, '''', '''''''''') + ''''' ';
+    IF @SeqNumb IS NOT NULL
+        SET @whereClause = @whereClause + ' AND SSBSECT_SEQ_NUMB = ''''' + REPLACE(@SeqNumb, '''', '''''''''') + ''''' ';
+    IF @Crn IS NOT NULL
+        SET @whereClause = @whereClause + ' AND SSBSECT_CRN = ''''' + REPLACE(@Crn, '''', '''''''''') + ''''' ';
+
+    SET @bannerCmd = '
+        SELECT DISTINCT
+            SSBSECT_CRN as Crn,
+            SSBSECT_SUBJ_CODE as SubjCode,
+            SSBSECT_CRSE_NUMB as CrseNumb,
+            SSBSECT_SEQ_NUMB as SeqNumb,
+            SCBCRSE_TITLE as Title,
+            SSBSECT_ENRL as Enrollment,
+            DECODE(NVL(SCBCRSE_CREDIT_HR_IND,''''F''''),''''F'''',''''F'''',''''V'''') as UnitType,
+            NVL(SCBCRSE_CREDIT_HR_LOW,0.0) as UnitLow,
+            NVL(SCBCRSE_CREDIT_HR_HIGH,0.0) as UnitHigh,
+            SCBCRSE_DEPT_CODE as DeptCode
+        FROM SATURN.SSBSECT, SATURN.SCBCRSE
+        WHERE SSBSECT_TERM_CODE = ''''' + @TermCode + '''''
+            AND SCBCRSE_SUBJ_CODE = SSBSECT_SUBJ_CODE
+            AND SCBCRSE_CRSE_NUMB = SSBSECT_CRSE_NUMB
+            AND SCBCRSE_EFF_TERM = (
+                SELECT MAX(SCBCRSE_EFF_TERM) FROM SATURN.SCBCRSE
+                WHERE SCBCRSE_SUBJ_CODE = SSBSECT_SUBJ_CODE
+                AND SCBCRSE_CRSE_NUMB = SSBSECT_CRSE_NUMB
+            )' + @whereClause + '
+        ORDER BY SSBSECT_SUBJ_CODE, SSBSECT_CRSE_NUMB, SSBSECT_SEQ_NUMB
+        FETCH FIRST 100 ROWS ONLY';
+
+    EXEC('SELECT * FROM OPENQUERY(UCDBanner, ''' + @bannerCmd + ''')');
 END;
 ";
         }

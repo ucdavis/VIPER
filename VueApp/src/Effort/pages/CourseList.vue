@@ -48,6 +48,7 @@
                 <q-btn-dropdown
                     v-if="canAddCourse"
                     color="primary"
+                    icon="add"
                     label="Add Course"
                     dense
                     class="full-width-xs"
@@ -154,6 +155,7 @@
         <CourseImportDialog
             v-model="showImportDialog"
             :term-code="selectedTermCode"
+            :term-name="selectedTermName"
             @imported="onCourseImported"
         />
 
@@ -212,6 +214,7 @@ const editEnrollmentOnly = ref(false)
 
 // Computed
 const canAddCourse = computed(() => hasImportCourse.value || hasEditCourse.value || isAdmin.value)
+const selectedTermName = computed(() => terms.value.find((t) => t.termCode === selectedTermCode.value)?.termName ?? "")
 
 const deptOptions = computed(() => {
     const uniqueDepts = [...new Set(courses.value.map((c) => c.custDept))].sort()

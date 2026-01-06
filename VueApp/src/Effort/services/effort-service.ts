@@ -163,7 +163,7 @@ class EffortService {
      */
     async searchBannerCourses(
         termCode: number,
-        filters: { subjCode?: string; crseNumb?: string; crn?: string } = {},
+        filters: { subjCode?: string; crseNumb?: string; seqNumb?: string; crn?: string } = {},
     ): Promise<BannerCourseDto[]> {
         const params = new URLSearchParams({ termCode: termCode.toString() })
         if (filters.subjCode) {
@@ -171,6 +171,9 @@ class EffortService {
         }
         if (filters.crseNumb) {
             params.append("crseNumb", filters.crseNumb)
+        }
+        if (filters.seqNumb) {
+            params.append("seqNumb", filters.seqNumb)
         }
         if (filters.crn) {
             params.append("crn", filters.crn)

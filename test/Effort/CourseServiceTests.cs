@@ -7,18 +7,17 @@ using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
-using Viper.Classes.SQLContext;
-using Viper.Models.Courses;
 
 namespace Viper.test.Effort;
 
 /// <summary>
 /// Unit tests for CourseService course management operations.
+/// Note: Banner search tests are skipped as they require a real database with the
+/// sp_search_banner_courses stored procedure. Use integration tests for Banner functionality.
 /// </summary>
 public sealed class CourseServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
-    private readonly CoursesContext _coursesContext;
     private readonly Mock<IEffortAuditService> _auditServiceMock;
     private readonly Mock<ILogger<CourseService>> _loggerMock;
     private readonly CourseService _courseService;
@@ -30,13 +29,7 @@ public sealed class CourseServiceTests : IDisposable
             .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
 
-        var coursesOptions = new DbContextOptionsBuilder<CoursesContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-            .Options;
-
         _context = new EffortDbContext(effortOptions);
-        _coursesContext = new CoursesContext(coursesOptions);
         _auditServiceMock = new Mock<IEffortAuditService>();
         _loggerMock = new Mock<ILogger<CourseService>>();
 
@@ -44,13 +37,12 @@ public sealed class CourseServiceTests : IDisposable
         _auditServiceMock
             .Setup(s => s.AddCourseChangeAudit(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>()));
 
-        _courseService = new CourseService(_context, _coursesContext, _auditServiceMock.Object, _loggerMock.Object);
+        _courseService = new CourseService(_context, _auditServiceMock.Object, _loggerMock.Object);
     }
 
     public void Dispose()
     {
         _context.Dispose();
-        _coursesContext.Dispose();
     }
 
     #region GetCoursesAsync Tests
@@ -560,60 +552,16 @@ public sealed class CourseServiceTests : IDisposable
 
     #region SearchBannerCoursesAsync Tests
 
-    [Fact]
-    public async Task SearchBannerCoursesAsync_ReturnsMatchingCourses_BySubjCode()
-    {
-        // Arrange
-        _coursesContext.Baseinfos.AddRange(
-            new Baseinfo { BaseinfoPkey = "20241012345", BaseinfoTermCode = "202410", BaseinfoCrn = "12345", BaseinfoSubjCode = "DVM ", BaseinfoCrseNumb = "443 ", BaseinfoSeqNumb = "001", BaseinfoEnrollment = 20, BaseinfoUnitType = "F", BaseinfoUnitLow = 4, BaseinfoUnitHigh = 4, BaseinfoDeptCode = "72030", BaseinfoCollCode = "VM", BaseinfoTitle = "Clinical Medicine", BaseinfoXlistFlag = "N", BaseinfoXlistGroup = "" },
-            new Baseinfo { BaseinfoPkey = "20241012346", BaseinfoTermCode = "202410", BaseinfoCrn = "12346", BaseinfoSubjCode = "VME ", BaseinfoCrseNumb = "200 ", BaseinfoSeqNumb = "001", BaseinfoEnrollment = 10, BaseinfoUnitType = "F", BaseinfoUnitLow = 3, BaseinfoUnitHigh = 3, BaseinfoDeptCode = "72030", BaseinfoCollCode = "VM", BaseinfoTitle = "Veterinary Medicine", BaseinfoXlistFlag = "N", BaseinfoXlistGroup = "" }
-        );
-        await _coursesContext.SaveChangesAsync();
-
-        // Act
-        var courses = await _courseService.SearchBannerCoursesAsync(202410, subjCode: "DVM");
-
-        // Assert
-        Assert.Single(courses);
-        Assert.Equal("DVM", courses[0].SubjCode);
-    }
+    // Note: SearchBannerCoursesAsync tests are skipped because the method now calls
+    // the sp_search_banner_courses stored procedure via raw SQL, which requires
+    // a real database connection. These tests should be run as integration tests.
 
     [Fact]
-    public async Task SearchBannerCoursesAsync_ReturnsCourse_ByCrn()
+    public async Task SearchBannerCoursesAsync_ThrowsArgumentException_WhenNoParametersProvided()
     {
-        // Arrange
-        _coursesContext.Baseinfos.Add(
-            new Baseinfo { BaseinfoPkey = "20241012345", BaseinfoTermCode = "202410", BaseinfoCrn = "12345", BaseinfoSubjCode = "DVM ", BaseinfoCrseNumb = "443 ", BaseinfoSeqNumb = "001", BaseinfoEnrollment = 20, BaseinfoUnitType = "F", BaseinfoUnitLow = 4, BaseinfoUnitHigh = 4, BaseinfoDeptCode = "72030", BaseinfoCollCode = "VM", BaseinfoTitle = "Clinical Medicine", BaseinfoXlistFlag = "N", BaseinfoXlistGroup = "" }
-        );
-        await _coursesContext.SaveChangesAsync();
-
-        // Act
-        var courses = await _courseService.SearchBannerCoursesAsync(202410, crn: "12345");
-
-        // Assert
-        Assert.Single(courses);
-        Assert.Equal("12345", courses[0].Crn);
-    }
-
-    [Fact]
-    public async Task SearchBannerCoursesAsync_MarksAlreadyImportedCourses()
-    {
-        // Arrange
-        _coursesContext.Baseinfos.Add(
-            new Baseinfo { BaseinfoPkey = "20241012345", BaseinfoTermCode = "202410", BaseinfoCrn = "12345", BaseinfoSubjCode = "DVM ", BaseinfoCrseNumb = "443 ", BaseinfoSeqNumb = "001", BaseinfoEnrollment = 20, BaseinfoUnitType = "F", BaseinfoUnitLow = 4, BaseinfoUnitHigh = 4, BaseinfoDeptCode = "72030", BaseinfoCollCode = "VM", BaseinfoTitle = "Clinical Medicine", BaseinfoXlistFlag = "N", BaseinfoXlistGroup = "" }
-        );
-        await _coursesContext.SaveChangesAsync();
-
-        // Add to Effort (already imported)
-        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
-
-        // Act
-        var courses = await _courseService.SearchBannerCoursesAsync(202410, crn: "12345");
-
-        // Assert
-        Assert.Single(courses);
-        Assert.True(courses[0].AlreadyImported);
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _courseService.SearchBannerCoursesAsync(202410));
     }
 
     #endregion
@@ -654,35 +602,42 @@ public sealed class CourseServiceTests : IDisposable
         Assert.Equal("001", course.SeqNumb);
         Assert.Equal(20, course.Enrollment);
         Assert.Equal(4, course.Units);
-        Assert.Equal("VME", course.CustDept); // 72030 maps to VME
+        // DVM is a valid SVM subject code, so it becomes the custodial department directly
+        Assert.Equal("DVM", course.CustDept);
     }
 
-    [Fact]
-    public async Task GetBannerCourseAsync_ReturnsNull_WhenCourseNotFoundInBanner()
-    {
-        // Act
-        var bannerCourse = await _courseService.GetBannerCourseAsync(202410, "99999");
-
-        // Assert
-        Assert.Null(bannerCourse);
-    }
+    // Note: GetBannerCourseAsync tests are skipped because the method now uses
+    // SearchBannerCoursesAsync which calls the sp_search_banner_courses stored procedure.
+    // These tests should be run as integration tests against a real database.
 
     [Fact]
-    public async Task GetBannerCourseAsync_ReturnsCourse_WhenCourseExists()
+    public async Task ImportCourseFromBannerAsync_UsesDeptCodeMapping_WhenSubjCodeNotValidDept()
     {
-        // Arrange
-        _coursesContext.Baseinfos.Add(
-            new Baseinfo { BaseinfoPkey = "20241012345", BaseinfoTermCode = "202410", BaseinfoCrn = "12345", BaseinfoSubjCode = "DVM ", BaseinfoCrseNumb = "443 ", BaseinfoSeqNumb = "001", BaseinfoEnrollment = 20, BaseinfoUnitType = "F", BaseinfoUnitLow = 4, BaseinfoUnitHigh = 4, BaseinfoDeptCode = "72030", BaseinfoCollCode = "VM", BaseinfoTitle = "Clinical Medicine", BaseinfoXlistFlag = "N", BaseinfoXlistGroup = "" }
-        );
-        await _coursesContext.SaveChangesAsync();
+        // Arrange - BIS is not a valid SVM department, so it should fall back to DeptCode mapping
+        var bannerCourse = new BannerCourseDto
+        {
+            Crn = "12345",
+            SubjCode = "BIS",
+            CrseNumb = "101",
+            SeqNumb = "001",
+            Enrollment = 20,
+            UnitType = "F",
+            UnitLow = 4,
+            UnitHigh = 4,
+            DeptCode = "72030" // Should map to VME
+        };
+
+        var request = new ImportCourseRequest
+        {
+            TermCode = 202410,
+            Crn = "12345"
+        };
 
         // Act
-        var bannerCourse = await _courseService.GetBannerCourseAsync(202410, "12345");
+        var course = await _courseService.ImportCourseFromBannerAsync(request, bannerCourse);
 
-        // Assert
-        Assert.NotNull(bannerCourse);
-        Assert.Equal("12345", bannerCourse.Crn);
-        Assert.Equal("DVM", bannerCourse.SubjCode);
+        // Assert - DeptCode 72030 maps to VME when subject code is not a valid department
+        Assert.Equal("VME", course.CustDept);
     }
 
     [Fact]

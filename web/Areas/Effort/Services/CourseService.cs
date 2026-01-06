@@ -1,9 +1,9 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
-using Viper.Classes.SQLContext;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -13,7 +13,6 @@ namespace Viper.Areas.Effort.Services;
 public class CourseService : ICourseService
 {
     private readonly EffortDbContext _context;
-    private readonly CoursesContext _coursesContext;
     private readonly IEffortAuditService _auditService;
     private readonly ILogger<CourseService> _logger;
 
@@ -26,26 +25,26 @@ public class CourseService : ICourseService
     };
 
     /// <summary>
-    /// Mapping from Banner department codes to Effort custodial departments.
+    /// Mapping from Banner custodial department codes to Effort custodial departments.
+    /// Banner codes may be stored with or without leading zeros (e.g., "72030" or "072030").
+    /// The GetCustodialDepartment method normalizes input by padding to 6 digits.
     /// </summary>
     private static readonly Dictionary<string, string> BannerDeptMapping = new()
     {
-        { "72030", "VME" },
-        { "72035", "VSR" },
-        { "72037", "APC" },
-        { "72047", "VMB" },
-        { "72057", "PMI" },
-        { "72067", "PHR" }
+        { "072030", "VME" },
+        { "072035", "VSR" },
+        { "072037", "APC" },
+        { "072047", "VMB" },
+        { "072057", "PMI" },
+        { "072067", "PHR" }
     };
 
     public CourseService(
         EffortDbContext context,
-        CoursesContext coursesContext,
         IEffortAuditService auditService,
         ILogger<CourseService> logger)
     {
         _context = context;
-        _coursesContext = coursesContext;
         _auditService = auditService;
         _logger = logger;
     }
@@ -80,112 +79,80 @@ public class CourseService : ICourseService
     }
 
     public async Task<List<BannerCourseDto>> SearchBannerCoursesAsync(int termCode, string? subjCode = null,
-        string? crseNumb = null, string? crn = null, CancellationToken ct = default)
+        string? crseNumb = null, string? seqNumb = null, string? crn = null, CancellationToken ct = default)
     {
-        var termCodeStr = termCode.ToString();
-
-        var query = _coursesContext.Baseinfos
-            .AsNoTracking()
-            .Where(b => b.BaseinfoTermCode == termCodeStr);
-
-        if (!string.IsNullOrWhiteSpace(subjCode))
+        // Validate that at least one search parameter is provided
+        if (string.IsNullOrWhiteSpace(subjCode) && string.IsNullOrWhiteSpace(crseNumb) &&
+            string.IsNullOrWhiteSpace(seqNumb) && string.IsNullOrWhiteSpace(crn))
         {
-            var upperSubjCode = subjCode.ToUpperInvariant();
-            query = query.Where(b => b.BaseinfoSubjCode.Trim() == upperSubjCode);
+            throw new ArgumentException("At least one search parameter (subjCode, crseNumb, seqNumb, or crn) is required");
         }
 
-        if (!string.IsNullOrWhiteSpace(crseNumb))
-        {
-            var upperCrseNumb = crseNumb.ToUpperInvariant();
-            query = query.Where(b => b.BaseinfoCrseNumb.Trim() == upperCrseNumb);
-        }
+        var connectionString = _context.Database.GetConnectionString()
+            ?? throw new InvalidOperationException("Database connection string not configured");
 
-        if (!string.IsNullOrWhiteSpace(crn))
-        {
-            query = query.Where(b => b.BaseinfoCrn.Trim() == crn.Trim());
-        }
+        var bannerCourses = new List<BannerCourseDto>();
 
-        var bannerCourses = await query
-            .OrderBy(b => b.BaseinfoSubjCode)
-            .ThenBy(b => b.BaseinfoCrseNumb)
-            .ThenBy(b => b.BaseinfoSeqNumb)
-            .Take(100)
-            .ToListAsync(ct);
+        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await connection.OpenAsync(ct);
+
+        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_search_banner_courses]", connection);
+        command.CommandType = CommandType.StoredProcedure;
+        command.Parameters.AddWithValue("@TermCode", termCode.ToString());
+        command.Parameters.AddWithValue("@SubjCode", string.IsNullOrWhiteSpace(subjCode) ? DBNull.Value : subjCode.ToUpperInvariant());
+        command.Parameters.AddWithValue("@CrseNumb", string.IsNullOrWhiteSpace(crseNumb) ? DBNull.Value : crseNumb.ToUpperInvariant());
+        command.Parameters.AddWithValue("@SeqNumb", string.IsNullOrWhiteSpace(seqNumb) ? DBNull.Value : seqNumb.ToUpperInvariant());
+        command.Parameters.AddWithValue("@Crn", string.IsNullOrWhiteSpace(crn) ? DBNull.Value : crn.Trim());
+
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            bannerCourses.Add(new BannerCourseDto
+            {
+                Crn = reader.GetString(0).Trim(),
+                SubjCode = reader.GetString(1).Trim(),
+                CrseNumb = reader.GetString(2).Trim(),
+                SeqNumb = reader.GetString(3).Trim(),
+                Title = reader.IsDBNull(4) ? null : reader.GetString(4),
+                Enrollment = Convert.ToInt32(reader.GetValue(5)),
+                UnitType = reader.GetString(6),
+                UnitLow = Convert.ToDecimal(reader.GetValue(7)),
+                UnitHigh = Convert.ToDecimal(reader.GetValue(8)),
+                DeptCode = reader.GetString(9).Trim()
+            });
+        }
 
         // Check which courses are already imported
-        var crns = bannerCourses.Select(b => b.BaseinfoCrn.Trim()).Distinct().ToList();
-        var importedCourses = await _context.Courses
-            .AsNoTracking()
-            .Where(c => c.TermCode == termCode && crns.Contains(c.Crn))
-            .Select(c => new { c.Crn, c.Units })
-            .ToListAsync(ct);
-
-        var importedByCrn = importedCourses
-            .GroupBy(c => c.Crn.Trim())
-            .ToDictionary(g => g.Key, g => g.Select(c => c.Units).ToList());
-
-        return bannerCourses.Select(b =>
+        var crns = bannerCourses.Select(b => b.Crn).Distinct().ToList();
+        if (crns.Count > 0)
         {
-            var crnTrimmed = b.BaseinfoCrn.Trim();
-            var isFixed = b.BaseinfoUnitType == "F";
-            var importedUnits = importedByCrn.GetValueOrDefault(crnTrimmed, new List<decimal>());
+            var importedCourses = await _context.Courses
+                .AsNoTracking()
+                .Where(c => c.TermCode == termCode && crns.Contains(c.Crn))
+                .Select(c => new { c.Crn, c.Units })
+                .ToListAsync(ct);
 
-            return new BannerCourseDto
+            var importedByCrn = importedCourses
+                .GroupBy(c => c.Crn.Trim())
+                .ToDictionary(g => g.Key, g => g.Select(c => c.Units).ToList());
+
+            foreach (var course in bannerCourses)
             {
-                Crn = crnTrimmed,
-                SubjCode = b.BaseinfoSubjCode.Trim(),
-                CrseNumb = b.BaseinfoCrseNumb.Trim(),
-                SeqNumb = b.BaseinfoSeqNumb.Trim(),
-                Title = b.BaseinfoDescTitle ?? b.BaseinfoTitle,
-                Enrollment = b.BaseinfoEnrollment,
-                UnitType = b.BaseinfoUnitType,
-                UnitLow = b.BaseinfoUnitLow,
-                UnitHigh = b.BaseinfoUnitHigh,
-                DeptCode = b.BaseinfoDeptCode.Trim(),
-                AlreadyImported = isFixed && importedUnits.Count > 0,
-                ImportedUnitValues = importedUnits
-            };
-        }).ToList();
+                var isFixed = course.UnitType == "F";
+                var importedUnits = importedByCrn.GetValueOrDefault(course.Crn, new List<decimal>());
+                course.AlreadyImported = isFixed && importedUnits.Count > 0;
+                course.ImportedUnitValues = importedUnits;
+            }
+        }
+
+        return bannerCourses;
     }
 
     public async Task<BannerCourseDto?> GetBannerCourseAsync(int termCode, string crn, CancellationToken ct = default)
     {
-        var termCodeStr = termCode.ToString();
-        var crnTrimmed = crn.Trim();
-
-        var bannerCourse = await _coursesContext.Baseinfos
-            .AsNoTracking()
-            .FirstOrDefaultAsync(b => b.BaseinfoTermCode == termCodeStr && b.BaseinfoCrn.Trim() == crnTrimmed, ct);
-
-        if (bannerCourse == null)
-        {
-            return null;
-        }
-
-        // Check if already imported
-        var importedUnits = await _context.Courses
-            .AsNoTracking()
-            .Where(c => c.TermCode == termCode && c.Crn.Trim() == crnTrimmed)
-            .Select(c => c.Units)
-            .ToListAsync(ct);
-
-        var isFixed = bannerCourse.BaseinfoUnitType == "F";
-
-        return new BannerCourseDto
-        {
-            Crn = crnTrimmed,
-            SubjCode = bannerCourse.BaseinfoSubjCode.Trim(),
-            CrseNumb = bannerCourse.BaseinfoCrseNumb.Trim(),
-            SeqNumb = bannerCourse.BaseinfoSeqNumb.Trim(),
-            Title = bannerCourse.BaseinfoDescTitle ?? bannerCourse.BaseinfoTitle,
-            Enrollment = bannerCourse.BaseinfoEnrollment,
-            UnitType = bannerCourse.BaseinfoUnitType,
-            UnitLow = bannerCourse.BaseinfoUnitLow,
-            UnitHigh = bannerCourse.BaseinfoUnitHigh,
-            DeptCode = bannerCourse.BaseinfoDeptCode.Trim(),
-            AlreadyImported = isFixed && importedUnits.Count > 0,
-            ImportedUnitValues = importedUnits
-        };
+        // Use the search SP with CRN filter to get a single course from Banner
+        var courses = await SearchBannerCoursesAsync(termCode, crn: crn.Trim(), ct: ct);
+        return courses.FirstOrDefault();
     }
 
     public async Task<bool> CourseExistsAsync(int termCode, string crn, decimal units, CancellationToken ct = default)
@@ -202,8 +169,9 @@ public class CourseService : ICourseService
             ? request.Units.Value
             : bannerCourse.UnitLow;
 
-        // Determine custodial department from Banner department mapping
-        var custDept = GetCustodialDepartment(bannerCourse.DeptCode);
+        // Determine custodial department - check subject code first, then fall back to dept code mapping
+        // For SVM courses, the subject code (e.g., "DVM", "VME", "PHR") often matches the custodial department
+        var custDept = GetCustodialDepartment(bannerCourse.SubjCode, bannerCourse.DeptCode);
 
         // Create the course
         var course = new EffortCourse
@@ -429,23 +397,38 @@ public class CourseService : ICourseService
 
     public string GetCustodialDepartmentForBannerCode(string bannerDeptCode)
     {
-        return GetCustodialDepartment(bannerDeptCode);
+        return GetCustodialDepartment(null, bannerDeptCode);
     }
 
     /// <summary>
-    /// Get the custodial department based on Banner department code.
+    /// Get the custodial department based on subject code and/or Banner department code.
+    /// For SVM courses, the subject code (e.g., "DVM", "VME") often IS the custodial department.
+    /// Falls back to department code mapping for non-SVM subject codes.
     /// </summary>
-    private static string GetCustodialDepartment(string bannerDeptCode)
+    private static string GetCustodialDepartment(string? subjCode, string bannerDeptCode)
     {
-        if (BannerDeptMapping.TryGetValue(bannerDeptCode, out var custDept))
+        // First check if subject code is a valid SVM department (most common case for SVM courses)
+        if (!string.IsNullOrWhiteSpace(subjCode))
         {
-            return custDept;
+            var trimmedSubj = subjCode.Trim().ToUpperInvariant();
+            if (ValidCustDepts.Contains(trimmedSubj))
+            {
+                return trimmedSubj;
+            }
         }
 
-        // Check if it's a valid SVM department code directly
-        if (ValidCustDepts.Contains(bannerDeptCode.ToUpperInvariant()))
+        // Then check if dept code is already a valid SVM department code
+        var trimmed = bannerDeptCode.Trim();
+        if (ValidCustDepts.Contains(trimmed.ToUpperInvariant()))
         {
-            return bannerDeptCode.ToUpperInvariant();
+            return trimmed.ToUpperInvariant();
+        }
+
+        // Try to look up by numeric Banner code - normalize to 6 digits with leading zero
+        var normalizedCode = trimmed.PadLeft(6, '0');
+        if (BannerDeptMapping.TryGetValue(normalizedCode, out var custDept))
+        {
+            return custDept;
         }
 
         return "UNK";
