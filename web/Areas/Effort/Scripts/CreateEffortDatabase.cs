@@ -839,7 +839,7 @@ BEGIN
         AcademicYear char(9) NOT NULL,  -- Format: 'YYYY-YYYY' (e.g., '2019-2020'), derived from StartDate if missing
         Percentage float NOT NULL,  -- Match legacy float(53)
         EffortTypeId int NOT NULL,
-        Unit varchar(50) NULL,
+        UnitId int NULL,  -- FK to Units table
         Modifier varchar(50) NULL,
         Comment varchar(100) NULL,
         StartDate datetime2(7) NOT NULL,
@@ -850,6 +850,7 @@ BEGIN
         CONSTRAINT PK_Percentages PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT FK_Percentages_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
         CONSTRAINT FK_Percentages_EffortTypes FOREIGN KEY (EffortTypeId) REFERENCES [effort].[EffortTypes](Id),
+        CONSTRAINT FK_Percentages_Units FOREIGN KEY (UnitId) REFERENCES [effort].[Units](Id),
         CONSTRAINT FK_Percentages_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
         CONSTRAINT CK_Percentages_Percentage CHECK (Percentage BETWEEN 0 AND 100),
         CONSTRAINT CK_Percentages_DateRange CHECK (EndDate IS NULL OR EndDate >= StartDate)
@@ -859,6 +860,7 @@ BEGIN
     CREATE NONCLUSTERED INDEX IX_Percentages_AcademicYear ON [effort].[Percentages](AcademicYear);
     CREATE NONCLUSTERED INDEX IX_Percentages_StartDate ON [effort].[Percentages](StartDate);
     CREATE NONCLUSTERED INDEX IX_Percentages_EndDate ON [effort].[Percentages](EndDate) WHERE EndDate IS NOT NULL;
+    CREATE NONCLUSTERED INDEX IX_Percentages_UnitId ON [effort].[Percentages](UnitId) WHERE UnitId IS NOT NULL;
 END";
             cmd.ExecuteNonQuery();
             Console.WriteLine("  ✓ Percentages table created");
@@ -925,16 +927,11 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AN
 BEGIN
     CREATE TABLE [effort].[Units] (
         Id int IDENTITY(1,1) NOT NULL,
-        Code varchar(10) NOT NULL,
-        Name varchar(50) NOT NULL,
-        Description varchar(200) NULL,
+        Name varchar(20) NOT NULL,
         IsActive bit NOT NULL DEFAULT 1,
-        SortOrder int NULL,
         CONSTRAINT PK_Units PRIMARY KEY CLUSTERED (Id),
-        CONSTRAINT UQ_Units_Code UNIQUE (Code)
+        CONSTRAINT UQ_Units_Name UNIQUE (Name)
     );
-
-    CREATE NONCLUSTERED INDEX IX_Units_IsActive ON [effort].[Units](IsActive, SortOrder);
 END";
             cmd.ExecuteNonQuery();
             Console.WriteLine("  ✓ Units table created (CRITICAL)");

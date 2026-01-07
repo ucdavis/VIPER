@@ -11,7 +11,7 @@ public class Percentage
     public string AcademicYear { get; set; } = string.Empty;
     public decimal PercentageValue { get; set; }
     public int EffortTypeId { get; set; }
-    public string? Unit { get; set; }
+    public int? UnitId { get; set; }
     public string? Modifier { get; set; }
     public string? Comment { get; set; }
     public DateTime StartDate { get; set; }
@@ -22,4 +22,5 @@ public class Percentage
 
     // Navigation properties
     public virtual EffortType EffortType { get; set; } = null!;
+    public virtual Unit? Unit { get; set; }
 }

@@ -194,11 +194,8 @@ public class EffortDbContext : DbContext
             entity.ToTable("Units", schema: "effort");
 
             entity.Property(e => e.Id).HasColumnName("Id");
-            entity.Property(e => e.Code).HasColumnName("Code").HasMaxLength(10);
-            entity.Property(e => e.Name).HasColumnName("Name").HasMaxLength(50);
-            entity.Property(e => e.Description).HasColumnName("Description").HasMaxLength(200);
+            entity.Property(e => e.Name).HasColumnName("Name").HasMaxLength(20);
             entity.Property(e => e.IsActive).HasColumnName("IsActive");
-            entity.Property(e => e.SortOrder).HasColumnName("SortOrder");
         });
 
         // JobCode (effort.JobCodes)
@@ -242,7 +239,7 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.AcademicYear).HasColumnName("AcademicYear").HasMaxLength(9).IsFixedLength();
             entity.Property(e => e.PercentageValue).HasColumnName("Percentage").HasColumnType("decimal(5,2)");
             entity.Property(e => e.EffortTypeId).HasColumnName("EffortTypeId");
-            entity.Property(e => e.Unit).HasColumnName("Unit").HasMaxLength(50);
+            entity.Property(e => e.UnitId).HasColumnName("UnitId");
             entity.Property(e => e.Modifier).HasColumnName("Modifier").HasMaxLength(50);
             entity.Property(e => e.Comment).HasColumnName("Comment").HasMaxLength(100);
             entity.Property(e => e.StartDate).HasColumnName("StartDate");
@@ -254,6 +251,10 @@ public class EffortDbContext : DbContext
             entity.HasOne(e => e.EffortType)
                 .WithMany(t => t.Percentages)
                 .HasForeignKey(e => e.EffortTypeId);
+
+            entity.HasOne(e => e.Unit)
+                .WithMany()
+                .HasForeignKey(e => e.UnitId);
         });
 
         // Sabbatical (effort.Sabbaticals)

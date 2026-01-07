@@ -102,11 +102,16 @@ public class EffortAuditService : IEffortAuditService
         AddAuditEntry(EffortAuditTables.Persons, personId, termCode, action, SerializeChanges(oldValues, newValues));
     }
 
+    public void AddUnitChangeAudit(int unitId, string action, object? oldValues, object? newValues)
+    {
+        AddAuditEntry(EffortAuditTables.Units, unitId, null, action, SerializeChanges(oldValues, newValues));
+    }
+
     /// <summary>
     /// Add an audit entry to the context without saving.
     /// Use within a transaction where the caller manages SaveChangesAsync.
     /// </summary>
-    private void AddAuditEntry(string tableName, int recordId, int termCode, string action, string? changes)
+    private void AddAuditEntry(string tableName, int recordId, int? termCode, string action, string? changes)
     {
         var (ipAddress, userAgent) = GetRequestInfo();
         var changedBy = GetCurrentPersonId();
@@ -497,8 +502,10 @@ public class EffortAuditService : IEffortAuditService
         if (filter.TermCode.HasValue)
         {
             var termCode = filter.TermCode.Value;
+            // Include term-specific entries, term record entries, and term-independent entries (like Units)
             query = query.Where(a =>
                 a.TermCode == termCode ||
+                a.TermCode == null ||
                 (a.TableName == EffortAuditTables.Terms && a.RecordId == termCode));
         }
 

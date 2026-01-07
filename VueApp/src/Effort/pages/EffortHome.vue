@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { effortService } from "../services/effort-service"
+import { termService } from "../services/term-service"
 
 const route = useRoute()
 const router = useRouter()
@@ -24,7 +24,7 @@ onMounted(async () => {
 
     if (termCode) {
         try {
-            await effortService.getTerm(termCode)
+            await termService.getTerm(termCode)
         } catch {
             router.replace({ name: "TermSelection" })
         } finally {

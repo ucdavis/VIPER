@@ -115,6 +115,18 @@ const routes = [
         name: "InstructorDetail",
     },
     {
+        path: "/Effort/units",
+        meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ManageUnits"] },
+        component: () => import("@/Effort/pages/UnitList.vue"),
+        name: "UnitList",
+    },
+    {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/units`,
+        meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ManageUnits"] },
+        component: () => import("@/Effort/pages/UnitList.vue"),
+        name: "UnitListWithTerm",
+    },
+    {
         path: "/Effort/audit",
         meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAudit"] },
         component: () => import("@/Effort/pages/AuditList.vue"),

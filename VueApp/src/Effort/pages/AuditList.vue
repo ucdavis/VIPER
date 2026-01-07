@@ -406,7 +406,7 @@ import { useDebounceFn } from "@vueuse/core"
 import { useQuasar } from "quasar"
 import type { QTableColumn, QTableProps } from "quasar"
 import { effortAuditService } from "../services/audit-service"
-import { effortService } from "../services/effort-service"
+import { termService } from "../services/term-service"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import type { ChangeDetail, EffortAuditRow, ModifierInfo, TermDto } from "../types"
 
@@ -530,7 +530,7 @@ function getActionColor(action: string): string {
 async function loadFilterOptions(termCode: number | null = null) {
     const [termsResult, actionsResult, modifiersResult, instructorsResult, subjectCodesResult, courseNumbersResult] =
         await Promise.all([
-            effortService.getTerms(),
+            termService.getTerms(),
             effortAuditService.getActions(),
             effortAuditService.getModifiers(),
             effortAuditService.getInstructors(),
