@@ -527,15 +527,15 @@ function getActionColor(action: string): string {
     return "grey"
 }
 
-async function loadFilterOptions() {
+async function loadFilterOptions(termCode: number | null = null) {
     const [termsResult, actionsResult, modifiersResult, instructorsResult, subjectCodesResult, courseNumbersResult] =
         await Promise.all([
             effortService.getTerms(),
             effortAuditService.getActions(),
             effortAuditService.getModifiers(),
             effortAuditService.getInstructors(),
-            effortAuditService.getSubjectCodes(filter.value.termCode),
-            effortAuditService.getCourseNumbers(filter.value.termCode),
+            effortAuditService.getSubjectCodes(termCode),
+            effortAuditService.getCourseNumbers(termCode),
         ])
     terms.value = termsResult
     actions.value = actionsResult
@@ -643,9 +643,6 @@ async function loadAuditRows(props: { pagination: QTableProps["pagination"] }) {
 function updateUrlParams() {
     const query: Record<string, string> = {}
 
-    if (filter.value.termCode !== null) {
-        query.termCode = filter.value.termCode.toString()
-    }
     if (filter.value.action !== null) {
         query.action = filter.value.action
     }
@@ -671,7 +668,12 @@ function updateUrlParams() {
         query.courseNumber = filter.value.courseNumber
     }
 
-    router.replace({ query })
+    // Navigate to term-specific route or generic audit route
+    if (filter.value.termCode !== null) {
+        router.replace({ name: "EffortAuditWithTerm", params: { termCode: filter.value.termCode.toString() }, query })
+    } else {
+        router.replace({ name: "EffortAudit", query })
+    }
 }
 
 function buildSearchParams(page: number, perPage: number, sortBy: string, descending: boolean): URLSearchParams {
@@ -734,7 +736,7 @@ async function clearFilter() {
     courseNumbers.value = newCourseNumbers
     allSubjectCodes.value = newSubjectCodes
     allCourseNumbers.value = newCourseNumbers
-    router.replace({ query: {} })
+    router.replace({ name: "EffortAudit", query: {} })
     await applyFilters()
 }
 
@@ -815,11 +817,15 @@ watch(
 )
 
 onMounted(async () => {
-    // Restore filter state from URL query parameters
+    const paramTermCode = route.params.termCode
     const q = route.query
-    if (q.termCode) {
-        filter.value.termCode = parseInt(q.termCode as string, 10)
-    }
+    const parsedTermCode = paramTermCode
+        ? parseInt(paramTermCode as string, 10)
+        : q.termCode
+          ? parseInt(q.termCode as string, 10)
+          : null
+    const urlTermCode = Number.isFinite(parsedTermCode) ? parsedTermCode : null
+
     if (q.action) {
         filter.value.action = q.action as string
     }
@@ -845,7 +851,12 @@ onMounted(async () => {
         filter.value.courseNumber = q.courseNumber as string
     }
 
-    await loadFilterOptions()
+    await loadFilterOptions(urlTermCode)
+
+    // Set termCode after terms loaded to prevent flash of raw number in dropdown
+    if (urlTermCode !== null) {
+        filter.value.termCode = urlTermCode
+    }
 
     // Update bidirectional filter options based on URL params
     if (filter.value.subjectCode) {
