@@ -3,6 +3,7 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
+using Viper.Classes.Utilities;
 using Web.Authorization;
 
 namespace Viper.Areas.Effort.Controllers;
@@ -134,7 +135,7 @@ public class CourseRelationshipsController : BaseEffortController
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Failed to create relationship: {Message}", ex.Message);
+            _logger.LogWarning(ex, "Failed to create relationship: {Message}", LogSanitizer.SanitizeString(ex.Message));
             return BadRequest(ex.Message);
         }
     }

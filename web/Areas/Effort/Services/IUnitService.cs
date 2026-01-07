@@ -23,12 +23,12 @@ public interface IUnitService
     /// <summary>
     /// Create a new unit.
     /// </summary>
-    Task<UnitDto> CreateUnitAsync(CreateUnitRequest request, int modifiedBy, CancellationToken ct = default);
+    Task<UnitDto> CreateUnitAsync(CreateUnitRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Update an existing unit.
     /// </summary>
-    Task<UnitDto?> UpdateUnitAsync(int id, UpdateUnitRequest request, int modifiedBy, CancellationToken ct = default);
+    Task<UnitDto?> UpdateUnitAsync(int id, UpdateUnitRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Delete a unit. Only succeeds if no percentages reference it.

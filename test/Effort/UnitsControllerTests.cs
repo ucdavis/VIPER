@@ -17,19 +17,16 @@ namespace Viper.test.Effort;
 public sealed class UnitsControllerTests
 {
     private readonly Mock<IUnitService> _unitServiceMock;
-    private readonly Mock<IEffortPermissionService> _permissionServiceMock;
     private readonly Mock<ILogger<UnitsController>> _loggerMock;
     private readonly UnitsController _controller;
 
     public UnitsControllerTests()
     {
         _unitServiceMock = new Mock<IUnitService>();
-        _permissionServiceMock = new Mock<IEffortPermissionService>();
         _loggerMock = new Mock<ILogger<UnitsController>>();
 
         _controller = new UnitsController(
             _unitServiceMock.Object,
-            _permissionServiceMock.Object,
             _loggerMock.Object);
 
         SetupControllerContext();
@@ -136,8 +133,7 @@ public sealed class UnitsControllerTests
         // Arrange
         var request = new CreateUnitRequest { Name = "New Unit" };
         var createdUnit = new UnitDto { Id = 1, Name = "New Unit", IsActive = true, UsageCount = 0, CanDelete = true };
-        _permissionServiceMock.Setup(s => s.GetCurrentPersonId()).Returns(1);
-        _unitServiceMock.Setup(s => s.CreateUnitAsync(request, 1, It.IsAny<CancellationToken>()))
+        _unitServiceMock.Setup(s => s.CreateUnitAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(createdUnit);
 
         // Act
@@ -155,8 +151,7 @@ public sealed class UnitsControllerTests
     {
         // Arrange
         var request = new CreateUnitRequest { Name = "Existing Unit" };
-        _permissionServiceMock.Setup(s => s.GetCurrentPersonId()).Returns(1);
-        _unitServiceMock.Setup(s => s.CreateUnitAsync(request, 1, It.IsAny<CancellationToken>()))
+        _unitServiceMock.Setup(s => s.CreateUnitAsync(request, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("A unit with name 'Existing Unit' already exists"));
 
         // Act
@@ -172,8 +167,7 @@ public sealed class UnitsControllerTests
     {
         // Arrange
         var request = new CreateUnitRequest { Name = "Race Condition Unit" };
-        _permissionServiceMock.Setup(s => s.GetCurrentPersonId()).Returns(1);
-        _unitServiceMock.Setup(s => s.CreateUnitAsync(request, 1, It.IsAny<CancellationToken>()))
+        _unitServiceMock.Setup(s => s.CreateUnitAsync(request, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DbUpdateException("Constraint violation"));
 
         // Act
@@ -194,8 +188,7 @@ public sealed class UnitsControllerTests
         // Arrange
         var request = new UpdateUnitRequest { Name = "Updated Unit", IsActive = false };
         var updatedUnit = new UnitDto { Id = 1, Name = "Updated Unit", IsActive = false, UsageCount = 0, CanDelete = true };
-        _permissionServiceMock.Setup(s => s.GetCurrentPersonId()).Returns(1);
-        _unitServiceMock.Setup(s => s.UpdateUnitAsync(1, request, 1, It.IsAny<CancellationToken>()))
+        _unitServiceMock.Setup(s => s.UpdateUnitAsync(1, request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(updatedUnit);
 
         // Act
@@ -213,8 +206,7 @@ public sealed class UnitsControllerTests
     {
         // Arrange
         var request = new UpdateUnitRequest { Name = "Updated Unit", IsActive = true };
-        _permissionServiceMock.Setup(s => s.GetCurrentPersonId()).Returns(1);
-        _unitServiceMock.Setup(s => s.UpdateUnitAsync(999, request, 1, It.IsAny<CancellationToken>()))
+        _unitServiceMock.Setup(s => s.UpdateUnitAsync(999, request, It.IsAny<CancellationToken>()))
             .ReturnsAsync((UnitDto?)null);
 
         // Act
@@ -229,8 +221,7 @@ public sealed class UnitsControllerTests
     {
         // Arrange
         var request = new UpdateUnitRequest { Name = "Existing Unit", IsActive = true };
-        _permissionServiceMock.Setup(s => s.GetCurrentPersonId()).Returns(1);
-        _unitServiceMock.Setup(s => s.UpdateUnitAsync(1, request, 1, It.IsAny<CancellationToken>()))
+        _unitServiceMock.Setup(s => s.UpdateUnitAsync(1, request, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("A unit with name 'Existing Unit' already exists"));
 
         // Act
@@ -246,8 +237,7 @@ public sealed class UnitsControllerTests
     {
         // Arrange
         var request = new UpdateUnitRequest { Name = "Race Condition", IsActive = true };
-        _permissionServiceMock.Setup(s => s.GetCurrentPersonId()).Returns(1);
-        _unitServiceMock.Setup(s => s.UpdateUnitAsync(1, request, 1, It.IsAny<CancellationToken>()))
+        _unitServiceMock.Setup(s => s.UpdateUnitAsync(1, request, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DbUpdateException("Constraint violation"));
 
         // Act

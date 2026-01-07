@@ -228,7 +228,7 @@ public sealed class UnitServiceTests : IDisposable
         var request = new CreateUnitRequest { Name = "New Unit" };
 
         // Act
-        var result = await _unitService.CreateUnitAsync(request, modifiedBy: 1);
+        var result = await _unitService.CreateUnitAsync(request);
 
         // Assert
         Assert.NotNull(result);
@@ -253,7 +253,7 @@ public sealed class UnitServiceTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _unitService.CreateUnitAsync(request, modifiedBy: 1));
+            () => _unitService.CreateUnitAsync(request));
         Assert.Contains("already exists", exception.Message);
     }
 
@@ -264,7 +264,7 @@ public sealed class UnitServiceTests : IDisposable
         var request = new CreateUnitRequest { Name = "Audited Unit" };
 
         // Act
-        await _unitService.CreateUnitAsync(request, modifiedBy: 1);
+        await _unitService.CreateUnitAsync(request);
 
         // Assert
         _auditServiceMock.Verify(
@@ -283,7 +283,7 @@ public sealed class UnitServiceTests : IDisposable
         var request = new CreateUnitRequest { Name = "  Padded Unit  " };
 
         // Act
-        var result = await _unitService.CreateUnitAsync(request, modifiedBy: 1);
+        var result = await _unitService.CreateUnitAsync(request);
 
         // Assert
         Assert.Equal("Padded Unit", result.Name);
@@ -299,7 +299,7 @@ public sealed class UnitServiceTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _unitService.CreateUnitAsync(request, modifiedBy: 1));
+            () => _unitService.CreateUnitAsync(request));
         Assert.Contains("required", exception.Message);
     }
 
@@ -317,7 +317,7 @@ public sealed class UnitServiceTests : IDisposable
         var request = new UpdateUnitRequest { Name = "Updated Name", IsActive = false };
 
         // Act
-        var result = await _unitService.UpdateUnitAsync(1, request, modifiedBy: 1);
+        var result = await _unitService.UpdateUnitAsync(1, request);
 
         // Assert
         Assert.NotNull(result);
@@ -332,7 +332,7 @@ public sealed class UnitServiceTests : IDisposable
         var request = new UpdateUnitRequest { Name = "New Name", IsActive = true };
 
         // Act
-        var result = await _unitService.UpdateUnitAsync(999, request, modifiedBy: 1);
+        var result = await _unitService.UpdateUnitAsync(999, request);
 
         // Assert
         Assert.Null(result);
@@ -352,7 +352,7 @@ public sealed class UnitServiceTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _unitService.UpdateUnitAsync(1, request, modifiedBy: 1));
+            () => _unitService.UpdateUnitAsync(1, request));
         Assert.Contains("already exists", exception.Message);
     }
 
@@ -366,7 +366,7 @@ public sealed class UnitServiceTests : IDisposable
         var request = new UpdateUnitRequest { Name = "Same Name", IsActive = false };
 
         // Act
-        var result = await _unitService.UpdateUnitAsync(1, request, modifiedBy: 1);
+        var result = await _unitService.UpdateUnitAsync(1, request);
 
         // Assert
         Assert.NotNull(result);
@@ -384,7 +384,7 @@ public sealed class UnitServiceTests : IDisposable
         var request = new UpdateUnitRequest { Name = "Updated", IsActive = false };
 
         // Act
-        await _unitService.UpdateUnitAsync(1, request, modifiedBy: 1);
+        await _unitService.UpdateUnitAsync(1, request);
 
         // Assert
         _auditServiceMock.Verify(
@@ -406,7 +406,7 @@ public sealed class UnitServiceTests : IDisposable
         var request = new UpdateUnitRequest { Name = "  Updated Name  ", IsActive = true };
 
         // Act
-        var result = await _unitService.UpdateUnitAsync(1, request, modifiedBy: 1);
+        var result = await _unitService.UpdateUnitAsync(1, request);
 
         // Assert
         Assert.NotNull(result);
@@ -424,7 +424,7 @@ public sealed class UnitServiceTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _unitService.UpdateUnitAsync(1, request, modifiedBy: 1));
+            () => _unitService.UpdateUnitAsync(1, request));
         Assert.Contains("required", exception.Message);
     }
 

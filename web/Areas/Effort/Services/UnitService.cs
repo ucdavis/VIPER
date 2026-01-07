@@ -67,7 +67,7 @@ public class UnitService : IUnitService
         return dto;
     }
 
-    public async Task<UnitDto> CreateUnitAsync(CreateUnitRequest request, int modifiedBy, CancellationToken ct = default)
+    public async Task<UnitDto> CreateUnitAsync(CreateUnitRequest request, CancellationToken ct = default)
     {
         // Normalize and validate name
         var normalizedName = request.Name.Trim();
@@ -107,7 +107,7 @@ public class UnitService : IUnitService
         return dto;
     }
 
-    public async Task<UnitDto?> UpdateUnitAsync(int id, UpdateUnitRequest request, int modifiedBy, CancellationToken ct = default)
+    public async Task<UnitDto?> UpdateUnitAsync(int id, UpdateUnitRequest request, CancellationToken ct = default)
     {
         var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == id, ct);
         if (unit == null) return null;

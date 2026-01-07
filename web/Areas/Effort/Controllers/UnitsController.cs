@@ -4,6 +4,7 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
+using Viper.Classes.Utilities;
 using Web.Authorization;
 
 namespace Viper.Areas.Effort.Controllers;
@@ -17,15 +18,12 @@ namespace Viper.Areas.Effort.Controllers;
 public class UnitsController : BaseEffortController
 {
     private readonly IUnitService _unitService;
-    private readonly IEffortPermissionService _permissionService;
 
     public UnitsController(
         IUnitService unitService,
-        IEffortPermissionService permissionService,
         ILogger<UnitsController> logger) : base(logger)
     {
         _unitService = unitService;
-        _permissionService = permissionService;
     }
 
     /// <summary>
@@ -67,22 +65,20 @@ public class UnitsController : BaseEffortController
     {
         SetExceptionContext("unitName", request.Name);
 
-        var modifiedBy = _permissionService.GetCurrentPersonId();
-
         try
         {
-            var unit = await _unitService.CreateUnitAsync(request, modifiedBy, ct);
-            _logger.LogInformation("Unit created: {UnitName} (ID: {UnitId}) by {ModifiedBy}", unit.Name, unit.Id, modifiedBy);
+            var unit = await _unitService.CreateUnitAsync(request, ct);
+            _logger.LogInformation("Unit created: {UnitName} (ID: {UnitId})", LogSanitizer.SanitizeString(unit.Name), unit.Id);
             return CreatedAtAction(nameof(GetUnit), new { id = unit.Id }, unit);
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Cannot create unit '{UnitName}': {Message}", request.Name, ex.Message);
+            _logger.LogWarning(ex, "Cannot create unit '{UnitName}': {Message}", LogSanitizer.SanitizeString(request.Name), LogSanitizer.SanitizeString(ex.Message));
             return Conflict(ex.Message);
         }
         catch (DbUpdateException ex)
         {
-            _logger.LogWarning(ex, "Constraint failure while creating unit '{UnitName}'", request.Name);
+            _logger.LogWarning(ex, "Constraint failure while creating unit '{UnitName}'", LogSanitizer.SanitizeString(request.Name));
             return Conflict("Unable to create unit due to a constraint violation.");
         }
     }
@@ -96,11 +92,9 @@ public class UnitsController : BaseEffortController
         SetExceptionContext("unitId", id);
         SetExceptionContext("unitName", request.Name);
 
-        var modifiedBy = _permissionService.GetCurrentPersonId();
-
         try
         {
-            var unit = await _unitService.UpdateUnitAsync(id, request, modifiedBy, ct);
+            var unit = await _unitService.UpdateUnitAsync(id, request, ct);
 
             if (unit == null)
             {
@@ -108,12 +102,12 @@ public class UnitsController : BaseEffortController
                 return NotFound($"Unit {id} not found");
             }
 
-            _logger.LogInformation("Unit updated: {UnitName} (ID: {UnitId}) by {ModifiedBy}", unit.Name, unit.Id, modifiedBy);
+            _logger.LogInformation("Unit updated: {UnitName} (ID: {UnitId})", LogSanitizer.SanitizeString(unit.Name), unit.Id);
             return Ok(unit);
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Cannot update unit {UnitId}: {Message}", id, ex.Message);
+            _logger.LogWarning(ex, "Cannot update unit {UnitId}: {Message}", id, LogSanitizer.SanitizeString(ex.Message));
             return Conflict(ex.Message);
         }
         catch (DbUpdateException ex)
