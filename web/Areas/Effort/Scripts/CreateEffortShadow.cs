@@ -1109,7 +1109,8 @@ namespace Viper.Areas.Effort.Scripts
             pct.AcademicYear as percent_AcademicYear,
             CAST(pct.Percentage AS FLOAT) as percent_Percent,
             pct.EffortTypeId as percent_TypeID,
-            pct.UnitId as percent_Unit,
+            -- Return UnitId as varchar to match legacy schema (ColdFusion sends unit IDs as strings)
+            CAST(pct.UnitId AS varchar(50)) as percent_Unit,
             pct.Modifier as percent_Modifier,
             pct.Comment as percent_Comment,
             CAST(pct.ModifiedDate AS datetime) as percent_modifiedOn,
@@ -1176,7 +1177,9 @@ namespace Viper.Areas.Effort.Scripts
                 ),
                 i.percent_Percent,
                 i.percent_TypeID,
-                i.percent_Unit,
+                -- Convert varchar percent_Unit to int UnitId (legacy ColdFusion passes IDs as strings)
+                -- Empty/whitespace → NULL; invalid non-numeric values fail loudly to catch data issues
+                CAST(NULLIF(LTRIM(RTRIM(i.percent_Unit)), '') AS int),
                 i.percent_Modifier,
                 i.percent_Comment,
                 COALESCE(i.percent_start,
@@ -1224,7 +1227,9 @@ namespace Viper.Areas.Effort.Scripts
                 ),
                 pct.Percentage = i.percent_Percent,
                 pct.EffortTypeId = i.percent_TypeID,
-                pct.UnitId = i.percent_Unit,
+                -- Convert varchar percent_Unit to int UnitId (legacy ColdFusion passes IDs as strings)
+                -- Empty/whitespace → NULL; invalid non-numeric values fail loudly to catch data issues
+                pct.UnitId = CAST(NULLIF(LTRIM(RTRIM(i.percent_Unit)), '') AS int),
                 pct.Modifier = i.percent_Modifier,
                 pct.Comment = i.percent_Comment,
                 pct.StartDate = i.percent_start,

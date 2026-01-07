@@ -154,6 +154,7 @@ public class UnitService : IUnitService
 
     /// <summary>
     /// Validates and normalizes a unit name, checking for duplicates.
+    /// Uses SQL Server's case-insensitive collation for comparison (database default is CI_AS).
     /// </summary>
     /// <param name="name">The name to validate.</param>
     /// <param name="excludeId">Optional unit ID to exclude from duplicate check (for updates).</param>
@@ -168,7 +169,9 @@ public class UnitService : IUnitService
             throw new InvalidOperationException("Unit name is required.");
         }
 
-        var query = _context.Units.Where(u => u.Name.ToLower() == normalizedName.ToLower());
+        // SQL Server default collation is case-insensitive (SQL_Latin1_General_CP1_CI_AS)
+        // Using direct string comparison allows index usage while still being case-insensitive
+        var query = _context.Units.Where(u => u.Name == normalizedName);
         if (excludeId.HasValue)
         {
             query = query.Where(u => u.Id != excludeId.Value);
