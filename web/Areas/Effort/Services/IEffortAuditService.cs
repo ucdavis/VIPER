@@ -49,6 +49,12 @@ public interface IEffortAuditService
     /// </summary>
     void AddPersonChangeAudit(int personId, int termCode, string action, object? oldValues, object? newValues);
 
+    /// <summary>
+    /// Add a unit change audit entry to the context without saving.
+    /// Use this within a transaction where the caller manages SaveChangesAsync.
+    /// </summary>
+    void AddUnitChangeAudit(int unitId, string action, object? oldValues, object? newValues);
+
     // ==================== Query Methods ====================
 
     /// <summary>

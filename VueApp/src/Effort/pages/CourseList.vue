@@ -208,6 +208,7 @@ import { ref, computed, onMounted, watch } from "vue"
 import { useQuasar } from "quasar"
 import { useRoute, useRouter } from "vue-router"
 import { effortService } from "../services/effort-service"
+import { termService } from "../services/term-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import type { CourseDto, TermDto } from "../types"
 import type { QTableColumn } from "quasar"
@@ -328,7 +329,7 @@ function canEditCourse(course: CourseDto): boolean {
 async function loadTerms() {
     const paramTermCode = route.params.termCode ? parseInt(route.params.termCode as string, 10) : null
 
-    terms.value = await effortService.getTerms()
+    terms.value = await termService.getTerms()
 
     // Set termCode after terms loaded to prevent flash of raw number in dropdown
     if (paramTermCode && terms.value.some((t) => t.termCode === paramTermCode)) {

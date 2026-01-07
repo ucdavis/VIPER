@@ -78,6 +78,23 @@
                     </q-item-section>
                 </q-item>
 
+                <!-- Manage Units - only for ManageUnits users -->
+                <q-item
+                    v-if="hasManageUnits"
+                    clickable
+                    v-ripple
+                    :to="
+                        currentTerm
+                            ? { name: 'UnitListWithTerm', params: { termCode: currentTerm.termCode } }
+                            : { name: 'UnitList' }
+                    "
+                    class="leftNavLink"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Manage Units</q-item-label>
+                    </q-item-section>
+                </q-item>
+
                 <!-- Percent Admin Types - view-only list for admins -->
                 <q-item
                     v-if="isAdmin"
@@ -170,7 +187,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue"
 import { useRoute } from "vue-router"
-import { effortService } from "../services/effort-service"
+import { termService } from "../services/term-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import type { TermDto } from "../types"
 
@@ -182,6 +199,7 @@ const props = defineProps<{
 const route = useRoute()
 const {
     hasManageTerms,
+    hasManageUnits,
     hasViewAudit,
     hasImportCourse,
     hasEditCourse,
@@ -232,7 +250,7 @@ watch(localDrawerOpen, (newValue) => {
 // Load term when termCode changes in route
 async function loadCurrentTerm(termCode: number | null) {
     if (termCode) {
-        currentTerm.value = await effortService.getTerm(termCode)
+        currentTerm.value = await termService.getTerm(termCode)
     } else {
         // No term selected - don't show any term until user picks one
         currentTerm.value = null

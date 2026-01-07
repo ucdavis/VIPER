@@ -218,7 +218,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue"
-import { effortService } from "../services/effort-service"
+import { termService } from "../services/term-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import type { TermDto } from "../types"
@@ -257,7 +257,7 @@ const closedColumns: QTableColumn[] = [
 async function loadTerms() {
     isLoading.value = true
     try {
-        terms.value = await effortService.getTerms()
+        terms.value = await termService.getTerms()
     } finally {
         isLoading.value = false
     }

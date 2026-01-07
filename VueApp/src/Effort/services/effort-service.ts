@@ -1,7 +1,5 @@
 import { useFetch } from "@/composables/ViperFetch"
 import type {
-    TermDto,
-    AvailableTermDto,
     CourseDto,
     BannerCourseDto,
     CreateCourseRequest,
@@ -27,123 +25,11 @@ import type {
 const { get, post, put, del, patch } = useFetch()
 
 /**
- * Service for Effort API calls.
+ * Service for Effort API calls (Course, Instructor, EffortType operations).
+ * Term operations are in term-service.ts.
  */
 class EffortService {
     private baseUrl = `${import.meta.env.VITE_API_URL}effort`
-
-    private static extractErrorMessage(errors: unknown, fallback: string): string {
-        if (typeof errors === "string") {
-            return errors
-        }
-        if (Array.isArray(errors)) {
-            return errors.join(", ")
-        }
-        if (errors && typeof errors === "object") {
-            const values = Object.values(errors)
-            if (values.length > 0) {
-                return values.flat().join(", ")
-            }
-        }
-        return fallback
-    }
-
-    /**
-     * Get all terms with effort status.
-     */
-    async getTerms(): Promise<TermDto[]> {
-        const response = await get(`${this.baseUrl}/terms`)
-        if (!response.success || !Array.isArray(response.result)) {
-            return []
-        }
-        return response.result as TermDto[]
-    }
-
-    /**
-     * Get a specific term by term code.
-     */
-    async getTerm(termCode: number): Promise<TermDto | null> {
-        const response = await get(`${this.baseUrl}/terms/${termCode}`)
-        if (!response.success || !response.result) {
-            return null
-        }
-        return response.result as TermDto | null
-    }
-
-    /**
-     * Get the current open term.
-     */
-    async getCurrentTerm(): Promise<TermDto | null> {
-        const response = await get(`${this.baseUrl}/terms/current`)
-        if (!response.success || !response.result) {
-            return null
-        }
-        return response.result as TermDto | null
-    }
-
-    // Term Management Operations (require ManageTerms permission)
-
-    /**
-     * Create a new term.
-     */
-    async createTerm(termCode: number): Promise<TermDto> {
-        const response = await post(`${this.baseUrl}/terms`, { termCode })
-        return response.result as TermDto
-    }
-
-    /**
-     * Delete a term. Only succeeds if no related data exists.
-     */
-    async deleteTerm(termCode: number): Promise<boolean> {
-        const response = await del(`${this.baseUrl}/terms/${termCode}`)
-        return response.success
-    }
-
-    /**
-     * Open a term for effort entry.
-     */
-    async openTerm(termCode: number): Promise<TermDto | null> {
-        const response = await post(`${this.baseUrl}/terms/${termCode}/open`, {})
-        return response.result as TermDto | null
-    }
-
-    /**
-     * Close a term.
-     */
-    async closeTerm(termCode: number): Promise<{ success: boolean; error?: string }> {
-        const response = await post(`${this.baseUrl}/terms/${termCode}/close`, {})
-        if (!response.success) {
-            return { success: false, error: EffortService.extractErrorMessage(response.errors, "Failed to close term") }
-        }
-        return { success: true }
-    }
-
-    /**
-     * Reopen a closed term.
-     */
-    async reopenTerm(termCode: number): Promise<TermDto | null> {
-        const response = await post(`${this.baseUrl}/terms/${termCode}/reopen`, {})
-        return response.result as TermDto | null
-    }
-
-    /**
-     * Revert an open term to unopened state.
-     */
-    async unopenTerm(termCode: number): Promise<TermDto | null> {
-        const response = await post(`${this.baseUrl}/terms/${termCode}/unopen`, {})
-        return response.result as TermDto | null
-    }
-
-    /**
-     * Get future terms available to add to the Effort system.
-     */
-    async getAvailableTerms(): Promise<AvailableTermDto[]> {
-        const response = await get(`${this.baseUrl}/terms/available`)
-        if (!response.success || !Array.isArray(response.result)) {
-            return []
-        }
-        return response.result as AvailableTermDto[]
-    }
 
     // Course Operations
 
@@ -196,7 +82,7 @@ class EffortService {
 
         const response = await get(`${this.baseUrl}/courses/search?${params.toString()}`)
         if (!response.success || !Array.isArray(response.result)) {
-            throw new Error(EffortService.extractErrorMessage(response.errors, "Search failed"))
+            throw new Error(response.errors?.[0] ?? "Search failed")
         }
         return response.result as BannerCourseDto[]
     }
@@ -211,7 +97,7 @@ class EffortService {
         if (!response.success) {
             return {
                 success: false,
-                error: EffortService.extractErrorMessage(response.errors, "Failed to import course"),
+                error: response.errors?.[0] ?? "Failed to import course",
             }
         }
         return { success: true, course: response.result as CourseDto }
@@ -227,7 +113,7 @@ class EffortService {
         if (!response.success) {
             return {
                 success: false,
-                error: EffortService.extractErrorMessage(response.errors, "Failed to create course"),
+                error: response.errors?.[0] ?? "Failed to create course",
             }
         }
         return { success: true, course: response.result as CourseDto }
@@ -244,7 +130,7 @@ class EffortService {
         if (!response.success) {
             return {
                 success: false,
-                error: EffortService.extractErrorMessage(response.errors, "Failed to update course"),
+                error: response.errors?.[0] ?? "Failed to update course",
             }
         }
         return { success: true, course: response.result as CourseDto }
@@ -261,7 +147,7 @@ class EffortService {
         if (!response.success) {
             return {
                 success: false,
-                error: EffortService.extractErrorMessage(response.errors, "Failed to update enrollment"),
+                error: response.errors?.[0] ?? "Failed to update enrollment",
             }
         }
         return { success: true, course: response.result as CourseDto }
@@ -332,7 +218,7 @@ class EffortService {
         if (!response.success) {
             return {
                 success: false,
-                error: EffortService.extractErrorMessage(response.errors, "Failed to create relationship"),
+                error: response.errors?.[0] ?? "Failed to create relationship",
             }
         }
         return { success: true, relationship: response.result as CourseRelationshipDto }
@@ -399,7 +285,7 @@ class EffortService {
         if (!response.success) {
             return {
                 success: false,
-                error: EffortService.extractErrorMessage(response.errors, "Failed to add instructor"),
+                error: response.errors?.[0] ?? "Failed to add instructor",
             }
         }
         return { success: true, instructor: response.result as PersonDto }
@@ -417,7 +303,7 @@ class EffortService {
         if (!response.success) {
             return {
                 success: false,
-                error: EffortService.extractErrorMessage(response.errors, "Failed to update instructor"),
+                error: response.errors?.[0] ?? "Failed to update instructor",
             }
         }
         return { success: true, instructor: response.result as PersonDto }
