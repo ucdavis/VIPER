@@ -387,6 +387,7 @@ GO
 -- Table: Percentages
 -- Description: Administrative and clinical effort percentages by time period
 -- Legacy: tblPercentage (normalized structure)
+-- Note: UnitId replaces legacy varchar percent_Unit (shadow schema handles conversion)
 -- ----------------------------------------------------------------------------
 CREATE TABLE [effort].[Percentages] (
     Id int IDENTITY(1,1) NOT NULL,
