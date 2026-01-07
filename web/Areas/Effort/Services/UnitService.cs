@@ -179,7 +179,7 @@ public class UnitService : IUnitService
 
         if (await query.AnyAsync(ct))
         {
-            throw new InvalidOperationException($"A unit with name '{normalizedName}' already exists");
+            throw new InvalidOperationException($"A unit with name '{normalizedName}' already exists.");
         }
 
         return normalizedName;
