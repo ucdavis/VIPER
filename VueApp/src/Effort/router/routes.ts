@@ -61,6 +61,36 @@ const routes = [
         name: "CourseDetail",
     },
     {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/instructors`,
+        meta: {
+            layout: EffortLayout,
+            permissions: [
+                "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
+                "SVMSecure.Effort.ImportInstructor",
+                "SVMSecure.Effort.EditInstructor",
+                "SVMSecure.Effort.DeleteInstructor",
+            ],
+        },
+        component: () => import("@/Effort/pages/InstructorList.vue"),
+        name: "InstructorList",
+    },
+    {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/instructors/:personId(\\d+)`,
+        meta: {
+            layout: EffortLayout,
+            permissions: [
+                "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
+                "SVMSecure.Effort.ImportInstructor",
+                "SVMSecure.Effort.EditInstructor",
+                "SVMSecure.Effort.DeleteInstructor",
+            ],
+        },
+        component: () => import("@/Effort/pages/InstructorDetail.vue"),
+        name: "InstructorDetail",
+    },
+    {
         path: "/Effort/audit",
         meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAudit"] },
         component: () => import("@/Effort/pages/AuditList.vue"),

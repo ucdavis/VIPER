@@ -29,10 +29,12 @@ type PersonDto = {
     effortTitleCode: string
     effortDept: string
     percentAdmin: number
+    jobGroupId: string | null
     title: string | null
     adminUnit: string | null
     effortVerified: string | null
     reportUnit: string | null
+    volunteerWos: boolean
     percentClinical: number | null
     isVerified: boolean
 }
@@ -169,6 +171,76 @@ type CreateCourseRelationshipRequest = {
     relationshipType: "CrossList" | "Section"
 }
 
+// Instructor management types
+type AaudPersonDto = {
+    personId: number
+    firstName: string
+    lastName: string
+    middleInitial: string | null
+    fullName: string
+    effortDept: string | null
+    deptName: string | null
+    titleCode: string | null
+    title: string | null
+    jobGroupId: string | null
+}
+
+type CreateInstructorRequest = {
+    personId: number
+    termCode: number
+}
+
+type UpdateInstructorRequest = {
+    effortDept: string
+    effortTitleCode: string
+    jobGroupId: string | null
+    reportUnits: string[] | null
+    volunteerWos: boolean
+}
+
+type ReportUnitDto = {
+    abbrev: string
+    unit: string
+}
+
+type DepartmentDto = {
+    code: string
+    name: string
+    group: string
+}
+
+type CanDeleteResult = {
+    canDelete: boolean
+    recordCount: number
+}
+
+type InstructorEffortRecordDto = {
+    id: number
+    courseId: number
+    personId: number
+    termCode: number
+    sessionType: string
+    role: number
+    roleDescription: string
+    hours: number | null
+    weeks: number | null
+    crn: string
+    modifiedDate: string | null
+    effortValue: number | null
+    effortLabel: string
+    course: CourseDto
+}
+
+type TitleCodeDto = {
+    code: string
+    name: string
+}
+
+type JobGroupDto = {
+    code: string
+    name: string
+}
+
 export type {
     TermDto,
     PersonDto,
@@ -186,4 +258,13 @@ export type {
     CourseRelationshipDto,
     CourseRelationshipsResult,
     CreateCourseRelationshipRequest,
+    AaudPersonDto,
+    CreateInstructorRequest,
+    UpdateInstructorRequest,
+    ReportUnitDto,
+    DepartmentDto,
+    CanDeleteResult,
+    InstructorEffortRecordDto,
+    TitleCodeDto,
+    JobGroupDto,
 }
