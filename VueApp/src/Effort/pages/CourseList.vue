@@ -104,8 +104,14 @@
             <template #body-cell-courseCode="props">
                 <q-td :props="props">
                     <div>
-                        <span class="text-weight-medium">{{ props.row.courseCode }}</span
-                        ><span class="text-grey-7">-{{ props.row.seqNumb }}</span>
+                        <router-link
+                            :to="{
+                                name: 'CourseDetail',
+                                params: { termCode: selectedTermCode, courseId: props.row.id },
+                            }"
+                            class="text-weight-medium text-primary"
+                            >{{ props.row.courseCode }}-{{ props.row.seqNumb }}</router-link
+                        >
                     </div>
                     <div class="text-caption text-grey-7 lt-sm">
                         {{ props.row.enrollment }} enrolled &bull; {{ props.row.units }} units
@@ -114,6 +120,18 @@
             </template>
             <template #body-cell-actions="props">
                 <q-td :props="props">
+                    <q-btn
+                        v-if="hasLinkCourses && !props.row.parentCourseId"
+                        icon="link"
+                        color="secondary"
+                        dense
+                        flat
+                        round
+                        size="sm"
+                        @click="openLinkDialog(props.row)"
+                    >
+                        <q-tooltip>Link courses</q-tooltip>
+                    </q-btn>
                     <q-btn
                         v-if="canEditCourse(props.row)"
                         icon="edit"
@@ -175,6 +193,13 @@
             :departments="departments"
             @created="onCourseCreated"
         />
+
+        <!-- Link Dialog -->
+        <CourseLinkDialog
+            v-model="showLinkDialog"
+            :course="selectedCourse"
+            @updated="onRelationshipsUpdated"
+        />
     </div>
 </template>
 
@@ -189,11 +214,13 @@ import type { QTableColumn } from "quasar"
 import CourseImportDialog from "../components/CourseImportDialog.vue"
 import CourseEditDialog from "../components/CourseEditDialog.vue"
 import CourseAddDialog from "../components/CourseAddDialog.vue"
+import CourseLinkDialog from "../components/CourseLinkDialog.vue"
 
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
-const { hasImportCourse, hasEditCourse, hasDeleteCourse, hasManageRCourseEnrollment, isAdmin } = useEffortPermissions()
+const { hasImportCourse, hasEditCourse, hasDeleteCourse, hasManageRCourseEnrollment, hasLinkCourses, isAdmin } =
+    useEffortPermissions()
 
 // State
 const terms = ref<TermDto[]>([])
@@ -209,6 +236,7 @@ const pagination = ref({ rowsPerPage: 50 })
 const showImportDialog = ref(false)
 const showEditDialog = ref(false)
 const showAddDialog = ref(false)
+const showLinkDialog = ref(false)
 const selectedCourse = ref<CourseDto | null>(null)
 const editEnrollmentOnly = ref(false)
 
@@ -353,6 +381,11 @@ function openEditDialog(course: CourseDto) {
     showEditDialog.value = true
 }
 
+function openLinkDialog(course: CourseDto) {
+    selectedCourse.value = course
+    showLinkDialog.value = true
+}
+
 function confirmDeleteCourse(course: CourseDto) {
     $q.dialog({
         title: "Delete Course",
@@ -397,6 +430,11 @@ function onCourseUpdated() {
 
 function onCourseCreated() {
     $q.notify({ type: "positive", message: "Course created successfully" })
+    loadCourses()
+}
+
+function onRelationshipsUpdated() {
+    // Reload courses so ParentCourseId changes are reflected (affects link button visibility)
     loadCourses()
 }
 

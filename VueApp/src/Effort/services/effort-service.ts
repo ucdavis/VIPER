@@ -7,6 +7,9 @@ import type {
     CreateCourseRequest,
     UpdateCourseRequest,
     ImportCourseRequest,
+    CourseRelationshipDto,
+    CourseRelationshipsResult,
+    CreateCourseRelationshipRequest,
 } from "../types"
 
 const { get, post, put, del, patch } = useFetch()
@@ -280,6 +283,55 @@ class EffortService {
             return []
         }
         return response.result as string[]
+    }
+
+    // Course Relationship Operations
+
+    /**
+     * Get all relationships for a course (both as parent and child).
+     */
+    async getCourseRelationships(courseId: number): Promise<CourseRelationshipsResult> {
+        const response = await get(`${this.baseUrl}/courses/${courseId}/relationships`)
+        if (!response.success || !response.result) {
+            return { parentRelationship: null, childRelationships: [] }
+        }
+        return response.result as CourseRelationshipsResult
+    }
+
+    /**
+     * Get courses available to be linked as children of a parent course.
+     */
+    async getAvailableChildCourses(parentCourseId: number): Promise<CourseDto[]> {
+        const response = await get(`${this.baseUrl}/courses/${parentCourseId}/relationships/available-children`)
+        if (!response.success || !Array.isArray(response.result)) {
+            return []
+        }
+        return response.result as CourseDto[]
+    }
+
+    /**
+     * Create a course relationship.
+     */
+    async createCourseRelationship(
+        parentCourseId: number,
+        request: CreateCourseRelationshipRequest,
+    ): Promise<{ success: boolean; relationship?: CourseRelationshipDto; error?: string }> {
+        const response = await post(`${this.baseUrl}/courses/${parentCourseId}/relationships`, request)
+        if (!response.success) {
+            return {
+                success: false,
+                error: EffortService.extractErrorMessage(response.errors, "Failed to create relationship"),
+            }
+        }
+        return { success: true, relationship: response.result as CourseRelationshipDto }
+    }
+
+    /**
+     * Delete a course relationship.
+     */
+    async deleteCourseRelationship(parentCourseId: number, relationshipId: number): Promise<boolean> {
+        const response = await del(`${this.baseUrl}/courses/${parentCourseId}/relationships/${relationshipId}`)
+        return response.success
     }
 }
 

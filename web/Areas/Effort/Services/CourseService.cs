@@ -61,13 +61,19 @@ public class CourseService : ICourseService
             query = query.Where(c => c.CustDept == department);
         }
 
+        // Get parent course IDs for child courses in this term only
+        var childToParentMap = await _context.CourseRelationships
+            .AsNoTracking()
+            .Where(r => _context.Courses.Any(c => c.Id == r.ParentCourseId && c.TermCode == termCode))
+            .ToDictionaryAsync(r => r.ChildCourseId, r => r.ParentCourseId, ct);
+
         var courses = await query
             .OrderBy(c => c.SubjCode)
             .ThenBy(c => c.CrseNumb)
             .ThenBy(c => c.SeqNumb)
             .ToListAsync(ct);
 
-        return courses.Select(ToDto).ToList();
+        return courses.Select(c => ToDto(c, childToParentMap.GetValueOrDefault(c.Id))).ToList();
     }
 
     public async Task<CourseDto?> GetCourseAsync(int courseId, CancellationToken ct = default)
@@ -76,7 +82,16 @@ public class CourseService : ICourseService
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == courseId, ct);
 
-        return course == null ? null : ToDto(course);
+        if (course == null) return null;
+
+        // Check if this course is a child in any relationship
+        var parentCourseId = await _context.CourseRelationships
+            .AsNoTracking()
+            .Where(r => r.ChildCourseId == courseId)
+            .Select(r => (int?)r.ParentCourseId)
+            .FirstOrDefaultAsync(ct);
+
+        return ToDto(course, parentCourseId);
     }
 
     public async Task<List<BannerCourseDto>> SearchBannerCoursesAsync(int termCode, string? subjCode = null,
@@ -435,7 +450,7 @@ public class CourseService : ICourseService
         return "UNK";
     }
 
-    private static CourseDto ToDto(EffortCourse course)
+    private static CourseDto ToDto(EffortCourse course, int? parentCourseId = null)
     {
         return new CourseDto
         {
@@ -447,7 +462,8 @@ public class CourseService : ICourseService
             SeqNumb = course.SeqNumb.Trim(),
             Enrollment = course.Enrollment,
             Units = course.Units,
-            CustDept = course.CustDept.Trim()
+            CustDept = course.CustDept.Trim(),
+            ParentCourseId = parentCourseId
         };
     }
 }

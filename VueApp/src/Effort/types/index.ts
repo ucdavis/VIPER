@@ -48,6 +48,8 @@ type CourseDto = {
     enrollment: number
     units: number
     custDept: string
+    /** Parent course ID if this course is linked as a child. Null/undefined if not a child. */
+    parentCourseId?: number | null
 }
 
 type RecordDto = {
@@ -147,6 +149,26 @@ type ImportCourseRequest = {
     units?: number // For variable-unit courses
 }
 
+// Course relationship types
+type CourseRelationshipDto = {
+    id: number
+    parentCourseId: number
+    childCourseId: number
+    relationshipType: "CrossList" | "Section"
+    childCourse?: CourseDto
+    parentCourse?: CourseDto
+}
+
+type CourseRelationshipsResult = {
+    parentRelationship: CourseRelationshipDto | null
+    childRelationships: CourseRelationshipDto[]
+}
+
+type CreateCourseRelationshipRequest = {
+    childCourseId: number
+    relationshipType: "CrossList" | "Section"
+}
+
 export type {
     TermDto,
     PersonDto,
@@ -161,4 +183,7 @@ export type {
     CreateCourseRequest,
     UpdateCourseRequest,
     ImportCourseRequest,
+    CourseRelationshipDto,
+    CourseRelationshipsResult,
+    CreateCourseRelationshipRequest,
 }
