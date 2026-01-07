@@ -1177,9 +1177,8 @@ namespace Viper.Areas.Effort.Scripts
                 ),
                 i.percent_Percent,
                 i.percent_TypeID,
-                -- Convert varchar percent_Unit to int UnitId (legacy ColdFusion passes IDs as strings)
-                -- Empty/whitespace → NULL; invalid non-numeric values fail loudly to catch data issues
-                CAST(NULLIF(LTRIM(RTRIM(i.percent_Unit)), '') AS int),
+                -- Convert varchar to int; empty/invalid → NULL
+                TRY_CAST(NULLIF(LTRIM(RTRIM(i.percent_Unit)), '') AS int),
                 i.percent_Modifier,
                 i.percent_Comment,
                 COALESCE(i.percent_start,
@@ -1227,9 +1226,8 @@ namespace Viper.Areas.Effort.Scripts
                 ),
                 pct.Percentage = i.percent_Percent,
                 pct.EffortTypeId = i.percent_TypeID,
-                -- Convert varchar percent_Unit to int UnitId (legacy ColdFusion passes IDs as strings)
-                -- Empty/whitespace → NULL; invalid non-numeric values fail loudly to catch data issues
-                pct.UnitId = CAST(NULLIF(LTRIM(RTRIM(i.percent_Unit)), '') AS int),
+                -- Convert varchar to int; empty/invalid → NULL
+                pct.UnitId = TRY_CAST(NULLIF(LTRIM(RTRIM(i.percent_Unit)), '') AS int),
                 pct.Modifier = i.percent_Modifier,
                 pct.Comment = i.percent_Comment,
                 pct.StartDate = i.percent_start,
