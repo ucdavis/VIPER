@@ -69,21 +69,7 @@ public class UnitService : IUnitService
 
     public async Task<UnitDto> CreateUnitAsync(CreateUnitRequest request, CancellationToken ct = default)
     {
-        // Normalize and validate name
-        var normalizedName = request.Name.Trim();
-        if (string.IsNullOrWhiteSpace(normalizedName))
-        {
-            throw new InvalidOperationException("Unit name is required.");
-        }
-
-        // Check for duplicate name
-        var existingUnit = await _context.Units
-            .FirstOrDefaultAsync(u => u.Name == normalizedName, ct);
-
-        if (existingUnit != null)
-        {
-            throw new InvalidOperationException($"A unit with name '{normalizedName}' already exists");
-        }
+        var normalizedName = await ValidateAndNormalizeNameAsync(request.Name, ct: ct);
 
         var unit = new Unit
         {
@@ -112,21 +98,7 @@ public class UnitService : IUnitService
         var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == id, ct);
         if (unit == null) return null;
 
-        // Normalize and validate name
-        var normalizedName = request.Name.Trim();
-        if (string.IsNullOrWhiteSpace(normalizedName))
-        {
-            throw new InvalidOperationException("Unit name is required.");
-        }
-
-        // Check for duplicate name (excluding current unit)
-        var existingUnit = await _context.Units
-            .FirstOrDefaultAsync(u => u.Name == normalizedName && u.Id != id, ct);
-
-        if (existingUnit != null)
-        {
-            throw new InvalidOperationException($"A unit with name '{normalizedName}' already exists");
-        }
+        var normalizedName = await ValidateAndNormalizeNameAsync(request.Name, excludeId: id, ct: ct);
 
         var oldState = new { unit.Name, unit.IsActive };
 
@@ -178,5 +150,35 @@ public class UnitService : IUnitService
     {
         return await _context.Percentages
             .CountAsync(p => p.UnitId == id, ct);
+    }
+
+    /// <summary>
+    /// Validates and normalizes a unit name, checking for duplicates.
+    /// </summary>
+    /// <param name="name">The name to validate.</param>
+    /// <param name="excludeId">Optional unit ID to exclude from duplicate check (for updates).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The normalized (trimmed) name.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if name is empty or a duplicate exists.</exception>
+    private async Task<string> ValidateAndNormalizeNameAsync(string name, int? excludeId = null, CancellationToken ct = default)
+    {
+        var normalizedName = name.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            throw new InvalidOperationException("Unit name is required.");
+        }
+
+        var query = _context.Units.Where(u => u.Name.ToLower() == normalizedName.ToLower());
+        if (excludeId.HasValue)
+        {
+            query = query.Where(u => u.Id != excludeId.Value);
+        }
+
+        if (await query.AnyAsync(ct))
+        {
+            throw new InvalidOperationException($"A unit with name '{normalizedName}' already exists");
+        }
+
+        return normalizedName;
     }
 }
