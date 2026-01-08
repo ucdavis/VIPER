@@ -312,7 +312,7 @@ const columns = computed<QTableColumn[]>(() => [
     },
     {
         name: "actions",
-        label: "",
+        label: "Actions",
         field: "actions",
         align: "center",
     },

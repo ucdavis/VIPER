@@ -95,6 +95,23 @@
                     </q-item-section>
                 </q-item>
 
+                <!-- Manage Session Types - only for ManageSessionTypes users -->
+                <q-item
+                    v-if="hasManageSessionTypes"
+                    clickable
+                    v-ripple
+                    :to="
+                        currentTerm
+                            ? { name: 'SessionTypeListWithTerm', params: { termCode: currentTerm.termCode } }
+                            : { name: 'SessionTypeList' }
+                    "
+                    class="leftNavLink"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Manage Session Types</q-item-label>
+                    </q-item-section>
+                </q-item>
+
                 <!-- Percent Admin Types - view-only list for admins -->
                 <q-item
                     v-if="isAdmin"
@@ -200,6 +217,7 @@ const route = useRoute()
 const {
     hasManageTerms,
     hasManageUnits,
+    hasManageSessionTypes,
     hasViewAudit,
     hasImportCourse,
     hasEditCourse,

@@ -8,6 +8,7 @@
                 color="primary"
                 icon="add"
                 dense
+                padding="xs sm xs xs"
                 @click="showAddDialog = true"
             />
         </div>
@@ -34,12 +35,13 @@
                 <template #body-cell-name="props">
                     <q-td :props="props">
                         <template v-if="editingId === props.row.id">
-                            <div class="row items-center no-wrap q-gutter-sm">
+                            <div class="row no-wrap q-gutter-sm">
                                 <q-input
                                     v-model="editName"
                                     dense
                                     outlined
                                     maxlength="20"
+                                    hide-bottom-space
                                     style="min-width: 150px"
                                     :error="!!editError"
                                     :error-message="editError"
@@ -138,15 +140,6 @@
             >
                 No units found.
             </div>
-
-            <div class="q-mt-lg">
-                <router-link
-                    :to="backLink"
-                    class="text-primary"
-                >
-                    Back
-                </router-link>
-            </div>
         </template>
 
         <!-- Add Unit Dialog -->
@@ -155,15 +148,24 @@
             persistent
         >
             <q-card style="min-width: 350px">
-                <q-card-section>
+                <q-card-section class="row items-center q-pb-none">
                     <div class="text-h6">Add New Unit</div>
+                    <q-space />
+                    <q-btn
+                        v-close-popup
+                        icon="close"
+                        flat
+                        round
+                        dense
+                        aria-label="Close add unit dialog"
+                    />
                 </q-card-section>
 
                 <q-card-section class="q-pt-none">
                     <q-input
                         ref="newUnitInput"
                         v-model="newUnitName"
-                        label="Unit Name"
+                        label="Unit Name *"
                         dense
                         outlined
                         maxlength="20"
@@ -184,7 +186,6 @@
                         label="Add"
                         color="primary"
                         dense
-                        :disable="!newUnitName.trim()"
                         :loading="isAdding"
                         @click="addUnit"
                     />
@@ -195,24 +196,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from "vue"
+import { ref, onMounted, watch, nextTick } from "vue"
 import { useQuasar } from "quasar"
-import { useRoute } from "vue-router"
 import { unitService } from "../services/unit-service"
 import type { UnitDto } from "../types"
 import type { QTableColumn, QInput } from "quasar"
 
 const $q = useQuasar()
-const route = useRoute()
-
-// Get termCode from route params to maintain context
-const currentTermCode = computed(() => {
-    const parsed = route.params.termCode ? parseInt(route.params.termCode as string, 10) : null
-    return Number.isFinite(parsed) ? parsed : null
-})
-
-// Build back link
-const backLink = computed(() => (currentTermCode.value ? `/Effort/${currentTermCode.value}` : "/Effort/terms"))
 
 // State
 const units = ref<UnitDto[]>([])
@@ -267,9 +257,14 @@ function closeAddDialog() {
 }
 
 async function addUnit() {
-    if (!newUnitName.value.trim()) return
-
     newUnitError.value = ""
+
+    // Validate required field
+    if (!newUnitName.value.trim()) {
+        newUnitError.value = "Unit name is required"
+        return
+    }
+
     isAdding.value = true
 
     try {

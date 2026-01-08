@@ -127,6 +127,18 @@ const routes = [
         name: "UnitListWithTerm",
     },
     {
+        path: "/Effort/session-types",
+        meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ManageSessionTypes"] },
+        component: () => import("@/Effort/pages/SessionTypeList.vue"),
+        name: "SessionTypeList",
+    },
+    {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/session-types`,
+        meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ManageSessionTypes"] },
+        component: () => import("@/Effort/pages/SessionTypeList.vue"),
+        name: "SessionTypeListWithTerm",
+    },
+    {
         path: "/Effort/audit",
         meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAudit"] },
         component: () => import("@/Effort/pages/AuditList.vue"),
