@@ -10,10 +10,9 @@
 // 3. AddSessionTypeFlags - Add FacultyCanEnter, AllowedOnDvm, AllowedOn199299, AllowedOnRCourses columns
 // ============================================
 // USAGE:
-// dotnet run -- effort-post-deployment              (dry-run mode - shows what would be changed)
-// dotnet run -- effort-post-deployment --apply      (actually apply changes)
-// dotnet run -- effort-post-deployment --force      (force recreate permission even if it exists)
-// dotnet run -- effort-post-deployment --task <name> (run only specific task)
+// dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
+// dotnet run -- post-deployment --apply      (actually apply changes)
+// dotnet run -- post-deployment --force      (force recreate permission even if it exists)
 // Set environment: $env:ASPNETCORE_ENVIRONMENT="Test" (PowerShell) or set ASPNETCORE_ENVIRONMENT=Test (CMD)
 // ============================================
 
@@ -39,7 +38,6 @@ namespace Viper.Areas.Effort.Scripts
             // Parse command-line arguments
             bool executeMode = Array.Exists(args, arg => arg.Equals("--apply", StringComparison.OrdinalIgnoreCase));
             bool forceMode = Array.Exists(args, arg => arg.Equals("--force", StringComparison.OrdinalIgnoreCase));
-            string? taskFilter = GetArgValue(args, "--task");
 
             Console.WriteLine("============================================");
             Console.WriteLine("Effort Post-Deployment Script");
@@ -54,7 +52,6 @@ namespace Viper.Areas.Effort.Scripts
             var taskResults = new Dictionary<string, (bool Success, string Message)>();
 
             // Task 1: Units Migration
-            if (taskFilter == null || taskFilter.Equals("units-migration", StringComparison.OrdinalIgnoreCase))
             {
                 Console.WriteLine("----------------------------------------");
                 Console.WriteLine("Task 1: Units Migration");
@@ -72,7 +69,6 @@ namespace Viper.Areas.Effort.Scripts
             }
 
             // Task 2: Add ManageSessionTypes permission to RAPS
-            if (taskFilter == null || taskFilter.Equals("manage-session-types-permission", StringComparison.OrdinalIgnoreCase))
             {
                 Console.WriteLine("----------------------------------------");
                 Console.WriteLine("Task 2: Add ManageSessionTypes Permission to RAPS");
@@ -90,7 +86,6 @@ namespace Viper.Areas.Effort.Scripts
             }
 
             // Task 3: Add SessionType flag columns
-            if (taskFilter == null || taskFilter.Equals("session-type-flags", StringComparison.OrdinalIgnoreCase))
             {
                 Console.WriteLine("----------------------------------------");
                 Console.WriteLine("Task 3: Add SessionType Flag Columns");
@@ -145,18 +140,6 @@ namespace Viper.Areas.Effort.Scripts
             return overallResult;
         }
 
-        private static string? GetArgValue(string[] args, string argName)
-        {
-            for (int i = 0; i < args.Length - 1; i++)
-            {
-                if (args[i].Equals(argName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return args[i + 1];
-                }
-            }
-            return null;
-        }
-
         #region Task 3: Add SessionType Flag Columns
 
         private static (bool Success, string Message) RunAddSessionTypeFlagsTask(string connectionString, bool executeMode)
@@ -205,12 +188,19 @@ namespace Viper.Areas.Effort.Scripts
 
                 return (true, $"Added {missingColumns.Count} columns: {string.Join(", ", missingColumns)}");
             }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
             catch (Exception ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"ERROR: {ex.Message}");
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
                 Console.ResetColor();
-                return (false, $"Error: {ex.Message}");
+                return (false, $"Unexpected error: {ex.Message}");
             }
         }
 
@@ -365,21 +355,28 @@ namespace Viper.Areas.Effort.Scripts
 
                     return (true, $"Created permission (ID={newPermissionId}) with {roleCount} role mappings and {memberCount} member mappings");
                 }
-                catch (Exception ex)
+                catch (SqlException ex)
                 {
                     transaction.Rollback();
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"ERROR: Transaction rolled back. {ex.Message}");
+                    Console.WriteLine($"DATABASE ERROR: Transaction rolled back. {ex.Message}");
                     Console.ResetColor();
-                    return (false, $"Error: {ex.Message}");
+                    return (false, $"Database error: {ex.Message}");
                 }
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
             }
             catch (Exception ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"ERROR: {ex.Message}");
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
                 Console.ResetColor();
-                return (false, $"Error: {ex.Message}");
+                return (false, $"Unexpected error: {ex.Message}");
             }
         }
 
@@ -807,22 +804,29 @@ namespace Viper.Areas.Effort.Scripts
                             : $"Verified {completedSteps.Count} migration steps (rolled back)");
                     }
                 }
-                catch (Exception ex)
+                catch (SqlException ex)
                 {
                     transaction.Rollback();
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"ERROR: {ex.Message}");
+                    Console.WriteLine($"DATABASE ERROR: {ex.Message}");
                     Console.WriteLine("  ↶ Transaction rolled back");
                     Console.ResetColor();
-                    return (false, $"Error: {ex.Message}");
+                    return (false, $"Database error: {ex.Message}");
                 }
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
             }
             catch (Exception ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"ERROR: {ex.Message}");
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
                 Console.ResetColor();
-                return (false, $"Error: {ex.Message}");
+                return (false, $"Unexpected error: {ex.Message}");
             }
         }
 

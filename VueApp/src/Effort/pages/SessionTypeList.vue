@@ -8,7 +8,7 @@
                 color="primary"
                 icon="add"
                 dense
-                padding="xs sm xs xs"
+                padding="xs sm"
                 @click="showAddDialog = true"
             />
         </div>
