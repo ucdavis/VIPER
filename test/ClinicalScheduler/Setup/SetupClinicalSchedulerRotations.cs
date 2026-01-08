@@ -10,8 +10,8 @@ namespace Viper.test.ClinicalScheduler.Setup
     /// </summary>
     internal static class SetupClinicalSchedulerRotations
     {
-        private static readonly int TestYear = DateTime.UtcNow.Year;
-        private static readonly int TestTermCode = TestYear * 100 + 1;
+        private static readonly int TestYear = ClinicalSchedulerTestBase.TestYear;
+        private static readonly int TestTermCode = ClinicalSchedulerTestBase.TestTermCode;
 
         private static readonly Service CardiologyService = new()
         {
