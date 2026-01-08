@@ -37,6 +37,9 @@ namespace Viper.test.ClinicalScheduler
         public const string CardiologyEditPermission = "SVMSecure.ClnSched.Edit.Cardio";
         public const string InternalMedicineEditPermission = "SVMSecure.ClnSched.Edit.IM";
 
+        public static readonly int TestYear = DateTime.UtcNow.Year;
+        public static readonly int TestTermCode = TestYear * 100 + 1;
+
         // Shared test infrastructure
         protected readonly Mock<ClinicalSchedulerContext> MockContext;
         protected readonly ClinicalSchedulerContext Context; // For compatibility with existing tests
@@ -71,47 +74,46 @@ namespace Viper.test.ClinicalScheduler
             SetupScheduleAudits();
         }
 
-        /// <summary>
-        /// Sets up weeks mock DbSet
-        /// </summary>
         private void SetupWeeks()
         {
+            var baseDate = new DateTime(TestYear, 6, 1);
+
             var weeks = new List<Week>
             {
                 new Week
                 {
                     WeekId = 1,
-                    DateStart = DateTime.UtcNow.AddDays(-7),
-                    DateEnd = DateTime.UtcNow.AddDays(-1),
-                    TermCode = 202501
+                    DateStart = baseDate,
+                    DateEnd = baseDate.AddDays(6),
+                    TermCode = TestTermCode
                 },
                 new Week
                 {
                     WeekId = 2,
-                    DateStart = DateTime.UtcNow.AddDays(0),
-                    DateEnd = DateTime.UtcNow.AddDays(6),
-                    TermCode = 202501
+                    DateStart = baseDate.AddDays(7),
+                    DateEnd = baseDate.AddDays(13),
+                    TermCode = TestTermCode
                 },
                 new Week
                 {
                     WeekId = 10,
-                    DateStart = DateTime.UtcNow.AddDays(63),
-                    DateEnd = DateTime.UtcNow.AddDays(69),
-                    TermCode = 202501
+                    DateStart = baseDate.AddDays(63),
+                    DateEnd = baseDate.AddDays(69),
+                    TermCode = TestTermCode
                 },
                 new Week
                 {
                     WeekId = 15,
-                    DateStart = DateTime.UtcNow.AddDays(98),
-                    DateEnd = DateTime.UtcNow.AddDays(104),
-                    TermCode = 202501
+                    DateStart = baseDate.AddDays(98),
+                    DateEnd = baseDate.AddDays(104),
+                    TermCode = TestTermCode
                 },
                 new Week
                 {
                     WeekId = 20,
-                    DateStart = DateTime.UtcNow.AddDays(133),
-                    DateEnd = DateTime.UtcNow.AddDays(139),
-                    TermCode = 202501
+                    DateStart = baseDate.AddDays(133),
+                    DateEnd = baseDate.AddDays(139),
+                    TermCode = TestTermCode
                 }
             };
 
