@@ -78,6 +78,23 @@
                     </q-item-section>
                 </q-item>
 
+                <!-- Percent Admin Types - view-only list for admins -->
+                <q-item
+                    v-if="isAdmin"
+                    clickable
+                    v-ripple
+                    :to="
+                        currentTerm
+                            ? { name: 'EffortTypeListWithTerm', params: { termCode: currentTerm.termCode } }
+                            : { name: 'EffortTypeList' }
+                    "
+                    class="leftNavLink"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Percent Admin Types</q-item-label>
+                    </q-item-section>
+                </q-item>
+
                 <!-- Courses - for users with course permissions -->
                 <q-item
                     v-if="canViewCourses && currentTerm"
