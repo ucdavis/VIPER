@@ -107,22 +107,22 @@ namespace Viper.test.ClinicalScheduler
 
         private void SetupMockWeekService()
         {
-            // Setup mock weeks for testing GetRotationSchedule
+            var baseDate = new DateTime(TestYear, 6, 1);
             var mockWeeks = new List<Viper.Areas.ClinicalScheduler.Models.DTOs.Responses.WeekDto>
             {
                 new Viper.Areas.ClinicalScheduler.Models.DTOs.Responses.WeekDto
                 {
                     WeekId = 1,
-                    DateStart = DateTime.UtcNow.AddDays(-7),
-                    DateEnd = DateTime.UtcNow.AddDays(-1),
-                    TermCode = 202601
+                    DateStart = baseDate,
+                    DateEnd = baseDate.AddDays(6),
+                    TermCode = TestTermCode
                 },
                 new Viper.Areas.ClinicalScheduler.Models.DTOs.Responses.WeekDto
                 {
                     WeekId = 2,
-                    DateStart = DateTime.UtcNow.AddDays(0),
-                    DateEnd = DateTime.UtcNow.AddDays(6),
-                    TermCode = 202601
+                    DateStart = baseDate.AddDays(7),
+                    DateEnd = baseDate.AddDays(13),
+                    TermCode = TestTermCode
                 }
             };
 
@@ -132,9 +132,8 @@ namespace Viper.test.ClinicalScheduler
 
         private void SetupMockGradYearService()
         {
-            // Setup mock to return target year for GetTargetYearAsync
             _mockGradYearService.Setup(s => s.GetCurrentGradYearAsync())
-                .ReturnsAsync(2026);
+                .ReturnsAsync(TestYear);
         }
 
         private void SetupMockPermissions(bool hasFullPermissions = false, int? allowedServiceId = null)
@@ -259,7 +258,7 @@ namespace Viper.test.ClinicalScheduler
             RecreateController();
 
             // Act: Try to access cardiology rotation schedule without permission
-            var result = await _controller.GetRotationSchedule(CardiologyRotationId, 2026);
+            var result = await _controller.GetRotationSchedule(CardiologyRotationId, TestYear);
 
             // Assert: Should return 403 Forbidden
             Assert.IsType<ForbidResult>(result.Result);
@@ -277,7 +276,7 @@ namespace Viper.test.ClinicalScheduler
             RecreateController();
 
             // Act: Try to access surgery rotation schedule without permission
-            var result = await _controller.GetRotationSchedule(SurgeryRotationId, 2026);
+            var result = await _controller.GetRotationSchedule(SurgeryRotationId, TestYear);
 
             // Assert: Should return 403 Forbidden
             Assert.IsType<ForbidResult>(result.Result);
@@ -343,7 +342,7 @@ namespace Viper.test.ClinicalScheduler
             RecreateController();
 
             // Act: Access rotations with scheduled weeks without permissions
-            var result = await _controller.GetRotationsWithScheduledWeeks(2026);
+            var result = await _controller.GetRotationsWithScheduledWeeks(TestYear);
 
             // Assert: Should return empty list (this method already has permission filtering)
             var rotations = ExtractRotationsFromResult(result);
@@ -358,7 +357,7 @@ namespace Viper.test.ClinicalScheduler
             RecreateController();
 
             // Act: Access rotations with scheduled weeks with partial permissions
-            var result = await _controller.GetRotationsWithScheduledWeeks(2026);
+            var result = await _controller.GetRotationsWithScheduledWeeks(TestYear);
 
             // Assert: Should return only permitted rotations
             Assert.IsType<OkObjectResult>(result.Result);
@@ -372,7 +371,7 @@ namespace Viper.test.ClinicalScheduler
             RecreateController();
 
             // Act: Access rotations with scheduled weeks with full permissions
-            var result = await _controller.GetRotationsWithScheduledWeeks(2026);
+            var result = await _controller.GetRotationsWithScheduledWeeks(TestYear);
 
             // Assert: Should return all rotations with scheduled weeks
             Assert.IsType<OkObjectResult>(result.Result);

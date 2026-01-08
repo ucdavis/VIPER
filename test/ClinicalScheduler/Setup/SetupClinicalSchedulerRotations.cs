@@ -10,6 +10,30 @@ namespace Viper.test.ClinicalScheduler.Setup
     /// </summary>
     internal static class SetupClinicalSchedulerRotations
     {
+        private static readonly int TestYear = ClinicalSchedulerTestBase.TestYear;
+        private static readonly int TestTermCode = ClinicalSchedulerTestBase.TestTermCode;
+
+        private static readonly Service CardiologyService = new()
+        {
+            ServiceId = 1,
+            ServiceName = "Cardiology",
+            ShortName = "Cardio"
+        };
+
+        private static readonly Service SurgeryService = new()
+        {
+            ServiceId = 2,
+            ServiceName = "Surgery",
+            ShortName = "Surg"
+        };
+
+        private static readonly Service InternalMedicineService = new()
+        {
+            ServiceId = 3,
+            ServiceName = "Internal Medicine",
+            ShortName = "IM"
+        };
+
         public static readonly List<Rotation> TestRotations = new()
         {
             new Rotation
@@ -17,75 +41,86 @@ namespace Viper.test.ClinicalScheduler.Setup
                 RotId = 1,
                 ServiceId = 1,
                 Name = "Cardiology Rotation",
-                Abbreviation = "CARD"
+                Abbreviation = "CARD",
+                Service = CardiologyService
             },
             new Rotation
             {
                 RotId = 2,
                 ServiceId = 2,
                 Name = "Surgery Rotation",
-                Abbreviation = "SURG"
+                Abbreviation = "SURG",
+                Service = SurgeryService
             },
             new Rotation
             {
                 RotId = 3,
                 ServiceId = 3,
                 Name = "Internal Medicine Rotation",
-                Abbreviation = "IM"
+                Abbreviation = "IM",
+                Service = InternalMedicineService
             }
         };
 
-        public static readonly List<WeekGradYear> TestWeekGradYears = new()
+        public static List<WeekGradYear> TestWeekGradYears => GetTestWeekGradYearsInternal();
+
+        private static List<WeekGradYear> GetTestWeekGradYearsInternal()
         {
-            new WeekGradYear
+            var baseDate = new DateTime(TestYear, 6, 1);
+            var prevYearBaseDate = new DateTime(TestYear - 1, 6, 1);
+
+            return new List<WeekGradYear>
             {
-                WeekId = 1,
-                GradYear = 2024,
-                Week = new Week
+                new WeekGradYear
                 {
                     WeekId = 1,
-                    DateStart = DateTime.UtcNow.AddDays(-70),
-                    DateEnd = DateTime.UtcNow.AddDays(-64),
-                    TermCode = 202401
-                }
-            },
-            new WeekGradYear
-            {
-                WeekId = 2,
-                GradYear = 2024,
-                Week = new Week
+                    GradYear = TestYear - 1,
+                    Week = new Week
+                    {
+                        WeekId = 1,
+                        DateStart = prevYearBaseDate,
+                        DateEnd = prevYearBaseDate.AddDays(6),
+                        TermCode = (TestYear - 1) * 100 + 1
+                    }
+                },
+                new WeekGradYear
                 {
                     WeekId = 2,
-                    DateStart = DateTime.UtcNow.AddDays(-63),
-                    DateEnd = DateTime.UtcNow.AddDays(-57),
-                    TermCode = 202401
-                }
-            },
-            new WeekGradYear
-            {
-                WeekId = 1,
-                GradYear = 2025,
-                Week = new Week
+                    GradYear = TestYear - 1,
+                    Week = new Week
+                    {
+                        WeekId = 2,
+                        DateStart = prevYearBaseDate.AddDays(7),
+                        DateEnd = prevYearBaseDate.AddDays(13),
+                        TermCode = (TestYear - 1) * 100 + 1
+                    }
+                },
+                new WeekGradYear
                 {
                     WeekId = 1,
-                    DateStart = DateTime.UtcNow.AddDays(-7),
-                    DateEnd = DateTime.UtcNow.AddDays(-1),
-                    TermCode = 202501
-                }
-            },
-            new WeekGradYear
-            {
-                WeekId = 2,
-                GradYear = 2025,
-                Week = new Week
+                    GradYear = TestYear,
+                    Week = new Week
+                    {
+                        WeekId = 1,
+                        DateStart = baseDate,
+                        DateEnd = baseDate.AddDays(6),
+                        TermCode = TestTermCode
+                    }
+                },
+                new WeekGradYear
                 {
                     WeekId = 2,
-                    DateStart = DateTime.UtcNow.AddDays(0),
-                    DateEnd = DateTime.UtcNow.AddDays(6),
-                    TermCode = 202501
+                    GradYear = TestYear,
+                    Week = new Week
+                    {
+                        WeekId = 2,
+                        DateStart = baseDate.AddDays(7),
+                        DateEnd = baseDate.AddDays(13),
+                        TermCode = TestTermCode
+                    }
                 }
-            }
-        };
+            };
+        }
 
         /// <summary>
         /// Gets test rotations as queryable for mocking
