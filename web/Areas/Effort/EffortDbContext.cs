@@ -185,6 +185,10 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.Description).HasColumnName("Description").HasMaxLength(50);
             entity.Property(e => e.UsesWeeks).HasColumnName("UsesWeeks");
             entity.Property(e => e.IsActive).HasColumnName("IsActive");
+            entity.Property(e => e.FacultyCanEnter).HasColumnName("FacultyCanEnter");
+            entity.Property(e => e.AllowedOnDvm).HasColumnName("AllowedOnDvm");
+            entity.Property(e => e.AllowedOn199299).HasColumnName("AllowedOn199299");
+            entity.Property(e => e.AllowedOnRCourses).HasColumnName("AllowedOnRCourses");
         });
 
         // Unit (effort.Units)

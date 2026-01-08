@@ -23,91 +23,87 @@
                     Banner" instead.
                 </p>
 
-                <q-form ref="formRef">
-                    <div class="row q-col-gutter-sm">
-                        <div class="col-12 col-sm-5">
-                            <q-input
-                                v-model="formData.subjCode"
-                                label="Subject Code"
-                                dense
-                                outlined
-                                maxlength="3"
-                                :rules="[
-                                    (v: string) => !!v?.trim() || 'Required',
-                                    (v: string) => v?.trim().length <= 3 || 'Max 3 characters',
-                                ]"
-                            />
-                        </div>
-                        <div class="col-12 col-sm-4">
-                            <q-input
-                                v-model="formData.crseNumb"
-                                label="Course Number"
-                                dense
-                                outlined
-                                maxlength="5"
-                                :rules="[(v: string) => !!v?.trim() || 'Required']"
-                            />
-                        </div>
-                        <div class="col-12 col-sm-3">
-                            <q-input
-                                v-model="formData.seqNumb"
-                                label="Section"
-                                dense
-                                outlined
-                                maxlength="3"
-                                :rules="[(v: string) => !!v?.trim() || 'Required']"
-                            />
-                        </div>
-                        <div class="col-12">
-                            <q-input
-                                v-model="formData.crn"
-                                label="CRN"
-                                dense
-                                outlined
-                                maxlength="5"
-                                :rules="[
-                                    (v: string) => !!v?.trim() || 'CRN is required',
-                                    (v: string) => /^\d{5}$/.test(v?.trim()) || 'CRN must be 5 digits',
-                                ]"
-                            />
-                        </div>
-                        <div class="col-6">
-                            <q-input
-                                v-model.number="formData.enrollment"
-                                type="number"
-                                label="Enrollment"
-                                dense
-                                outlined
-                                :rules="[
-                                    (v: number) => v >= 0 || 'Must be non-negative',
-                                    (v: number) => Number.isInteger(v) || 'Must be a whole number',
-                                ]"
-                            />
-                        </div>
-                        <div class="col-6">
-                            <q-input
-                                v-model.number="formData.units"
-                                type="number"
-                                label="Units"
-                                dense
-                                outlined
-                                step="0.5"
-                                :rules="[(v: number) => v >= 0 || 'Must be non-negative']"
-                            />
-                        </div>
-                        <div class="col-12">
-                            <q-select
-                                v-model="formData.custDept"
-                                :options="departments"
-                                label="Custodial Department"
-                                dense
-                                options-dense
-                                outlined
-                                :rules="[(v: string) => !!v || 'Department is required']"
-                            />
-                        </div>
+                <div class="row q-col-gutter-sm">
+                    <div class="col-12 col-sm-5">
+                        <q-input
+                            v-model="formData.subjCode"
+                            label="Subject Code *"
+                            dense
+                            outlined
+                            maxlength="3"
+                            :error="!!errors.subjCode"
+                            :error-message="errors.subjCode"
+                        />
                     </div>
-                </q-form>
+                    <div class="col-12 col-sm-4">
+                        <q-input
+                            v-model="formData.crseNumb"
+                            label="Course Number *"
+                            dense
+                            outlined
+                            maxlength="5"
+                            :error="!!errors.crseNumb"
+                            :error-message="errors.crseNumb"
+                        />
+                    </div>
+                    <div class="col-12 col-sm-3">
+                        <q-input
+                            v-model="formData.seqNumb"
+                            label="Section *"
+                            dense
+                            outlined
+                            maxlength="3"
+                            :error="!!errors.seqNumb"
+                            :error-message="errors.seqNumb"
+                        />
+                    </div>
+                    <div class="col-12">
+                        <q-input
+                            v-model="formData.crn"
+                            label="CRN *"
+                            dense
+                            outlined
+                            maxlength="5"
+                            :error="!!errors.crn"
+                            :error-message="errors.crn"
+                        />
+                    </div>
+                    <div class="col-6">
+                        <q-input
+                            v-model.number="formData.enrollment"
+                            type="number"
+                            label="Enrollment"
+                            dense
+                            outlined
+                            :error="!!errors.enrollment"
+                            :error-message="errors.enrollment"
+                        />
+                    </div>
+                    <div class="col-6">
+                        <q-input
+                            v-model.number="formData.units"
+                            type="number"
+                            label="Units"
+                            dense
+                            outlined
+                            step="0.5"
+                            :error="!!errors.units"
+                            :error-message="errors.units"
+                        />
+                    </div>
+                    <div class="col-12">
+                        <q-select
+                            v-model="formData.custDept"
+                            :options="departments"
+                            label="Custodial Department *"
+                            dense
+                            options-dense
+                            outlined
+                            :error="!!errors.custDept"
+                            :error-message="errors.custDept"
+                        />
+                    </div>
+                </div>
             </q-card-section>
 
             <q-card-actions align="right">
@@ -128,8 +124,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue"
-import { useQuasar, QForm } from "quasar"
+import { ref, reactive, computed, watch } from "vue"
+import { useQuasar } from "quasar"
 import { effortService } from "../services/effort-service"
 
 const props = defineProps<{
@@ -150,7 +146,6 @@ const dialogOpen = computed({
     set: (value) => emit("update:modelValue", value),
 })
 
-const formRef = ref<QForm | null>(null)
 const isCreating = ref(false)
 const formData = ref({
     subjCode: "",
@@ -161,6 +156,26 @@ const formData = ref({
     units: 0,
     custDept: "",
 })
+
+const errors = reactive({
+    subjCode: "",
+    crseNumb: "",
+    seqNumb: "",
+    crn: "",
+    enrollment: "",
+    units: "",
+    custDept: "",
+})
+
+function clearErrors() {
+    errors.subjCode = ""
+    errors.crseNumb = ""
+    errors.seqNumb = ""
+    errors.crn = ""
+    errors.enrollment = ""
+    errors.units = ""
+    errors.custDept = ""
+}
 
 // Reset form when dialog opens
 watch(dialogOpen, (open) => {
@@ -174,8 +189,67 @@ watch(dialogOpen, (open) => {
             units: 0,
             custDept: props.departments[0] ?? "",
         }
+        clearErrors()
     }
 })
+
+function validate(): boolean {
+    clearErrors()
+    let isValid = true
+
+    // Subject Code
+    if (!formData.value.subjCode.trim()) {
+        errors.subjCode = "Required"
+        isValid = false
+    } else if (formData.value.subjCode.trim().length > 3) {
+        errors.subjCode = "Max 3 characters"
+        isValid = false
+    }
+
+    // Course Number
+    if (!formData.value.crseNumb.trim()) {
+        errors.crseNumb = "Required"
+        isValid = false
+    }
+
+    // Section
+    if (!formData.value.seqNumb.trim()) {
+        errors.seqNumb = "Required"
+        isValid = false
+    }
+
+    // CRN
+    if (!formData.value.crn.trim()) {
+        errors.crn = "CRN is required"
+        isValid = false
+    } else if (!/^\d{5}$/.test(formData.value.crn.trim())) {
+        errors.crn = "CRN must be 5 digits"
+        isValid = false
+    }
+
+    // Enrollment
+    if (formData.value.enrollment < 0) {
+        errors.enrollment = "Must be non-negative"
+        isValid = false
+    } else if (!Number.isInteger(formData.value.enrollment)) {
+        errors.enrollment = "Must be a whole number"
+        isValid = false
+    }
+
+    // Units
+    if (formData.value.units < 0) {
+        errors.units = "Must be non-negative"
+        isValid = false
+    }
+
+    // Custodial Department
+    if (!formData.value.custDept) {
+        errors.custDept = "Department is required"
+        isValid = false
+    }
+
+    return isValid
+}
 
 async function create() {
     if (!props.termCode) {
@@ -183,8 +257,7 @@ async function create() {
         return
     }
 
-    const valid = await formRef.value?.validate()
-    if (!valid) return
+    if (!validate()) return
 
     isCreating.value = true
 

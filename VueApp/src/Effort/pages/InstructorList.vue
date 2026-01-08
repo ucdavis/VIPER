@@ -48,7 +48,7 @@
                     v-if="hasImportInstructor"
                     color="primary"
                     label="Add Instructor"
-                    icon="person_add"
+                    icon="add"
                     dense
                     class="full-width-xs"
                     @click="showAddDialog = true"

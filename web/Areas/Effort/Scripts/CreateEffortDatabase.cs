@@ -635,6 +635,10 @@ BEGIN
         Description varchar(50) NOT NULL,
         UsesWeeks bit NOT NULL DEFAULT 0,
         IsActive bit NOT NULL DEFAULT 1,
+        FacultyCanEnter bit NOT NULL DEFAULT 1,   -- Faculty/instructors can add this type themselves
+        AllowedOnDvm bit NOT NULL DEFAULT 1,      -- Allowed on DVM courses
+        AllowedOn199299 bit NOT NULL DEFAULT 1,   -- Allowed on 199/299 courses
+        AllowedOnRCourses bit NOT NULL DEFAULT 1, -- Allowed on R courses
         CONSTRAINT PK_SessionTypes PRIMARY KEY CLUSTERED (Id)
     );
 

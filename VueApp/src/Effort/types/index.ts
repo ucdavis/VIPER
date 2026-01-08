@@ -285,6 +285,40 @@ type UpdateUnitRequest = {
     isActive: boolean
 }
 
+// Session Type management types
+type SessionTypeDto = {
+    id: string
+    description: string
+    usesWeeks: boolean
+    isActive: boolean
+    facultyCanEnter: boolean
+    allowedOnDvm: boolean
+    allowedOn199299: boolean
+    allowedOnRCourses: boolean
+    usageCount: number
+    canDelete: boolean
+}
+
+type CreateSessionTypeRequest = {
+    id: string
+    description: string
+    usesWeeks?: boolean
+    facultyCanEnter?: boolean
+    allowedOnDvm?: boolean
+    allowedOn199299?: boolean
+    allowedOnRCourses?: boolean
+}
+
+type UpdateSessionTypeRequest = {
+    description: string
+    usesWeeks: boolean
+    isActive: boolean
+    facultyCanEnter: boolean
+    allowedOnDvm: boolean
+    allowedOn199299: boolean
+    allowedOnRCourses: boolean
+}
+
 export type {
     TermDto,
     PersonDto,
@@ -317,4 +351,7 @@ export type {
     UnitDto,
     CreateUnitRequest,
     UpdateUnitRequest,
+    SessionTypeDto,
+    CreateSessionTypeRequest,
+    UpdateSessionTypeRequest,
 }

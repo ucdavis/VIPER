@@ -30,5 +30,10 @@ public class AutoMapperProfileEffort : Profile
         CreateMap<Unit, UnitDto>()
             .ForMember(d => d.UsageCount, opt => opt.Ignore())
             .ForMember(d => d.CanDelete, opt => opt.Ignore());
+
+        // SessionType mapping - UsageCount and CanDelete set by service
+        CreateMap<SessionType, SessionTypeDto>()
+            .ForMember(d => d.UsageCount, opt => opt.Ignore())
+            .ForMember(d => d.CanDelete, opt => opt.Ignore());
     }
 }

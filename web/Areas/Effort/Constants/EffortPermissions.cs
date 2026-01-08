@@ -115,6 +115,11 @@ public static class EffortPermissions
     public const string ManageUnits = "SVMSecure.Effort.ManageUnits";
 
     /// <summary>
+    /// Manage the list of session types which appear in the effort session type dropdowns.
+    /// </summary>
+    public const string ManageSessionTypes = "SVMSecure.Effort.ManageSessionTypes";
+
+    /// <summary>
     /// Access to all reports in the nav.
     /// </summary>
     public const string Reports = "SVMSecure.Effort.Reports";
