@@ -188,6 +188,7 @@ import { ref, computed, onMounted, watch } from "vue"
 import { useQuasar } from "quasar"
 import { useRoute, useRouter } from "vue-router"
 import { effortService } from "../services/effort-service"
+import { termService } from "../services/term-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import type { PersonDto, TermDto } from "../types"
 import type { QTableColumn } from "quasar"
@@ -294,7 +295,7 @@ const columns = computed<QTableColumn[]>(() => [
 async function loadTerms() {
     const paramTermCode = route.params.termCode ? parseInt(route.params.termCode as string, 10) : null
 
-    terms.value = await effortService.getTerms()
+    terms.value = await termService.getTerms()
 
     if (paramTermCode && terms.value.some((t) => t.termCode === paramTermCode)) {
         selectedTermCode.value = paramTermCode

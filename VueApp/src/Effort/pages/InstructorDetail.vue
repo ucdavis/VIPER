@@ -131,6 +131,7 @@ import { ref, computed, onMounted } from "vue"
 import { useRoute } from "vue-router"
 import type { QTableColumn } from "quasar"
 import { effortService } from "../services/effort-service"
+import { termService } from "../services/term-service"
 import type { PersonDto, TermDto, InstructorEffortRecordDto } from "../types"
 
 const route = useRoute()
@@ -230,7 +231,7 @@ async function loadData() {
         const [instructorResult, recordsResult, termsResult] = await Promise.all([
             effortService.getInstructor(personId.value, termCodeNum),
             effortService.getInstructorEffortRecords(personId.value, termCodeNum),
-            effortService.getTerms(),
+            termService.getTerms(),
         ])
 
         if (!instructorResult) {

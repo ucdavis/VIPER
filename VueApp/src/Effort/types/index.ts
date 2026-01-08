@@ -267,6 +267,24 @@ type JobGroupDto = {
     name: string
 }
 
+// Unit management types
+type UnitDto = {
+    id: number
+    name: string
+    isActive: boolean
+    usageCount: number
+    canDelete: boolean
+}
+
+type CreateUnitRequest = {
+    name: string
+}
+
+type UpdateUnitRequest = {
+    name: string
+    isActive: boolean
+}
+
 export type {
     TermDto,
     PersonDto,
@@ -296,4 +314,7 @@ export type {
     EffortTypeDto,
     InstructorByTypeDto,
     InstructorsByTypeResponseDto,
+    UnitDto,
+    CreateUnitRequest,
+    UpdateUnitRequest,
 }

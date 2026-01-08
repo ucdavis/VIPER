@@ -283,7 +283,7 @@
 import { ref, computed, onMounted } from "vue"
 import { useQuasar } from "quasar"
 import { useRoute } from "vue-router"
-import { effortService } from "../services/effort-service"
+import { termService } from "../services/term-service"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import type { TermDto, AvailableTermDto } from "../types"
 import type { QTableColumn } from "quasar"
@@ -317,8 +317,8 @@ async function loadTerms() {
     isLoading.value = true
     try {
         const [termsResult, availableResult] = await Promise.all([
-            effortService.getTerms(),
-            effortService.getAvailableTerms(),
+            termService.getTerms(),
+            termService.getAvailableTerms(),
         ])
         terms.value = termsResult
         availableTerms.value = availableResult
@@ -357,7 +357,7 @@ function confirmAddTerm() {
         title: "Add Term",
         message: `Add "${term.termName}" to the Effort system?`,
         successMessage: "Term added successfully",
-        action: () => effortService.createTerm(term.termCode),
+        action: () => termService.createTerm(term.termCode),
     })
 }
 
@@ -366,7 +366,7 @@ function confirmOpenTerm(term: TermDto) {
         title: "Open Term",
         message: `Are you sure you want to open "${term.termName}" for effort entry?`,
         successMessage: "Term opened successfully",
-        action: () => effortService.openTerm(term.termCode),
+        action: () => termService.openTerm(term.termCode),
     })
 }
 
@@ -375,7 +375,7 @@ function confirmCloseTerm(term: TermDto) {
         title: "Close Term",
         message: `Are you sure you want to close "${term.termName}"?`,
         successMessage: "Term closed successfully",
-        action: () => effortService.closeTerm(term.termCode),
+        action: () => termService.closeTerm(term.termCode),
     })
 }
 
@@ -384,7 +384,7 @@ function confirmReopenTerm(term: TermDto) {
         title: "Reopen Term",
         message: `Are you sure you want to reopen "${term.termName}"?`,
         successMessage: "Term reopened successfully",
-        action: () => effortService.reopenTerm(term.termCode),
+        action: () => termService.reopenTerm(term.termCode),
     })
 }
 
@@ -393,7 +393,7 @@ function confirmUnopenTerm(term: TermDto) {
         title: "Revert Term",
         message: `Are you sure you want to revert "${term.termName}" to unopened status?`,
         successMessage: "Term reverted to unopened status",
-        action: () => effortService.unopenTerm(term.termCode),
+        action: () => termService.unopenTerm(term.termCode),
     })
 }
 
@@ -402,7 +402,7 @@ function confirmDeleteTerm(term: TermDto) {
         title: "Delete Term",
         message: `Are you sure you want to delete "${term.termName}"? This cannot be undone.`,
         successMessage: "Term deleted successfully",
-        action: () => effortService.deleteTerm(term.termCode),
+        action: () => termService.deleteTerm(term.termCode),
     })
 }
 

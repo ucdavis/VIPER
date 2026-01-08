@@ -1109,7 +1109,8 @@ namespace Viper.Areas.Effort.Scripts
             pct.AcademicYear as percent_AcademicYear,
             CAST(pct.Percentage AS FLOAT) as percent_Percent,
             pct.EffortTypeId as percent_TypeID,
-            pct.Unit as percent_Unit,
+            -- Return UnitId as varchar to match legacy schema (ColdFusion sends unit IDs as strings)
+            CAST(pct.UnitId AS varchar(50)) as percent_Unit,
             pct.Modifier as percent_Modifier,
             pct.Comment as percent_Comment,
             CAST(pct.ModifiedDate AS datetime) as percent_modifiedOn,
@@ -1136,7 +1137,7 @@ namespace Viper.Areas.Effort.Scripts
         {
             Console.WriteLine("  Creating INSTEAD OF INSERT trigger for tblPercent...");
 
-            // Note: SET NOCOUNT OFF so ColdFusion receives the SELECT result
+            // SET NOCOUNT OFF so ColdFusion receives the SELECT result
             // ColdFusion expects: SELECT @@IDENTITY AS [id] after INSERT
             // With INSTEAD OF trigger, we must explicitly SELECT SCOPE_IDENTITY() AS [id]
             string sql = @"
@@ -1152,7 +1153,7 @@ namespace Viper.Areas.Effort.Scripts
                 AcademicYear,
                 Percentage,
                 EffortTypeId,
-                Unit,
+                UnitId,
                 Modifier,
                 Comment,
                 StartDate,
@@ -1176,7 +1177,8 @@ namespace Viper.Areas.Effort.Scripts
                 ),
                 i.percent_Percent,
                 i.percent_TypeID,
-                i.percent_Unit,
+                -- Convert varchar to int; empty/invalid → NULL
+                TRY_CAST(NULLIF(LTRIM(RTRIM(i.percent_Unit)), '') AS int),
                 i.percent_Modifier,
                 i.percent_Comment,
                 COALESCE(i.percent_start,
@@ -1211,8 +1213,6 @@ namespace Viper.Areas.Effort.Scripts
         BEGIN
             SET NOCOUNT ON;
 
-            -- Update the Percentages table (only non-derived columns)
-            -- Note: AcademicYear can be updated via percent_AcademicYear or derived from new start date
             UPDATE pct
             SET
                 pct.AcademicYear = COALESCE(
@@ -1226,7 +1226,8 @@ namespace Viper.Areas.Effort.Scripts
                 ),
                 pct.Percentage = i.percent_Percent,
                 pct.EffortTypeId = i.percent_TypeID,
-                pct.Unit = i.percent_Unit,
+                -- Convert varchar to int; empty/invalid → NULL
+                pct.UnitId = TRY_CAST(NULLIF(LTRIM(RTRIM(i.percent_Unit)), '') AS int),
                 pct.Modifier = i.percent_Modifier,
                 pct.Comment = i.percent_Comment,
                 pct.StartDate = i.percent_start,

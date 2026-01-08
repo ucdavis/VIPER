@@ -4,6 +4,7 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
+using Viper.Classes.Utilities;
 using Web.Authorization;
 
 namespace Viper.Areas.Effort.Controllers;
@@ -176,13 +177,13 @@ public class InstructorsController : BaseEffortController
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Error creating instructor: {Message}", ex.Message);
+            _logger.LogWarning(ex, "Error creating instructor: {Message}", LogSanitizer.SanitizeString(ex.Message));
             return BadRequest(ex.Message);
         }
         catch (DbUpdateException ex)
         {
             _logger.LogWarning(ex, "Database error creating instructor: {Message}",
-                ex.InnerException?.Message ?? ex.Message);
+                LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
             return BadRequest("Failed to create instructor. Please check all values are valid.");
         }
     }
@@ -226,13 +227,13 @@ public class InstructorsController : BaseEffortController
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning(ex, "Invalid instructor update data: {Message}", ex.Message);
+            _logger.LogWarning(ex, "Invalid instructor update data: {Message}", LogSanitizer.SanitizeString(ex.Message));
             return BadRequest(ex.Message);
         }
         catch (DbUpdateException ex)
         {
             _logger.LogWarning(ex, "Database error updating instructor: {Message}",
-                ex.InnerException?.Message ?? ex.Message);
+                LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
             return BadRequest("Failed to update instructor. Please check all values are valid.");
         }
     }
