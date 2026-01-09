@@ -95,11 +95,6 @@
                         </template>
                     </q-td>
                 </template>
-                <template #body-cell-usageCount="props">
-                    <q-td :props="props">
-                        {{ props.row.usageCount }}
-                    </q-td>
-                </template>
                 <template #body-cell-isActive="props">
                     <q-td :props="props">
                         <q-toggle
@@ -236,8 +231,8 @@ const isDeletingId = ref<number | null>(null)
 
 const columns: QTableColumn[] = [
     { name: "name", label: "Name", field: "name", align: "left", sortable: true },
-    { name: "usageCount", label: "Usage Count", field: "usageCount", align: "center", style: "width: 120px" },
     { name: "isActive", label: "Active", field: "isActive", align: "center", style: "width: 100px" },
+    { name: "usageCount", label: "Usage", field: "usageCount", align: "right", sortable: true, style: "width: 80px" },
     { name: "actions", label: "Actions", field: "actions", align: "center", style: "width: 80px" },
 ]
 

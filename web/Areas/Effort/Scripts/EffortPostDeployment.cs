@@ -195,7 +195,9 @@ namespace Viper.Areas.Effort.Scripts
                 Console.ResetColor();
                 return (false, $"Database error: {ex.Message}");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"UNEXPECTED ERROR: {ex}");
@@ -371,7 +373,9 @@ namespace Viper.Areas.Effort.Scripts
                 Console.ResetColor();
                 return (false, $"Database error: {ex.Message}");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"UNEXPECTED ERROR: {ex}");
@@ -821,7 +825,9 @@ namespace Viper.Areas.Effort.Scripts
                 Console.ResetColor();
                 return (false, $"Database error: {ex.Message}");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"UNEXPECTED ERROR: {ex}");

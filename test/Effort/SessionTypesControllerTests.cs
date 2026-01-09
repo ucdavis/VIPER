@@ -352,16 +352,10 @@ public sealed class SessionTypesControllerTests
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        Assert.NotNull(okResult.Value);
+        var response = Assert.IsType<CanDeleteResponse>(okResult.Value);
 
-        var valueType = okResult.Value.GetType();
-        var canDeleteProp = valueType.GetProperty("canDelete");
-        var usageCountProp = valueType.GetProperty("usageCount");
-
-        Assert.NotNull(canDeleteProp);
-        Assert.NotNull(usageCountProp);
-        Assert.False((bool)canDeleteProp.GetValue(okResult.Value)!);
-        Assert.Equal(5, (int)usageCountProp.GetValue(okResult.Value)!);
+        Assert.False(response.CanDelete);
+        Assert.Equal(5, response.UsageCount);
     }
 
     [Fact]
@@ -377,11 +371,10 @@ public sealed class SessionTypesControllerTests
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        Assert.NotNull(okResult.Value);
+        var response = Assert.IsType<CanDeleteResponse>(okResult.Value);
 
-        var valueType = okResult.Value.GetType();
-        var canDeleteProp = valueType.GetProperty("canDelete");
-        Assert.True((bool)canDeleteProp!.GetValue(okResult.Value)!);
+        Assert.True(response.CanDelete);
+        Assert.Equal(0, response.UsageCount);
     }
 
     [Fact]
