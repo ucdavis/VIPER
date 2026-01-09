@@ -8,7 +8,7 @@
                 color="primary"
                 icon="add"
                 dense
-                padding="xs sm xs xs"
+                padding="xs sm"
                 @click="showAddDialog = true"
             />
         </div>
@@ -26,6 +26,7 @@
                 <q-table
                     :rows="sessionTypes"
                     :columns="columns"
+                    :visible-columns="visibleColumns"
                     row-key="id"
                     dense
                     flat
@@ -37,31 +38,31 @@
                     <!-- Column header tooltips -->
                     <template #header-cell-usesWeeks="props">
                         <q-th :props="props">
-                            {{ props.col.label }}
-                            <q-tooltip>Uses weeks (for clinical rotations) instead of hours</q-tooltip>
+                            <span class="has-tooltip">{{ props.col.label }}</span>
+                            <q-tooltip>Effort is tracked in weeks instead of hours</q-tooltip>
                         </q-th>
                     </template>
                     <template #header-cell-facultyCanEnter="props">
                         <q-th :props="props">
-                            {{ props.col.label }}
+                            <span class="has-tooltip">{{ props.col.label }}</span>
                             <q-tooltip>Faculty can enter effort for this session type</q-tooltip>
                         </q-th>
                     </template>
                     <template #header-cell-allowedOnDvm="props">
                         <q-th :props="props">
-                            {{ props.col.label }}
+                            <span class="has-tooltip">{{ props.col.label }}</span>
                             <q-tooltip>Allowed on DVM courses</q-tooltip>
                         </q-th>
                     </template>
                     <template #header-cell-allowedOn199299="props">
                         <q-th :props="props">
-                            {{ props.col.label }}
+                            <span class="has-tooltip">{{ props.col.label }}</span>
                             <q-tooltip>Allowed on 199/299 courses</q-tooltip>
                         </q-th>
                     </template>
                     <template #header-cell-allowedOnRCourses="props">
                         <q-th :props="props">
-                            {{ props.col.label }}
+                            <span class="has-tooltip">{{ props.col.label }}</span>
                             <q-tooltip>Allowed on R courses</q-tooltip>
                         </q-th>
                     </template>
@@ -478,7 +479,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from "vue"
+import { ref, onMounted, watch, nextTick, computed } from "vue"
 import { useQuasar } from "quasar"
 import { sessionTypeService } from "../services/session-type-service"
 import type { SessionTypeDto } from "../types"
@@ -527,7 +528,6 @@ const columns: QTableColumn[] = [
     { name: "id", label: "ID", field: "id", align: "left", sortable: true, style: "width: 70px" },
     { name: "description", label: "Description", field: "description", align: "left", sortable: true },
     { name: "usesWeeks", label: "Weeks", field: "usesWeeks", align: "center", style: "width: 80px" },
-    { name: "isActive", label: "Active", field: "isActive", align: "center", style: "width: 80px" },
     { name: "facultyCanEnter", label: "Faculty", field: "facultyCanEnter", align: "center", style: "width: 80px" },
     { name: "allowedOnDvm", label: "DVM", field: "allowedOnDvm", align: "center", style: "width: 80px" },
     { name: "allowedOn199299", label: "199/299", field: "allowedOn199299", align: "center", style: "width: 80px" },
@@ -538,8 +538,19 @@ const columns: QTableColumn[] = [
         align: "center",
         style: "width: 90px",
     },
+    { name: "isActive", label: "Active", field: "isActive", align: "center", style: "width: 80px" },
+    { name: "usageCount", label: "Usage", field: "usageCount", align: "right", sortable: true, style: "width: 80px" },
     { name: "actions", label: "Actions", field: "actions", align: "center", style: "width: 80px" },
 ]
+
+// Hide Usage column on smaller screens (iPad mini landscape is ~1024px)
+const visibleColumns = computed(() => {
+    const allColumns = columns.map((c) => c.name)
+    if ($q.screen.lt.lg) {
+        return allColumns.filter((name) => name !== "usageCount")
+    }
+    return allColumns
+})
 
 async function loadSessionTypes() {
     isLoading.value = true
@@ -723,5 +734,10 @@ onMounted(loadSessionTypes)
 <style scoped>
 .table-scroll-container {
     overflow-x: auto;
+}
+
+.has-tooltip {
+    border-bottom: 1px dotted currentColor;
+    cursor: help;
 }
 </style>

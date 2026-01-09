@@ -149,13 +149,13 @@ public class UnitsController : BaseEffortController
     /// Check if a unit can be deleted and get usage count.
     /// </summary>
     [HttpGet("{id:int}/can-delete")]
-    public async Task<ActionResult<object>> CanDeleteUnit(int id, CancellationToken ct)
+    public async Task<ActionResult<CanDeleteResponse>> CanDeleteUnit(int id, CancellationToken ct)
     {
         SetExceptionContext("unitId", id);
 
         var usageCount = await _unitService.GetUsageCountAsync(id, ct);
         var canDelete = usageCount == 0;
 
-        return Ok(new { canDelete, usageCount });
+        return Ok(new CanDeleteResponse { CanDelete = canDelete, UsageCount = usageCount });
     }
 }

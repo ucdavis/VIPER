@@ -167,7 +167,7 @@ public class SessionTypesController : BaseEffortController
     /// Check if a session type can be deleted and get usage count.
     /// </summary>
     [HttpGet("{id}/can-delete")]
-    public async Task<ActionResult<object>> CanDeleteSessionType(string id, CancellationToken ct)
+    public async Task<ActionResult<CanDeleteResponse>> CanDeleteSessionType(string id, CancellationToken ct)
     {
         SetExceptionContext("sessionTypeId", id);
 
@@ -178,6 +178,6 @@ public class SessionTypesController : BaseEffortController
             return NotFound($"Session type '{id}' not found");
         }
 
-        return Ok(new { canDelete = sessionType.CanDelete, usageCount = sessionType.UsageCount });
+        return Ok(new CanDeleteResponse { CanDelete = sessionType.CanDelete, UsageCount = sessionType.UsageCount });
     }
 }
