@@ -88,7 +88,7 @@ public abstract class EffortIntegrationTestBase : IDisposable
             new() { PermissionId = 12, Permission = EffortPermissions.ViewAudit, Description = "View Audit" },
             new() { PermissionId = 13, Permission = EffortPermissions.ManageTerms, Description = "Manage Terms" },
             new() { PermissionId = 14, Permission = EffortPermissions.ManageUnits, Description = "Manage Units" },
-            new() { PermissionId = 15, Permission = EffortPermissions.ManageSessionTypes, Description = "Manage Session Types" }
+            new() { PermissionId = 15, Permission = EffortPermissions.ManageEffortTypes, Description = "Manage Effort Types" }
         };
 
         context.TblPermissions.AddRange(permissions);
@@ -309,18 +309,18 @@ public abstract class EffortIntegrationTestBase : IDisposable
     }
 
     /// <summary>
-    /// Sets up user with ManageSessionTypes permission
+    /// Sets up user with ManageEffortTypes permission
     /// </summary>
-    protected void SetupUserWithManageSessionTypesPermission()
+    protected void SetupUserWithManageEffortTypesPermission()
     {
         AddMemberPermissions(TestUserMothraId,
             EffortPermissions.Base,
-            EffortPermissions.ManageSessionTypes);
+            EffortPermissions.ManageEffortTypes);
 
         SetupUserWithPermissionsForIntegration(TestUserMothraId, new[]
         {
             EffortPermissions.Base,
-            EffortPermissions.ManageSessionTypes
+            EffortPermissions.ManageEffortTypes
         });
     }
 

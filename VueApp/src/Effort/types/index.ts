@@ -54,22 +54,6 @@ type CourseDto = {
     parentCourseId?: number | null
 }
 
-type RecordDto = {
-    id: number
-    courseId: number
-    personId: number
-    termCode: number
-    sessionType: string
-    role: number
-    roleDescription: string
-    hours: number | null
-    weeks: number | null
-    crn: string
-    modifiedDate: string | null
-    effortValue: number | null
-    effortLabel: string
-}
-
 type AvailableTermDto = {
     termCode: number
     termName: string
@@ -214,8 +198,8 @@ type CanDeleteResult = {
     recordCount: number
 }
 
-// Effort Type types (read-only)
-type EffortTypeDto = {
+// Percent Assignment Type types (read-only)
+type PercentAssignTypeDto = {
     id: number
     class: string
     name: string
@@ -224,8 +208,8 @@ type EffortTypeDto = {
     instructorCount: number
 }
 
-// Instructor by type types
-type InstructorByTypeDto = {
+// Instructor by percent assignment type types
+type InstructorByPercentAssignTypeDto = {
     personId: number
     firstName: string
     lastName: string
@@ -233,11 +217,11 @@ type InstructorByTypeDto = {
     academicYear: string
 }
 
-type InstructorsByTypeResponseDto = {
+type InstructorsByPercentAssignTypeResponseDto = {
     typeId: number
     typeName: string
     typeClass: string
-    instructors: InstructorByTypeDto[]
+    instructors: InstructorByPercentAssignTypeDto[]
 }
 
 type InstructorEffortRecordDto = {
@@ -245,7 +229,7 @@ type InstructorEffortRecordDto = {
     courseId: number
     personId: number
     termCode: number
-    sessionType: string
+    effortType: string
     role: number
     roleDescription: string
     hours: number | null
@@ -285,8 +269,8 @@ type UpdateUnitRequest = {
     isActive: boolean
 }
 
-// Session Type management types
-type SessionTypeDto = {
+// Effort Type management types
+type EffortTypeDto = {
     id: string
     description: string
     usesWeeks: boolean
@@ -299,7 +283,7 @@ type SessionTypeDto = {
     canDelete: boolean
 }
 
-type CreateSessionTypeRequest = {
+type CreateEffortTypeRequest = {
     id: string
     description: string
     usesWeeks?: boolean
@@ -309,7 +293,7 @@ type CreateSessionTypeRequest = {
     allowedOnRCourses?: boolean
 }
 
-type UpdateSessionTypeRequest = {
+type UpdateEffortTypeRequest = {
     description: string
     usesWeeks: boolean
     isActive: boolean
@@ -323,7 +307,6 @@ export type {
     TermDto,
     PersonDto,
     CourseDto,
-    RecordDto,
     AvailableTermDto,
     EffortAuditRow,
     ChangeDetail,
@@ -345,13 +328,13 @@ export type {
     InstructorEffortRecordDto,
     TitleCodeDto,
     JobGroupDto,
-    EffortTypeDto,
-    InstructorByTypeDto,
-    InstructorsByTypeResponseDto,
+    PercentAssignTypeDto,
+    InstructorByPercentAssignTypeDto,
+    InstructorsByPercentAssignTypeResponseDto,
     UnitDto,
     CreateUnitRequest,
     UpdateUnitRequest,
-    SessionTypeDto,
-    CreateSessionTypeRequest,
-    UpdateSessionTypeRequest,
+    EffortTypeDto,
+    CreateEffortTypeRequest,
+    UpdateEffortTypeRequest,
 }

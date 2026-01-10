@@ -82,7 +82,7 @@ tblPercent       → VIEW of [Effort].[dbo].[Percentages]
 tblStatus        → VIEW of [Effort].[dbo].[Terms]
 tblSabbatic      → VIEW of [Effort].[dbo].[Sabbaticals]
 tblRoles         → VIEW of [Effort].[dbo].[Roles]
-tblEffortType_LU → VIEW of [Effort].[dbo].[EffortTypes]
+tblEffortType_LU → VIEW of [Effort].[dbo].[PercentAssignTypes]
 ```
 
 **Wrapper Stored Procedures:**
@@ -275,7 +275,7 @@ The Effort system integrates with VIPER2's existing RAPS-based permission archit
   - [ ] Terms (tblStatus)
   - [ ] Sabbaticals (tblSabbatic)
   - [ ] Roles (tblRoles)
-  - [ ] EffortTypes (tblEffortType_LU)
+  - [ ] PercentAssignTypes (tblEffortType_LU)
   - [ ] CourseRelationships (new)
   - [ ] AdditionalQuestions (new)
   - [ ] Audits (new)
@@ -295,7 +295,7 @@ The Effort system integrates with VIPER2's existing RAPS-based permission archit
 - userAccess - **MIGRATED** (actively used in Access.cfc and manageAccess.cfm for department-level authorization)
 
 **Step 3: Migrate Data**
-- [ ] Migrate reference data (Roles, EffortTypes, Terms)
+- [ ] Migrate reference data (Roles, PercentAssignTypes, EffortTypes, Terms)
 - [ ] Migrate courses with variable-unit support
 - [ ] Migrate persons with PersonId mapping
 - [ ] Migrate effort records
@@ -323,7 +323,7 @@ The Effort system integrates with VIPER2's existing RAPS-based permission archit
   - [ ] tblStatus → Terms view
   - [ ] tblSabbatic → Sabbaticals view
   - [ ] tblRoles → Roles view
-  - [ ] tblEffortType_LU → EffortTypes view
+  - [ ] tblEffortType_LU → PercentAssignTypes view
 
 **Step 6: Create Wrapper Stored Procedures**
 - [ ] Create 87 wrapper SPs in EffortShadow (rewritten from legacy)

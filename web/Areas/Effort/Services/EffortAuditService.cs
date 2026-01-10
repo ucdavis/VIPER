@@ -107,14 +107,14 @@ public class EffortAuditService : IEffortAuditService
         AddAuditEntry(EffortAuditTables.Units, unitId, null, action, SerializeChanges(oldValues, newValues));
     }
 
-    public void AddSessionTypeChangeAudit(string sessionTypeId, string action, object? oldValues, object? newValues)
+    public void AddEffortTypeChangeAudit(string effortTypeId, string action, object? oldValues, object? newValues)
     {
-        // SessionType uses string Id, store it as part of the changes JSON
+        // EffortType uses string Id, store it as part of the changes JSON
         // Use 0 as recordId placeholder since the table requires int
         var changes = SerializeChanges(
-            oldValues != null ? new { SessionTypeId = sessionTypeId, Values = oldValues } : null,
-            newValues != null ? new { SessionTypeId = sessionTypeId, Values = newValues } : null);
-        AddAuditEntry(EffortAuditTables.SessionTypes, 0, null, action, changes);
+            oldValues != null ? new { EffortTypeId = effortTypeId, Values = oldValues } : null,
+            newValues != null ? new { EffortTypeId = effortTypeId, Values = newValues } : null);
+        AddAuditEntry(EffortAuditTables.EffortTypes, 0, null, action, changes);
     }
 
     /// <summary>

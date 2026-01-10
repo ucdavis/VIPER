@@ -18,15 +18,15 @@ import type {
     InstructorEffortRecordDto,
     TitleCodeDto,
     JobGroupDto,
-    EffortTypeDto,
-    InstructorsByTypeResponseDto,
 } from "../types"
 
 const { get, post, put, del, patch } = useFetch()
 
 /**
- * Service for Effort API calls (Course, Instructor, EffortType operations).
+ * Service for Effort API calls (Course, Instructor operations).
  * Term operations are in term-service.ts.
+ * Percent Assignment Type operations are in percent-assign-type-service.ts.
+ * Effort Type operations are in effort-type-service.ts.
  */
 class EffortService {
     private baseUrl = `${import.meta.env.VITE_API_URL}effort`
@@ -381,57 +381,6 @@ class EffortService {
             return []
         }
         return response.result as JobGroupDto[]
-    }
-
-    // Effort Type Operations (read-only)
-
-    /**
-     * Get all effort types, optionally filtered by active status.
-     */
-    async getEffortTypes(activeOnly?: boolean): Promise<EffortTypeDto[]> {
-        const params = new URLSearchParams()
-        if (activeOnly !== undefined) {
-            params.append("activeOnly", String(activeOnly))
-        }
-        const url = params.toString() ? `${this.baseUrl}/types?${params.toString()}` : `${this.baseUrl}/types`
-        const response = await get(url)
-        if (!response.success || !Array.isArray(response.result)) {
-            return []
-        }
-        return response.result as EffortTypeDto[]
-    }
-
-    /**
-     * Get a specific effort type by ID.
-     */
-    async getEffortType(id: number): Promise<EffortTypeDto | null> {
-        const response = await get(`${this.baseUrl}/types/${id}`)
-        if (!response.success || !response.result) {
-            return null
-        }
-        return response.result as EffortTypeDto
-    }
-
-    /**
-     * Get distinct class values for effort types.
-     */
-    async getEffortTypeClasses(): Promise<string[]> {
-        const response = await get(`${this.baseUrl}/types/classes`)
-        if (!response.success || !Array.isArray(response.result)) {
-            return []
-        }
-        return response.result as string[]
-    }
-
-    /**
-     * Get all instructors who have a specific effort type assigned.
-     */
-    async getInstructorsByType(typeId: number): Promise<InstructorsByTypeResponseDto | null> {
-        const response = await get(`${this.baseUrl}/types/${typeId}/instructors`)
-        if (!response.success || !response.result) {
-            return null
-        }
-        return response.result as InstructorsByTypeResponseDto
     }
 }
 

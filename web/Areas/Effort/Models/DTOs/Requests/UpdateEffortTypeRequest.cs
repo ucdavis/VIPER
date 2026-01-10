@@ -3,10 +3,10 @@ using System.ComponentModel.DataAnnotations;
 namespace Viper.Areas.Effort.Models.DTOs.Requests;
 
 /// <summary>
-/// Request DTO for updating an existing session type.
+/// Request DTO for updating an existing effort type.
 /// Note: Id cannot be changed after creation.
 /// </summary>
-public class UpdateSessionTypeRequest
+public class UpdateEffortTypeRequest
 {
     [Required]
     [MaxLength(50)]

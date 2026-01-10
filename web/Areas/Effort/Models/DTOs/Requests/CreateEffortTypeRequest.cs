@@ -3,9 +3,9 @@ using System.ComponentModel.DataAnnotations;
 namespace Viper.Areas.Effort.Models.DTOs.Requests;
 
 /// <summary>
-/// Request DTO for creating a new session type.
+/// Request DTO for creating a new effort type.
 /// </summary>
-public class CreateSessionTypeRequest
+public class CreateEffortTypeRequest
 {
     [Required]
     [MaxLength(3)]
