@@ -8,6 +8,10 @@
 // 1. UnitsMigration - Simplify Units table and add UnitId FK to Percentages
 // 2. AddManageSessionTypesPermission - Add SVMSecure.Effort.ManageSessionTypes to RAPS (cloned from ManageUnits)
 // 3. AddSessionTypeFlags - Add FacultyCanEnter, AllowedOnDvm, AllowedOn199299, AllowedOnRCourses columns
+// 4. RenameTablesForStandardization - Rename EffortTypes→PercentAssignTypes, SessionTypes→EffortTypes
+// 5. RenamePermissionForStandardization - Rename ManageSessionTypes→ManageEffortTypes in RAPS
+// 6. RenameRecordsFKColumns - Rename Records.SessionType→Records.EffortTypeId and Records.Role→Records.RoleId
+// 7. RenamePercentagesEffortTypeIdColumn - Rename Percentages.EffortTypeId→Percentages.PercentAssignTypeId
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -97,6 +101,74 @@ namespace Viper.Areas.Effort.Scripts
 
                 var (success, message) = RunAddSessionTypeFlagsTask(viperConnectionString, executeMode);
                 taskResults["SessionTypeFlags"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 4: Rename tables for standardization (EffortTypes→PercentAssignTypes, SessionTypes→EffortTypes)
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 4: Rename Tables for Standardization");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunRenameTablesTask(viperConnectionString, executeMode);
+                taskResults["RenameTablesForStandardization"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 5: Rename permission for standardization (ManageSessionTypes→ManageEffortTypes)
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 5: Rename Permission for Standardization");
+                Console.WriteLine("----------------------------------------");
+
+                string rapsConnectionString = EffortScriptHelper.GetConnectionString(configuration, "RAPS", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(rapsConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunRenamePermissionTask(rapsConnectionString, executeMode);
+                taskResults["RenamePermissionForStandardization"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 6: Rename Records FK columns (SessionType→EffortTypeId, Role→RoleId)
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 6: Rename Records FK Columns");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunRenameRecordsFKColumnsTask(viperConnectionString, executeMode);
+                taskResults["RenameRecordsFKColumns"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 7: Rename Percentages.EffortTypeId column to Percentages.PercentAssignTypeId
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 7: Rename Percentages.EffortTypeId Column");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunRenamePercentagesEffortTypeIdTask(viperConnectionString, executeMode);
+                taskResults["RenamePercentagesEffortTypeIdColumn"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
@@ -987,6 +1059,436 @@ namespace Viper.Areas.Effort.Scripts
                 ALTER TABLE [effort].[{tableName}] ADD CONSTRAINT [{constraintName}] UNIQUE ([{columnName}])",
                 connection, transaction);
             cmd.ExecuteNonQuery();
+        }
+
+        #endregion
+
+        #region Task 4: Rename Tables for Standardization
+
+        private static (bool Success, string Message) RunRenameTablesTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Detect current state
+                bool effortTypesExists = TableExists(connection, "EffortTypes");
+                bool sessionTypesExists = TableExists(connection, "SessionTypes");
+                bool percentAssignTypesExists = TableExists(connection, "PercentAssignTypes");
+
+                string migrationState;
+                if (effortTypesExists && sessionTypesExists && !percentAssignTypesExists)
+                {
+                    migrationState = "PRE_MIGRATION";
+                }
+                else if (percentAssignTypesExists && sessionTypesExists && !effortTypesExists)
+                {
+                    migrationState = "PARTIAL_MIGRATION";
+                }
+                else if (percentAssignTypesExists && effortTypesExists && !sessionTypesExists)
+                {
+                    migrationState = "COMPLETE";
+                }
+                else
+                {
+                    migrationState = "UNKNOWN";
+                }
+
+                Console.WriteLine($"Current migration state: {migrationState}");
+                Console.WriteLine($"  EffortTypes exists: {effortTypesExists}");
+                Console.WriteLine($"  SessionTypes exists: {sessionTypesExists}");
+                Console.WriteLine($"  PercentAssignTypes exists: {percentAssignTypesExists}");
+                Console.WriteLine();
+
+                if (migrationState == "COMPLETE")
+                {
+                    return (true, "Tables already renamed");
+                }
+
+                if (migrationState == "UNKNOWN")
+                {
+                    return (false, "Unknown migration state - manual intervention required");
+                }
+
+                var completedSteps = new List<string>();
+
+                // Step 1: Rename EffortTypes to PercentAssignTypes (if needed)
+                if (migrationState == "PRE_MIGRATION")
+                {
+                    Console.WriteLine("Step 1: Renaming [effort].[EffortTypes] to [effort].[PercentAssignTypes]...");
+                    if (executeMode)
+                    {
+                        RenameTable(connection, "EffortTypes", "PercentAssignTypes");
+                        Console.WriteLine("  ✓ Table renamed");
+                        completedSteps.Add("EffortTypes → PercentAssignTypes");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  [DRY-RUN] Would rename EffortTypes to PercentAssignTypes");
+                        completedSteps.Add("Would rename EffortTypes → PercentAssignTypes");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Step 1: EffortTypes already renamed to PercentAssignTypes - skipping");
+                }
+
+                Console.WriteLine();
+
+                // Step 2: Rename SessionTypes to EffortTypes
+                if (sessionTypesExists)
+                {
+                    Console.WriteLine("Step 2: Renaming [effort].[SessionTypes] to [effort].[EffortTypes]...");
+                    if (executeMode)
+                    {
+                        RenameTable(connection, "SessionTypes", "EffortTypes");
+                        Console.WriteLine("  ✓ Table renamed");
+                        completedSteps.Add("SessionTypes → EffortTypes");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  [DRY-RUN] Would rename SessionTypes to EffortTypes");
+                        completedSteps.Add("Would rename SessionTypes → EffortTypes");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Step 2: SessionTypes already renamed to EffortTypes - skipping");
+                }
+
+                return (true, string.Join(", ", completedSteps));
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        private static bool TableExists(SqlConnection connection, string tableName)
+        {
+            using var cmd = new SqlCommand(@"
+                SELECT 1 FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_SCHEMA = 'effort' AND TABLE_NAME = @TableName",
+                connection);
+            cmd.Parameters.AddWithValue("@TableName", tableName);
+            return cmd.ExecuteScalar() != null;
+        }
+
+        private static void RenameTable(SqlConnection connection, string oldName, string newName)
+        {
+            using var cmd = new SqlCommand($"EXEC sp_rename 'effort.{oldName}', '{newName}'", connection);
+            cmd.ExecuteNonQuery();
+        }
+
+        #endregion
+
+        #region Task 5: Rename Permission for Standardization
+
+        private const string OldPermissionName = "SVMSecure.Effort.ManageSessionTypes";
+        private const string NewPermissionName = "SVMSecure.Effort.ManageEffortTypes";
+        private const string NewPermissionDescription = "Manage Effort Types in the Effort system";
+
+        private static (bool Success, string Message) RunRenamePermissionTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Check if old permission exists
+                int? oldPermissionId = GetPermissionId(connection, OldPermissionName);
+                int? newPermissionId = GetPermissionId(connection, NewPermissionName);
+
+                Console.WriteLine($"Old permission '{OldPermissionName}': {(oldPermissionId.HasValue ? $"exists (ID={oldPermissionId})" : "not found")}");
+                Console.WriteLine($"New permission '{NewPermissionName}': {(newPermissionId.HasValue ? $"exists (ID={newPermissionId})" : "not found")}");
+                Console.WriteLine();
+
+                if (oldPermissionId.HasValue && newPermissionId.HasValue)
+                {
+                    return (false, "Both old and new permissions exist - manual intervention required to resolve conflict");
+                }
+                if (!oldPermissionId.HasValue && !newPermissionId.HasValue)
+                {
+                    return (false, "Neither old nor new permission exists - manual intervention required");
+                }
+                if (newPermissionId.HasValue)
+                {
+                    // Only new exists - already renamed
+                    return (true, "Permission already renamed");
+                }
+
+                // Only old permission exists - proceed with rename
+                Console.WriteLine($"Renaming permission from '{OldPermissionName}' to '{NewPermissionName}'...");
+
+                if (!executeMode)
+                {
+                    Console.WriteLine("  [DRY-RUN] Would rename permission");
+                    return (true, $"Would rename {OldPermissionName} → {NewPermissionName}");
+                }
+
+                using var cmd = new SqlCommand(@"
+                    UPDATE tblPermissions
+                    SET Permission = @NewPermission,
+                        Description = @NewDescription
+                    WHERE Permission = @OldPermission",
+                    connection);
+                cmd.Parameters.AddWithValue("@OldPermission", OldPermissionName);
+                cmd.Parameters.AddWithValue("@NewPermission", NewPermissionName);
+                cmd.Parameters.AddWithValue("@NewDescription", NewPermissionDescription);
+
+                int rowsAffected = cmd.ExecuteNonQuery();
+                if (rowsAffected == 1)
+                {
+                    Console.WriteLine("  ✓ Permission renamed");
+
+                    // Create audit entry
+                    using var auditCmd = new SqlCommand(@"
+                        INSERT INTO tblLog (PermissionID, Audit, Detail, ModTime, ModBy)
+                        SELECT PermissionID, 'RenamePermission', @Detail, GETDATE(), @ModBy
+                        FROM tblPermissions WHERE Permission = @NewPermission",
+                        connection);
+                    auditCmd.Parameters.AddWithValue("@NewPermission", NewPermissionName);
+                    auditCmd.Parameters.AddWithValue("@Detail", $"{OldPermissionName} → {NewPermissionName}");
+                    auditCmd.Parameters.AddWithValue("@ModBy", ScriptModBy);
+                    auditCmd.ExecuteNonQuery();
+
+                    return (true, $"Renamed {OldPermissionName} → {NewPermissionName}");
+                }
+                else
+                {
+                    return (false, $"Unexpected rows affected: {rowsAffected}");
+                }
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Task 6: Rename Records FK Columns
+
+        private static (bool Success, string Message) RunRenameRecordsFKColumnsTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                var completedSteps = new List<string>();
+
+                // Step 1: Rename SessionType → EffortTypeId
+                Console.WriteLine("Step 1: Checking SessionType → EffortTypeId rename...");
+                bool sessionTypeExists = ColumnExists(connection, "Records", "SessionType");
+                bool effortTypeIdExists = ColumnExists(connection, "Records", "EffortTypeId");
+
+                Console.WriteLine($"  Column 'SessionType' exists: {sessionTypeExists}");
+                Console.WriteLine($"  Column 'EffortTypeId' exists: {effortTypeIdExists}");
+
+                if (sessionTypeExists && effortTypeIdExists)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Both SessionType and EffortTypeId exist - manual intervention required");
+                    Console.ResetColor();
+                }
+                else if (!sessionTypeExists && !effortTypeIdExists)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Neither SessionType nor EffortTypeId exists - manual intervention required");
+                    Console.ResetColor();
+                }
+                else if (effortTypeIdExists)
+                {
+                    // Only new exists - already renamed
+                    Console.WriteLine("  ✓ Already renamed to EffortTypeId");
+                }
+                else
+                {
+                    // Only old exists - proceed with rename
+                    if (executeMode)
+                    {
+                        using var cmd = new SqlCommand("EXEC sp_rename 'effort.Records.SessionType', 'EffortTypeId', 'COLUMN'", connection);
+                        cmd.ExecuteNonQuery();
+                        Console.WriteLine("  ✓ Renamed SessionType → EffortTypeId");
+                        completedSteps.Add("SessionType → EffortTypeId");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  [DRY-RUN] Would rename SessionType → EffortTypeId");
+                        completedSteps.Add("Would rename SessionType → EffortTypeId");
+                    }
+                }
+
+                Console.WriteLine();
+
+                // Step 2: Rename Role → RoleId
+                Console.WriteLine("Step 2: Checking Role → RoleId rename...");
+                bool roleExists = ColumnExists(connection, "Records", "Role");
+                bool roleIdExists = ColumnExists(connection, "Records", "RoleId");
+
+                Console.WriteLine($"  Column 'Role' exists: {roleExists}");
+                Console.WriteLine($"  Column 'RoleId' exists: {roleIdExists}");
+
+                if (roleExists && roleIdExists)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Both Role and RoleId exist - manual intervention required");
+                    Console.ResetColor();
+                }
+                else if (!roleExists && !roleIdExists)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Neither Role nor RoleId exists - manual intervention required");
+                    Console.ResetColor();
+                }
+                else if (roleIdExists)
+                {
+                    // Only new exists - already renamed
+                    Console.WriteLine("  ✓ Already renamed to RoleId");
+                }
+                else
+                {
+                    // Only old exists - proceed with rename
+                    if (executeMode)
+                    {
+                        using var cmd = new SqlCommand("EXEC sp_rename 'effort.Records.Role', 'RoleId', 'COLUMN'", connection);
+                        cmd.ExecuteNonQuery();
+                        Console.WriteLine("  ✓ Renamed Role → RoleId");
+                        completedSteps.Add("Role → RoleId");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  [DRY-RUN] Would rename Role → RoleId");
+                        completedSteps.Add("Would rename Role → RoleId");
+                    }
+                }
+
+                if (completedSteps.Count == 0)
+                {
+                    return (true, "All columns already renamed");
+                }
+
+                return (true, string.Join(", ", completedSteps));
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        private static bool ColumnExists(SqlConnection connection, string tableName, string columnName)
+        {
+            using var cmd = new SqlCommand(@"
+                SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = 'effort' AND TABLE_NAME = @TableName AND COLUMN_NAME = @ColumnName",
+                connection);
+            cmd.Parameters.AddWithValue("@TableName", tableName);
+            cmd.Parameters.AddWithValue("@ColumnName", columnName);
+            return cmd.ExecuteScalar() != null;
+        }
+
+        #endregion
+
+        #region Task 7: Rename Percentages.EffortTypeId Column
+
+        private static (bool Success, string Message) RunRenamePercentagesEffortTypeIdTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Check if column exists with old name
+                bool effortTypeIdExists = ColumnExists(connection, "Percentages", "EffortTypeId");
+                bool percentAssignTypeIdExists = ColumnExists(connection, "Percentages", "PercentAssignTypeId");
+
+                Console.WriteLine($"Column 'EffortTypeId' exists: {effortTypeIdExists}");
+                Console.WriteLine($"Column 'PercentAssignTypeId' exists: {percentAssignTypeIdExists}");
+                Console.WriteLine();
+
+                if (effortTypeIdExists && percentAssignTypeIdExists)
+                {
+                    return (false, "Both EffortTypeId and PercentAssignTypeId columns exist - manual intervention required");
+                }
+                if (!effortTypeIdExists && !percentAssignTypeIdExists)
+                {
+                    return (false, "Neither EffortTypeId nor PercentAssignTypeId column exists - manual intervention required");
+                }
+                if (percentAssignTypeIdExists)
+                {
+                    // Only new exists - already renamed
+                    return (true, "Column already renamed to PercentAssignTypeId");
+                }
+
+                // Only old exists - proceed with rename
+                Console.WriteLine("Renaming column [effort].[Percentages].[EffortTypeId] to [PercentAssignTypeId]...");
+
+                if (!executeMode)
+                {
+                    Console.WriteLine("  [DRY-RUN] Would rename column");
+                    return (true, "Would rename EffortTypeId → PercentAssignTypeId");
+                }
+
+                using var cmd = new SqlCommand("EXEC sp_rename 'effort.Percentages.EffortTypeId', 'PercentAssignTypeId', 'COLUMN'", connection);
+                cmd.ExecuteNonQuery();
+                Console.WriteLine("  ✓ Column renamed");
+
+                return (true, "Renamed EffortTypeId → PercentAssignTypeId");
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
         }
 
         #endregion

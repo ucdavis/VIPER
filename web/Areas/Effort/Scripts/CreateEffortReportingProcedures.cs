@@ -391,7 +391,7 @@ BEGIN
     SET NOCOUNT ON;
 
     -- Comprehensive merit summary report (Lairmore Report)
-    -- Returns instructor details with effort pivoted by session type
+    -- Returns instructor details with effort pivoted by effort type
     -- This is the most comprehensive report, showing all course-level detail
 
     -- Create temp table to hold pivoted results
@@ -417,7 +417,7 @@ BEGIN
         AUT INT DEFAULT 0,
         FWK INT DEFAULT 0,
         INT INT DEFAULT 0,
-        LAD INT DEFAULT 0,  -- L/D session type
+        LAD INT DEFAULT 0,  -- L/D effort type
         PRJ INT DEFAULT 0,
         TUT INT DEFAULT 0,
         FAS INT DEFAULT 0,
@@ -431,7 +431,7 @@ BEGIN
         [T-D] INT DEFAULT 0,
         WVL INT DEFAULT 0,
         CON INT DEFAULT 0,
-        DAL INT DEFAULT 0,  -- D/L session type
+        DAL INT DEFAULT 0,  -- D/L effort type
         DSL INT DEFAULT 0,
         IND INT DEFAULT 0,
         LIS INT DEFAULT 0,
@@ -468,7 +468,7 @@ BEGIN
         c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
         CAST(c.Units AS VARCHAR(25)) as Units,
         c.Enrollment,
-        r.Role
+        r.RoleId
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
@@ -496,11 +496,11 @@ BEGIN
         c.SeqNumb,
         c.Units,
         c.Enrollment,
-        r.Role
+        r.RoleId
     HAVING SUM(COALESCE(r.Weeks, r.Hours, 0)) > 0;
 
-    -- Update session type columns using PIVOT to aggregate effort values
-    -- This automatically handles multiple records per session type by summing them
+    -- Update effort type columns using PIVOT to aggregate effort values
+    -- This automatically handles multiple records per effort type by summing them
     UPDATE ep
     SET CLI = ISNULL(pvt.CLI, 0),
         DIS = ISNULL(pvt.DIS, 0),
@@ -548,7 +548,7 @@ BEGIN
             SELECT
                 up.MothraId,
                 r.CourseId,
-                r.SessionType,
+                r.EffortTypeId,
                 COALESCE(r.Weeks, r.Hours, 0) AS Effort
             FROM [effort].[Records] r
             INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
@@ -558,7 +558,7 @@ BEGIN
         ) AS SourceData
         PIVOT (
             SUM(Effort)
-            FOR SessionType IN (
+            FOR EffortType IN (
                 [CLI], [DIS], [EXM], [LAB], [LEC], [LED], [SEM], [VAR],
                 [AUT], [FWK], [INT], [L/D], [PRJ], [TUT], [FAS], [PBL],
                 [JLC], [ACT], [CBL], [PRS], [TBL], [PRB], [T-D], [WVL],
@@ -591,7 +591,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Merit summary aggregated by department and session type
+    -- Merit summary aggregated by department and effort type
     -- Returns instructor details with effort totals for merit review
 
     SELECT
@@ -609,7 +609,7 @@ BEGIN
             ELSE 'PROFESSOR/IR'
         END as JobGroupDescription,
         p.PercentAdmin,
-        r.SessionType,
+        r.EffortTypeId,
         SUM(COALESCE(r.Weeks, r.Hours, 0)) as TotalEffort
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
@@ -627,7 +627,7 @@ BEGIN
         p.JobGroupId,
         p.Title,
         p.PercentAdmin,
-        r.SessionType
+        r.EffortTypeId
     HAVING
         @Department IS NULL
         OR CASE
@@ -666,7 +666,7 @@ BEGIN
     SET NOCOUNT ON;
 
     -- Detailed merit report for a specific person across date range
-    -- Returns effort breakdown by course and session type
+    -- Returns effort breakdown by course and effort type
 
     SELECT
         r.TermCode,
@@ -677,8 +677,8 @@ BEGIN
         c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
         c.Units,
         c.Enrollment,
-        r.Role,
-        r.SessionType,
+        r.RoleId,
+        r.EffortTypeId,
         COALESCE(r.Weeks, r.Hours, 0) as Effort
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
@@ -687,7 +687,7 @@ BEGIN
     WHERE r.PersonId = @PersonId
         AND r.TermCode BETWEEN @StartTermCode AND @EndTermCode
         AND (@Department IS NULL OR p.EffortDept = @Department)
-        AND (@Role IS NULL OR r.Role = @Role)
+        AND (@Role IS NULL OR r.RoleId = @Role)
     ORDER BY r.TermCode, c.SubjCode, c.CrseNumb, c.SeqNumb;
 END;
 ";
@@ -739,8 +739,8 @@ BEGIN
         c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
         c.Units,
         c.Enrollment,
-        r.Role,
-        r.SessionType,
+        r.RoleId,
+        r.EffortTypeId,
         COALESCE(r.Weeks, r.Hours, 0) as Effort
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
@@ -752,9 +752,9 @@ BEGIN
         AND p.VolunteerWos = 0
         -- Apply exclusions: different lists for clinical vs non-clinical
         AND (
-            (r.SessionType = 'CLI' AND r.TermCode NOT IN (SELECT TermCode FROM @ExcludeClinicalTable))
+            (r.EffortTypeId = 'CLI' AND r.TermCode NOT IN (SELECT TermCode FROM @ExcludeClinicalTable))
             OR
-            (r.SessionType <> 'CLI' AND r.TermCode NOT IN (SELECT TermCode FROM @ExcludeDidacticTable))
+            (r.EffortTypeId <> 'CLI' AND r.TermCode NOT IN (SELECT TermCode FROM @ExcludeDidacticTable))
         )
         AND (COALESCE(r.Weeks, r.Hours, 0) > 0)
     ORDER BY r.TermCode, c.SubjCode, c.CrseNumb, c.SeqNumb;
@@ -774,8 +774,8 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Department-wide merit averages aggregated by session type
-    -- Returns instructor details with effort broken down by session type
+    -- Department-wide merit averages aggregated by effort type
+    -- Returns instructor details with effort broken down by effort type
 
     SELECT
         up.MothraId,
@@ -790,7 +790,7 @@ BEGIN
         p.JobGroupId,
         p.Title as JobGroupDescription,
         p.PercentAdmin,
-        r.SessionType,
+        r.EffortTypeId,
         SUM(COALESCE(r.Weeks, r.Hours, 0)) as TotalEffort
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
@@ -798,7 +798,7 @@ BEGIN
     WHERE r.TermCode = @TermCode
         AND (@Department IS NULL OR p.EffortDept = @Department OR p.ReportUnit LIKE '%' + @Department + '%')
         AND (@PersonId IS NULL OR p.PersonId = @PersonId)
-        AND (@Role IS NULL OR r.Role = @Role)
+        AND (@Role IS NULL OR r.RoleId = @Role)
         AND p.EffortDept <> 'OTH'
         AND p.VolunteerWos = 0
         AND (COALESCE(r.Weeks, r.Hours, 0) > 0)
@@ -811,12 +811,12 @@ BEGIN
         p.JobGroupId,
         p.Title,
         p.PercentAdmin,
-        r.SessionType
+        r.EffortTypeId
     ORDER BY
         Department,
         p.LastName,
         p.FirstName,
-        r.SessionType;
+        r.EffortTypeId;
 END;
 ";
         }
@@ -826,7 +826,7 @@ END;
             return @"
 CREATE OR ALTER PROCEDURE [effort].[sp_merit_clinical_percent]
     @TermCode INT,
-    @EffortTypeId INT
+    @PercentAssignTypeId INT
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -853,7 +853,7 @@ BEGIN
             WHEN p.JobGroupId IN ('335', '341', '317') THEN p.Title
             ELSE 'PROFESSOR/IR'
         END as JobGroupDescription,
-        r.SessionType,
+        r.EffortTypeId,
         SUM(COALESCE(r.Weeks, r.Hours, 0)) as TotalEffort
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
@@ -863,7 +863,7 @@ BEGIN
         AND p.PersonId IN (
             SELECT DISTINCT pct.PersonId
             FROM [effort].[Percentages] pct
-            WHERE pct.EffortTypeId = @EffortTypeId
+            WHERE pct.PercentAssignTypeId = @PercentAssignTypeId
                 AND pct.Percentage > 0
                 -- Percentage period overlaps with academic year
                 AND pct.StartDate <= @AcademicYearEnd
@@ -875,11 +875,11 @@ BEGIN
         p.FirstName,
         p.JobGroupId,
         p.Title,
-        r.SessionType
+        r.EffortTypeId
     ORDER BY
         p.LastName,
         p.FirstName,
-        r.SessionType;
+        r.EffortTypeId;
 END;
 ";
         }
@@ -898,10 +898,10 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Department activity breakdown by session type
+    -- Department activity breakdown by effort type
 
     SELECT
-        r.SessionType,
+        r.EffortTypeId,
         COUNT(r.Id) as ActivityCount,
         SUM(CASE WHEN r.Hours IS NOT NULL THEN r.Hours ELSE 0 END) as TotalHours,
         SUM(CASE WHEN r.Weeks IS NOT NULL THEN r.Weeks ELSE 0 END) as TotalWeeks,
@@ -911,8 +911,8 @@ BEGIN
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     WHERE p.EffortDept = @Department
         AND r.TermCode = @TermCode
-    GROUP BY r.SessionType
-    ORDER BY r.SessionType;
+    GROUP BY r.EffortTypeId
+    ORDER BY r.EffortTypeId;
 END;
 ";
         }
@@ -988,11 +988,11 @@ BEGIN
     SELECT
         c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
         c.Crn,
-        r.SessionType,
+        r.EffortTypeId,
         r.Hours,
         r.Weeks,
         c.Enrollment,
-        r.Role
+        r.RoleId
     FROM [effort].[Records] r
     INNER JOIN [effort].[Courses] c ON r.CourseId = c.Id
     WHERE r.PersonId = @PersonId
@@ -1030,11 +1030,11 @@ BEGIN
         r.TermCode,
         c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
         c.Crn,
-        r.SessionType,
+        r.EffortTypeId,
         r.Hours,
         r.Weeks,
         c.Enrollment,
-        r.Role
+        r.RoleId
     FROM [effort].[Records] r
     INNER JOIN [effort].[Courses] c ON r.CourseId = c.Id
     WHERE r.PersonId = @PersonId
@@ -1061,11 +1061,11 @@ BEGIN
     SELECT
         c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
         c.Crn,
-        r.SessionType,
+        r.EffortTypeId,
         c.Enrollment,
         r.Hours,
         r.Weeks,
-        r.Role
+        r.RoleId
     FROM [effort].[Records] r
     INNER JOIN [effort].[Courses] c ON r.CourseId = c.Id
     WHERE r.PersonId = @PersonId
@@ -1104,8 +1104,8 @@ BEGIN
         r.TermCode,
         c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
         c.Crn,
-        r.SessionType,
-        r.Role,
+        r.EffortTypeId,
+        r.RoleId,
         c.Enrollment,
         r.Hours,
         r.Weeks
@@ -1190,8 +1190,8 @@ BEGIN
         c.Crn,
         c.Units,
         c.Enrollment,
-        r.Role,
-        r.SessionType,
+        r.RoleId,
+        r.EffortTypeId,
         r.Hours,
         r.Weeks
     FROM [effort].[Records] r
@@ -1201,7 +1201,7 @@ BEGIN
     WHERE r.TermCode = @TermCode
         AND (@Department IS NULL OR p.EffortDept = @Department OR p.ReportUnit = @Department)
         AND (@PersonId IS NULL OR p.PersonId = @PersonId)
-        AND (@Role IS NULL OR r.Role = @Role)
+        AND (@Role IS NULL OR r.RoleId = @Role)
         AND (@JobGroupId IS NULL OR p.JobGroupId = @JobGroupId)
         AND c.Enrollment > 0
     ORDER BY p.EffortDept, p.LastName, p.FirstName, c.SubjCode, c.CrseNumb, c.SeqNumb;

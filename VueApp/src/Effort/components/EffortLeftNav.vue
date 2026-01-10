@@ -95,26 +95,9 @@
                     </q-item-section>
                 </q-item>
 
-                <!-- Manage Session Types - only for ManageSessionTypes users -->
+                <!-- Manage Effort Types - only for ManageEffortTypes users -->
                 <q-item
-                    v-if="hasManageSessionTypes"
-                    clickable
-                    v-ripple
-                    :to="
-                        currentTerm
-                            ? { name: 'SessionTypeListWithTerm', params: { termCode: currentTerm.termCode } }
-                            : { name: 'SessionTypeList' }
-                    "
-                    class="leftNavLink"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Manage Session Types</q-item-label>
-                    </q-item-section>
-                </q-item>
-
-                <!-- Percent Admin Types - view-only list for admins -->
-                <q-item
-                    v-if="isAdmin"
+                    v-if="hasManageEffortTypes"
                     clickable
                     v-ripple
                     :to="
@@ -125,7 +108,24 @@
                     class="leftNavLink"
                 >
                     <q-item-section>
-                        <q-item-label lines="1">Percent Admin Types</q-item-label>
+                        <q-item-label lines="1">Manage Effort Types</q-item-label>
+                    </q-item-section>
+                </q-item>
+
+                <!-- Percent Assignment Types - view-only list for admins -->
+                <q-item
+                    v-if="isAdmin"
+                    clickable
+                    v-ripple
+                    :to="
+                        currentTerm
+                            ? { name: 'PercentAssignTypeListWithTerm', params: { termCode: currentTerm.termCode } }
+                            : { name: 'PercentAssignTypeList' }
+                    "
+                    class="leftNavLink"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Percent Assignment Types</q-item-label>
                     </q-item-section>
                 </q-item>
 
@@ -217,7 +217,7 @@ const route = useRoute()
 const {
     hasManageTerms,
     hasManageUnits,
-    hasManageSessionTypes,
+    hasManageEffortTypes,
     hasViewAudit,
     hasImportCourse,
     hasEditCourse,

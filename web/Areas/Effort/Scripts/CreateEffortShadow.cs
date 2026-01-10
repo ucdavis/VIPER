@@ -728,8 +728,8 @@ namespace Viper.Areas.Effort.Scripts
             p.MothraId as effort_MothraID,  -- Map PersonId back to MothraId
             p.ClientId as effort_clientid,  -- Client ID from users.Person
             r.TermCode as effort_termCode,  -- lowercase 't' to match legacy casing
-            r.SessionType as effort_SessionType,
-            CAST(r.Role as char(1)) as effort_Role,  -- Convert int to char for legacy
+            r.EffortTypeId as effort_SessionType,  -- Keep legacy alias for ColdFusion compatibility
+            CAST(r.RoleId as char(1)) as effort_Role,  -- Convert int to char for legacy
             r.Hours as effort_Hours,
             r.Weeks as effort_Weeks,
             r.Crn as effort_CRN
@@ -765,8 +765,8 @@ namespace Viper.Areas.Effort.Scripts
                 CourseId,
                 PersonId,
                 TermCode,
-                SessionType,
-                Role,
+                EffortTypeId,
+                RoleId,
                 Hours,
                 Weeks,
                 Crn,
@@ -809,8 +809,8 @@ namespace Viper.Areas.Effort.Scripts
             UPDATE r
             SET
                 r.CourseId = i.effort_CourseID,
-                r.SessionType = i.effort_SessionType,
-                r.Role = i.effort_Role,
+                r.EffortTypeId = i.effort_SessionType,
+                r.RoleId = i.effort_Role,
                 r.Hours = i.effort_Hours,
                 r.Weeks = i.effort_Weeks
             FROM [effort].[Records] r
@@ -1108,7 +1108,7 @@ namespace Viper.Areas.Effort.Scripts
             p.MothraId as percent_MothraID,
             pct.AcademicYear as percent_AcademicYear,
             CAST(pct.Percentage AS FLOAT) as percent_Percent,
-            pct.EffortTypeId as percent_TypeID,
+            pct.PercentAssignTypeId as percent_TypeID,
             -- Return UnitId as varchar to match legacy schema (ColdFusion sends unit IDs as strings)
             CAST(pct.UnitId AS varchar(50)) as percent_Unit,
             pct.Modifier as percent_Modifier,
@@ -1152,7 +1152,7 @@ namespace Viper.Areas.Effort.Scripts
                 PersonId,
                 AcademicYear,
                 Percentage,
-                EffortTypeId,
+                PercentAssignTypeId,
                 UnitId,
                 Modifier,
                 Comment,
@@ -1225,7 +1225,7 @@ namespace Viper.Areas.Effort.Scripts
                     END
                 ),
                 pct.Percentage = i.percent_Percent,
-                pct.EffortTypeId = i.percent_TypeID,
+                pct.PercentAssignTypeId = i.percent_TypeID,
                 -- Convert varchar to int; empty/invalid → NULL
                 pct.UnitId = TRY_CAST(NULLIF(LTRIM(RTRIM(i.percent_Unit)), '') AS int),
                 pct.Modifier = i.percent_Modifier,
@@ -1380,6 +1380,8 @@ namespace Viper.Areas.Effort.Scripts
         {
             Console.WriteLine("Creating view: tblEffortType_LU...");
 
+            // NOTE: This view maps to the renamed PercentAssignTypes table (formerly EffortTypes)
+            // The view name stays as tblEffortType_LU for ColdFusion compatibility
             string sql = @"
         CREATE OR ALTER VIEW [EffortShadow].[tblEffortType_LU]
         AS
@@ -1388,7 +1390,7 @@ namespace Viper.Areas.Effort.Scripts
             Name as type_Name,
             Class as type_Class,
             ShowOnTemplate as type_showOnMPVoteTemplate
-        FROM [effort].[EffortTypes];";
+        FROM [effort].[PercentAssignTypes];";
 
             using var cmd = new SqlCommand(sql, connection, transaction);
             cmd.ExecuteNonQuery();
@@ -1616,6 +1618,9 @@ namespace Viper.Areas.Effort.Scripts
 
             // Create INSTEAD OF INSERT trigger for tblAudit
             CreateTblAuditInsertTrigger(connection, transaction);
+
+            // Create INSTEAD OF DELETE trigger for tblAudit (for harvest cleanup)
+            CreateTblAuditDeleteTrigger(connection, transaction);
         }
 
         static void CreateTblAuditInsertTrigger(SqlConnection connection, SqlTransaction transaction)
@@ -1679,6 +1684,29 @@ namespace Viper.Areas.Effort.Scripts
             using var cmd = new SqlCommand(sql, connection, transaction);
             cmd.ExecuteNonQuery();
             Console.WriteLine("  ✓ INSTEAD OF INSERT trigger created");
+        }
+
+        static void CreateTblAuditDeleteTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF DELETE trigger for tblAudit...");
+
+            string sql = @"
+        CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblAudit_Delete]
+        ON [EffortShadow].[tblAudit]
+        INSTEAD OF DELETE
+        AS
+        BEGIN
+            SET NOCOUNT ON;
+
+            -- Delete from modern Audits table using the audit_ID (maps to Id)
+            DELETE a
+            FROM [effort].[Audits] a
+            INNER JOIN deleted d ON a.Id = d.audit_ID;
+        END;";
+
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF DELETE trigger created");
         }
 
         static void CreateVwInstructorEffortView(SqlConnection connection, SqlTransaction transaction)

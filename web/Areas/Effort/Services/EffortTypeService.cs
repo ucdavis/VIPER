@@ -1,129 +1,188 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
+using Viper.Areas.Effort.Models.Entities;
 
 namespace Viper.Areas.Effort.Services;
 
+/// <summary>
+/// Service for effort type-related operations.
+/// </summary>
 public class EffortTypeService : IEffortTypeService
 {
     private readonly EffortDbContext _context;
+    private readonly IEffortAuditService _auditService;
     private readonly IMapper _mapper;
 
-    public EffortTypeService(EffortDbContext context, IMapper mapper)
+    public EffortTypeService(EffortDbContext context, IEffortAuditService auditService, IMapper mapper)
     {
         _context = context;
+        _auditService = auditService;
         _mapper = mapper;
     }
 
-    public async Task<List<EffortTypeDto>> GetEffortTypesAsync(bool? activeOnly = null, CancellationToken ct = default)
+    private static string NormalizeEffortType(string id) => id.Trim().ToUpperInvariant();
+
+    private static object GetEffortTypeSnapshot(EffortType et) => new
+    {
+        et.Id,
+        et.Description,
+        et.UsesWeeks,
+        et.IsActive,
+        et.FacultyCanEnter,
+        et.AllowedOnDvm,
+        et.AllowedOn199299,
+        et.AllowedOnRCourses
+    };
+
+    public async Task<List<EffortTypeDto>> GetEffortTypesAsync(bool activeOnly = false, CancellationToken ct = default)
     {
         var query = _context.EffortTypes.AsNoTracking();
 
-        if (activeOnly == true)
+        if (activeOnly)
         {
-            query = query.Where(t => t.IsActive);
+            query = query.Where(s => s.IsActive);
         }
 
-        var types = await query
-            .OrderBy(t => t.Class)
-            .ThenBy(t => t.Name)
+        var effortTypes = await query
+            .OrderBy(s => s.Description)
             .ToListAsync(ct);
 
-        // Get instructor counts per type (distinct person/year combinations)
-        var typeIds = types.Select(t => t.Id).ToList();
-        var instructorCounts = typeIds.Count == 0
-            ? new Dictionary<int, int>()
-            : await _context.Percentages
-                .AsNoTracking()
-                .Where(p => typeIds.Contains(p.EffortTypeId))
-                .Select(p => new { p.EffortTypeId, p.PersonId, p.AcademicYear })
-                .Distinct()
-                .GroupBy(p => p.EffortTypeId)
-                .Select(g => new { EffortTypeId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.EffortTypeId, x => x.Count, ct);
+        // Get usage counts for all effort types
+        var effortTypeIds = effortTypes.Select(s => s.Id).ToList();
+        var usageCounts = await _context.Records
+            .Where(r => effortTypeIds.Contains(r.EffortTypeId))
+            .GroupBy(r => r.EffortTypeId)
+            .Select(g => new { EffortTypeId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.EffortTypeId, x => x.Count, ct);
 
-        return types.Select(t =>
+        return effortTypes.Select(s =>
         {
-            var dto = _mapper.Map<EffortTypeDto>(t);
-            dto.InstructorCount = instructorCounts.GetValueOrDefault(t.Id, 0);
+            var dto = _mapper.Map<EffortTypeDto>(s);
+            dto.UsageCount = usageCounts.GetValueOrDefault(s.Id, 0);
+            dto.CanDelete = dto.UsageCount == 0;
             return dto;
         }).ToList();
     }
 
-    public async Task<EffortTypeDto?> GetEffortTypeAsync(int id, CancellationToken ct = default)
+    public async Task<EffortTypeDto?> GetEffortTypeAsync(string id, CancellationToken ct = default)
     {
-        var type = await _context.EffortTypes
+        var normalizedId = NormalizeEffortType(id);
+        var effortType = await _context.EffortTypes
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == id, ct);
+            .FirstOrDefaultAsync(s => s.Id == normalizedId, ct);
 
-        if (type == null) return null;
+        if (effortType == null) return null;
 
-        return _mapper.Map<EffortTypeDto>(type);
+        var dto = _mapper.Map<EffortTypeDto>(effortType);
+        dto.UsageCount = await GetUsageCountAsync(normalizedId, ct);
+        dto.CanDelete = dto.UsageCount == 0;
+        return dto;
     }
 
-    public async Task<List<string>> GetEffortTypeClassesAsync(CancellationToken ct = default)
+    public async Task<EffortTypeDto> CreateEffortTypeAsync(CreateEffortTypeRequest request, CancellationToken ct = default)
     {
-        return await _context.EffortTypes
-            .AsNoTracking()
-            .Select(t => t.Class)
-            .Distinct()
-            .OrderBy(c => c)
-            .ToListAsync(ct);
-    }
+        var normalizedId = NormalizeEffortType(request.Id);
 
-    public async Task<InstructorsByTypeResponseDto?> GetInstructorsByTypeAsync(int typeId, CancellationToken ct = default)
-    {
-        var type = await _context.EffortTypes
-            .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == typeId, ct);
-
-        if (type == null) return null;
-
-        // Get all percentages for this type
-        var percentages = await _context.Percentages
-            .AsNoTracking()
-            .Where(p => p.EffortTypeId == typeId)
-            .Select(p => new { p.PersonId, p.AcademicYear })
-            .Distinct()
-            .OrderBy(p => p.AcademicYear)
-            .ThenBy(p => p.PersonId)
-            .ToListAsync(ct);
-
-        // Get the person IDs
-        var personIds = percentages.Select(p => p.PersonId).Distinct().ToList();
-
-        // Get the most recent record for each person to get their name
-        var persons = await _context.Persons
-            .AsNoTracking()
-            .Where(p => personIds.Contains(p.PersonId))
-            .GroupBy(p => p.PersonId)
-            .Select(g => g.OrderByDescending(p => p.TermCode).First())
-            .ToDictionaryAsync(p => p.PersonId, ct);
-
-        // Build result with one entry per person/year combination
-        var instructors = percentages.Select(p =>
+        // Check for duplicate ID
+        if (await _context.EffortTypes.AnyAsync(s => s.Id == normalizedId, ct))
         {
-            var person = persons.GetValueOrDefault(p.PersonId);
-            return new InstructorByTypeDto
-            {
-                PersonId = p.PersonId,
-                FirstName = person?.FirstName ?? string.Empty,
-                LastName = person?.LastName ?? string.Empty,
-                FullName = person != null ? $"{person.LastName}, {person.FirstName}" : string.Empty,
-                AcademicYear = p.AcademicYear
-            };
-        })
-        .OrderBy(i => i.AcademicYear)
-        .ThenBy(i => i.LastName)
-        .ThenBy(i => i.FirstName)
-        .ToList();
+            throw new InvalidOperationException($"An effort type with ID '{normalizedId}' already exists.");
+        }
 
-        return new InstructorsByTypeResponseDto
+        var effortType = new EffortType
         {
-            TypeId = type.Id,
-            TypeName = type.Name,
-            TypeClass = type.Class,
-            Instructors = instructors
+            Id = normalizedId,
+            Description = request.Description.Trim(),
+            UsesWeeks = request.UsesWeeks,
+            IsActive = true,
+            FacultyCanEnter = request.FacultyCanEnter,
+            AllowedOnDvm = request.AllowedOnDvm,
+            AllowedOn199299 = request.AllowedOn199299,
+            AllowedOnRCourses = request.AllowedOnRCourses
         };
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        _context.EffortTypes.Add(effortType);
+        await _context.SaveChangesAsync(ct);
+
+        _auditService.AddEffortTypeChangeAudit(effortType.Id, EffortAuditActions.CreateEffortType,
+            null,
+            GetEffortTypeSnapshot(effortType));
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
+        var dto = _mapper.Map<EffortTypeDto>(effortType);
+        dto.UsageCount = 0;
+        dto.CanDelete = true;
+        return dto;
+    }
+
+    public async Task<EffortTypeDto?> UpdateEffortTypeAsync(string id, UpdateEffortTypeRequest request, CancellationToken ct = default)
+    {
+        var normalizedId = NormalizeEffortType(id);
+        var effortType = await _context.EffortTypes.FirstOrDefaultAsync(s => s.Id == normalizedId, ct);
+        if (effortType == null) return null;
+
+        var oldState = GetEffortTypeSnapshot(effortType);
+
+        effortType.Description = request.Description.Trim();
+        effortType.UsesWeeks = request.UsesWeeks;
+        effortType.IsActive = request.IsActive;
+        effortType.FacultyCanEnter = request.FacultyCanEnter;
+        effortType.AllowedOnDvm = request.AllowedOnDvm;
+        effortType.AllowedOn199299 = request.AllowedOn199299;
+        effortType.AllowedOnRCourses = request.AllowedOnRCourses;
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        _auditService.AddEffortTypeChangeAudit(normalizedId, EffortAuditActions.UpdateEffortType,
+            oldState,
+            GetEffortTypeSnapshot(effortType));
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
+        var dto = _mapper.Map<EffortTypeDto>(effortType);
+        dto.UsageCount = await GetUsageCountAsync(normalizedId, ct);
+        dto.CanDelete = dto.UsageCount == 0;
+        return dto;
+    }
+
+    public async Task<bool> DeleteEffortTypeAsync(string id, CancellationToken ct = default)
+    {
+        var normalizedId = NormalizeEffortType(id);
+        if (!await CanDeleteEffortTypeAsync(normalizedId, ct))
+        {
+            return false;
+        }
+
+        var effortType = await _context.EffortTypes.FirstOrDefaultAsync(s => s.Id == normalizedId, ct);
+        if (effortType == null) return false;
+
+        var oldState = GetEffortTypeSnapshot(effortType);
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        _context.EffortTypes.Remove(effortType);
+        _auditService.AddEffortTypeChangeAudit(normalizedId, EffortAuditActions.DeleteEffortType,
+            oldState,
+            null);
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
+        return true;
+    }
+
+    public async Task<bool> CanDeleteEffortTypeAsync(string id, CancellationToken ct = default)
+    {
+        var normalizedId = NormalizeEffortType(id);
+        return await GetUsageCountAsync(normalizedId, ct) == 0;
+    }
+
+    private async Task<int> GetUsageCountAsync(string id, CancellationToken ct = default)
+    {
+        var normalizedId = NormalizeEffortType(id);
+        return await _context.Records
+            .CountAsync(r => r.EffortTypeId == normalizedId, ct);
     }
 }

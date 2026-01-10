@@ -13,7 +13,7 @@ Architecture:
 - 16 tables total with proper dependency ordering
 
 Tables:
-1. Lookup Tables (no dependencies): Roles, EffortTypes, SessionTypes, Units,
+1. Lookup Tables (no dependencies): Roles, PercentAssignTypes, EffortTypes, Units,
    JobCodes, ReportUnits
 2. Term and Course Tables: TermStatus, Courses
 3. Person Tables: Persons, AlternateTitles, UserAccess
@@ -61,21 +61,21 @@ CREATE TABLE [effort].[Roles] (
 GO
 
 -- ----------------------------------------------------------------------------
--- Table: EffortTypes
--- Description: Types of effort activities (Clinical, Admin, Other)
--- Legacy: tblEffortType_LU
+-- Table: PercentAssignTypes
+-- Description: Types of percent assignments (Clinical, Admin, Other)
+-- Legacy: tblEffortType_LU (renamed from EffortTypes to PercentAssignTypes)
 -- ----------------------------------------------------------------------------
-CREATE TABLE [effort].[EffortTypes] (
+CREATE TABLE [effort].[PercentAssignTypes] (
     Id int IDENTITY(1,1) NOT NULL,
     Class varchar(20) NOT NULL,
     Name varchar(50) NOT NULL,
     ShowOnTemplate bit NOT NULL DEFAULT 1,
     IsActive bit NOT NULL DEFAULT 1,
-    CONSTRAINT PK_EffortTypes PRIMARY KEY CLUSTERED (Id)
+    CONSTRAINT PK_PercentAssignTypes PRIMARY KEY CLUSTERED (Id)
 );
 
-SET IDENTITY_INSERT [effort].[EffortTypes] ON;
-INSERT INTO [effort].[EffortTypes] (Id, Class, Name, ShowOnTemplate) VALUES
+SET IDENTITY_INSERT [effort].[PercentAssignTypes] ON;
+INSERT INTO [effort].[PercentAssignTypes] (Id, Class, Name, ShowOnTemplate) VALUES
 (1, 'Clinical', 'Clinical', 1),
 (2, 'Admin', 'Dean', 1),
 (3, 'Admin', 'Assoc Dean', 1),
@@ -102,16 +102,16 @@ INSERT INTO [effort].[EffortTypes] (Id, Class, Name, ShowOnTemplate) VALUES
 (24, 'Admin', 'Faculty Chair', 1),
 (25, 'Clinical', 'Non VMTH Clinical', 0),
 (26, 'Admin', 'Asst Director', 1);
-SET IDENTITY_INSERT [effort].[EffortTypes] OFF;
+SET IDENTITY_INSERT [effort].[PercentAssignTypes] OFF;
 GO
 
 -- ----------------------------------------------------------------------------
--- Table: SessionTypes
--- Description: Course session types (Lecture, Lab, Clinical, etc.)
--- Legacy: Derived from distinct values in tblEffort SessionType column
--- Note: CLI (Clinical) is the ONLY session type that uses weeks instead of hours
+-- Table: EffortTypes
+-- Description: Effort types for course records (Lecture, Lab, Clinical, etc.)
+-- Legacy: SessionTypes table (renamed from SessionTypes to EffortTypes)
+-- Note: CLI (Clinical) is the ONLY effort type that uses weeks instead of hours
 -- ----------------------------------------------------------------------------
-CREATE TABLE [effort].[SessionTypes] (
+CREATE TABLE [effort].[EffortTypes] (
     Id varchar(3) NOT NULL,
     Description varchar(50) NOT NULL,
     UsesWeeks bit NOT NULL DEFAULT 0,
@@ -120,11 +120,11 @@ CREATE TABLE [effort].[SessionTypes] (
     AllowedOnDvm bit NOT NULL DEFAULT 1,      -- Allowed on DVM courses
     AllowedOn199299 bit NOT NULL DEFAULT 1,   -- Allowed on 199/299 courses
     AllowedOnRCourses bit NOT NULL DEFAULT 1, -- Allowed on R courses
-    CONSTRAINT PK_SessionTypes PRIMARY KEY CLUSTERED (Id)
+    CONSTRAINT PK_EffortTypes PRIMARY KEY CLUSTERED (Id)
 );
 
--- CLI is the ONLY session type that uses weeks instead of hours
-INSERT INTO [effort].[SessionTypes] (Id, Description, UsesWeeks) VALUES
+-- CLI is the ONLY effort type that uses weeks instead of hours
+INSERT INTO [effort].[EffortTypes] (Id, Description, UsesWeeks) VALUES
 ('ACT', 'Activity', 0),
 ('AUT', 'Autopsy', 0),
 ('CBL', 'Case-Based Learning', 0),
@@ -361,8 +361,8 @@ CREATE TABLE [effort].[Records] (
     CourseId int NOT NULL,
     PersonId int NOT NULL,
     TermCode int NOT NULL,
-    SessionType varchar(3) NOT NULL,
-    Role char(1) NOT NULL,
+    EffortTypeId varchar(3) NOT NULL,
+    RoleId int NOT NULL,
     Hours int NULL,
     Weeks int NULL,
     Crn varchar(5) NOT NULL,
@@ -373,8 +373,8 @@ CREATE TABLE [effort].[Records] (
     CONSTRAINT FK_Records_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
     CONSTRAINT FK_Records_Persons FOREIGN KEY (PersonId, TermCode) REFERENCES [effort].[Persons](PersonId, TermCode),
     CONSTRAINT FK_Records_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
-    CONSTRAINT FK_Records_Roles FOREIGN KEY (Role) REFERENCES [effort].[Roles](Id),
-    CONSTRAINT FK_Records_SessionTypes FOREIGN KEY (SessionType) REFERENCES [effort].[SessionTypes](Id),
+    CONSTRAINT FK_Records_Roles FOREIGN KEY (RoleId) REFERENCES [effort].[Roles](Id),
+    CONSTRAINT FK_Records_EffortTypes FOREIGN KEY (EffortTypeId) REFERENCES [effort].[EffortTypes](Id),
     CONSTRAINT FK_Records_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
     CONSTRAINT CK_Records_HoursOrWeeks CHECK ((Hours IS NOT NULL AND Weeks IS NULL) OR (Hours IS NULL AND Weeks IS NOT NULL)),
     CONSTRAINT CK_Records_Hours CHECK (Hours IS NULL OR (Hours >= 0 AND Hours <= 2500)),
@@ -398,7 +398,7 @@ CREATE TABLE [effort].[Percentages] (
     PersonId int NOT NULL,
     AcademicYear char(9) NOT NULL,  -- Format: 'YYYY-YYYY' (e.g., '2019-2020'), derived from StartDate if missing
     Percentage float NOT NULL,  -- Match legacy float(53)
-    EffortTypeId int NOT NULL,
+    PercentAssignTypeId int NOT NULL,
     UnitId int NULL,  -- FK to Units table
     Modifier varchar(50) NULL,
     Comment varchar(100) NULL,
@@ -409,7 +409,7 @@ CREATE TABLE [effort].[Percentages] (
     Compensated bit NOT NULL DEFAULT 0,
     CONSTRAINT PK_Percentages PRIMARY KEY CLUSTERED (Id),
     CONSTRAINT FK_Percentages_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
-    CONSTRAINT FK_Percentages_EffortTypes FOREIGN KEY (EffortTypeId) REFERENCES [effort].[EffortTypes](Id),
+    CONSTRAINT FK_Percentages_PercentAssignTypes FOREIGN KEY (PercentAssignTypeId) REFERENCES [effort].[PercentAssignTypes](Id),
     CONSTRAINT FK_Percentages_Units FOREIGN KEY (UnitId) REFERENCES [effort].[Units](Id),
     CONSTRAINT FK_Percentages_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
     CONSTRAINT CK_Percentages_Percentage CHECK (Percentage BETWEEN 0 AND 100),
@@ -517,7 +517,7 @@ PRINT '=========================================================================
 PRINT '';
 PRINT 'Tables Created: 16';
 PRINT '';
-PRINT 'Lookup Tables (6): Roles, EffortTypes, SessionTypes, Units, JobCodes,';
+PRINT 'Lookup Tables (6): Roles, PercentAssignTypes, EffortTypes, Units, JobCodes,';
 PRINT '                   ReportUnits';
 PRINT '';
 PRINT 'Term/Course Tables (2): TermStatus, Courses';
@@ -530,8 +530,8 @@ PRINT 'Relationship/Audit Tables (2): CourseRelationships, Audits';
 PRINT '';
 PRINT 'Seed Data Inserted:';
 PRINT '  - Roles: 3 rows';
-PRINT '  - EffortTypes: 26 rows';
-PRINT '  - SessionTypes: 35 rows';
+PRINT '  - PercentAssignTypes: 26 rows';
+PRINT '  - EffortTypes: 35 rows';
 PRINT '';
 PRINT 'Next Steps:';
 PRINT '  1. Run MigrateEffortData.cs to migrate data from legacy database';
