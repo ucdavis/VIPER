@@ -1216,22 +1216,21 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine($"New permission '{NewPermissionName}': {(newPermissionId.HasValue ? $"exists (ID={newPermissionId})" : "not found")}");
                 Console.WriteLine();
 
-                if (newPermissionId.HasValue && !oldPermissionId.HasValue)
-                {
-                    return (true, "Permission already renamed");
-                }
-
-                if (!oldPermissionId.HasValue && !newPermissionId.HasValue)
-                {
-                    return (false, "Neither old nor new permission exists - manual intervention required");
-                }
-
                 if (oldPermissionId.HasValue && newPermissionId.HasValue)
                 {
                     return (false, "Both old and new permissions exist - manual intervention required to resolve conflict");
                 }
+                if (!oldPermissionId.HasValue && !newPermissionId.HasValue)
+                {
+                    return (false, "Neither old nor new permission exists - manual intervention required");
+                }
+                if (newPermissionId.HasValue)
+                {
+                    // Only new exists - already renamed
+                    return (true, "Permission already renamed");
+                }
 
-                // Old permission exists, new does not - proceed with rename
+                // Only old permission exists - proceed with rename
                 Console.WriteLine($"Renaming permission from '{OldPermissionName}' to '{NewPermissionName}'...");
 
                 if (!executeMode)
@@ -1312,12 +1311,26 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine($"  Column 'SessionType' exists: {sessionTypeExists}");
                 Console.WriteLine($"  Column 'EffortTypeId' exists: {effortTypeIdExists}");
 
-                if (effortTypeIdExists && !sessionTypeExists)
+                if (sessionTypeExists && effortTypeIdExists)
                 {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Both SessionType and EffortTypeId exist - manual intervention required");
+                    Console.ResetColor();
+                }
+                else if (!sessionTypeExists && !effortTypeIdExists)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Neither SessionType nor EffortTypeId exists - manual intervention required");
+                    Console.ResetColor();
+                }
+                else if (effortTypeIdExists)
+                {
+                    // Only new exists - already renamed
                     Console.WriteLine("  ✓ Already renamed to EffortTypeId");
                 }
-                else if (sessionTypeExists && !effortTypeIdExists)
+                else
                 {
+                    // Only old exists - proceed with rename
                     if (executeMode)
                     {
                         using var cmd = new SqlCommand("EXEC sp_rename 'effort.Records.SessionType', 'EffortTypeId', 'COLUMN'", connection);
@@ -1331,18 +1344,6 @@ namespace Viper.Areas.Effort.Scripts
                         completedSteps.Add("Would rename SessionType → EffortTypeId");
                     }
                 }
-                else if (sessionTypeExists && effortTypeIdExists)
-                {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("  ⚠ Both SessionType and EffortTypeId exist - manual intervention required");
-                    Console.ResetColor();
-                }
-                else
-                {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("  ⚠ Neither SessionType nor EffortTypeId exists - manual intervention required");
-                    Console.ResetColor();
-                }
 
                 Console.WriteLine();
 
@@ -1354,12 +1355,26 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine($"  Column 'Role' exists: {roleExists}");
                 Console.WriteLine($"  Column 'RoleId' exists: {roleIdExists}");
 
-                if (roleIdExists && !roleExists)
+                if (roleExists && roleIdExists)
                 {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Both Role and RoleId exist - manual intervention required");
+                    Console.ResetColor();
+                }
+                else if (!roleExists && !roleIdExists)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Neither Role nor RoleId exists - manual intervention required");
+                    Console.ResetColor();
+                }
+                else if (roleIdExists)
+                {
+                    // Only new exists - already renamed
                     Console.WriteLine("  ✓ Already renamed to RoleId");
                 }
-                else if (roleExists && !roleIdExists)
+                else
                 {
+                    // Only old exists - proceed with rename
                     if (executeMode)
                     {
                         using var cmd = new SqlCommand("EXEC sp_rename 'effort.Records.Role', 'RoleId', 'COLUMN'", connection);
@@ -1372,18 +1387,6 @@ namespace Viper.Areas.Effort.Scripts
                         Console.WriteLine("  [DRY-RUN] Would rename Role → RoleId");
                         completedSteps.Add("Would rename Role → RoleId");
                     }
-                }
-                else if (roleExists && roleIdExists)
-                {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("  ⚠ Both Role and RoleId exist - manual intervention required");
-                    Console.ResetColor();
-                }
-                else
-                {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("  ⚠ Neither Role nor RoleId exists - manual intervention required");
-                    Console.ResetColor();
                 }
 
                 if (completedSteps.Count == 0)
@@ -1441,22 +1444,21 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine($"Column 'PercentAssignTypeId' exists: {percentAssignTypeIdExists}");
                 Console.WriteLine();
 
-                if (percentAssignTypeIdExists && !effortTypeIdExists)
-                {
-                    return (true, "Column already renamed to PercentAssignTypeId");
-                }
-
-                if (!effortTypeIdExists && !percentAssignTypeIdExists)
-                {
-                    return (false, "Neither EffortTypeId nor PercentAssignTypeId column exists - manual intervention required");
-                }
-
                 if (effortTypeIdExists && percentAssignTypeIdExists)
                 {
                     return (false, "Both EffortTypeId and PercentAssignTypeId columns exist - manual intervention required");
                 }
+                if (!effortTypeIdExists && !percentAssignTypeIdExists)
+                {
+                    return (false, "Neither EffortTypeId nor PercentAssignTypeId column exists - manual intervention required");
+                }
+                if (percentAssignTypeIdExists)
+                {
+                    // Only new exists - already renamed
+                    return (true, "Column already renamed to PercentAssignTypeId");
+                }
 
-                // EffortTypeId exists, PercentAssignTypeId does not - proceed with rename
+                // Only old exists - proceed with rename
                 Console.WriteLine("Renaming column [effort].[Percentages].[EffortTypeId] to [PercentAssignTypeId]...");
 
                 if (!executeMode)

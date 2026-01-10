@@ -728,7 +728,7 @@ namespace Viper.Areas.Effort.Scripts
             p.MothraId as effort_MothraID,  -- Map PersonId back to MothraId
             p.ClientId as effort_clientid,  -- Client ID from users.Person
             r.TermCode as effort_termCode,  -- lowercase 't' to match legacy casing
-            r.EffortTypeId as effort_EffortType,
+            r.EffortTypeId as effort_SessionType,  -- Keep legacy alias for ColdFusion compatibility
             CAST(r.RoleId as char(1)) as effort_Role,  -- Convert int to char for legacy
             r.Hours as effort_Hours,
             r.Weeks as effort_Weeks,
@@ -777,7 +777,7 @@ namespace Viper.Areas.Effort.Scripts
                 i.effort_CourseID,
                 p.PersonId,  -- Map MothraId to PersonId
                 i.effort_termCode,
-                i.effort_EffortType,
+                i.effort_SessionType,
                 i.effort_Role,
                 i.effort_Hours,
                 i.effort_Weeks,
@@ -809,7 +809,7 @@ namespace Viper.Areas.Effort.Scripts
             UPDATE r
             SET
                 r.CourseId = i.effort_CourseID,
-                r.EffortTypeId = i.effort_EffortType,
+                r.EffortTypeId = i.effort_SessionType,
                 r.RoleId = i.effort_Role,
                 r.Hours = i.effort_Hours,
                 r.Weeks = i.effort_Weeks
@@ -1723,7 +1723,7 @@ namespace Viper.Areas.Effort.Scripts
             e.effort_CourseID,
             e.effort_MothraID,
             e.effort_termCode as effort_TermCode,
-            e.effort_EffortType,
+            e.effort_SessionType,
             e.effort_Role,
             e.effort_Hours,
             e.effort_Weeks,

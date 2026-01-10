@@ -109,11 +109,10 @@ public class EffortAuditService : IEffortAuditService
 
     public void AddEffortTypeChangeAudit(string effortTypeId, string action, object? oldValues, object? newValues)
     {
-        // EffortType uses string Id, store it as part of the changes JSON
+        // EffortType uses string Id - include it for reference by setting same old/new value
+        // so frontend displays it without diff styling (no arrow between values)
         // Use 0 as recordId placeholder since the table requires int
-        var changes = SerializeChanges(
-            oldValues != null ? new { EffortTypeId = effortTypeId, Values = oldValues } : null,
-            newValues != null ? new { EffortTypeId = effortTypeId, Values = newValues } : null);
+        var changes = SerializeChangesWithReferenceId(effortTypeId, oldValues, newValues);
         AddAuditEntry(EffortAuditTables.EffortTypes, 0, null, action, changes);
     }
 
@@ -918,6 +917,72 @@ public class EffortAuditService : IEffortAuditService
             var oldDict = ObjectToDictionary(oldValues!);
             foreach (var kvp in oldDict)
             {
+                changes[kvp.Key] = new ChangeDetail
+                {
+                    OldValue = kvp.Value?.ToString(),
+                    NewValue = null
+                };
+            }
+        }
+
+        return changes.Count > 0 ? JsonSerializer.Serialize(changes) : null;
+    }
+
+    /// <summary>
+    /// Serialize changes with a reference ID that doesn't show as a diff.
+    /// The ID is included for reference but with same old/new value so it won't display as "X → Y".
+    /// </summary>
+    private static string? SerializeChangesWithReferenceId(string referenceId, object? oldValues, object? newValues)
+    {
+        var changes = new Dictionary<string, ChangeDetail>();
+
+        // Include Id for reference - same value for old and new so it won't show as a diff
+        changes["Id"] = new ChangeDetail { OldValue = referenceId, NewValue = referenceId };
+
+        if (oldValues != null && newValues != null)
+        {
+            // Update: only record changed fields
+            var oldDict = ObjectToDictionary(oldValues);
+            var newDict = ObjectToDictionary(newValues);
+
+            foreach (var key in oldDict.Keys.Union(newDict.Keys))
+            {
+                if (key == "Id") continue; // Skip Id, already added as reference
+
+                var oldVal = oldDict.GetValueOrDefault(key);
+                var newVal = newDict.GetValueOrDefault(key);
+
+                if (!Equals(oldVal, newVal))
+                {
+                    changes[key] = new ChangeDetail
+                    {
+                        OldValue = oldVal?.ToString(),
+                        NewValue = newVal?.ToString()
+                    };
+                }
+            }
+        }
+        else if (newValues != null)
+        {
+            // Create: record all new values
+            var newDict = ObjectToDictionary(newValues);
+            foreach (var kvp in newDict)
+            {
+                if (kvp.Key == "Id") continue;
+                changes[kvp.Key] = new ChangeDetail
+                {
+                    OldValue = null,
+                    NewValue = kvp.Value?.ToString()
+                };
+            }
+        }
+        else if (oldValues != null)
+        {
+            // Delete: record all old values
+            var oldDict = ObjectToDictionary(oldValues);
+            foreach (var kvp in oldDict)
+            {
+                if (kvp.Key == "Id") continue;
                 changes[kvp.Key] = new ChangeDetail
                 {
                     OldValue = kvp.Value?.ToString(),
