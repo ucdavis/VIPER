@@ -1618,6 +1618,9 @@ namespace Viper.Areas.Effort.Scripts
 
             // Create INSTEAD OF INSERT trigger for tblAudit
             CreateTblAuditInsertTrigger(connection, transaction);
+
+            // Create INSTEAD OF DELETE trigger for tblAudit (for harvest cleanup)
+            CreateTblAuditDeleteTrigger(connection, transaction);
         }
 
         static void CreateTblAuditInsertTrigger(SqlConnection connection, SqlTransaction transaction)
@@ -1681,6 +1684,29 @@ namespace Viper.Areas.Effort.Scripts
             using var cmd = new SqlCommand(sql, connection, transaction);
             cmd.ExecuteNonQuery();
             Console.WriteLine("  ✓ INSTEAD OF INSERT trigger created");
+        }
+
+        static void CreateTblAuditDeleteTrigger(SqlConnection connection, SqlTransaction transaction)
+        {
+            Console.WriteLine("  Creating INSTEAD OF DELETE trigger for tblAudit...");
+
+            string sql = @"
+        CREATE OR ALTER TRIGGER [EffortShadow].[trg_tblAudit_Delete]
+        ON [EffortShadow].[tblAudit]
+        INSTEAD OF DELETE
+        AS
+        BEGIN
+            SET NOCOUNT ON;
+
+            -- Delete from modern Audits table using the audit_ID (maps to Id)
+            DELETE a
+            FROM [effort].[Audits] a
+            INNER JOIN deleted d ON a.Id = d.audit_ID;
+        END;";
+
+            using var cmd = new SqlCommand(sql, connection, transaction);
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ INSTEAD OF DELETE trigger created");
         }
 
         static void CreateVwInstructorEffortView(SqlConnection connection, SqlTransaction transaction)
