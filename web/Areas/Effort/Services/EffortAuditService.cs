@@ -945,10 +945,8 @@ public class EffortAuditService : IEffortAuditService
             var oldDict = ObjectToDictionary(oldValues);
             var newDict = ObjectToDictionary(newValues);
 
-            foreach (var key in oldDict.Keys.Union(newDict.Keys))
+            foreach (var key in oldDict.Keys.Union(newDict.Keys).Where(k => k != "Id"))
             {
-                if (key == "Id") continue; // Skip Id, already added as reference
-
                 var oldVal = oldDict.GetValueOrDefault(key);
                 var newVal = newDict.GetValueOrDefault(key);
 
@@ -966,9 +964,8 @@ public class EffortAuditService : IEffortAuditService
         {
             // Create: record all new values
             var newDict = ObjectToDictionary(newValues);
-            foreach (var kvp in newDict)
+            foreach (var kvp in newDict.Where(kvp => kvp.Key != "Id"))
             {
-                if (kvp.Key == "Id") continue;
                 changes[kvp.Key] = new ChangeDetail
                 {
                     OldValue = null,
@@ -980,9 +977,8 @@ public class EffortAuditService : IEffortAuditService
         {
             // Delete: record all old values
             var oldDict = ObjectToDictionary(oldValues);
-            foreach (var kvp in oldDict)
+            foreach (var kvp in oldDict.Where(kvp => kvp.Key != "Id"))
             {
-                if (kvp.Key == "Id") continue;
                 changes[kvp.Key] = new ChangeDetail
                 {
                     OldValue = kvp.Value?.ToString(),
