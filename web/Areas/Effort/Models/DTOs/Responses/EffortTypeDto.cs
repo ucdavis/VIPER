@@ -1,18 +1,18 @@
 namespace Viper.Areas.Effort.Models.DTOs.Responses;
 
 /// <summary>
-/// DTO for effort type information (Admin, Clinical, Other classifications).
+/// DTO for effort type data returned from the API.
 /// </summary>
 public class EffortTypeDto
 {
-    public int Id { get; set; }
-    public string Class { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public bool ShowOnTemplate { get; set; }
+    public string Id { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public bool UsesWeeks { get; set; }
     public bool IsActive { get; set; }
-
-    /// <summary>
-    /// Count of instructors who have this type assigned.
-    /// </summary>
-    public int InstructorCount { get; set; }
+    public bool FacultyCanEnter { get; set; }
+    public bool AllowedOnDvm { get; set; }
+    public bool AllowedOn199299 { get; set; }
+    public bool AllowedOnRCourses { get; set; }
+    public int UsageCount { get; set; }
+    public bool CanDelete { get; set; }
 }

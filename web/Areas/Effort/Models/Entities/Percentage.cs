@@ -10,7 +10,7 @@ public class Percentage
     public int PersonId { get; set; }
     public string AcademicYear { get; set; } = string.Empty;
     public decimal PercentageValue { get; set; }
-    public int EffortTypeId { get; set; }
+    public int PercentAssignTypeId { get; set; }
     public int? UnitId { get; set; }
     public string? Modifier { get; set; }
     public string? Comment { get; set; }
@@ -21,6 +21,6 @@ public class Percentage
     public bool Compensated { get; set; }
 
     // Navigation properties
-    public virtual EffortType EffortType { get; set; } = null!;
+    public virtual PercentAssignType PercentAssignType { get; set; } = null!;
     public virtual Unit? Unit { get; set; }
 }

@@ -54,7 +54,7 @@ public sealed class UnitServiceTests : IDisposable
     private async Task<Unit> CreateUnitWithPercentagesAsync(string name, int percentageCount = 1)
     {
         var unit = new Unit { Name = name, IsActive = true };
-        var effortType = await GetOrCreateEffortTypeAsync();
+        var percentAssignType = await GetOrCreatePercentAssignTypeAsync();
         _context.Units.Add(unit);
         await _context.SaveChangesAsync();
 
@@ -63,7 +63,7 @@ public sealed class UnitServiceTests : IDisposable
             _context.Percentages.Add(new Percentage
             {
                 UnitId = unit.Id,
-                EffortTypeId = effortType.Id,
+                PercentAssignTypeId = percentAssignType.Id,
                 PercentageValue = 50,
                 PersonId = 1,
                 AcademicYear = "2024-25",
@@ -74,16 +74,16 @@ public sealed class UnitServiceTests : IDisposable
         return unit;
     }
 
-    private async Task<EffortType> GetOrCreateEffortTypeAsync()
+    private async Task<PercentAssignType> GetOrCreatePercentAssignTypeAsync()
     {
-        var effortType = await _context.EffortTypes.FirstOrDefaultAsync();
-        if (effortType == null)
+        var percentAssignType = await _context.PercentAssignTypes.FirstOrDefaultAsync();
+        if (percentAssignType == null)
         {
-            effortType = new EffortType { Name = "Test Type", Class = "Test" };
-            _context.EffortTypes.Add(effortType);
+            percentAssignType = new PercentAssignType { Name = "Test Type", Class = "Test" };
+            _context.PercentAssignTypes.Add(percentAssignType);
             await _context.SaveChangesAsync();
         }
-        return effortType;
+        return percentAssignType;
     }
 
     #endregion

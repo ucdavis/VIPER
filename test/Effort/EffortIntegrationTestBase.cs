@@ -86,7 +86,9 @@ public abstract class EffortIntegrationTestBase : IDisposable
             new() { PermissionId = 10, Permission = EffortPermissions.VerifyEffort, Description = "Verify Effort" },
             new() { PermissionId = 11, Permission = EffortPermissions.ManageRCourseEnrollment, Description = "Manage R Course Enrollment" },
             new() { PermissionId = 12, Permission = EffortPermissions.ViewAudit, Description = "View Audit" },
-            new() { PermissionId = 13, Permission = EffortPermissions.ManageTerms, Description = "Manage Terms" }
+            new() { PermissionId = 13, Permission = EffortPermissions.ManageTerms, Description = "Manage Terms" },
+            new() { PermissionId = 14, Permission = EffortPermissions.ManageUnits, Description = "Manage Units" },
+            new() { PermissionId = 15, Permission = EffortPermissions.ManageEffortTypes, Description = "Manage Effort Types" }
         };
 
         context.TblPermissions.AddRange(permissions);
@@ -287,6 +289,38 @@ public abstract class EffortIntegrationTestBase : IDisposable
         SetupUserWithPermissionsForIntegration(TestUserMothraId, new[]
         {
             EffortPermissions.Base
+        });
+    }
+
+    /// <summary>
+    /// Sets up user with ManageUnits permission
+    /// </summary>
+    protected void SetupUserWithManageUnitsPermission()
+    {
+        AddMemberPermissions(TestUserMothraId,
+            EffortPermissions.Base,
+            EffortPermissions.ManageUnits);
+
+        SetupUserWithPermissionsForIntegration(TestUserMothraId, new[]
+        {
+            EffortPermissions.Base,
+            EffortPermissions.ManageUnits
+        });
+    }
+
+    /// <summary>
+    /// Sets up user with ManageEffortTypes permission
+    /// </summary>
+    protected void SetupUserWithManageEffortTypesPermission()
+    {
+        AddMemberPermissions(TestUserMothraId,
+            EffortPermissions.Base,
+            EffortPermissions.ManageEffortTypes);
+
+        SetupUserWithPermissionsForIntegration(TestUserMothraId, new[]
+        {
+            EffortPermissions.Base,
+            EffortPermissions.ManageEffortTypes
         });
     }
 

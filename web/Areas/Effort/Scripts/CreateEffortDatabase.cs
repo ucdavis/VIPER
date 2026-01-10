@@ -635,6 +635,10 @@ BEGIN
         Description varchar(50) NOT NULL,
         UsesWeeks bit NOT NULL DEFAULT 0,
         IsActive bit NOT NULL DEFAULT 1,
+        FacultyCanEnter bit NOT NULL DEFAULT 1,   -- Faculty/instructors can add this type themselves
+        AllowedOnDvm bit NOT NULL DEFAULT 1,      -- Allowed on DVM courses
+        AllowedOn199299 bit NOT NULL DEFAULT 1,   -- Allowed on 199/299 courses
+        AllowedOnRCourses bit NOT NULL DEFAULT 1, -- Allowed on R courses
         CONSTRAINT PK_SessionTypes PRIMARY KEY CLUSTERED (Id)
     );
 
@@ -797,8 +801,8 @@ BEGIN
         CourseId int NOT NULL,
         PersonId int NOT NULL,
         TermCode int NOT NULL,
-        SessionType varchar(3) NOT NULL,
-        Role int NOT NULL,  -- Matches legacy tblRoles.Role_ID (int)
+        EffortTypeId varchar(3) NOT NULL,
+        RoleId int NOT NULL,  -- Matches legacy tblRoles.Role_ID (int)
         Hours int NULL,
         Weeks int NULL,
         Crn varchar(5) NOT NULL,
@@ -809,8 +813,8 @@ BEGIN
         CONSTRAINT FK_Records_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
         CONSTRAINT FK_Records_Persons FOREIGN KEY (PersonId, TermCode) REFERENCES [effort].[Persons](PersonId, TermCode),
         CONSTRAINT FK_Records_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
-        CONSTRAINT FK_Records_Roles FOREIGN KEY (Role) REFERENCES [effort].[Roles](Id),
-        CONSTRAINT FK_Records_SessionTypes FOREIGN KEY (SessionType) REFERENCES [effort].[SessionTypes](Id),
+        CONSTRAINT FK_Records_Roles FOREIGN KEY (RoleId) REFERENCES [effort].[Roles](Id),
+        CONSTRAINT FK_Records_EffortTypes FOREIGN KEY (EffortTypeId) REFERENCES [effort].[EffortTypes](Id),
         CONSTRAINT FK_Records_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
         CONSTRAINT CK_Records_HoursOrWeeks CHECK ((Hours IS NOT NULL AND Weeks IS NULL) OR (Hours IS NULL AND Weeks IS NOT NULL)),
         CONSTRAINT CK_Records_Hours CHECK (Hours IS NULL OR (Hours >= 0 AND Hours <= 2500)),
@@ -838,7 +842,7 @@ BEGIN
         PersonId int NOT NULL,
         AcademicYear char(9) NOT NULL,  -- Format: 'YYYY-YYYY' (e.g., '2019-2020'), derived from StartDate if missing
         Percentage float NOT NULL,  -- Match legacy float(53)
-        EffortTypeId int NOT NULL,
+        PercentAssignTypeId int NOT NULL,
         UnitId int NULL,  -- FK to Units table
         Modifier varchar(50) NULL,
         Comment varchar(100) NULL,
@@ -849,7 +853,7 @@ BEGIN
         Compensated bit NOT NULL DEFAULT 0,
         CONSTRAINT PK_Percentages PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT FK_Percentages_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
-        CONSTRAINT FK_Percentages_EffortTypes FOREIGN KEY (EffortTypeId) REFERENCES [effort].[EffortTypes](Id),
+        CONSTRAINT FK_Percentages_PercentAssignTypes FOREIGN KEY (PercentAssignTypeId) REFERENCES [effort].[PercentAssignTypes](Id),
         CONSTRAINT FK_Percentages_Units FOREIGN KEY (UnitId) REFERENCES [effort].[Units](Id),
         CONSTRAINT FK_Percentages_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
         CONSTRAINT CK_Percentages_Percentage CHECK (Percentage BETWEEN 0 AND 100),

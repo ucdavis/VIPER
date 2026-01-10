@@ -54,6 +54,9 @@ namespace Viper.Areas.Effort.Scripts
                 case "verify-shadow":
                     return VerifyShadowProcedures.Run(commandArgs);
 
+                case "post-deployment":
+                    return EffortPostDeployment.Run(commandArgs);
+
                 default:
                     Console.WriteLine($"Unknown command: {command}");
                     ShowUsage();
@@ -76,6 +79,7 @@ namespace Viper.Areas.Effort.Scripts
             Console.WriteLine("  create-shadow                 Create EffortShadow compatibility schema");
             Console.WriteLine("  create-reporting-procedures   Create modernized reporting stored procedures");
             Console.WriteLine("  verify-shadow                 Verify shadow schema procedures match legacy");
+            Console.WriteLine("  post-deployment               Run post-deployment tasks (SessionType columns + RAPS permissions)");
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  dotnet run -- analysis");
@@ -86,6 +90,7 @@ namespace Viper.Areas.Effort.Scripts
             Console.WriteLine("  dotnet run -- create-shadow --apply");
             Console.WriteLine("  dotnet run -- create-reporting-procedures --apply");
             Console.WriteLine("  dotnet run -- verify-shadow");
+            Console.WriteLine("  dotnet run -- post-deployment --apply");
         }
     }
 }

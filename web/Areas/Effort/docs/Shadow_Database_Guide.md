@@ -147,7 +147,7 @@ These columns appear as "extra columns" in verification but are required for cor
 ### Lookup Views
 
 **vw_tblRoles** → `SELECT * FROM [VIPER].[effort].[Roles]`
-**vw_tblEffortType_LU** → `SELECT * FROM [VIPER].[effort].[EffortTypes]`
+**vw_tblEffortType_LU** → `SELECT * FROM [VIPER].[effort].[PercentAssignTypes]`
 **vw_tblUnits_LU** → `SELECT * FROM [VIPER].[effort].[Units]`
 **vw_tblJobCode** → `SELECT * FROM [VIPER].[effort].[JobCodes]`
 

@@ -3,7 +3,7 @@
         <!-- Breadcrumb -->
         <q-breadcrumbs class="q-mb-md">
             <q-breadcrumbs-el
-                label="Percent Admin Types"
+                label="Percent Assignment Types"
                 :to="backLink"
             />
             <q-breadcrumbs-el :label="typeData?.typeName ?? 'Type'" />
@@ -50,14 +50,14 @@
                 v-if="typeData.instructors.length === 0"
                 class="text-grey q-my-md"
             >
-                No instructors found with this percent admin type.
+                No instructors found with this percent assignment type.
             </div>
         </template>
 
         <!-- Error state -->
         <template v-else>
             <q-banner class="bg-negative text-white q-mb-md">
-                Percent admin type not found.
+                Percent assignment type not found.
                 <template #action>
                     <q-btn
                         flat
@@ -73,16 +73,16 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { useRoute } from "vue-router"
-import { effortService } from "../services/effort-service"
-import type { InstructorsByTypeResponseDto, InstructorByTypeDto } from "../types"
+import { percentAssignTypeService } from "../services/percent-assign-type-service"
+import type { InstructorsByPercentAssignTypeResponseDto, InstructorByPercentAssignTypeDto } from "../types"
 import type { QTableColumn } from "quasar"
 
 const route = useRoute()
 
-const typeData = ref<InstructorsByTypeResponseDto | null>(null)
+const typeData = ref<InstructorsByPercentAssignTypeResponseDto | null>(null)
 const isLoading = ref(false)
 
-const rowKey = (row: InstructorByTypeDto) => `${row.personId}-${row.academicYear}`
+const rowKey = (row: InstructorByPercentAssignTypeDto) => `${row.personId}-${row.academicYear}`
 
 const columns: QTableColumn[] = [
     { name: "academicYear", label: "Academic Year", field: "academicYear", align: "center", sortable: true },
@@ -101,8 +101,8 @@ const currentTermCode = computed(() => {
 
 const backLink = computed(() =>
     currentTermCode.value
-        ? { name: "EffortTypeListWithTerm", params: { termCode: currentTermCode.value } }
-        : { name: "EffortTypeList" },
+        ? { name: "PercentAssignTypeListWithTerm", params: { termCode: currentTermCode.value } }
+        : { name: "PercentAssignTypeList" },
 )
 
 async function loadInstructors() {
@@ -110,7 +110,7 @@ async function loadInstructors() {
 
     isLoading.value = true
     try {
-        typeData.value = await effortService.getInstructorsByType(typeId.value)
+        typeData.value = await percentAssignTypeService.getInstructorsByPercentAssignType(typeId.value)
     } finally {
         isLoading.value = false
     }

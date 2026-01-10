@@ -10,7 +10,7 @@ public class InstructorEffortRecordDto
     public int CourseId { get; set; }
     public int PersonId { get; set; }
     public int TermCode { get; set; }
-    public string SessionType { get; set; } = string.Empty;
+    public string EffortType { get; set; } = string.Empty;
     public int Role { get; set; }
     public string RoleDescription { get; set; } = string.Empty;
     public int? Hours { get; set; }
@@ -19,7 +19,7 @@ public class InstructorEffortRecordDto
     public DateTime? ModifiedDate { get; set; }
 
     /// <summary>
-    /// Effort value - either hours or weeks depending on session type.
+    /// Effort value - either hours or weeks depending on effort type.
     /// </summary>
     public int? EffortValue => Hours ?? Weeks;
 

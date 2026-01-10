@@ -13,8 +13,8 @@ Reference documentation for the Effort system database schema and field mappings
 - `effort_MothraID` (char 8) → `PersonId` (int FK to VIPER.users.Person)
 - `effort_termCode` → `TermCode` (int)
 - `effort_CourseID` → `CourseId` (int FK)
-- `effort_SessionType` → `SessionType` (varchar 3 FK)
-- `effort_Role` (char 1) → `Role` (char 1 FK to Roles)
+- `effort_SessionType` → `EffortTypeId` (varchar 3 FK to EffortTypes)
+- `effort_Role` (char 1) → `RoleId` (int FK to Roles)
 - `effort_Hours` → `Hours` (int NULL)
 - `effort_Weeks` → `Weeks` (int NULL)
 - `effort_CRN` → `Crn` (varchar 5)
@@ -41,7 +41,7 @@ Reference documentation for the Effort system database schema and field mappings
 - `course_id` → `Id` (int IDENTITY)
 - `course_CRN` → `Crn` (char 5)
 - `course_TermCode` → `TermCode` (int)
-- `course_SessionType` → `SessionType` (varchar 3 FK)
+- `course_SessionType` → Removed (not applicable for Courses table)
 - `course_CustDept` → `CustodialDepartment` (char 6)
 - `course_Subject` → `Subject` (char 4)
 - `course_CatalogNbr` → `CatalogNumber` (char 4)
@@ -50,7 +50,7 @@ Reference documentation for the Effort system database schema and field mappings
 
 **tblPercent → [effort].[Percentages]** (Percentage allocations)
 - Normalized from wide format (Teaching, Research, ClinicalService, etc. columns)
-- To narrow format: `PersonId`, `AcademicYear` (char 9, e.g., '2019-2020'), `EffortTypeId` (FK), `Percentage`
+- To narrow format: `PersonId`, `AcademicYear` (char 9, e.g., '2019-2020'), `PercentAssignTypeId` (FK to PercentAssignTypes), `Percentage`
 - All records with valid PersonId are migrated (AcademicYear derived from StartDate if missing)
 - Added: `Unit`, `StartDate`, `EndDate`, audit fields
 - Indexed on: PersonId, AcademicYear, StartDate, EndDate
@@ -70,11 +70,13 @@ Reference documentation for the Effort system database schema and field mappings
 - '2' = Instructor
 - '3' = Facilitator
 
-**EffortTypes** (26 types - seeded from tblEffortType_LU)
+**PercentAssignTypes** (26 types - seeded from tblEffortType_LU)
 - Teaching, Research, Clinical Service, Outreach, Administration, etc.
+- Note: Renamed from EffortTypes to PercentAssignTypes
 
-**SessionTypes** (35 types - seeded)
-- LEC, LAB, DIS, SEM, CLN, etc.
+**EffortTypes** (35 types - seeded)
+- LEC, LAB, DIS, SEM, CLI, etc.
+- Note: Renamed from SessionTypes to EffortTypes
 
 **Units** (Critical for authorization)
 - Migrated from tblUnits_LU
@@ -118,7 +120,7 @@ Reference documentation for the Effort system database schema and field mappings
 - All date/time fields upgraded for precision
 
 **Wide → Narrow normalization**:
-- tblPercent multiple columns → Percentages with EffortTypeId
+- tblPercent multiple columns → Percentages with PercentAssignTypeId
 
 ---
 
@@ -132,9 +134,9 @@ Reference documentation for the Effort system database schema and field mappings
 
 **Within effort schema**:
 - `Records.CourseId` → `Courses.Id`
-- `Records.Role` → `Roles.Id`
-- `Records.SessionType` → `SessionTypes.Code`
-- `Percentages.EffortTypeId` → `EffortTypes.Id`
+- `Records.RoleId` → `Roles.Id`
+- `Records.EffortTypeId` → `EffortTypes.Id`
+- `Percentages.PercentAssignTypeId` → `PercentAssignTypes.Id`
 - `Sabbaticals.PersonId` → `Persons.PersonId`
 - `CourseRelationships.ParentCourseId` → `Courses.Id`
 - `CourseRelationships.ChildCourseId` → `Courses.Id`
@@ -186,7 +188,7 @@ Reference documentation for the Effort system database schema and field mappings
 
 **Basic Getters (14 procedures)**:
 - `usp_get_audit` - Get audit records
-- `usp_get_effortSessionTypes` - Get session types lookup
+- `usp_get_effortSessionTypes` - Get effort types lookup (legacy name for session types)
 - `usp_get_foreign_course` - Get foreign course details
 - `usp_getAcademicYearFromTermCode` - Calculate academic year
 - `usp_getCourse` - Get single course
@@ -195,7 +197,7 @@ Reference documentation for the Effort system database schema and field mappings
 - `usp_getCourseEffort` - Get effort records for course
 - `usp_getCourseParentRelationships` - Get parent courses
 - `usp_getCourses` - List all courses
-- `usp_getEffortTypes` - Get effort types lookup
+- `usp_getEffortTypes` - Get percent assign types lookup (legacy name for EffortTypes, now PercentAssignTypes)
 - `usp_getEffortUnits` - Get units lookup
 - `usp_getInstructor` - Get single instructor
 - `usp_getInstructorEffort` - Get effort records for instructor

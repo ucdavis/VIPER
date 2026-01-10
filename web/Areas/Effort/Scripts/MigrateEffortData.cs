@@ -1056,8 +1056,8 @@ namespace Viper.Areas.Effort.Scripts
             // Step 3: Write to VIPER with transaction
             using var insertCmd = new SqlCommand(@"
             SET IDENTITY_INSERT [effort].[Records] ON;
-            INSERT INTO [effort].[Records] (Id, CourseId, PersonId, TermCode, SessionType, Role, Hours, Weeks, Crn, ModifiedDate, ModifiedBy)
-            VALUES (@Id, @CourseId, @PersonId, @TermCode, @SessionType, @Role, @Hours, @Weeks, @Crn, @ModifiedDate, @ModifiedBy);
+            INSERT INTO [effort].[Records] (Id, CourseId, PersonId, TermCode, EffortTypeId, RoleId, Hours, Weeks, Crn, ModifiedDate, ModifiedBy)
+            VALUES (@Id, @CourseId, @PersonId, @TermCode, @EffortTypeId, @RoleId, @Hours, @Weeks, @Crn, @ModifiedDate, @ModifiedBy);
             SET IDENTITY_INSERT [effort].[Records] OFF;",
                 viperConnection, transaction);
 
@@ -1065,8 +1065,8 @@ namespace Viper.Areas.Effort.Scripts
             insertCmd.Parameters.Add("@CourseId", SqlDbType.Int);
             insertCmd.Parameters.Add("@PersonId", SqlDbType.Int);
             insertCmd.Parameters.Add("@TermCode", SqlDbType.Int);
-            insertCmd.Parameters.Add("@SessionType", SqlDbType.NVarChar, 10);
-            insertCmd.Parameters.Add("@Role", SqlDbType.Int);
+            insertCmd.Parameters.Add("@EffortTypeId", SqlDbType.NVarChar, 10);
+            insertCmd.Parameters.Add("@RoleId", SqlDbType.Int);
             insertCmd.Parameters.Add("@Hours", SqlDbType.Decimal);
             insertCmd.Parameters.Add("@Weeks", SqlDbType.Int);
             insertCmd.Parameters.Add("@Crn", SqlDbType.NVarChar, 10);
@@ -1122,8 +1122,8 @@ namespace Viper.Areas.Effort.Scripts
                 insertCmd.Parameters["@CourseId"].Value = item.CourseId;  // NOT NULL in legacy schema
                 insertCmd.Parameters["@PersonId"].Value = personId;
                 insertCmd.Parameters["@TermCode"].Value = item.TermCode;
-                insertCmd.Parameters["@SessionType"].Value = item.SessionType;
-                insertCmd.Parameters["@Role"].Value = item.Role; // Converted from char(1) to int
+                insertCmd.Parameters["@EffortTypeId"].Value = item.SessionType;
+                insertCmd.Parameters["@RoleId"].Value = item.Role; // Converted from char(1) to int
                 insertCmd.Parameters["@Hours"].Value = (object?)item.Hours ?? DBNull.Value;
                 insertCmd.Parameters["@Weeks"].Value = (object?)item.Weeks ?? DBNull.Value;
                 insertCmd.Parameters["@Crn"].Value = item.Crn;  // NOT NULL in legacy schema
@@ -1193,14 +1193,14 @@ namespace Viper.Areas.Effort.Scripts
                 // Step 4: Write to VIPER with transaction - include Id column for 1:1 mapping
                 // Note: No TermCode - Percentages now use AcademicYear directly
                 using var insertCmd = new SqlCommand(@"
-                INSERT INTO [effort].[Percentages] (Id, PersonId, AcademicYear, EffortTypeId, Percentage, Unit, Modifier, Comment, StartDate, EndDate, ModifiedDate, ModifiedBy, Compensated)
-                VALUES (@Id, @PersonId, @AcademicYear, @EffortTypeId, @Percentage, @Unit, @Modifier, @Comment, @StartDate, @EndDate, @ModifiedDate, @ModifiedBy, @Compensated)",
+                INSERT INTO [effort].[Percentages] (Id, PersonId, AcademicYear, PercentAssignTypeId, Percentage, Unit, Modifier, Comment, StartDate, EndDate, ModifiedDate, ModifiedBy, Compensated)
+                VALUES (@Id, @PersonId, @AcademicYear, @PercentAssignTypeId, @Percentage, @Unit, @Modifier, @Comment, @StartDate, @EndDate, @ModifiedDate, @ModifiedBy, @Compensated)",
                     viperConnection, transaction);
 
                 insertCmd.Parameters.Add("@Id", SqlDbType.Int);
                 insertCmd.Parameters.Add("@PersonId", SqlDbType.Int);
                 insertCmd.Parameters.Add("@AcademicYear", SqlDbType.Char, 9);
-                insertCmd.Parameters.Add("@EffortTypeId", SqlDbType.Int);
+                insertCmd.Parameters.Add("@PercentAssignTypeId", SqlDbType.Int);
                 insertCmd.Parameters.Add("@Percentage", SqlDbType.Decimal);
                 insertCmd.Parameters.Add("@Unit", SqlDbType.NVarChar, 50);
                 insertCmd.Parameters.Add("@Modifier", SqlDbType.NVarChar, 50);
@@ -1235,7 +1235,7 @@ namespace Viper.Areas.Effort.Scripts
                     insertCmd.Parameters["@Id"].Value = item.Id;
                     insertCmd.Parameters["@PersonId"].Value = personId;
                     insertCmd.Parameters["@AcademicYear"].Value = academicYear;
-                    insertCmd.Parameters["@EffortTypeId"].Value = item.TypeId;
+                    insertCmd.Parameters["@PercentAssignTypeId"].Value = item.TypeId;
                     insertCmd.Parameters["@Percentage"].Value = (object?)item.Percentage ?? DBNull.Value;
                     insertCmd.Parameters["@Unit"].Value = (object?)item.Unit ?? DBNull.Value;
                     insertCmd.Parameters["@Modifier"].Value = (object?)item.Modifier ?? DBNull.Value;
@@ -1264,7 +1264,7 @@ namespace Viper.Areas.Effort.Scripts
             {
                 Console.WriteLine($"  ⚠ Skipped {skippedNoPersonId} percentage records with unmapped PersonId (MothraId not in VIPER.users.Person)");
             }
-            Console.WriteLine($"     Mapped legacy percent_TypeID to EffortTypeId (migrated from tblEffortType_LU)");
+            Console.WriteLine($"     Mapped legacy percent_TypeID to PercentAssignTypeId (migrated from tblEffortType_LU)");
         }
 
         static void MigrateSabbaticals(SqlConnection viperConnection, SqlConnection effortConnection, SqlTransaction transaction)
@@ -1819,13 +1819,13 @@ namespace Viper.Areas.Effort.Scripts
                 if (hasValidRoles)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"  ✓ Records.Role column: int values (1, 2, 3) correct");
+                    Console.WriteLine($"  ✓ Records.RoleId column: int values (1, 2, 3) correct");
                     Console.ResetColor();
                 }
                 else
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"  ✗ Records.Role column: unexpected values (should be 1, 2, 3)");
+                    Console.WriteLine($"  ✗ Records.RoleId column: unexpected values (should be 1, 2, 3)");
                     Console.ResetColor();
                     hasIssues = true;
                 }

@@ -33,6 +33,7 @@
                         label="Enrollment"
                         dense
                         outlined
+                        lazy-rules="ondemand"
                         :rules="[
                             (v: number) => v >= 0 || 'Enrollment must be non-negative',
                             (v: number) => Number.isInteger(v) || 'Enrollment must be a whole number',
@@ -47,16 +48,18 @@
                             dense
                             outlined
                             step="0.5"
+                            lazy-rules="ondemand"
                             :rules="[(v: number) => v >= 0 || 'Units must be non-negative']"
                         />
 
                         <q-select
                             v-model="formData.custDept"
                             :options="departments"
-                            label="Custodial Department"
+                            label="Custodial Department *"
                             dense
                             options-dense
                             outlined
+                            lazy-rules="ondemand"
                             :rules="[(v: string) => !!v || 'Department is required']"
                         />
                     </template>
@@ -130,7 +133,8 @@ watch(
 async function save() {
     if (!props.course) return
 
-    const valid = await formRef.value?.validate()
+    // Validate all fields at once (not just until first error)
+    const valid = await formRef.value?.validate(true)
     if (!valid) return
 
     isSaving.value = true
