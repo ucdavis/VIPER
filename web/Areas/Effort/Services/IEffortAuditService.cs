@@ -55,6 +55,12 @@ public interface IEffortAuditService
     /// </summary>
     void AddUnitChangeAudit(int unitId, string action, object? oldValues, object? newValues);
 
+    /// <summary>
+    /// Add an effort type change audit entry to the context without saving.
+    /// Use this within a transaction where the caller manages SaveChangesAsync.
+    /// </summary>
+    void AddEffortTypeChangeAudit(string effortTypeId, string action, object? oldValues, object? newValues);
+
     // ==================== Query Methods ====================
 
     /// <summary>

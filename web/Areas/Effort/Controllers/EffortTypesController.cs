@@ -1,83 +1,219 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
+using Viper.Classes.Utilities;
 using Web.Authorization;
 
 namespace Viper.Areas.Effort.Controllers;
 
 /// <summary>
-/// API controller for effort type operations (read-only).
-/// Available to users with ViewAllDepartments permission.
+/// API controller for effort type management in the Effort system.
+/// All endpoints require ManageEffortTypes permission.
 /// </summary>
-[Route("/api/effort/types")]
-[Permission(Allow = $"{EffortPermissions.Base},{EffortPermissions.ViewAllDepartments}")]
+[Route("/api/effort/effort-types")]
+[Permission(Allow = EffortPermissions.ManageEffortTypes)]
 public class EffortTypesController : BaseEffortController
 {
-    private readonly IEffortTypeService _typeService;
+    private readonly IEffortTypeService _effortTypeService;
 
     public EffortTypesController(
-        IEffortTypeService typeService,
+        IEffortTypeService effortTypeService,
         ILogger<EffortTypesController> logger) : base(logger)
     {
-        _typeService = typeService;
+        _effortTypeService = effortTypeService;
     }
 
     /// <summary>
-    /// Get all effort types.
+    /// Get all effort types with usage counts.
     /// </summary>
+    /// <param name="activeOnly">If true, only return active effort types.</param>
+    /// <param name="ct">Cancellation token.</param>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<EffortTypeDto>>> GetEffortTypes(
-        [FromQuery] bool? activeOnly,
-        CancellationToken ct)
+    public async Task<ActionResult<IEnumerable<EffortTypeDto>>> GetEffortTypes([FromQuery] bool activeOnly = false, CancellationToken ct = default)
     {
-        var types = await _typeService.GetEffortTypesAsync(activeOnly, ct);
-        return Ok(types);
+        var effortTypes = await _effortTypeService.GetEffortTypesAsync(activeOnly, ct);
+        return Ok(effortTypes);
     }
 
     /// <summary>
     /// Get a specific effort type by ID.
     /// </summary>
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<EffortTypeDto>> GetEffortType(int id, CancellationToken ct)
+    /// <remarks>
+    /// Uses query parameter instead of path segment because effort type IDs can contain
+    /// special characters like "/" (e.g., "D/L", "L/D") which are problematic in URL paths.
+    /// </remarks>
+    [HttpGet("by-id")]
+    public async Task<ActionResult<EffortTypeDto>> GetEffortType([FromQuery] string id, CancellationToken ct)
     {
-        SetExceptionContext("effortTypeId", id);
-
-        var type = await _typeService.GetEffortTypeAsync(id, ct);
-        if (type == null)
+        if (string.IsNullOrWhiteSpace(id))
         {
-            _logger.LogWarning("Effort type not found: {Id}", id);
-            return NotFound($"Effort type {id} not found");
+            return BadRequest("id is required.");
         }
 
-        return Ok(type);
+        SetExceptionContext("effortTypeId", id);
+
+        var effortType = await _effortTypeService.GetEffortTypeAsync(id, ct);
+
+        if (effortType == null)
+        {
+            _logger.LogWarning("Effort type not found: {EffortTypeId}", LogSanitizer.SanitizeString(id));
+            return NotFound($"Effort type '{id}' not found");
+        }
+
+        return Ok(effortType);
     }
 
     /// <summary>
-    /// Get distinct class values.
+    /// Create a new effort type.
     /// </summary>
-    [HttpGet("classes")]
-    public async Task<ActionResult<IEnumerable<string>>> GetClasses(CancellationToken ct)
+    [HttpPost]
+    public async Task<ActionResult<EffortTypeDto>> CreateEffortType([FromBody] CreateEffortTypeRequest request, CancellationToken ct)
     {
-        var classes = await _typeService.GetEffortTypeClassesAsync(ct);
-        return Ok(classes);
+        SetExceptionContext("effortTypeId", request.Id);
+
+        try
+        {
+            var effortType = await _effortTypeService.CreateEffortTypeAsync(request, ct);
+            _logger.LogInformation("Effort type created: {EffortTypeId} ({Description})",
+                LogSanitizer.SanitizeString(effortType.Id), LogSanitizer.SanitizeString(effortType.Description));
+            return CreatedAtAction(nameof(GetEffortType), new { id = effortType.Id }, effortType);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Cannot create effort type '{EffortTypeId}': {Message}",
+                LogSanitizer.SanitizeString(request.Id), LogSanitizer.SanitizeString(ex.Message));
+            return Conflict(ex.Message);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogWarning(ex, "Constraint failure while creating effort type '{EffortTypeId}'",
+                LogSanitizer.SanitizeString(request.Id));
+            return Conflict("Unable to create effort type due to a constraint violation.");
+        }
     }
 
     /// <summary>
-    /// Get all instructors who have a specific effort type assigned.
+    /// Update an existing effort type.
     /// </summary>
-    [HttpGet("{id:int}/instructors")]
-    public async Task<ActionResult<InstructorsByTypeResponseDto>> GetInstructorsByType(int id, CancellationToken ct)
+    /// <remarks>
+    /// Uses query parameter instead of path segment because effort type IDs can contain
+    /// special characters like "/" (e.g., "D/L", "L/D") which are problematic in URL paths.
+    /// </remarks>
+    [HttpPut("by-id")]
+    public async Task<ActionResult<EffortTypeDto>> UpdateEffortType([FromQuery] string id, [FromBody] UpdateEffortTypeRequest request, CancellationToken ct)
     {
-        SetExceptionContext("effortTypeId", id);
-
-        var result = await _typeService.GetInstructorsByTypeAsync(id, ct);
-        if (result == null)
+        if (string.IsNullOrWhiteSpace(id))
         {
-            _logger.LogWarning("Effort type not found: {Id}", id);
-            return NotFound($"Effort type {id} not found");
+            return BadRequest("id is required.");
         }
 
-        return Ok(result);
+        SetExceptionContext("effortTypeId", id);
+
+        try
+        {
+            var effortType = await _effortTypeService.UpdateEffortTypeAsync(id, request, ct);
+
+            if (effortType == null)
+            {
+                _logger.LogWarning("Effort type not found for update: {EffortTypeId}", LogSanitizer.SanitizeString(id));
+                return NotFound($"Effort type '{id}' not found");
+            }
+
+            _logger.LogInformation("Effort type updated: {EffortTypeId} ({Description})",
+                LogSanitizer.SanitizeString(effortType.Id), LogSanitizer.SanitizeString(effortType.Description));
+            return Ok(effortType);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Cannot update effort type {EffortTypeId}: {Message}",
+                LogSanitizer.SanitizeString(id), LogSanitizer.SanitizeString(ex.Message));
+            return Conflict(ex.Message);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogWarning(ex, "Constraint failure while updating effort type {EffortTypeId}",
+                LogSanitizer.SanitizeString(id));
+            return Conflict("Unable to update effort type due to a constraint violation.");
+        }
+    }
+
+    /// <summary>
+    /// Delete an effort type. Only succeeds if no records reference it.
+    /// </summary>
+    /// <remarks>
+    /// Uses query parameter instead of path segment because effort type IDs can contain
+    /// special characters like "/" (e.g., "D/L", "L/D") which are problematic in URL paths.
+    /// </remarks>
+    [HttpDelete("by-id")]
+    public async Task<ActionResult> DeleteEffortType([FromQuery] string id, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return BadRequest("id is required.");
+        }
+
+        SetExceptionContext("effortTypeId", id);
+
+        try
+        {
+            var effortType = await _effortTypeService.GetEffortTypeAsync(id, ct);
+            if (effortType == null)
+            {
+                _logger.LogWarning("Effort type not found for delete: {EffortTypeId}", LogSanitizer.SanitizeString(id));
+                return NotFound($"Effort type '{id}' not found");
+            }
+
+            if (!effortType.CanDelete)
+            {
+                _logger.LogWarning("Cannot delete effort type {EffortTypeId}: effort type has {UsageCount} related records",
+                    LogSanitizer.SanitizeString(id), effortType.UsageCount);
+                return Conflict($"Cannot delete effort type: effort type has {effortType.UsageCount} related effort record(s).");
+            }
+
+            var deleted = await _effortTypeService.DeleteEffortTypeAsync(id, ct);
+            if (!deleted)
+            {
+                return Conflict("Unable to delete effort type due to related data.");
+            }
+
+            _logger.LogInformation("Effort type deleted: {EffortTypeId}", LogSanitizer.SanitizeString(id));
+            return NoContent();
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogWarning(ex, "Constraint failure while deleting effort type {EffortTypeId}",
+                LogSanitizer.SanitizeString(id));
+            return Conflict("Unable to delete effort type due to related data.");
+        }
+    }
+
+    /// <summary>
+    /// Check if an effort type can be deleted and get usage count.
+    /// </summary>
+    /// <remarks>
+    /// Uses query parameter instead of path segment because effort type IDs can contain
+    /// special characters like "/" (e.g., "D/L", "L/D") which are problematic in URL paths.
+    /// </remarks>
+    [HttpGet("can-delete")]
+    public async Task<ActionResult<CanDeleteResponse>> CanDeleteEffortType([FromQuery] string id, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return BadRequest("id is required.");
+        }
+
+        SetExceptionContext("effortTypeId", id);
+
+        var effortType = await _effortTypeService.GetEffortTypeAsync(id, ct);
+        if (effortType == null)
+        {
+            _logger.LogWarning("Effort type not found for can-delete check: {EffortTypeId}", LogSanitizer.SanitizeString(id));
+            return NotFound($"Effort type '{id}' not found");
+        }
+
+        return Ok(new CanDeleteResponse { CanDelete = effortType.CanDelete, UsageCount = effortType.UsageCount });
     }
 }

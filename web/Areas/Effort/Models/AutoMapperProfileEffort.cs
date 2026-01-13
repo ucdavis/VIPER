@@ -18,16 +18,17 @@ public class AutoMapperProfileEffort : Profile
             .ForMember(d => d.VolunteerWos, opt => opt.MapFrom(s => s.VolunteerWos == 1));
         CreateMap<EffortCourse, CourseDto>();
 
-        // RoleDescription comes from lookup
-        CreateMap<EffortRecord, RecordDto>()
-            .ForMember(d => d.RoleDescription, opt => opt.Ignore());
-
-        // EffortType mapping - InstructorCount set by service
-        CreateMap<EffortType, EffortTypeDto>()
+        // PercentAssignType mapping - InstructorCount set by service
+        CreateMap<PercentAssignType, PercentAssignTypeDto>()
             .ForMember(d => d.InstructorCount, opt => opt.Ignore());
 
         // Unit mapping - UsageCount and CanDelete set by service
         CreateMap<Unit, UnitDto>()
+            .ForMember(d => d.UsageCount, opt => opt.Ignore())
+            .ForMember(d => d.CanDelete, opt => opt.Ignore());
+
+        // EffortType mapping - UsageCount and CanDelete set by service
+        CreateMap<EffortType, EffortTypeDto>()
             .ForMember(d => d.UsageCount, opt => opt.Ignore())
             .ForMember(d => d.CanDelete, opt => opt.Ignore());
     }

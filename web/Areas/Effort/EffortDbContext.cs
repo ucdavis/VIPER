@@ -21,8 +21,8 @@ public class EffortDbContext : DbContext
 
     // Lookup tables
     public virtual DbSet<EffortRole> Roles { get; set; }
+    public virtual DbSet<PercentAssignType> PercentAssignTypes { get; set; }
     public virtual DbSet<EffortType> EffortTypes { get; set; }
-    public virtual DbSet<SessionType> SessionTypes { get; set; }
     public virtual DbSet<Unit> Units { get; set; }
     public virtual DbSet<JobCode> JobCodes { get; set; }
     public virtual DbSet<ReportUnit> ReportUnits { get; set; }
@@ -121,8 +121,8 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.CourseId).HasColumnName("CourseId");
             entity.Property(e => e.PersonId).HasColumnName("PersonId");
             entity.Property(e => e.TermCode).HasColumnName("TermCode");
-            entity.Property(e => e.SessionType).HasColumnName("SessionType").HasMaxLength(3);
-            entity.Property(e => e.Role).HasColumnName("Role");
+            entity.Property(e => e.EffortTypeId).HasColumnName("EffortTypeId").HasMaxLength(3);
+            entity.Property(e => e.RoleId).HasColumnName("RoleId");
             entity.Property(e => e.Hours).HasColumnName("Hours");
             entity.Property(e => e.Weeks).HasColumnName("Weeks");
             entity.Property(e => e.Crn).HasColumnName("Crn").HasMaxLength(5);
@@ -143,11 +143,11 @@ public class EffortDbContext : DbContext
 
             entity.HasOne(e => e.RoleNavigation)
                 .WithMany(r => r.Records)
-                .HasForeignKey(e => e.Role);
+                .HasForeignKey(e => e.RoleId);
 
-            entity.HasOne(e => e.SessionTypeNavigation)
+            entity.HasOne(e => e.EffortTypeNavigation)
                 .WithMany(s => s.Records)
-                .HasForeignKey(e => e.SessionType);
+                .HasForeignKey(e => e.EffortTypeId);
         });
 
         // EffortRole (effort.Roles)
@@ -162,11 +162,11 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.SortOrder).HasColumnName("SortOrder");
         });
 
-        // EffortType (effort.EffortTypes)
-        modelBuilder.Entity<EffortType>(entity =>
+        // PercentAssignType (effort.PercentAssignTypes)
+        modelBuilder.Entity<PercentAssignType>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.ToTable("EffortTypes", schema: "effort");
+            entity.ToTable("PercentAssignTypes", schema: "effort");
 
             entity.Property(e => e.Id).HasColumnName("Id");
             entity.Property(e => e.Class).HasColumnName("Class").HasMaxLength(20);
@@ -175,16 +175,20 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.IsActive).HasColumnName("IsActive");
         });
 
-        // SessionType (effort.SessionTypes)
-        modelBuilder.Entity<SessionType>(entity =>
+        // EffortType (effort.EffortTypes)
+        modelBuilder.Entity<EffortType>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.ToTable("SessionTypes", schema: "effort");
+            entity.ToTable("EffortTypes", schema: "effort");
 
             entity.Property(e => e.Id).HasColumnName("Id").HasMaxLength(3);
             entity.Property(e => e.Description).HasColumnName("Description").HasMaxLength(50);
             entity.Property(e => e.UsesWeeks).HasColumnName("UsesWeeks");
             entity.Property(e => e.IsActive).HasColumnName("IsActive");
+            entity.Property(e => e.FacultyCanEnter).HasColumnName("FacultyCanEnter");
+            entity.Property(e => e.AllowedOnDvm).HasColumnName("AllowedOnDvm");
+            entity.Property(e => e.AllowedOn199299).HasColumnName("AllowedOn199299");
+            entity.Property(e => e.AllowedOnRCourses).HasColumnName("AllowedOnRCourses");
         });
 
         // Unit (effort.Units)
@@ -238,7 +242,7 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.PersonId).HasColumnName("PersonId");
             entity.Property(e => e.AcademicYear).HasColumnName("AcademicYear").HasMaxLength(9).IsFixedLength();
             entity.Property(e => e.PercentageValue).HasColumnName("Percentage").HasColumnType("decimal(5,2)");
-            entity.Property(e => e.EffortTypeId).HasColumnName("EffortTypeId");
+            entity.Property(e => e.PercentAssignTypeId).HasColumnName("PercentAssignTypeId");
             entity.Property(e => e.UnitId).HasColumnName("UnitId");
             entity.Property(e => e.Modifier).HasColumnName("Modifier").HasMaxLength(50);
             entity.Property(e => e.Comment).HasColumnName("Comment").HasMaxLength(100);
@@ -248,9 +252,9 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.ModifiedBy).HasColumnName("ModifiedBy");
             entity.Property(e => e.Compensated).HasColumnName("Compensated");
 
-            entity.HasOne(e => e.EffortType)
+            entity.HasOne(e => e.PercentAssignType)
                 .WithMany(t => t.Percentages)
-                .HasForeignKey(e => e.EffortTypeId);
+                .HasForeignKey(e => e.PercentAssignTypeId);
 
             entity.HasOne(e => e.Unit)
                 .WithMany()

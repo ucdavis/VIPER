@@ -48,6 +48,11 @@ public static class EffortAuditActions
     public const string UpdateUnit = "UpdateUnit";
     public const string DeleteUnit = "DeleteUnit";
 
+    // Effort Type Actions
+    public const string CreateEffortType = "CreateEffortType";
+    public const string UpdateEffortType = "UpdateEffortType";
+    public const string DeleteEffortType = "DeleteEffortType";
+
     // Import Actions (hidden from chairs)
     public const string ImportEffort = "ImportEffort";
 
@@ -68,4 +73,5 @@ public static class EffortAuditTables
     public const string Courses = "Courses";
     public const string Terms = "Terms";
     public const string Units = "Units";
+    public const string EffortTypes = "EffortTypes";
 }

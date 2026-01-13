@@ -155,12 +155,12 @@ const currentTermName = computed(() => {
 })
 
 const hasClinicalEffort = computed(() => {
-    return effortRecords.value.some((r) => r.sessionType === "CLI")
+    return effortRecords.value.some((r) => r.effortType === "CLI")
 })
 
 const hasZeroEffort = computed(() => {
     return effortRecords.value.some((r) => {
-        if (r.sessionType === "CLI") {
+        if (r.effortType === "CLI") {
             return !r.weeks || r.weeks <= 0
         }
         return !r.hours || r.hours <= 0
@@ -195,9 +195,9 @@ const columns = computed<QTableColumn[]>(() => [
         align: "left",
     },
     {
-        name: "sessionType",
-        label: "Session Type",
-        field: "sessionType",
+        name: "effortType",
+        label: "Effort Type",
+        field: "effortType",
         align: "left",
     },
     {

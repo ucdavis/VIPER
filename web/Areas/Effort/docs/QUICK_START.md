@@ -59,7 +59,7 @@ See [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for detailed remediation task des
 
 **What it creates:**
 - [VIPER].[effort] schema with 20 tables
-- Reference data: Roles (3), SessionTypes (35), EffortTypes (26), Months (12)
+- Reference data: Roles (3), EffortTypes (35), PercentAssignTypes (26), Months (12)
 
 See [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for detailed validation queries.
 

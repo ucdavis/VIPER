@@ -1,9 +1,9 @@
 namespace Viper.Areas.Effort.Models.DTOs.Responses;
 
 /// <summary>
-/// DTO for an instructor with a specific effort type assignment.
+/// DTO for an instructor with a specific percent assignment type.
 /// </summary>
-public class InstructorByTypeDto
+public class InstructorByPercentAssignTypeDto
 {
     public int PersonId { get; set; }
     public string FirstName { get; set; } = string.Empty;
@@ -15,10 +15,10 @@ public class InstructorByTypeDto
 /// <summary>
 /// Response DTO containing the type info and list of instructors with that type.
 /// </summary>
-public class InstructorsByTypeResponseDto
+public class InstructorsByPercentAssignTypeResponseDto
 {
     public int TypeId { get; set; }
     public string TypeName { get; set; } = string.Empty;
     public string TypeClass { get; set; } = string.Empty;
-    public List<InstructorByTypeDto> Instructors { get; set; } = [];
+    public List<InstructorByPercentAssignTypeDto> Instructors { get; set; } = [];
 }

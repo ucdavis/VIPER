@@ -24,6 +24,7 @@ const EffortPermissions = {
     ManageRCourseEnrollment: "SVMSecure.Effort.ManageRCourseEnrollment",
     ManageTerms: "SVMSecure.Effort.ManageTerms",
     ManageUnits: "SVMSecure.Effort.ManageUnits",
+    ManageEffortTypes: "SVMSecure.Effort.ManageEffortTypes",
     Reports: "SVMSecure.Effort.Reports",
     SchoolSummary: "SVMSecure.Effort.SchoolSummary",
     VerifyEffort: "SVMSecure.Effort.VerifyEffort",
@@ -61,6 +62,7 @@ function useEffortPermissions() {
     const hasEditInstructor = computed(() => hasPermission(EffortPermissions.EditInstructor))
     const hasDeleteInstructor = computed(() => hasPermission(EffortPermissions.DeleteInstructor))
     const hasManageUnits = computed(() => hasPermission(EffortPermissions.ManageUnits))
+    const hasManageEffortTypes = computed(() => hasPermission(EffortPermissions.ManageEffortTypes))
     const isAdmin = computed(() => hasViewAllDepartments.value)
 
     return {
@@ -80,6 +82,7 @@ function useEffortPermissions() {
         hasEditInstructor,
         hasDeleteInstructor,
         hasManageUnits,
+        hasManageEffortTypes,
         isAdmin,
         permissions: computed(() => userStore.userInfo.permissions),
     }
