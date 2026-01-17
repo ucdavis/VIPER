@@ -44,6 +44,30 @@ public interface IEffortAuditService
     void AddImportAudit(int termCode, string action, string details);
 
     /// <summary>
+    /// Clear audit records for a term (except ImportEffort actions).
+    /// Used during harvest to reset audit trail before re-importing data.
+    /// </summary>
+    Task ClearAuditForTermAsync(int termCode, CancellationToken ct = default);
+
+    /// <summary>
+    /// Add a harvest person created audit entry to the context without saving.
+    /// Use this within a transaction where the caller manages SaveChangesAsync.
+    /// </summary>
+    void AddHarvestPersonAudit(int personId, int termCode, string firstName, string lastName, string department);
+
+    /// <summary>
+    /// Add a harvest course created audit entry to the context without saving.
+    /// Use this within a transaction where the caller manages SaveChangesAsync.
+    /// </summary>
+    void AddHarvestCourseAudit(int courseId, int termCode, string subjCode, string crseNumb, string crn);
+
+    /// <summary>
+    /// Add a harvest effort record created audit entry to the context without saving.
+    /// Use this within a transaction where the caller manages SaveChangesAsync.
+    /// </summary>
+    void AddHarvestRecordAudit(int recordId, int termCode, string mothraId, string courseCode, string effortType, int? hours, int? weeks);
+
+    /// <summary>
     /// Add a person (instructor) change audit entry to the context without saving.
     /// Use this within a transaction where the caller manages SaveChangesAsync.
     /// </summary>

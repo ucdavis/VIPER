@@ -190,6 +190,8 @@ try
 
     builder.Services.AddDbContext<AAUDContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<CoursesContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<CrestContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<DictionaryContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<RAPSContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<VIPERContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<ClinicalSchedulerContext>(ConfigureDbContextOptions);
@@ -231,6 +233,13 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortTypeService, Viper.Areas.Effort.Services.EffortTypeService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IUnitService, Viper.Areas.Effort.Services.UnitService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentAssignTypeService, Viper.Areas.Effort.Services.PercentAssignTypeService>();
+
+    // Harvest phases (order matters for DI resolution, but phases self-order via Order property)
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.CrestHarvestPhase>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.NonCrestHarvestPhase>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.ClinicalHarvestPhase>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.GuestAccountPhase>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IHarvestService, Viper.Areas.Effort.Services.HarvestService>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();

@@ -186,7 +186,16 @@ public sealed class EffortTypesControllerTests
     public async Task UpdateEffortType_ReturnsOk_OnSuccess()
     {
         // Arrange
-        var request = new UpdateEffortTypeRequest { Description = "Updated Type", IsActive = false };
+        var request = new UpdateEffortTypeRequest
+        {
+            Description = "Updated Type",
+            IsActive = false,
+            UsesWeeks = false,
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
+        };
         var updatedEffortType = new EffortTypeDto { Id = "UPD", Description = "Updated Type", IsActive = false, UsageCount = 0, CanDelete = true };
         _effortTypeServiceMock.Setup(s => s.UpdateEffortTypeAsync("UPD", request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(updatedEffortType);
@@ -205,7 +214,16 @@ public sealed class EffortTypesControllerTests
     public async Task UpdateEffortType_ReturnsNotFound_WhenMissing()
     {
         // Arrange
-        var request = new UpdateEffortTypeRequest { Description = "Updated Type", IsActive = true };
+        var request = new UpdateEffortTypeRequest
+        {
+            Description = "Updated Type",
+            IsActive = true,
+            UsesWeeks = false,
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
+        };
         _effortTypeServiceMock.Setup(s => s.UpdateEffortTypeAsync("XXX", request, It.IsAny<CancellationToken>()))
             .ReturnsAsync((EffortTypeDto?)null);
 
@@ -220,7 +238,16 @@ public sealed class EffortTypesControllerTests
     public async Task UpdateEffortType_ReturnsConflict_OnInvalidOperationException()
     {
         // Arrange
-        var request = new UpdateEffortTypeRequest { Description = "Invalid Update", IsActive = true };
+        var request = new UpdateEffortTypeRequest
+        {
+            Description = "Invalid Update",
+            IsActive = true,
+            UsesWeeks = false,
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
+        };
         _effortTypeServiceMock.Setup(s => s.UpdateEffortTypeAsync("INV", request, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Invalid update operation"));
 
@@ -236,7 +263,16 @@ public sealed class EffortTypesControllerTests
     public async Task UpdateEffortType_ReturnsConflict_OnDbUpdateException()
     {
         // Arrange
-        var request = new UpdateEffortTypeRequest { Description = "Error Update", IsActive = true };
+        var request = new UpdateEffortTypeRequest
+        {
+            Description = "Error Update",
+            IsActive = true,
+            UsesWeeks = false,
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
+        };
         _effortTypeServiceMock.Setup(s => s.UpdateEffortTypeAsync("ERR", request, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DbUpdateException("Constraint violation"));
 
@@ -413,7 +449,16 @@ public sealed class EffortTypesControllerTests
     public async Task UpdateEffortType_ReturnsBadRequest_WhenIdIsEmptyOrWhitespace(string id)
     {
         // Arrange
-        var request = new UpdateEffortTypeRequest { Description = "Test", IsActive = true };
+        var request = new UpdateEffortTypeRequest
+        {
+            Description = "Test",
+            IsActive = true,
+            UsesWeeks = false,
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
+        };
 
         // Act
         var result = await _controller.UpdateEffortType(id, request, CancellationToken.None);

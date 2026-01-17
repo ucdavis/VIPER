@@ -70,14 +70,14 @@ describe("InstructorAddDialog - Error Handling", () => {
             const searchTerm = "J"
             const minSearchLength = 2
 
-            expect(searchTerm.length >= minSearchLength).toBe(false)
+            expect(searchTerm.length >= minSearchLength).toBeFalsy()
         })
 
         it("should allow search with 2 or more characters", () => {
             const searchTerm = "Jo"
             const minSearchLength = 2
 
-            expect(searchTerm.length >= minSearchLength).toBe(true)
+            expect(searchTerm.length >= minSearchLength).toBeTruthy()
         })
     })
 
@@ -87,7 +87,7 @@ describe("InstructorAddDialog - Error Handling", () => {
 
             const canSubmit = !!selectedPerson.value
 
-            expect(canSubmit).toBe(false)
+            expect(canSubmit).toBeFalsy()
         })
 
         it("should allow submission when person is selected", () => {
@@ -95,7 +95,7 @@ describe("InstructorAddDialog - Error Handling", () => {
 
             const canSubmit = !!selectedPerson.value
 
-            expect(canSubmit).toBe(true)
+            expect(canSubmit).toBeTruthy()
         })
     })
 
@@ -135,24 +135,24 @@ describe("InstructorAddDialog - State Management", () => {
             const isSearching = ref(false)
 
             isSearching.value = true
-            expect(isSearching.value).toBe(true)
+            expect(isSearching.value).toBeTruthy()
 
             // Simulate search completion
             await Promise.resolve()
             isSearching.value = false
-            expect(isSearching.value).toBe(false)
+            expect(isSearching.value).toBeFalsy()
         })
 
         it("should track saving state during instructor creation", async () => {
             const isSaving = ref(false)
 
             isSaving.value = true
-            expect(isSaving.value).toBe(true)
+            expect(isSaving.value).toBeTruthy()
 
             // Simulate save completion
             await Promise.resolve()
             isSaving.value = false
-            expect(isSaving.value).toBe(false)
+            expect(isSaving.value).toBeFalsy()
         })
     })
 

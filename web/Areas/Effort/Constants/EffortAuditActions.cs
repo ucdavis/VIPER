@@ -42,6 +42,7 @@ public static class EffortAuditActions
     public const string CloseTerm = "CloseTerm";
     public const string ReopenTerm = "ReopenTerm";
     public const string UnopenTerm = "UnopenTerm";
+    public const string HarvestTerm = "HarvestTerm";
 
     // Unit Actions
     public const string CreateUnit = "CreateUnit";

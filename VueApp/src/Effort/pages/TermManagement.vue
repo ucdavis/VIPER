@@ -78,7 +78,26 @@
                 </template>
                 <template #body-cell-harvestedDate="props">
                     <q-td :props="props">
-                        {{ formatDate(props.row.harvestedDate) }}
+                        <div class="row items-center no-wrap">
+                            <span>{{ formatDate(props.row.harvestedDate) }}</span>
+                            <q-btn
+                                v-if="props.row.canHarvest"
+                                icon="cloud_download"
+                                :label="props.row.harvestedDate ? 'Re-Harvest' : 'Harvest'"
+                                color="info"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="q-ml-sm"
+                                @click="openHarvestDialog(props.row)"
+                                @keyup.enter="openHarvestDialog(props.row)"
+                                @keyup.space="openHarvestDialog(props.row)"
+                            >
+                                <q-tooltip>Import instructors and courses from CREST and Clinical Scheduler</q-tooltip>
+                            </q-btn>
+                        </div>
                     </q-td>
                 </template>
                 <template #body-cell-openedDate="props">
@@ -194,6 +213,20 @@
                         class="q-pt-none"
                     >
                         <q-btn
+                            v-if="term.canHarvest"
+                            icon="cloud_download"
+                            :label="term.harvestedDate ? 'Re-Harvest' : 'Harvest'"
+                            color="info"
+                            text-color="white"
+                            dense
+                            no-caps
+                            size="sm"
+                            padding="2px sm"
+                            @click="openHarvestDialog(term)"
+                            @keyup.enter="openHarvestDialog(term)"
+                            @keyup.space="openHarvestDialog(term)"
+                        />
+                        <q-btn
                             v-if="term.canOpen"
                             icon="add_circle"
                             label="Open"
@@ -267,6 +300,14 @@
                 </q-card>
             </div>
         </template>
+
+        <!-- Harvest Dialog -->
+        <HarvestDialog
+            v-model="harvestDialogOpen"
+            :term-code="harvestTermCode"
+            :term-name="harvestTermName"
+            @harvested="onHarvested"
+        />
     </div>
 </template>
 
@@ -275,6 +316,7 @@ import { ref, onMounted } from "vue"
 import { useQuasar } from "quasar"
 import { termService } from "../services/term-service"
 import { useDateFunctions } from "@/composables/DateFunctions"
+import HarvestDialog from "../components/HarvestDialog.vue"
 import type { TermDto, AvailableTermDto } from "../types"
 import type { QTableColumn } from "quasar"
 
@@ -285,6 +327,11 @@ const terms = ref<TermDto[]>([])
 const availableTerms = ref<AvailableTermDto[]>([])
 const selectedNewTerm = ref<AvailableTermDto | null>(null)
 const isLoading = ref(false)
+
+// Harvest dialog state
+const harvestDialogOpen = ref(false)
+const harvestTermCode = ref<number | null>(null)
+const harvestTermName = ref("")
 
 const columns: QTableColumn[] = [
     { name: "termName", label: "Term", field: "termName", align: "left" },
@@ -384,6 +431,16 @@ function confirmDeleteTerm(term: TermDto) {
         successMessage: "Term deleted successfully",
         action: () => termService.deleteTerm(term.termCode),
     })
+}
+
+function openHarvestDialog(term: TermDto) {
+    harvestTermCode.value = term.termCode
+    harvestTermName.value = term.termName
+    harvestDialogOpen.value = true
+}
+
+function onHarvested() {
+    loadTerms()
 }
 
 onMounted(loadTerms)

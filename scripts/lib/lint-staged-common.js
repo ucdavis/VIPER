@@ -3,6 +3,8 @@ const path = require("node:path")
 const fs = require("node:fs")
 const { createLogger } = require("./script-utils")
 
+const { env } = process
+
 // Platform-specific constants
 const IS_WINDOWS = process.platform === "win32"
 
@@ -82,7 +84,7 @@ function createSummaryReporter(toolName, logger) {
                     logger.plain("🔒 Critical issues MUST be fixed before committing.")
                 }
                 if (blockOnWarnings && hasWarnings && !hasBlockingIssues) {
-                    logger.plain("\n⚠️  LINTING STOPPED due to warnings.")
+                    logger.plain("\n⚠️  Warnings detected.")
                     logger.plain(
                         "💡 These warnings would not block commits in normal mode. Fix warnings above or use lint:precommit to ignore warnings.",
                     )
@@ -372,7 +374,7 @@ function sanitizeFilePath(filePath, baseDir, allowedExtensions, maxFileSizeMB = 
  * @returns {boolean} - True if warnings should block commits
  */
 function shouldBlockOnWarnings() {
-    return process.env.LINT_BLOCK_ON_WARNINGS === "true"
+    return env.LINT_BLOCK_ON_WARNINGS === "true"
 }
 
 /**
