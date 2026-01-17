@@ -448,7 +448,16 @@ public sealed class EffortTypeServiceTests : IDisposable
         _context.EffortTypes.Add(new EffortType { Id = "UPD", Description = "Original", IsActive = true });
         await _context.SaveChangesAsync();
 
-        var request = new UpdateEffortTypeRequest { Description = "Updated", IsActive = false, UsesWeeks = true };
+        var request = new UpdateEffortTypeRequest
+        {
+            Description = "Updated",
+            IsActive = false,
+            UsesWeeks = true,
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
+        };
 
         // Act
         var result = await _effortTypeService.UpdateEffortTypeAsync("UPD", request);
@@ -464,7 +473,16 @@ public sealed class EffortTypeServiceTests : IDisposable
     public async Task UpdateEffortTypeAsync_ReturnsNull_WhenNotFound()
     {
         // Arrange
-        var request = new UpdateEffortTypeRequest { Description = "Updated", IsActive = true };
+        var request = new UpdateEffortTypeRequest
+        {
+            Description = "Updated",
+            IsActive = true,
+            UsesWeeks = false,
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
+        };
 
         // Act
         var result = await _effortTypeService.UpdateEffortTypeAsync("XXX", request);
@@ -480,7 +498,16 @@ public sealed class EffortTypeServiceTests : IDisposable
         _context.EffortTypes.Add(new EffortType { Id = "UPP", Description = "Original", IsActive = true });
         await _context.SaveChangesAsync();
 
-        var request = new UpdateEffortTypeRequest { Description = "Updated", IsActive = true };
+        var request = new UpdateEffortTypeRequest
+        {
+            Description = "Updated",
+            IsActive = true,
+            UsesWeeks = false,
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
+        };
 
         // Act
         var result = await _effortTypeService.UpdateEffortTypeAsync("upp", request);
@@ -497,7 +524,16 @@ public sealed class EffortTypeServiceTests : IDisposable
         _context.EffortTypes.Add(new EffortType { Id = "AUD", Description = "Original", IsActive = true });
         await _context.SaveChangesAsync();
 
-        var request = new UpdateEffortTypeRequest { Description = "Updated", IsActive = false };
+        var request = new UpdateEffortTypeRequest
+        {
+            Description = "Updated",
+            IsActive = false,
+            UsesWeeks = false,
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
+        };
 
         // Act
         await _effortTypeService.UpdateEffortTypeAsync("AUD", request);
@@ -519,7 +555,16 @@ public sealed class EffortTypeServiceTests : IDisposable
         _context.EffortTypes.Add(new EffortType { Id = "TRM", Description = "Original", IsActive = true });
         await _context.SaveChangesAsync();
 
-        var request = new UpdateEffortTypeRequest { Description = "  Updated Name  ", IsActive = true };
+        var request = new UpdateEffortTypeRequest
+        {
+            Description = "  Updated Name  ",
+            IsActive = true,
+            UsesWeeks = false,
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
+        };
 
         // Act
         var result = await _effortTypeService.UpdateEffortTypeAsync("TRM", request);

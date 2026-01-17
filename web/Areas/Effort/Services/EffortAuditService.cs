@@ -116,6 +116,64 @@ public class EffortAuditService : IEffortAuditService
         AddAuditEntry(EffortAuditTables.EffortTypes, 0, null, action, changes);
     }
 
+    public async Task ClearAuditForTermAsync(int termCode, CancellationToken ct = default)
+    {
+        // Clear audit records for the term (except ImportEffort actions)
+        // This matches legacy behavior: DELETE FROM tblAudit WHERE audit_TermCode = @TermCode AND audit_Action != 'ImportCrest'
+        await _context.Audits
+            .Where(a => a.TermCode == termCode && a.Action != EffortAuditActions.ImportEffort)
+            .ExecuteDeleteAsync(ct);
+
+        _logger.LogInformation("Cleared audit records for term {TermCode}", termCode);
+    }
+
+    public void AddHarvestPersonAudit(int personId, int termCode, string firstName, string lastName, string department)
+    {
+        var changes = JsonSerializer.Serialize(new Dictionary<string, ChangeDetail>
+        {
+            ["PersonId"] = new ChangeDetail { OldValue = null, NewValue = personId.ToString() },
+            ["Name"] = new ChangeDetail { OldValue = null, NewValue = $"{lastName}, {firstName}" },
+            ["Department"] = new ChangeDetail { OldValue = null, NewValue = department }
+        });
+
+        AddAuditEntry(EffortAuditTables.Persons, personId, termCode, EffortAuditActions.CreatePerson, changes);
+    }
+
+    public void AddHarvestCourseAudit(int courseId, int termCode, string subjCode, string crseNumb, string crn)
+    {
+        var changes = JsonSerializer.Serialize(new Dictionary<string, ChangeDetail>
+        {
+            ["CourseId"] = new ChangeDetail { OldValue = null, NewValue = courseId.ToString() },
+            ["Course"] = new ChangeDetail { OldValue = null, NewValue = $"{subjCode} {crseNumb}" },
+            ["CRN"] = new ChangeDetail { OldValue = null, NewValue = crn }
+        });
+
+        AddAuditEntry(EffortAuditTables.Courses, courseId, termCode, EffortAuditActions.CreateCourse, changes);
+    }
+
+    public void AddHarvestRecordAudit(int recordId, int termCode, string mothraId, string courseCode, string effortType, int? hours, int? weeks)
+    {
+        var changesDict = new Dictionary<string, ChangeDetail>
+        {
+            ["MothraId"] = new ChangeDetail { OldValue = null, NewValue = mothraId },
+            ["Course"] = new ChangeDetail { OldValue = null, NewValue = courseCode },
+            ["Type"] = new ChangeDetail { OldValue = null, NewValue = effortType }
+        };
+
+        if (hours.HasValue && hours.Value > 0)
+        {
+            changesDict["Hours"] = new ChangeDetail { OldValue = null, NewValue = hours.Value.ToString() };
+        }
+
+        if (weeks.HasValue && weeks.Value > 0)
+        {
+            changesDict["Weeks"] = new ChangeDetail { OldValue = null, NewValue = weeks.Value.ToString() };
+        }
+
+        var changes = JsonSerializer.Serialize(changesDict);
+        AddAuditEntry(EffortAuditTables.Records, recordId, termCode, EffortAuditActions.CreateEffort, changes);
+    }
+
     /// <summary>
     /// Add an audit entry to the context without saving.
     /// Use within a transaction where the caller manages SaveChangesAsync.
@@ -511,10 +569,19 @@ public class EffortAuditService : IEffortAuditService
         if (filter.TermCode.HasValue)
         {
             var termCode = filter.TermCode.Value;
-            // Include term-specific entries, term record entries, and term-independent entries (like Units)
+
+            // Look up the term's active date range to filter term-independent entries
+            var term = _context.Terms.AsNoTracking().FirstOrDefault(t => t.TermCode == termCode);
+            var termStartDate = term?.HarvestedDate;
+            var termEndDate = term?.ClosedDate ?? DateTime.Now;
+
+            // Include term-specific entries, term record entries, and term-independent entries
+            // For term-independent entries (TermCode == null), only show those that occurred
+            // during the term's active period (from harvest to close)
             query = query.Where(a =>
                 a.TermCode == termCode ||
-                a.TermCode == null ||
+                (a.TermCode == null && termStartDate != null &&
+                    a.ChangedDate >= termStartDate && a.ChangedDate <= termEndDate) ||
                 (a.TableName == EffortAuditTables.Terms && a.RecordId == termCode));
         }
 

@@ -129,24 +129,38 @@ const effortScriptsFiles = rawFiles.filter((f) => EFFORT_SCRIPTS_PATH_REGEX.test
 const webFiles = rawFiles.filter((f) => WEB_PATH_REGEX.test(f) && !EFFORT_SCRIPTS_PATH_REGEX.test(f))
 const testFiles = rawFiles.filter((f) => TEST_PATH_REGEX.test(f))
 
+// Supported project configurations
+// Uses isolated output directories to avoid conflicts with dev server (bin/Debug)
+const PROJECT_CONFIG = {
+    web: { projectName: "Viper.csproj", buildPath: "web/", outputDir: "web/bin/Lint" },
+    test: { projectName: "Viper.test.csproj", buildPath: "test/", outputDir: "test/bin/Lint" },
+    "web/Areas/Effort/Scripts": {
+        projectName: "EffortMigration.csproj",
+        buildPath: "web/Areas/Effort/Scripts/",
+        outputDir: "web/Areas/Effort/Scripts/bin/Lint",
+    },
+}
+
 // Function to run dotnet build for SonarAnalyzer on a specific project
 const runBuild = (projectPath) => {
     // Fail fast - validate before computing derived values
-    if (projectPath !== "web" && projectPath !== "test") {
-        throw new Error(`Unknown projectPath "${projectPath}" passed to runBuild. Expected "web" or "test".`)
+    const config = PROJECT_CONFIG[projectPath]
+    if (!config) {
+        throw new Error(
+            `Unknown projectPath "${projectPath}" passed to runBuild. Expected one of: ${Object.keys(PROJECT_CONFIG).join(", ")}`,
+        )
     }
-    // Use actual project file names to match build-dotnet.js cache keys
-    const projectName = projectPath === "web" ? "Viper.csproj" : "Viper.test.csproj"
+    const { projectName, buildPath, outputDir } = config
 
     // Check if build is needed (unless forced)
     if (forceFlag) {
-        logger.info(`Force flag enabled, skipping cache for ${projectPath}/ project`)
+        logger.info(`Force flag enabled, skipping cache for ${buildPath} project`)
     } else {
         try {
             if (!needsBuild(projectPath, projectName)) {
                 // Get cached analyzer output instead of skipping analysis
                 const cachedOutput = getCachedBuildOutput(projectName)
-                logger.success(`Build not needed for ${projectPath}/ project (using cached results)`)
+                logger.success(`Build not needed for ${buildPath} project (using cached results)`)
 
                 // Check for analyzer warnings in cached output
                 const hasWarnings =
@@ -159,10 +173,10 @@ const runBuild = (projectPath) => {
         }
     }
 
-    const args = ["build", `${projectPath}/`, "--no-incremental", "--verbosity", "quiet"]
+    const args = ["build", buildPath, "-o", outputDir, "--no-incremental", "--verbosity", "quiet"]
 
     try {
-        logger.info(`Building ${projectPath}/ project for code analysis...`)
+        logger.info(`Building ${buildPath} project for code analysis...`)
         const result = execFileSync("dotnet", args, {
             encoding: "utf8",
             timeout: 60_000, // Reduce timeout to 1 minute
@@ -176,7 +190,7 @@ const runBuild = (projectPath) => {
             logger.warning(`Failed to cache build result: ${error.message}`)
         }
 
-        logger.success(`Build completed for ${projectPath}/ project`)
+        logger.success(`Build completed for ${buildPath} project`)
 
         // Check for analyzer warnings in build output
         const hasWarnings = result && (result.includes("warning ") || result.includes(": warning"))
@@ -196,11 +210,11 @@ const runBuild = (projectPath) => {
             const hasWarnings = output.includes("warning ") || output.includes(": warning")
             const hasErrors = output.includes("error ") && !output.includes("Build FAILED")
 
-            logger.info(`Build completed with issues for ${projectPath}/ project`)
+            logger.info(`Build completed with issues for ${buildPath} project`)
             return { hasErrors: hasErrors, hasWarnings: hasWarnings, output: output }
         }
 
-        logger.error(`DOTNET BUILD ERROR for ${projectPath}/: ${error.message}`)
+        logger.error(`DOTNET BUILD ERROR for ${buildPath}: ${error.message}`)
         return { hasErrors: true, hasWarnings: false, output: "" }
     }
 }
@@ -402,7 +416,7 @@ try {
     let allBuildOutput = ""
 
     if (effortScriptsFiles.length > 0) {
-        const buildResult = runBuild("web/Areas/Effort/Scripts", "EffortMigration.csproj")
+        const buildResult = runBuild("web/Areas/Effort/Scripts")
         allBuildOutput += buildResult.output || ""
 
         const formatResult = runFormat("web/Areas/Effort/Scripts", effortScriptsFiles)
@@ -491,6 +505,8 @@ try {
 } catch (error) {
     if (error.code === "ETIMEDOUT") {
         logger.error("dotnet format timed out after 3 minutes")
+    } else {
+        logger.error(`Unexpected error: ${error.message}`)
     }
     process.exit(1)
 }

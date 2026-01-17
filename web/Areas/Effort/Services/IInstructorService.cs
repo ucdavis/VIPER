@@ -150,4 +150,12 @@ public interface IInstructorService
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of job groups with human-readable names.</returns>
     Task<List<JobGroupDto>> GetJobGroupsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Get a cached lookup of raw department codes to simple names from the dictionary database.
+    /// Maps codes like "072030" to simple names like "VME".
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Dictionary mapping raw codes to simple names, or null if unavailable.</returns>
+    Task<Dictionary<string, string>?> GetDepartmentSimpleNameLookupAsync(CancellationToken ct = default);
 }

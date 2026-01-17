@@ -2,7 +2,6 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.Effort;
@@ -22,9 +21,9 @@ public sealed class InstructorServiceTests : IDisposable
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
     private readonly AAUDContext _aaudContext;
+    private readonly DictionaryContext _dictionaryContext;
     private readonly Mock<IEffortAuditService> _auditServiceMock;
     private readonly Mock<ILogger<InstructorService>> _loggerMock;
-    private readonly IConfiguration _configurationMock;
     private readonly IMemoryCache _cache;
     private readonly IMapper _mapper;
     private readonly InstructorService _instructorService;
@@ -46,20 +45,17 @@ public sealed class InstructorServiceTests : IDisposable
             .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
 
+        var dictionaryOptions = new DbContextOptionsBuilder<DictionaryContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+            .Options;
+
         _context = new EffortDbContext(effortOptions);
         _viperContext = new VIPERContext(viperOptions);
         _aaudContext = new AAUDContext(aaudOptions);
+        _dictionaryContext = new DictionaryContext(dictionaryOptions);
         _auditServiceMock = new Mock<IEffortAuditService>();
         _loggerMock = new Mock<ILogger<InstructorService>>();
-
-        // Setup configuration with empty connection strings section to prevent null reference
-        var configurationBuilder = new ConfigurationBuilder();
-        configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            { "ConnectionStrings:VIPER", "" }
-        });
-        _configurationMock = configurationBuilder.Build();
-
         _cache = new MemoryCache(new MemoryCacheOptions());
 
         // Configure AutoMapper with the Effort profile
@@ -77,10 +73,10 @@ public sealed class InstructorServiceTests : IDisposable
             _context,
             _viperContext,
             _aaudContext,
+            _dictionaryContext,
             _auditServiceMock.Object,
             _mapper,
             _loggerMock.Object,
-            _configurationMock,
             _cache);
     }
 
@@ -89,6 +85,7 @@ public sealed class InstructorServiceTests : IDisposable
         _context.Dispose();
         _viperContext.Dispose();
         _aaudContext.Dispose();
+        _dictionaryContext.Dispose();
         _cache.Dispose();
     }
 
@@ -468,17 +465,22 @@ public sealed class InstructorServiceTests : IDisposable
     #region ResolveInstructorDepartmentAsync / DetermineDepartment Tests
 
     [Fact]
-    public async Task ResolveInstructorDepartmentAsync_ReturnsMisonOverride_ForMothraId02493928()
+    public async Task ResolveInstructorDepartmentAsync_ReturnsDepartmentOverride_WhenMothraIdHasOverride()
     {
-        // Arrange - Mison override should return VSR regardless of jobs/employee data
+        // Arrange - Department override should return configured dept regardless of jobs/employee data
+        // Using the MothraId from EffortConstants.DepartmentOverrides
+        var deptOverrides = Areas.Effort.Constants.EffortConstants.DepartmentOverrides;
+        var overrideMothraId = deptOverrides.Keys.First();
+        var expectedDept = deptOverrides[overrideMothraId];
+
         _viperContext.People.Add(new Viper.Models.VIPER.Person
         {
             PersonId = 100,
-            ClientId = "02493928",
-            FirstName = "Michael",
-            LastName = "Mison",
-            FullName = "Mison, Michael",
-            MothraId = "02493928", // This is the key - Mison's MothraId triggers the override
+            ClientId = overrideMothraId,
+            FirstName = "Test",
+            LastName = "Override",
+            FullName = "Override, Test",
+            MothraId = overrideMothraId, // This MothraId has a department override configured
             CurrentEmployee = true
         });
         await _viperContext.SaveChangesAsync();
@@ -486,17 +488,17 @@ public sealed class InstructorServiceTests : IDisposable
         // Add VMDO job (should be ignored due to override)
         _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
         {
-            IdsPKey = "MISON001",
+            IdsPKey = "OVERRIDE001",
             IdsTermCode = "202410",
-            IdsMothraid = "02493928",
-            IdsClientid = "02493928"
+            IdsMothraid = overrideMothraId,
+            IdsClientid = overrideMothraId
         });
         _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
         {
-            EmpPKey = "MISON001",
+            EmpPKey = "OVERRIDE001",
             EmpTermCode = "202410",
-            EmpClientid = "02493928",
-            EmpHomeDept = "072000", // VMDO
+            EmpClientid = overrideMothraId,
+            EmpHomeDept = "072000", // VMDO - should be ignored
             EmpAltDeptCode = "",
             EmpSchoolDivision = "VM",
             EmpCbuc = "99",
@@ -507,8 +509,8 @@ public sealed class InstructorServiceTests : IDisposable
         // Act
         var dept = await _instructorService.ResolveInstructorDepartmentAsync(100, 202410);
 
-        // Assert - Should return VSR due to hardcoded override
-        Assert.Equal("VSR", dept);
+        // Assert - Should return the configured override department
+        Assert.Equal(expectedDept, dept);
     }
 
     [Fact]
