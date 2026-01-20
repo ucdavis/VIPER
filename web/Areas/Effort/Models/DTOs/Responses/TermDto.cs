@@ -73,4 +73,9 @@ public class TermDto
     /// This value is populated by the service when fetching terms for management.
     /// </summary>
     public bool CanDelete { get; set; }
+
+    /// <summary>
+    /// Whether the term can be harvested (status is Created or Harvested).
+    /// </summary>
+    public bool CanHarvest => Status is "Created" or "Harvested";
 }
