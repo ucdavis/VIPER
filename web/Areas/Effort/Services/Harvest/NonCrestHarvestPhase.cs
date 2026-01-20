@@ -168,9 +168,10 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             context.Preview.NonCrestEffort.Count,
             context.TermCode);
 
-        foreach (var effort in context.Preview.NonCrestEffort)
+        foreach (var importTask in context.Preview.NonCrestEffort
+            .Select(effort => ImportEffortRecordAsync(effort, context, ct)))
         {
-            var result = await ImportEffortRecordAsync(effort, context, ct);
+            var result = await importTask;
             if (result.Record != null && result.Preview != null)
             {
                 context.CreatedRecords.Add((result.Record, result.Preview));
@@ -189,29 +190,15 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             .Distinct()
             .ToList();
 
-        // Get POA entries for these courses
+        // Get POA entries for these courses (no view join - mirrors legacy query)
         var poaEntries = await context.CoursesContext.Poas
             .AsNoTracking()
             .Where(p => p.PoaTermCode == termCodeStr && nonCrestCrns.Contains(p.PoaCrn))
-            .Join(
-                context.CoursesContext.VwPoaPidmNames.AsNoTracking(),
-                p => p.PoaPidm,
-                v => v.IdsPidm,
-                (p, v) => new { p.PoaCrn, p.PoaPidm, v.PersonClientid })
+            .Select(p => new { p.PoaCrn, p.PoaPidm })
             .Distinct()
             .ToListAsync(ct);
 
-        // Get person info from VIPER
-        var clientIds = poaEntries.Select(p => p.PersonClientid).Distinct().ToList();
-        var instructorDetails = await context.ViperContext.People
-            .AsNoTracking()
-            .Where(p => clientIds.Contains(p.ClientId))
-            .Select(p => new { p.PersonId, p.MothraId, p.FirstName, p.LastName, p.ClientId })
-            .ToListAsync(ct);
-
-        var clientIdToInstructor = instructorDetails.ToDictionary(i => i.ClientId, i => i);
-
-        // Get AAUD employee data
+        // Get AAUD IDS data for POA PIDMs (mirrors legacy join: poa_pidm = ids_pidm AND poa_term_code = ids_term_code)
         var nonCrestPidms = poaEntries.Select(p => p.PoaPidm.ToString()).Distinct().ToList();
         var nonCrestIdsRecords = await context.AaudContext.Ids
             .AsNoTracking()
@@ -231,15 +218,31 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             .ToDictionary(g => g.Key, g => g.First().IdsMothraid ?? "");
 
         var nonCrestPKeys = nonCrestPidmToPKey.Values.Where(pk => !string.IsNullOrEmpty(pk)).Distinct().ToList();
+
+        // Get employees - no term filter (mirrors legacy: INNER JOIN employees on ids_pkey = emp_pkey)
+        // Prefer current term if multiple records exist, otherwise use most recent term
         var nonCrestEmployees = await context.AaudContext.Employees
             .AsNoTracking()
-            .Where(e => e.EmpTermCode == termCodeStr && nonCrestPKeys.Contains(e.EmpPKey))
+            .Where(e => nonCrestPKeys.Contains(e.EmpPKey))
+            .GroupBy(e => e.EmpPKey)
+            .Select(g => g
+                .OrderByDescending(e => e.EmpTermCode == termCodeStr)
+                .ThenByDescending(e => e.EmpTermCode)
+                .First())
             .ToDictionaryAsync(e => e.EmpPKey ?? "", e => e, ct);
 
         var nonCrestPersons = await context.AaudContext.People
             .AsNoTracking()
             .Where(p => nonCrestPKeys.Contains(p.PersonPKey))
             .ToDictionaryAsync(p => p.PersonPKey ?? "", p => p, ct);
+
+        // Get VIPER person records by MothraId for PersonId lookup
+        var nonCrestMothraIds = nonCrestPidmToMothraId.Values.Where(m => !string.IsNullOrEmpty(m)).Distinct().ToList();
+        var viperPersonLookup = await context.ViperContext.People
+            .AsNoTracking()
+            .Where(p => nonCrestMothraIds.Contains(p.MothraId))
+            .Select(p => new { p.PersonId, p.MothraId })
+            .ToDictionaryAsync(p => p.MothraId ?? "", p => p.PersonId, ct);
 
         // Get lookups
         context.TitleLookup ??= (await context.InstructorService.GetTitleCodesAsync(ct))
@@ -282,7 +285,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             // Add instructor if not already added - skip if no valid VIPER person record
             if (!context.Preview.NonCrestInstructors.Any(i => i.MothraId == mothraId))
             {
-                if (poa.PersonClientid == null || !clientIdToInstructor.TryGetValue(poa.PersonClientid, out var viperPerson))
+                if (!viperPersonLookup.TryGetValue(mothraId, out var personId))
                 {
                     context.Logger.LogWarning(
                         "Skipping Non-CREST instructor {MothraId} ({FullName}): no matching VIPER person record",
@@ -293,7 +296,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
                 context.Preview.NonCrestInstructors.Add(new HarvestPersonPreview
                 {
                     MothraId = mothraId,
-                    PersonId = viperPerson.PersonId,
+                    PersonId = personId,
                     FullName = fullName,
                     FirstName = firstName,
                     LastName = lastName,

@@ -149,11 +149,26 @@ public class HarvestController : BaseEffortController
             {
                 await _harvestService.ExecuteHarvestWithProgressAsync(termCode, modifiedBy, channel.Writer, ct);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException ex)
             {
-                _logger.LogError(ex, "Error during harvest for term {TermCode}", termCode);
-                await channel.Writer.WriteAsync(HarvestProgressEvent.Failed("An unexpected error occurred during harvest."), ct);
+                _logger.LogInformation(ex, "Harvest cancelled for term {TermCode}", termCode);
                 channel.Writer.Complete();
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Invalid operation during harvest for term {TermCode}", termCode);
+                await channel.Writer.WriteAsync(HarvestProgressEvent.Failed("An invalid operation occurred during harvest."), ct);
+                channel.Writer.Complete();
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Database error during harvest for term {TermCode}", termCode);
+                await channel.Writer.WriteAsync(HarvestProgressEvent.Failed("A database error occurred during harvest."), ct);
+                channel.Writer.Complete();
+            }
+            finally
+            {
+                channel.Writer.TryComplete();
             }
         }, ct);
 

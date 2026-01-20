@@ -92,13 +92,12 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
             .Select(g => new { Crn = g.Key, Units = g.Max(r => r.RosterUnit ?? 0), Enrollment = g.Count() })
             .ToDictionaryAsync(x => x.Crn, x => x, ct);
 
-        foreach (var course in context.Preview.CrestCourses)
+        foreach (var (course, summary) in context.Preview.CrestCourses
+            .Where(c => rosterSummaries.ContainsKey(c.Crn))
+            .Select(c => (c, rosterSummaries[c.Crn])))
         {
-            if (rosterSummaries.TryGetValue(course.Crn, out var summary))
-            {
-                course.Units = (decimal)summary.Units;
-                course.Enrollment = summary.Enrollment;
-            }
+            course.Units = (decimal)summary.Units;
+            course.Enrollment = summary.Enrollment;
         }
 
         // Step 4: Get CREST instructors
@@ -190,9 +189,10 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
             context.Preview.CrestEffort.Count,
             context.TermCode);
 
-        foreach (var effort in context.Preview.CrestEffort)
+        foreach (var importTask in context.Preview.CrestEffort
+            .Select(effort => ImportEffortRecordAsync(effort, context, ct)))
         {
-            var result = await ImportEffortRecordAsync(effort, context, ct);
+            var result = await importTask;
             if (result.Record != null && result.Preview != null)
             {
                 context.CreatedRecords.Add((result.Record, result.Preview));

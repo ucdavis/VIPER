@@ -92,10 +92,8 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
         // Group by person and course to count weeks
         var personWeekCourses = new Dictionary<string, Dictionary<int, List<string>>>();
 
-        foreach (var schedule in clinicalData)
+        foreach (var schedule in clinicalData.Where(s => !string.IsNullOrEmpty(s.MothraId)))
         {
-            if (string.IsNullOrEmpty(schedule.MothraId)) continue;
-
             if (!personWeekCourses.ContainsKey(schedule.MothraId))
             {
                 personWeekCourses[schedule.MothraId] = new Dictionary<int, List<string>>();
@@ -116,10 +114,9 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
         // Build effort records with priority resolution
         var effortByPersonCourse = new Dictionary<string, HarvestRecordPreview>();
 
-        foreach (var schedule in clinicalData)
+        foreach (var schedule in clinicalData.Where(s =>
+            !string.IsNullOrEmpty(s.MothraId) && !string.IsNullOrEmpty(s.SubjCode)))
         {
-            if (string.IsNullOrEmpty(schedule.MothraId) || string.IsNullOrEmpty(schedule.SubjCode)) continue;
-
             var courseKey = $"{schedule.SubjCode} {schedule.CrseNumb}";
             var effortKey = $"{schedule.MothraId}-{courseKey}";
 

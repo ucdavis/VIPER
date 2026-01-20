@@ -26,40 +26,21 @@ public sealed class HarvestTimeParserTests
     [InlineData("12:00 PM", 12, 0)]
     [InlineData("1:30 PM", 13, 30)]
     [InlineData("11:59 PM", 23, 59)]
-    public void ParseTimeString_StandardTimeFormat_ParsesCorrectly(string input, int expectedHour, int expectedMinute)
-    {
-        var result = HarvestTimeParser.ParseTimeString(input);
-
-        Assert.NotNull(result);
-        Assert.Equal(expectedHour, result.Value.Hours);
-        Assert.Equal(expectedMinute, result.Value.Minutes);
-    }
-
-    [Theory]
     [InlineData("0800", 8, 0)]
     [InlineData("1430", 14, 30)]
     [InlineData("0000", 0, 0)]
     [InlineData("2359", 23, 59)]
-    public void ParseTimeString_FourDigitMilitaryTime_ParsesCorrectly(string input, int expectedHour, int expectedMinute)
-    {
-        var result = HarvestTimeParser.ParseTimeString(input);
-
-        Assert.NotNull(result);
-        Assert.Equal(expectedHour, result.Value.Hours);
-        Assert.Equal(expectedMinute, result.Value.Minutes);
-    }
-
-    [Theory]
     [InlineData("800", 8, 0)]
     [InlineData("900", 9, 0)]
     [InlineData("130", 1, 30)]
-    public void ParseTimeString_ThreeDigitMilitaryTime_ParsesCorrectly(string input, int expectedHour, int expectedMinute)
+    public void ParseTimeString_ValidTimeFormats_ParsesCorrectly(string input, int expectedHour, int expectedMinute)
     {
         var result = HarvestTimeParser.ParseTimeString(input);
 
         Assert.NotNull(result);
-        Assert.Equal(expectedHour, result.Value.Hours);
-        Assert.Equal(expectedMinute, result.Value.Minutes);
+        var value = result!.Value;
+        Assert.Equal(expectedHour, value.Hours);
+        Assert.Equal(expectedMinute, value.Minutes);
     }
 
     [Fact]
@@ -69,7 +50,7 @@ public sealed class HarvestTimeParserTests
 
         Assert.NotNull(result);
         // TimeSpan(24, 0, 0) stores as 1 day, 0 hours - check TotalHours
-        Assert.Equal(24, result.Value.TotalHours);
+        Assert.Equal(24, result.GetValueOrDefault().TotalHours);
     }
 
     [Theory]
