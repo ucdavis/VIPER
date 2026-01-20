@@ -1,5 +1,5 @@
+using System.Data.Common;
 using AutoMapper;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Viper.Areas.Effort.Constants;
@@ -7,6 +7,7 @@ using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -18,10 +19,10 @@ public class InstructorService : IInstructorService
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
     private readonly AAUDContext _aaudContext;
+    private readonly DictionaryContext _dictionaryContext;
     private readonly IEffortAuditService _auditService;
     private readonly IMapper _mapper;
     private readonly ILogger<InstructorService> _logger;
-    private readonly IConfiguration _configuration;
     private readonly IMemoryCache _cache;
 
     private const string TitleCacheKey = "effort_title_lookup";
@@ -62,19 +63,19 @@ public class InstructorService : IInstructorService
         EffortDbContext context,
         VIPERContext viperContext,
         AAUDContext aaudContext,
+        DictionaryContext dictionaryContext,
         IEffortAuditService auditService,
         IMapper mapper,
         ILogger<InstructorService> logger,
-        IConfiguration configuration,
         IMemoryCache cache)
     {
         _context = context;
         _viperContext = viperContext;
         _aaudContext = aaudContext;
+        _dictionaryContext = dictionaryContext;
         _auditService = auditService;
         _mapper = mapper;
         _logger = logger;
-        _configuration = configuration;
         _cache = cache;
     }
 
@@ -346,7 +347,7 @@ public class InstructorService : IInstructorService
         await transaction.CommitAsync(ct);
 
         _logger.LogInformation("Created instructor: {PersonId} ({LastName}, {FirstName}) for term {TermCode}",
-            instructor.PersonId, instructor.LastName, instructor.FirstName, instructor.TermCode);
+            instructor.PersonId, LogSanitizer.SanitizeString(instructor.LastName), LogSanitizer.SanitizeString(instructor.FirstName), instructor.TermCode);
 
         return _mapper.Map<PersonDto>(instructor);
     }
@@ -443,7 +444,7 @@ public class InstructorService : IInstructorService
         await transaction.CommitAsync(ct);
 
         _logger.LogInformation("Deleted instructor: {PersonId} ({LastName}, {FirstName}) for term {TermCode}",
-            personId, instructorInfo.LastName, instructorInfo.FirstName, termCode);
+            personId, LogSanitizer.SanitizeString(instructorInfo.LastName), LogSanitizer.SanitizeString(instructorInfo.FirstName), termCode);
 
         return true;
     }
@@ -545,10 +546,11 @@ public class InstructorService : IInstructorService
         Dictionary<string, string>? deptSimpleNameLookup,
         CancellationToken ct = default)
     {
-        // Mison override - he only has a VMTH job, but needs his effort recorded to VSR
-        if (mothraId == "02493928")
+        // Check for department override
+        var deptOverride = EffortConstants.GetDepartmentOverride(mothraId);
+        if (deptOverride != null)
         {
-            return "VSR";
+            return deptOverride;
         }
 
         // Helper to resolve raw code to simple name
@@ -642,10 +644,11 @@ public class InstructorService : IInstructorService
         Dictionary<string, List<string>>? jobDeptsByMothraId,
         Dictionary<string, string>? deptSimpleNameLookup)
     {
-        // Mison override - he only has a VMTH job, but needs his effort recorded to VSR
-        if (mothraId == "02493928")
+        // Check for department override
+        var deptOverride = EffortConstants.GetDepartmentOverride(mothraId);
+        if (deptOverride != null)
         {
-            return "VSR";
+            return deptOverride;
         }
 
         // Helper to resolve raw code to simple name
@@ -750,39 +753,20 @@ public class InstructorService : IInstructorService
             return cached;
         }
 
-        var connectionString = _configuration.GetConnectionString("VIPER");
-        if (string.IsNullOrEmpty(connectionString))
-        {
-            _logger.LogWarning("VIPER connection string not found, cannot load title lookup");
-            return null;
-        }
-
         try
         {
+            var titles = await _dictionaryContext.Titles
+                .AsNoTracking()
+                .Where(t => t.Code != null && t.Abbreviation != null)
+                .Select(t => new { t.Code, t.Abbreviation })
+                .Distinct()
+                .ToListAsync(ct);
+
             var titleLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            await using var connection = new SqlConnection(connectionString);
-            await connection.OpenAsync(ct);
-
-            var query = @"
-                SELECT DISTINCT
-                    dvtTitle_Code AS TitleCode,
-                    dvtTitle_Abbrv AS TitleAbbrev
-                FROM [dictionary].[dbo].[dvtTitle]
-                WHERE dvtTitle_Code IS NOT NULL
-                    AND dvtTitle_Abbrv IS NOT NULL";
-
-            await using var cmd = new SqlCommand(query, connection);
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-
-            while (await reader.ReadAsync(ct))
+            foreach (var title in titles.Where(t =>
+                !string.IsNullOrEmpty(t.Code) && !string.IsNullOrEmpty(t.Abbreviation)))
             {
-                var code = reader["TitleCode"]?.ToString();
-                var abbrev = reader["TitleAbbrev"]?.ToString();
-                if (!string.IsNullOrEmpty(code) && !string.IsNullOrEmpty(abbrev))
-                {
-                    titleLookup[code] = abbrev;
-                }
+                titleLookup[title.Code!] = title.Abbreviation!;
             }
 
             var cacheOptions = new MemoryCacheEntryOptions()
@@ -794,7 +778,7 @@ public class InstructorService : IInstructorService
 
             return titleLookup;
         }
-        catch (SqlException ex)
+        catch (Exception ex) when (ex is InvalidOperationException or DbException)
         {
             _logger.LogWarning(ex, "Failed to load title lookup from dictionary database");
             return null;
@@ -805,53 +789,35 @@ public class InstructorService : IInstructorService
     /// Gets a cached lookup of raw department codes to simple names from the dictionary database.
     /// Replicates the logic in dictionary.dbo.fn_get_deptSimpleName function using dvtSVMUnit table.
     /// </summary>
-    private async Task<Dictionary<string, string>?> GetDepartmentSimpleNameLookupAsync(CancellationToken ct)
+    public async Task<Dictionary<string, string>?> GetDepartmentSimpleNameLookupAsync(CancellationToken ct = default)
     {
         if (_cache.TryGetValue<Dictionary<string, string>>(DeptSimpleNameCacheKey, out var cached) && cached != null)
         {
             return cached;
         }
 
-        var connectionString = _configuration.GetConnectionString("VIPER");
-        if (string.IsNullOrEmpty(connectionString))
-        {
-            _logger.LogWarning("VIPER connection string not found, cannot load department lookup");
-            return null;
-        }
-
         try
         {
-            var deptLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            await using var connection = new SqlConnection(connectionString);
-            await connection.OpenAsync(ct);
-
             // Query dvtSVMUnit table to get raw code -> simple name mapping
             // This matches the logic in dictionary.dbo.fn_get_deptSimpleName function
-            var query = @"
-                SELECT DISTINCT
-                    dvtSVMUnit_code AS DeptCode,
-                    dvtSVMUnit_name_simple AS SimpleName
-                FROM [dictionary].[dbo].[dvtSVMUnit]
-                WHERE dvtSVMUnit_code IS NOT NULL
-                    AND dvtSVMUnit_name_simple IS NOT NULL
-                    AND dvtSVMUnit_name_simple <> ''
-                    AND dvtSVMUnit_name_simple != 'CCEH'
-                    AND ((dvtSvmUnit_Parent_ID IS NULL AND dvtSVMUnit_code = '072000')
-                        OR (dvtSvmUnit_Parent_ID = 1 AND dvtSVMUnit_code != '072000')
-                        OR (dvtSvmUnit_Parent_ID = 47 AND dvtSVMUnit_code = '072100'))";
+            var units = await _dictionaryContext.SvmUnits
+                .AsNoTracking()
+                .Where(u => u.Code != null &&
+                            u.SimpleName != null &&
+                            u.SimpleName != "" &&
+                            u.SimpleName != "CCEH" &&
+                            ((u.ParentId == null && u.Code == "072000") ||
+                             (u.ParentId == 1 && u.Code != "072000") ||
+                             (u.ParentId == 47 && u.Code == "072100")))
+                .Select(u => new { u.Code, u.SimpleName })
+                .Distinct()
+                .ToListAsync(ct);
 
-            await using var cmd = new SqlCommand(query, connection);
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-
-            while (await reader.ReadAsync(ct))
+            var deptLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var unit in units.Where(u =>
+                !string.IsNullOrEmpty(u.Code) && !string.IsNullOrEmpty(u.SimpleName)))
             {
-                var code = reader["DeptCode"]?.ToString();
-                var simpleName = reader["SimpleName"]?.ToString();
-                if (!string.IsNullOrEmpty(code) && !string.IsNullOrEmpty(simpleName))
-                {
-                    deptLookup[code] = simpleName;
-                }
+                deptLookup[unit.Code!] = unit.SimpleName!;
             }
 
             var cacheOptions = new MemoryCacheEntryOptions()
@@ -863,7 +829,7 @@ public class InstructorService : IInstructorService
 
             return deptLookup;
         }
-        catch (SqlException ex)
+        catch (Exception ex) when (ex is InvalidOperationException or DbException)
         {
             _logger.LogWarning(ex, "Failed to load department lookup from dictionary database");
             return null;
@@ -922,45 +888,25 @@ public class InstructorService : IInstructorService
             return cached;
         }
 
-        var connectionString = _configuration.GetConnectionString("VIPER");
-        if (string.IsNullOrEmpty(connectionString))
-        {
-            _logger.LogWarning("VIPER connection string not found, cannot load title codes");
-            return [];
-        }
-
         try
         {
-            var titleCodes = new List<TitleCodeDto>();
+            var titles = await _dictionaryContext.Titles
+                .AsNoTracking()
+                .Where(t => t.Code != null)
+                .Select(t => new { Code = t.Code!.Trim(), Name = t.Name ?? "" })
+                .Distinct()
+                .OrderBy(t => t.Name)
+                .ThenBy(t => t.Code)
+                .ToListAsync(ct);
 
-            await using var connection = new SqlConnection(connectionString);
-            await connection.OpenAsync(ct);
-
-            var query = @"
-                SELECT DISTINCT
-                    dvtTitle_Code AS TitleCode,
-                    dvtTitle_name AS TitleName
-                FROM [dictionary].[dbo].[dvtTitle]
-                WHERE dvtTitle_Code IS NOT NULL
-                ORDER BY dvtTitle_name, dvtTitle_Code";
-
-            await using var cmd = new SqlCommand(query, connection);
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-
-            while (await reader.ReadAsync(ct))
-            {
-                var code = reader["TitleCode"]?.ToString()?.Trim();
-                var name = reader["TitleName"]?.ToString()?.Trim();
-
-                if (!string.IsNullOrEmpty(code))
+            var titleCodes = titles
+                .Where(t => !string.IsNullOrEmpty(t.Code))
+                .Select(t => new TitleCodeDto
                 {
-                    titleCodes.Add(new TitleCodeDto
-                    {
-                        Code = code,
-                        Name = name ?? string.Empty
-                    });
-                }
-            }
+                    Code = t.Code,
+                    Name = t.Name.Trim()
+                })
+                .ToList();
 
             var cacheOptions = new MemoryCacheEntryOptions()
                 .SetSlidingExpiration(TimeSpan.FromHours(24));
@@ -971,7 +917,7 @@ public class InstructorService : IInstructorService
 
             return titleCodes;
         }
-        catch (SqlException ex)
+        catch (Exception ex) when (ex is InvalidOperationException or DbException)
         {
             _logger.LogWarning(ex, "Failed to load title codes from dictionary database");
             return [];
@@ -985,50 +931,44 @@ public class InstructorService : IInstructorService
             return cached;
         }
 
-        var connectionString = _configuration.GetConnectionString("VIPER");
-        if (string.IsNullOrEmpty(connectionString))
-        {
-            _logger.LogWarning("VIPER connection string not found, cannot load job groups");
-            return [];
-        }
-
         try
         {
-            var jobGroups = new List<JobGroupDto>();
+            // Get job groups that are actually in use by instructors
+            var usedJobGroupIds = await _context.Persons
+                .AsNoTracking()
+                .Where(p => p.JobGroupId != null && p.JobGroupId != "")
+                .Select(p => p.JobGroupId!)
+                .Distinct()
+                .ToListAsync(ct);
 
-            await using var connection = new SqlConnection(connectionString);
-            await connection.OpenAsync(ct);
-
-            // Get job groups that are actually in use by instructors, joined with dictionary for names
-            var query = @"
-                SELECT DISTINCT
-                    p.JobGroupId AS JobGroupCode,
-                    t.dvtTitle_JobGroup_Name AS JobGroupName
-                FROM [effort].[Persons] p
-                LEFT JOIN [dictionary].[dbo].[dvtTitle] t
-                    ON p.JobGroupId = t.dvtTitle_JobGroupID
-                WHERE p.JobGroupId IS NOT NULL
-                    AND p.JobGroupId != ''
-                ORDER BY JobGroupName, JobGroupCode";
-
-            await using var cmd = new SqlCommand(query, connection);
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-
-            while (await reader.ReadAsync(ct))
+            if (usedJobGroupIds.Count == 0)
             {
-                var code = reader["JobGroupCode"]?.ToString()?.Trim();
-                var name = reader["JobGroupName"]?.ToString()?.Trim();
-
-                if (!string.IsNullOrEmpty(code))
-                {
-                    jobGroups.Add(new JobGroupDto
-                    {
-                        Code = code,
-                        // If name is NULL, just use empty string (UI will show code only)
-                        Name = name ?? string.Empty
-                    });
-                }
+                return [];
             }
+
+            // Get job group names from dictionary
+            var titleJobGroups = await _dictionaryContext.Titles
+                .AsNoTracking()
+                .Where(t => t.JobGroupId != null && usedJobGroupIds.Contains(t.JobGroupId))
+                .Select(t => new { t.JobGroupId, t.JobGroupName })
+                .Distinct()
+                .ToListAsync(ct);
+
+            var jobGroupNameLookup = titleJobGroups
+                .Where(t => !string.IsNullOrEmpty(t.JobGroupId))
+                .GroupBy(t => t.JobGroupId!)
+                .ToDictionary(g => g.Key, g => g.First().JobGroupName ?? "", StringComparer.OrdinalIgnoreCase);
+
+            var jobGroups = usedJobGroupIds
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Select(id => new JobGroupDto
+                {
+                    Code = id.Trim(),
+                    Name = jobGroupNameLookup.TryGetValue(id.Trim(), out var name) ? name.Trim() : ""
+                })
+                .OrderBy(j => j.Name)
+                .ThenBy(j => j.Code)
+                .ToList();
 
             var cacheOptions = new MemoryCacheEntryOptions()
                 .SetSlidingExpiration(TimeSpan.FromHours(24));
@@ -1039,7 +979,7 @@ public class InstructorService : IInstructorService
 
             return jobGroups;
         }
-        catch (SqlException ex)
+        catch (Exception ex) when (ex is InvalidOperationException or DbException)
         {
             _logger.LogWarning(ex, "Failed to load job groups from database");
             return [];

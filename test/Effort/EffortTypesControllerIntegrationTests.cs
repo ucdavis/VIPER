@@ -106,7 +106,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
 
         // Add an effort record referencing LEC
         EffortContext.Records.Add(CreateTestEffortRecord(1, "LEC"));
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.GetEffortTypes();
@@ -210,7 +210,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
         Assert.True(effortType.CanDelete);
 
         // Verify persisted in database
-        var fromDb = EffortContext.EffortTypes.Find("TST");
+        var fromDb = await EffortContext.EffortTypes.FindAsync("TST");
         Assert.NotNull(fromDb);
         Assert.Equal("Test Session", fromDb.Description);
     }
@@ -330,7 +330,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
         Assert.False(effortType.AllowedOnRCourses);
 
         // Verify persisted in database
-        var fromDb = EffortContext.EffortTypes.Find("LEC");
+        var fromDb = await EffortContext.EffortTypes.FindAsync("LEC");
         Assert.NotNull(fromDb);
         Assert.Equal("Updated Lecture", fromDb.Description);
         Assert.True(fromDb.UsesWeeks);
@@ -343,7 +343,13 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
         SetupUserWithManageEffortTypesPermission();
         var request = new UpdateEffortTypeRequest
         {
-            Description = "Test"
+            Description = "Test",
+            UsesWeeks = false,
+            IsActive = true,
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
         };
 
         // Act
@@ -360,7 +366,13 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
         SetupUserWithManageEffortTypesPermission();
         var request = new UpdateEffortTypeRequest
         {
-            Description = "Updated"
+            Description = "Updated",
+            UsesWeeks = false,
+            IsActive = true,
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
         };
 
         // Act
@@ -390,7 +402,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
             UsesWeeks = false,
             IsActive = true
         });
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.DeleteEffortType("DEL", CancellationToken.None);
@@ -399,7 +411,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
         Assert.IsType<NoContentResult>(result);
 
         // Verify removed from database
-        var fromDb = EffortContext.EffortTypes.Find("DEL");
+        var fromDb = await EffortContext.EffortTypes.FindAsync("DEL");
         Assert.Null(fromDb);
     }
 
@@ -424,7 +436,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
 
         // Add an effort record referencing LEC
         EffortContext.Records.Add(CreateTestEffortRecord(100, "LEC"));
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.DeleteEffortType("LEC", CancellationToken.None);
@@ -447,7 +459,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
             UsesWeeks = false,
             IsActive = true
         });
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.DeleteEffortType("del", CancellationToken.None);
@@ -485,7 +497,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
 
         // Add effort records
         EffortContext.Records.Add(CreateTestEffortRecord(200, "LEC"));
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.CanDeleteEffortType("LEC", CancellationToken.None);
@@ -549,7 +561,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
             UsesWeeks = false,
             IsActive = true
         });
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act - The controller now uses query parameter [FromQuery] to handle "/" in IDs
         var result = await _controller.GetEffortType("D/L", CancellationToken.None);
@@ -574,11 +586,17 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
             UsesWeeks = false,
             IsActive = true
         });
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         var request = new UpdateEffortTypeRequest
         {
-            Description = "Lab/Discussion Updated"
+            Description = "Lab/Discussion Updated",
+            UsesWeeks = false,
+            IsActive = true,
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
         };
 
         // Act
@@ -604,7 +622,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
             UsesWeeks = false,
             IsActive = true
         });
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.DeleteEffortType("T/D", CancellationToken.None);
@@ -613,7 +631,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
         Assert.IsType<NoContentResult>(result);
 
         // Verify deleted
-        var fromDb = EffortContext.EffortTypes.Find("T/D");
+        var fromDb = await EffortContext.EffortTypes.FindAsync("T/D");
         Assert.Null(fromDb);
     }
 
@@ -630,7 +648,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
             UsesWeeks = false,
             IsActive = true
         });
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.CanDeleteEffortType("T-D", CancellationToken.None);
@@ -676,7 +694,10 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
             Description = "Updated Workshop",
             UsesWeeks = true,
             IsActive = true,
-            FacultyCanEnter = false
+            FacultyCanEnter = false,
+            AllowedOnDvm = false,
+            AllowedOn199299 = false,
+            AllowedOnRCourses = false
         };
         var updateResult = await _controller.UpdateEffortType("WRK", updateRequest, CancellationToken.None);
         var updateOkResult = Assert.IsType<OkObjectResult>(updateResult.Result);
