@@ -189,13 +189,15 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
             context.Preview.CrestEffort.Count,
             context.TermCode);
 
-        foreach (var importTask in context.Preview.CrestEffort
-            .Select(effort => ImportEffortRecordAsync(effort, context, ct)))
+        var importTasks = context.Preview.CrestEffort
+            .Select(effort => ImportEffortRecordAsync(effort, context, ct));
+
+        foreach (var importTask in importTasks)
         {
-            var result = await importTask;
-            if (result.Record != null && result.Preview != null)
+            var (record, preview) = await importTask;
+            if (record != null && preview != null)
             {
-                context.CreatedRecords.Add((result.Record, result.Preview));
+                context.CreatedRecords.Add((record, preview));
             }
         }
     }
