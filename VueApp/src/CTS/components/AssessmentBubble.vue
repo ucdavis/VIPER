@@ -12,14 +12,11 @@ const props = defineProps({
     },
     text: {
         type: String,
-    },
-    type: {
-        type: String,
-        default: "bubble",
+        default: undefined,
     },
     id: {
         type: Number,
-        required: false,
+        default: undefined,
     },
 })
 
@@ -32,24 +29,8 @@ const classes5 = [
     "assessmentBubble5_4",
     "assessmentBubble5_5",
 ]
-const classes5_closer = [
-    "assessmentBubbleCloser5_1",
-    "assessmentBubbleCloser5_2",
-    "assessmentBubbleCloser5_3",
-    "assessmentBubbleCloser5_4",
-    "assessmentBubbleCloser5_5",
-]
-const clockIcons5 = [
-    "sym_o_clock_loader_10",
-    "sym_o_clock_loader_40",
-    "sym_o_clock_loader_60",
-    "sym_o_clock_loader_80",
-    "circle",
-]
-const barIcons5 = ["horizontal_rule", "density_large", "density_medium", "desnity_small", "format_align_justify"]
 
 const bubbleClass = ref("")
-const bubbleIcon = ref("")
 
 watch(props, () => {
     setBubbleAttrs()
@@ -62,23 +43,9 @@ function clickBubble() {
 }
 
 function setBubbleAttrs() {
-    if (props.maxValue == 5 && props.value <= 5 && props.value > 0) {
+    if (props.maxValue === 5 && props.value <= 5 && props.value > 0) {
         const index = props.value - 1
-        switch (props.type) {
-            case "clock":
-                bubbleIcon.value = clockIcons5[index] ?? "circle"
-                bubbleClass.value = classes5_closer[index] ?? ""
-                break
-            case "bar":
-                bubbleIcon.value = barIcons5[index] ?? "horizontal_rule"
-                bubbleClass.value = classes5_closer[index] ?? ""
-                break
-            case "bubble":
-            default:
-                bubbleIcon.value = "circle"
-                bubbleClass.value = classes5[index] ?? ""
-                break
-        }
+        bubbleClass.value = classes5[index] ?? ""
     }
 }
 
@@ -86,7 +53,7 @@ setBubbleAttrs()
 </script>
 <template>
     <q-icon
-        :name="bubbleIcon"
+        name="circle"
         size="sm"
         :class="'assessmentIcon cursor-pointer ' + bubbleClass"
         @click="clickBubble"
