@@ -60,9 +60,10 @@ namespace Viper.Areas.Curriculum.Services
                 .ToListAsync();
         }
 
-        public async Task<Term> GetActiveTerm()
+        public async Task<Term?> GetActiveTerm()
         {
-            return (await GetTerms(current: true))[0];
+            var terms = await GetTerms(current: true);
+            return terms.FirstOrDefault();
         }
 
         public async Task<List<int>> GetActiveClassYears(int? termCode = null)
