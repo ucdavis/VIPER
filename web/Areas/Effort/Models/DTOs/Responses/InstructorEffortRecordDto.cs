@@ -32,4 +32,24 @@ public class InstructorEffortRecordDto
     /// Course information for this effort record.
     /// </summary>
     public CourseDto Course { get; set; } = null!;
+
+    /// <summary>
+    /// Child courses (cross-listed or sectioned) for this course.
+    /// Only populated for parent courses that have children.
+    /// </summary>
+    public List<ChildCourseDto> ChildCourses { get; set; } = new();
+}
+
+/// <summary>
+/// Simplified DTO for child course display in instructor effort records.
+/// </summary>
+public class ChildCourseDto
+{
+    public int Id { get; set; }
+    public string SubjCode { get; set; } = string.Empty;
+    public string CrseNumb { get; set; } = string.Empty;
+    public string SeqNumb { get; set; } = string.Empty;
+    public decimal Units { get; set; }
+    public int Enrollment { get; set; }
+    public string RelationshipType { get; set; } = string.Empty;
 }

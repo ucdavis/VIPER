@@ -35,20 +35,38 @@
         <!-- Instructor content -->
         <template v-else-if="instructor">
             <!-- Instructor Header -->
-            <div class="row items-center q-mb-md">
-                <h2 class="q-my-none">
+            <div class="q-mb-md">
+                <h2 class="q-my-none q-mb-sm">
                     Effort for {{ instructor.firstName }} {{ instructor.lastName }} - {{ currentTermName }}
                 </h2>
-                <q-space />
-                <div
-                    v-if="instructor.isVerified"
-                    class="text-positive"
-                >
-                    <q-icon
-                        name="check_circle"
-                        size="sm"
+                <div class="row items-center q-gutter-sm">
+                    <q-btn
+                        v-if="canEdit"
+                        color="secondary"
+                        label="Import Course"
+                        icon="cloud_download"
+                        dense
+                        @click="showImportDialog = true"
                     />
-                    Verified on {{ formatDate(instructor.effortVerified) }}
+                    <q-btn
+                        v-if="canEdit"
+                        color="primary"
+                        label="Add Effort"
+                        icon="add"
+                        dense
+                        @click="showAddDialog = true"
+                    />
+                    <q-space class="gt-xs" />
+                    <div
+                        v-if="instructor.isVerified"
+                        class="text-positive"
+                    >
+                        <q-icon
+                            name="check_circle"
+                            size="sm"
+                        />
+                        Verified on {{ formatDate(instructor.effortVerified) }}
+                    </div>
                 </div>
             </div>
 
@@ -60,7 +78,78 @@
                 Enter clinical effort as weeks. Enter all other effort as hours.
             </p>
 
-            <!-- Effort Records Table -->
+            <!-- Mobile Card View -->
+            <div class="lt-sm q-mb-lg">
+                <div
+                    v-if="effortRecords.length === 0"
+                    class="text-center text-grey q-py-lg"
+                >
+                    <q-icon
+                        name="school"
+                        size="2em"
+                        class="q-mb-sm"
+                    />
+                    <div>No effort records for this instructor</div>
+                </div>
+                <q-card
+                    v-for="record in effortRecords"
+                    :key="record.id"
+                    flat
+                    bordered
+                    class="q-mb-sm"
+                    :class="{ 'zero-effort-card': record.effortValue === 0 }"
+                >
+                    <q-card-section class="q-py-sm">
+                        <div class="row items-center justify-between q-mb-xs">
+                            <router-link
+                                :to="{
+                                    name: 'CourseDetail',
+                                    params: { termCode, courseId: record.course.id },
+                                }"
+                                class="text-primary text-weight-bold"
+                            >
+                                {{ record.course.subjCode }}
+                                {{ record.course.crseNumb.trim() }}-{{ record.course.seqNumb }}
+                            </router-link>
+                            <div>
+                                <q-btn
+                                    v-if="canEdit"
+                                    flat
+                                    dense
+                                    round
+                                    icon="edit"
+                                    color="primary"
+                                    size="sm"
+                                    @click="openEditDialog(record)"
+                                />
+                                <q-btn
+                                    v-if="canDelete"
+                                    flat
+                                    dense
+                                    round
+                                    icon="delete"
+                                    color="negative"
+                                    size="sm"
+                                    @click="confirmDelete(record)"
+                                />
+                            </div>
+                        </div>
+                        <div class="text-body2 q-mb-xs">
+                            {{ record.roleDescription }} &bull; {{ record.effortType }}
+                        </div>
+                        <div class="row q-gutter-md text-caption text-grey-7">
+                            <span>{{ record.course.units }} units</span>
+                            <span>Enroll: {{ record.course.enrollment }}</span>
+                            <span :class="{ 'text-warning': record.effortValue === 0 }">
+                                {{ record.effortValue ?? 0 }}
+                                {{ record.effortLabel === "weeks" ? "Weeks" : "Hours" }}
+                            </span>
+                        </div>
+                    </q-card-section>
+                </q-card>
+            </div>
+
+            <!-- Effort Records Table (hidden on mobile) -->
             <q-table
                 :rows="effortRecords"
                 :columns="columns"
@@ -71,7 +160,7 @@
                 hide-pagination
                 wrap-cells
                 :rows-per-page-options="[0]"
-                class="effort-table q-mb-lg"
+                class="effort-table q-mb-lg gt-xs"
             >
                 <template #body-cell-course="props">
                     <q-td :props="props">
@@ -96,6 +185,34 @@
                         {{ props.row.effortLabel === "weeks" ? "Weeks" : "Hours" }}
                     </q-td>
                 </template>
+                <template #body-cell-actions="props">
+                    <q-td :props="props">
+                        <q-btn
+                            v-if="canEdit"
+                            flat
+                            dense
+                            round
+                            icon="edit"
+                            color="primary"
+                            size="sm"
+                            @click="openEditDialog(props.row)"
+                        >
+                            <q-tooltip>Edit</q-tooltip>
+                        </q-btn>
+                        <q-btn
+                            v-if="canDelete"
+                            flat
+                            dense
+                            round
+                            icon="delete"
+                            color="negative"
+                            size="sm"
+                            @click="confirmDelete(props.row)"
+                        >
+                            <q-tooltip>Delete</q-tooltip>
+                        </q-btn>
+                    </q-td>
+                </template>
                 <template #no-data>
                     <div class="full-width row flex-center text-grey q-gutter-sm q-py-lg">
                         <q-icon
@@ -106,6 +223,62 @@
                     </div>
                 </template>
             </q-table>
+
+            <!-- Cross-Listed / Sectioned Courses Section -->
+            <div
+                v-if="allChildCourses.length > 0"
+                class="q-mb-lg"
+            >
+                <h4 class="q-mt-none q-mb-sm">Cross-Listed / Sectioned Courses</h4>
+                <!-- Mobile card view for child courses -->
+                <div class="lt-sm">
+                    <q-card
+                        v-for="child in allChildCourses"
+                        :key="`${child.parentCourseId}-${child.id}`"
+                        flat
+                        bordered
+                        class="q-mb-sm"
+                        :class="child.relationshipType === 'CrossList' ? 'crosslist-card' : 'section-card'"
+                    >
+                        <q-card-section class="q-py-sm">
+                            <div class="row items-center justify-between q-mb-xs">
+                                <span class="text-weight-bold">
+                                    {{ child.subjCode }} {{ child.crseNumb.trim() }}-{{ child.seqNumb }}
+                                </span>
+                                <q-badge
+                                    :color="child.relationshipType === 'CrossList' ? 'positive' : 'info'"
+                                    :label="child.relationshipType === 'CrossList' ? 'Cross List' : 'Section'"
+                                />
+                            </div>
+                            <div class="text-caption text-grey-7">
+                                Parent: {{ child.parentCourseCode }} &bull; {{ child.units }} units &bull; Enroll:
+                                {{ child.enrollment }}
+                            </div>
+                        </q-card-section>
+                    </q-card>
+                </div>
+                <!-- Table view for child courses (desktop) -->
+                <q-table
+                    :rows="allChildCourses"
+                    :columns="childColumns"
+                    row-key="id"
+                    dense
+                    flat
+                    bordered
+                    hide-pagination
+                    :rows-per-page-options="[0]"
+                    class="gt-xs"
+                >
+                    <template #body-cell-relationshipType="slotProps">
+                        <q-td :props="slotProps">
+                            <q-badge
+                                :color="slotProps.row.relationshipType === 'CrossList' ? 'positive' : 'info'"
+                                :label="slotProps.row.relationshipType === 'CrossList' ? 'Cross List' : 'Section'"
+                            />
+                        </q-td>
+                    </template>
+                </q-table>
+            </div>
 
             <!-- Zero Effort Warning -->
             <q-banner
@@ -123,22 +296,51 @@
                 until these items have been updated or removed.
             </q-banner>
         </template>
+
+        <!-- Add Effort Dialog -->
+        <EffortRecordAddDialog
+            v-model="showAddDialog"
+            :person-id="personId"
+            :term-code="termCodeNum"
+            @created="onRecordCreated"
+        />
+
+        <!-- Edit Effort Dialog -->
+        <EffortRecordEditDialog
+            v-model="showEditDialog"
+            :record="selectedRecord"
+            :term-code="termCodeNum"
+            @updated="onRecordUpdated"
+        />
+
+        <!-- Course Import Dialog -->
+        <CourseImportDialog
+            v-model="showImportDialog"
+            :term-code="termCodeNum"
+            :term-name="currentTermName"
+            @imported="onCourseImported"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue"
 import { useRoute } from "vue-router"
-import type { QTableColumn } from "quasar"
+import { useQuasar, type QTableColumn } from "quasar"
 import { effortService } from "../services/effort-service"
 import { termService } from "../services/term-service"
 import type { PersonDto, TermDto, InstructorEffortRecordDto } from "../types"
+import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
+import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
+import CourseImportDialog from "../components/CourseImportDialog.vue"
 
 const route = useRoute()
+const $q = useQuasar()
 
 // Route params
 const termCode = computed(() => route.params.termCode as string)
 const personId = computed(() => parseInt(route.params.personId as string, 10))
+const termCodeNum = computed(() => parseInt(termCode.value, 10))
 
 // State
 const instructor = ref<PersonDto | null>(null)
@@ -146,6 +348,13 @@ const effortRecords = ref<InstructorEffortRecordDto[]>([])
 const terms = ref<TermDto[]>([])
 const isLoading = ref(true)
 const loadError = ref<string | null>(null)
+const canEditTerm = ref(false)
+
+// Dialog state
+const showAddDialog = ref(false)
+const showEditDialog = ref(false)
+const showImportDialog = ref(false)
+const selectedRecord = ref<InstructorEffortRecordDto | null>(null)
 
 // Computed
 const currentTermName = computed(() => {
@@ -167,46 +376,133 @@ const hasZeroEffort = computed(() => {
     })
 })
 
-const columns = computed<QTableColumn[]>(() => [
+// Flatten all child courses from effort records with parent course info
+type ChildCourseWithParent = {
+    id: number
+    parentCourseId: number
+    parentCourseCode: string
+    subjCode: string
+    crseNumb: string
+    seqNumb: string
+    units: number
+    enrollment: number
+    relationshipType: string
+}
+
+const allChildCourses = computed<ChildCourseWithParent[]>(() => {
+    const children: ChildCourseWithParent[] = []
+    const seenIds = new Set<number>()
+
+    for (const record of effortRecords.value) {
+        if (record.childCourses && record.childCourses.length > 0) {
+            for (const child of record.childCourses) {
+                // Avoid duplicates if same course appears in multiple effort records
+                if (!seenIds.has(child.id)) {
+                    seenIds.add(child.id)
+                    children.push({
+                        ...child,
+                        parentCourseId: record.course.id,
+                        parentCourseCode: `${record.course.subjCode} ${record.course.crseNumb.trim()}-${record.course.seqNumb}`,
+                    })
+                }
+            }
+        }
+    }
+
+    return children
+})
+
+const childColumns: QTableColumn[] = [
     {
         name: "course",
         label: "Course",
-        field: (row: InstructorEffortRecordDto) =>
-            `${row.course.subjCode} ${row.course.crseNumb.trim()}-${row.course.seqNumb}`,
+        field: (row: ChildCourseWithParent) => `${row.subjCode} ${row.crseNumb.trim()}-${row.seqNumb}`,
         align: "left",
-        sortable: true,
     },
     {
         name: "units",
         label: "Units",
-        field: (row: InstructorEffortRecordDto) => row.course.units,
+        field: "units",
         align: "left",
     },
     {
         name: "enrollment",
         label: "Enroll",
-        field: (row: InstructorEffortRecordDto) => row.course.enrollment,
+        field: "enrollment",
         align: "left",
     },
     {
-        name: "role",
-        label: "Role",
-        field: "roleDescription",
+        name: "parentCourse",
+        label: "Parent Course",
+        field: "parentCourseCode",
         align: "left",
     },
     {
-        name: "effortType",
-        label: "Effort Type",
-        field: "effortType",
-        align: "left",
+        name: "relationshipType",
+        label: "Type",
+        field: "relationshipType",
+        align: "center",
     },
-    {
-        name: "effort",
-        label: "Effort",
-        field: "effortValue",
-        align: "left",
-    },
-])
+]
+
+// Permission checks - based on canEditTerm which checks term status and EditWhenClosed permission
+const canEdit = computed(() => canEditTerm.value)
+const canDelete = computed(() => canEditTerm.value)
+
+const columns = computed<QTableColumn[]>(() => {
+    const cols: QTableColumn[] = [
+        {
+            name: "course",
+            label: "Course",
+            field: (row: InstructorEffortRecordDto) =>
+                `${row.course.subjCode} ${row.course.crseNumb.trim()}-${row.course.seqNumb}`,
+            align: "left",
+            sortable: true,
+        },
+        {
+            name: "units",
+            label: "Units",
+            field: (row: InstructorEffortRecordDto) => row.course.units,
+            align: "left",
+        },
+        {
+            name: "enrollment",
+            label: "Enroll",
+            field: (row: InstructorEffortRecordDto) => row.course.enrollment,
+            align: "left",
+        },
+        {
+            name: "role",
+            label: "Role",
+            field: "roleDescription",
+            align: "left",
+        },
+        {
+            name: "effortType",
+            label: "Effort Type",
+            field: "effortType",
+            align: "left",
+        },
+        {
+            name: "effort",
+            label: "Effort",
+            field: "effortValue",
+            align: "left",
+        },
+    ]
+
+    // Add actions column if user can edit or delete
+    if (canEdit.value || canDelete.value) {
+        cols.push({
+            name: "actions",
+            label: "Actions",
+            field: "id",
+            align: "center",
+        })
+    }
+
+    return cols
+})
 
 // Methods
 function formatDate(dateString: string | null): string {
@@ -221,17 +517,84 @@ function formatDate(dateString: string | null): string {
     })
 }
 
+function openEditDialog(record: InstructorEffortRecordDto) {
+    selectedRecord.value = record
+    showEditDialog.value = true
+}
+
+function confirmDelete(record: InstructorEffortRecordDto) {
+    $q.dialog({
+        title: "Delete Effort Record",
+        message: `Are you sure you want to delete the effort record for ${record.course.subjCode} ${record.course.crseNumb.trim()} (${record.effortType})?`,
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        await deleteRecord(record.id)
+    })
+}
+
+async function deleteRecord(recordId: number) {
+    try {
+        const success = await effortService.deleteEffortRecord(recordId)
+        if (success) {
+            $q.notify({
+                type: "positive",
+                message: "Effort record deleted successfully",
+            })
+            await loadEffortRecords()
+        } else {
+            $q.notify({
+                type: "negative",
+                message: "Failed to delete effort record",
+            })
+        }
+    } catch {
+        $q.notify({
+            type: "negative",
+            message: "An error occurred while deleting the record",
+        })
+    }
+}
+
+async function onRecordCreated() {
+    $q.notify({
+        type: "positive",
+        message: "Effort record created successfully",
+    })
+    await loadEffortRecords()
+}
+
+async function onRecordUpdated() {
+    $q.notify({
+        type: "positive",
+        message: "Effort record updated successfully",
+    })
+    await loadEffortRecords()
+}
+
+async function onCourseImported() {
+    $q.notify({
+        type: "positive",
+        message: "Course imported successfully",
+    })
+    // Reload effort records in case the imported course affects available courses
+    await loadEffortRecords()
+}
+
+async function loadEffortRecords() {
+    effortRecords.value = await effortService.getInstructorEffortRecords(personId.value, termCodeNum.value)
+}
+
 async function loadData() {
     isLoading.value = true
     loadError.value = null
 
     try {
-        const termCodeNum = parseInt(termCode.value, 10)
-
-        const [instructorResult, recordsResult, termsResult] = await Promise.all([
-            effortService.getInstructor(personId.value, termCodeNum),
-            effortService.getInstructorEffortRecords(personId.value, termCodeNum),
+        const [instructorResult, recordsResult, termsResult, canEditResult] = await Promise.all([
+            effortService.getInstructor(personId.value, termCodeNum.value),
+            effortService.getInstructorEffortRecords(personId.value, termCodeNum.value),
             termService.getTerms(),
+            effortService.canEditTerm(termCodeNum.value),
         ])
 
         if (!instructorResult) {
@@ -242,6 +605,7 @@ async function loadData() {
         instructor.value = instructorResult
         effortRecords.value = recordsResult
         terms.value = termsResult
+        canEditTerm.value = canEditResult
     } catch {
         loadError.value = "Failed to load instructor. Please try again."
     } finally {
@@ -260,5 +624,17 @@ onMounted(loadData)
 .effort-table :deep(.zero-effort) {
     background-color: #fff3cd;
     color: #856404;
+}
+
+.zero-effort-card {
+    background-color: #fff3cd;
+}
+
+.crosslist-card {
+    border-left: 3px solid #21ba45;
+}
+
+.section-card {
+    border-left: 3px solid #2196f3;
 }
 </style>

@@ -4,6 +4,7 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -222,7 +223,7 @@ public class CourseRelationshipService : ICourseRelationshipService
         await transaction.CommitAsync(ct);
 
         _logger.LogInformation("Created {RelationshipType} relationship: {ParentCourse} -> {ChildCourse}",
-            request.RelationshipType,
+            LogSanitizer.SanitizeString(request.RelationshipType),
             $"{parentCourse.SubjCode} {parentCourse.CrseNumb}",
             $"{childCourse.SubjCode} {childCourse.CrseNumb}");
 
@@ -264,7 +265,7 @@ public class CourseRelationshipService : ICourseRelationshipService
         await transaction.CommitAsync(ct);
 
         _logger.LogInformation("Deleted {RelationshipType} relationship: {ParentCourse} -> {ChildCourse}",
-            relationship.RelationshipType,
+            LogSanitizer.SanitizeString(relationship.RelationshipType),
             $"{parentCourse.SubjCode} {parentCourse.CrseNumb}",
             $"{childCourse.SubjCode} {childCourse.CrseNumb}");
 

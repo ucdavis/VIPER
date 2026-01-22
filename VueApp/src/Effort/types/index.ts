@@ -23,12 +23,20 @@ export type {
     ReportUnitDto,
     DepartmentDto,
     CanDeleteResult,
+    ChildCourseDto,
     InstructorEffortRecordDto,
     TitleCodeDto,
     JobGroupDto,
     PercentAssignTypeDto,
     InstructorByPercentAssignTypeDto,
     InstructorsByPercentAssignTypeResponseDto,
+    CourseOptionDto,
+    AvailableCoursesDto,
+    EffortTypeOptionDto,
+    RoleOptionDto,
+    CreateEffortRecordRequest,
+    UpdateEffortRecordRequest,
+    EffortRecordResult,
 } from "./instructor-types"
 
 export type {

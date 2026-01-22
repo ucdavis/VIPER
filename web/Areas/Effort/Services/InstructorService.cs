@@ -839,6 +839,7 @@ public class InstructorService : IInstructorService
     public async Task<List<InstructorEffortRecordDto>> GetInstructorEffortRecordsAsync(
         int personId, int termCode, CancellationToken ct = default)
     {
+        // Get the effort records with course and role info
         var records = await _context.Records
             .AsNoTracking()
             .Include(r => r.Course)
@@ -849,6 +850,21 @@ public class InstructorService : IInstructorService
             .ThenBy(r => r.Course.CrseNumb)
             .ThenBy(r => r.Course.SeqNumb)
             .ToListAsync(ct);
+
+        // Get the unique course IDs from the records
+        var courseIds = records.Select(r => r.CourseId).Distinct().ToList();
+
+        // Fetch child relationships separately to avoid cycle issue with AsNoTracking
+        var childRelationships = await _context.CourseRelationships
+            .AsNoTracking()
+            .Include(cr => cr.ChildCourse)
+            .Where(cr => courseIds.Contains(cr.ParentCourseId))
+            .ToListAsync(ct);
+
+        // Group child relationships by parent course ID
+        var childrenByParent = childRelationships
+            .GroupBy(cr => cr.ParentCourseId)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         return records.Select(r => new InstructorEffortRecordDto
         {
@@ -874,7 +890,21 @@ public class InstructorService : IInstructorService
                 Enrollment = r.Course.Enrollment,
                 Units = r.Course.Units,
                 CustDept = r.Course.CustDept
-            }
+            },
+            ChildCourses = childrenByParent.TryGetValue(r.CourseId, out var children)
+                ? children
+                    .Where(cr => cr.ChildCourse != null)
+                    .Select(cr => new ChildCourseDto
+                    {
+                        Id = cr.ChildCourse!.Id,
+                        SubjCode = cr.ChildCourse.SubjCode,
+                        CrseNumb = cr.ChildCourse.CrseNumb,
+                        SeqNumb = cr.ChildCourse.SeqNumb,
+                        Units = cr.ChildCourse.Units,
+                        Enrollment = cr.ChildCourse.Enrollment,
+                        RelationshipType = cr.RelationshipType
+                    }).ToList()
+                : new List<ChildCourseDto>()
         }).ToList();
     }
 

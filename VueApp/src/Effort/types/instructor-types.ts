@@ -46,6 +46,16 @@ type CanDeleteResult = {
     recordCount: number
 }
 
+type ChildCourseDto = {
+    id: number
+    subjCode: string
+    crseNumb: string
+    seqNumb: string
+    units: number
+    enrollment: number
+    relationshipType: string
+}
+
 type InstructorEffortRecordDto = {
     id: number
     courseId: number
@@ -61,6 +71,7 @@ type InstructorEffortRecordDto = {
     effortValue: number | null
     effortLabel: string
     course: CourseDto
+    childCourses: ChildCourseDto[]
 }
 
 type TitleCodeDto = {
@@ -97,6 +108,60 @@ type InstructorsByPercentAssignTypeResponseDto = {
     instructors: InstructorByPercentAssignTypeDto[]
 }
 
+// Effort record types
+
+type CourseOptionDto = {
+    id: number
+    subjCode: string
+    crseNumb: string
+    seqNumb: string
+    units: number
+    label: string
+    crn: string
+    isDvm: boolean
+    is199299: boolean
+    isRCourse: boolean
+}
+
+type AvailableCoursesDto = {
+    existingCourses: CourseOptionDto[]
+    allCourses: CourseOptionDto[]
+}
+
+type EffortTypeOptionDto = {
+    id: string
+    description: string
+    usesWeeks: boolean
+    allowedOnDvm: boolean
+    allowedOn199299: boolean
+    allowedOnRCourses: boolean
+}
+
+type RoleOptionDto = {
+    id: number
+    description: string
+}
+
+type CreateEffortRecordRequest = {
+    personId: number
+    termCode: number
+    courseId: number
+    effortTypeId: string
+    roleId: number
+    effortValue: number
+}
+
+type UpdateEffortRecordRequest = {
+    effortTypeId: string
+    roleId: number
+    effortValue: number
+}
+
+type EffortRecordResult = {
+    record: InstructorEffortRecordDto
+    warning: string | null
+}
+
 export type {
     AaudPersonDto,
     CreateInstructorRequest,
@@ -104,10 +169,18 @@ export type {
     ReportUnitDto,
     DepartmentDto,
     CanDeleteResult,
+    ChildCourseDto,
     InstructorEffortRecordDto,
     TitleCodeDto,
     JobGroupDto,
     PercentAssignTypeDto,
     InstructorByPercentAssignTypeDto,
     InstructorsByPercentAssignTypeResponseDto,
+    CourseOptionDto,
+    AvailableCoursesDto,
+    EffortTypeOptionDto,
+    RoleOptionDto,
+    CreateEffortRecordRequest,
+    UpdateEffortRecordRequest,
+    EffortRecordResult,
 }

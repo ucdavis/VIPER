@@ -825,6 +825,10 @@ BEGIN
     CREATE NONCLUSTERED INDEX IX_Records_CourseId ON [effort].[Records](CourseId);
     CREATE NONCLUSTERED INDEX IX_Records_TermCode ON [effort].[Records](TermCode);
     CREATE NONCLUSTERED INDEX IX_Records_ModifiedDate ON [effort].[Records](ModifiedDate);
+
+    -- Prevent duplicate effort records per course/person/effort type
+    CREATE UNIQUE INDEX [UQ_Records_Course_Person_EffortType]
+    ON [effort].[Records] ([CourseId], [PersonId], [EffortTypeId]);
 END";
             cmd.ExecuteNonQuery();
             Console.WriteLine("  ✓ Records table created");
