@@ -1432,13 +1432,13 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine($"  - Unique constraint exists: {constraintExists}");
                 Console.WriteLine();
 
-                if (duplicateGroups == 0 && constraintExists)
+                if (duplicateGroups == 0)
                 {
-                    return (true, "No duplicates found, unique constraint already exists");
-                }
+                    if (constraintExists)
+                    {
+                        return (true, "No duplicates found, unique constraint already exists");
+                    }
 
-                if (duplicateGroups == 0 && !constraintExists)
-                {
                     // No duplicates but constraint missing - just add the constraint
                     // Note: CREATE INDEX is DDL and typically auto-commits, so we can't truly dry-run it
                     if (!executeMode)
