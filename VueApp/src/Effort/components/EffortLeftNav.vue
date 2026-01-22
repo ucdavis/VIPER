@@ -61,6 +61,32 @@
                     </q-item-section>
                 </q-item>
 
+                <!-- Instructors - for users with instructor permissions -->
+                <q-item
+                    v-if="canViewInstructors && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'InstructorList', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Instructors</q-item-label>
+                    </q-item-section>
+                </q-item>
+
+                <!-- Courses - for users with course permissions -->
+                <q-item
+                    v-if="canViewCourses && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'CourseList', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Courses</q-item-label>
+                    </q-item-section>
+                </q-item>
+
                 <!-- Manage Terms - only for ManageTerms users -->
                 <q-item
                     v-if="hasManageTerms"
@@ -129,32 +155,6 @@
                     </q-item-section>
                 </q-item>
 
-                <!-- Courses - for users with course permissions -->
-                <q-item
-                    v-if="canViewCourses && currentTerm"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'CourseList', params: { termCode: currentTerm.termCode } }"
-                    class="leftNavLink"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Courses</q-item-label>
-                    </q-item-section>
-                </q-item>
-
-                <!-- Instructors - for users with instructor permissions -->
-                <q-item
-                    v-if="canViewInstructors && currentTerm"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'InstructorList', params: { termCode: currentTerm.termCode } }"
-                    class="leftNavLink"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Instructors</q-item-label>
-                    </q-item-section>
-                </q-item>
-
                 <!-- Audit - only for ViewAudit users (term optional) -->
                 <q-item
                     v-if="hasViewAudit"
@@ -172,11 +172,7 @@
                     </q-item-section>
                 </q-item>
 
-                <!-- Spacer -->
-                <q-item class="leftNavSpacer">
-                    <q-item-section></q-item-section>
-                </q-item>
-
+                <!-- Help -->
                 <q-item
                     clickable
                     v-ripple

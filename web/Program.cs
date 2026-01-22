@@ -241,6 +241,7 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortTypeService, Viper.Areas.Effort.Services.EffortTypeService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IUnitService, Viper.Areas.Effort.Services.UnitService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentAssignTypeService, Viper.Areas.Effort.Services.PercentAssignTypeService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortRecordService, Viper.Areas.Effort.Services.EffortRecordService>();
 
     // Harvest phases (order matters for DI resolution, but phases self-order via Order property)
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.CrestHarvestPhase>();
