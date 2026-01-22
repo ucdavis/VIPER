@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Areas.Students.Models;
+using Viper.Areas.Curriculum.Services;
 using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Students.Services
@@ -23,24 +24,35 @@ namespace Viper.Areas.Students.Services
         private readonly SISContext _sisContext;
         private readonly CoursesContext _coursesContext;
         private readonly IPhotoService _photoService;
+        private readonly TermCodeService _termCodeService;
         private readonly ILogger<StudentGroupService> _logger;
 
-        public StudentGroupService(AAUDContext aaudContext, SISContext sisContext, CoursesContext coursesContext, IPhotoService photoService, ILogger<StudentGroupService> logger)
+        public StudentGroupService(AAUDContext aaudContext, SISContext sisContext, CoursesContext coursesContext, IPhotoService photoService, TermCodeService termCodeService, ILogger<StudentGroupService> logger)
         {
             _aaudContext = aaudContext;
             _sisContext = sisContext;
             _coursesContext = coursesContext;
             _photoService = photoService;
+            _termCodeService = termCodeService;
             _logger = logger;
+        }
+
+        private async Task<int> GetActiveTermCodeAsync()
+        {
+            var activeTerm = await _termCodeService.GetActiveTerm();
+            if (activeTerm == null)
+            {
+                throw new InvalidOperationException("No active term found in the Terms table. Please ensure a term has CurrentTerm = true.");
+            }
+            return activeTerm.TermCode;
         }
 
         public async Task<List<StudentPhoto>> GetStudentsByClassLevelAsync(string classLevel, bool includeRossStudents = false)
         {
             try
             {
-                // Get current term
-                var currentTerm = GetCurrentTerm().ToString();
-                var currentTermInt = int.Parse(currentTerm);
+                var currentTermInt = await GetActiveTermCodeAsync();
+                var currentTerm = currentTermInt.ToString();
 
                 // Get list of Ross student IamIds to ALWAYS exclude from regular query
                 // This prevents duplicates - Ross students are added separately with IsRossStudent=true
@@ -173,9 +185,7 @@ namespace Viper.Areas.Students.Services
         {
             try
             {
-                // Get current term for filtering
-                var currentTerm = GetCurrentTerm();
-                var currentTermInt = int.Parse(currentTerm.ToString());
+                var currentTermInt = await GetActiveTermCodeAsync();
 
                 // Query StudentDesignation table in SIS database
                 // Filter by ClassYear1 (ClassYear2 is always NULL per database data)
@@ -300,8 +310,8 @@ namespace Viper.Areas.Students.Services
         {
             try
             {
-                var currentTerm = GetCurrentTerm().ToString();
-                var currentTermInt = int.Parse(currentTerm);
+                var currentTermInt = await GetActiveTermCodeAsync();
+                var currentTerm = currentTermInt.ToString();
 
                 // Get list of Ross student IamIds to ALWAYS exclude from regular query
                 // This prevents duplicates - Ross students would need to be added separately if we supported includeRoss for groups
@@ -673,7 +683,7 @@ namespace Viper.Areas.Students.Services
         {
             try
             {
-                var currentTerm = GetCurrentTerm().ToString();
+                var currentTerm = (await GetActiveTermCodeAsync()).ToString();
 
                 var groups = await (from sg in _aaudContext.Studentgrps
                                     join i in _aaudContext.Ids on sg.StudentgrpPidm equals i.IdsPidm
@@ -715,7 +725,7 @@ namespace Viper.Areas.Students.Services
                 // Baseline groups from legacy system - always show these
                 var baselineGroups = new List<string> { "SA", "LA", "EQ", "LIVE", "ZOO" };
 
-                var currentTerm = GetCurrentTerm().ToString();
+                var currentTerm = (await GetActiveTermCodeAsync()).ToString();
 
                 // Query database for any groups currently assigned to students
                 var dbGroups = await (from sg in _aaudContext.Studentgrps
@@ -748,18 +758,6 @@ namespace Viper.Areas.Students.Services
                 // Fallback to baseline on error
                 return new List<string> { "SA", "LA", "EQ", "LIVE", "ZOO" };
             }
-        }
-
-        private static int GetCurrentTerm()
-        {
-            // Logic to determine current semester term
-            // This should match the legacy system's currentSemesterTerm logic
-            var now = DateTime.Now;
-            var year = now.Year;
-            var month = now.Month;
-
-            // Fall semester starts in September, otherwise Spring/Summer
-            return month >= 9 ? int.Parse($"{year}09") : int.Parse($"{year}01");
         }
 
         private static string FormatStudentDisplayName(string lastName, string firstName, string? middleName)

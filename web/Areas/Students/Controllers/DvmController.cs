@@ -262,7 +262,12 @@ namespace Viper.Areas.Students.Controllers
         public async Task<ActionResult<List<int>>> GetClassYears(bool activeOnly = true, int? minClassYear = null)
         {
             var termCodeService = new TermCodeService(context);
-            List<int> activeClassYears = (await termCodeService.GetActiveClassYears((await termCodeService.GetActiveTerm()).TermCode));
+            var activeTerm = await termCodeService.GetActiveTerm();
+            if (activeTerm == null)
+            {
+                return new List<int>();
+            }
+            List<int> activeClassYears = await termCodeService.GetActiveClassYears(activeTerm.TermCode);
             if (!activeOnly)
             {
                 var minCY = activeClassYears[0];
