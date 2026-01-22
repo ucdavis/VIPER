@@ -23,7 +23,6 @@ const epas = ref([]) as Ref<Epa[]>
 const levels = ref([]) as Ref<Level[]>
 const loaded = ref(false)
 const showDetails = ref([]) as Ref<boolean[]>
-const bubbleType = ref("bubble")
 
 const showAssessmentDetail = ref(false)
 
@@ -183,7 +182,6 @@ load()
                     :id="a.encounterId"
                     @bubble-click="handleAssessmentClick"
                     v-for="a in getAssessmentsForEpa(epa.epaId)"
-                    :type="bubbleType"
                     :key="a.encounterId"
                 />
             </div>

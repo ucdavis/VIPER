@@ -10,6 +10,7 @@ import path, { resolve } from "node:path"
 import child_process from "node:child_process"
 import { env } from "node:process"
 import { quasar } from "@quasar/vite-plugin"
+import { visualizer } from "rollup-plugin-visualizer"
 
 // Port constants
 const MAX_PORT = 65_535
@@ -91,6 +92,15 @@ export default defineConfig(({ mode }) => {
             //   sassVariables: 'src/quasar-variables.sass'
             //})
             quasar(),
+            // Set ANALYZE=true to generate bundle-stats.html
+            // PowerShell: $env:ANALYZE='true'; npm run build-only-dev
+            // CMD: set ANALYZE=true && npm run build-only-dev
+            process.env.ANALYZE === "true" &&
+                visualizer({
+                    filename: "bundle-stats.html",
+                    open: false,
+                    gzipSize: true,
+                }),
         ].filter(Boolean),
         resolve: {
             alias: {
@@ -158,10 +168,19 @@ export default defineConfig(({ mode }) => {
                     clinicalscheduler: resolve(__dirname, "src/clinicalscheduler/index.html"),
                     effort: resolve(__dirname, "src/Effort/index.html"),
                 },
+                output: {
+                    manualChunks(id) {
+                        // Chart.js library - only loaded when charts are used
+                        if (id.includes("chart.js") || id.includes("vue-chartjs")) {
+                            return "vendor-charts"
+                        }
+                    },
+                },
             },
         },
         define: {
-            __VUE_PROD_DEVTOOLS__: mode !== "production",
+            // DevTools enabled only in dev server mode.
+            __VUE_PROD_DEVTOOLS__: mode === "development",
         },
         base: "/2/vue/",
         test: {

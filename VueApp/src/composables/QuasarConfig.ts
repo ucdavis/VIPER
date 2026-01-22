@@ -1,13 +1,13 @@
-import { Loading, QSpinnerOval, Notify, Dialog, Quasar, setCssVar } from 'quasar'
-import { semanticColors } from '@/config/colors'
-import type { App } from 'vue'
+import { Loading, QSpinnerOval, Notify, Dialog, Quasar, setCssVar } from "quasar"
+import { semanticColors } from "@/config/colors"
+import type { App } from "vue"
 
-export function useQuasarConfig() {
+function useQuasarConfig() {
     const quasarConfig = {
         plugins: {
             Loading,
             Notify,
-            Dialog
+            Dialog,
         },
         brand: {
             // Use single source of truth from colors.ts
@@ -16,12 +16,12 @@ export function useQuasarConfig() {
             accent: semanticColors.accent,
 
             dark: semanticColors.dark,
-            'dark-page': semanticColors['dark-page'],
+            "dark-page": semanticColors["dark-page"],
 
             positive: semanticColors.positive,
             negative: semanticColors.negative,
             info: semanticColors.info,
-            warning: semanticColors.warning
+            warning: semanticColors.warning,
         },
         loading: {
             delay: 100,
@@ -31,13 +31,13 @@ export function useQuasarConfig() {
             spinnerColor: "light",
             backgroundColor: "dark",
             messageColor: "light",
-            boxClass: "bg-grey-2 text-grey-9"
+            boxClass: "bg-grey-2 text-grey-9",
         },
-        animations: 'all',
-        extras: ['material-icons', 'material-symbols-outlined'],
+        animations: "all",
+        extras: ["material-icons"],
         framework: {
-            iconSet: 'material-symbols-outlined'
-        }
+            iconSet: "material-icons",
+        },
     }
 
     return { quasarConfig }
@@ -48,17 +48,19 @@ export function useQuasarConfig() {
  * This function handles both the Quasar plugin initialization and the CSS variable overrides
  * needed because Quasar's default CSS is loaded before our configuration.
  */
-export function initializeQuasar(app: App) {
+function initializeQuasar(app: App) {
     const { quasarConfig } = useQuasarConfig()
-    
+
     // Initialize Quasar with our configuration
     app.use(Quasar, quasarConfig)
-    
+
     // Manually set CSS variables for brand colors
     // This is needed because Quasar's CSS is loaded before our configuration
     if (quasarConfig.brand) {
-        Object.entries(quasarConfig.brand).forEach(([key, value]) => {
+        for (const [key, value] of Object.entries(quasarConfig.brand)) {
             setCssVar(key, value as string)
-        })
+        }
     }
 }
+
+export { useQuasarConfig, initializeQuasar }
