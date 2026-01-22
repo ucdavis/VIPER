@@ -63,7 +63,7 @@ pipeline {
 		}
 		stage('Build for test') {
 			when {
-				expression { params.Branch == 'development' }
+				expression { params.Branch == 'Development' }
 			}
 			steps {
 				bat 'npm run --prefix VueApp build-test'
@@ -99,7 +99,7 @@ pipeline {
 				NETWORK_SHARE_CRED = credentials('ViperNetworkShare')
 			}
 			when {
-				expression { params.Branch == 'development' }
+				expression { params.Branch == 'Development' }
 			}
 			steps {
 				networkShares()
