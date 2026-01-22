@@ -3,15 +3,12 @@ import { createPinia } from "pinia"
 import { CAHFSRouter as router } from "./router"
 import App from "./App.vue"
 import { initializeQuasar } from "@/composables/QuasarConfig"
-// Import icon libraries
+
+/* oxlint-disable import/no-unassigned-import -- CSS imports for side effects */
 import "@quasar/extras/material-icons/material-icons.css"
-import "@quasar/extras/material-symbols-outlined/material-symbols-outlined.css"
-
-// Import Quasar css
 import "quasar/dist/quasar.css"
-
-//import our css
 import "@/styles/index.css"
+/* oxlint-enable import/no-unassigned-import */
 
 const pinia = createPinia()
 const app = createApp(App)
