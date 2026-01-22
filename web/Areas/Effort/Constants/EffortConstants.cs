@@ -40,6 +40,15 @@ public static class EffortConstants
         return DepartmentOverrides.TryGetValue(mothraId, out var dept) ? dept : null;
     }
 
+    #region Term-Gated Business Rules
+
+    /// <summary>
+    /// Term code from which CLI effort types use weeks instead of hours.
+    /// </summary>
+    public const int ClinicalAsWeeksStartTermCode = 201604;
+
+    #endregion
+
     #region Harvest Constants
 
     /// <summary>

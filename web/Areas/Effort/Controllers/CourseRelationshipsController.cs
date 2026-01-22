@@ -129,7 +129,7 @@ public class CourseRelationshipsController : BaseEffortController
         {
             var relationship = await _relationshipService.CreateRelationshipAsync(parentCourseId, request, ct);
             _logger.LogInformation("Created {Type} relationship: course {ParentId} -> {ChildId}",
-                request.RelationshipType, parentCourseId, request.ChildCourseId);
+                LogSanitizer.SanitizeString(request.RelationshipType), parentCourseId, request.ChildCourseId);
 
             return CreatedAtAction(nameof(GetRelationships), new { parentCourseId }, relationship);
         }
