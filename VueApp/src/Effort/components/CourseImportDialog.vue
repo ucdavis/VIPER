@@ -74,12 +74,19 @@
                     </div>
                 </div>
 
-                <div
+                <q-banner
                     v-if="searchError"
-                    class="text-negative q-mb-md"
+                    class="bg-negative text-white q-mb-md"
+                    rounded
                 >
+                    <template #avatar>
+                        <q-icon
+                            name="error"
+                            color="white"
+                        />
+                    </template>
                     {{ searchError }}
-                </div>
+                </q-banner>
 
                 <!-- Search Results - Card view for mobile -->
                 <div

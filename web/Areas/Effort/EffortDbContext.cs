@@ -117,6 +117,10 @@ public class EffortDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.ToTable("Records", schema: "effort");
 
+            // Prevent duplicate effort records per course/person/type under concurrency
+            entity.HasIndex(e => new { e.CourseId, e.PersonId, e.EffortTypeId })
+                .IsUnique();
+
             entity.Property(e => e.Id).HasColumnName("Id");
             entity.Property(e => e.CourseId).HasColumnName("CourseId");
             entity.Property(e => e.PersonId).HasColumnName("PersonId");

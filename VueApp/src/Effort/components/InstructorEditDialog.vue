@@ -28,7 +28,7 @@
                 <q-select
                     v-model="form.effortDept"
                     :options="groupedDepartments"
-                    label="Department"
+                    label="Department *"
                     dense
                     options-dense
                     outlined
@@ -129,12 +129,19 @@
                     </span>
                 </q-checkbox>
 
-                <div
+                <q-banner
                     v-if="errorMessage"
-                    class="text-negative q-mt-sm"
+                    class="bg-negative text-white q-mb-md"
+                    rounded
                 >
+                    <template #avatar>
+                        <q-icon
+                            name="error"
+                            color="white"
+                        />
+                    </template>
                     {{ errorMessage }}
-                </div>
+                </q-banner>
             </q-card-section>
 
             <q-card-actions align="right">

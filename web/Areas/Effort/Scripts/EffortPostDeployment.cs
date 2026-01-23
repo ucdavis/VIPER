@@ -6,12 +6,12 @@
 // ============================================
 // This script performs post-deployment tasks:
 // 1. UnitsMigration - Simplify Units table and add UnitId FK to Percentages
-// 2. AddManageSessionTypesPermission - Add SVMSecure.Effort.ManageSessionTypes to RAPS (cloned from ManageUnits)
-// 3. AddSessionTypeFlags - Add FacultyCanEnter, AllowedOnDvm, AllowedOn199299, AllowedOnRCourses columns
-// 4. RenameTablesForStandardization - Rename EffortTypes→PercentAssignTypes, SessionTypes→EffortTypes
-// 5. RenamePermissionForStandardization - Rename ManageSessionTypes→ManageEffortTypes in RAPS
-// 6. RenameRecordsFKColumns - Rename Records.SessionType→Records.EffortTypeId and Records.Role→Records.RoleId
-// 7. RenamePercentagesEffortTypeIdColumn - Rename Percentages.EffortTypeId→Percentages.PercentAssignTypeId
+// 2. AddManageEffortTypesPermission - Add SVMSecure.Effort.ManageEffortTypes to RAPS (cloned from ManageUnits)
+// 3. RenameTablesForStandardization - Rename EffortTypes→PercentAssignTypes, SessionTypes→EffortTypes
+// 4. AddEffortTypeFlags - Add FacultyCanEnter, AllowedOnDvm, AllowedOn199299, AllowedOnRCourses columns to EffortTypes
+// 5. RenameRecordsFKColumns - Rename Records.SessionType→Records.EffortTypeId and Records.Role→Records.RoleId
+// 6. RenamePercentagesEffortTypeIdColumn - Rename Percentages.EffortTypeId→Percentages.PercentAssignTypeId
+// 7. DuplicateRecordsCleanup - Remove duplicate (CourseId, PersonId, EffortTypeId) records and add unique constraint
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -30,12 +30,12 @@ namespace Viper.Areas.Effort.Scripts
     {
         // Permission cloning constants
         private const string SourcePermission = "SVMSecure.Effort.ManageUnits";
-        private const string TargetPermission = "SVMSecure.Effort.ManageSessionTypes";
-        private const string TargetDescription = "Manage Session Types in the Effort system";
+        private const string TargetPermission = "SVMSecure.Effort.ManageEffortTypes";
+        private const string TargetDescription = "Manage Effort Types in the Effort system";
         private const string ScriptModBy = "SCRIPT"; // Used for ModBy field in audit logs
 
-        // SessionType flag columns
-        private static readonly string[] SessionTypeFlagColumns = { "FacultyCanEnter", "AllowedOnDvm", "AllowedOn199299", "AllowedOnRCourses" };
+        // EffortType flag columns (added after table rename from SessionTypes to EffortTypes)
+        private static readonly string[] EffortTypeFlagColumns = { "FacultyCanEnter", "AllowedOnDvm", "AllowedOn199299", "AllowedOnRCourses" };
 
         public static int Run(string[] args)
         {
@@ -72,10 +72,10 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine();
             }
 
-            // Task 2: Add ManageSessionTypes permission to RAPS
+            // Task 2: Add ManageEffortTypes permission to RAPS
             {
                 Console.WriteLine("----------------------------------------");
-                Console.WriteLine("Task 2: Add ManageSessionTypes Permission to RAPS");
+                Console.WriteLine("Task 2: Add ManageEffortTypes Permission to RAPS");
                 Console.WriteLine("----------------------------------------");
 
                 string rapsConnectionString = EffortScriptHelper.GetConnectionString(configuration, "RAPS", readOnly: false);
@@ -83,33 +83,16 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine();
 
                 var (success, message) = RunAddPermissionTask(rapsConnectionString, executeMode, forceMode);
-                taskResults["ManageSessionTypesPermission"] = (success, message);
+                taskResults["ManageEffortTypesPermission"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
             }
 
-            // Task 3: Add SessionType flag columns
+            // Task 3: Rename tables for standardization (EffortTypes→PercentAssignTypes, SessionTypes→EffortTypes)
             {
                 Console.WriteLine("----------------------------------------");
-                Console.WriteLine("Task 3: Add SessionType Flag Columns");
-                Console.WriteLine("----------------------------------------");
-
-                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
-                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
-                Console.WriteLine();
-
-                var (success, message) = RunAddSessionTypeFlagsTask(viperConnectionString, executeMode);
-                taskResults["SessionTypeFlags"] = (success, message);
-                if (!success) overallResult = 1;
-
-                Console.WriteLine();
-            }
-
-            // Task 4: Rename tables for standardization (EffortTypes→PercentAssignTypes, SessionTypes→EffortTypes)
-            {
-                Console.WriteLine("----------------------------------------");
-                Console.WriteLine("Task 4: Rename Tables for Standardization");
+                Console.WriteLine("Task 3: Rename Tables for Standardization");
                 Console.WriteLine("----------------------------------------");
 
                 string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
@@ -123,27 +106,27 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine();
             }
 
-            // Task 5: Rename permission for standardization (ManageSessionTypes→ManageEffortTypes)
+            // Task 4: Add EffortType flag columns (runs after table rename)
             {
                 Console.WriteLine("----------------------------------------");
-                Console.WriteLine("Task 5: Rename Permission for Standardization");
+                Console.WriteLine("Task 4: Add EffortType Flag Columns");
                 Console.WriteLine("----------------------------------------");
 
-                string rapsConnectionString = EffortScriptHelper.GetConnectionString(configuration, "RAPS", readOnly: false);
-                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(rapsConnectionString)}");
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
                 Console.WriteLine();
 
-                var (success, message) = RunRenamePermissionTask(rapsConnectionString, executeMode);
-                taskResults["RenamePermissionForStandardization"] = (success, message);
+                var (success, message) = RunAddEffortTypeFlagsTask(viperConnectionString, executeMode);
+                taskResults["EffortTypeFlags"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
             }
 
-            // Task 6: Rename Records FK columns (SessionType→EffortTypeId, Role→RoleId)
+            // Task 5: Rename Records FK columns (SessionType→EffortTypeId, Role→RoleId)
             {
                 Console.WriteLine("----------------------------------------");
-                Console.WriteLine("Task 6: Rename Records FK Columns");
+                Console.WriteLine("Task 5: Rename Records FK Columns");
                 Console.WriteLine("----------------------------------------");
 
                 string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
@@ -157,10 +140,10 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine();
             }
 
-            // Task 7: Rename Percentages.EffortTypeId column to Percentages.PercentAssignTypeId
+            // Task 6: Rename Percentages.EffortTypeId column to Percentages.PercentAssignTypeId
             {
                 Console.WriteLine("----------------------------------------");
-                Console.WriteLine("Task 7: Rename Percentages.EffortTypeId Column");
+                Console.WriteLine("Task 6: Rename Percentages.EffortTypeId Column");
                 Console.WriteLine("----------------------------------------");
 
                 string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
@@ -169,6 +152,23 @@ namespace Viper.Areas.Effort.Scripts
 
                 var (success, message) = RunRenamePercentagesEffortTypeIdTask(viperConnectionString, executeMode);
                 taskResults["RenamePercentagesEffortTypeIdColumn"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 7: Duplicate Records Cleanup
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 7: Duplicate Records Cleanup");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunDuplicateRecordsCleanupTask(viperConnectionString, executeMode);
+                taskResults["DuplicateRecordsCleanup"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
@@ -212,21 +212,21 @@ namespace Viper.Areas.Effort.Scripts
             return overallResult;
         }
 
-        #region Task 3: Add SessionType Flag Columns
+        #region Task 4: Add EffortType Flag Columns
 
-        private static (bool Success, string Message) RunAddSessionTypeFlagsTask(string connectionString, bool executeMode)
+        private static (bool Success, string Message) RunAddEffortTypeFlagsTask(string connectionString, bool executeMode)
         {
             try
             {
                 using var connection = new SqlConnection(connectionString);
                 connection.Open();
 
-                // Check which columns already exist
-                var existingColumns = GetExistingColumns(connection);
+                // Check which columns already exist (table is now EffortTypes after Task 3 rename)
+                var existingColumns = GetExistingEffortTypeColumns(connection);
                 var missingColumns = new List<string>();
 
-                Console.WriteLine("Checking for SessionType flag columns...");
-                foreach (var column in SessionTypeFlagColumns)
+                Console.WriteLine("Checking for EffortType flag columns...");
+                foreach (var column in EffortTypeFlagColumns)
                 {
                     if (existingColumns.Contains(column))
                     {
@@ -254,7 +254,7 @@ namespace Viper.Areas.Effort.Scripts
                 // Add missing columns
                 foreach (var column in missingColumns)
                 {
-                    AddSessionTypeFlagColumn(connection, column);
+                    AddEffortTypeFlagColumn(connection, column);
                     Console.WriteLine($"  Added column '{column}'");
                 }
 
@@ -278,13 +278,13 @@ namespace Viper.Areas.Effort.Scripts
             }
         }
 
-        private static HashSet<string> GetExistingColumns(SqlConnection connection)
+        private static HashSet<string> GetExistingEffortTypeColumns(SqlConnection connection)
         {
             var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             using var cmd = new SqlCommand(@"
                 SELECT COLUMN_NAME
                 FROM INFORMATION_SCHEMA.COLUMNS
-                WHERE TABLE_SCHEMA = 'effort' AND TABLE_NAME = 'SessionTypes'",
+                WHERE TABLE_SCHEMA = 'effort' AND TABLE_NAME = 'EffortTypes'",
                 connection);
 
             using var reader = cmd.ExecuteReader();
@@ -295,10 +295,10 @@ namespace Viper.Areas.Effort.Scripts
             return columns;
         }
 
-        private static void AddSessionTypeFlagColumn(SqlConnection connection, string columnName)
+        private static void AddEffortTypeFlagColumn(SqlConnection connection, string columnName)
         {
             using var cmd = new SqlCommand($@"
-                ALTER TABLE [effort].[SessionTypes]
+                ALTER TABLE [effort].[EffortTypes]
                 ADD [{columnName}] bit NOT NULL DEFAULT 1",
                 connection);
             cmd.ExecuteNonQuery();
@@ -404,11 +404,6 @@ namespace Viper.Areas.Effort.Scripts
                     Console.WriteLine();
                 }
 
-                if (!executeMode)
-                {
-                    return (true, $"Would create permission with {rolePermissions.Count} role mappings and {memberPermissions.Count} member mappings");
-                }
-
                 // Create the permission and clone mappings in a transaction
                 using var transaction = connection.BeginTransaction();
                 try
@@ -425,15 +420,30 @@ namespace Viper.Areas.Effort.Scripts
                     int memberCount = CloneMemberPermissions(connection, transaction, sourcePermissionId.Value, newPermissionId);
                     Console.WriteLine($"Cloned {memberCount} member-permission mappings");
 
-                    transaction.Commit();
-
-                    return (true, $"Created permission (ID={newPermissionId}) with {roleCount} role mappings and {memberCount} member mappings");
+                    // Commit or rollback based on execute mode
+                    if (executeMode)
+                    {
+                        transaction.Commit();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("  ✓ Transaction committed - changes are permanent");
+                        Console.ResetColor();
+                        return (true, $"Created permission (ID={newPermissionId}) with {roleCount} role mappings and {memberCount} member mappings");
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  ↶ Transaction rolled back - no permanent changes");
+                        Console.ResetColor();
+                        return (true, $"Verified permission creation with {roleCount} role mappings and {memberCount} member mappings (rolled back)");
+                    }
                 }
                 catch (SqlException ex)
                 {
                     transaction.Rollback();
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"DATABASE ERROR: Transaction rolled back. {ex.Message}");
+                    Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                    Console.WriteLine("  ↶ Transaction rolled back");
                     Console.ResetColor();
                     return (false, $"Database error: {ex.Message}");
                 }
@@ -860,6 +870,13 @@ namespace Viper.Areas.Effort.Scripts
 
                     Console.WriteLine();
 
+                    // If no steps were needed, skip transaction handling
+                    if (completedSteps.Count == 0)
+                    {
+                        transaction.Rollback(); // Clean up empty transaction
+                        return (true, "All migration steps already complete");
+                    }
+
                     // Commit or rollback based on execute mode
                     if (executeMode)
                     {
@@ -875,9 +892,7 @@ namespace Viper.Areas.Effort.Scripts
                         Console.ForegroundColor = ConsoleColor.Cyan;
                         Console.WriteLine("  ↶ Transaction rolled back - no permanent changes");
                         Console.ResetColor();
-                        return (true, completedSteps.Count == 0
-                            ? "All migration steps already complete"
-                            : $"Verified {completedSteps.Count} migration steps (rolled back)");
+                        return (true, $"Verified {completedSteps.Count} migration steps (rolled back)");
                     }
                 }
                 catch (SqlException ex)
@@ -1195,104 +1210,7 @@ namespace Viper.Areas.Effort.Scripts
 
         #endregion
 
-        #region Task 5: Rename Permission for Standardization
-
-        private const string OldPermissionName = "SVMSecure.Effort.ManageSessionTypes";
-        private const string NewPermissionName = "SVMSecure.Effort.ManageEffortTypes";
-        private const string NewPermissionDescription = "Manage Effort Types in the Effort system";
-
-        private static (bool Success, string Message) RunRenamePermissionTask(string connectionString, bool executeMode)
-        {
-            try
-            {
-                using var connection = new SqlConnection(connectionString);
-                connection.Open();
-
-                // Check if old permission exists
-                int? oldPermissionId = GetPermissionId(connection, OldPermissionName);
-                int? newPermissionId = GetPermissionId(connection, NewPermissionName);
-
-                Console.WriteLine($"Old permission '{OldPermissionName}': {(oldPermissionId.HasValue ? $"exists (ID={oldPermissionId})" : "not found")}");
-                Console.WriteLine($"New permission '{NewPermissionName}': {(newPermissionId.HasValue ? $"exists (ID={newPermissionId})" : "not found")}");
-                Console.WriteLine();
-
-                if (oldPermissionId.HasValue && newPermissionId.HasValue)
-                {
-                    return (false, "Both old and new permissions exist - manual intervention required to resolve conflict");
-                }
-                if (!oldPermissionId.HasValue && !newPermissionId.HasValue)
-                {
-                    return (false, "Neither old nor new permission exists - manual intervention required");
-                }
-                if (newPermissionId.HasValue)
-                {
-                    // Only new exists - already renamed
-                    return (true, "Permission already renamed");
-                }
-
-                // Only old permission exists - proceed with rename
-                Console.WriteLine($"Renaming permission from '{OldPermissionName}' to '{NewPermissionName}'...");
-
-                if (!executeMode)
-                {
-                    Console.WriteLine("  [DRY-RUN] Would rename permission");
-                    return (true, $"Would rename {OldPermissionName} → {NewPermissionName}");
-                }
-
-                using var cmd = new SqlCommand(@"
-                    UPDATE tblPermissions
-                    SET Permission = @NewPermission,
-                        Description = @NewDescription
-                    WHERE Permission = @OldPermission",
-                    connection);
-                cmd.Parameters.AddWithValue("@OldPermission", OldPermissionName);
-                cmd.Parameters.AddWithValue("@NewPermission", NewPermissionName);
-                cmd.Parameters.AddWithValue("@NewDescription", NewPermissionDescription);
-
-                int rowsAffected = cmd.ExecuteNonQuery();
-                if (rowsAffected == 1)
-                {
-                    Console.WriteLine("  ✓ Permission renamed");
-
-                    // Create audit entry
-                    using var auditCmd = new SqlCommand(@"
-                        INSERT INTO tblLog (PermissionID, Audit, Detail, ModTime, ModBy)
-                        SELECT PermissionID, 'RenamePermission', @Detail, GETDATE(), @ModBy
-                        FROM tblPermissions WHERE Permission = @NewPermission",
-                        connection);
-                    auditCmd.Parameters.AddWithValue("@NewPermission", NewPermissionName);
-                    auditCmd.Parameters.AddWithValue("@Detail", $"{OldPermissionName} → {NewPermissionName}");
-                    auditCmd.Parameters.AddWithValue("@ModBy", ScriptModBy);
-                    auditCmd.ExecuteNonQuery();
-
-                    return (true, $"Renamed {OldPermissionName} → {NewPermissionName}");
-                }
-                else
-                {
-                    return (false, $"Unexpected rows affected: {rowsAffected}");
-                }
-            }
-            catch (SqlException ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
-                Console.ResetColor();
-                return (false, $"Database error: {ex.Message}");
-            }
-            catch (Exception ex) when (ex is InvalidOperationException
-                                       or ArgumentException
-                                       or FormatException)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
-                Console.ResetColor();
-                return (false, $"Unexpected error: {ex.Message}");
-            }
-        }
-
-        #endregion
-
-        #region Task 6: Rename Records FK Columns
+        #region Task 5: Rename Records FK Columns
 
         private static (bool Success, string Message) RunRenameRecordsFKColumnsTask(string connectionString, bool executeMode)
         {
@@ -1427,7 +1345,7 @@ namespace Viper.Areas.Effort.Scripts
 
         #endregion
 
-        #region Task 7: Rename Percentages.EffortTypeId Column
+        #region Task 6: Rename Percentages.EffortTypeId Column
 
         private static (bool Success, string Message) RunRenamePercentagesEffortTypeIdTask(string connectionString, bool executeMode)
         {
@@ -1489,6 +1407,206 @@ namespace Viper.Areas.Effort.Scripts
                 Console.ResetColor();
                 return (false, $"Unexpected error: {ex.Message}");
             }
+        }
+
+        #endregion
+
+        #region Task 7: Duplicate Records Cleanup
+
+        private static (bool Success, string Message) RunDuplicateRecordsCleanupTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Check if unique constraint already exists
+                bool constraintExists = UniqueIndexExists(connection, "Records", "UQ_Records_Course_Person_EffortType");
+
+                // Count duplicate records
+                var (duplicateGroups, recordsToDelete) = CountDuplicateRecords(connection);
+
+                Console.WriteLine("Analyzing duplicate effort records...");
+                Console.WriteLine($"  - Duplicate groups: {duplicateGroups}");
+                Console.WriteLine($"  - Records to delete: {recordsToDelete}");
+                Console.WriteLine($"  - Unique constraint exists: {constraintExists}");
+                Console.WriteLine();
+
+                if (duplicateGroups == 0)
+                {
+                    if (constraintExists)
+                    {
+                        return (true, "No duplicates found, unique constraint already exists");
+                    }
+
+                    // No duplicates but constraint missing - just add the constraint
+                    // Note: CREATE INDEX is DDL and typically auto-commits, so we can't truly dry-run it
+                    if (!executeMode)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  [DRY-RUN] Would add unique constraint (no duplicates to clean)");
+                        Console.ResetColor();
+                        return (true, "Would add unique constraint (no duplicates to clean)");
+                    }
+
+                    AddRecordsUniqueConstraint(connection, null);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✓ Added unique constraint [UQ_Records_Course_Person_EffortType]");
+                    Console.ResetColor();
+                    return (true, "Added unique constraint (no duplicates to clean)");
+                }
+
+                // Execute cleanup with transaction (DELETE is DML, can be rolled back)
+                using var transaction = connection.BeginTransaction();
+                try
+                {
+                    // Step 1: Delete duplicates (keep highest Id per group)
+                    Console.Write("Deleting duplicate records... ");
+                    int deleted = DeleteDuplicateRecords(connection, transaction);
+                    Console.WriteLine($"✓ ({deleted} records)");
+
+                    // Step 2: Verify no duplicates remain
+                    Console.Write("Verifying no duplicates remain... ");
+                    var (remainingGroups, _) = CountDuplicateRecords(connection, transaction);
+                    if (remainingGroups > 0)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"✗ ({remainingGroups} groups remain)");
+                        Console.ResetColor();
+                        transaction.Rollback();
+                        return (false, $"Cleanup incomplete: {remainingGroups} duplicate groups remain");
+                    }
+                    Console.WriteLine("✓");
+
+                    // Commit or rollback based on execute mode
+                    if (executeMode)
+                    {
+                        // Step 3: Add unique constraint (only in execute mode, after commit)
+                        transaction.Commit();
+
+                        if (!constraintExists)
+                        {
+                            Console.Write("Adding unique constraint... ");
+                            AddRecordsUniqueConstraint(connection, null);
+                            Console.WriteLine("✓");
+                        }
+
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("  ✓ Changes are permanent");
+                        Console.ResetColor();
+                        return (true, $"Deleted {deleted} duplicates from {duplicateGroups} groups; added unique constraint");
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  ↶ Transaction rolled back - no permanent changes");
+                        if (!constraintExists)
+                        {
+                            Console.WriteLine("  [DRY-RUN] Would add unique constraint after delete");
+                        }
+                        Console.ResetColor();
+                        return (true, $"Verified deletion of {deleted} duplicates from {duplicateGroups} groups (rolled back)");
+                    }
+                }
+                catch (SqlException ex)
+                {
+                    transaction.Rollback();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                    Console.WriteLine("  ↶ Transaction rolled back");
+                    Console.ResetColor();
+                    return (false, $"Database error: {ex.Message}");
+                }
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        private static bool UniqueIndexExists(SqlConnection connection, string tableName, string indexName)
+        {
+            using var cmd = new SqlCommand(@"
+                SELECT 1 FROM sys.indexes
+                WHERE name = @IndexName AND object_id = OBJECT_ID('[effort].[' + @TableName + ']')",
+                connection);
+            cmd.Parameters.AddWithValue("@TableName", tableName);
+            cmd.Parameters.AddWithValue("@IndexName", indexName);
+            return cmd.ExecuteScalar() != null;
+        }
+
+        private static (int DuplicateGroups, int RecordsToDelete) CountDuplicateRecords(SqlConnection connection, SqlTransaction? transaction = null)
+        {
+            using var cmd = new SqlCommand(@"
+                WITH DuplicateGroups AS (
+                    SELECT CourseId, PersonId, EffortTypeId, COUNT(*) AS RecordCount
+                    FROM [effort].[Records]
+                    GROUP BY CourseId, PersonId, EffortTypeId
+                    HAVING COUNT(*) > 1
+                )
+                SELECT COUNT(*) AS GroupCount, ISNULL(SUM(RecordCount - 1), 0) AS RecordsToDelete
+                FROM DuplicateGroups",
+                connection, transaction);
+
+            using var reader = cmd.ExecuteReader();
+            if (reader.Read())
+            {
+                return (reader.GetInt32(0), reader.GetInt32(1));
+            }
+            return (0, 0);
+        }
+
+        private static int DeleteDuplicateRecords(SqlConnection connection, SqlTransaction transaction)
+        {
+            // Delete all duplicate records, keeping the one with the highest Id per group
+            using var cmd = new SqlCommand(@"
+                WITH DuplicateGroups AS (
+                    SELECT CourseId, PersonId, EffortTypeId
+                    FROM [effort].[Records]
+                    GROUP BY CourseId, PersonId, EffortTypeId
+                    HAVING COUNT(*) > 1
+                ),
+                RecordsToKeep AS (
+                    SELECT MAX(r.Id) AS MaxId
+                    FROM [effort].[Records] r
+                    INNER JOIN DuplicateGroups d
+                        ON r.CourseId = d.CourseId
+                        AND r.PersonId = d.PersonId
+                        AND r.EffortTypeId = d.EffortTypeId
+                    GROUP BY r.CourseId, r.PersonId, r.EffortTypeId
+                )
+                DELETE r
+                FROM [effort].[Records] r
+                INNER JOIN DuplicateGroups d
+                    ON r.CourseId = d.CourseId
+                    AND r.PersonId = d.PersonId
+                    AND r.EffortTypeId = d.EffortTypeId
+                WHERE r.Id NOT IN (SELECT MaxId FROM RecordsToKeep)",
+                connection, transaction);
+
+            return cmd.ExecuteNonQuery();
+        }
+
+        private static void AddRecordsUniqueConstraint(SqlConnection connection, SqlTransaction? transaction)
+        {
+            using var cmd = new SqlCommand(@"
+                CREATE UNIQUE INDEX [UQ_Records_Course_Person_EffortType]
+                ON [effort].[Records] ([CourseId], [PersonId], [EffortTypeId])",
+                connection, transaction);
+            cmd.ExecuteNonQuery();
         }
 
         #endregion

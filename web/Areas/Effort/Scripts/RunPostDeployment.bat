@@ -4,12 +4,12 @@ REM Launcher for Effort Post-Deployment Tasks
 REM
 REM This script runs post-deployment tasks:
 REM   1. Units Migration - Simplify Units table and add UnitId FK to Percentages
-REM   2. Add ManageSessionTypes permission to RAPS (cloned from ManageUnits)
-REM   3. Add SessionType flag columns (FacultyCanEnter, AllowedOnDvm, AllowedOn199299, AllowedOnRCourses)
-REM   4. Rename tables (EffortTypes -> PercentAssignTypes, SessionTypes -> EffortTypes)
-REM   5. Rename permission (ManageSessionTypes -> ManageEffortTypes)
-REM   6. Rename Records.SessionType column to Records.EffortType
-REM   7. Rename Percentages.EffortTypeId column to Percentages.PercentAssignTypeId
+REM   2. Add ManageEffortTypes permission to RAPS (cloned from ManageUnits)
+REM   3. Rename tables (EffortTypes -> PercentAssignTypes, SessionTypes -> EffortTypes)
+REM   4. Add EffortType flag columns (FacultyCanEnter, AllowedOnDvm, AllowedOn199299, AllowedOnRCourses)
+REM   5. Rename Records.SessionType column to Records.EffortType
+REM   6. Rename Percentages.EffortTypeId column to Percentages.PercentAssignTypeId
+REM   7. Duplicate Records Cleanup - Remove duplicates and add unique constraint
 REM
 REM Usage:
 REM   RunPostDeployment.bat [environment] [options]
@@ -32,12 +32,12 @@ echo Environment: %ASPNETCORE_ENVIRONMENT%
 echo.
 echo Tasks to run:
 echo   1. Units Migration - Simplify Units table and add UnitId FK to Percentages
-echo   2. ManageSessionTypes Permission - Add RAPS permission cloned from ManageUnits
-echo   3. SessionType Flag Columns - Add new columns to effort.SessionTypes table
-echo   4. Rename Tables - EffortTypes to PercentAssignTypes, SessionTypes to EffortTypes
-echo   5. Rename Permission - ManageSessionTypes to ManageEffortTypes
-echo   6. Rename Column - Records.SessionType to Records.EffortType
-echo   7. Rename Column - Percentages.EffortTypeId to Percentages.PercentAssignTypeId
+echo   2. ManageEffortTypes Permission - Add RAPS permission cloned from ManageUnits
+echo   3. Rename Tables - EffortTypes to PercentAssignTypes, SessionTypes to EffortTypes
+echo   4. EffortType Flag Columns - Add new columns to effort.EffortTypes table
+echo   5. Rename Column - Records.SessionType to Records.EffortType
+echo   6. Rename Column - Percentages.EffortTypeId to Percentages.PercentAssignTypeId
+echo   7. Duplicate Records Cleanup - Remove duplicates and add unique constraint
 echo.
 echo Available options:
 echo   [no args]  DRY-RUN MODE - Shows what would change (default, safe)
