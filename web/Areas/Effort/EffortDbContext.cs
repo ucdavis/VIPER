@@ -39,14 +39,6 @@ public class EffortDbContext : DbContext
     // Read-only cross-schema reference (users schema in same database)
     public virtual DbSet<ViperPerson> ViperPersons { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (HttpHelper.Settings != null)
-        {
-            optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:VIPER"]);
-        }
-    }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
