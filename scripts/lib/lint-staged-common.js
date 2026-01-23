@@ -264,15 +264,16 @@ function runCommand(command, args, description, cwd) {
         )
     }
 
-    const execPath = localBin
-    const finalArgs = args
-    // Windows .cmd files need shell, but use it safely with individual args
-    const useShell = IS_WINDOWS && localBin.endsWith(".cmd")
+    // Windows .cmd files need to be run via cmd.exe
+    // Use ComSpec directly instead of shell: true to avoid DEP0190 deprecation warning
+    // and ensure proper argument escaping
+    const useCmd = IS_WINDOWS && localBin.endsWith(".cmd")
+    const execPath = useCmd ? env.ComSpec : localBin
+    const finalArgs = useCmd ? ["/c", localBin, ...args] : args
 
     const result = spawnSync(execPath, finalArgs, {
         stdio: ["inherit", "pipe", "pipe"],
         cwd: cwd,
-        shell: useShell,
         encoding: "utf8",
         windowsHide: true,
     })

@@ -131,7 +131,7 @@
             "label": "findViperProcess",
             "type": "shell",
             "command": "node",
-            "args": ["${workspaceFolder}/scripts/launch-find-viper.js"],
+            "args": ["--env-file-if-exists=.env.local", "${workspaceFolder}/scripts/launch-find-viper.js"],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -145,7 +145,7 @@
             "label": "findViperProcessToFile",
             "type": "process",
             "command": "node",
-            "args": ["${workspaceFolder}/scripts/launch-find-viper.js"],
+            "args": ["--env-file-if-exists=.env.local", "${workspaceFolder}/scripts/launch-find-viper.js"],
             "group": "build",
             "presentation": {
                 "echo": false,

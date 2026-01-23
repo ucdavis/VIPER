@@ -5,7 +5,6 @@
             elevated
             id="mainLayoutHeader"
             height-hint="98"
-            v-cloak
             class="no-print"
         >
             <div
@@ -44,10 +43,7 @@
                     </a>
                 </div>
             </div>
-            <q-toolbar
-                v-cloak
-                class="items-end"
-            >
+            <q-toolbar class="items-end">
                 <img
                     src="@/assets/UCDSVMLogo.png"
                     height="50"
@@ -164,7 +160,6 @@
         <q-page-container id="mainLayoutBody">
             <div
                 class="q-pa-md"
-                v-cloak
                 v-show="userStore.isLoggedIn || showViewWhenNotLoggedIn"
             >
                 <router-view></router-view>
@@ -172,7 +167,6 @@
             <div
                 v-show="!userStore.isLoggedIn"
                 class="q-pa-xl flex flex-center"
-                v-cloak
             >
                 <q-card
                     class="text-center"
@@ -200,7 +194,6 @@
         <q-footer
             elevated
             class="bg-white no-print"
-            v-cloak
         >
             <div
                 class="q-py-sm q-px-md q-gutter-xs text-caption row"
@@ -249,15 +242,17 @@
                         UC Davis
                     </a>
                 </div>
-                <div class="col-12 col-md-auto gt-sm text-black">&copy; {{ currentYear }} School of Veterinary Medicine</div>
+                <div class="col-12 col-md-auto gt-sm text-black">
+                    &copy; {{ currentYear }} School of Veterinary Medicine
+                </div>
             </div>
         </q-footer>
         <SessionTimeout />
     </q-layout>
 </template>
-<script lang="ts">
+
+<script setup lang="ts">
 import { ref } from "vue"
-import type { PropType } from "vue"
 import { useUserStore } from "@/store/UserStore"
 import { getLoginUrl } from "@/composables/RequireLogin"
 import LeftNav from "@/layouts/LeftNav.vue"
@@ -266,58 +261,28 @@ import MiniNav from "@/layouts/MiniNav.vue"
 import ProfilePic from "@/layouts/ProfilePic.vue"
 import SessionTimeout from "@/components/SessionTimeout.vue"
 
-type BreadCrumb = {
+export type BreadCrumb = {
     url: string
     name: string
 }
 
-export default {
-    name: "ViperLayout",
-    setup() {
-        const userStore = useUserStore()
-        const mainLeftDrawer = ref(false)
-        const clearEmulationHref = import.meta.env.VITE_VIPER_HOME + "ClearEmulation"
-        const environment = import.meta.env.VITE_ENVIRONMENT
-        const viperHome = import.meta.env.VITE_VIPER_HOME
-        const loginHref = getLoginUrl()
-        const currentYear = new Date().getFullYear()
-        return { userStore, mainLeftDrawer, clearEmulationHref, environment, viperHome, loginHref, currentYear }
-    },
-    props: {
-        nav: {
-            type: String,
-            default: "",
-        },
-        navarea: Boolean,
-        highlightedTopNav: {
-            type: String,
-            default: "",
-        },
-        breadcrumbs: {
-            type: Array as PropType<BreadCrumb[]>,
-            default: () => [],
-        },
-        showViewWhenNotLoggedIn: {
-            type: Boolean,
-        },
-    },
-    components: {
-        LeftNav,
-        MainNav,
-        MiniNav,
-        ProfilePic,
-        SessionTimeout,
-    },
-    data() {
-        return {
-            topNav: [],
-            leftNav: [],
-        }
-    },
-    methods: {
-        handleDrawerChange(newDrawerValue: boolean): void {
-            this.mainLeftDrawer = newDrawerValue
-        },
-    },
+defineProps<{
+    nav?: string
+    navarea?: boolean
+    highlightedTopNav?: string
+    breadcrumbs?: BreadCrumb[]
+    showViewWhenNotLoggedIn?: boolean
+}>()
+
+const userStore = useUserStore()
+const mainLeftDrawer = ref(false)
+const clearEmulationHref = import.meta.env.VITE_VIPER_HOME + "ClearEmulation"
+const environment = import.meta.env.VITE_ENVIRONMENT
+const viperHome = import.meta.env.VITE_VIPER_HOME
+const loginHref = getLoginUrl()
+const currentYear = new Date().getFullYear()
+
+function handleDrawerChange(newDrawerValue: boolean): void {
+    mainLeftDrawer.value = newDrawerValue
 }
 </script>

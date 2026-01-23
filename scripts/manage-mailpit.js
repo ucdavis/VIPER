@@ -1,6 +1,7 @@
 #!/usr/bin/env node
+// Environment variables loaded via --env-file-if-exists=.env.local in package.json
 
-require("dotenv").config({ path: ".env.local" })
+const { env: processEnv } = process
 const { spawn } = require("node:child_process")
 const fs = require("node:fs")
 const path = require("node:path")
@@ -23,7 +24,7 @@ async function getFkill() {
 const MAILPIT_VERSION = "1.27.5"
 const MAILPIT_URL = `https://github.com/axllent/mailpit/releases/download/v${MAILPIT_VERSION}/mailpit-windows-amd64.zip`
 const MAILPIT_SHA256 = "47b88b210474ca7b6884d6b186453787e8c4c0a21e29aeb0b83c378160f6ee73"
-const INSTALL_DIR = process.env.MAILPIT_INSTALL_DIR || String.raw`C:\Tools\mailpit`
+const INSTALL_DIR = processEnv.MAILPIT_INSTALL_DIR || String.raw`C:\Tools\mailpit`
 const MAILPIT_EXE = path.join(INSTALL_DIR, "mailpit.exe")
 
 // Get environment variables with defaults
@@ -49,21 +50,28 @@ const BYTES_PER_MB = 1_048_576
 function checkPort(port) {
     return new Promise((resolve) => {
         const server = net.createServer()
+        let resolved = false
+        const safeResolve = (value) => {
+            if (!resolved) {
+                resolved = true
+                resolve(value)
+            }
+        }
         const timeout = setTimeout(() => {
             server.close()
             logWarning(`Port ${port} check timed out`)
-            resolve(false)
+            safeResolve(false)
         }, STARTUP_DELAY)
 
         server.listen(port, () => {
             clearTimeout(timeout)
-            server.once("close", () => resolve(false))
+            server.once("close", () => safeResolve(false))
             server.close()
         })
 
         server.on("error", () => {
             clearTimeout(timeout)
-            resolve(true)
+            safeResolve(true)
         })
     })
 }
