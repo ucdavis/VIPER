@@ -4,40 +4,33 @@
 
 <script setup lang="ts">
 import { useQuasar } from "quasar"
-import { ref, defineComponent, inject } from "vue"
+import { inject, onMounted } from "vue"
+import { useRouter } from "vue-router"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"
-import ContentBlock from '@/CMS/components/ContentBlock.vue'
-</script>
-<script lang="ts">
-export default defineComponent({
-    name: "CAHFSAuth",
-    data() {
-        return {
-            userInfo: ref({}),
-            loadHome: ref(false),
-        }
-    },
-    mounted: async function () {
-        const baseUrl = inject("apiURL")
-        const userStore = useUserStore()
-        const $q = useQuasar()
-        $q.loading.show({
-            message: "Checking for log in",
-            delay: 250, // ms
-        })
+import ContentBlock from "@/CMS/components/ContentBlock.vue"
 
-        const { get } = useFetch()
-        const r = await get(baseUrl + "loggedInUser")
+const router = useRouter()
+const baseUrl = inject<string>("apiURL")
+const userStore = useUserStore()
+const $q = useQuasar()
 
-        if (r.success && r.result.userId) {
-            userStore.loadUser(r.result)
-        }
-        $q.loading.hide()
+onMounted(async () => {
+    $q.loading.show({
+        message: "Checking for log in",
+        delay: 250,
+    })
 
-        if (userStore.isLoggedIn) {
-            this.$router.push({ name: "CAHFSHome" })
-        }
-    },
+    const { get } = useFetch()
+    const r = await get(baseUrl + "loggedInUser")
+
+    if (r.success && r.result.userId) {
+        userStore.loadUser(r.result)
+    }
+    $q.loading.hide()
+
+    if (userStore.isLoggedIn) {
+        router.push({ name: "CAHFSHome" })
+    }
 })
 </script>

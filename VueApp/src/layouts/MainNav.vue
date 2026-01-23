@@ -31,7 +31,6 @@
             href="helpNav.menuItemURL"
             icon="help"
             class="q-px-md text-primary"
-            v-cloak
         >
             <q-tooltip>Help</q-tooltip>
         </q-btn>
@@ -39,45 +38,41 @@
     </div>
 </template>
 
-<script>
-import { ref, defineComponent } from "vue"
-export default defineComponent({
-    name: "MainNav",
-    props: {
-        highlightedTopNav: {
-            type: String,
-            default: "",
-        },
-    },
-    data() {
-        return {
-            topNav: ref([]),
-            helpNav: ref(""),
-            navClass: ref(
-                "q-btn q-btn--flat q-btn--actionable q-btn--no-uppercase q-hoverable q-px-md text-primary text-weight-regular navLink ",
-            ),
+<script setup lang="ts">
+import { ref, onMounted } from "vue"
+
+defineProps<{
+    highlightedTopNav?: string
+}>()
+
+interface NavItem {
+    menuItemURL: string
+    menuItemText: string
+}
+
+const topNav = ref<NavItem[]>([])
+const helpNav = ref("")
+const navClass =
+    "q-btn q-btn--flat q-btn--actionable q-btn--no-uppercase q-hoverable q-px-md text-primary text-weight-regular navLink "
+
+async function getTopNav() {
+    try {
+        const response = await fetch(import.meta.env.VITE_API_URL + "layout/topnav")
+        if (!response.ok) {
+            topNav.value = []
+            return
         }
-    },
-    methods: {
-        async getTopNav() {
-            try {
-                var response = await fetch(import.meta.env.VITE_API_URL + "layout/topnav")
-                if (!response.ok) {
-                    this.topNav = []
-                    return
-                }
-                var d = await response.json()
-                if (d.result && d.result.length > 0) {
-                    this.helpNav = d.result.pop()
-                    this.topNav = d.result
-                }
-            } catch (_e) {
-                this.topNav = []
-            }
-        },
-    },
-    mounted: async function () {
-        await this.getTopNav()
-    },
+        const d = await response.json()
+        if (d.result && d.result.length > 0) {
+            helpNav.value = d.result.pop()
+            topNav.value = d.result
+        }
+    } catch (_e) {
+        topNav.value = []
+    }
+}
+
+onMounted(async () => {
+    await getTopNav()
 })
 </script>
