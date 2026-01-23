@@ -2,12 +2,10 @@
 /* oxlint-disable no-await-in-loop -- Polling requires sequential await */
 
 // Shared utilities for Node.js scripts (cross-platform)
+// Environment variables loaded via --env-file-if-exists=.env.local in package.json
 
 const { exec, execFileSync } = require("node:child_process")
 const { promisify } = require("node:util")
-const dotenv = require("dotenv")
-const path = require("node:path")
-const fs = require("node:fs")
 const os = require("node:os")
 
 const execAsync = promisify(exec)
@@ -107,17 +105,13 @@ function createLogger(prefix) {
     }
 }
 
-// Get development server environment variables from .env.local or defaults
+// Get development server environment variables from process.env or defaults
+// Environment is loaded via Node's --env-file-if-exists=.env.local flag
 function getDevServerEnv() {
-    // Always look for .env.local in the project root (where package.json is)
-    const projectRoot = path.resolve(__dirname, "../..")
-    const envPath = path.join(projectRoot, ".env.local")
-    const envConfig = fs.existsSync(envPath) ? dotenv.config({ path: envPath }).parsed || {} : {}
-
     const mergedEnv = { ...DEFAULT_ENV_VARS }
     for (const key in DEFAULT_ENV_VARS) {
         if (Object.hasOwn(DEFAULT_ENV_VARS, key)) {
-            const value = Number.parseInt(envConfig[key] || env[key], 10)
+            const value = Number.parseInt(env[key], 10)
             if (!Number.isNaN(value)) {
                 mergedEnv[key] = value
             }

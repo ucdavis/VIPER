@@ -9,15 +9,9 @@
         >
         </component>
     </main>
-    <GenericError></GenericError>
+    <GenericError />
 </template>
 
-<script>
+<script setup lang="ts">
 import GenericError from "@/components/GenericError.vue"
-export default {
-    name: "CTSApplication",
-    components: {
-        GenericError,
-    },
-}
 </script>

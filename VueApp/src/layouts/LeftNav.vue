@@ -8,7 +8,6 @@
         no-mini-animation
         :width="300"
         id="mainLeftDrawer"
-        v-cloak
         class="no-print"
     >
         <template #default>
@@ -70,87 +69,87 @@
     </q-drawer>
 </template>
 
-<script lang="ts">
-import { ref, defineComponent } from "vue"
+<script setup lang="ts">
+import { ref, watch, onMounted } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
-export default defineComponent({
-    name: "LeftNav",
-    props: {
-        nav: {
-            type: String,
-            default: "",
-        },
-        navarea: Boolean,
-        mainLeftDrawer: Boolean,
-    },
-    emits: ["drawer-change"],
-    data() {
-        return {
-            myMainLeftDrawer: ref(false),
-            navHeader: ref(""),
-            menuItems: [] as any[],
-            rawItems: [] as any[],
+
+interface MenuItem {
+    menuItemUrl: string | undefined
+    routeTo: string | null
+    menuItemText: string
+    clickable: boolean
+    displayClass: string
+}
+
+const props = defineProps<{
+    nav?: string
+    navarea?: boolean
+    mainLeftDrawer?: boolean
+}>()
+
+const emit = defineEmits<{
+    (e: "drawer-change", value: boolean): void
+}>()
+
+const myMainLeftDrawer = ref(false)
+const navHeader = ref("")
+const menuItems = ref<MenuItem[]>([])
+
+async function getLeftNav() {
+    try {
+        const u = new URL(
+            import.meta.env.VITE_API_URL + "layout/leftnav/?area=" + props.navarea + "&nav=" + props.nav,
+            document.baseURI,
+        )
+        const { get } = useFetch()
+        const r = await get(u.toString())
+        if (!r.success || !r.result) {
+            navHeader.value = ""
+            menuItems.value = []
+            return
         }
-    },
-    methods: {
-        async getLeftNav() {
-            try {
-                var u = new URL(
-                    import.meta.env.VITE_API_URL + "layout/leftnav/?area=" + this.navarea + "&nav=" + this.nav,
-                    document.baseURI,
-                )
-                const { get } = useFetch()
-                const r = await get(u.toString())
-                if (!r.success || !r.result) {
-                    this.navHeader = ""
-                    this.menuItems = []
-                    return
+        navHeader.value = r.result.menuHeaderText ?? ""
+        menuItems.value = (r.result.menuItems ?? []).map((r: any) => {
+            const isExternalUrl = r.menuItemURL.length > 4 && r.menuItemURL.startsWith("http")
+            const isRelativeUrl = r.menuItemURL.length > 0 && !isExternalUrl && !r.menuItemURL.startsWith("/")
+
+            let routeToUrl = null
+            if (!isExternalUrl && r.menuItemURL.length > 0) {
+                if (isRelativeUrl && props.navarea && props.nav) {
+                    routeToUrl = `/${props.nav.toUpperCase()}/${r.menuItemURL}`
+                } else {
+                    routeToUrl = r.menuItemURL
                 }
-                this.navHeader = r.result.menuHeaderText ?? ""
-                this.rawItems = r.result.menuItems ?? []
-                this.menuItems = (r.result.menuItems ?? []).map((r: any) => {
-                    const isExternalUrl = r.menuItemURL.length > 4 && r.menuItemURL.startsWith("http")
-                    const isRelativeUrl = r.menuItemURL.length > 0 && !isExternalUrl && !r.menuItemURL.startsWith("/")
-
-                    let routeToUrl = null
-                    if (!isExternalUrl && r.menuItemURL.length > 0) {
-                        if (isRelativeUrl && this.navarea && this.nav) {
-                            // For area-based navigation, prefix relative URLs with the area path
-                            routeToUrl = `/${this.nav.toUpperCase()}/${r.menuItemURL}`
-                        } else {
-                            routeToUrl = r.menuItemURL
-                        }
-                    }
-
-                    return {
-                        menuItemUrl: isExternalUrl ? r.menuItemURL : null,
-                        routeTo: routeToUrl,
-                        menuItemText: r.menuItemText,
-                        clickable: r.menuItemURL.length > 0,
-                        displayClass: r.menuItemURL.length
-                            ? "leftNavLink"
-                            : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText === "" ? " leftNavSpacer" : ""),
-                    }
-                })
-            } catch (_e) {
-                this.navHeader = ""
-                this.menuItems = []
             }
-        },
-        emitLeftDrawerChange() {
-            this.$emit("drawer-change", this.myMainLeftDrawer)
-        },
+
+            return {
+                menuItemUrl: isExternalUrl ? r.menuItemURL : undefined,
+                routeTo: routeToUrl,
+                menuItemText: r.menuItemText,
+                clickable: r.menuItemURL.length > 0,
+                displayClass: r.menuItemURL.length
+                    ? "leftNavLink"
+                    : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText === "" ? " leftNavSpacer" : ""),
+            }
+        })
+    } catch (_e) {
+        navHeader.value = ""
+        menuItems.value = []
+    }
+}
+
+watch(myMainLeftDrawer, () => {
+    emit("drawer-change", myMainLeftDrawer.value)
+})
+
+watch(
+    () => props.mainLeftDrawer,
+    () => {
+        myMainLeftDrawer.value = props.mainLeftDrawer ?? false
     },
-    mounted: async function () {
-        await this.getLeftNav()
-    },
-    watch: {
-        myMainLeftDrawer: function () {
-            this.emitLeftDrawerChange()
-        },
-        mainLeftDrawer: function () {
-            this.myMainLeftDrawer = this.mainLeftDrawer
-        },
-    },
+)
+
+onMounted(async () => {
+    await getLeftNav()
 })
 </script>
