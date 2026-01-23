@@ -118,14 +118,6 @@ public partial class VIPERContext : DbContext
 	/* users */
 	public virtual DbSet<Person> People { get; set; }
 
-	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-	{
-		if (HttpHelper.Settings != null)
-		{
-			optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:VIPER"]);
-		}
-	}
-
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
 		modelBuilder.Entity<AppControl>(entity =>

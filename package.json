@@ -6,7 +6,8 @@
         "node": ">=20"
     },
     "scripts": {
-        "dev": "concurrently --kill-others-on-fail --names \"BACKEND,FRONTEND,BROWSER\" --prefix-colors \"blue,green,yellow\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:browser\"",
+        "dev": "npm run dev:libman && concurrently --kill-others-on-fail --names \"BACKEND,FRONTEND,BROWSER\" --prefix-colors \"blue,green,yellow\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:browser\"",
+        "dev:libman": "dotnet tool restore && cd web && dotnet tool run libman restore",
         "dev:backend": "npm run mailpit:start && cd web && cross-env DOTNET_USE_COMPILER_SERVER=1 DOTNET_WATCH_RESTART_ON_RUDE_EDIT=true dotnet watch run --launch-profile https",
         "dev:backend-build-only": "npm run dev:frontend-build && dotnet publish ./web/Viper.csproj -c Release -p:EnvironmentName=Development -o ./dist/dev",
         "dev:backend-run": "node scripts/run-backend.js",

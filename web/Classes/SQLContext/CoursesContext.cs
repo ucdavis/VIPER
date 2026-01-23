@@ -57,14 +57,6 @@ public partial class CoursesContext : DbContext
 
     public virtual DbSet<VwXtndBaseinfo> VwXtndBaseinfos { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (HttpHelper.Settings != null)
-        {
-            optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:Courses"]);
-        }
-    }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Baseinfo>(entity =>

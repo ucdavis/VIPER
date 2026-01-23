@@ -179,43 +179,32 @@ try
     });
 
 
-    // Enable detailed errors in non-production environments.
-    void ConfigureDbContextOptions(DbContextOptionsBuilder options)
+    // Configure DbContext options with connection strings via DI
+    var enableDetailedErrors = builder.Environment.EnvironmentName != "Production";
+
+    void RegisterDbContext<TContext>(string connectionStringKey) where TContext : DbContext
     {
-        if (builder.Environment.EnvironmentName != "Production")
+        var connStr = builder.Configuration.GetConnectionString(connectionStringKey)
+            ?? throw new InvalidOperationException($"Connection string '{connectionStringKey}' not configured");
+        builder.Services.AddDbContext<TContext>(options =>
         {
-            options.EnableDetailedErrors(true);
-        }
+            options.UseSqlServer(connStr);
+            if (enableDetailedErrors) options.EnableDetailedErrors(true);
+        });
     }
 
-    builder.Services.AddDbContext<AAUDContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<CoursesContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<CrestContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<DictionaryContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<RAPSContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<VIPERContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<ClinicalSchedulerContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<SISContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<Viper.Areas.Effort.EffortDbContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<Viper.Areas.Effort.Data.EvalHarvestDbContext>(ConfigureDbContextOptions);
+    RegisterDbContext<AAUDContext>("AAUD");
+    RegisterDbContext<CoursesContext>("Courses");
+    RegisterDbContext<CrestContext>("CREST");
+    RegisterDbContext<DictionaryContext>("Dictionary");
+    RegisterDbContext<RAPSContext>("RAPS");
+    RegisterDbContext<VIPERContext>("VIPER");
+    RegisterDbContext<ClinicalSchedulerContext>("ClinicalScheduler");
+    RegisterDbContext<SISContext>("SIS");
+    RegisterDbContext<Viper.Areas.Effort.EffortDbContext>("Effort");
+    RegisterDbContext<Viper.Areas.Effort.Data.EvalHarvestDbContext>("EvalHarvest");
 
-    // Clinical Scheduler services
-    builder.Services.AddScoped<Viper.Areas.Curriculum.Services.TermCodeService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IGradYearService, Viper.Areas.ClinicalScheduler.Services.GradYearService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IWeekService, Viper.Areas.ClinicalScheduler.Services.WeekService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IPersonService, Viper.Areas.ClinicalScheduler.Services.PersonService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IRotationService, Viper.Areas.ClinicalScheduler.Services.RotationService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IStudentScheduleService, Viper.Areas.ClinicalScheduler.Services.StudentScheduleService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IInstructorScheduleService, Viper.Areas.ClinicalScheduler.Services.InstructorScheduleService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IClinicalScheduleService, Viper.Areas.ClinicalScheduler.Services.ClinicalScheduleService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.ISchedulePermissionService, Viper.Areas.ClinicalScheduler.Services.SchedulePermissionService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IPermissionValidator, Viper.Areas.ClinicalScheduler.Services.PermissionValidator>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IScheduleEditService, Viper.Areas.ClinicalScheduler.Services.ScheduleEditService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IScheduleAuditService, Viper.Areas.ClinicalScheduler.Services.ScheduleAuditService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IEvaluationPolicyService, Viper.Areas.ClinicalScheduler.Services.EvaluationPolicyService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Validators.AddInstructorValidator>();
-
-    // Register UserHelper service
+    // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<Viper.IUserHelper, Viper.UserHelper>();
 
     // Photo Gallery services
@@ -265,7 +254,24 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.CrestHarvestPhase>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.NonCrestHarvestPhase>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.ClinicalHarvestPhase>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IHarvestService, Viper.Areas.Effort.Services.HarvestService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.GuestAccountPhase>();
+
+    // Scrutor: auto-register services and validators by convention
+    builder.Services.Scan(scan => scan
+        .FromAssemblyOf<Program>()
+        .AddClasses(classes => classes
+            .InNamespaces(
+                "Viper.Areas.ClinicalScheduler.Services",
+                "Viper.Areas.ClinicalScheduler.Validators",
+                "Viper.Areas.Students.Services",
+                "Viper.Areas.Curriculum.Services",
+                "Viper.Areas.Effort.Services"
+            )
+            .Where(type => type.Name.EndsWith("Service") || type.Name.EndsWith("Validator")))
+        .UsingRegistrationStrategy(Scrutor.RegistrationStrategy.Skip)
+        .AsMatchingInterface()
+        .AsSelf()
+        .WithScopedLifetime());
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
@@ -481,19 +487,13 @@ try
     app.UseSession();
 
     // Define the default route mapping and require authentication by default (fail safe)
-#pragma warning disable ASP0014
-    app.UseEndpoints(endpoints =>
-    {
-        endpoints.MapControllerRoute(
-          name: "areas",
-          pattern: "{area}/{controller=Home}/{action=Index}").RequireAuthorization();
+    app.MapControllerRoute(
+        name: "areas",
+        pattern: "{area}/{controller=Home}/{action=Index}").RequireAuthorization();
 
-        endpoints.MapControllerRoute(
-            name: "default",
-            pattern: "{controller=Home}/{action=Index}").RequireAuthorization();
-
-    });
-#pragma warning restore ASP0014
+    app.MapControllerRoute(
+        name: "default",
+        pattern: "{controller=Home}/{action=Index}").RequireAuthorization();
 
     // Setup the memory cache so we can use it via a simple static method
     HttpHelper.Configure(app.Services.GetService<IMemoryCache>(), app.Services.GetService<IConfiguration>(), app.Environment, app.Services.GetService<IHttpContextAccessor>(), app.Services.GetService<IAuthorizationService>(), app.Services.GetService<IDataProtectionProvider>());
