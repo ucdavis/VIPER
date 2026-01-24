@@ -31,5 +31,12 @@ public class AutoMapperProfileEffort : Profile
         CreateMap<EffortType, EffortTypeDto>()
             .ForMember(d => d.UsageCount, opt => opt.Ignore())
             .ForMember(d => d.CanDelete, opt => opt.Ignore());
+
+        // EffortRecord mapping for instructor effort display
+        CreateMap<EffortRecord, InstructorEffortRecordDto>()
+            .ForMember(d => d.EffortType, opt => opt.MapFrom(s => s.EffortTypeId))
+            .ForMember(d => d.Role, opt => opt.MapFrom(s => s.RoleId))
+            .ForMember(d => d.RoleDescription, opt => opt.MapFrom(s => s.RoleNavigation.Description))
+            .ForMember(d => d.ChildCourses, opt => opt.Ignore()); // Set by service
     }
 }

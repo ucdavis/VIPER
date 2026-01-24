@@ -198,7 +198,11 @@ async function verifyDotNetBuild() {
         return true
     } catch (error) {
         // Cache failure with captured output
-        const output = error.output || ""
+        // If error.output is empty, include the error message itself
+        let output = error.output || ""
+        if (!output.trim()) {
+            output = error.message || "Build failed with unknown error"
+        }
         markAsBuilt("web", "Viper.csproj", output, false)
         markAsBuilt("test", "Viper.test.csproj", output, false)
         logger.error(".NET compilation failed")

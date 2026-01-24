@@ -9,6 +9,7 @@ using Viper.Areas.ClinicalScheduler.Models.DTOs.Requests;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.ClinicalScheduler.Validators;
+using Viper.EmailTemplates.Services;
 using Viper.Services;
 using CS = Viper.Models.ClinicalScheduler;
 
@@ -56,6 +57,7 @@ namespace Viper.test.ClinicalScheduler.Integration
             var mockGradYearService = new Mock<IGradYearService>();
             var mockPermissionValidator = new Mock<IPermissionValidator>();
             var mockConfiguration = new Mock<IConfiguration>();
+            var mockEmailTemplateRenderer = new Mock<IEmailTemplateRenderer>();
 
             _scheduleEditService = new ScheduleEditService(
                 Context,
@@ -65,7 +67,8 @@ namespace Viper.test.ClinicalScheduler.Integration
                 mockEmailSettings.Object,
                 mockGradYearService.Object,
                 mockPermissionValidator.Object,
-                mockConfiguration.Object);
+                mockConfiguration.Object,
+                mockEmailTemplateRenderer.Object);
 
             _evaluationPolicyService = new EvaluationPolicyService();
         }

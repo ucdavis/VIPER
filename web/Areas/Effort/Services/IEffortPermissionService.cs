@@ -67,4 +67,10 @@ public interface IEffortPermissionService
     /// Check if the specified PersonId matches the current user.
     /// </summary>
     bool IsCurrentUser(int personId);
+
+    /// <summary>
+    /// Check if current user has any view-level access permission
+    /// (ViewAllDepartments, ViewDept, or VerifyEffort).
+    /// </summary>
+    Task<bool> HasAnyViewAccessAsync(CancellationToken ct = default);
 }

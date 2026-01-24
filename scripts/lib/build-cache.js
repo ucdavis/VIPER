@@ -420,12 +420,19 @@ function getCachedFormatOutput(cacheKey) {
  * @returns {string} - Filtered output with only errors, or original if no errors found
  */
 function filterBuildErrors(output) {
-    if (!output) {
-        return ""
+    if (!output || !output.trim()) {
+        return "(No cached error output available. Run 'npm run verify:build' after clearing the cache with 'rm -rf .build-cache' to see the actual error.)"
     }
     const errorLines = output
         .split("\n")
-        .filter((line) => line.includes(": error ") || line.includes("Build FAILED") || line.includes("Error(s)"))
+        .filter(
+            (line) =>
+                line.includes(": error ") ||
+                line.includes("Build FAILED") ||
+                line.includes("Error(s)") ||
+                line.includes("is being used by another process") ||
+                line.includes("Could not copy"),
+        )
         .join("\n")
     return errorLines || output
 }

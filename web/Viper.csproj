@@ -68,6 +68,7 @@
     <PackageReference Include="System.DirectoryServices.AccountManagement" Version="8.0.1" />
     <PackageReference Include="System.Linq.Dynamic.Core" Version="1.6.0" />
     <PackageReference Include="OWASP.AntiSamy" Version="1.2.0" />
+    <PackageReference Include="Razor.Templating.Core" Version="2.1.0" />
     <PackageReference Include="System.Security.Claims" Version="4.3.0" />
   </ItemGroup>
 

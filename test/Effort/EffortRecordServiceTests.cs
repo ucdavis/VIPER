@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
@@ -19,7 +20,9 @@ public sealed class EffortRecordServiceTests : IDisposable
     private readonly EffortDbContext _context;
     private readonly RAPSContext _rapsContext;
     private readonly Mock<IEffortAuditService> _auditServiceMock;
+    private readonly Mock<IInstructorService> _instructorServiceMock;
     private readonly Mock<IUserHelper> _userHelperMock;
+    private readonly Mock<ILogger<EffortRecordService>> _loggerMock;
     private readonly EffortRecordService _service;
 
     private const int TestTermCode = 202410;
@@ -49,6 +52,9 @@ public sealed class EffortRecordServiceTests : IDisposable
                 It.IsAny<object?>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
+        _instructorServiceMock = new Mock<IInstructorService>();
+        _loggerMock = new Mock<ILogger<EffortRecordService>>();
+
         var testUser = new AaudUser { AaudUserId = TestUserId, MothraId = "testuser" };
         _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(testUser);
 
@@ -56,7 +62,9 @@ public sealed class EffortRecordServiceTests : IDisposable
             _context,
             _rapsContext,
             _auditServiceMock.Object,
-            _userHelperMock.Object);
+            _instructorServiceMock.Object,
+            _userHelperMock.Object,
+            _loggerMock.Object);
 
         SeedTestData();
     }
@@ -197,7 +205,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => _service.CreateEffortRecordAsync(request));
-        Assert.Contains("Person 9999 not found", ex.Message);
+        Assert.Contains("Failed to create instructor for PersonId 9999", ex.Message);
     }
 
     [Fact]

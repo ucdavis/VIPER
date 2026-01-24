@@ -3,10 +3,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Classes.SQLContext;
+using Viper.EmailTemplates.Services;
 using Viper.Models.ClinicalScheduler;
 using Viper.Services;
-using Viper.Classes.SQLContext;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -24,6 +26,7 @@ namespace Viper.test.ClinicalScheduler
         private readonly Mock<IPermissionValidator> _mockPermissionValidator;
         private readonly Mock<IUserHelper> _mockUserHelper;
         private readonly Mock<IConfiguration> _mockConfiguration;
+        private readonly Mock<IEmailTemplateRenderer> _mockEmailTemplateRenderer;
         private readonly TestableScheduleEditService _service;
         private readonly ClinicalSchedulerContext _context;
 
@@ -44,6 +47,7 @@ namespace Viper.test.ClinicalScheduler
             _mockPermissionValidator = new Mock<IPermissionValidator>();
             _mockUserHelper = new Mock<IUserHelper>();
             _mockConfiguration = new Mock<IConfiguration>();
+            _mockEmailTemplateRenderer = new Mock<IEmailTemplateRenderer>();
 
             // Setup default email notification configuration for tests
             var emailNotificationSettings = new EmailNotificationSettings
@@ -55,6 +59,22 @@ namespace Viper.test.ClinicalScheduler
                 }
             };
             _mockEmailNotificationOptions.Setup(x => x.Value).Returns(emailNotificationSettings);
+
+            // Setup email template renderer to return HTML content based on view model
+            _mockEmailTemplateRenderer.Setup(x => x.RenderAsync(
+                It.IsAny<string>(),
+                It.IsAny<object>(),
+                It.IsAny<Dictionary<string, object>?>()))
+                .Returns((string templatePath, object model, Dictionary<string, object>? viewData) =>
+                {
+                    if (model is PrimaryEvaluatorRemovedViewModel vm)
+                    {
+                        return Task.FromResult($"<html><body><h1>Primary Evaluator Removed</h1>" +
+                            $"<p>{vm.InstructorName}</p><p>{vm.RotationName}</p><p>Week {vm.WeekNumber}</p>" +
+                            $"<p>{vm.ModifierName}</p></body></html>");
+                    }
+                    return Task.FromResult("<html><body>Email Content</body></html>");
+                });
 
             _mockGradYearService = new Mock<IGradYearService>();
             // Set up default for grad year service - use current year for testing
@@ -74,7 +94,8 @@ namespace Viper.test.ClinicalScheduler
                 _mockEmailNotificationOptions.Object,
                 _mockGradYearService.Object,
                 _mockPermissionValidator.Object,
-                _mockConfiguration.Object);
+                _mockConfiguration.Object,
+                _mockEmailTemplateRenderer.Object);
         }
 
         private async Task AddTestPersonAsync(string mothraId, string firstName = "Test", string lastName = "User")
@@ -553,7 +574,8 @@ namespace Viper.test.ClinicalScheduler
                 _mockEmailNotificationOptions.Object,
                 _mockGradYearService.Object,
                 _mockPermissionValidator.Object,
-                _mockConfiguration.Object);
+                _mockConfiguration.Object,
+                _mockEmailTemplateRenderer.Object);
 
             await AddTestPersonAsync(mothraId, "John", "Doe");
             await AddTestWeekGradYearAsync(weekId, 2025);

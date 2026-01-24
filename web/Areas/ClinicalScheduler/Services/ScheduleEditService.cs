@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using System.Net;
+using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
+using Viper.EmailTemplates.Services;
 using Viper.Models.ClinicalScheduler;
 using Viper.Services;
-using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {
@@ -21,6 +22,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         private readonly IGradYearService _gradYearService;
         private readonly IPermissionValidator _permissionValidator;
         private readonly IConfiguration _configuration;
+        private readonly IEmailTemplateRenderer _emailTemplateRenderer;
 
         public ScheduleEditService(
             ClinicalSchedulerContext context,
@@ -30,7 +32,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
             IOptions<EmailNotificationSettings> emailNotificationOptions,
             IGradYearService gradYearService,
             IPermissionValidator permissionValidator,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IEmailTemplateRenderer emailTemplateRenderer)
         {
             _context = context;
             _auditService = auditService;
@@ -40,6 +43,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             _gradYearService = gradYearService;
             _permissionValidator = permissionValidator;
             _configuration = configuration;
+            _emailTemplateRenderer = emailTemplateRenderer;
         }
 
         public async Task<List<InstructorSchedule>> AddInstructorAsync(
@@ -720,75 +724,26 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 // Use the passed requiresPrimaryEvaluator parameter (determined by frontend)
 
-                // Build HTML email body with output encoding
-                var rotationLinkRaw = baseUrl is null
+                // Build rotation link
+                var rotationLink = baseUrl is null
                     ? $"/ClinicalScheduler/rotation/{schedule.RotationId}"
                     : $"{baseUrl}/ClinicalScheduler/rotation/{schedule.RotationId}";
-                var instructorNameHtml = WebUtility.HtmlEncode(instructorName);
-                var rotationNameHtml = WebUtility.HtmlEncode(rotationName);
-                var weekNumberHtml = WebUtility.HtmlEncode(weekNumber);
-                var modifierNameHtml = WebUtility.HtmlEncode(modifierName);
-                var modifierEmailHtml = WebUtility.HtmlEncode(modifierEmail);
-                var rotationLinkHtml = WebUtility.HtmlEncode(rotationLinkRaw);
 
-                var modifierDisplay = !string.IsNullOrEmpty(modifierEmail)
-                    ? $"<a href=\"mailto:{modifierEmailHtml}\">{modifierNameHtml}</a>"
-                    : modifierNameHtml;
-
-                var replacementRow = "";
-                var warningDiv = requiresPrimaryEvaluator
-                    ? @"<table cellpadding=""12"" cellspacing=""0"" border=""0"" style=""background-color: #fff3cd; border: 2px solid #ffc107; margin-top: 16px;"">
-                        <tr><td style=""color: #856404; font-size: 14px;""><b>⚠️ Note: This week requires a primary evaluator.</b></td></tr>
-                      </table>"
-                    : "";
-
+                // Build email subject and body using Razor template
                 var emailSubject = $"Primary Evaluator Removed - {rotationName} - Week {weekNumber}";
-                var emailTitleHtml = WebUtility.HtmlEncode("Primary Evaluator Removed");
-
-                var emailBody = $@"
-<html>
-<head>
-    <title>Primary Evaluator Removed</title>
-    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
-</head>
-<body style=""margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.6; color: #333333; background-color: #f8f9fa;"">
-    <table cellpadding=""0"" cellspacing=""0"" border=""0"" width=""100%"" style=""background-color: #f8f9fa;"">
-        <tr>
-            <td style=""padding: 20px;"">
-                <table cellpadding=""0"" cellspacing=""0"" border=""0"" width=""100%"" style=""max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"">
-                    <tr>
-                        <td style=""padding: 30px;"">
-                            <h3 style=""margin: 0 0 20px 0; color: #022851; font-size: 20px; font-weight: bold;"">{emailTitleHtml}</h3>
-
-                            <table cellpadding=""12"" cellspacing=""0"" border=""0"" width=""100%"" style=""background-color: #ffffff; border: 1px solid #e9ecef; border-radius: 4px;"">
-                                <tr style=""background-color: #f8f9fa;"">
-                                    <td style=""font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;"">Instructor:</td>
-                                    <td style=""color: #212529; border-bottom: 1px solid #e9ecef;"">{instructorNameHtml}</td>
-                                </tr>
-                                {replacementRow}
-                                <tr style=""background-color: #f8f9fa;"">
-                                    <td style=""font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;"">Rotation:</td>
-                                    <td style=""color: #212529; border-bottom: 1px solid #e9ecef;""><a href=""{rotationLinkHtml}"" style=""color: #007bff; text-decoration: none;"">{rotationNameHtml}</a></td>
-                                </tr>
-                                <tr>
-                                    <td style=""font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;"">Week:</td>
-                                    <td style=""color: #212529; border-bottom: 1px solid #e9ecef;"">Week {weekNumberHtml}</td>
-                                </tr>
-                                <tr style=""background-color: #f8f9fa;"">
-                                    <td style=""font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;"">Modified by:</td>
-                                    <td style=""color: #212529; border-bottom: 1px solid #e9ecef;"">{modifierDisplay}</td>
-                                </tr>
-                            </table>
-
-                            {warningDiv}
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>";
+                var viewModel = new PrimaryEvaluatorRemovedViewModel
+                {
+                    BaseUrl = baseUrl ?? "",
+                    InstructorName = instructorName,
+                    RotationName = rotationName,
+                    RotationLink = rotationLink,
+                    WeekNumber = weekNumber,
+                    ModifierName = modifierName,
+                    ModifierEmail = modifierEmail,
+                    RequiresPrimaryEvaluator = requiresPrimaryEvaluator
+                };
+                var emailBody = await _emailTemplateRenderer.RenderAsync(
+                    "/Areas/ClinicalScheduler/EmailTemplates/Views/PrimaryEvaluatorRemoved.cshtml", viewModel);
 
                 // Send email notifications to all configured recipients
                 var notificationConfig = _emailNotificationSettings.PrimaryEvaluatorRemoved;
