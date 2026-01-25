@@ -432,7 +432,7 @@ function isZeroEffortRecord(recordId: number): boolean {
 function formatDate(dateString: string | null): string {
     if (!dateString) return ""
     const date = new Date(dateString)
-    return date.toLocaleDateString("en-US", {
+    return date.toLocaleString("en-US", {
         month: "numeric",
         day: "numeric",
         year: "numeric",

@@ -313,6 +313,17 @@ public class VerificationService : IVerificationService
         var recipientEmail = $"{mailId}@ucdavis.edu";
         if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(recipientEmail))
         {
+            var invalidEmailAuditData = new
+            {
+                RecipientPersonId = personId,
+                RecipientName = $"{instructor.LastName}, {instructor.FirstName}",
+                AttemptedEmail = recipientEmail,
+                SendResult = "Failed: Invalid email address format"
+            };
+
+            await _auditService.LogPersonChangeAsync(
+                personId, termCode, EffortAuditActions.VerifyEmail, null, invalidEmailAuditData, ct);
+
             return new EmailSendResult { Success = false, Error = "Invalid email address" };
         }
 
@@ -696,7 +707,7 @@ public class VerificationService : IVerificationService
 
         return new VerificationReminderViewModel
         {
-            BaseUrl = _settings.BaseUrl,
+            BaseUrl = _settings.BaseUrl ?? "",
             TermDescription = termDescription,
             ReplyByDate = replyByDate,
             VerificationUrl = verificationUrl,
