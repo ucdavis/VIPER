@@ -71,9 +71,26 @@
                 :key="deptGroup.dept"
                 class="q-mb-sm"
             >
-                <!-- Department header -->
-                <div class="dept-header text-white q-pa-sm">
-                    {{ deptGroup.dept }}
+                <!-- Department header with bulk email button -->
+                <div class="dept-header text-white q-pa-sm row items-center">
+                    <span class="text-weight-bold">{{ deptGroup.dept }}</span>
+                    <q-space />
+                    <span
+                        v-if="getEmailableCount(deptGroup) > 0"
+                        class="text-caption q-mr-md"
+                    >
+                        {{ getEmailableCount(deptGroup) }} can be emailed
+                    </span>
+                    <q-btn
+                        v-if="getEmailableCount(deptGroup) > 0"
+                        icon="mail_outline"
+                        label="Email All Unverified"
+                        dense
+                        flat
+                        size="sm"
+                        color="white"
+                        @click="confirmBulkEmail(deptGroup)"
+                    />
                 </div>
 
                 <!-- Instructors table for this department -->
@@ -90,8 +107,17 @@
                 >
                     <template #body-cell-isVerified="props">
                         <q-td :props="props">
+                            <!-- No effort records - verification N/A -->
+                            <span
+                                v-if="props.row.recordCount === 0"
+                                class="text-grey-6"
+                            >
+                                N/A
+                                <q-tooltip>No effort records to verify</q-tooltip>
+                            </span>
+                            <!-- Verified -->
                             <q-icon
-                                v-if="props.row.isVerified"
+                                v-else-if="props.row.isVerified"
                                 name="check"
                                 color="positive"
                                 size="sm"
@@ -122,6 +148,49 @@
                             </div>
                         </q-td>
                     </template>
+                    <template #body-cell-email="props">
+                        <q-td :props="props">
+                            <!-- Already verified -->
+                            <q-icon
+                                v-if="props.row.isVerified"
+                                name="mark_email_read"
+                                color="positive"
+                                size="xs"
+                            >
+                                <q-tooltip>Already verified</q-tooltip>
+                            </q-icon>
+                            <!-- No effort records - cannot send email -->
+                            <q-icon
+                                v-else-if="props.row.recordCount === 0"
+                                name="mail_lock"
+                                color="warning"
+                                size="xs"
+                            >
+                                <q-tooltip>No effort records - cannot send verification email</q-tooltip>
+                            </q-icon>
+                            <!-- Can send verification email -->
+                            <q-spinner
+                                v-else-if="sendingEmailFor === props.row.personId"
+                                color="primary"
+                                size="xs"
+                            />
+                            <q-icon
+                                v-else
+                                name="mail_outline"
+                                color="primary"
+                                size="xs"
+                                class="cursor-pointer"
+                                tabindex="0"
+                                role="button"
+                                :aria-label="`Send verification email to ${props.row.fullName}`"
+                                @click="sendVerificationEmail(props.row)"
+                                @keyup.enter="sendVerificationEmail(props.row)"
+                                @keyup.space="sendVerificationEmail(props.row)"
+                            >
+                                <q-tooltip>Send verification email</q-tooltip>
+                            </q-icon>
+                        </q-td>
+                    </template>
                     <template #body-cell-actions="props">
                         <q-td :props="props">
                             <q-btn
@@ -132,6 +201,7 @@
                                 flat
                                 round
                                 size="sm"
+                                :aria-label="`Edit ${props.row.fullName}`"
                                 @click="openEditDialog(props.row)"
                             >
                                 <q-tooltip>Edit instructor</q-tooltip>
@@ -144,6 +214,7 @@
                                 flat
                                 round
                                 size="sm"
+                                :aria-label="`Delete ${props.row.fullName}`"
                                 @click="confirmDeleteInstructor(props.row)"
                             >
                                 <q-tooltip>Delete instructor</q-tooltip>
@@ -189,8 +260,9 @@ import { useQuasar } from "quasar"
 import { useRoute, useRouter } from "vue-router"
 import { effortService } from "../services/effort-service"
 import { termService } from "../services/term-service"
+import { verificationService } from "../services/verification-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
-import type { PersonDto, TermDto } from "../types"
+import type { PersonDto, TermDto, BulkEmailResult } from "../types"
 import type { QTableColumn } from "quasar"
 import InstructorAddDialog from "../components/InstructorAddDialog.vue"
 import InstructorEditDialog from "../components/InstructorEditDialog.vue"
@@ -212,6 +284,10 @@ const isLoading = ref(false)
 const showAddDialog = ref(false)
 const showEditDialog = ref(false)
 const selectedInstructor = ref<PersonDto | null>(null)
+
+// Email state
+const sendingEmailFor = ref<number | null>(null)
+const isSendingBulkEmail = ref(false)
 
 // Computed
 const currentTermName = computed(() => {
@@ -271,8 +347,8 @@ const columns = computed<QTableColumn[]>(() => [
         field: "isVerified",
         align: "center",
         sortable: true,
-        style: "width: 80px",
-        headerStyle: "width: 80px",
+        style: "width: 60px; min-width: 60px",
+        headerStyle: "width: 60px; min-width: 60px",
     },
     {
         name: "fullName",
@@ -280,16 +356,28 @@ const columns = computed<QTableColumn[]>(() => [
         field: "fullName",
         align: "left",
         sortable: true,
+        classes: "instructor-cell",
+    },
+    {
+        name: "email",
+        label: "Email",
+        field: "email",
+        align: "center",
+        style: "width: 50px; min-width: 50px",
+        headerStyle: "width: 50px; min-width: 50px",
     },
     {
         name: "actions",
         label: "Actions",
         field: "actions",
         align: "center",
-        style: "width: 100px",
-        headerStyle: "width: 100px",
+        style: "width: 70px; min-width: 70px",
+        headerStyle: "width: 70px; min-width: 70px",
     },
 ])
+
+// Race condition protection for async loads
+let loadToken = 0
 
 // Methods
 async function loadTerms() {
@@ -325,11 +413,20 @@ watch(
 async function loadInstructors() {
     if (!selectedTermCode.value) return
 
+    const token = ++loadToken
     isLoading.value = true
+
     try {
-        instructors.value = await effortService.getInstructors(selectedTermCode.value)
+        const result = await effortService.getInstructors(selectedTermCode.value)
+
+        // Abort if a newer request has been initiated
+        if (token !== loadToken) return
+
+        instructors.value = result
     } finally {
-        isLoading.value = false
+        if (token === loadToken) {
+            isLoading.value = false
+        }
     }
 }
 
@@ -383,6 +480,101 @@ function onInstructorUpdated() {
     loadInstructors()
 }
 
+// Email methods
+type DeptGroup = { dept: string; instructors: PersonDto[] }
+
+function getEmailableCount(deptGroup: DeptGroup): number {
+    return deptGroup.instructors.filter((i) => i.canSendVerificationEmail).length
+}
+
+async function sendVerificationEmail(instructor: PersonDto) {
+    if (!selectedTermCode.value) return
+
+    sendingEmailFor.value = instructor.personId
+    try {
+        const result = await verificationService.sendVerificationEmail(instructor.personId, selectedTermCode.value)
+        if (result.success) {
+            $q.notify({
+                type: "positive",
+                message: `Verification email sent to ${instructor.fullName}`,
+            })
+        } else {
+            $q.notify({
+                type: "negative",
+                message: result.error ?? "Failed to send email",
+            })
+        }
+    } catch {
+        $q.notify({
+            type: "negative",
+            message: "An error occurred while sending the email",
+        })
+    } finally {
+        sendingEmailFor.value = null
+    }
+}
+
+function confirmBulkEmail(deptGroup: DeptGroup) {
+    const emailableCount = getEmailableCount(deptGroup)
+    $q.dialog({
+        title: "Send Verification Emails",
+        message: `This will send verification emails to ${emailableCount} instructor(s) in ${deptGroup.dept} who have effort records but haven't verified. Continue?`,
+        cancel: true,
+        persistent: true,
+    }).onOk(() => sendBulkVerificationEmails(deptGroup.dept))
+}
+
+async function sendBulkVerificationEmails(dept: string) {
+    if (!selectedTermCode.value) return
+
+    isSendingBulkEmail.value = true
+    const loadingNotify = $q.notify({
+        type: "ongoing",
+        message: `Sending verification emails to ${dept}...`,
+        spinner: true,
+        timeout: 0,
+    })
+
+    try {
+        const result: BulkEmailResult = await verificationService.sendBulkVerificationEmails(
+            dept,
+            selectedTermCode.value,
+        )
+
+        loadingNotify()
+
+        if (result.emailsFailed === 0) {
+            $q.notify({
+                type: "positive",
+                message: `Successfully sent ${result.emailsSent} verification email(s)`,
+                timeout: 5000,
+            })
+        } else {
+            $q.notify({
+                type: "warning",
+                message: `Sent ${result.emailsSent} email(s), ${result.emailsFailed} failed`,
+                timeout: 8000,
+            })
+            // Show details of failures
+            if (result.failures.length > 0) {
+                const failureList = result.failures.map((f) => `${f.instructorName}: ${f.reason}`).join("\n")
+                $q.dialog({
+                    title: "Email Failures",
+                    message: `The following emails could not be sent:\n\n${failureList}`,
+                })
+            }
+        }
+    } catch {
+        loadingNotify()
+        $q.notify({
+            type: "negative",
+            message: "An error occurred while sending bulk emails",
+        })
+    } finally {
+        isSendingBulkEmail.value = false
+    }
+}
+
 onMounted(loadTerms)
 </script>
 
@@ -400,8 +592,6 @@ onMounted(loadTerms)
 
 .dept-table {
     margin-bottom: 0;
-    table-layout: fixed;
-    width: 100%;
 }
 
 .dept-table :deep(table) {
@@ -409,8 +599,18 @@ onMounted(loadTerms)
     width: 100%;
 }
 
+.dept-table :deep(.instructor-cell) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 0;
+}
+
 .instructor-name {
     color: #800000;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
 }
 
 .title-code {

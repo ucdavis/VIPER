@@ -14,10 +14,29 @@
                     flat
                     round
                     dense
+                    aria-label="Close dialog"
                 />
             </q-card-section>
 
             <q-card-section>
+                <!-- Verification Warning -->
+                <q-banner
+                    v-if="props.isVerified"
+                    class="bg-orange-2 q-mb-md"
+                    rounded
+                >
+                    <template #avatar>
+                        <q-icon
+                            name="info"
+                            color="orange-9"
+                        />
+                    </template>
+                    <span class="text-orange-9">
+                        This instructor's effort has been verified. Adding a new record will clear the verification
+                        status and require re-verification.
+                    </span>
+                </q-banner>
+
                 <!-- Course Selection -->
                 <q-select
                     v-model="selectedCourse"
@@ -153,6 +172,8 @@ const props = defineProps<{
     modelValue: boolean
     personId: number
     termCode: number
+    isVerified?: boolean
+    preSelectedCourseId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -323,6 +344,15 @@ async function loadOptions() {
         const instructorRole = rolesResult.find((r) => r.id === 2)
         if (instructorRole) {
             selectedRole.value = instructorRole.id
+        }
+
+        // Pre-select course if provided (e.g., after importing a course)
+        if (props.preSelectedCourseId) {
+            const allAvailableCourses = [...coursesResult.existingCourses, ...coursesResult.allCourses]
+            const courseExists = allAvailableCourses.some((c) => c.id === props.preSelectedCourseId)
+            if (courseExists) {
+                selectedCourse.value = props.preSelectedCourseId
+            }
         }
     } catch {
         errorMessage.value = "Failed to load options"

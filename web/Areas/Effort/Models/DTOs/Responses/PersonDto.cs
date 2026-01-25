@@ -22,4 +22,16 @@ public class PersonDto
     public bool VolunteerWos { get; set; }
     public double? PercentClinical { get; set; }
     public bool IsVerified => EffortVerified.HasValue;
+
+    /// <summary>
+    /// Number of effort records for this instructor in the term.
+    /// Used to determine if verification emails can be sent.
+    /// </summary>
+    public int RecordCount { get; set; }
+
+    /// <summary>
+    /// Whether verification emails can be sent to this instructor.
+    /// False if instructor has no effort records or is already verified.
+    /// </summary>
+    public bool CanSendVerificationEmail => !IsVerified && RecordCount > 0;
 }

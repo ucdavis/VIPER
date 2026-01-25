@@ -28,10 +28,10 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         SetupControllerContext(_controller);
 
         // Seed percent assignment types for tests
-        SeedPercentAssignTypes();
+        SeedPercentAssignTypesAsync().GetAwaiter().GetResult();
     }
 
-    private void SeedPercentAssignTypes()
+    private async Task SeedPercentAssignTypesAsync()
     {
         EffortContext.PercentAssignTypes.AddRange(
             new PercentAssignType { Id = 1, Class = "Teaching", Name = "Lecture", IsActive = true, ShowOnTemplate = true },
@@ -39,7 +39,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
             new PercentAssignType { Id = 3, Class = "Admin", Name = "Department Chair", IsActive = true, ShowOnTemplate = false },
             new PercentAssignType { Id = 4, Class = "Research", Name = "Grant Writing", IsActive = false, ShowOnTemplate = true }
         );
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
     }
 
     private Percentage CreateTestPercentage(int personId, int percentAssignTypeId, string academicYear) => new()
@@ -106,7 +106,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         // Add percentage assignments for type 1 (Lecture)
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
         EffortContext.Percentages.Add(CreateTestPercentage(1001, 1, "2024-25"));
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.GetPercentAssignTypes();
@@ -128,7 +128,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         // Same person, different years = counts as 2
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2023-24"));
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.GetPercentAssignTypes();
@@ -152,7 +152,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         var secondPercentage = CreateTestPercentage(TestUserAaudId, 1, "2024-25");
         secondPercentage.PercentageValue = 25m;
         EffortContext.Percentages.Add(secondPercentage);
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.GetPercentAssignTypes();
@@ -271,7 +271,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         SetupUserWithFullAccess();
 
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.GetInstructorsByType(1, CancellationToken.None);
@@ -297,7 +297,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
 
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2023-24"));
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.GetInstructorsByType(1, CancellationToken.None);
@@ -321,7 +321,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
         EffortContext.Percentages.Add(CreateTestPercentage(1001, 1, "2023-24"));
         EffortContext.Percentages.Add(CreateTestPercentage(1002, 1, "2024-25"));
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.GetInstructorsByType(1, CancellationToken.None);
@@ -352,7 +352,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         var secondPercentage = CreateTestPercentage(TestUserAaudId, 1, "2024-25");
         secondPercentage.PercentageValue = 25m;
         EffortContext.Percentages.Add(secondPercentage);
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Act
         var result = await _controller.GetInstructorsByType(1, CancellationToken.None);
@@ -378,7 +378,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
         EffortContext.Percentages.Add(CreateTestPercentage(1001, 1, "2024-25"));
         EffortContext.Percentages.Add(CreateTestPercentage(1002, 2, "2024-25"));
-        EffortContext.SaveChanges();
+        await EffortContext.SaveChangesAsync();
 
         // Get all types
         var typesResult = await _controller.GetPercentAssignTypes(activeOnly: true);

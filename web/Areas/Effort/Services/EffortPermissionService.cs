@@ -14,15 +14,18 @@ public class EffortPermissionService : IEffortPermissionService
 {
     private readonly EffortDbContext _context;
     private readonly RAPSContext _rapsContext;
+    private readonly VIPERContext _viperContext;
     private readonly IUserHelper _userHelper;
 
     public EffortPermissionService(
         EffortDbContext context,
         RAPSContext rapsContext,
+        VIPERContext viperContext,
         IUserHelper? userHelper = null)
     {
         _context = context;
         _rapsContext = rapsContext;
+        _viperContext = viperContext;
         _userHelper = userHelper ?? new UserHelper();
     }
 
@@ -217,12 +220,41 @@ public class EffortPermissionService : IEffortPermissionService
     public int GetCurrentPersonId()
     {
         var user = _userHelper.GetCurrentUser();
-        return user?.AaudUserId ?? 0;
+        if (user == null)
+        {
+            return 0;
+        }
+
+        // Look up VIPER PersonId via MothraId.
+        // Filter for current records only to avoid identity misattribution from historical/inactive records.
+        // SingleOrDefault enforces uniqueness - throws if duplicates exist, surfacing data integrity issues.
+        var person = _viperContext.People
+            .AsNoTracking()
+            .Where(p => p.MothraId == user.MothraId && p.Current == 1)
+            .SingleOrDefault();
+
+        return person?.PersonId ?? 0;
     }
 
     /// <inheritdoc />
     public bool IsCurrentUser(int personId)
     {
         return GetCurrentPersonId() == personId && personId != 0;
+    }
+
+    /// <inheritdoc />
+    public Task<bool> HasAnyViewAccessAsync(CancellationToken ct = default)
+    {
+        var user = _userHelper.GetCurrentUser();
+        if (user == null)
+        {
+            return Task.FromResult(false);
+        }
+
+        var hasFullAccess = _userHelper.HasPermission(_rapsContext, user, EffortPermissions.ViewAllDepartments);
+        var hasDeptAccess = _userHelper.HasPermission(_rapsContext, user, EffortPermissions.ViewDept);
+        var hasSelfService = _userHelper.HasPermission(_rapsContext, user, EffortPermissions.VerifyEffort);
+
+        return Task.FromResult(hasFullAccess || hasDeptAccess || hasSelfService);
     }
 }

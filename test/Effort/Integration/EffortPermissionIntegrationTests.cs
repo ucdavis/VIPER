@@ -17,6 +17,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         _permissionService = new EffortPermissionService(
             EffortContext,
             RapsContext,
+            ViperContext,
             MockUserHelper.Object
         );
     }

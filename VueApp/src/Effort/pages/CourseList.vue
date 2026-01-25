@@ -128,6 +128,7 @@
                         flat
                         round
                         size="sm"
+                        :aria-label="`Link courses to ${props.row.courseCode}`"
                         @click="openLinkDialog(props.row)"
                     >
                         <q-tooltip>Link courses</q-tooltip>
@@ -140,6 +141,7 @@
                         flat
                         round
                         size="sm"
+                        :aria-label="`Edit ${props.row.courseCode}`"
                         @click="openEditDialog(props.row)"
                     >
                         <q-tooltip>Edit course</q-tooltip>
@@ -152,6 +154,7 @@
                         flat
                         round
                         size="sm"
+                        :aria-label="`Delete ${props.row.courseCode}`"
                         @click="confirmDeleteCourse(props.row)"
                     >
                         <q-tooltip>Delete course</q-tooltip>
@@ -318,6 +321,9 @@ const columns = computed<QTableColumn[]>(() => [
     },
 ])
 
+// Race condition protection for async loads
+let loadToken = 0
+
 // Methods
 function canEditCourse(course: CourseDto): boolean {
     if (isAdmin.value || hasEditCourse.value) return true
@@ -362,16 +368,24 @@ watch(
 async function loadCourses() {
     if (!selectedTermCode.value) return
 
+    const token = ++loadToken
     isLoading.value = true
+
     try {
         const [coursesResult, deptsResult] = await Promise.all([
             effortService.getCourses(selectedTermCode.value),
             effortService.getDepartments(),
         ])
+
+        // Abort if a newer request has been initiated
+        if (token !== loadToken) return
+
         courses.value = coursesResult
         departments.value = deptsResult
     } finally {
-        isLoading.value = false
+        if (token === loadToken) {
+            isLoading.value = false
+        }
     }
 }
 

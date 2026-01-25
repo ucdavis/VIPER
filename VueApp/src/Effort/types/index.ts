@@ -60,3 +60,16 @@ export type {
 } from "./harvest-types"
 
 export type { ChangeDetail, EffortAuditRow, ModifierInfo } from "./audit-types"
+
+export {
+    VerificationErrorCodes,
+    type MyEffortDto,
+    type VerificationResult,
+    type CanVerifyResult,
+    type EmailHistoryDto,
+    type EmailSendResult,
+    type EmailFailure,
+    type BulkEmailResult,
+    type SendVerificationEmailRequest,
+    type SendBulkEmailRequest,
+} from "./verification-types"

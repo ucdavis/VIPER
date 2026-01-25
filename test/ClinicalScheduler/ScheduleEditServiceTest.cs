@@ -3,8 +3,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
+using Viper.EmailTemplates.Services;
 using Viper.Models.ClinicalScheduler;
 using Viper.Services;
 
@@ -21,6 +23,7 @@ namespace Viper.test.ClinicalScheduler
         private readonly Mock<IPermissionValidator> _mockPermissionValidator;
         private readonly Mock<IUserHelper> _mockUserHelper;
         private readonly Mock<IConfiguration> _mockConfiguration;
+        private readonly Mock<IEmailTemplateRenderer> _mockEmailTemplateRenderer;
         private readonly ClinicalSchedulerContext _context;
         private readonly TestableScheduleEditService _service;
         private bool _disposed = false;
@@ -41,6 +44,13 @@ namespace Viper.test.ClinicalScheduler
             _mockPermissionValidator = new Mock<IPermissionValidator>();
             _mockUserHelper = new Mock<IUserHelper>();
             _mockConfiguration = new Mock<IConfiguration>();
+            _mockEmailTemplateRenderer = new Mock<IEmailTemplateRenderer>();
+            _mockEmailTemplateRenderer
+                .Setup(r => r.RenderAsync<PrimaryEvaluatorRemovedViewModel>(
+                    It.IsAny<string>(),
+                    It.IsAny<PrimaryEvaluatorRemovedViewModel>(),
+                    It.IsAny<Dictionary<string, object>?>()))
+                .ReturnsAsync("<html>Primary evaluator removed</html>");
 
             // Setup default email notification configuration for tests
             var emailNotificationSettings = new EmailNotificationSettings
@@ -94,7 +104,8 @@ namespace Viper.test.ClinicalScheduler
                 _mockEmailNotificationOptions.Object,
                 _mockGradYearService.Object,
                 _mockPermissionValidator.Object,
-                _mockConfiguration.Object);
+                _mockConfiguration.Object,
+                _mockEmailTemplateRenderer.Object);
         }
 
         private void SeedTestData()

@@ -49,6 +49,7 @@
                         dense
                         flat
                         round
+                        aria-label="Edit course"
                         @click="showEditDialog = true"
                     >
                         <q-tooltip>Edit course</q-tooltip>
@@ -60,6 +61,7 @@
                         dense
                         flat
                         round
+                        aria-label="Link courses"
                         @click="showLinkDialog = true"
                     >
                         <q-tooltip>Link courses</q-tooltip>

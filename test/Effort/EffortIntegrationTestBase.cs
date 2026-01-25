@@ -36,6 +36,7 @@ public abstract class EffortIntegrationTestBase : IDisposable
 
     protected readonly EffortDbContext EffortContext;
     protected readonly RAPSContext RapsContext;
+    protected readonly VIPERContext ViperContext;
     protected readonly Mock<IUserHelper> MockUserHelper;
 
     protected EffortIntegrationTestBase()
@@ -49,6 +50,13 @@ public abstract class EffortIntegrationTestBase : IDisposable
 
         // Create RAPS context for permission checking
         RapsContext = CreateRAPSContext();
+
+        // Create VIPER context for person lookup
+        var viperOptions = new DbContextOptionsBuilder<VIPERContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+            .Options;
+        ViperContext = new VIPERContext(viperOptions);
 
         // Setup UserHelper mock
         MockUserHelper = new Mock<IUserHelper>();
@@ -118,7 +126,7 @@ public abstract class EffortIntegrationTestBase : IDisposable
         };
         EffortContext.Courses.AddRange(courses);
 
-        // Add test persons
+        // Add test persons to EffortContext
         var persons = new[]
         {
             new EffortPerson { PersonId = TestUserAaudId, TermCode = TestTermCode, FirstName = "Test", LastName = "User", EffortDept = DvmDepartment },
@@ -128,6 +136,17 @@ public abstract class EffortIntegrationTestBase : IDisposable
         EffortContext.Persons.AddRange(persons);
 
         EffortContext.SaveChanges();
+
+        // Add test persons to ViperContext (required for GetCurrentPersonId lookup)
+        var viperPersons = new Viper.Models.VIPER.Person[]
+        {
+            new() { PersonId = TestUserAaudId, MothraId = TestUserMothraId, ClientId = "SVM", FirstName = "Test", LastName = "User", FullName = "User, Test", Current = 1 },
+            new() { PersonId = 1001, MothraId = "alicejohnson", ClientId = "SVM", FirstName = "Alice", LastName = "Johnson", FullName = "Johnson, Alice", Current = 1 },
+            new() { PersonId = 1002, MothraId = "bobsmith", ClientId = "SVM", FirstName = "Bob", LastName = "Smith", FullName = "Smith, Bob", Current = 1 }
+        };
+        ViperContext.People.AddRange(viperPersons);
+
+        ViperContext.SaveChanges();
     }
 
     /// <summary>
@@ -431,6 +450,7 @@ public abstract class EffortIntegrationTestBase : IDisposable
         {
             EffortContext?.Dispose();
             RapsContext?.Dispose();
+            ViperContext?.Dispose();
         }
     }
 }

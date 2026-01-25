@@ -242,6 +242,24 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IUnitService, Viper.Areas.Effort.Services.UnitService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentAssignTypeService, Viper.Areas.Effort.Services.PercentAssignTypeService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortRecordService, Viper.Areas.Effort.Services.EffortRecordService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IVerificationService, Viper.Areas.Effort.Services.VerificationService>();
+    builder.Services.Configure<Viper.Areas.Effort.EffortSettings>(builder.Configuration.GetSection("EffortSettings"));
+
+    // In development, derive BaseUrl from ASPNETCORE_HTTPS_PORT if not explicitly configured
+    if (builder.Environment.IsDevelopment())
+    {
+        builder.Services.PostConfigure<Viper.Areas.Effort.EffortSettings>(settings =>
+        {
+            if (string.IsNullOrWhiteSpace(settings.BaseUrl))
+            {
+                var httpsPort = Environment.GetEnvironmentVariable("ASPNETCORE_HTTPS_PORT") ?? "7157";
+                if (int.TryParse(httpsPort, out var port) && port > 0 && port < 65536)
+                {
+                    settings.BaseUrl = $"https://localhost:{port}";
+                }
+            }
+        });
+    }
 
     // Harvest phases (order matters for DI resolution, but phases self-order via Order property)
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.CrestHarvestPhase>();
@@ -290,6 +308,10 @@ try
     builder.Services.Configure<Viper.Services.EmailNotificationSettings>(builder.Configuration.GetSection("EmailNotifications"));
     builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<Viper.Services.EmailNotificationSettings>, Viper.Services.EmailNotificationSettingsValidator>();
     builder.Services.AddTransient<Viper.Services.IEmailService, Viper.Services.EmailService>();
+
+    // Add Razor email template rendering (must be after other DI registrations)
+    builder.Services.AddRazorTemplating();
+    builder.Services.AddScoped<Viper.EmailTemplates.Services.IEmailTemplateRenderer, Viper.EmailTemplates.Services.EmailTemplateRenderer>();
 
     // Add HttpClient for Vite proxy (development only)
     if (builder.Environment.IsDevelopment())
