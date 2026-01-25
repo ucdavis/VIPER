@@ -61,19 +61,15 @@ namespace Viper.test.ClinicalScheduler
             _mockEmailNotificationOptions.Setup(x => x.Value).Returns(emailNotificationSettings);
 
             // Setup email template renderer to return HTML content based on view model
-            _mockEmailTemplateRenderer.Setup(x => x.RenderAsync(
+            _mockEmailTemplateRenderer.Setup(x => x.RenderAsync<PrimaryEvaluatorRemovedViewModel>(
                 It.IsAny<string>(),
-                It.IsAny<object>(),
+                It.IsAny<PrimaryEvaluatorRemovedViewModel>(),
                 It.IsAny<Dictionary<string, object>?>()))
-                .Returns((string templatePath, object model, Dictionary<string, object>? viewData) =>
+                .Returns((string templatePath, PrimaryEvaluatorRemovedViewModel vm, Dictionary<string, object>? viewData) =>
                 {
-                    if (model is PrimaryEvaluatorRemovedViewModel vm)
-                    {
-                        return Task.FromResult($"<html><body><h1>Primary Evaluator Removed</h1>" +
-                            $"<p>{vm.InstructorName}</p><p>{vm.RotationName}</p><p>Week {vm.WeekNumber}</p>" +
-                            $"<p>{vm.ModifierName}</p></body></html>");
-                    }
-                    return Task.FromResult("<html><body>Email Content</body></html>");
+                    return Task.FromResult($"<html><body><h1>Primary Evaluator Removed</h1>" +
+                        $"<p>{vm.InstructorName}</p><p>{vm.RotationName}</p><p>Week {vm.WeekNumber}</p>" +
+                        $"<p>{vm.ModifierName}</p></body></html>");
                 });
 
             _mockGradYearService = new Mock<IGradYearService>();

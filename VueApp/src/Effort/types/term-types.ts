@@ -38,6 +38,8 @@ type PersonDto = {
     volunteerWos: boolean
     percentClinical: number | null
     isVerified: boolean
+    recordCount: number
+    canSendVerificationEmail: boolean
 }
 
 type AvailableTermDto = {

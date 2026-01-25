@@ -36,7 +36,7 @@ public class VerificationController : BaseEffortController
 
     /// <summary>
     /// Get the current user's effort data for self-service verification.
-    /// No special permission required - any authenticated user can view their own effort.
+    /// Requires one of the Effort view permissions (controller-level authorization).
     /// Returns an empty DTO if the user has no instructor record for the term.
     /// </summary>
     [HttpGet("my-effort")]

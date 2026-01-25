@@ -76,14 +76,14 @@
                     <span class="text-weight-bold">{{ deptGroup.dept }}</span>
                     <q-space />
                     <span
-                        v-if="getUnverifiedCount(deptGroup) > 0"
+                        v-if="getEmailableCount(deptGroup) > 0"
                         class="text-caption q-mr-md"
                     >
-                        {{ getUnverifiedCount(deptGroup) }} unverified
+                        {{ getEmailableCount(deptGroup) }} can be emailed
                     </span>
                     <q-btn
-                        v-if="getUnverifiedCount(deptGroup) > 0"
-                        icon="mail"
+                        v-if="getEmailableCount(deptGroup) > 0"
+                        icon="mail_outline"
                         label="Email All Unverified"
                         dense
                         flat
@@ -107,8 +107,17 @@
                 >
                     <template #body-cell-isVerified="props">
                         <q-td :props="props">
+                            <!-- No effort records - verification N/A -->
+                            <span
+                                v-if="props.row.recordCount === 0"
+                                class="text-grey-6"
+                            >
+                                N/A
+                                <q-tooltip>No effort records to verify</q-tooltip>
+                            </span>
+                            <!-- Verified -->
                             <q-icon
-                                v-if="props.row.isVerified"
+                                v-else-if="props.row.isVerified"
                                 name="check"
                                 color="positive"
                                 size="sm"
@@ -141,27 +150,44 @@
                     </template>
                     <template #body-cell-email="props">
                         <q-td :props="props">
-                            <q-btn
-                                v-if="!props.row.isVerified"
-                                flat
-                                round
-                                dense
-                                icon="mail_outline"
-                                color="primary"
-                                size="sm"
-                                :loading="sendingEmailFor === props.row.personId"
-                                :aria-label="`Send verification email to ${props.row.fullName}`"
-                                @click="sendVerificationEmail(props.row)"
-                            >
-                                <q-tooltip>Send verification email</q-tooltip>
-                            </q-btn>
+                            <!-- Already verified -->
                             <q-icon
-                                v-else
+                                v-if="props.row.isVerified"
                                 name="mark_email_read"
                                 color="positive"
-                                size="sm"
+                                size="xs"
                             >
                                 <q-tooltip>Already verified</q-tooltip>
+                            </q-icon>
+                            <!-- No effort records - cannot send email -->
+                            <q-icon
+                                v-else-if="props.row.recordCount === 0"
+                                name="mail_lock"
+                                color="warning"
+                                size="xs"
+                            >
+                                <q-tooltip>No effort records - cannot send verification email</q-tooltip>
+                            </q-icon>
+                            <!-- Can send verification email -->
+                            <q-spinner
+                                v-else-if="sendingEmailFor === props.row.personId"
+                                color="primary"
+                                size="xs"
+                            />
+                            <q-icon
+                                v-else
+                                name="mail_outline"
+                                color="primary"
+                                size="xs"
+                                class="cursor-pointer"
+                                tabindex="0"
+                                role="button"
+                                :aria-label="`Send verification email to ${props.row.fullName}`"
+                                @click="sendVerificationEmail(props.row)"
+                                @keyup.enter="sendVerificationEmail(props.row)"
+                                @keyup.space="sendVerificationEmail(props.row)"
+                            >
+                                <q-tooltip>Send verification email</q-tooltip>
                             </q-icon>
                         </q-td>
                     </template>
@@ -321,8 +347,8 @@ const columns = computed<QTableColumn[]>(() => [
         field: "isVerified",
         align: "center",
         sortable: true,
-        style: "width: 80px",
-        headerStyle: "width: 80px",
+        style: "width: 60px; min-width: 60px",
+        headerStyle: "width: 60px; min-width: 60px",
     },
     {
         name: "fullName",
@@ -330,22 +356,23 @@ const columns = computed<QTableColumn[]>(() => [
         field: "fullName",
         align: "left",
         sortable: true,
+        classes: "instructor-cell",
     },
     {
         name: "email",
         label: "Email",
         field: "email",
         align: "center",
-        style: "width: 80px",
-        headerStyle: "width: 80px",
+        style: "width: 50px; min-width: 50px",
+        headerStyle: "width: 50px; min-width: 50px",
     },
     {
         name: "actions",
         label: "Actions",
         field: "actions",
         align: "center",
-        style: "width: 100px",
-        headerStyle: "width: 100px",
+        style: "width: 70px; min-width: 70px",
+        headerStyle: "width: 70px; min-width: 70px",
     },
 ])
 
@@ -456,8 +483,8 @@ function onInstructorUpdated() {
 // Email methods
 type DeptGroup = { dept: string; instructors: PersonDto[] }
 
-function getUnverifiedCount(deptGroup: DeptGroup): number {
-    return deptGroup.instructors.filter((i) => !i.isVerified).length
+function getEmailableCount(deptGroup: DeptGroup): number {
+    return deptGroup.instructors.filter((i) => i.canSendVerificationEmail).length
 }
 
 async function sendVerificationEmail(instructor: PersonDto) {
@@ -488,10 +515,10 @@ async function sendVerificationEmail(instructor: PersonDto) {
 }
 
 function confirmBulkEmail(deptGroup: DeptGroup) {
-    const unverifiedCount = getUnverifiedCount(deptGroup)
+    const emailableCount = getEmailableCount(deptGroup)
     $q.dialog({
         title: "Send Verification Emails",
-        message: `This will send verification emails to all ${unverifiedCount} unverified instructor(s) in ${deptGroup.dept}. Continue?`,
+        message: `This will send verification emails to ${emailableCount} instructor(s) in ${deptGroup.dept} who have effort records but haven't verified. Continue?`,
         cancel: true,
         persistent: true,
     }).onOk(() => sendBulkVerificationEmails(deptGroup.dept))
@@ -565,8 +592,6 @@ onMounted(loadTerms)
 
 .dept-table {
     margin-bottom: 0;
-    table-layout: fixed;
-    width: 100%;
 }
 
 .dept-table :deep(table) {
@@ -574,8 +599,18 @@ onMounted(loadTerms)
     width: 100%;
 }
 
+.dept-table :deep(.instructor-cell) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 0;
+}
+
 .instructor-name {
     color: #800000;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
 }
 
 .title-code {

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 using Viper.EmailTemplates.Services;
@@ -44,6 +45,12 @@ namespace Viper.test.ClinicalScheduler
             _mockUserHelper = new Mock<IUserHelper>();
             _mockConfiguration = new Mock<IConfiguration>();
             _mockEmailTemplateRenderer = new Mock<IEmailTemplateRenderer>();
+            _mockEmailTemplateRenderer
+                .Setup(r => r.RenderAsync<PrimaryEvaluatorRemovedViewModel>(
+                    It.IsAny<string>(),
+                    It.IsAny<PrimaryEvaluatorRemovedViewModel>(),
+                    It.IsAny<Dictionary<string, object>?>()))
+                .ReturnsAsync("<html>Primary evaluator removed</html>");
 
             // Setup default email notification configuration for tests
             var emailNotificationSettings = new EmailNotificationSettings

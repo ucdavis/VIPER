@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.EmailTemplates.Models;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
@@ -68,7 +69,10 @@ public sealed class VerificationServiceTests : IDisposable
         var settingsOptions = Options.Create(_settings);
         _emailTemplateRendererMock = new Mock<IEmailTemplateRenderer>();
         _emailTemplateRendererMock
-            .Setup(r => r.RenderAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<Dictionary<string, object>?>()))
+            .Setup(r => r.RenderAsync<VerificationReminderViewModel>(
+                It.IsAny<string>(),
+                It.IsAny<VerificationReminderViewModel>(),
+                It.IsAny<Dictionary<string, object>?>()))
             .ReturnsAsync("<html>Mock email body</html>");
 
         _auditServiceMock
@@ -570,6 +574,19 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendBulkVerificationEmailsAsync_SendsToUnverifiedOnly()
     {
         // Arrange
+        // Add effort record for TestPersonId so email will be sent
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 100,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 10,
+            Crn = "12345"
+        });
+
         var verifiedPerson = new EffortPerson
         {
             PersonId = 200,

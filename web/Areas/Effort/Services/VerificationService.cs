@@ -9,6 +9,7 @@ using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Classes.SQLContext;
 using Viper.EmailTemplates.Services;
+using Viper.Classes.Utilities;
 using Viper.Services;
 
 namespace Viper.Areas.Effort.Services;
@@ -91,12 +92,9 @@ public class VerificationService : IVerificationService
         var childCourses = await GetChildCoursesAsync(courseIds, ct);
 
         // Attach child courses to their parent record
-        foreach (var record in recordDtos)
+        foreach (var record in recordDtos.Where(r => childCourses.ContainsKey(r.CourseId)))
         {
-            if (childCourses.TryGetValue(record.CourseId, out var children))
-            {
-                record.ChildCourses = children;
-            }
+            record.ChildCourses = childCourses[record.CourseId];
         }
 
         // Calculate zero-effort records
@@ -331,6 +329,22 @@ public class VerificationService : IVerificationService
                 .ThenBy(r => r.Course.SeqNumb)
                 .ToListAsync(ct);
 
+            // Don't send email if instructor has no effort records
+            if (records.Count == 0)
+            {
+                var noRecordsAuditData = new
+                {
+                    RecipientPersonId = personId,
+                    RecipientName = $"{instructor.LastName}, {instructor.FirstName}",
+                    SendResult = "Skipped: No effort records"
+                };
+
+                await _auditService.LogPersonChangeAsync(
+                    personId, termCode, EffortAuditActions.VerifyEmail, null, noRecordsAuditData, ct);
+
+                return new EmailSendResult { Success = false, Error = "Instructor has no effort records for this term" };
+            }
+
             // Get child courses
             var courseIds = records.Select(r => r.CourseId).Distinct().ToList();
             var childCourses = await GetChildCourseInfoAsync(courseIds, ct);
@@ -367,14 +381,14 @@ public class VerificationService : IVerificationService
                 personId, termCode, EffortAuditActions.VerifyEmail, null, successAuditData, ct);
 
             _logger.LogInformation(
-                "Sent verification email to {Email} for person {PersonId} term {TermCode}",
-                recipientEmail, personId, termCode);
+                "Sent verification email for person {PersonId} term {TermCode}",
+                personId, termCode);
 
             return new EmailSendResult { Success = true };
         }
         catch (SmtpException ex)
         {
-            _logger.LogError(ex, "SMTP error sending verification email to {Email}", recipientEmail);
+            _logger.LogError(ex, "SMTP error sending verification email for person {PersonId} term {TermCode}", personId, termCode);
 
             var errorAuditData = new
             {
@@ -392,7 +406,7 @@ public class VerificationService : IVerificationService
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "Template rendering error for verification email to {Email}", recipientEmail);
+            _logger.LogError(ex, "Template rendering error for verification email for person {PersonId} term {TermCode}", personId, termCode);
 
             var errorAuditData = new
             {
@@ -465,7 +479,7 @@ public class VerificationService : IVerificationService
 
         _logger.LogInformation(
             "Bulk email for dept {Dept} term {TermCode}: {Sent} sent, {Failed} failed",
-            departmentCode, termCode, result.EmailsSent, result.EmailsFailed);
+            LogSanitizer.SanitizeId(departmentCode), termCode, result.EmailsSent, result.EmailsFailed);
 
         return result;
     }
@@ -667,18 +681,15 @@ public class VerificationService : IVerificationService
         var childCoursesList = new List<ChildCourseDisplay>();
         var courseIds = records.Select(r => r.CourseId).Distinct();
 
-        foreach (var courseId in courseIds)
+        foreach (var courseId in courseIds.Where(id => childCourses.ContainsKey(id)))
         {
-            if (childCourses.TryGetValue(courseId, out var children))
+            foreach (var child in childCourses[courseId])
             {
-                foreach (var child in children)
+                childCoursesList.Add(new ChildCourseDisplay
                 {
-                    childCoursesList.Add(new ChildCourseDisplay
-                    {
-                        CourseCode = $"{child.SubjCode} {child.CrseNumb.Trim()}-{child.SeqNumb}",
-                        RelationshipType = child.RelationshipType
-                    });
-                }
+                    CourseCode = $"{child.SubjCode} {child.CrseNumb.Trim()}-{child.SeqNumb}",
+                    RelationshipType = child.RelationshipType
+                });
             }
         }
 

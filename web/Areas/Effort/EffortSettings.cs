@@ -17,7 +17,7 @@ public class EffortSettings
 
     /// <summary>
     /// Base URL for the Effort application (used in verification email links).
-    /// If not set, defaults to the current request's host.
+    /// Required in production. A fallback is configured for development only.
     /// </summary>
     public string? BaseUrl { get; set; }
 

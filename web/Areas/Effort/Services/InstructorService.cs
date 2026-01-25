@@ -100,6 +100,9 @@ public class InstructorService : IInstructorService
         // Enrich with titles from dictionary database
         await EnrichWithTitlesAsync(dtos, ct);
 
+        // Enrich with record counts for email eligibility
+        await EnrichWithRecordCountsAsync(dtos, termCode, ct);
+
         return dtos;
     }
 
@@ -121,6 +124,9 @@ public class InstructorService : IInstructorService
 
         await EnrichWithTitlesAsync(dtos, ct);
 
+        // Enrich with record counts for email eligibility
+        await EnrichWithRecordCountsAsync(dtos, termCode, ct);
+
         return dtos;
     }
 
@@ -133,7 +139,8 @@ public class InstructorService : IInstructorService
         if (instructor == null) return null;
 
         var dto = _mapper.Map<PersonDto>(instructor);
-        await EnrichWithTitlesAsync(new List<PersonDto> { dto }, ct);
+        await EnrichWithTitlesAsync([dto], ct);
+        await EnrichWithRecordCountsAsync([dto], termCode, ct);
         return dto;
     }
 
@@ -714,6 +721,29 @@ public class InstructorService : IInstructorService
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Enriches instructor DTOs with effort record counts for the term.
+    /// Used to determine if verification emails can be sent (requires at least one record).
+    /// </summary>
+    private async Task EnrichWithRecordCountsAsync(List<PersonDto> instructors, int termCode, CancellationToken ct)
+    {
+        if (instructors.Count == 0) return;
+
+        var personIds = instructors.Select(i => i.PersonId).ToList();
+
+        var recordCounts = await _context.Records
+            .AsNoTracking()
+            .Where(r => r.TermCode == termCode && personIds.Contains(r.PersonId))
+            .GroupBy(r => r.PersonId)
+            .Select(g => new { PersonId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.PersonId, x => x.Count, ct);
+
+        foreach (var instructor in instructors)
+        {
+            instructor.RecordCount = recordCounts.GetValueOrDefault(instructor.PersonId, 0);
+        }
     }
 
     /// <summary>

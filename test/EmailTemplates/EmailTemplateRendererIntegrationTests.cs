@@ -90,7 +90,8 @@ public class EmailTemplateRendererIntegrationTests
                         {
                             EffortType = "CLI",
                             Value = 0,
-                            Unit = "weeks"                        }
+                            Unit = "weeks"
+                        }
                     ]
                 }
             ],
