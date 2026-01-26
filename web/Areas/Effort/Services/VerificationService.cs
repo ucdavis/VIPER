@@ -313,8 +313,22 @@ public class VerificationService : IVerificationService
         var recipientEmail = $"{mailId}@ucdavis.edu";
         if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(recipientEmail))
         {
+            var invalidEmailAuditData = new
+            {
+                RecipientPersonId = personId,
+                RecipientName = $"{instructor.LastName}, {instructor.FirstName}",
+                AttemptedEmail = recipientEmail,
+                SendResult = "Failed: Invalid email address format"
+            };
+
+            await _auditService.LogPersonChangeAsync(
+                personId, termCode, EffortAuditActions.VerifyEmail, null, invalidEmailAuditData, ct);
+
             return new EmailSendResult { Success = false, Error = "Invalid email address" };
         }
+
+        // Validate configuration up-front so InvalidOperationException in try block is only from template errors
+        var verificationUrl = BuildVerificationUrl(termCode);
 
         try
         {
@@ -348,9 +362,6 @@ public class VerificationService : IVerificationService
             // Get child courses
             var courseIds = records.Select(r => r.CourseId).Distinct().ToList();
             var childCourses = await GetChildCourseInfoAsync(courseIds, ct);
-
-            // Build verification URL
-            var verificationUrl = BuildVerificationUrl(termCode);
 
             // Build email body using Razor template
             var termDescription = _termService.GetTermName(termCode);
@@ -441,12 +452,14 @@ public class VerificationService : IVerificationService
             };
         }
 
-        // Get unverified instructors in department
+        // Get unverified instructors in department who have at least one effort record
+        // (instructors without records will fail in SendVerificationEmailAsync anyway)
         var instructors = await _context.Persons
             .AsNoTracking()
             .Where(p => p.TermCode == termCode
                 && p.EffortDept == departmentCode
-                && p.EffortVerified == null)
+                && p.EffortVerified == null
+                && _context.Records.Any(r => r.PersonId == p.PersonId && r.TermCode == termCode))
             .ToListAsync(ct);
 
         var result = new BulkEmailResult
@@ -573,13 +586,12 @@ public class VerificationService : IVerificationService
             .GroupBy(r => r.ParentCourseId)
             .ToDictionary(
                 g => g.Key,
-                g => g.Select(r => new ChildCourseInfo
-                {
-                    SubjCode = r.ChildCourse.SubjCode,
-                    CrseNumb = r.ChildCourse.CrseNumb,
-                    SeqNumb = r.ChildCourse.SeqNumb,
-                    RelationshipType = r.RelationshipType
-                }).ToList());
+                g => g.Select(r => new ChildCourseInfo(
+                    r.ChildCourse.SubjCode,
+                    r.ChildCourse.CrseNumb,
+                    r.ChildCourse.SeqNumb,
+                    r.RelationshipType
+                )).ToList());
     }
 
     private async Task<List<CourseRelationship>> GetCourseRelationshipsAsync(
@@ -605,7 +617,12 @@ public class VerificationService : IVerificationService
             throw new InvalidOperationException("EffortSettings:BaseUrl must be configured for verification emails.");
         }
 
-        var baseUri = new Uri(_settings.BaseUrl.TrimEnd('/') + "/", UriKind.Absolute);
+        var baseUrlNormalized = _settings.BaseUrl.TrimEnd('/') + "/";
+        if (!Uri.TryCreate(baseUrlNormalized, UriKind.Absolute, out var baseUri))
+        {
+            throw new InvalidOperationException($"EffortSettings:BaseUrl value '{_settings.BaseUrl}' is not a valid absolute URL.");
+        }
+
         return new Uri(baseUri, $"Effort/{termCode}/my-effort").ToString();
     }
 
@@ -695,7 +712,7 @@ public class VerificationService : IVerificationService
 
         return new VerificationReminderViewModel
         {
-            BaseUrl = _settings.BaseUrl,
+            BaseUrl = _settings.BaseUrl ?? "",
             TermDescription = termDescription,
             ReplyByDate = replyByDate,
             VerificationUrl = verificationUrl,
@@ -727,15 +744,13 @@ public class VerificationService : IVerificationService
 
         return (effortValue, effortValueType);
     }
-}
 
-/// <summary>
-/// Simplified child course info for email building.
-/// </summary>
-public class ChildCourseInfo
-{
-    public string SubjCode { get; set; } = string.Empty;
-    public string CrseNumb { get; set; } = string.Empty;
-    public string SeqNumb { get; set; } = string.Empty;
-    public string RelationshipType { get; set; } = string.Empty;
+    /// <summary>
+    /// Simplified child course info for email building.
+    /// </summary>
+    private sealed record ChildCourseInfo(
+        string SubjCode,
+        string CrseNumb,
+        string SeqNumb,
+        string RelationshipType);
 }

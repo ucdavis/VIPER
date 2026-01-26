@@ -5,6 +5,7 @@ using Moq;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
+using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
 using Viper.Classes.SQLContext;
@@ -201,6 +202,13 @@ public sealed class EffortRecordServiceTests : IDisposable
             RoleId = 1,
             EffortValue = 40
         };
+
+        // Set up the instructor service to return null (simulating a service call that completes
+        // successfully but yields no result—the person was not found in the system)
+        _instructorServiceMock
+            .Setup(s => s.CreateInstructorAsync(
+                It.IsAny<CreateInstructorRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((PersonDto?)null);
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
