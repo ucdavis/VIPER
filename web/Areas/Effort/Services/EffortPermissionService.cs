@@ -16,6 +16,7 @@ public class EffortPermissionService : IEffortPermissionService
     private readonly RAPSContext _rapsContext;
     private readonly VIPERContext _viperContext;
     private readonly IUserHelper _userHelper;
+    private int? _cachedPersonId;
 
     public EffortPermissionService(
         EffortDbContext context,
@@ -219,9 +220,15 @@ public class EffortPermissionService : IEffortPermissionService
     /// <inheritdoc />
     public int GetCurrentPersonId()
     {
+        if (_cachedPersonId.HasValue)
+        {
+            return _cachedPersonId.Value;
+        }
+
         var user = _userHelper.GetCurrentUser();
         if (user == null)
         {
+            _cachedPersonId = 0;
             return 0;
         }
 
@@ -233,7 +240,8 @@ public class EffortPermissionService : IEffortPermissionService
             .Where(p => p.MothraId == user.MothraId && p.Current == 1)
             .SingleOrDefault();
 
-        return person?.PersonId ?? 0;
+        _cachedPersonId = person?.PersonId ?? 0;
+        return _cachedPersonId.Value;
     }
 
     /// <inheritdoc />

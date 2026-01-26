@@ -327,6 +327,9 @@ public class VerificationService : IVerificationService
             return new EmailSendResult { Success = false, Error = "Invalid email address" };
         }
 
+        // Validate configuration up-front so InvalidOperationException in try block is only from template errors
+        var verificationUrl = BuildVerificationUrl(termCode);
+
         try
         {
             // Get effort records for email body
@@ -359,9 +362,6 @@ public class VerificationService : IVerificationService
             // Get child courses
             var courseIds = records.Select(r => r.CourseId).Distinct().ToList();
             var childCourses = await GetChildCourseInfoAsync(courseIds, ct);
-
-            // Build verification URL
-            var verificationUrl = BuildVerificationUrl(termCode);
 
             // Build email body using Razor template
             var termDescription = _termService.GetTermName(termCode);
@@ -617,7 +617,12 @@ public class VerificationService : IVerificationService
             throw new InvalidOperationException("EffortSettings:BaseUrl must be configured for verification emails.");
         }
 
-        var baseUri = new Uri(_settings.BaseUrl.TrimEnd('/') + "/", UriKind.Absolute);
+        var baseUrlNormalized = _settings.BaseUrl.TrimEnd('/') + "/";
+        if (!Uri.TryCreate(baseUrlNormalized, UriKind.Absolute, out var baseUri))
+        {
+            throw new InvalidOperationException($"EffortSettings:BaseUrl value '{_settings.BaseUrl}' is not a valid absolute URL.");
+        }
+
         return new Uri(baseUri, $"Effort/{termCode}/my-effort").ToString();
     }
 

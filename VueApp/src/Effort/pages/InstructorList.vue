@@ -184,8 +184,8 @@
                                 role="button"
                                 :aria-label="`Send verification email to ${props.row.fullName}`"
                                 @click="sendVerificationEmail(props.row)"
-                                @keyup.enter="sendVerificationEmail(props.row)"
-                                @keyup.space="sendVerificationEmail(props.row)"
+                                @keydown.enter.prevent="sendVerificationEmail(props.row)"
+                                @keydown.space.prevent="sendVerificationEmail(props.row)"
                             >
                                 <q-tooltip>Send verification email</q-tooltip>
                             </q-icon>
