@@ -5,7 +5,6 @@ using Moq;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
-using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
 using Viper.Classes.SQLContext;
@@ -203,12 +202,11 @@ public sealed class EffortRecordServiceTests : IDisposable
             EffortValue = 40
         };
 
-        // Set up the instructor service to return null (simulating a service call that completes
-        // successfully but yields no result—the person was not found in the system)
+        // Set up the instructor service to throw when person not found in VIPER
         _instructorServiceMock
             .Setup(s => s.CreateInstructorAsync(
                 It.IsAny<CreateInstructorRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((PersonDto?)null);
+            .ThrowsAsync(new InvalidOperationException($"Person with PersonId {request.PersonId} not found"));
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -510,6 +508,49 @@ public sealed class EffortRecordServiceTests : IDisposable
         // Assert
         Assert.NotNull(result);
         Assert.Equal("LEC", result.EffortType);
+    }
+
+    [Fact]
+    public async Task CreateEffortRecordAsync_HandlesRaceCondition_WhenInstructorCreatedConcurrently()
+    {
+        // Arrange - person does NOT exist initially in Effort DB
+        var newPersonId = 999;
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            CourseId = TestCourseId,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 40
+        };
+
+        // Simulate race condition: CreateInstructorAsync throws because another request already created the instructor
+        _instructorServiceMock
+            .Setup(s => s.CreateInstructorAsync(
+                It.Is<CreateInstructorRequest>(r => r.PersonId == newPersonId && r.TermCode == TestTermCode),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Areas.Effort.Exceptions.InstructorAlreadyExistsException(newPersonId, TestTermCode));
+
+        // After the exception, the person now exists (created by the concurrent request)
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            FirstName = "Concurrent",
+            LastName = "Instructor",
+            EffortDept = "VME"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act - should catch the exception and continue successfully
+        var (result, _) = await _service.CreateEffortRecordAsync(request);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(newPersonId, result.PersonId);
+        Assert.Equal("LEC", result.EffortType);
+        Assert.Equal(40, result.Hours);
     }
 
     #endregion

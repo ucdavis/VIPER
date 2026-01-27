@@ -62,7 +62,6 @@ public sealed class VerificationServiceTests : IDisposable
         {
             BaseUrl = "https://test.example.com",
             VerificationEmailSubject = "Please Verify Your Effort",
-            VerificationEmailFrom = "effort@example.com",
             VerificationReplyDays = 7
         };
 
@@ -483,6 +482,9 @@ public sealed class VerificationServiceTests : IDisposable
     [Fact]
     public async Task SendVerificationEmailAsync_ReturnsError_WhenInstructorNotFound()
     {
+        // Arrange
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+
         // Act
         var result = await _service.SendVerificationEmailAsync(9999, TestTermCode);
 
@@ -492,9 +494,25 @@ public sealed class VerificationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task SendVerificationEmailAsync_ReturnsError_WhenNoEmailAddress()
+    public async Task SendVerificationEmailAsync_ReturnsError_WhenNoSenderEmail()
     {
-        // Arrange: Remove MailId from person
+        // Arrange: Current user has no email
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns((string?)null);
+
+        // Act
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal("Unable to determine sender email address", result.Error);
+    }
+
+    [Fact]
+    public async Task SendVerificationEmailAsync_ReturnsError_WhenNoRecipientEmailAddress()
+    {
+        // Arrange: Current user has email, but recipient doesn't
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+
         var person = await _viperContext.People.FirstAsync(p => p.PersonId == TestPersonId);
         person.MailId = null;
         await _viperContext.SaveChangesAsync();
@@ -529,6 +547,8 @@ public sealed class VerificationServiceTests : IDisposable
         });
         await _context.SaveChangesAsync();
 
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+
         _emailServiceMock
             .Setup(e => e.SendEmailAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
@@ -543,13 +563,14 @@ public sealed class VerificationServiceTests : IDisposable
         // Assert
         Assert.True(result.Success);
 
+        // Verify email sent from current user (sender), not a static address
         _emailServiceMock.Verify(
             e => e.SendEmailAsync(
                 "testuser@ucdavis.edu",
                 _settings.VerificationEmailSubject,
                 It.IsAny<string>(),
                 true,
-                _settings.VerificationEmailFrom),
+                "sender@ucdavis.edu"),
             Times.Once);
 
         _auditServiceMock.Verify(
@@ -623,6 +644,7 @@ public sealed class VerificationServiceTests : IDisposable
 
         _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
 
         _emailServiceMock
             .Setup(e => e.SendEmailAsync(

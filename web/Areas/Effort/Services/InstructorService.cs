@@ -3,6 +3,7 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -280,7 +281,7 @@ public class InstructorService : IInstructorService
         // Check if instructor already exists for this term
         if (await InstructorExistsAsync(request.PersonId, request.TermCode, ct))
         {
-            throw new InvalidOperationException($"Instructor with PersonId {request.PersonId} already exists for term {request.TermCode}");
+            throw new InstructorAlreadyExistsException(request.PersonId, request.TermCode);
         }
 
         // Look up person from VIPER.users.Person
