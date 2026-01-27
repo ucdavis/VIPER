@@ -88,6 +88,12 @@ public class EffortRecordService : IEffortRecordService
                     "Instructor {PersonId} for term {TermCode} was created by concurrent request",
                     request.PersonId, request.TermCode);
             }
+            catch (InvalidOperationException ex)
+            {
+                // CreateInstructorAsync failed (e.g., VIPER person not found)
+                throw new InvalidOperationException(
+                    $"Failed to create instructor for PersonId {request.PersonId}: {ex.Message}", ex);
+            }
 
             // Re-fetch the newly created person
             person = await _context.Persons
@@ -95,7 +101,7 @@ public class EffortRecordService : IEffortRecordService
 
             if (person == null)
             {
-                throw new InvalidOperationException($"Failed to create instructor for PersonId {request.PersonId}");
+                throw new InvalidOperationException($"Person with PersonId {request.PersonId} not found after instructor creation");
             }
         }
 

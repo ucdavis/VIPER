@@ -7,6 +7,17 @@ using MimeKit;
 namespace Viper.Services
 {
     /// <summary>
+    /// Exception thrown when email sending fails due to SMTP/network errors.
+    /// Distinct from InvalidOperationException to allow callers to differentiate
+    /// between email send failures and other errors (e.g., template rendering).
+    /// </summary>
+    public class EmailSendException : Exception
+    {
+        public EmailSendException(string message) : base(message) { }
+        public EmailSendException(string message, Exception innerException) : base(message, innerException) { }
+    }
+
+    /// <summary>
     /// Email service implementation using MailKit with Mailpit support for development.
     /// Sends multipart emails with both HTML and plaintext versions.
     /// </summary>
@@ -51,7 +62,12 @@ namespace Viper.Services
 
         public async Task SendMultipartEmailAsync(IEnumerable<string> to, string subject, string? htmlBody, string? textBody = null, string? from = null)
         {
-            var message = new MimeMessage();
+            if (string.IsNullOrEmpty(htmlBody) && string.IsNullOrEmpty(textBody))
+            {
+                throw new ArgumentException("At least one of htmlBody or textBody must be provided.");
+            }
+
+            using var message = new MimeMessage();
             message.From.Add(MailboxAddress.Parse(from ?? _emailSettings.DefaultFromAddress));
 
             foreach (var recipient in to)
@@ -104,8 +120,9 @@ namespace Viper.Services
 
                 await client.ConnectAsync(_emailSettings.SmtpHost, _emailSettings.SmtpPort, secureSocketOptions);
 
-                // MailKit handles authentication automatically if the server requires it
-                // For localhost/internal relays, no auth is typically needed
+                // No authentication configured - this service is designed for localhost/internal
+                // SMTP relays that don't require auth. If auth is needed in the future,
+                // add Username/Password settings and call client.AuthenticateAsync() here.
 
                 await client.SendAsync(message);
                 await client.DisconnectAsync(true);
@@ -122,17 +139,17 @@ namespace Viper.Services
                     return;
                 }
 
-                throw new InvalidOperationException(
+                throw new EmailSendException(
                     $"Failed to connect to SMTP server {_emailSettings.SmtpHost}:{_emailSettings.SmtpPort}", ex);
             }
             catch (SmtpCommandException ex)
             {
-                throw new InvalidOperationException(
+                throw new EmailSendException(
                     $"SMTP command failed with status {ex.StatusCode}: {ex.Message}", ex);
             }
             catch (SmtpProtocolException ex)
             {
-                throw new InvalidOperationException(
+                throw new EmailSendException(
                     $"SMTP protocol error: {ex.Message}", ex);
             }
         }
@@ -207,7 +224,6 @@ namespace Viper.Services
         public string SmtpHost { get; set; } = "localhost";
         public int SmtpPort { get; set; } = 25;
         public bool EnableSsl { get; set; } = false;
-        public bool UseDefaultCredentials { get; set; } = true;
         public string DefaultFromAddress { get; set; } = "noreply@example.com";
         public bool UseMailpit { get; set; } = false;
     }

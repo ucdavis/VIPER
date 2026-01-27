@@ -1,4 +1,3 @@
-using System.Net.Mail;
 using System.Text.Json;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
@@ -393,9 +392,9 @@ public class VerificationService : IVerificationService
 
             return new EmailSendResult { Success = true };
         }
-        catch (SmtpException ex)
+        catch (EmailSendException ex)
         {
-            _logger.LogError(ex, "SMTP error sending verification email for person {PersonId} term {TermCode}", personId, termCode);
+            _logger.LogError(ex, "Email send error for person {PersonId} term {TermCode}", personId, termCode);
 
             var errorAuditData = new
             {
@@ -403,7 +402,7 @@ public class VerificationService : IVerificationService
                 RecipientName = $"{instructor.LastName}, {instructor.FirstName}",
                 RecipientPersonId = personId,
                 EmailSubject = _settings.VerificationEmailSubject,
-                SendResult = "Failed: SMTP error"
+                SendResult = "Failed: Email send error"
             };
 
             await _auditService.LogPersonChangeAsync(
