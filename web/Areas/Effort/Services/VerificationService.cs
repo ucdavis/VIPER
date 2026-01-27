@@ -199,7 +199,7 @@ public class VerificationService : IVerificationService
                 .AsNoTracking()
                 .Include(r => r.Course)
                 .Where(r => r.PersonId == currentPersonId && r.TermCode == termCode)
-                .Select(r => $"{r.Course.SubjCode} {r.Course.CrseNumb.Trim()}-{r.Course.SeqNumb}")
+                .Select(r => $"{r.Course.SubjCode.Trim()} {r.Course.CrseNumb.Trim()}-{r.Course.SeqNumb.Trim()}")
                 .Distinct()
                 .ToListAsync(ct)
             : new List<string>();
@@ -247,7 +247,7 @@ public class VerificationService : IVerificationService
 
         var zeroEffortRecordIds = zeroEffortRecords.Select(r => r.Id).ToList();
         var zeroEffortCourses = zeroEffortRecords
-            .Select(r => $"{r.Course.SubjCode} {r.Course.CrseNumb.Trim()}-{r.Course.SeqNumb}")
+            .Select(r => $"{r.Course.SubjCode.Trim()} {r.Course.CrseNumb.Trim()}-{r.Course.SeqNumb.Trim()}")
             .Distinct()
             .ToList();
 
@@ -660,7 +660,7 @@ public class VerificationService : IVerificationService
             {
                 currentGroup = new EffortCourseGroup
                 {
-                    CourseCode = $"{record.Course.SubjCode} {record.Course.CrseNumb.Trim()}-{record.Course.SeqNumb}",
+                    CourseCode = $"{record.Course.SubjCode.Trim()} {record.Course.CrseNumb.Trim()}-{record.Course.SeqNumb.Trim()}",
                     Units = record.Course.Units,
                     Enrollment = record.Course.Enrollment,
                     Role = record.RoleNavigation.Description,
@@ -689,7 +689,7 @@ public class VerificationService : IVerificationService
             {
                 childCoursesList.Add(new ChildCourseDisplay
                 {
-                    CourseCode = $"{child.SubjCode} {child.CrseNumb.Trim()}-{child.SeqNumb}",
+                    CourseCode = $"{child.SubjCode.Trim()} {child.CrseNumb.Trim()}-{child.SeqNumb.Trim()}",
                     RelationshipType = child.RelationshipType
                 });
             }

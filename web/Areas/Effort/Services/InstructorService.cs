@@ -725,7 +725,8 @@ public class InstructorService : IInstructorService
 
     /// <summary>
     /// Enriches instructor DTOs with effort record counts for the term.
-    /// Used to determine if verification emails can be sent (requires at least one record).
+    /// Used for UI display and visual indicators; instructors with zero records
+    /// can still receive verification emails to confirm "no effort" status.
     /// </summary>
     private async Task EnrichWithRecordCountsAsync(List<PersonDto> instructors, int termCode, CancellationToken ct)
     {

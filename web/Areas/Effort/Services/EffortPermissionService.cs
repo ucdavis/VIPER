@@ -14,19 +14,15 @@ public class EffortPermissionService : IEffortPermissionService
 {
     private readonly EffortDbContext _context;
     private readonly RAPSContext _rapsContext;
-    private readonly VIPERContext _viperContext;
     private readonly IUserHelper _userHelper;
-    private int? _cachedPersonId;
 
     public EffortPermissionService(
         EffortDbContext context,
         RAPSContext rapsContext,
-        VIPERContext viperContext,
         IUserHelper? userHelper = null)
     {
         _context = context;
         _rapsContext = rapsContext;
-        _viperContext = viperContext;
         _userHelper = userHelper ?? new UserHelper();
     }
 
@@ -220,28 +216,8 @@ public class EffortPermissionService : IEffortPermissionService
     /// <inheritdoc />
     public int GetCurrentPersonId()
     {
-        if (_cachedPersonId.HasValue)
-        {
-            return _cachedPersonId.Value;
-        }
-
         var user = _userHelper.GetCurrentUser();
-        if (user == null)
-        {
-            _cachedPersonId = 0;
-            return 0;
-        }
-
-        // Look up VIPER PersonId via MothraId.
-        // Filter for current records only to avoid identity misattribution from historical/inactive records.
-        // SingleOrDefault enforces uniqueness - throws if duplicates exist, surfacing data integrity issues.
-        var person = _viperContext.People
-            .AsNoTracking()
-            .Where(p => p.MothraId == user.MothraId && p.Current == 1)
-            .SingleOrDefault();
-
-        _cachedPersonId = person?.PersonId ?? 0;
-        return _cachedPersonId.Value;
+        return user?.AaudUserId ?? 0;
     }
 
     /// <inheritdoc />

@@ -25,7 +25,7 @@ public class PersonDto
 
     /// <summary>
     /// Number of effort records for this instructor in the term.
-    /// Used to determine if verification emails can be sent.
+    /// Used for UI display and visual indicators.
     /// </summary>
     public int RecordCount { get; set; }
 
