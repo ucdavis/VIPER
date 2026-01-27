@@ -8,21 +8,49 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@ViewBag.Title</title>
+    <style type="text/css">
+        @@media only screen and (max-width: 680px) {
+            .email-container {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            .email-wrapper {
+                padding: 10px !important;
+            }
+            .email-content {
+                padding: 15px !important;
+            }
+            .email-header {
+                padding: 20px 15px !important;
+            }
+            .email-table {
+                font-size: 12px !important;
+            }
+            .email-table th,
+            .email-table td {
+                padding: 8px !important;
+            }
+        }
+    </style>
 </head>
 <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #333333; background-color: #f8f9fa;">
     @* Wrapper table inherits body styles for clients that strip body tag *@
     <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#f8f9fa" style="background-color: #f8f9fa; font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #333333;">
         <tr>
-            <td style="padding: 20px;" align="center">
-                @* Use width attribute for Outlook, max-width for modern clients *@
-                <table cellpadding="0" cellspacing="0" border="0" width="650" bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid #dee2e6;">
+            <td class="email-wrapper" style="padding: 20px;" align="center">
+                @* Use width attribute for Outlook, max-width for modern clients. Class for responsive override. *@
+                <table class="email-container" cellpadding="0" cellspacing="0" border="0" width="650" bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid #dee2e6; max-width: 650px; width: 100%;">
                     @* UC Davis Header *@
                     <tr>
-                        <td bgcolor="#022851" style="background-color: #022851; padding: 25px;">
+                        <td class="email-header" bgcolor="#022851" style="background-color: #022851; padding: 25px;">
                             <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 22px; font-weight: bold;">@ViewBag.Title</h1>
                             @if (ViewBag.Subtitle != null)
                             {
                                 <p style="margin: 8px 0 0 0; padding: 0; color: #b3c7e6; font-size: 14px;">@ViewBag.Subtitle</p>
+                            }
+                            @if (ViewBag.SubtitleExtra != null)
+                            {
+                                <p style="margin: 4px 0 0 0; padding: 0; color: #b3c7e6; font-size: 13px;">@ViewBag.SubtitleExtra</p>
                             }
                         </td>
                     </tr>
@@ -32,7 +60,7 @@
 
                     @* Footer *@
                     <tr>
-                        <td style="padding: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #666666;" align="center">
+                        <td class="email-content" style="padding: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #666666;" align="center">
                             <p style="margin: 0; padding: 0;">UC Davis School of Veterinary Medicine</p>
                         </td>
                     </tr>

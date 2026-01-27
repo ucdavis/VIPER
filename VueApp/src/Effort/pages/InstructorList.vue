@@ -107,39 +107,60 @@
                 >
                     <template #body-cell-isVerified="props">
                         <q-td :props="props">
-                            <!-- No effort records - verification N/A -->
-                            <span
-                                v-if="props.row.recordCount === 0"
-                                class="text-grey-6"
-                            >
-                                N/A
-                                <q-tooltip>No effort records to verify</q-tooltip>
-                            </span>
-                            <!-- Verified -->
+                            <!-- Verified with effort records -->
                             <q-icon
-                                v-else-if="props.row.isVerified"
+                                v-if="props.row.isVerified && props.row.recordCount > 0"
                                 name="check"
                                 color="positive"
                                 size="sm"
                             >
                                 <q-tooltip>Effort verified</q-tooltip>
                             </q-icon>
+                            <!-- Verified no effort -->
+                            <q-icon
+                                v-else-if="props.row.isVerified && props.row.recordCount === 0"
+                                name="check"
+                                color="info"
+                                size="sm"
+                            >
+                                <q-tooltip>Verified no effort</q-tooltip>
+                            </q-icon>
+                            <!-- Unverified with no records - show dash -->
+                            <span
+                                v-else-if="props.row.recordCount === 0"
+                                class="text-grey-6"
+                            >
+                                --
+                                <q-tooltip>No effort records - can verify "no effort"</q-tooltip>
+                            </span>
+                            <!-- Unverified with records - no icon needed -->
                         </q-td>
                     </template>
                     <template #body-cell-fullName="props">
                         <q-td :props="props">
-                            <router-link
-                                :to="{
-                                    name: 'InstructorDetail',
-                                    params: {
-                                        termCode: selectedTermCode,
-                                        personId: props.row.personId,
-                                    },
-                                }"
-                                class="text-weight-medium instructor-name"
-                            >
-                                {{ props.row.fullName }}
-                            </router-link>
+                            <div class="instructor-info">
+                                <router-link
+                                    :to="{
+                                        name: 'InstructorDetail',
+                                        params: {
+                                            termCode: selectedTermCode,
+                                            personId: props.row.personId,
+                                        },
+                                    }"
+                                    class="text-weight-medium instructor-name"
+                                >
+                                    {{ props.row.fullName }}
+                                </router-link>
+                                <q-badge
+                                    v-if="props.row.recordCount === 0"
+                                    color="orange-8"
+                                    text-color="white"
+                                    class="no-effort-badge"
+                                >
+                                    No Effort
+                                    <q-tooltip>This instructor has no effort records for this term</q-tooltip>
+                                </q-badge>
+                            </div>
                             <div
                                 v-if="props.row.title"
                                 class="text-caption title-code"
@@ -159,35 +180,37 @@
                             >
                                 <q-tooltip>Already verified</q-tooltip>
                             </q-icon>
-                            <!-- No effort records - cannot send email -->
-                            <q-icon
-                                v-else-if="props.row.recordCount === 0"
-                                name="mail_lock"
-                                color="warning"
-                                size="xs"
-                            >
-                                <q-tooltip>No effort records - cannot send verification email</q-tooltip>
-                            </q-icon>
-                            <!-- Can send verification email -->
+                            <!-- Loading spinner while sending -->
                             <q-spinner
                                 v-else-if="sendingEmailFor === props.row.personId"
                                 color="primary"
                                 size="xs"
                             />
+                            <!-- Can send verification email (includes no-effort instructors) -->
                             <q-icon
                                 v-else
                                 name="mail_outline"
-                                color="primary"
+                                :color="props.row.recordCount === 0 ? 'warning' : 'primary'"
                                 size="xs"
                                 class="cursor-pointer"
                                 tabindex="0"
                                 role="button"
-                                :aria-label="`Send verification email to ${props.row.fullName}`"
+                                :aria-label="
+                                    props.row.recordCount === 0
+                                        ? `Send no-effort verification email to ${props.row.fullName}`
+                                        : `Send verification email to ${props.row.fullName}`
+                                "
                                 @click="sendVerificationEmail(props.row)"
                                 @keydown.enter.prevent="sendVerificationEmail(props.row)"
                                 @keydown.space.prevent="sendVerificationEmail(props.row)"
                             >
-                                <q-tooltip>Send verification email</q-tooltip>
+                                <q-tooltip>
+                                    {{
+                                        props.row.recordCount === 0
+                                            ? "Send no-effort verification email"
+                                            : "Send verification email"
+                                    }}
+                                </q-tooltip>
                             </q-icon>
                         </q-td>
                     </template>
@@ -518,7 +541,7 @@ function confirmBulkEmail(deptGroup: DeptGroup) {
     const emailableCount = getEmailableCount(deptGroup)
     $q.dialog({
         title: "Send Verification Emails",
-        message: `This will send verification emails to ${emailableCount} instructor(s) in ${deptGroup.dept} who have effort records but haven't verified. Continue?`,
+        message: `This will send verification emails to ${emailableCount} instructor(s) in ${deptGroup.dept} who haven't verified. Continue?`,
         cancel: true,
         persistent: true,
     }).onOk(() => sendBulkVerificationEmails(deptGroup.dept))
@@ -617,5 +640,16 @@ onMounted(loadTerms)
     color: #666;
     font-size: 0.8em;
     text-transform: uppercase;
+}
+
+.instructor-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.no-effort-badge {
+    flex-shrink: 0;
 }
 </style>

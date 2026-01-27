@@ -157,6 +157,40 @@ public class EmailTemplateRendererIntegrationTests
     }
 
     [Fact]
+    public async Task RenderAsync_VerificationReminder_ShowsNoEffortMessage()
+    {
+        // Arrange - Instructor with no effort records for the term
+        var viewModel = new VerificationReminderViewModel
+        {
+            TermDescription = "Fall 2024",
+            TermStartDate = new DateTime(2024, 9, 25),
+            TermEndDate = new DateTime(2024, 12, 13),
+            ReplyByDate = "January 15, 2025",
+            VerificationUrl = "https://viper.example.com/effort/verify?term=202410",
+            HasZeroEffort = false,
+            HasNoRecords = true,
+            Courses = [],
+            ChildCourses = []
+        };
+
+        // Act
+        var html = await _renderer.RenderAsync(
+            "/Areas/Effort/EmailTemplates/Views/VerificationReminder.cshtml",
+            viewModel);
+
+        // Assert
+        Assert.NotNull(html);
+        Assert.NotEmpty(html);
+        Assert.Contains("Fall 2024", html);
+        Assert.Contains("September 25, 2024", html);
+        Assert.Contains("December 13, 2024", html);
+        Assert.Contains("no teaching effort recorded", html);
+        Assert.Contains("Verify No Effort", html);
+        Assert.DoesNotContain("Verify My Effort", html);
+        Assert.DoesNotContain("DVM", html); // No course table
+    }
+
+    [Fact]
     public async Task RenderAsync_InvalidTemplate_ThrowsInvalidOperationException()
     {
         // Arrange

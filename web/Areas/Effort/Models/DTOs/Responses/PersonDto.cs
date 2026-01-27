@@ -31,7 +31,8 @@ public class PersonDto
 
     /// <summary>
     /// Whether verification emails can be sent to this instructor.
-    /// False if instructor has no effort records or is already verified.
+    /// False if instructor is already verified. Instructors with no effort
+    /// records can still receive emails to verify "no effort" status.
     /// </summary>
-    public bool CanSendVerificationEmail => !IsVerified && RecordCount > 0;
+    public bool CanSendVerificationEmail => !IsVerified;
 }

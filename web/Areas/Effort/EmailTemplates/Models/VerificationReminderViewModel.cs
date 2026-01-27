@@ -13,9 +13,24 @@ public class VerificationReminderViewModel : EmailViewModelBase
     public string TermDescription { get; set; } = string.Empty;
 
     /// <summary>
+    /// Start date of the term/semester.
+    /// </summary>
+    public DateTime? TermStartDate { get; set; }
+
+    /// <summary>
+    /// End date of the term/semester.
+    /// </summary>
+    public DateTime? TermEndDate { get; set; }
+
+    /// <summary>
     /// Date by which the instructor should reply.
     /// </summary>
     public string ReplyByDate { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the instructor has no effort records for this term.
+    /// </summary>
+    public bool HasNoRecords { get; set; }
 
     /// <summary>
     /// URL to verify effort in the system.

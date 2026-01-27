@@ -110,9 +110,9 @@ public class VerificationService : IVerificationService
         var canEdit = (term?.IsOpen == true) && await _permissionService.CanEditPersonEffortAsync(currentPersonId, termCode, ct);
 
         // Check verify permission - must have VerifyEffort permission to submit verification
+        // Instructors can verify even with no records (to confirm "no effort" for the term)
         var hasVerifyPermission = await _permissionService.HasSelfServiceAccessAsync(ct);
         var hasNoZeroEffort = zeroEffortRecordIds.Count == 0;
-        var hasEffortRecords = records.Count > 0;
 
         return new MyEffortDto
         {
@@ -121,7 +121,7 @@ public class VerificationService : IVerificationService
             CrossListedCourses = childCourses.Values.SelectMany(c => c).ToList(),
             HasZeroEffort = !hasNoZeroEffort,
             ZeroEffortRecordIds = zeroEffortRecordIds,
-            CanVerify = hasNoZeroEffort && hasEffortRecords && hasVerifyPermission,
+            CanVerify = hasNoZeroEffort && hasVerifyPermission,
             CanEdit = canEdit,
             HasVerifyPermission = hasVerifyPermission,
             TermName = _termService.GetTermName(termCode),
@@ -169,22 +169,12 @@ public class VerificationService : IVerificationService
             };
         }
 
-        // Check if there are any effort records first
+        // Get record count for audit
         var recordCount = await _context.Records
             .AsNoTracking()
             .CountAsync(r => r.PersonId == currentPersonId && r.TermCode == termCode, ct);
 
-        if (recordCount == 0)
-        {
-            return new VerificationResult
-            {
-                Success = false,
-                ErrorCode = VerificationErrorCodes.NoEffortRecords,
-                ErrorMessage = "You have no effort records for this term."
-            };
-        }
-
-        // Check for zero-effort records
+        // Check for zero-effort records (instructors with no records can still verify "no effort")
         var canVerify = await CanVerifyAsync(currentPersonId, termCode, ct);
         if (!canVerify.CanVerify)
         {
@@ -203,20 +193,23 @@ public class VerificationService : IVerificationService
 
         instructor.EffortVerified = verifiedDate;
 
-        // Get course list for audit
-        var courses = await _context.Records
-            .AsNoTracking()
-            .Include(r => r.Course)
-            .Where(r => r.PersonId == currentPersonId && r.TermCode == termCode)
-            .Select(r => $"{r.Course.SubjCode} {r.Course.CrseNumb.Trim()}-{r.Course.SeqNumb}")
-            .Distinct()
-            .ToListAsync(ct);
+        // Get course list for audit (empty list if no records)
+        var courses = recordCount > 0
+            ? await _context.Records
+                .AsNoTracking()
+                .Include(r => r.Course)
+                .Where(r => r.PersonId == currentPersonId && r.TermCode == termCode)
+                .Select(r => $"{r.Course.SubjCode} {r.Course.CrseNumb.Trim()}-{r.Course.SeqNumb}")
+                .Distinct()
+                .ToListAsync(ct)
+            : new List<string>();
 
         var newValues = new
         {
             EffortVerified = verifiedDate,
             EffortRecordCount = recordCount,
-            Courses = courses
+            Courses = courses,
+            VerifiedNoEffort = recordCount == 0
         };
 
         await _context.SaveChangesAsync(ct);
@@ -260,7 +253,7 @@ public class VerificationService : IVerificationService
 
         return new CanVerifyResult
         {
-            CanVerify = records.Count > 0 && zeroEffortRecordIds.Count == 0,
+            CanVerify = zeroEffortRecordIds.Count == 0,
             ZeroEffortCount = zeroEffortRecordIds.Count,
             ZeroEffortCourses = zeroEffortCourses,
             ZeroEffortRecordIds = zeroEffortRecordIds
@@ -343,30 +336,22 @@ public class VerificationService : IVerificationService
                 .ThenBy(r => r.Course.SeqNumb)
                 .ToListAsync(ct);
 
-            // Don't send email if instructor has no effort records
-            if (records.Count == 0)
-            {
-                var noRecordsAuditData = new
-                {
-                    RecipientPersonId = personId,
-                    RecipientName = $"{instructor.LastName}, {instructor.FirstName}",
-                    SendResult = "Skipped: No effort records"
-                };
-
-                await _auditService.LogPersonChangeAsync(
-                    personId, termCode, EffortAuditActions.VerifyEmail, null, noRecordsAuditData, ct);
-
-                return new EmailSendResult { Success = false, Error = "Instructor has no effort records for this term" };
-            }
-
-            // Get child courses
+            // Get child courses (only if there are records)
             var courseIds = records.Select(r => r.CourseId).Distinct().ToList();
-            var childCourses = await GetChildCourseInfoAsync(courseIds, ct);
+            var childCourses = records.Count > 0
+                ? await GetChildCourseInfoAsync(courseIds, ct)
+                : new Dictionary<int, List<ChildCourseInfo>>();
+
+            // Get term dates from VIPER
+            var viperTerm = await _viperContext.Terms
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
 
             // Build email body using Razor template
             var termDescription = _termService.GetTermName(termCode);
             var viewModel = BuildVerificationEmailViewModel(
-                records, childCourses, termDescription, verificationUrl, termCode);
+                records, childCourses, termDescription, verificationUrl, termCode,
+                viperTerm?.StartDate, viperTerm?.EndDate);
             var emailBody = await _emailTemplateRenderer.RenderAsync(
                 "/Areas/Effort/EmailTemplates/Views/VerificationReminder.cshtml", viewModel);
 
@@ -452,14 +437,12 @@ public class VerificationService : IVerificationService
             };
         }
 
-        // Get unverified instructors in department who have at least one effort record
-        // (instructors without records will fail in SendVerificationEmailAsync anyway)
+        // Get unverified instructors in department (including those without records)
         var instructors = await _context.Persons
             .AsNoTracking()
             .Where(p => p.TermCode == termCode
                 && p.EffortDept == departmentCode
-                && p.EffortVerified == null
-                && _context.Records.Any(r => r.PersonId == p.PersonId && r.TermCode == termCode))
+                && p.EffortVerified == null)
             .ToListAsync(ct);
 
         var result = new BulkEmailResult
@@ -648,7 +631,9 @@ public class VerificationService : IVerificationService
         IDictionary<int, List<ChildCourseInfo>> childCourses,
         string termDescription,
         string verificationUrl,
-        int termCode)
+        int termCode,
+        DateTime? termStartDate,
+        DateTime? termEndDate)
     {
         var useWeeksForClinical = termCode >= EffortConstants.ClinicalAsWeeksStartTermCode;
         var replyByDate = DateTime.Now.AddDays(_settings.VerificationReplyDays).ToString("MM/dd/yyyy");
@@ -714,9 +699,12 @@ public class VerificationService : IVerificationService
         {
             BaseUrl = _settings.BaseUrl ?? "",
             TermDescription = termDescription,
+            TermStartDate = termStartDate,
+            TermEndDate = termEndDate,
             ReplyByDate = replyByDate,
             VerificationUrl = verificationUrl,
             HasZeroEffort = hasZeroEffort,
+            HasNoRecords = records.Count == 0,
             Courses = courseGroups,
             ChildCourses = childCoursesList
         };
