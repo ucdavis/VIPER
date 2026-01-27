@@ -241,4 +241,16 @@ public class EffortPermissionService : IEffortPermissionService
 
         return Task.FromResult(hasFullAccess || hasDeptAccess || hasSelfService);
     }
+
+    /// <inheritdoc />
+    public string? GetCurrentUserEmail()
+    {
+        var user = _userHelper.GetCurrentUser();
+        if (user == null || string.IsNullOrWhiteSpace(user.MailId))
+        {
+            return null;
+        }
+
+        return $"{user.MailId.Trim()}@ucdavis.edu";
+    }
 }

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -75,8 +76,18 @@ public class EffortRecordService : IEffortRecordService
                 "Auto-creating instructor {PersonId} for term {TermCode} during effort record creation",
                 request.PersonId, request.TermCode);
 
-            await _instructorService.CreateInstructorAsync(
-                new CreateInstructorRequest { PersonId = request.PersonId, TermCode = request.TermCode }, ct);
+            try
+            {
+                await _instructorService.CreateInstructorAsync(
+                    new CreateInstructorRequest { PersonId = request.PersonId, TermCode = request.TermCode }, ct);
+            }
+            catch (InstructorAlreadyExistsException ex)
+            {
+                // Race condition: another request created the instructor concurrently
+                _logger.LogDebug(ex,
+                    "Instructor {PersonId} for term {TermCode} was created by concurrent request",
+                    request.PersonId, request.TermCode);
+            }
 
             // Re-fetch the newly created person
             person = await _context.Persons

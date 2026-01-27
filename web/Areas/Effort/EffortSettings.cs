@@ -11,11 +11,6 @@ public class EffortSettings
     public string VerificationEmailSubject { get; set; } = "Action required, timely ask - Effort data verification";
 
     /// <summary>
-    /// From address for verification emails.
-    /// </summary>
-    public string VerificationEmailFrom { get; set; } = "svmeffort@ucdavis.edu";
-
-    /// <summary>
     /// Base URL for the Effort application (used in verification email links).
     /// Required in production. A fallback is configured for development only.
     /// </summary>

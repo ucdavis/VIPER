@@ -73,4 +73,10 @@ public interface IEffortPermissionService
     /// (ViewAllDepartments, ViewDept, or VerifyEffort).
     /// </summary>
     Task<bool> HasAnyViewAccessAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the current user's email address (mailId@ucdavis.edu).
+    /// Returns null if not authenticated or no email address found.
+    /// </summary>
+    string? GetCurrentUserEmail();
 }

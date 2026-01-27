@@ -268,9 +268,19 @@ public class VerificationService : IVerificationService
     /// The caller is responsible for verifying that the current user has permission
     /// to send emails to the specified instructor (e.g., via CanViewDepartmentAsync).
     /// See VerificationController.SendVerificationEmail for the authorization pattern.
+    ///
+    /// The email is sent from the current user's email address (matching legacy behavior),
+    /// allowing instructors to reply directly to the sender.
     /// </remarks>
     public async Task<EmailSendResult> SendVerificationEmailAsync(int personId, int termCode, CancellationToken ct = default)
     {
+        // Get sender email (current user) - matches legacy behavior where emails come from the logged-in user
+        var senderEmail = _permissionService.GetCurrentUserEmail();
+        if (string.IsNullOrWhiteSpace(senderEmail))
+        {
+            return new EmailSendResult { Success = false, Error = "Unable to determine sender email address" };
+        }
+
         // Get instructor
         var instructor = await _context.Persons
             .AsNoTracking()
@@ -361,7 +371,7 @@ public class VerificationService : IVerificationService
                 _settings.VerificationEmailSubject,
                 emailBody,
                 isHtml: true,
-                from: _settings.VerificationEmailFrom);
+                from: senderEmail);
 
             // Log success audit
             var successAuditData = new
@@ -369,6 +379,7 @@ public class VerificationService : IVerificationService
                 RecipientEmail = recipientEmail,
                 RecipientName = $"{instructor.LastName}, {instructor.FirstName}",
                 RecipientPersonId = personId,
+                SenderEmail = senderEmail,
                 EmailSubject = _settings.VerificationEmailSubject,
                 SendResult = "Success"
             };
