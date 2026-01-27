@@ -47,7 +47,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         PersonId = personId,
         PercentAssignTypeId = percentAssignTypeId,
         AcademicYear = academicYear,
-        PercentageValue = 50m,
+        PercentageValue = 0.5,
         StartDate = DateTime.UtcNow
     };
 
@@ -150,7 +150,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         // Same person, same year with multiple entries = counts as 1
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
         var secondPercentage = CreateTestPercentage(TestUserAaudId, 1, "2024-25");
-        secondPercentage.PercentageValue = 25m;
+        secondPercentage.PercentageValue = 0.25;
         EffortContext.Percentages.Add(secondPercentage);
         await EffortContext.SaveChangesAsync();
 
@@ -350,7 +350,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
 
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
         var secondPercentage = CreateTestPercentage(TestUserAaudId, 1, "2024-25");
-        secondPercentage.PercentageValue = 25m;
+        secondPercentage.PercentageValue = 0.25;
         EffortContext.Percentages.Add(secondPercentage);
         await EffortContext.SaveChangesAsync();
 

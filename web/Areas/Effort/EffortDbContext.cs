@@ -250,7 +250,7 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("Id");
             entity.Property(e => e.PersonId).HasColumnName("PersonId");
             entity.Property(e => e.AcademicYear).HasColumnName("AcademicYear").HasMaxLength(9).IsFixedLength();
-            entity.Property(e => e.PercentageValue).HasColumnName("Percentage").HasColumnType("decimal(5,2)");
+            entity.Property(e => e.PercentageValue).HasColumnName("Percentage");
             entity.Property(e => e.PercentAssignTypeId).HasColumnName("PercentAssignTypeId");
             entity.Property(e => e.UnitId).HasColumnName("UnitId");
             entity.Property(e => e.Modifier).HasColumnName("Modifier").HasMaxLength(50);

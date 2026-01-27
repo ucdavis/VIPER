@@ -41,5 +41,12 @@ public class AutoMapperProfileEffort : Profile
             .ForMember(d => d.Role, opt => opt.MapFrom(s => s.RoleId))
             .ForMember(d => d.RoleDescription, opt => opt.MapFrom(s => s.RoleNavigation.Description))
             .ForMember(d => d.ChildCourses, opt => opt.Ignore()); // Set by service
+
+        // Percentage mapping - TypeName, TypeClass, UnitName, IsActive set by service
+        CreateMap<Percentage, PercentageDto>()
+            .ForMember(d => d.TypeName, opt => opt.Ignore())
+            .ForMember(d => d.TypeClass, opt => opt.Ignore())
+            .ForMember(d => d.UnitName, opt => opt.Ignore())
+            .ForMember(d => d.IsActive, opt => opt.Ignore());
     }
 }

@@ -24,6 +24,24 @@ public class PersonDto
     public bool IsVerified => EffortVerified.HasValue;
 
     /// <summary>
+    /// Summary of active Admin percentage assignments for display in instructor list.
+    /// Format: "X% - TypeName" or multi-line for multiple assignments.
+    /// </summary>
+    public string? PercentAdminSummary { get; set; }
+
+    /// <summary>
+    /// Summary of active Clinical percentage assignments for display in instructor list.
+    /// Format: "X% - TypeName (Unit)" or multi-line for multiple assignments.
+    /// </summary>
+    public string? PercentClinicalSummary { get; set; }
+
+    /// <summary>
+    /// Summary of active Other percentage assignments for display in instructor list.
+    /// Format: "X% - TypeName" or multi-line for multiple assignments.
+    /// </summary>
+    public string? PercentOtherSummary { get; set; }
+
+    /// <summary>
     /// Number of effort records for this instructor in the term.
     /// Used for UI display and visual indicators.
     /// </summary>

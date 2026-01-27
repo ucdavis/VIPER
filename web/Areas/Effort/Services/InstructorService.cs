@@ -97,6 +97,9 @@ public class InstructorService : IInstructorService
             EnrichWithTitlesAsync(dtos, ct),
             EnrichWithRecordCountsAsync(dtos, termCode, ct));
 
+        // Enrich with percentage assignment summaries
+        await EnrichWithPercentageSummariesAsync(dtos, termCode, ct);
+
         return dtos;
     }
 
@@ -117,6 +120,9 @@ public class InstructorService : IInstructorService
             EnrichWithTitlesAsync(dtos, ct),
             EnrichWithRecordCountsAsync(dtos, termCode, ct));
 
+        // Enrich with percentage assignment summaries
+        await EnrichWithPercentageSummariesAsync(dtos, termCode, ct);
+
         return dtos;
     }
 
@@ -132,6 +138,7 @@ public class InstructorService : IInstructorService
         var dto = dtos[0];
         await EnrichWithTitlesAsync([dto], ct);
         await EnrichWithRecordCountsAsync([dto], termCode, ct);
+        await EnrichWithPercentageSummariesAsync([dto], termCode, ct);
         return dto;
     }
 
@@ -769,6 +776,162 @@ public class InstructorService : IInstructorService
         {
             instructor.RecordCount = recordCounts.GetValueOrDefault(instructor.PersonId, 0);
         }
+    }
+
+    /// <summary>
+    /// Enriches instructor DTOs with percentage assignment summaries grouped by type class.
+    /// Queries the Percentages table for active assignments and formats them for display.
+    /// </summary>
+    private async Task EnrichWithPercentageSummariesAsync(List<PersonDto> instructors, int termCode, CancellationToken ct)
+    {
+        if (instructors.Count == 0) return;
+
+        var personIds = instructors.Select(i => i.PersonId).ToList();
+
+        // Get the academic year from vwTerms for the given term code
+        var term = await _viperContext.Terms
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
+
+        if (term == null)
+        {
+            _logger.LogWarning("Term {TermCode} not found in vwTerms", termCode);
+            return;
+        }
+
+        // Academic year date range: July 1 (year-1) to June 30 (year)
+        // e.g., AcademicYear 2026 = July 1, 2025 to June 30, 2026
+        var academicYearStart = new DateTime(term.AcademicYear - 1, 7, 1, 0, 0, 0, DateTimeKind.Unspecified);
+        var academicYearEnd = new DateTime(term.AcademicYear, 6, 30, 0, 0, 0, DateTimeKind.Unspecified);
+
+        // Get all percentage assignments for these persons that overlap with the academic year
+        var allPercentages = await _context.Percentages
+            .AsNoTracking()
+            .Include(p => p.PercentAssignType)
+            .Include(p => p.Unit)
+            .Where(p => personIds.Contains(p.PersonId))
+            .Where(p => p.StartDate <= academicYearEnd)
+            .Where(p => p.EndDate == null || p.EndDate >= academicYearStart)
+            .ToListAsync(ct);
+
+        // Apply display filtering:
+        // - Clinical types: only show if percent > 0.01 (> 1%)
+        // - Non-Clinical types: only show if percent > 0 OR type_name != "None"
+        var percentages = allPercentages
+            .Where(p =>
+            {
+                var isClinical = string.Equals(p.PercentAssignType.Class, "Clinical", StringComparison.OrdinalIgnoreCase);
+                if (isClinical)
+                {
+                    return p.PercentageValue > 0.01;
+                }
+                return p.PercentageValue > 0 || p.PercentAssignType.Name != "None";
+            })
+            .ToList();
+
+        // Group by person and type class
+        var grouped = percentages
+            .GroupBy(p => p.PersonId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.GroupBy(p => p.PercentAssignType.Class)
+                    .ToDictionary(
+                        c => c.Key,
+                        c => c.ToList()
+                    )
+            );
+
+        foreach (var instructor in instructors)
+        {
+            if (!grouped.TryGetValue(instructor.PersonId, out var byClass))
+            {
+                continue;
+            }
+
+            // Format Admin summary
+            if (byClass.TryGetValue("Admin", out var adminAssignments))
+            {
+                instructor.PercentAdminSummary = FormatPercentageSummary(adminAssignments);
+            }
+
+            // Format Clinical summary
+            if (byClass.TryGetValue("Clinical", out var clinicalAssignments))
+            {
+                instructor.PercentClinicalSummary = FormatPercentageSummary(clinicalAssignments);
+            }
+
+            // Format Other summary (any class that isn't Admin or Clinical)
+            var otherAssignments = byClass
+                .Where(kvp => kvp.Key != "Admin" && kvp.Key != "Clinical")
+                .SelectMany(kvp => kvp.Value)
+                .ToList();
+            if (otherAssignments.Count > 0)
+            {
+                instructor.PercentOtherSummary = FormatPercentageSummary(otherAssignments);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Formats a list of percentage assignments into a summary string for display.
+    /// Format:
+    ///   {percent}% - {modifier} {type_name}
+    ///   {unit_name} ({comment})
+    ///   {startDate} - {endDate or INDEF}
+    /// </summary>
+    private static string FormatPercentageSummary(List<Percentage> assignments)
+    {
+        var summaries = new List<string>();
+
+        foreach (var a in assignments.OrderByDescending(p => p.PercentageValue))
+        {
+            // Convert stored decimal (0-1) to percentage (0-100)
+            var percent = Math.Round(a.PercentageValue * 100, 0);
+            var lines = new List<string>();
+
+            // Line 1: Percent and type display
+            // Only show modifier + type_name if type_name is NOT "None" AND NOT "Clinical"
+            var typeName = a.PercentAssignType.Name;
+            string line1;
+            if (typeName != "None" && !string.Equals(typeName, "Clinical", StringComparison.OrdinalIgnoreCase))
+            {
+                var typeDisplay = string.IsNullOrWhiteSpace(a.Modifier)
+                    ? typeName
+                    : $"{a.Modifier.Trim()} {typeName}";
+                line1 = $"{percent}% - {typeDisplay}";
+            }
+            else
+            {
+                line1 = $"{percent}%";
+            }
+            lines.Add(line1);
+
+            // Line 2: Unit and comment (legacy shows unit_name then (comment) in parentheses)
+            var line2Parts = new List<string>();
+            if (a.Unit != null)
+            {
+                line2Parts.Add(a.Unit.Name);
+            }
+            if (!string.IsNullOrWhiteSpace(a.Comment))
+            {
+                line2Parts.Add($"({a.Comment.Trim()})");
+            }
+            if (line2Parts.Count > 0)
+            {
+                lines.Add(string.Join(" ", line2Parts));
+            }
+
+            // Line 3: Date range (actual dates, not clamped to academic year)
+            // Legacy uses "INDEF" for null end date
+            var startStr = a.StartDate.ToString("MMM yyyy");
+            var endStr = a.EndDate.HasValue ? a.EndDate.Value.ToString("MMM yyyy") : "INDEF";
+            lines.Add($"{startStr} - {endStr}");
+
+            summaries.Add(string.Join("\n", lines));
+        }
+
+        // Join multiple assignments with blank line between them
+        return string.Join("\n", summaries);
     }
 
     /// <summary>

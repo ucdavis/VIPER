@@ -74,3 +74,11 @@ export {
     type SendBulkEmailRequest,
     type VerificationSettingsDto,
 } from "./verification-types"
+
+export type {
+    PercentageDto,
+    CreatePercentageRequest,
+    UpdatePercentageRequest,
+    PercentageValidationResult,
+    AveragePercentByTypeDto,
+} from "./percentage-types"

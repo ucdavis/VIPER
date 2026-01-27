@@ -366,10 +366,11 @@
         />
 
         <!-- Edit Dialog -->
-        <InstructorEditDialog
+        <InstructorPercentEditDialog
             v-model="showEditDialog"
             :instructor="selectedInstructor"
             :term-code="selectedTermCode"
+            :can-edit="canEditTerm"
             @updated="onInstructorUpdated"
         />
     </div>
@@ -387,7 +388,7 @@ import { useUserStore } from "@/store/UserStore"
 import type { PersonDto, TermDto, BulkEmailResult } from "../types"
 import type { QTableColumn } from "quasar"
 import InstructorAddDialog from "../components/InstructorAddDialog.vue"
-import InstructorEditDialog from "../components/InstructorEditDialog.vue"
+import InstructorPercentEditDialog from "../components/InstructorPercentEditDialog.vue"
 import { inflect } from "inflection"
 
 const $q = useQuasar()
@@ -408,6 +409,7 @@ const isLoading = ref(false)
 const showAddDialog = ref(false)
 const showEditDialog = ref(false)
 const selectedInstructor = ref<PersonDto | null>(null)
+const canEditTerm = ref(false)
 
 // Email state - using Sets to allow concurrent sends
 const sendingEmailPersonIds = ref<Set<number>>(new Set())
@@ -499,6 +501,11 @@ const groupedInstructors = computed(() => {
         }))
 })
 
+// Check if any instructor has "Other %" content to determine column width
+const hasOtherPercent = computed(() => {
+    return instructors.value.some((i) => i.percentOtherSummary && i.percentOtherSummary.trim() !== "")
+})
+
 const columns = computed<QTableColumn[]>(() => [
     {
         name: "isVerified",
@@ -516,6 +523,34 @@ const columns = computed<QTableColumn[]>(() => [
         align: "left",
         sortable: true,
         classes: "instructor-cell",
+    },
+    {
+        name: "percentAdminSummary",
+        label: "Admin %",
+        field: "percentAdminSummary",
+        align: "left",
+        sortable: false,
+        style: "white-space: pre-line; font-size: 0.85em",
+    },
+    {
+        name: "percentClinicalSummary",
+        label: "Clinical %",
+        field: "percentClinicalSummary",
+        align: "left",
+        sortable: false,
+        style: "white-space: pre-line; font-size: 0.85em",
+    },
+    {
+        name: "percentOtherSummary",
+        label: "Other %",
+        field: "percentOtherSummary",
+        align: "left",
+        sortable: false,
+        // Shrink column width when no content, give space to other columns
+        style: hasOtherPercent.value
+            ? "white-space: pre-line; font-size: 0.85em"
+            : "width: 70px; min-width: 70px; font-size: 0.85em",
+        headerStyle: hasOtherPercent.value ? undefined : "width: 70px; min-width: 70px",
     },
     {
         name: "actions",
@@ -570,12 +605,16 @@ async function loadInstructors() {
     isLoading.value = true
 
     try {
-        const result = await effortService.getInstructors(selectedTermCode.value)
+        const [result, canEdit] = await Promise.all([
+            effortService.getInstructors(selectedTermCode.value),
+            effortService.canEditTerm(selectedTermCode.value),
+        ])
 
         // Abort if a newer request has been initiated
         if (token !== loadToken) return
 
         instructors.value = result
+        canEditTerm.value = canEdit
     } finally {
         if (token === loadToken) {
             isLoading.value = false
