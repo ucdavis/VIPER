@@ -92,9 +92,24 @@
                 Enter clinical effort as weeks. Enter all other effort as hours.
             </p>
 
-            <!-- No records message -->
+            <!-- No records message with verification option -->
+            <q-banner
+                v-if="myEffort.effortRecords.length === 0 && !myEffort.instructor.isVerified"
+                class="bg-info text-white q-mb-md"
+                rounded
+            >
+                <template #avatar>
+                    <q-icon name="info" />
+                </template>
+                <div>
+                    No effort records found for you in this term. If this is correct, you can verify that you had no
+                    teaching effort for {{ myEffort.termName }}.
+                </div>
+            </q-banner>
+
+            <!-- No records message (already verified) -->
             <div
-                v-if="myEffort.effortRecords.length === 0"
+                v-else-if="myEffort.effortRecords.length === 0"
                 class="text-center text-grey q-py-lg q-mb-md"
             >
                 <q-icon
@@ -102,7 +117,7 @@
                     size="2em"
                     class="q-mb-sm"
                 />
-                <div>No effort records found for you in this term.</div>
+                <div>No effort records for this term.</div>
             </div>
 
             <!-- Mobile Card View -->
@@ -261,11 +276,13 @@
 
             <!-- Verification Section -->
             <div
-                v-if="!myEffort.instructor.isVerified && myEffort.effortRecords.length > 0"
+                v-if="!myEffort.instructor.isVerified"
                 class="q-mt-lg"
             >
                 <q-separator class="q-mb-md" />
-                <h3 class="q-my-none q-mb-md">Verify Effort</h3>
+                <h3 class="q-my-none q-mb-md">
+                    {{ myEffort.effortRecords.length === 0 ? "Verify No Effort" : "Verify Effort" }}
+                </h3>
 
                 <div
                     v-if="myEffort.canVerify"
@@ -273,11 +290,19 @@
                 >
                     <q-checkbox
                         v-model="verifyConfirmed"
-                        label="I verify that the information above accurately represents my effort"
+                        :label="
+                            myEffort.effortRecords.length === 0
+                                ? 'I verify that I had no teaching effort for this term'
+                                : 'I verify that the information above accurately represents my effort'
+                        "
                     />
                     <div class="q-mt-md">
                         <q-btn
-                            label="Submit Verification"
+                            :label="
+                                myEffort.effortRecords.length === 0
+                                    ? 'Submit No-Effort Verification'
+                                    : 'Submit Verification'
+                            "
                             color="primary"
                             :disable="!verifyConfirmed"
                             :loading="isVerifying"

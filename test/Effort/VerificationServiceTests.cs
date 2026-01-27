@@ -329,17 +329,26 @@ public sealed class VerificationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task VerifyEffortAsync_ReturnsError_WhenNoEffortRecords()
+    public async Task VerifyEffortAsync_Succeeds_WhenNoEffortRecords()
     {
-        // Arrange
+        // Arrange - Instructors with no records can verify "no effort" for the term
         _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(TestPersonId);
 
         // Act
         var result = await _service.VerifyEffortAsync(TestTermCode);
 
         // Assert
-        Assert.False(result.Success);
-        Assert.Equal(VerificationErrorCodes.NoEffortRecords, result.ErrorCode);
+        Assert.True(result.Success);
+        Assert.NotNull(result.VerifiedDate);
+
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        Assert.NotNull(person.EffortVerified);
+
+        _auditServiceMock.Verify(
+            a => a.LogPersonChangeAsync(
+                TestPersonId, TestTermCode, EffortAuditActions.VerifiedEffort,
+                It.IsAny<object?>(), It.Is<object>(o => o.ToString()!.Contains("VerifiedNoEffort")), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -382,13 +391,13 @@ public sealed class VerificationServiceTests : IDisposable
     #region CanVerifyAsync Tests
 
     [Fact]
-    public async Task CanVerifyAsync_ReturnsFalse_WhenNoRecords()
+    public async Task CanVerifyAsync_ReturnsTrue_WhenNoRecords()
     {
-        // Act
+        // Act - Instructors with no records can verify "no effort" for the term
         var result = await _service.CanVerifyAsync(TestPersonId, TestTermCode);
 
         // Assert
-        Assert.False(result.CanVerify);
+        Assert.True(result.CanVerify);
         Assert.Equal(0, result.ZeroEffortCount);
     }
 

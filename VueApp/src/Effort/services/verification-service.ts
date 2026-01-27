@@ -79,7 +79,7 @@ class VerificationService {
             return {
                 totalInstructors: 0,
                 emailsSent: 0,
-                emailsFailed: 0,
+                emailsFailed: 1,
                 failures: [{ personId: 0, instructorName: "", reason: "Request failed" }],
             }
         }

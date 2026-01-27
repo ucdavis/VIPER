@@ -4,11 +4,41 @@
     Layout = "/EmailTemplates/Views/Shared/_EmailLayout.cshtml";
     ViewBag.Title = "Effort Verification Request";
     ViewBag.Subtitle = Model.TermDescription;
+    if (Model.TermStartDate.HasValue && Model.TermEndDate.HasValue)
+    {
+        ViewBag.SubtitleExtra = $"({Model.TermStartDate.Value:MMMM d, yyyy} to {Model.TermEndDate.Value:MMMM d, yyyy})";
+    }
 }
 
+@* No-effort messaging when instructor has no records *@
+@if (Model.HasNoRecords)
+{
+    <tr>
+        <td class="email-content" style="padding: 20px;">
+            <p style="margin: 0; padding: 0 0 10px 0;">It is appreciated if you reply by <strong>@Model.ReplyByDate</strong>.</p>
+            <p style="margin: 0; padding: 0 0 10px 0;">Our records show you have <strong>no teaching effort recorded</strong> for @Model.TermDescription.</p>
+            <p style="margin: 0; padding: 0;">If this is correct, please verify your "no effort" status using the link below. If you believe you should have effort recorded for this term, please contact your department administrator.</p>
+        </td>
+    </tr>
+    <tr>
+        <td class="email-content" align="center" style="padding: 20px;">
+            @* Use table-based button for maximum Outlook compatibility *@
+            <table cellpadding="0" cellspacing="0" border="0" align="center">
+                <tr>
+                    <td bgcolor="#022851" style="background-color: #022851; padding: 12px 24px;">
+                        <a href="@Model.VerificationUrl" style="color: #ffffff; font-weight: bold; text-decoration: none;">Verify No Effort</a>
+                    </td>
+                </tr>
+            </table>
+            <p style="margin: 0; padding: 15px 0 0 0; font-size: 13px; color: #666666;">If there are inaccuracies, please reply to this message with corrections.</p>
+        </td>
+    </tr>
+}
+else
+{
 @* Intro Section *@
 <tr>
-    <td style="padding: 20px;">
+    <td class="email-content" style="padding: 20px;">
         <p style="margin: 0; padding: 0 0 10px 0;">It is appreciated if you reply by <strong>@Model.ReplyByDate</strong>.</p>
         <p style="margin: 0; padding: 0;">Your effort data for @Model.TermDescription has been imported from CREST and Banner. Please check the data below for accuracy and/or missing effort. This includes graduate courses.</p>
     </td>
@@ -16,8 +46,8 @@
 
 @* Effort Records Table *@
 <tr>
-    <td style="padding: 0 20px 20px 20px;">
-        <table cellpadding="0" cellspacing="0" border="1" bordercolor="#dee2e6" width="100%" style="border: 1px solid #dee2e6; border-collapse: collapse;">
+    <td class="email-content" style="padding: 0 20px 20px 20px;">
+        <table class="email-table" cellpadding="0" cellspacing="0" border="1" bordercolor="#dee2e6" width="100%" style="border: 1px solid #dee2e6; border-collapse: collapse;">
             <tr bgcolor="#022851" style="background-color: #022851;">
                 <th align="left" style="padding: 10px; color: #ffffff; font-size: 13px;">Course</th>
                 <th align="left" style="padding: 10px; color: #ffffff; font-size: 13px;">Units</th>
@@ -62,7 +92,7 @@
 @if (Model.ChildCourses.Any())
 {
     <tr>
-        <td style="padding: 20px;">
+        <td class="email-content" style="padding: 20px;">
             <h3 style="margin: 0; padding: 0 0 10px 0; color: #022851; font-size: 16px;">Cross Listed / Sectioned Courses</h3>
             <ul style="margin: 0; padding: 0 0 0 20px; color: #333333;">
                 @foreach (var child in Model.ChildCourses)
@@ -78,7 +108,7 @@
 @if (Model.HasZeroEffort)
 {
     <tr>
-        <td bgcolor="#fff3cd" style="padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107;">
+        <td class="email-content" bgcolor="#fff3cd" style="padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107;">
             <p style="margin: 0; padding: 0 0 10px 0; color: #856404; font-weight: bold;">Action Required</p>
             <p style="margin: 0; padding: 0 0 10px 0; color: #856404;">You have one or more effort items documented as ZERO effort. You will not be able to verify your effort until these items have been updated to document hours or weeks or are removed. Please work with your department admin to resolve these issues.</p>
             <p style="margin: 0; padding: 0;">
@@ -90,13 +120,13 @@
 else
 {
     <tr>
-        <td align="center" style="padding: 20px;">
+        <td class="email-content" align="center" style="padding: 20px;">
             <p style="margin: 0; padding: 0 0 15px 0;">If this effort is accurate, please verify it:</p>
             @* Use table-based button for maximum Outlook compatibility *@
             <table cellpadding="0" cellspacing="0" border="0" align="center">
                 <tr>
                     <td bgcolor="#022851" style="background-color: #022851; padding: 12px 24px;">
-                        <a href="@Model.VerificationUrl" style="color: #ffffff; font-weight: bold;">Verify My Effort</a>
+                        <a href="@Model.VerificationUrl" style="color: #ffffff; font-weight: bold; text-decoration: none;">Verify My Effort</a>
                     </td>
                 </tr>
             </table>
@@ -104,10 +134,11 @@ else
         </td>
     </tr>
 }
+} @* End of else block for HasNoRecords *@
 
-@* Footer Notes *@
+@* Footer Notes (shown for all cases) *@
 <tr>
-    <td style="padding: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #666666;">
+    <td class="email-content" style="padding: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #666666;">
         <p style="margin: 0; padding: 0 0 10px 0;"><strong>Please note:</strong> Guest lectures in graduate courses during quarter terms are not automatically imported. You will need to report this effort to your department to receive credit for it.</p>
         <p style="margin: 0; padding: 0;">Teaching is an important component of your faculty appointment and if effort is omitted it may have a negative effect on the overall teaching averages. It is important for all faculty to verify their effort each term.</p>
     </td>
