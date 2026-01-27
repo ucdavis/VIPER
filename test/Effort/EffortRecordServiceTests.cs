@@ -212,6 +212,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => _service.CreateEffortRecordAsync(request));
         Assert.Contains("Failed to create instructor for PersonId 9999", ex.Message);
+        Assert.Contains("Person with PersonId 9999 not found", ex.Message);
     }
 
     [Fact]

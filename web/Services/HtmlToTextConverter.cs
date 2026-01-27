@@ -196,15 +196,14 @@ public static class HtmlToTextConverter
     {
         var blockTags = new[] { "p", "div", "br", "li", "h1", "h2", "h3", "h4", "h5", "h6" };
 
-        foreach (var tag in blockTags)
-        {
-            var nodes = doc.DocumentNode.SelectNodes($"//{tag}");
-            if (nodes == null) continue;
+        var allNodes = blockTags
+            .Select(tag => doc.DocumentNode.SelectNodes($"//{tag}"))
+            .Where(nodes => nodes != null)
+            .SelectMany(nodes => nodes);
 
-            foreach (var node in nodes)
-            {
-                node.AppendChild(doc.CreateTextNode("\n"));
-            }
+        foreach (var node in allNodes)
+        {
+            node.AppendChild(doc.CreateTextNode("\n"));
         }
     }
 
