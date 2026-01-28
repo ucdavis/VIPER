@@ -67,31 +67,39 @@ namespace Viper.Services
                 throw new ArgumentException("At least one of htmlBody or textBody must be provided.");
             }
 
-            using var message = new MimeMessage();
-            message.From.Add(MailboxAddress.Parse(from ?? _emailSettings.DefaultFromAddress));
-
-            foreach (var recipient in to)
+            MimeMessage message;
+            try
             {
-                message.To.Add(MailboxAddress.Parse(recipient));
+                message = new MimeMessage();
+                message.From.Add(MailboxAddress.Parse(from ?? _emailSettings.DefaultFromAddress));
+
+                foreach (var recipient in to)
+                {
+                    message.To.Add(MailboxAddress.Parse(recipient));
+                }
+
+                message.Subject = subject;
+
+                // Build multipart body using MailKit's BodyBuilder
+                var builder = new BodyBuilder();
+
+                if (!string.IsNullOrEmpty(htmlBody))
+                {
+                    builder.HtmlBody = htmlBody;
+                    // Auto-generate plaintext if not provided
+                    builder.TextBody = textBody ?? HtmlToTextConverter.Convert(htmlBody);
+                }
+                else if (!string.IsNullOrEmpty(textBody))
+                {
+                    builder.TextBody = textBody;
+                }
+
+                message.Body = builder.ToMessageBody();
             }
-
-            message.Subject = subject;
-
-            // Build multipart body using MailKit's BodyBuilder
-            var builder = new BodyBuilder();
-
-            if (!string.IsNullOrEmpty(htmlBody))
+            catch (Exception ex) when (ex is not ArgumentException)
             {
-                builder.HtmlBody = htmlBody;
-                // Auto-generate plaintext if not provided
-                builder.TextBody = textBody ?? HtmlToTextConverter.Convert(htmlBody);
+                throw new EmailSendException($"Failed to build email message: {ex.Message}", ex);
             }
-            else if (!string.IsNullOrEmpty(textBody))
-            {
-                builder.TextBody = textBody;
-            }
-
-            message.Body = builder.ToMessageBody();
 
             await SendMimeMessageAsync(message);
         }
@@ -151,6 +159,11 @@ namespace Viper.Services
             {
                 throw new EmailSendException(
                     $"SMTP protocol error: {ex.Message}", ex);
+            }
+            catch (Exception ex) when (ex is not EmailSendException)
+            {
+                throw new EmailSendException(
+                    $"Unexpected error sending email: {ex.Message}", ex);
             }
         }
 

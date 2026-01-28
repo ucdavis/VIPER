@@ -136,12 +136,12 @@ public static class HtmlToTextConverter
                 if (cellTexts.All(string.IsNullOrWhiteSpace))
                     continue;
 
-                // Single cell rows (colspan) are indented sub-items
+                // Single cell rows (colspan) are sub-items
                 if (cellTexts.Count == 1)
                 {
                     if (!string.IsNullOrWhiteSpace(cellTexts[0]))
                     {
-                        tableLines.Add("  " + cellTexts[0]);
+                        tableLines.Add(cellTexts[0]);
                     }
                 }
                 else
@@ -213,7 +213,6 @@ public static class HtmlToTextConverter
 
         var lines = text.Split('\n')
             .Select(line => line.Trim())
-            .Where(line => !IsFooterLine(line))
             .ToList();
 
         // Process lines: remove empty lines but preserve section markers
@@ -236,11 +235,6 @@ public static class HtmlToTextConverter
         }
 
         return string.Join("\n", result).Trim();
-    }
-
-    private static bool IsFooterLine(string line)
-    {
-        return line.Equals("UC Davis School of Veterinary Medicine", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizeWhitespace(string text)
