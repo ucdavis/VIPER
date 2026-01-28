@@ -75,20 +75,17 @@
                 <div class="dept-header text-white q-pa-sm row items-center">
                     <span class="text-weight-bold">{{ deptGroup.dept }}</span>
                     <q-space />
-                    <span
-                        v-if="getEmailableCount(deptGroup) > 0"
-                        class="text-caption q-mr-md"
-                    >
-                        {{ getEmailableCount(deptGroup) }} can be emailed
-                    </span>
                     <q-btn
                         v-if="getEmailableCount(deptGroup) > 0"
                         icon="mail_outline"
-                        label="Email All Unverified"
+                        :label="`Email ${getEmailableCount(deptGroup)} Unverified ${inflect('Instructor', getEmailableCount(deptGroup))}`"
                         dense
                         flat
                         size="sm"
                         color="white"
+                        no-caps
+                        :disable="bulkEmailDept === deptGroup.dept"
+                        :loading="bulkEmailDept === deptGroup.dept"
                         @click="confirmBulkEmail(deptGroup)"
                     />
                 </div>
@@ -105,6 +102,66 @@
                     :rows-per-page-options="[0]"
                     class="dept-table"
                 >
+                    <template #header-cell-email="props">
+                        <q-th :props="props">
+                            <span class="email-header-content">
+                                {{ props.col.label }}
+                                <q-icon
+                                    name="help_outline"
+                                    size="xs"
+                                    class="cursor-pointer"
+                                >
+                                    <q-tooltip
+                                        class="email-legend-tooltip bg-white text-dark shadow-4"
+                                        anchor="bottom middle"
+                                        self="top middle"
+                                    >
+                                        <div class="text-subtitle2 q-mb-sm text-dark">Email Status Legend</div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="mail"
+                                                color="primary"
+                                                size="xs"
+                                            />
+                                            <span>Never emailed (has effort)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="mail"
+                                                color="warning"
+                                                size="xs"
+                                            />
+                                            <span>Never emailed (no effort)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="mark_email_unread"
+                                                color="warning"
+                                                size="xs"
+                                            />
+                                            <span>Emailed within 7 days</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="mark_email_unread"
+                                                color="negative"
+                                                size="xs"
+                                            />
+                                            <span>Emailed, past deadline</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="mark_email_read"
+                                                color="positive"
+                                                size="xs"
+                                            />
+                                            <span>Already verified</span>
+                                        </div>
+                                    </q-tooltip>
+                                </q-icon>
+                            </span>
+                        </q-th>
+                    </template>
                     <template #body-cell-isVerified="props">
                         <q-td :props="props">
                             <!-- Verified with effort records -->
@@ -180,16 +237,50 @@
                             >
                                 <q-tooltip>Already verified</q-tooltip>
                             </q-icon>
-                            <!-- Loading spinner while sending -->
+                            <!-- Loading spinner while sending (individual or bulk for this dept) -->
                             <q-spinner
-                                v-else-if="sendingEmailFor === props.row.personId"
+                                v-else-if="
+                                    sendingEmailFor === props.row.personId || bulkEmailDept === props.row.effortDept
+                                "
                                 color="primary"
                                 size="xs"
                             />
-                            <!-- Can send verification email (includes no-effort instructors) -->
+                            <!-- Emailed past deadline, not verified -->
+                            <q-icon
+                                v-else-if="isEmailedPastDeadline(props.row)"
+                                name="mark_email_unread"
+                                color="negative"
+                                size="xs"
+                                class="cursor-pointer"
+                                tabindex="0"
+                                role="button"
+                                :aria-label="`Resend verification email to ${props.row.fullName} (past deadline)`"
+                                @click="confirmResendEmail(props.row)"
+                                @keydown.enter.prevent="confirmResendEmail(props.row)"
+                                @keydown.space.prevent="confirmResendEmail(props.row)"
+                            >
+                                <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
+                            </q-icon>
+                            <!-- Emailed within deadline, not verified -->
+                            <q-icon
+                                v-else-if="props.row.lastEmailedDate"
+                                name="mark_email_unread"
+                                color="warning"
+                                size="xs"
+                                class="cursor-pointer"
+                                tabindex="0"
+                                role="button"
+                                :aria-label="`Resend verification email to ${props.row.fullName}`"
+                                @click="confirmResendEmail(props.row)"
+                                @keydown.enter.prevent="confirmResendEmail(props.row)"
+                                @keydown.space.prevent="confirmResendEmail(props.row)"
+                            >
+                                <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
+                            </q-icon>
+                            <!-- Never emailed, not verified -->
                             <q-icon
                                 v-else
-                                name="mail_outline"
+                                name="mail"
                                 :color="props.row.recordCount === 0 ? 'warning' : 'primary'"
                                 size="xs"
                                 class="cursor-pointer"
@@ -278,19 +369,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue"
+import { ref, computed, onMounted, onUnmounted, watch } from "vue"
 import { useQuasar } from "quasar"
-import { useRoute, useRouter } from "vue-router"
+import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { effortService } from "../services/effort-service"
 import { termService } from "../services/term-service"
 import { verificationService } from "../services/verification-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
+import { useUserStore } from "@/store/UserStore"
 import type { PersonDto, TermDto, BulkEmailResult } from "../types"
 import type { QTableColumn } from "quasar"
 import InstructorAddDialog from "../components/InstructorAddDialog.vue"
 import InstructorEditDialog from "../components/InstructorEditDialog.vue"
+import { inflect } from "inflection"
 
 const $q = useQuasar()
+const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
 const { hasImportInstructor, hasEditInstructor, hasDeleteInstructor } = useEffortPermissions()
@@ -310,7 +404,41 @@ const selectedInstructor = ref<PersonDto | null>(null)
 
 // Email state
 const sendingEmailFor = ref<number | null>(null)
-const isSendingBulkEmail = ref(false)
+const bulkEmailDept = ref<string | null>(null)
+
+// Warn user if they try to leave while bulk email is in progress
+function handleBeforeUnload(e: BeforeUnloadEvent) {
+    if (bulkEmailDept.value) {
+        e.preventDefault()
+        // Modern browsers ignore custom messages, but returnValue is required
+        e.returnValue = "Bulk email is in progress. Are you sure you want to leave?"
+        return e.returnValue
+    }
+}
+
+onMounted(() => {
+    window.addEventListener("beforeunload", handleBeforeUnload)
+})
+
+onUnmounted(() => {
+    window.removeEventListener("beforeunload", handleBeforeUnload)
+})
+
+onBeforeRouteLeave((_to, _from, next) => {
+    if (bulkEmailDept.value) {
+        $q.dialog({
+            title: "Bulk Email In Progress",
+            message:
+                "Verification emails are still being sent. Leaving this page may interrupt the process. Are you sure you want to leave?",
+            cancel: true,
+            persistent: true,
+        })
+            .onOk(() => next())
+            .onCancel(() => next(false))
+    } else {
+        next()
+    }
+})
 
 // Computed
 const currentTermName = computed(() => {
@@ -471,7 +599,7 @@ function confirmDeleteInstructor(instructor: PersonDto) {
         if (recordCount > 0) {
             $q.dialog({
                 title: "Confirm Delete",
-                message: `This instructor has ${recordCount} effort record(s) that will also be deleted. Are you sure you want to proceed?`,
+                message: `This instructor has ${recordCount} effort ${inflect("record", recordCount)} that will also be deleted. Are you sure you want to proceed?`,
                 cancel: true,
                 persistent: true,
             }).onOk(() => deleteInstructor(instructor.personId))
@@ -510,6 +638,51 @@ function getEmailableCount(deptGroup: DeptGroup): number {
     return deptGroup.instructors.filter((i) => i.canSendVerificationEmail).length
 }
 
+const VERIFICATION_REPLY_DAYS = 7
+
+function getDaysSinceEmailed(instructor: PersonDto): number {
+    if (!instructor.lastEmailedDate) return -1
+    const lastEmailed = new Date(instructor.lastEmailedDate)
+    const now = new Date()
+    return Math.floor((now.getTime() - lastEmailed.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+function isEmailedPastDeadline(instructor: PersonDto): boolean {
+    const daysSince = getDaysSinceEmailed(instructor)
+    return daysSince >= VERIFICATION_REPLY_DAYS
+}
+
+function formatDate(dateStr: string): string {
+    return new Date(dateStr).toLocaleDateString()
+}
+
+function getEmailTooltip(instructor: PersonDto): string {
+    if (!instructor.lastEmailedDate) return ""
+
+    const daysSince = getDaysSinceEmailed(instructor)
+    const dateStr = formatDate(instructor.lastEmailedDate)
+    const sender = instructor.lastEmailedBy ?? "Unknown"
+
+    if (daysSince >= VERIFICATION_REPLY_DAYS) {
+        const daysPast = daysSince - VERIFICATION_REPLY_DAYS
+        return `Emailed ${dateStr} by ${sender} - ${daysPast} ${inflect("day", daysPast)} past deadline`
+    }
+    return `Emailed ${dateStr} by ${sender}`
+}
+
+function confirmResendEmail(instructor: PersonDto) {
+    const daysSince = getDaysSinceEmailed(instructor)
+    const dateStr = formatDate(instructor.lastEmailedDate!)
+    const sender = instructor.lastEmailedBy ?? "Unknown"
+
+    $q.dialog({
+        title: "Resend Verification Email?",
+        message: `${instructor.fullName} was last emailed on ${dateStr} by ${sender} (${daysSince} ${inflect("day", daysSince)} ago). Send another email?`,
+        cancel: true,
+        persistent: true,
+    }).onOk(() => sendVerificationEmail(instructor))
+}
+
 async function sendVerificationEmail(instructor: PersonDto) {
     if (!selectedTermCode.value) return
 
@@ -521,6 +694,9 @@ async function sendVerificationEmail(instructor: PersonDto) {
                 type: "positive",
                 message: `Verification email sent to ${instructor.fullName}`,
             })
+            // Update the instructor locally instead of reloading all instructors
+            instructor.lastEmailedDate = new Date().toISOString()
+            instructor.lastEmailedBy = `${userStore.userInfo.firstName} ${userStore.userInfo.lastName}`
         } else {
             $q.notify({
                 type: "negative",
@@ -541,7 +717,7 @@ function confirmBulkEmail(deptGroup: DeptGroup) {
     const emailableCount = getEmailableCount(deptGroup)
     $q.dialog({
         title: "Send Verification Emails",
-        message: `This will send verification emails to ${emailableCount} instructor(s) in ${deptGroup.dept} who haven't verified. Continue?`,
+        message: `This will send verification emails to ${emailableCount} ${inflect("instructor", emailableCount)} in ${deptGroup.dept} who haven't verified. Continue?`,
         cancel: true,
         persistent: true,
     }).onOk(() => sendBulkVerificationEmails(deptGroup.dept))
@@ -550,7 +726,7 @@ function confirmBulkEmail(deptGroup: DeptGroup) {
 async function sendBulkVerificationEmails(dept: string) {
     if (!selectedTermCode.value) return
 
-    isSendingBulkEmail.value = true
+    bulkEmailDept.value = dept
     const loadingNotify = $q.notify({
         type: "ongoing",
         message: `Sending verification emails to ${dept}...`,
@@ -569,13 +745,13 @@ async function sendBulkVerificationEmails(dept: string) {
         if (result.emailsFailed === 0) {
             $q.notify({
                 type: "positive",
-                message: `Successfully sent ${result.emailsSent} verification email(s)`,
+                message: `Successfully sent ${result.emailsSent} verification ${inflect("email", result.emailsSent)}`,
                 timeout: 5000,
             })
         } else {
             $q.notify({
                 type: "warning",
-                message: `Sent ${result.emailsSent} email(s), ${result.emailsFailed} failed`,
+                message: `Sent ${result.emailsSent} ${inflect("email", result.emailsSent)}, ${result.emailsFailed} failed`,
                 timeout: 8000,
             })
             // Show details of failures
@@ -587,6 +763,24 @@ async function sendBulkVerificationEmails(dept: string) {
                 })
             }
         }
+
+        // Update instructors locally instead of reloading
+        // Find all unverified instructors in this department that weren't in the failure list
+        const failedPersonIds = new Set(result.failures.map((f) => f.personId))
+        const now = new Date().toISOString()
+        const senderName = `${userStore.userInfo.firstName} ${userStore.userInfo.lastName}`
+
+        for (const instructor of instructors.value) {
+            if (
+                instructor.effortDept === dept &&
+                !instructor.isVerified &&
+                instructor.canSendVerificationEmail &&
+                !failedPersonIds.has(instructor.personId)
+            ) {
+                instructor.lastEmailedDate = now
+                instructor.lastEmailedBy = senderName
+            }
+        }
     } catch {
         loadingNotify()
         $q.notify({
@@ -594,7 +788,7 @@ async function sendBulkVerificationEmails(dept: string) {
             message: "An error occurred while sending bulk emails",
         })
     } finally {
-        isSendingBulkEmail.value = false
+        bulkEmailDept.value = null
     }
 }
 
@@ -651,5 +845,26 @@ onMounted(loadTerms)
 
 .no-effort-badge {
     flex-shrink: 0;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+}
+
+.email-header-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    margin-right: auto;
+}
+</style>
+
+<style>
+/* Unscoped style for tooltip (injected into body) */
+.email-legend-tooltip {
+    border: 1px solid #ccc;
 }
 </style>

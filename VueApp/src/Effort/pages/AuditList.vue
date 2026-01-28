@@ -176,7 +176,10 @@
                 </q-td>
             </template>
             <template #body-cell-changes="props">
-                <q-td :props="props">
+                <q-td
+                    :props="props"
+                    class="changes-cell"
+                >
                     <template v-if="props.row.changesDetail">
                         <div
                             v-for="(detail, key) in props.row.changesDetail"
@@ -266,9 +269,9 @@
                 >
                     <q-td
                         colspan="5"
-                        class="bg-grey-1 q-py-xs"
+                        class="bg-grey-1 q-py-xs changes-cell"
                     >
-                        <div class="row items-start q-gutter-sm">
+                        <div class="row items-start q-gutter-sm flex-wrap">
                             <q-badge
                                 :color="getActionColor(props.row.action)"
                                 class="q-mr-sm"
@@ -277,7 +280,7 @@
                             </q-badge>
                             <div
                                 v-if="props.row.changesDetail"
-                                class="text-caption"
+                                class="text-caption col"
                             >
                                 <span
                                     v-for="([key, detail], idx) in Object.entries(props.row.changesDetail) as [
@@ -898,3 +901,10 @@ onMounted(async () => {
     isInitializing.value = false
 })
 </script>
+
+<style scoped>
+.changes-cell {
+    white-space: normal !important;
+    word-break: break-word;
+}
+</style>

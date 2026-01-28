@@ -196,13 +196,15 @@
                     class="leftNavLink"
                 >
                     <q-item-section>
-                        <q-item-label lines="1">
+                        <q-item-label
+                            lines="1"
+                            class="help-label"
+                        >
                             <q-icon
                                 name="help_outline"
                                 size="xs"
-                                class="q-mr-xs"
                             />
-                            Help
+                            <span>Help</span>
                         </q-item-label>
                     </q-item-section>
                 </q-item>
@@ -295,3 +297,11 @@ watch(
     { immediate: true },
 )
 </script>
+
+<style scoped>
+.help-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+</style>

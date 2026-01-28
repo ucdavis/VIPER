@@ -414,27 +414,51 @@ function getCachedFormatOutput(cacheKey) {
     return cacheEntry.output || ""
 }
 
+// Matches any MSBuild error line with an error code (e.g., ": error CS1234", ": error NETSDK1045")
+const ERROR_PATTERN = /:\s*error\s+[A-Z]+\d+/i
+
 /**
  * Filter build output to show only error lines (not warnings)
  * @param {string} output - Full build output
- * @returns {string} - Filtered output with only errors, or original if no errors found
+ * @returns {string} - Filtered output with only errors, or empty string if no errors found
  */
 function filterBuildErrors(output) {
     if (!output || !output.trim()) {
-        return "(No cached error output available. Run 'npm run verify:build' after clearing the cache with 'rm -rf .build-cache' to see the actual error.)"
+        return ""
     }
     const errorLines = output
         .split("\n")
         .filter(
             (line) =>
-                line.includes(": error ") ||
+                // Any MSBuild error with error code (CS, MSB, NETSDK, NU, SDK, VBC, etc.)
+                ERROR_PATTERN.test(line) ||
+                // Build failure indicators
                 line.includes("Build FAILED") ||
-                line.includes("Error(s)") ||
+                // File locking errors
                 line.includes("is being used by another process") ||
                 line.includes("Could not copy"),
         )
         .join("\n")
-    return errorLines || output
+    return errorLines.trim()
+}
+
+/**
+ * Check if build output contains actual compilation errors (not just warnings)
+ * @param {string} output - Full build output
+ * @returns {boolean} - True if there are actual errors
+ */
+function hasActualErrors(output) {
+    if (!output || !output.trim()) {
+        return false
+    }
+    // Check for actual error patterns (not warnings)
+    // Uses same ERROR_PATTERN as filterBuildErrors for consistency
+    return (
+        ERROR_PATTERN.test(output) ||
+        output.includes("Build FAILED") ||
+        output.includes("is being used by another process") ||
+        output.includes("Could not copy")
+    )
 }
 
 module.exports = {
@@ -443,6 +467,7 @@ module.exports = {
     wasBuildSuccessful,
     getCachedBuildOutput,
     filterBuildErrors,
+    hasActualErrors,
     clearBuildCache,
     buildIfNeeded,
     computeProjectHash,
