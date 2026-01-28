@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
+using Viper.Areas.Effort;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -18,6 +20,7 @@ public sealed class VerificationControllerTests
     private readonly Mock<IVerificationService> _verificationServiceMock;
     private readonly Mock<IEffortPermissionService> _permissionServiceMock;
     private readonly Mock<IInstructorService> _instructorServiceMock;
+    private readonly Mock<IOptions<EffortSettings>> _settingsMock;
     private readonly Mock<ILogger<VerificationController>> _loggerMock;
     private readonly VerificationController _controller;
 
@@ -26,12 +29,15 @@ public sealed class VerificationControllerTests
         _verificationServiceMock = new Mock<IVerificationService>();
         _permissionServiceMock = new Mock<IEffortPermissionService>();
         _instructorServiceMock = new Mock<IInstructorService>();
+        _settingsMock = new Mock<IOptions<EffortSettings>>();
+        _settingsMock.Setup(s => s.Value).Returns(new EffortSettings());
         _loggerMock = new Mock<ILogger<VerificationController>>();
 
         _controller = new VerificationController(
             _verificationServiceMock.Object,
             _permissionServiceMock.Object,
             _instructorServiceMock.Object,
+            _settingsMock.Object,
             _loggerMock.Object);
 
         SetupControllerContext();

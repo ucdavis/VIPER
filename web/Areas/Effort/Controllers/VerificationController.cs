@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -18,16 +19,19 @@ public class VerificationController : BaseEffortController
     private readonly IVerificationService _verificationService;
     private readonly IEffortPermissionService _permissionService;
     private readonly IInstructorService _instructorService;
+    private readonly EffortSettings _settings;
 
     public VerificationController(
         IVerificationService verificationService,
         IEffortPermissionService permissionService,
         IInstructorService instructorService,
+        IOptions<EffortSettings> settings,
         ILogger<VerificationController> logger) : base(logger)
     {
         _verificationService = verificationService;
         _permissionService = permissionService;
         _instructorService = instructorService;
+        _settings = settings.Value;
     }
 
     // ====================
@@ -207,5 +211,17 @@ public class VerificationController : BaseEffortController
         var result = await _verificationService.CanVerifyAsync(personId, termCode, ct);
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Get verification settings for the frontend.
+    /// </summary>
+    [HttpGet("settings")]
+    public ActionResult<VerificationSettingsDto> GetSettings()
+    {
+        return Ok(new VerificationSettingsDto
+        {
+            VerificationReplyDays = _settings.VerificationReplyDays
+        });
     }
 }

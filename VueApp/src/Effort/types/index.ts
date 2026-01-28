@@ -72,4 +72,5 @@ export {
     type BulkEmailResult,
     type SendVerificationEmailRequest,
     type SendBulkEmailRequest,
+    type VerificationSettingsDto,
 } from "./verification-types"

@@ -775,6 +775,7 @@ public class InstructorService : IInstructorService
                 && a.TermCode == termCode
                 && a.Action == EffortAuditActions.VerifyEmail
                 && a.Changes != null && a.Changes.Contains("\"NewValue\":\"Success\""))
+            .Select(a => new { a.RecordId, a.ChangedDate, a.ChangedBy })
             .ToListAsync(ct);
 
         // Group by PersonId and get the most recent email for each

@@ -8,6 +8,7 @@ import type {
     BulkEmailResult,
     SendVerificationEmailRequest,
     SendBulkEmailRequest,
+    VerificationSettingsDto,
 } from "../types"
 
 const { get, post } = useFetch()
@@ -111,6 +112,17 @@ class VerificationService {
             }
         }
         return response.result as CanVerifyResult
+    }
+
+    /**
+     * Get verification settings from the backend configuration.
+     */
+    async getSettings(): Promise<VerificationSettingsDto> {
+        const response = await get(`${this.baseUrl}/settings`)
+        if (!response.success || !response.result) {
+            return { verificationReplyDays: 7 }
+        }
+        return response.result as VerificationSettingsDto
     }
 }
 

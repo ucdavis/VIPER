@@ -405,6 +405,7 @@ const selectedInstructor = ref<PersonDto | null>(null)
 // Email state
 const sendingEmailFor = ref<number | null>(null)
 const bulkEmailDept = ref<string | null>(null)
+const verificationReplyDays = ref(7)
 
 // Warn user if they try to leave while bulk email is in progress
 function handleBeforeUnload(e: BeforeUnloadEvent) {
@@ -534,7 +535,9 @@ let loadToken = 0
 async function loadTerms() {
     const paramTermCode = route.params.termCode ? parseInt(route.params.termCode as string, 10) : null
 
-    terms.value = await termService.getTerms()
+    const [termsResult, settings] = await Promise.all([termService.getTerms(), verificationService.getSettings()])
+    terms.value = termsResult
+    verificationReplyDays.value = settings.verificationReplyDays
 
     if (paramTermCode && terms.value.some((t) => t.termCode === paramTermCode)) {
         selectedTermCode.value = paramTermCode
@@ -638,8 +641,6 @@ function getEmailableCount(deptGroup: DeptGroup): number {
     return deptGroup.instructors.filter((i) => i.canSendVerificationEmail).length
 }
 
-const VERIFICATION_REPLY_DAYS = 7
-
 function getDaysSinceEmailed(instructor: PersonDto): number {
     if (!instructor.lastEmailedDate) return -1
     const lastEmailed = new Date(instructor.lastEmailedDate)
@@ -649,7 +650,7 @@ function getDaysSinceEmailed(instructor: PersonDto): number {
 
 function isEmailedPastDeadline(instructor: PersonDto): boolean {
     const daysSince = getDaysSinceEmailed(instructor)
-    return daysSince >= VERIFICATION_REPLY_DAYS
+    return daysSince > verificationReplyDays.value
 }
 
 function formatDate(dateStr: string): string {
@@ -663,8 +664,8 @@ function getEmailTooltip(instructor: PersonDto): string {
     const dateStr = formatDate(instructor.lastEmailedDate)
     const sender = instructor.lastEmailedBy ?? "Unknown"
 
-    if (daysSince >= VERIFICATION_REPLY_DAYS) {
-        const daysPast = daysSince - VERIFICATION_REPLY_DAYS
+    if (daysSince > verificationReplyDays.value) {
+        const daysPast = daysSince - verificationReplyDays.value
         return `Emailed ${dateStr} by ${sender} - ${daysPast} ${inflect("day", daysPast)} past deadline`
     }
     return `Emailed ${dateStr} by ${sender}`
