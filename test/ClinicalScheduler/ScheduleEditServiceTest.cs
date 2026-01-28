@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -22,7 +21,6 @@ namespace Viper.test.ClinicalScheduler
         private readonly Mock<IGradYearService> _mockGradYearService;
         private readonly Mock<IPermissionValidator> _mockPermissionValidator;
         private readonly Mock<IUserHelper> _mockUserHelper;
-        private readonly Mock<IConfiguration> _mockConfiguration;
         private readonly Mock<IEmailTemplateRenderer> _mockEmailTemplateRenderer;
         private readonly ClinicalSchedulerContext _context;
         private readonly TestableScheduleEditService _service;
@@ -43,7 +41,6 @@ namespace Viper.test.ClinicalScheduler
             _mockEmailNotificationOptions = new Mock<IOptions<EmailNotificationSettings>>();
             _mockPermissionValidator = new Mock<IPermissionValidator>();
             _mockUserHelper = new Mock<IUserHelper>();
-            _mockConfiguration = new Mock<IConfiguration>();
             _mockEmailTemplateRenderer = new Mock<IEmailTemplateRenderer>();
             _mockEmailTemplateRenderer
                 .Setup(r => r.RenderAsync<PrimaryEvaluatorRemovedViewModel>(
@@ -96,15 +93,19 @@ namespace Viper.test.ClinicalScheduler
             // Seed the context with required test data
             SeedTestData();
 
+            // Setup email settings
+            var mockEmailSettingsOptions = new Mock<IOptions<EmailSettings>>();
+            mockEmailSettingsOptions.Setup(x => x.Value).Returns(new EmailSettings { BaseUrl = "https://test.example.com" });
+
             _service = new TestableScheduleEditService(
                 _context,
                 _mockAuditService.Object,
                 _mockLogger.Object,
                 _mockEmailService.Object,
                 _mockEmailNotificationOptions.Object,
+                mockEmailSettingsOptions.Object,
                 _mockGradYearService.Object,
                 _mockPermissionValidator.Object,
-                _mockConfiguration.Object,
                 _mockEmailTemplateRenderer.Object);
         }
 

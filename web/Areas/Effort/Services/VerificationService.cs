@@ -28,6 +28,7 @@ public class VerificationService : IVerificationService
     private readonly IMapper _mapper;
     private readonly ILogger<VerificationService> _logger;
     private readonly EffortSettings _settings;
+    private readonly EmailSettings _emailSettings;
     private readonly IEmailTemplateRenderer _emailTemplateRenderer;
 
     public VerificationService(
@@ -40,6 +41,7 @@ public class VerificationService : IVerificationService
         IMapper mapper,
         ILogger<VerificationService> logger,
         IOptions<EffortSettings> settings,
+        IOptions<EmailSettings> emailSettings,
         IEmailTemplateRenderer emailTemplateRenderer)
     {
         _context = context;
@@ -51,6 +53,7 @@ public class VerificationService : IVerificationService
         _mapper = mapper;
         _logger = logger;
         _settings = settings.Value;
+        _emailSettings = emailSettings.Value;
         _emailTemplateRenderer = emailTemplateRenderer;
     }
 
@@ -624,15 +627,15 @@ public class VerificationService : IVerificationService
     private string BuildVerificationUrl(int termCode)
     {
         // Require configured base URL to avoid Host header injection
-        if (string.IsNullOrWhiteSpace(_settings.BaseUrl))
+        if (string.IsNullOrWhiteSpace(_emailSettings.BaseUrl))
         {
-            throw new InvalidOperationException("EffortSettings:BaseUrl must be configured for verification emails.");
+            throw new InvalidOperationException("EmailSettings:BaseUrl must be configured for verification emails.");
         }
 
-        var baseUrlNormalized = _settings.BaseUrl.TrimEnd('/') + "/";
+        var baseUrlNormalized = _emailSettings.BaseUrl.TrimEnd('/') + "/";
         if (!Uri.TryCreate(baseUrlNormalized, UriKind.Absolute, out var baseUri))
         {
-            throw new InvalidOperationException($"EffortSettings:BaseUrl value '{_settings.BaseUrl}' is not a valid absolute URL.");
+            throw new InvalidOperationException($"EmailSettings:BaseUrl value '{_emailSettings.BaseUrl}' is not a valid absolute URL.");
         }
 
         return new Uri(baseUri, $"Effort/{termCode}/my-effort").ToString();
@@ -726,7 +729,7 @@ public class VerificationService : IVerificationService
 
         return new VerificationReminderViewModel
         {
-            BaseUrl = _settings.BaseUrl ?? "",
+            BaseUrl = _emailSettings.BaseUrl ?? "",
             TermDescription = termDescription,
             TermStartDate = termStartDate,
             TermEndDate = termEndDate,

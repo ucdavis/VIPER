@@ -46,12 +46,12 @@ namespace Viper.Services
             if (isHtml)
             {
                 // HTML email - send as multipart with auto-generated plaintext
-                await SendMultipartEmailAsync(to, subject, body, textBody: null, from);
+                await SendMultipartEmailAsync(to, subject, body, textBody: null, from: from);
             }
             else
             {
                 // Plaintext only
-                await SendMultipartEmailAsync(to, subject, htmlBody: null, textBody: body, from);
+                await SendMultipartEmailAsync(to, subject, htmlBody: null, textBody: body, from: from);
             }
         }
 
@@ -67,10 +67,9 @@ namespace Viper.Services
                 throw new ArgumentException("At least one of htmlBody or textBody must be provided.");
             }
 
-            MimeMessage message;
+            using var message = new MimeMessage();
             try
             {
-                message = new MimeMessage();
                 message.From.Add(MailboxAddress.Parse(from ?? _emailSettings.DefaultFromAddress));
 
                 foreach (var recipient in to)
@@ -239,6 +238,12 @@ namespace Viper.Services
         public bool EnableSsl { get; set; } = false;
         public string DefaultFromAddress { get; set; } = "noreply@example.com";
         public bool UseMailpit { get; set; } = false;
+
+        /// <summary>
+        /// Base URL for links in emails (e.g., "https://viper.vetmed.ucdavis.edu/2").
+        /// Used to construct absolute URLs for email content.
+        /// </summary>
+        public string? BaseUrl { get; set; }
     }
 
     /// <summary>

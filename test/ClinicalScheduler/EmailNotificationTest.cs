@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
@@ -25,7 +24,6 @@ namespace Viper.test.ClinicalScheduler
         private readonly Mock<IGradYearService> _mockGradYearService;
         private readonly Mock<IPermissionValidator> _mockPermissionValidator;
         private readonly Mock<IUserHelper> _mockUserHelper;
-        private readonly Mock<IConfiguration> _mockConfiguration;
         private readonly Mock<IEmailTemplateRenderer> _mockEmailTemplateRenderer;
         private readonly TestableScheduleEditService _service;
         private readonly ClinicalSchedulerContext _context;
@@ -46,7 +44,6 @@ namespace Viper.test.ClinicalScheduler
             _mockEmailNotificationOptions = new Mock<IOptions<EmailNotificationSettings>>();
             _mockPermissionValidator = new Mock<IPermissionValidator>();
             _mockUserHelper = new Mock<IUserHelper>();
-            _mockConfiguration = new Mock<IConfiguration>();
             _mockEmailTemplateRenderer = new Mock<IEmailTemplateRenderer>();
 
             // Setup default email notification configuration for tests
@@ -78,6 +75,10 @@ namespace Viper.test.ClinicalScheduler
             _mockGradYearService.Setup(x => x.GetCurrentGradYearAsync())
                 .ReturnsAsync(currentYear);
 
+            // Setup email settings
+            var mockEmailSettingsOptions = new Mock<IOptions<EmailSettings>>();
+            mockEmailSettingsOptions.Setup(x => x.Value).Returns(new EmailSettings { BaseUrl = "https://test.example.com" });
+
             // Setup audit service
             _mockAuditService.Setup(x => x.LogInstructorRemovedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ScheduleAudit { ScheduleAuditId = 1 });
@@ -88,9 +89,9 @@ namespace Viper.test.ClinicalScheduler
                 _mockLogger.Object,
                 _mockEmailService.Object,
                 _mockEmailNotificationOptions.Object,
+                mockEmailSettingsOptions.Object,
                 _mockGradYearService.Object,
                 _mockPermissionValidator.Object,
-                _mockConfiguration.Object,
                 _mockEmailTemplateRenderer.Object);
         }
 
@@ -560,6 +561,8 @@ namespace Viper.test.ClinicalScheduler
                 }
             };
             _mockEmailNotificationOptions.Setup(x => x.Value).Returns(emailNotificationSettings);
+            var mockEmailSettingsOptions = new Mock<IOptions<EmailSettings>>();
+            mockEmailSettingsOptions.Setup(x => x.Value).Returns(new EmailSettings { BaseUrl = "https://test.example.com" });
 
             // Create a new service instance with the updated configuration
             var serviceWithMultipleRecipients = new TestableScheduleEditService(
@@ -568,9 +571,9 @@ namespace Viper.test.ClinicalScheduler
                 _mockLogger.Object,
                 _mockEmailService.Object,
                 _mockEmailNotificationOptions.Object,
+                mockEmailSettingsOptions.Object,
                 _mockGradYearService.Object,
                 _mockPermissionValidator.Object,
-                _mockConfiguration.Object,
                 _mockEmailTemplateRenderer.Object);
 
             await AddTestPersonAsync(mothraId, "John", "Doe");

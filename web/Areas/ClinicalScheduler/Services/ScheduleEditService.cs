@@ -19,9 +19,9 @@ namespace Viper.Areas.ClinicalScheduler.Services
         private readonly ILogger<ScheduleEditService> _logger;
         private readonly IEmailService _emailService;
         private readonly EmailNotificationSettings _emailNotificationSettings;
+        private readonly EmailSettings _emailSettings;
         private readonly IGradYearService _gradYearService;
         private readonly IPermissionValidator _permissionValidator;
-        private readonly IConfiguration _configuration;
         private readonly IEmailTemplateRenderer _emailTemplateRenderer;
 
         public ScheduleEditService(
@@ -30,9 +30,9 @@ namespace Viper.Areas.ClinicalScheduler.Services
             ILogger<ScheduleEditService> logger,
             IEmailService emailService,
             IOptions<EmailNotificationSettings> emailNotificationOptions,
+            IOptions<EmailSettings> emailSettingsOptions,
             IGradYearService gradYearService,
             IPermissionValidator permissionValidator,
-            IConfiguration configuration,
             IEmailTemplateRenderer emailTemplateRenderer)
         {
             _context = context;
@@ -40,9 +40,9 @@ namespace Viper.Areas.ClinicalScheduler.Services
             _logger = logger;
             _emailService = emailService;
             _emailNotificationSettings = emailNotificationOptions.Value;
+            _emailSettings = emailSettingsOptions.Value;
             _gradYearService = gradYearService;
             _permissionValidator = permissionValidator;
-            _configuration = configuration;
             _emailTemplateRenderer = emailTemplateRenderer;
         }
 
@@ -639,8 +639,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return;
                 }
                 // Get base URL for links
-                var configuredBaseUrl = _configuration["BaseUrl"];
-                var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl) ? null : configuredBaseUrl;
+                var baseUrl = string.IsNullOrWhiteSpace(_emailSettings.BaseUrl) ? null : _emailSettings.BaseUrl;
 
                 // Get instructor information
                 var instructorName = "Unknown Instructor";
@@ -714,7 +713,10 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     {
                         modifierName = modifierPerson.PersonDisplayFullName ??
                             $"{modifierPerson.PersonDisplayLastName}, {modifierPerson.PersonDisplayFirstName}";
-                        modifierEmail = modifierPerson.IdsMailId;
+                        // IdsMailId contains just the username (e.g., "rvlorenzo"), append domain for full email
+                        modifierEmail = !string.IsNullOrEmpty(modifierPerson.IdsMailId)
+                            ? $"{modifierPerson.IdsMailId}@ucdavis.edu"
+                            : "";
                     }
                 }
                 catch (Exception ex)

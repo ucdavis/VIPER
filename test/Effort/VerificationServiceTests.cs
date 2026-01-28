@@ -60,12 +60,17 @@ public sealed class VerificationServiceTests : IDisposable
 
         _settings = new EffortSettings
         {
-            BaseUrl = "https://test.example.com",
             VerificationEmailSubject = "Please Verify Your Effort",
             VerificationReplyDays = 7
         };
 
         var settingsOptions = Options.Create(_settings);
+        var emailSettings = new EmailSettings
+        {
+            BaseUrl = "https://test.example.com"
+        };
+        var emailSettingsOptions = Options.Create(emailSettings);
+
         _emailTemplateRendererMock = new Mock<IEmailTemplateRenderer>();
         _emailTemplateRendererMock
             .Setup(r => r.RenderAsync<VerificationReminderViewModel>(
@@ -90,6 +95,7 @@ public sealed class VerificationServiceTests : IDisposable
             _mapperMock.Object,
             _loggerMock.Object,
             settingsOptions,
+            emailSettingsOptions,
             _emailTemplateRendererMock.Object);
 
         SeedTestData();
@@ -537,9 +543,12 @@ public sealed class VerificationServiceTests : IDisposable
         // Arrange: Create service with missing BaseUrl configuration
         var badSettings = new EffortSettings
         {
-            BaseUrl = "",  // Missing/empty BaseUrl
             VerificationEmailSubject = "Please Verify Your Effort",
             VerificationReplyDays = 7
+        };
+        var badEmailSettings = new EmailSettings
+        {
+            BaseUrl = ""  // Missing/empty BaseUrl
         };
 
         var serviceWithBadConfig = new VerificationService(
@@ -552,6 +561,7 @@ public sealed class VerificationServiceTests : IDisposable
             _mapperMock.Object,
             _loggerMock.Object,
             Options.Create(badSettings),
+            Options.Create(badEmailSettings),
             _emailTemplateRendererMock.Object);
 
         _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");

@@ -130,14 +130,14 @@ const webFiles = rawFiles.filter((f) => WEB_PATH_REGEX.test(f) && !EFFORT_SCRIPT
 const testFiles = rawFiles.filter((f) => TEST_PATH_REGEX.test(f))
 
 // Supported project configurations
-// Uses isolated output directories to avoid conflicts with dev server (bin/Debug)
+// Uses --artifacts-path for full isolation from dev server (avoids file lock conflicts)
 const PROJECT_CONFIG = {
-    web: { projectName: "Viper.csproj", buildPath: "web/", outputDir: "web/bin/Lint" },
-    test: { projectName: "Viper.test.csproj", buildPath: "test/", outputDir: "test/bin/Lint" },
+    web: { projectName: "Viper.csproj", buildPath: "web/", artifactsPath: ".artifacts-lint" },
+    test: { projectName: "Viper.test.csproj", buildPath: "test/", artifactsPath: ".artifacts-lint" },
     "web/Areas/Effort/Scripts": {
         projectName: "EffortMigration.csproj",
         buildPath: "web/Areas/Effort/Scripts/",
-        outputDir: "web/Areas/Effort/Scripts/bin/Lint",
+        artifactsPath: ".artifacts-lint",
     },
 }
 
@@ -150,7 +150,7 @@ const runBuild = (projectPath) => {
             `Unknown projectPath "${projectPath}" passed to runBuild. Expected one of: ${Object.keys(PROJECT_CONFIG).join(", ")}`,
         )
     }
-    const { projectName, buildPath, outputDir } = config
+    const { projectName, buildPath, artifactsPath } = config
 
     // Check if build is needed (unless forced)
     if (forceFlag) {
@@ -173,7 +173,7 @@ const runBuild = (projectPath) => {
         }
     }
 
-    const args = ["build", buildPath, "-o", outputDir, "--no-incremental", "--verbosity", "quiet"]
+    const args = ["build", buildPath, "--artifacts-path", artifactsPath, "--no-incremental", "--verbosity", "quiet"]
 
     try {
         logger.info(`Building ${buildPath} project for code analysis...`)

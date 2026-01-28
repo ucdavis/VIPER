@@ -171,10 +171,10 @@ function showCachedDotNetErrors(webFailed, testFailed) {
     const webOutput = webFailed ? filterBuildErrors(getCachedBuildOutput("Viper.csproj")) : ""
     const testOutput = testFailed ? filterBuildErrors(getCachedBuildOutput("Viper.test.csproj")) : ""
     if (webOutput) {
-        console.error("\n" + webOutput)
+        console.error(`\n${webOutput}`)
     }
     if (testOutput && testOutput !== webOutput) {
-        console.error("\n" + testOutput)
+        console.error(`\n${testOutput}`)
     }
 }
 
@@ -199,13 +199,14 @@ async function verifyDotNetBuild() {
 
     try {
         // Build test project (includes web via ProjectReference)
+        // Use --artifacts-path to fully isolate build artifacts from dev server
         const output = await runCommandWithOutput(
             "dotnet",
             [
                 "build",
                 "./test/Viper.test.csproj",
-                "-o",
-                "test/bin/Precommit",
+                "--artifacts-path",
+                ".artifacts-precommit",
                 "--no-restore",
                 "--nologo",
                 "--verbosity",
