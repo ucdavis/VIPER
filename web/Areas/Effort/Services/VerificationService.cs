@@ -329,8 +329,27 @@ public class VerificationService : IVerificationService
             return new EmailSendResult { Success = false, Error = "Invalid email address" };
         }
 
-        // Validate configuration up-front so InvalidOperationException in try block is only from template errors
-        var verificationUrl = BuildVerificationUrl(termCode);
+        string verificationUrl;
+        try
+        {
+            verificationUrl = BuildVerificationUrl(termCode);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Configuration error building verification URL for term {TermCode}", termCode);
+
+            var configErrorAuditData = new
+            {
+                RecipientPersonId = personId,
+                RecipientName = $"{instructor.LastName}, {instructor.FirstName}",
+                SendResult = "Failed: Configuration error"
+            };
+
+            await _auditService.LogPersonChangeAsync(
+                personId, termCode, EffortAuditActions.VerifyEmail, null, configErrorAuditData, ct);
+
+            return new EmailSendResult { Success = false, Error = "Email system configuration error. Please contact support." };
+        }
 
         try
         {
