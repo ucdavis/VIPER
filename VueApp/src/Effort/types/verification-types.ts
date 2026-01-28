@@ -112,6 +112,13 @@ type SendBulkEmailRequest = {
     termCode: number
 }
 
+/**
+ * Verification settings from the backend configuration.
+ */
+type VerificationSettingsDto = {
+    verificationReplyDays: number
+}
+
 export {
     VerificationErrorCodes,
     type MyEffortDto,
@@ -123,4 +130,5 @@ export {
     type BulkEmailResult,
     type SendVerificationEmailRequest,
     type SendBulkEmailRequest,
+    type VerificationSettingsDto,
 }

@@ -161,3 +161,14 @@ public class EmailFailure
     public string InstructorName { get; set; } = string.Empty;
     public string Reason { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// Verification settings for the frontend.
+/// </summary>
+public class VerificationSettingsDto
+{
+    /// <summary>
+    /// Number of days instructors have to respond to verification emails.
+    /// </summary>
+    public int VerificationReplyDays { get; set; }
+}

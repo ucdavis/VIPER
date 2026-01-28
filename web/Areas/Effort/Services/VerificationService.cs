@@ -543,6 +543,7 @@ public class VerificationService : IVerificationService
             };
 
             // Parse Changes JSON for recipient info
+            // Audit changes use nested structure: {"RecipientEmail":{"OldValue":null,"NewValue":"email@example.com"},"RecipientName":{"OldValue":null,"NewValue":"John Doe"}}
             if (!string.IsNullOrEmpty(audit.Changes))
             {
                 try
@@ -550,18 +551,24 @@ public class VerificationService : IVerificationService
                     using var doc = JsonDocument.Parse(audit.Changes);
                     var root = doc.RootElement;
 
-                    if (root.TryGetProperty("RecipientEmail", out var emailProp))
+                    if (root.TryGetProperty("RecipientEmail", out var emailProp) &&
+                        emailProp.TryGetProperty("NewValue", out var emailNewValue))
                     {
-                        dto.RecipientEmail = emailProp.GetString() ?? "";
+                        dto.RecipientEmail = emailNewValue.GetString() ?? "";
                     }
-                    if (root.TryGetProperty("RecipientName", out var nameProp))
+                    if (root.TryGetProperty("RecipientName", out var nameProp) &&
+                        nameProp.TryGetProperty("NewValue", out var nameNewValue))
                     {
-                        dto.RecipientName = nameProp.GetString() ?? "";
+                        dto.RecipientName = nameNewValue.GetString() ?? "";
                     }
                 }
                 catch (JsonException)
                 {
                     // Ignore parsing errors for legacy data
+                }
+                catch (InvalidOperationException)
+                {
+                    // Ignore legacy/malformed rows where structure differs
                 }
             }
 
