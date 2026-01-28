@@ -104,6 +104,9 @@ public class InstructorService : IInstructorService
         // Enrich with record counts for email eligibility
         await EnrichWithRecordCountsAsync(dtos, termCode, ct);
 
+        // Enrich with last email info for UI indicators
+        await EnrichWithLastEmailInfoAsync(dtos, termCode, ct);
+
         return dtos;
     }
 
@@ -128,6 +131,9 @@ public class InstructorService : IInstructorService
         // Enrich with record counts for email eligibility
         await EnrichWithRecordCountsAsync(dtos, termCode, ct);
 
+        // Enrich with last email info for UI indicators
+        await EnrichWithLastEmailInfoAsync(dtos, termCode, ct);
+
         return dtos;
     }
 
@@ -142,6 +148,7 @@ public class InstructorService : IInstructorService
         var dto = _mapper.Map<PersonDto>(instructor);
         await EnrichWithTitlesAsync([dto], ct);
         await EnrichWithRecordCountsAsync([dto], termCode, ct);
+        await EnrichWithLastEmailInfoAsync([dto], termCode, ct);
         return dto;
     }
 
@@ -745,6 +752,54 @@ public class InstructorService : IInstructorService
         foreach (var instructor in instructors)
         {
             instructor.RecordCount = recordCounts.GetValueOrDefault(instructor.PersonId, 0);
+        }
+    }
+
+    /// <summary>
+    /// Enriches instructor DTOs with last email information from the audit table.
+    /// Shows when the instructor was last sent a verification email and by whom.
+    /// </summary>
+    private async Task EnrichWithLastEmailInfoAsync(List<PersonDto> instructors, int termCode, CancellationToken ct)
+    {
+        if (instructors.Count == 0) return;
+
+        var personIds = instructors.Select(i => i.PersonId).ToList();
+
+        // Get most recent successful email per instructor
+        // Filter for successful sends by checking the Changes JSON contains "NewValue":"Success"
+        // The audit system stores changes as {"SendResult":{"OldValue":null,"NewValue":"Success"}}
+        var emailAudits = await _context.Audits
+            .AsNoTracking()
+            .Where(a => a.TableName == EffortAuditTables.Persons
+                && personIds.Contains(a.RecordId)
+                && a.TermCode == termCode
+                && a.Action == EffortAuditActions.VerifyEmail
+                && a.Changes != null && a.Changes.Contains("\"NewValue\":\"Success\""))
+            .ToListAsync(ct);
+
+        // Group by PersonId and get the most recent email for each
+        var lastEmails = emailAudits
+            .GroupBy(a => a.RecordId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(a => a.ChangedDate).First());
+
+        if (lastEmails.Count == 0) return;
+
+        // Get sender names from VIPER Person table
+        var senderIds = lastEmails.Values.Select(v => v.ChangedBy).Distinct().ToList();
+        var senderNames = await _viperContext.People
+            .AsNoTracking()
+            .Where(p => senderIds.Contains(p.PersonId))
+            .ToDictionaryAsync(p => p.PersonId, p => $"{p.FirstName} {p.LastName}", ct);
+
+        foreach (var instructor in instructors)
+        {
+            if (lastEmails.TryGetValue(instructor.PersonId, out var emailAudit))
+            {
+                instructor.LastEmailedDate = emailAudit.ChangedDate;
+                instructor.LastEmailedBy = senderNames.GetValueOrDefault(emailAudit.ChangedBy, "Unknown");
+            }
         }
     }
 

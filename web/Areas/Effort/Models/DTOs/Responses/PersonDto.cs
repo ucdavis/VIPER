@@ -35,4 +35,15 @@ public class PersonDto
     /// records can still receive emails to verify "no effort" status.
     /// </summary>
     public bool CanSendVerificationEmail => !IsVerified;
+
+    /// <summary>
+    /// Date when the last verification email was successfully sent.
+    /// Used to show email status indicators in the UI.
+    /// </summary>
+    public DateTime? LastEmailedDate { get; set; }
+
+    /// <summary>
+    /// Name of the person who sent the last verification email.
+    /// </summary>
+    public string? LastEmailedBy { get; set; }
 }

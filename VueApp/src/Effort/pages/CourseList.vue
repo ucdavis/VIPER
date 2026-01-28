@@ -219,6 +219,7 @@ import CourseImportDialog from "../components/CourseImportDialog.vue"
 import CourseEditDialog from "../components/CourseEditDialog.vue"
 import CourseAddDialog from "../components/CourseAddDialog.vue"
 import CourseLinkDialog from "../components/CourseLinkDialog.vue"
+import { inflect } from "inflection"
 
 const $q = useQuasar()
 const route = useRoute()
@@ -413,7 +414,7 @@ function confirmDeleteCourse(course: CourseDto) {
         if (recordCount > 0) {
             $q.dialog({
                 title: "Confirm Delete",
-                message: `This course has ${recordCount} effort record(s) that will also be deleted. Are you sure you want to proceed?`,
+                message: `This course has ${recordCount} effort ${inflect("record", recordCount)} that will also be deleted. Are you sure you want to proceed?`,
                 cancel: true,
                 persistent: true,
             }).onOk(() => deleteCourse(course.id))

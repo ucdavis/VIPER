@@ -40,6 +40,8 @@ type PersonDto = {
     isVerified: boolean
     recordCount: number
     canSendVerificationEmail: boolean
+    lastEmailedDate: string | null
+    lastEmailedBy: string | null
 }
 
 type AvailableTermDto = {

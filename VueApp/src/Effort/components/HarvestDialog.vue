@@ -128,7 +128,9 @@
                                 color="orange"
                             />
                         </template>
-                        <div class="text-weight-medium">{{ preview.warnings.length }} Warning(s)</div>
+                        <div class="text-weight-medium">
+                            {{ preview.warnings.length }} {{ inflect("Warning", preview.warnings.length) }}
+                        </div>
                         <ul class="q-mb-none q-pl-md">
                             <li
                                 v-for="(warning, idx) in preview.warnings.slice(0, 5)"
@@ -164,7 +166,7 @@
                             />
                         </template>
                         <div class="text-weight-medium text-negative">
-                            {{ preview.errors.length }} Error(s) - Harvest may fail
+                            {{ preview.errors.length }} {{ inflect("Error", preview.errors.length) }} - Harvest may fail
                         </div>
                         <ul class="q-mb-none q-pl-md">
                             <li
@@ -197,7 +199,8 @@
                             v-if="preview.removedInstructors.length > 0"
                             class="q-mt-xs"
                         >
-                            <strong>{{ preview.removedInstructors.length }}</strong> instructor(s)
+                            <strong>{{ preview.removedInstructors.length }}</strong>
+                            {{ inflect("instructor", preview.removedInstructors.length) }}
                             <span class="text-caption text-grey-7">
                                 ({{
                                     preview.removedInstructors
@@ -211,7 +214,8 @@
                             v-if="preview.removedCourses.length > 0"
                             class="q-mt-xs"
                         >
-                            <strong>{{ preview.removedCourses.length }}</strong> course(s)
+                            <strong>{{ preview.removedCourses.length }}</strong>
+                            {{ inflect("course", preview.removedCourses.length) }}
                             <span class="text-caption text-grey-7">
                                 ({{
                                     preview.removedCourses
@@ -442,6 +446,7 @@ import { useQuasar } from "quasar"
 import { harvestService } from "../services/harvest-service"
 import type { HarvestPreviewDto } from "../types"
 import type { QTableColumn } from "quasar"
+import { inflect } from "inflection"
 
 const props = defineProps<{
     modelValue: boolean
