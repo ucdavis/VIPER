@@ -532,6 +532,51 @@ public sealed class VerificationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SendVerificationEmailAsync_ReturnsError_WhenBaseUrlNotConfigured()
+    {
+        // Arrange: Create service with missing BaseUrl configuration
+        var badSettings = new EffortSettings
+        {
+            BaseUrl = "",  // Missing/empty BaseUrl
+            VerificationEmailSubject = "Please Verify Your Effort",
+            VerificationReplyDays = 7
+        };
+
+        var serviceWithBadConfig = new VerificationService(
+            _context,
+            _viperContext,
+            _auditServiceMock.Object,
+            _permissionServiceMock.Object,
+            _termServiceMock.Object,
+            _emailServiceMock.Object,
+            _mapperMock.Object,
+            _loggerMock.Object,
+            Options.Create(badSettings),
+            _emailTemplateRendererMock.Object);
+
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+
+        // Act
+        var result = await serviceWithBadConfig.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal("Email system configuration error. Please contact support.", result.Error);
+
+        // Verify audit was logged for the configuration failure
+        _auditServiceMock.Verify(
+            a => a.LogPersonChangeAsync(
+                TestPersonId, TestTermCode, EffortAuditActions.VerifyEmail,
+                null, It.Is<object>(o => o.ToString()!.Contains("Configuration error")), It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        // Verify no email was attempted
+        _emailServiceMock.Verify(
+            e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()),
+            Times.Never);
+    }
+
+    [Fact]
     public async Task SendVerificationEmailAsync_Succeeds_WhenValidEmail()
     {
         // Arrange
