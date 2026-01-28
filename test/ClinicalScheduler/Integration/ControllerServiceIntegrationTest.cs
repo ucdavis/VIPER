@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -52,11 +51,12 @@ namespace Viper.test.ClinicalScheduler.Integration
             var scheduleEditLogger = new Mock<ILogger<ScheduleEditService>>();
             var mockAuditService = new Mock<IScheduleAuditService>();
             var mockEmailService = new Mock<IEmailService>();
-            var mockEmailSettings = new Mock<IOptions<EmailNotificationSettings>>();
-            mockEmailSettings.Setup(x => x.Value).Returns(new EmailNotificationSettings());
+            var mockEmailNotificationSettings = new Mock<IOptions<EmailNotificationSettings>>();
+            mockEmailNotificationSettings.Setup(x => x.Value).Returns(new EmailNotificationSettings());
+            var mockEmailSettings = new Mock<IOptions<EmailSettings>>();
+            mockEmailSettings.Setup(x => x.Value).Returns(new EmailSettings());
             var mockGradYearService = new Mock<IGradYearService>();
             var mockPermissionValidator = new Mock<IPermissionValidator>();
-            var mockConfiguration = new Mock<IConfiguration>();
             var mockEmailTemplateRenderer = new Mock<IEmailTemplateRenderer>();
 
             _scheduleEditService = new ScheduleEditService(
@@ -64,10 +64,10 @@ namespace Viper.test.ClinicalScheduler.Integration
                 mockAuditService.Object,
                 scheduleEditLogger.Object,
                 mockEmailService.Object,
+                mockEmailNotificationSettings.Object,
                 mockEmailSettings.Object,
                 mockGradYearService.Object,
                 mockPermissionValidator.Object,
-                mockConfiguration.Object,
                 mockEmailTemplateRenderer.Object);
 
             _evaluationPolicyService = new EvaluationPolicyService();

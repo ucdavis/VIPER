@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Viper.Areas.ClinicalScheduler.Services;
@@ -19,11 +18,11 @@ namespace Viper.test.ClinicalScheduler
             ILogger<ScheduleEditService> logger,
             IEmailService emailService,
             IOptions<EmailNotificationSettings> emailNotificationOptions,
+            IOptions<EmailSettings> emailSettingsOptions,
             IGradYearService gradYearService,
             IPermissionValidator permissionValidator,
-            IConfiguration configuration,
             IEmailTemplateRenderer emailTemplateRenderer)
-            : base(context, auditService, logger, emailService, emailNotificationOptions, gradYearService, permissionValidator, configuration, emailTemplateRenderer)
+            : base(context, auditService, logger, emailService, emailNotificationOptions, emailSettingsOptions, gradYearService, permissionValidator, emailTemplateRenderer)
         {
         }
 

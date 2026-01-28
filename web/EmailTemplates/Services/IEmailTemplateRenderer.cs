@@ -9,7 +9,7 @@ public interface IEmailTemplateRenderer
     /// Renders an email template to an HTML string.
     /// </summary>
     /// <typeparam name="TModel">The view model type.</typeparam>
-    /// <param name="templatePath">Path to the template (e.g., "/EmailTemplates/Views/Effort/VerificationReminder.cshtml").</param>
+    /// <param name="templatePath">Path to the template (e.g., "/Areas/Effort/EmailTemplates/Views/VerificationReminder.cshtml").</param>
     /// <param name="model">The strongly-typed view model.</param>
     /// <param name="viewData">Optional ViewData dictionary for layout/title.</param>
     /// <returns>Rendered HTML string.</returns>

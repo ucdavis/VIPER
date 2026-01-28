@@ -248,7 +248,7 @@ try
     // In development, derive BaseUrl from ASPNETCORE_HTTPS_PORT if not explicitly configured
     if (builder.Environment.IsDevelopment())
     {
-        builder.Services.PostConfigure<Viper.Areas.Effort.EffortSettings>(settings =>
+        builder.Services.PostConfigure<Viper.Services.EmailSettings>(settings =>
         {
             if (string.IsNullOrWhiteSpace(settings.BaseUrl))
             {
