@@ -163,8 +163,8 @@ public class EmailTemplateRendererIntegrationTests
         var viewModel = new VerificationReminderViewModel
         {
             TermDescription = "Fall 2024",
-            TermStartDate = new DateTime(2024, 9, 25),
-            TermEndDate = new DateTime(2024, 12, 13),
+            TermStartDate = new DateTime(2024, 9, 25, 0, 0, 0, DateTimeKind.Local),
+            TermEndDate = new DateTime(2024, 12, 13, 0, 0, 0, DateTimeKind.Local),
             ReplyByDate = "January 15, 2025",
             VerificationUrl = "https://viper.example.com/effort/verify?term=202410",
             HasZeroEffort = false,

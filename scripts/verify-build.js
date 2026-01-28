@@ -146,7 +146,41 @@ async function verifyVueBuild() {
     }
 }
 
+// Check if .NET has a cached failure (used to fail fast before running Vue builds)
+function checkDotNetCacheFailure() {
+    const webCached = !needsBuild("web", "Viper.csproj")
+    const testCached = !needsBuild("test", "Viper.test.csproj")
+
+    if (webCached && testCached) {
+        const webFailed = wasBuildSuccessful("Viper.csproj") === false
+        const testFailed = wasBuildSuccessful("Viper.test.csproj") === false
+        if (webFailed || testFailed) {
+            return {
+                hasCachedFailure: true,
+                webFailed,
+                testFailed,
+            }
+        }
+    }
+    return { hasCachedFailure: false, webFailed: false, testFailed: false }
+}
+
+// Show cached .NET build errors
+function showCachedDotNetErrors(webFailed, testFailed) {
+    logger.error(".NET compilation failed (cached) - fix the error(s) below:")
+    const webOutput = webFailed ? filterBuildErrors(getCachedBuildOutput("Viper.csproj")) : ""
+    const testOutput = testFailed ? filterBuildErrors(getCachedBuildOutput("Viper.test.csproj")) : ""
+    if (webOutput) {
+        console.error("\n" + webOutput)
+    }
+    if (testOutput && testOutput !== webOutput) {
+        console.error("\n" + testOutput)
+    }
+}
+
 async function verifyDotNetBuild() {
+    logger.info("Checking .NET compilation...")
+
     // Check cache - if build-dotnet.js already built both projects, skip
     // Building test/ also builds web/ (via ProjectReference)
     const webCached = !needsBuild("web", "Viper.csproj")
@@ -154,23 +188,14 @@ async function verifyDotNetBuild() {
 
     if (webCached && testCached) {
         // Check if cached build was successful (check both projects)
-        const webFailed = wasBuildSuccessful("Viper.csproj") === false
-        const testFailed = wasBuildSuccessful("Viper.test.csproj") === false
-        if (webFailed || testFailed) {
-            logger.error(".NET compilation failed (cached) - fix the error(s) below:")
-            if (webFailed) {
-                console.error(filterBuildErrors(getCachedBuildOutput("Viper.csproj")))
-            }
-            if (testFailed) {
-                console.error(filterBuildErrors(getCachedBuildOutput("Viper.test.csproj")))
-            }
+        const { hasCachedFailure, webFailed, testFailed } = checkDotNetCacheFailure()
+        if (hasCachedFailure) {
+            showCachedDotNetErrors(webFailed, testFailed)
             return false
         }
         logger.success(".NET compilation passed ✓ (cached)")
         return true
     }
-
-    logger.info("Checking .NET compilation...")
 
     try {
         // Build test project (includes web via ProjectReference)
@@ -212,6 +237,18 @@ async function verifyDotNetBuild() {
 
 async function main() {
     logger.info("Starting build verification...")
+
+    // Check for cached .NET failure first - fail fast without running Vue builds
+    const { hasCachedFailure, webFailed, testFailed } = checkDotNetCacheFailure()
+    if (hasCachedFailure) {
+        logger.info("Checking .NET compilation...")
+        showCachedDotNetErrors(webFailed, testFailed)
+        logger.error("Build verification failed! ❌")
+        logger.plain("")
+        logger.plain("Please fix the .NET compilation errors above before committing.")
+        logger.plain("You can re-run this verification with: npm run verify:build")
+        process.exit(1)
+    }
 
     // Run checks in parallel (.NET uses cache - skips if already built by build-dotnet.js)
     const checks = await Promise.allSettled([
