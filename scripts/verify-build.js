@@ -12,7 +12,7 @@ const {
     wasBuildSuccessful,
     getCachedBuildOutput,
     filterBuildErrors,
-    hasActualErrors,
+    isConfirmedWarningsOnly,
 } = require("./lib/build-cache")
 
 const logger = createLogger("Build Verify")
@@ -147,7 +147,7 @@ async function verifyVueBuild() {
     }
 }
 
-// Check if .NET has a cached failure with actual errors (used to fail fast before running Vue builds)
+// Check if .NET has a cached failure (used to fail fast before running Vue builds)
 function checkDotNetCacheFailure() {
     const webCached = !needsBuild("web", "Viper.csproj")
     const testCached = !needsBuild("test", "Viper.test.csproj")
@@ -156,17 +156,11 @@ function checkDotNetCacheFailure() {
         const webMarkedFailed = wasBuildSuccessful("Viper.csproj") === false
         const testMarkedFailed = wasBuildSuccessful("Viper.test.csproj") === false
 
-        // Only treat as failure if there are actual compilation errors (not just warnings)
-        const webOutput = getCachedBuildOutput("Viper.csproj") || ""
-        const testOutput = getCachedBuildOutput("Viper.test.csproj") || ""
-        const webHasErrors = webMarkedFailed && hasActualErrors(webOutput)
-        const testHasErrors = testMarkedFailed && hasActualErrors(testOutput)
-
-        if (webHasErrors || testHasErrors) {
+        if (webMarkedFailed || testMarkedFailed) {
             return {
                 hasCachedFailure: true,
-                webFailed: webHasErrors,
-                testFailed: testHasErrors,
+                webFailed: webMarkedFailed,
+                testFailed: testMarkedFailed,
             }
         }
     }
@@ -237,23 +231,24 @@ async function verifyDotNetBuild() {
             output = error.message || "Build failed with unknown error"
         }
 
-        // Check if there are actual compilation errors vs just warnings
-        // dotnet build exits non-zero for warnings-as-errors, but we only care about real errors
-        const hasErrors = hasActualErrors(output)
+        // Fail by default on non-zero exit code.
+        // Only treat as success if we can positively confirm it's warnings-only
+        // (i.e., output contains "0 Error(s)" or "Build succeeded.")
+        const isWarningsOnly = isConfirmedWarningsOnly(output)
 
-        if (hasErrors) {
-            // Cache as failure only if there are actual errors
-            markAsBuilt("web", "Viper.csproj", output, false)
-            markAsBuilt("test", "Viper.test.csproj", output, false)
-            logger.error(".NET compilation failed")
-            return false
+        if (isWarningsOnly) {
+            // Confirmed warnings-only - treat as success
+            markAsBuilt("web", "Viper.csproj", output, true)
+            markAsBuilt("test", "Viper.test.csproj", output, true)
+            logger.success(".NET compilation passed ✓ (warnings present)")
+            return true
         }
 
-        // Warnings only - treat as success but show the warnings were present
-        markAsBuilt("web", "Viper.csproj", output, true)
-        markAsBuilt("test", "Viper.test.csproj", output, true)
-        logger.success(".NET compilation passed ✓ (warnings present)")
-        return true
+        // Could not confirm success - treat as failure
+        markAsBuilt("web", "Viper.csproj", output, false)
+        markAsBuilt("test", "Viper.test.csproj", output, false)
+        logger.error(".NET compilation failed")
+        return false
     }
 }
 
