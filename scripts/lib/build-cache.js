@@ -439,7 +439,9 @@ function filterBuildErrors(output) {
                 line.includes("Could not copy"),
         )
         .join("\n")
-    return errorLines.trim()
+        .trim()
+    // Fall back to original output when no error lines matched to avoid silent failures
+    return errorLines || output
 }
 
 /**
