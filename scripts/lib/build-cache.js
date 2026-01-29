@@ -420,7 +420,7 @@ const ERROR_PATTERN = /:\s*error\s+[A-Z]+\d+/i
 /**
  * Filter build output to show only error lines (not warnings)
  * @param {string} output - Full build output
- * @returns {string} - Filtered output with only errors, or empty string if no errors found
+ * @returns {string} - Filtered output with only errors, or original output if no error lines matched
  */
 function filterBuildErrors(output) {
     if (!output || !output.trim()) {
