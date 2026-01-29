@@ -139,7 +139,7 @@
                                                 color="warning"
                                                 size="xs"
                                             />
-                                            <span>Emailed within 7 days</span>
+                                            <span>Emailed within {{ verificationReplyDays }} days</span>
                                         </div>
                                         <div class="legend-item">
                                             <q-icon

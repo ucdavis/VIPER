@@ -366,9 +366,8 @@ public class EffortDbContext : DbContext
             entity.HasKey(e => e.PersonId);
             entity.ToTable("Person", schema: "users");
 
-            entity.Property(e => e.PersonId).HasColumnName("personId");
-            entity.Property(e => e.FirstName).HasColumnName("firstName").HasMaxLength(50);
-            entity.Property(e => e.LastName).HasColumnName("lastName").HasMaxLength(50);
+            entity.Property(e => e.FirstName).HasMaxLength(50);
+            entity.Property(e => e.LastName).HasMaxLength(50);
         });
     }
 }
