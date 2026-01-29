@@ -14,8 +14,11 @@ public class AutoMapperProfileEffort : Profile
             .ForMember(d => d.CanDelete, opt => opt.Ignore());
 
         // VolunteerWos: byte? (1=true) → bool
+        // LastEmailedDate mapped from LastEmailed; LastEmailedBy (name) set by service lookup
         CreateMap<EffortPerson, PersonDto>()
-            .ForMember(d => d.VolunteerWos, opt => opt.MapFrom(s => s.VolunteerWos == 1));
+            .ForMember(d => d.VolunteerWos, opt => opt.MapFrom(s => s.VolunteerWos == 1))
+            .ForMember(d => d.LastEmailedDate, opt => opt.MapFrom(s => s.LastEmailed))
+            .ForMember(d => d.LastEmailedBy, opt => opt.Ignore());
         CreateMap<EffortCourse, CourseDto>();
 
         // PercentAssignType mapping - InstructorCount set by service

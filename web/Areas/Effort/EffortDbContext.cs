@@ -35,6 +35,9 @@ public class EffortDbContext : DbContext
     public virtual DbSet<CourseRelationship> CourseRelationships { get; set; }
     public virtual DbSet<Audit> Audits { get; set; }
 
+    // Read-only cross-schema reference (users schema in same database)
+    public virtual DbSet<ViperPerson> ViperPersons { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (HttpHelper.Settings != null)
@@ -84,6 +87,8 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.ReportUnit).HasColumnName("ReportUnit").HasMaxLength(50);
             entity.Property(e => e.VolunteerWos).HasColumnName("VolunteerWos");
             entity.Property(e => e.PercentClinical).HasColumnName("PercentClinical");
+            entity.Property(e => e.LastEmailed).HasColumnName("LastEmailed");
+            entity.Property(e => e.LastEmailedBy).HasColumnName("LastEmailedBy");
 
             entity.HasOne(e => e.Term)
                 .WithMany(t => t.Persons)
@@ -353,6 +358,17 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.LegacyCRN).HasColumnName("LegacyCRN").HasMaxLength(20);
             entity.Property(e => e.LegacyMothraID).HasColumnName("LegacyMothraID").HasMaxLength(20);
             entity.Property(e => e.TermCode).HasColumnName("TermCode");
+        });
+
+        // ViperPerson (users.Person) - read-only cross-schema reference
+        modelBuilder.Entity<ViperPerson>(entity =>
+        {
+            entity.HasKey(e => e.PersonId);
+            entity.ToTable("Person", schema: "users");
+
+            entity.Property(e => e.PersonId).HasColumnName("personId");
+            entity.Property(e => e.FirstName).HasColumnName("firstName").HasMaxLength(50);
+            entity.Property(e => e.LastName).HasColumnName("lastName").HasMaxLength(50);
         });
     }
 }

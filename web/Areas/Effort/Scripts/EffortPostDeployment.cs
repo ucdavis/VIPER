@@ -12,6 +12,7 @@
 // 5. RenameRecordsFKColumns - Rename Records.SessionType→Records.EffortTypeId and Records.Role→Records.RoleId
 // 6. RenamePercentagesEffortTypeIdColumn - Rename Percentages.EffortTypeId→Percentages.PercentAssignTypeId
 // 7. DuplicateRecordsCleanup - Remove duplicate (CourseId, PersonId, EffortTypeId) records and add unique constraint
+// 8. AddLastEmailedColumns - Add LastEmailed/LastEmailedBy columns to Persons table (performance optimization)
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -169,6 +170,23 @@ namespace Viper.Areas.Effort.Scripts
 
                 var (success, message) = RunDuplicateRecordsCleanupTask(viperConnectionString, executeMode);
                 taskResults["DuplicateRecordsCleanup"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 8: Add LastEmailed columns to Persons table
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 8: Add LastEmailed Columns to Persons");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunAddLastEmailedColumnsTask(viperConnectionString, executeMode);
+                taskResults["AddLastEmailedColumns"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
@@ -1607,6 +1625,173 @@ namespace Viper.Areas.Effort.Scripts
                 ON [effort].[Records] ([CourseId], [PersonId], [EffortTypeId])",
                 connection, transaction);
             cmd.ExecuteNonQuery();
+        }
+
+        #endregion
+
+        #region Task 8: Add LastEmailed Columns to Persons
+
+        private static (bool Success, string Message) RunAddLastEmailedColumnsTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Begin transaction for dry-run support
+                using var transaction = connection.BeginTransaction();
+
+                try
+                {
+                    var completedSteps = new List<string>();
+
+                    // Check which columns already exist
+                    var existingColumns = GetTableColumns(connection, transaction, "Persons");
+
+                    // Step 1: Add LastEmailed column
+                    Console.WriteLine("Step 1: Add LastEmailed column...");
+                    if (!existingColumns.Contains("LastEmailed"))
+                    {
+                        AddColumn(connection, transaction, "Persons", "LastEmailed", "datetime2(7) NULL");
+                        Console.WriteLine("  ✓ Added Persons.LastEmailed column");
+                        completedSteps.Add("Added LastEmailed column");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  - LastEmailed column already exists");
+                    }
+
+                    // Step 2: Add LastEmailedBy column
+                    Console.WriteLine();
+                    Console.WriteLine("Step 2: Add LastEmailedBy column...");
+                    if (!existingColumns.Contains("LastEmailedBy"))
+                    {
+                        AddColumn(connection, transaction, "Persons", "LastEmailedBy", "int NULL");
+                        Console.WriteLine("  ✓ Added Persons.LastEmailedBy column");
+                        completedSteps.Add("Added LastEmailedBy column");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  - LastEmailedBy column already exists");
+                    }
+
+                    // Step 3: Add FK constraint
+                    Console.WriteLine();
+                    Console.WriteLine("Step 3: Add FK_Persons_LastEmailedBy constraint...");
+                    if (!ForeignKeyExists(connection, transaction, "FK_Persons_LastEmailedBy"))
+                    {
+                        using var fkCmd = new SqlCommand(@"
+                            ALTER TABLE [effort].[Persons]
+                            ADD CONSTRAINT [FK_Persons_LastEmailedBy]
+                            FOREIGN KEY ([LastEmailedBy]) REFERENCES [users].[Person]([PersonId])",
+                            connection, transaction);
+                        fkCmd.ExecuteNonQuery();
+                        Console.WriteLine("  ✓ Added FK_Persons_LastEmailedBy constraint");
+                        completedSteps.Add("Added FK constraint");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  - FK_Persons_LastEmailedBy already exists");
+                    }
+
+                    // Step 4: Backfill from audit data
+                    Console.WriteLine();
+                    Console.WriteLine("Step 4: Backfill LastEmailed from audit data...");
+                    int backfilled = BackfillLastEmailedFromAudit(connection, transaction);
+                    if (backfilled > 0)
+                    {
+                        Console.WriteLine($"  ✓ Backfilled {backfilled} rows from audit data");
+                        completedSteps.Add($"Backfilled {backfilled} rows");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  - No rows needed backfill (all NULL or already populated)");
+                    }
+
+                    Console.WriteLine();
+
+                    // If no steps were needed, skip transaction handling
+                    if (completedSteps.Count == 0)
+                    {
+                        transaction.Rollback();
+                        return (true, "All steps already complete");
+                    }
+
+                    // Commit or rollback based on execute mode
+                    if (executeMode)
+                    {
+                        transaction.Commit();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("  ✓ Transaction committed - changes are permanent");
+                        Console.ResetColor();
+                        return (true, $"Completed {completedSteps.Count} steps: {string.Join(", ", completedSteps)}");
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  ↶ Transaction rolled back - no permanent changes");
+                        Console.ResetColor();
+                        return (true, $"Verified {completedSteps.Count} steps (rolled back)");
+                    }
+                }
+                catch (SqlException ex)
+                {
+                    transaction.Rollback();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                    Console.WriteLine("  ↶ Transaction rolled back");
+                    Console.ResetColor();
+                    return (false, $"Database error: {ex.Message}");
+                }
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        private static int BackfillLastEmailedFromAudit(SqlConnection connection, SqlTransaction transaction)
+        {
+            // Get the most recent successful VerifyEmail audit for each person/term
+            // and update Persons.LastEmailed/LastEmailedBy where NULL.
+            // LEFT JOIN to users.Person sets LastEmailedBy to NULL when the sender
+            // no longer exists (deleted user or ChangedBy=0), which satisfies the FK.
+            using var cmd = new SqlCommand(@"
+                WITH LatestEmails AS (
+                    SELECT RecordId, TermCode, ChangedDate, ChangedBy,
+                           ROW_NUMBER() OVER (PARTITION BY RecordId, TermCode ORDER BY ChangedDate DESC) as rn
+                    FROM [effort].[Audits]
+                    WHERE TableName = 'Persons'
+                      AND Action = 'VerifyEmail'
+                      AND Changes LIKE '%""NewValue"":""Success""%'
+                )
+                UPDATE p SET
+                    p.LastEmailed = e.ChangedDate,
+                    p.LastEmailedBy = u.PersonId
+                FROM [effort].[Persons] p
+                INNER JOIN LatestEmails e
+                    ON p.PersonId = e.RecordId
+                    AND p.TermCode = e.TermCode
+                    AND e.rn = 1
+                LEFT JOIN [users].[Person] u
+                    ON u.PersonId = e.ChangedBy
+                WHERE p.LastEmailed IS NULL",
+                connection, transaction);
+
+            return cmd.ExecuteNonQuery();
         }
 
         #endregion

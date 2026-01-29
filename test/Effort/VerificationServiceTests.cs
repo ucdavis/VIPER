@@ -635,6 +635,65 @@ public sealed class VerificationServiceTests : IDisposable
             Times.Once);
     }
 
+    [Fact]
+    public async Task SendVerificationEmailAsync_UpdatesLastEmailedFields_OnSuccess()
+    {
+        // Arrange
+        var senderPersonId = 999;
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(senderPersonId);
+
+        _emailServiceMock
+            .Setup(e => e.SendEmailAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<bool>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+
+        // Verify initial state - no LastEmailed data
+        var personBefore = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        Assert.Null(personBefore.LastEmailed);
+        Assert.Null(personBefore.LastEmailedBy);
+
+        // Act
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+
+        // Assert
+        Assert.True(result.Success);
+
+        // Reload entity to verify database was updated
+        await _context.Entry(personBefore).ReloadAsync();
+        Assert.NotNull(personBefore.LastEmailed);
+        Assert.Equal(senderPersonId, personBefore.LastEmailedBy);
+    }
+
+    [Fact]
+    public async Task SendVerificationEmailAsync_SetsLastEmailedByToNull_WhenSenderIdIsZero()
+    {
+        // Arrange: Sender ID of 0 means user not found - should set LastEmailedBy to null to avoid FK violation
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(0);
+
+        _emailServiceMock
+            .Setup(e => e.SendEmailAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<bool>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+
+        // Act
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+
+        // Assert
+        Assert.True(result.Success);
+
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        Assert.NotNull(person.LastEmailed);
+        Assert.Null(person.LastEmailedBy); // Should be null, not 0, to avoid FK violation
+    }
+
     #endregion
 
     #region SendBulkVerificationEmailsAsync Tests
