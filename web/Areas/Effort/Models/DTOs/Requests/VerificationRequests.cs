@@ -7,8 +7,10 @@ namespace Viper.Areas.Effort.Models.DTOs.Requests;
 /// </summary>
 public class SendVerificationEmailRequest
 {
+    [Range(1, int.MaxValue)]
     public required int PersonId { get; set; }
 
+    [Range(1, int.MaxValue)]
     public required int TermCode { get; set; }
 }
 
@@ -21,5 +23,6 @@ public class SendBulkEmailRequest
     [StringLength(10, MinimumLength = 1)]
     public required string DepartmentCode { get; set; }
 
+    [Range(1, int.MaxValue)]
     public required int TermCode { get; set; }
 }

@@ -119,6 +119,12 @@ public class VerificationController : BaseEffortController
             return Forbid();
         }
 
+        // Prevent sending emails to already-verified instructors
+        if (instructor.IsVerified)
+        {
+            return Conflict("Instructor has already verified their effort.");
+        }
+
         var result = await _verificationService.SendVerificationEmailAsync(request.PersonId, request.TermCode, ct);
 
         return Ok(result);

@@ -207,6 +207,26 @@ public sealed class VerificationControllerTests
         Assert.IsType<ForbidResult>(result.Result);
     }
 
+    [Fact]
+    public async Task SendVerificationEmail_ReturnsConflict_WhenInstructorAlreadyVerified()
+    {
+        // Arrange
+        var request = new SendVerificationEmailRequest { PersonId = 123, TermCode = 202410 };
+        var instructor = new PersonDto { PersonId = 123, EffortDept = "DVM", EffortVerified = DateTime.Now };
+
+        _instructorServiceMock.Setup(s => s.GetInstructorAsync(123, 202410, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(instructor);
+        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        // Act
+        var result = await _controller.SendVerificationEmail(request);
+
+        // Assert
+        var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
+        Assert.Equal("Instructor has already verified their effort.", conflictResult.Value);
+    }
+
     #endregion
 
     #region SendBulkVerificationEmails Tests
