@@ -84,8 +84,8 @@
                         size="sm"
                         color="white"
                         no-caps
-                        :disable="bulkEmailDept === deptGroup.dept"
-                        :loading="bulkEmailDept === deptGroup.dept"
+                        :disable="sendingEmailDepts.has(deptGroup.dept)"
+                        :loading="sendingEmailDepts.has(deptGroup.dept)"
                         @click="confirmBulkEmail(deptGroup)"
                     />
                 </div>
@@ -241,7 +241,8 @@
                                 <!-- Email action: Loading spinner while sending -->
                                 <q-spinner
                                     v-else-if="
-                                        sendingEmailFor === props.row.personId || bulkEmailDept === props.row.effortDept
+                                        sendingEmailPersonIds.has(props.row.personId) ||
+                                        sendingEmailDepts.has(props.row.effortDept)
                                     "
                                     color="primary"
                                     size="xs"
@@ -408,17 +409,17 @@ const showAddDialog = ref(false)
 const showEditDialog = ref(false)
 const selectedInstructor = ref<PersonDto | null>(null)
 
-// Email state
-const sendingEmailFor = ref<number | null>(null)
-const bulkEmailDept = ref<string | null>(null)
+// Email state - using Sets to allow concurrent sends
+const sendingEmailPersonIds = ref<Set<number>>(new Set())
+const sendingEmailDepts = ref<Set<string>>(new Set())
 const verificationReplyDays = ref(7)
 
-// Warn user if they try to leave while bulk email is in progress
+// Warn user if they try to leave while email operations are in progress
 function handleBeforeUnload(e: BeforeUnloadEvent) {
-    if (bulkEmailDept.value) {
+    if (sendingEmailDepts.value.size > 0 || sendingEmailPersonIds.value.size > 0) {
         e.preventDefault()
         // Modern browsers ignore custom messages, but returnValue is required
-        e.returnValue = "Bulk email is in progress. Are you sure you want to leave?"
+        e.returnValue = "Email sending is in progress. Are you sure you want to leave?"
         return e.returnValue
     }
 }
@@ -432,9 +433,9 @@ onUnmounted(() => {
 })
 
 onBeforeRouteLeave((_to, _from, next) => {
-    if (bulkEmailDept.value) {
+    if (sendingEmailDepts.value.size > 0 || sendingEmailPersonIds.value.size > 0) {
         $q.dialog({
-            title: "Bulk Email In Progress",
+            title: "Email In Progress",
             message:
                 "Verification emails are still being sent. Leaving this page may interrupt the process. Are you sure you want to leave?",
             cancel: true,
@@ -685,7 +686,7 @@ function confirmResendEmail(instructor: PersonDto) {
 async function sendVerificationEmail(instructor: PersonDto) {
     if (!selectedTermCode.value) return
 
-    sendingEmailFor.value = instructor.personId
+    sendingEmailPersonIds.value.add(instructor.personId)
     try {
         const result = await verificationService.sendVerificationEmail(instructor.personId, selectedTermCode.value)
         if (result.success) {
@@ -708,7 +709,7 @@ async function sendVerificationEmail(instructor: PersonDto) {
             message: "An error occurred while sending the email",
         })
     } finally {
-        sendingEmailFor.value = null
+        sendingEmailPersonIds.value.delete(instructor.personId)
     }
 }
 
@@ -725,7 +726,7 @@ function confirmBulkEmail(deptGroup: DeptGroup) {
 async function sendBulkVerificationEmails(dept: string) {
     if (!selectedTermCode.value) return
 
-    bulkEmailDept.value = dept
+    sendingEmailDepts.value.add(dept)
     const loadingNotify = $q.notify({
         type: "ongoing",
         message: `Sending verification emails to ${dept}...`,
@@ -787,7 +788,7 @@ async function sendBulkVerificationEmails(dept: string) {
             message: "An error occurred while sending bulk emails",
         })
     } finally {
-        bulkEmailDept.value = null
+        sendingEmailDepts.value.delete(dept)
     }
 }
 
