@@ -22,6 +22,8 @@ public class EffortPerson
     public string? ReportUnit { get; set; }
     public byte? VolunteerWos { get; set; }
     public double? PercentClinical { get; set; }
+    public DateTime? LastEmailed { get; set; }
+    public int? LastEmailedBy { get; set; }
 
     // Navigation properties
     public virtual EffortTerm Term { get; set; } = null!;

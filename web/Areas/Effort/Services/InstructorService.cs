@@ -82,30 +82,20 @@ public class InstructorService : IInstructorService
 
     public async Task<List<PersonDto>> GetInstructorsAsync(int termCode, string? department = null, CancellationToken ct = default)
     {
-        var query = _context.Persons
+        var baseQuery = _context.Persons
             .AsNoTracking()
             .Where(p => p.TermCode == termCode);
 
         if (!string.IsNullOrWhiteSpace(department))
         {
-            query = query.Where(p => p.EffortDept == department);
+            baseQuery = baseQuery.Where(p => p.EffortDept == department);
         }
 
-        var instructors = await query
-            .OrderBy(p => p.LastName)
-            .ThenBy(p => p.FirstName)
-            .ToListAsync(ct);
+        var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct);
 
-        var dtos = _mapper.Map<List<PersonDto>>(instructors);
-
-        // Enrich with titles from dictionary database
-        await EnrichWithTitlesAsync(dtos, ct);
-
-        // Enrich with record counts for email eligibility
-        await EnrichWithRecordCountsAsync(dtos, termCode, ct);
-
-        // Enrich with last email info for UI indicators
-        await EnrichWithLastEmailInfoAsync(dtos, termCode, ct);
+        await Task.WhenAll(
+            EnrichWithTitlesAsync(dtos, ct),
+            EnrichWithRecordCountsAsync(dtos, termCode, ct));
 
         return dtos;
     }
@@ -117,39 +107,65 @@ public class InstructorService : IInstructorService
             return [];
         }
 
-        var instructors = await _context.Persons
+        var baseQuery = _context.Persons
             .AsNoTracking()
-            .Where(p => p.TermCode == termCode && departments.Contains(p.EffortDept))
-            .OrderBy(p => p.LastName)
-            .ThenBy(p => p.FirstName)
-            .ToListAsync(ct);
+            .Where(p => p.TermCode == termCode && departments.Contains(p.EffortDept));
 
-        var dtos = _mapper.Map<List<PersonDto>>(instructors);
+        var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct);
 
-        await EnrichWithTitlesAsync(dtos, ct);
-
-        // Enrich with record counts for email eligibility
-        await EnrichWithRecordCountsAsync(dtos, termCode, ct);
-
-        // Enrich with last email info for UI indicators
-        await EnrichWithLastEmailInfoAsync(dtos, termCode, ct);
+        await Task.WhenAll(
+            EnrichWithTitlesAsync(dtos, ct),
+            EnrichWithRecordCountsAsync(dtos, termCode, ct));
 
         return dtos;
     }
 
     public async Task<PersonDto?> GetInstructorAsync(int personId, int termCode, CancellationToken ct = default)
     {
-        var instructor = await _context.Persons
+        var baseQuery = _context.Persons
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.PersonId == personId && p.TermCode == termCode, ct);
+            .Where(p => p.PersonId == personId && p.TermCode == termCode);
 
-        if (instructor == null) return null;
+        var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct, applyOrdering: false);
+        if (dtos.Count == 0) return null;
 
-        var dto = _mapper.Map<PersonDto>(instructor);
+        var dto = dtos[0];
         await EnrichWithTitlesAsync([dto], ct);
         await EnrichWithRecordCountsAsync([dto], termCode, ct);
-        await EnrichWithLastEmailInfoAsync([dto], termCode, ct);
         return dto;
+    }
+
+    /// <summary>
+    /// Executes instructor query with left join to resolve LastEmailedBy sender names.
+    /// </summary>
+    private async Task<List<PersonDto>> QueryInstructorsWithSenderNamesAsync(
+        IQueryable<EffortPerson> baseQuery,
+        CancellationToken ct,
+        bool applyOrdering = true)
+    {
+        var query = from p in baseQuery
+                    join sender in _context.ViperPersons.AsNoTracking()
+                        on p.LastEmailedBy equals sender.PersonId into senders
+                    from sender in senders.DefaultIfEmpty()
+                    select new { Person = p, SenderName = sender != null ? sender.FirstName + " " + sender.LastName : null };
+
+        if (applyOrdering)
+        {
+            query = query.OrderBy(x => x.Person.LastName).ThenBy(x => x.Person.FirstName);
+        }
+
+        var results = await query.ToListAsync(ct);
+        var instructors = results.Select(r => r.Person).ToList();
+        var senderNames = results.ToDictionary(r => r.Person.PersonId, r => r.SenderName);
+
+        var dtos = _mapper.Map<List<PersonDto>>(instructors);
+
+        foreach (var dto in dtos.Where(d => senderNames.TryGetValue(d.PersonId, out var name) && name != null))
+        {
+            dto.LastEmailedBy = senderNames[dto.PersonId];
+        }
+
+        return dtos;
     }
 
     public async Task<List<AaudPersonDto>> SearchPossibleInstructorsAsync(int termCode, string? searchTerm = null, CancellationToken ct = default)
@@ -752,52 +768,6 @@ public class InstructorService : IInstructorService
         foreach (var instructor in instructors)
         {
             instructor.RecordCount = recordCounts.GetValueOrDefault(instructor.PersonId, 0);
-        }
-    }
-
-    /// <summary>
-    /// Enriches instructor DTOs with last email information from the audit table.
-    /// Shows when the instructor was last sent a verification email and by whom.
-    /// </summary>
-    private async Task EnrichWithLastEmailInfoAsync(List<PersonDto> instructors, int termCode, CancellationToken ct)
-    {
-        if (instructors.Count == 0) return;
-
-        var personIds = instructors.Select(i => i.PersonId).ToList();
-
-        // Get most recent successful email per instructor using DB-side grouping
-        // Filter for successful sends by checking the Changes JSON contains "NewValue":"Success"
-        // The audit system stores changes as {"SendResult":{"OldValue":null,"NewValue":"Success"}}
-        var lastEmails = await _context.Audits
-            .AsNoTracking()
-            .Where(a => a.TableName == EffortAuditTables.Persons
-                && personIds.Contains(a.RecordId)
-                && a.TermCode == termCode
-                && a.Action == EffortAuditActions.VerifyEmail
-                && a.Changes != null && a.Changes.Contains("\"NewValue\":\"Success\""))
-            .GroupBy(a => a.RecordId)
-            .Select(g => new
-            {
-                RecordId = g.Key,
-                ChangedDate = g.Max(a => a.ChangedDate),
-                ChangedBy = g.OrderByDescending(a => a.ChangedDate).First().ChangedBy
-            })
-            .ToDictionaryAsync(a => a.RecordId, a => new { a.ChangedDate, a.ChangedBy }, ct);
-
-        if (lastEmails.Count == 0) return;
-
-        // Get sender names from VIPER Person table
-        var senderIds = lastEmails.Values.Select(v => v.ChangedBy).Distinct().ToList();
-        var senderNames = await _viperContext.People
-            .AsNoTracking()
-            .Where(p => senderIds.Contains(p.PersonId))
-            .ToDictionaryAsync(p => p.PersonId, p => $"{p.FirstName} {p.LastName}", ct);
-
-        foreach (var instructor in instructors.Where(i => lastEmails.ContainsKey(i.PersonId)))
-        {
-            var emailAudit = lastEmails[instructor.PersonId];
-            instructor.LastEmailedDate = emailAudit.ChangedDate;
-            instructor.LastEmailedBy = senderNames.GetValueOrDefault(emailAudit.ChangedBy, "Unknown");
         }
     }
 

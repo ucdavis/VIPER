@@ -394,6 +394,18 @@ public class VerificationService : IVerificationService
                 isHtml: true,
                 from: senderEmail);
 
+            // Update LastEmailed fields on Person record (for fast lookup on instructors page)
+            // Guard against invalid sender IDs (0 = user not found) to avoid FK violation
+            var currentPersonId = _permissionService.GetCurrentPersonId();
+            var personToUpdate = await _context.Persons
+                .FirstOrDefaultAsync(p => p.PersonId == personId && p.TermCode == termCode, ct);
+            if (personToUpdate != null)
+            {
+                personToUpdate.LastEmailed = DateTime.Now;
+                personToUpdate.LastEmailedBy = currentPersonId == 0 ? null : currentPersonId;
+                await _context.SaveChangesAsync(ct);
+            }
+
             // Log success audit
             var successAuditData = new
             {

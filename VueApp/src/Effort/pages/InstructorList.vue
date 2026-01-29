@@ -102,9 +102,9 @@
                     :rows-per-page-options="[0]"
                     class="dept-table"
                 >
-                    <template #header-cell-email="props">
+                    <template #header-cell-actions="props">
                         <q-th :props="props">
-                            <span class="email-header-content">
+                            <span class="actions-header-content">
                                 {{ props.col.label }}
                                 <q-icon
                                     name="help_outline"
@@ -169,7 +169,7 @@
                                 v-if="props.row.isVerified && props.row.recordCount > 0"
                                 name="check"
                                 color="positive"
-                                size="sm"
+                                size="xs"
                             >
                                 <q-tooltip>Effort verified</q-tooltip>
                             </q-icon>
@@ -178,7 +178,7 @@
                                 v-else-if="props.row.isVerified && props.row.recordCount === 0"
                                 name="check"
                                 color="info"
-                                size="sm"
+                                size="xs"
                             >
                                 <q-tooltip>Verified no effort</q-tooltip>
                             </q-icon>
@@ -226,113 +226,119 @@
                             </div>
                         </q-td>
                     </template>
-                    <template #body-cell-email="props">
-                        <q-td :props="props">
-                            <!-- Already verified -->
-                            <q-icon
-                                v-if="props.row.isVerified"
-                                name="mark_email_read"
-                                color="positive"
-                                size="xs"
-                            >
-                                <q-tooltip>Already verified</q-tooltip>
-                            </q-icon>
-                            <!-- Loading spinner while sending (individual or bulk for this dept) -->
-                            <q-spinner
-                                v-else-if="
-                                    sendingEmailFor === props.row.personId || bulkEmailDept === props.row.effortDept
-                                "
-                                color="primary"
-                                size="xs"
-                            />
-                            <!-- Emailed past deadline, not verified -->
-                            <q-icon
-                                v-else-if="isEmailedPastDeadline(props.row)"
-                                name="mark_email_unread"
-                                color="negative"
-                                size="xs"
-                                class="cursor-pointer"
-                                tabindex="0"
-                                role="button"
-                                :aria-label="`Resend verification email to ${props.row.fullName} (past deadline)`"
-                                @click="confirmResendEmail(props.row)"
-                                @keydown.enter.prevent="confirmResendEmail(props.row)"
-                                @keydown.space.prevent="confirmResendEmail(props.row)"
-                            >
-                                <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
-                            </q-icon>
-                            <!-- Emailed within deadline, not verified -->
-                            <q-icon
-                                v-else-if="props.row.lastEmailedDate"
-                                name="mark_email_unread"
-                                color="warning"
-                                size="xs"
-                                class="cursor-pointer"
-                                tabindex="0"
-                                role="button"
-                                :aria-label="`Resend verification email to ${props.row.fullName}`"
-                                @click="confirmResendEmail(props.row)"
-                                @keydown.enter.prevent="confirmResendEmail(props.row)"
-                                @keydown.space.prevent="confirmResendEmail(props.row)"
-                            >
-                                <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
-                            </q-icon>
-                            <!-- Never emailed, not verified -->
-                            <q-icon
-                                v-else
-                                name="mail"
-                                :color="props.row.recordCount === 0 ? 'warning' : 'primary'"
-                                size="xs"
-                                class="cursor-pointer"
-                                tabindex="0"
-                                role="button"
-                                :aria-label="
-                                    props.row.recordCount === 0
-                                        ? `Send no-effort verification email to ${props.row.fullName}`
-                                        : `Send verification email to ${props.row.fullName}`
-                                "
-                                @click="sendVerificationEmail(props.row)"
-                                @keydown.enter.prevent="sendVerificationEmail(props.row)"
-                                @keydown.space.prevent="sendVerificationEmail(props.row)"
-                            >
-                                <q-tooltip>
-                                    {{
-                                        props.row.recordCount === 0
-                                            ? "Send no-effort verification email"
-                                            : "Send verification email"
-                                    }}
-                                </q-tooltip>
-                            </q-icon>
-                        </q-td>
-                    </template>
                     <template #body-cell-actions="props">
                         <q-td :props="props">
-                            <q-btn
-                                v-if="hasEditInstructor"
-                                icon="edit"
-                                color="primary"
-                                dense
-                                flat
-                                round
-                                size="sm"
-                                :aria-label="`Edit ${props.row.fullName}`"
-                                @click="openEditDialog(props.row)"
-                            >
-                                <q-tooltip>Edit instructor</q-tooltip>
-                            </q-btn>
-                            <q-btn
-                                v-if="hasDeleteInstructor"
-                                icon="delete"
-                                color="negative"
-                                dense
-                                flat
-                                round
-                                size="sm"
-                                :aria-label="`Delete ${props.row.fullName}`"
-                                @click="confirmDeleteInstructor(props.row)"
-                            >
-                                <q-tooltip>Delete instructor</q-tooltip>
-                            </q-btn>
+                            <div class="actions-cell">
+                                <!-- Email action: Already verified -->
+                                <q-icon
+                                    v-if="props.row.isVerified"
+                                    name="mark_email_read"
+                                    color="positive"
+                                    size="xs"
+                                >
+                                    <q-tooltip>Already verified</q-tooltip>
+                                </q-icon>
+                                <!-- Email action: Loading spinner while sending -->
+                                <q-spinner
+                                    v-else-if="
+                                        sendingEmailFor === props.row.personId || bulkEmailDept === props.row.effortDept
+                                    "
+                                    color="primary"
+                                    size="xs"
+                                />
+                                <!-- Email action: Emailed past deadline, not verified -->
+                                <span
+                                    v-else-if="isEmailedPastDeadline(props.row)"
+                                    class="email-icon-btn"
+                                    tabindex="0"
+                                    role="button"
+                                    :aria-label="`Resend verification email to ${props.row.fullName} (past deadline)`"
+                                    @click="confirmResendEmail(props.row)"
+                                    @keydown.enter.prevent="confirmResendEmail(props.row)"
+                                    @keydown.space.prevent="confirmResendEmail(props.row)"
+                                >
+                                    <q-icon
+                                        name="mark_email_unread"
+                                        color="negative"
+                                        size="xs"
+                                    />
+                                    <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
+                                </span>
+                                <!-- Email action: Emailed within deadline, not verified -->
+                                <span
+                                    v-else-if="props.row.lastEmailedDate"
+                                    class="email-icon-btn"
+                                    tabindex="0"
+                                    role="button"
+                                    :aria-label="`Resend verification email to ${props.row.fullName}`"
+                                    @click="confirmResendEmail(props.row)"
+                                    @keydown.enter.prevent="confirmResendEmail(props.row)"
+                                    @keydown.space.prevent="confirmResendEmail(props.row)"
+                                >
+                                    <q-icon
+                                        name="mark_email_unread"
+                                        color="warning"
+                                        size="xs"
+                                    />
+                                    <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
+                                </span>
+                                <!-- Email action: Never emailed, not verified -->
+                                <span
+                                    v-else
+                                    class="email-icon-btn"
+                                    tabindex="0"
+                                    role="button"
+                                    :aria-label="
+                                        props.row.recordCount === 0
+                                            ? `Send no-effort verification email to ${props.row.fullName}`
+                                            : `Send verification email to ${props.row.fullName}`
+                                    "
+                                    @click="sendVerificationEmail(props.row)"
+                                    @keydown.enter.prevent="sendVerificationEmail(props.row)"
+                                    @keydown.space.prevent="sendVerificationEmail(props.row)"
+                                >
+                                    <q-icon
+                                        name="mail"
+                                        :color="props.row.recordCount === 0 ? 'warning' : 'primary'"
+                                        size="xs"
+                                    />
+                                    <q-tooltip>
+                                        {{
+                                            props.row.recordCount === 0
+                                                ? "Send no-effort verification email"
+                                                : "Send verification email"
+                                        }}
+                                    </q-tooltip>
+                                </span>
+                                <!-- Edit action -->
+                                <q-btn
+                                    v-if="hasEditInstructor"
+                                    icon="edit"
+                                    color="primary"
+                                    dense
+                                    flat
+                                    round
+                                    size="sm"
+                                    :aria-label="`Edit ${props.row.fullName}`"
+                                    @click="openEditDialog(props.row)"
+                                >
+                                    <q-tooltip>Edit instructor</q-tooltip>
+                                </q-btn>
+                                <!-- Delete action -->
+                                <q-btn
+                                    v-if="hasDeleteInstructor"
+                                    icon="delete"
+                                    color="negative"
+                                    dense
+                                    flat
+                                    round
+                                    size="sm"
+                                    :aria-label="`Delete ${props.row.fullName}`"
+                                    @click="confirmDeleteInstructor(props.row)"
+                                >
+                                    <q-tooltip>Delete instructor</q-tooltip>
+                                </q-btn>
+                            </div>
                         </q-td>
                     </template>
                 </q-table>
@@ -511,20 +517,12 @@ const columns = computed<QTableColumn[]>(() => [
         classes: "instructor-cell",
     },
     {
-        name: "email",
-        label: "Email",
-        field: "email",
-        align: "center",
-        style: "width: 50px; min-width: 50px",
-        headerStyle: "width: 50px; min-width: 50px",
-    },
-    {
         name: "actions",
         label: "Actions",
         field: "actions",
         align: "center",
-        style: "width: 70px; min-width: 70px",
-        headerStyle: "width: 70px; min-width: 70px",
+        style: "width: 120px; min-width: 120px",
+        headerStyle: "width: 120px; min-width: 120px",
     },
 ])
 
@@ -855,11 +853,49 @@ onMounted(loadTerms)
     padding: 0.25rem 0;
 }
 
-.email-header-content {
+.actions-header-content {
     display: inline-flex;
     align-items: center;
-    gap: 0.125rem;
-    margin-right: auto;
+    gap: 0.25rem;
+}
+
+.actions-cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+    .email-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        transition: none;
+    }
+}
+
+.email-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.email-icon-btn:hover,
+.email-icon-btn:focus {
+    background-color: rgb(0 0 0 / 10%);
+}
+
+.email-icon-btn:focus-visible {
+    outline: 2px solid currentcolor;
+    outline-offset: 2px;
 }
 </style>
 
