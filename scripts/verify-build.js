@@ -12,6 +12,7 @@ const {
     wasBuildSuccessful,
     getCachedBuildOutput,
     filterBuildErrors,
+    hasActualErrors,
 } = require("./lib/build-cache")
 
 const logger = createLogger("Build Verify")
@@ -146,7 +147,48 @@ async function verifyVueBuild() {
     }
 }
 
+// Check if .NET has a cached failure with actual errors (used to fail fast before running Vue builds)
+function checkDotNetCacheFailure() {
+    const webCached = !needsBuild("web", "Viper.csproj")
+    const testCached = !needsBuild("test", "Viper.test.csproj")
+
+    if (webCached && testCached) {
+        const webMarkedFailed = wasBuildSuccessful("Viper.csproj") === false
+        const testMarkedFailed = wasBuildSuccessful("Viper.test.csproj") === false
+
+        // Only treat as failure if there are actual compilation errors (not just warnings)
+        const webOutput = getCachedBuildOutput("Viper.csproj") || ""
+        const testOutput = getCachedBuildOutput("Viper.test.csproj") || ""
+        const webHasErrors = webMarkedFailed && hasActualErrors(webOutput)
+        const testHasErrors = testMarkedFailed && hasActualErrors(testOutput)
+
+        if (webHasErrors || testHasErrors) {
+            return {
+                hasCachedFailure: true,
+                webFailed: webHasErrors,
+                testFailed: testHasErrors,
+            }
+        }
+    }
+    return { hasCachedFailure: false, webFailed: false, testFailed: false }
+}
+
+// Show cached .NET build errors
+function showCachedDotNetErrors(webFailed, testFailed) {
+    logger.error(".NET compilation failed (cached) - fix the error(s) below:")
+    const webOutput = webFailed ? filterBuildErrors(getCachedBuildOutput("Viper.csproj")) : ""
+    const testOutput = testFailed ? filterBuildErrors(getCachedBuildOutput("Viper.test.csproj")) : ""
+    if (webOutput) {
+        console.error(`\n${webOutput}`)
+    }
+    if (testOutput && testOutput !== webOutput) {
+        console.error(`\n${testOutput}`)
+    }
+}
+
 async function verifyDotNetBuild() {
+    logger.info("Checking .NET compilation...")
+
     // Check cache - if build-dotnet.js already built both projects, skip
     // Building test/ also builds web/ (via ProjectReference)
     const webCached = !needsBuild("web", "Viper.csproj")
@@ -154,33 +196,25 @@ async function verifyDotNetBuild() {
 
     if (webCached && testCached) {
         // Check if cached build was successful (check both projects)
-        const webFailed = wasBuildSuccessful("Viper.csproj") === false
-        const testFailed = wasBuildSuccessful("Viper.test.csproj") === false
-        if (webFailed || testFailed) {
-            logger.error(".NET compilation failed (cached) - fix the error(s) below:")
-            if (webFailed) {
-                console.error(filterBuildErrors(getCachedBuildOutput("Viper.csproj")))
-            }
-            if (testFailed) {
-                console.error(filterBuildErrors(getCachedBuildOutput("Viper.test.csproj")))
-            }
+        const { hasCachedFailure, webFailed, testFailed } = checkDotNetCacheFailure()
+        if (hasCachedFailure) {
+            showCachedDotNetErrors(webFailed, testFailed)
             return false
         }
         logger.success(".NET compilation passed ✓ (cached)")
         return true
     }
 
-    logger.info("Checking .NET compilation...")
-
     try {
         // Build test project (includes web via ProjectReference)
+        // Use --artifacts-path to fully isolate build artifacts from dev server
         const output = await runCommandWithOutput(
             "dotnet",
             [
                 "build",
                 "./test/Viper.test.csproj",
-                "-o",
-                "test/bin/Precommit",
+                "--artifacts-path",
+                ".artifacts-precommit",
                 "--no-restore",
                 "--nologo",
                 "--verbosity",
@@ -197,17 +231,46 @@ async function verifyDotNetBuild() {
         logger.success(".NET compilation passed ✓")
         return true
     } catch (error) {
-        // Cache failure with captured output
-        const output = error.output || ""
-        markAsBuilt("web", "Viper.csproj", output, false)
-        markAsBuilt("test", "Viper.test.csproj", output, false)
-        logger.error(".NET compilation failed")
-        return false
+        // Capture build output
+        let output = error.output || ""
+        if (!output.trim()) {
+            output = error.message || "Build failed with unknown error"
+        }
+
+        // Check if there are actual compilation errors vs just warnings
+        // dotnet build exits non-zero for warnings-as-errors, but we only care about real errors
+        const hasErrors = hasActualErrors(output)
+
+        if (hasErrors) {
+            // Cache as failure only if there are actual errors
+            markAsBuilt("web", "Viper.csproj", output, false)
+            markAsBuilt("test", "Viper.test.csproj", output, false)
+            logger.error(".NET compilation failed")
+            return false
+        }
+
+        // Warnings only - treat as success but show the warnings were present
+        markAsBuilt("web", "Viper.csproj", output, true)
+        markAsBuilt("test", "Viper.test.csproj", output, true)
+        logger.success(".NET compilation passed ✓ (warnings present)")
+        return true
     }
 }
 
 async function main() {
     logger.info("Starting build verification...")
+
+    // Check for cached .NET failure first - fail fast without running Vue builds
+    const { hasCachedFailure, webFailed, testFailed } = checkDotNetCacheFailure()
+    if (hasCachedFailure) {
+        logger.info("Checking .NET compilation...")
+        showCachedDotNetErrors(webFailed, testFailed)
+        logger.error("Build verification failed! ❌")
+        logger.plain("")
+        logger.plain("Please fix the .NET compilation errors above before committing.")
+        logger.plain("You can re-run this verification with: npm run verify:build")
+        process.exit(1)
+    }
 
     // Run checks in parallel (.NET uses cache - skips if already built by build-dotnet.js)
     const checks = await Promise.allSettled([

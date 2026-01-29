@@ -118,7 +118,7 @@ public abstract class EffortIntegrationTestBase : IDisposable
         };
         EffortContext.Courses.AddRange(courses);
 
-        // Add test persons
+        // Add test persons to EffortContext
         var persons = new[]
         {
             new EffortPerson { PersonId = TestUserAaudId, TermCode = TestTermCode, FirstName = "Test", LastName = "User", EffortDept = DvmDepartment },

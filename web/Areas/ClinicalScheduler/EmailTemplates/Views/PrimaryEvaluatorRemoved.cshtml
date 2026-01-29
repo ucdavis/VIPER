@@ -1,0 +1,51 @@
+@using Viper.Areas.ClinicalScheduler.EmailTemplates.Models
+@model PrimaryEvaluatorRemovedViewModel
+@{
+    Layout = "/EmailTemplates/Views/Shared/_EmailLayout.cshtml";
+    ViewBag.Title = "Primary Evaluator Removed";
+}
+
+<tr>
+    <td style="padding: 30px;">
+        <table class="data-table section" cellpadding="12" cellspacing="0" border="0" width="100%" style="background-color: #ffffff; border: 1px solid #e9ecef; border-radius: 4px;">
+            <tr style="background-color: #f8f9fa;">
+                <td style="font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;">Instructor:</td>
+                <td style="color: #212529; border-bottom: 1px solid #e9ecef;">@Model.InstructorName</td>
+            </tr>
+            <tr style="background-color: #f8f9fa;">
+                <td style="font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;">Rotation:</td>
+                <td style="color: #212529; border-bottom: 1px solid #e9ecef;">
+                    <a href="@Model.RotationLink" style="color: #007bff; text-decoration: none;">@Model.RotationName</a>
+                </td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;">Week:</td>
+                <td style="color: #212529; border-bottom: 1px solid #e9ecef;">Week @Model.WeekNumber</td>
+            </tr>
+            <tr style="background-color: #f8f9fa;">
+                <td style="font-weight: bold; color: #495057; width: 140px; border-bottom: 1px solid #e9ecef;">Modified by:</td>
+                <td style="color: #212529; border-bottom: 1px solid #e9ecef;">
+                    @if (!string.IsNullOrEmpty(Model.ModifierEmail))
+                    {
+                        <a href="mailto:@Model.ModifierEmail">@Model.ModifierName</a>
+                    }
+                    else
+                    {
+                        @Model.ModifierName
+                    }
+                </td>
+            </tr>
+        </table>
+
+        @if (Model.RequiresPrimaryEvaluator)
+        {
+            <table class="section" cellpadding="12" cellspacing="0" border="0" style="background-color: #fff3cd; border: 2px solid #ffc107; margin-top: 16px;">
+                <tr>
+                    <td style="color: #856404; font-size: 14px;">
+                        <b>Note: This week requires a primary evaluator.</b>
+                    </td>
+                </tr>
+            </table>
+        }
+    </td>
+</tr>

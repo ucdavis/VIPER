@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
@@ -19,7 +20,9 @@ public sealed class EffortRecordServiceTests : IDisposable
     private readonly EffortDbContext _context;
     private readonly RAPSContext _rapsContext;
     private readonly Mock<IEffortAuditService> _auditServiceMock;
+    private readonly Mock<IInstructorService> _instructorServiceMock;
     private readonly Mock<IUserHelper> _userHelperMock;
+    private readonly Mock<ILogger<EffortRecordService>> _loggerMock;
     private readonly EffortRecordService _service;
 
     private const int TestTermCode = 202410;
@@ -49,6 +52,9 @@ public sealed class EffortRecordServiceTests : IDisposable
                 It.IsAny<object?>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
+        _instructorServiceMock = new Mock<IInstructorService>();
+        _loggerMock = new Mock<ILogger<EffortRecordService>>();
+
         var testUser = new AaudUser { AaudUserId = TestUserId, MothraId = "testuser" };
         _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(testUser);
 
@@ -56,7 +62,9 @@ public sealed class EffortRecordServiceTests : IDisposable
             _context,
             _rapsContext,
             _auditServiceMock.Object,
-            _userHelperMock.Object);
+            _instructorServiceMock.Object,
+            _userHelperMock.Object,
+            _loggerMock.Object);
 
         SeedTestData();
     }
@@ -194,10 +202,17 @@ public sealed class EffortRecordServiceTests : IDisposable
             EffortValue = 40
         };
 
+        // Set up the instructor service to throw when person not found in VIPER
+        _instructorServiceMock
+            .Setup(s => s.CreateInstructorAsync(
+                It.IsAny<CreateInstructorRequest>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException($"Person with PersonId {request.PersonId} not found"));
+
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => _service.CreateEffortRecordAsync(request));
-        Assert.Contains("Person 9999 not found", ex.Message);
+        Assert.Contains("Failed to create instructor for PersonId 9999", ex.Message);
+        Assert.Contains("Person with PersonId 9999 not found", ex.Message);
     }
 
     [Fact]
@@ -494,6 +509,49 @@ public sealed class EffortRecordServiceTests : IDisposable
         // Assert
         Assert.NotNull(result);
         Assert.Equal("LEC", result.EffortType);
+    }
+
+    [Fact]
+    public async Task CreateEffortRecordAsync_HandlesRaceCondition_WhenInstructorCreatedConcurrently()
+    {
+        // Arrange - person does NOT exist initially in Effort DB
+        var newPersonId = 999;
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            CourseId = TestCourseId,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 40
+        };
+
+        // Simulate race condition: CreateInstructorAsync throws because another request already created the instructor
+        _instructorServiceMock
+            .Setup(s => s.CreateInstructorAsync(
+                It.Is<CreateInstructorRequest>(r => r.PersonId == newPersonId && r.TermCode == TestTermCode),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Areas.Effort.Exceptions.InstructorAlreadyExistsException(newPersonId, TestTermCode));
+
+        // After the exception, the person now exists (created by the concurrent request)
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            FirstName = "Concurrent",
+            LastName = "Instructor",
+            EffortDept = "VME"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act - should catch the exception and continue successfully
+        var (result, _) = await _service.CreateEffortRecordAsync(request);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(newPersonId, result.PersonId);
+        Assert.Equal("LEC", result.EffortType);
+        Assert.Equal(40, result.Hours);
     }
 
     #endregion

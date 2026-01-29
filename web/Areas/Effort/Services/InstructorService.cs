@@ -3,6 +3,7 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -100,6 +101,12 @@ public class InstructorService : IInstructorService
         // Enrich with titles from dictionary database
         await EnrichWithTitlesAsync(dtos, ct);
 
+        // Enrich with record counts for email eligibility
+        await EnrichWithRecordCountsAsync(dtos, termCode, ct);
+
+        // Enrich with last email info for UI indicators
+        await EnrichWithLastEmailInfoAsync(dtos, termCode, ct);
+
         return dtos;
     }
 
@@ -121,6 +128,12 @@ public class InstructorService : IInstructorService
 
         await EnrichWithTitlesAsync(dtos, ct);
 
+        // Enrich with record counts for email eligibility
+        await EnrichWithRecordCountsAsync(dtos, termCode, ct);
+
+        // Enrich with last email info for UI indicators
+        await EnrichWithLastEmailInfoAsync(dtos, termCode, ct);
+
         return dtos;
     }
 
@@ -133,7 +146,9 @@ public class InstructorService : IInstructorService
         if (instructor == null) return null;
 
         var dto = _mapper.Map<PersonDto>(instructor);
-        await EnrichWithTitlesAsync(new List<PersonDto> { dto }, ct);
+        await EnrichWithTitlesAsync([dto], ct);
+        await EnrichWithRecordCountsAsync([dto], termCode, ct);
+        await EnrichWithLastEmailInfoAsync([dto], termCode, ct);
         return dto;
     }
 
@@ -273,7 +288,7 @@ public class InstructorService : IInstructorService
         // Check if instructor already exists for this term
         if (await InstructorExistsAsync(request.PersonId, request.TermCode, ct))
         {
-            throw new InvalidOperationException($"Instructor with PersonId {request.PersonId} already exists for term {request.TermCode}");
+            throw new InstructorAlreadyExistsException(request.PersonId, request.TermCode);
         }
 
         // Look up person from VIPER.users.Person
@@ -714,6 +729,76 @@ public class InstructorService : IInstructorService
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Enriches instructor DTOs with effort record counts for the term.
+    /// Used for UI display and visual indicators; instructors with zero records
+    /// can still receive verification emails to confirm "no effort" status.
+    /// </summary>
+    private async Task EnrichWithRecordCountsAsync(List<PersonDto> instructors, int termCode, CancellationToken ct)
+    {
+        if (instructors.Count == 0) return;
+
+        var personIds = instructors.Select(i => i.PersonId).ToList();
+
+        var recordCounts = await _context.Records
+            .AsNoTracking()
+            .Where(r => r.TermCode == termCode && personIds.Contains(r.PersonId))
+            .GroupBy(r => r.PersonId)
+            .Select(g => new { PersonId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.PersonId, x => x.Count, ct);
+
+        foreach (var instructor in instructors)
+        {
+            instructor.RecordCount = recordCounts.GetValueOrDefault(instructor.PersonId, 0);
+        }
+    }
+
+    /// <summary>
+    /// Enriches instructor DTOs with last email information from the audit table.
+    /// Shows when the instructor was last sent a verification email and by whom.
+    /// </summary>
+    private async Task EnrichWithLastEmailInfoAsync(List<PersonDto> instructors, int termCode, CancellationToken ct)
+    {
+        if (instructors.Count == 0) return;
+
+        var personIds = instructors.Select(i => i.PersonId).ToList();
+
+        // Get most recent successful email per instructor using DB-side grouping
+        // Filter for successful sends by checking the Changes JSON contains "NewValue":"Success"
+        // The audit system stores changes as {"SendResult":{"OldValue":null,"NewValue":"Success"}}
+        var lastEmails = await _context.Audits
+            .AsNoTracking()
+            .Where(a => a.TableName == EffortAuditTables.Persons
+                && personIds.Contains(a.RecordId)
+                && a.TermCode == termCode
+                && a.Action == EffortAuditActions.VerifyEmail
+                && a.Changes != null && a.Changes.Contains("\"NewValue\":\"Success\""))
+            .GroupBy(a => a.RecordId)
+            .Select(g => new
+            {
+                RecordId = g.Key,
+                ChangedDate = g.Max(a => a.ChangedDate),
+                ChangedBy = g.OrderByDescending(a => a.ChangedDate).First().ChangedBy
+            })
+            .ToDictionaryAsync(a => a.RecordId, a => new { a.ChangedDate, a.ChangedBy }, ct);
+
+        if (lastEmails.Count == 0) return;
+
+        // Get sender names from VIPER Person table
+        var senderIds = lastEmails.Values.Select(v => v.ChangedBy).Distinct().ToList();
+        var senderNames = await _viperContext.People
+            .AsNoTracking()
+            .Where(p => senderIds.Contains(p.PersonId))
+            .ToDictionaryAsync(p => p.PersonId, p => $"{p.FirstName} {p.LastName}", ct);
+
+        foreach (var instructor in instructors.Where(i => lastEmails.ContainsKey(i.PersonId)))
+        {
+            var emailAudit = lastEmails[instructor.PersonId];
+            instructor.LastEmailedDate = emailAudit.ChangedDate;
+            instructor.LastEmailedBy = senderNames.GetValueOrDefault(emailAudit.ChangedBy, "Unknown");
+        }
     }
 
     /// <summary>

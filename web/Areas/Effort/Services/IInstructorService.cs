@@ -52,6 +52,9 @@ public interface IInstructorService
     /// <param name="request">The creation request with PersonId and TermCode.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The created instructor.</returns>
+    /// <exception cref="Exceptions.InstructorAlreadyExistsException">
+    /// Thrown when an instructor with the same PersonId already exists for the specified term.
+    /// </exception>
     Task<PersonDto> CreateInstructorAsync(CreateInstructorRequest request, CancellationToken ct = default);
 
     /// <summary>

@@ -21,6 +21,7 @@
                 unelevated
                 color="secondary"
                 icon="close"
+                aria-label="Close navigation menu"
                 class="float-right lt-md"
                 @click="localDrawerOpen = false"
             />
@@ -84,6 +85,19 @@
                 >
                     <q-item-section>
                         <q-item-label lines="1">Courses</q-item-label>
+                    </q-item-section>
+                </q-item>
+
+                <!-- My Effort - can view/verify their own effort -->
+                <q-item
+                    v-if="currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'MyEffort', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">My Effort</q-item-label>
                     </q-item-section>
                 </q-item>
 
@@ -182,13 +196,15 @@
                     class="leftNavLink"
                 >
                     <q-item-section>
-                        <q-item-label lines="1">
+                        <q-item-label
+                            lines="1"
+                            class="help-label"
+                        >
                             <q-icon
                                 name="help_outline"
                                 size="xs"
-                                class="q-mr-xs"
                             />
-                            Help
+                            <span>Help</span>
                         </q-item-label>
                     </q-item-section>
                 </q-item>
@@ -281,3 +297,11 @@ watch(
     { immediate: true },
 )
 </script>
+
+<style scoped>
+.help-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+</style>

@@ -54,7 +54,7 @@
                         label="Add Effort"
                         icon="add"
                         dense
-                        @click="showAddDialog = true"
+                        @click="openAddDialog"
                     />
                     <q-space class="gt-xs" />
                     <div
@@ -120,6 +120,7 @@
                                     icon="edit"
                                     color="primary"
                                     size="sm"
+                                    aria-label="Edit effort record"
                                     @click="openEditDialog(record)"
                                 />
                                 <q-btn
@@ -130,6 +131,7 @@
                                     icon="delete"
                                     color="negative"
                                     size="sm"
+                                    aria-label="Delete effort record"
                                     @click="confirmDelete(record)"
                                 />
                             </div>
@@ -302,6 +304,8 @@
             v-model="showAddDialog"
             :person-id="personId"
             :term-code="termCodeNum"
+            :is-verified="instructor?.isVerified"
+            :pre-selected-course-id="preSelectedCourseId"
             @created="onRecordCreated"
         />
 
@@ -310,6 +314,7 @@
             v-model="showEditDialog"
             :record="selectedRecord"
             :term-code="termCodeNum"
+            :is-verified="instructor?.isVerified"
             @updated="onRecordUpdated"
         />
 
@@ -355,6 +360,7 @@ const showAddDialog = ref(false)
 const showEditDialog = ref(false)
 const showImportDialog = ref(false)
 const selectedRecord = ref<InstructorEffortRecordDto | null>(null)
+const preSelectedCourseId = ref<number | null>(null)
 
 // Computed
 const currentTermName = computed(() => {
@@ -517,15 +523,24 @@ function formatDate(dateString: string | null): string {
     })
 }
 
+function openAddDialog() {
+    preSelectedCourseId.value = null
+    showAddDialog.value = true
+}
+
 function openEditDialog(record: InstructorEffortRecordDto) {
     selectedRecord.value = record
     showEditDialog.value = true
 }
 
 function confirmDelete(record: InstructorEffortRecordDto) {
+    const verificationWarning = instructor.value?.isVerified
+        ? "\n\nNote: This instructor's effort has been verified. Deleting this record will clear the verification status and require re-verification."
+        : ""
+
     $q.dialog({
         title: "Delete Effort Record",
-        message: `Are you sure you want to delete the effort record for ${record.course.subjCode} ${record.course.crseNumb.trim()} (${record.effortType})?`,
+        message: `Are you sure you want to delete the effort record for ${record.course.subjCode} ${record.course.crseNumb.trim()} (${record.effortType})?${verificationWarning}`,
         cancel: true,
         persistent: true,
     }).onOk(async () => {
@@ -541,7 +556,8 @@ async function deleteRecord(recordId: number) {
                 type: "positive",
                 message: "Effort record deleted successfully",
             })
-            await loadEffortRecords()
+            // Reload both effort records and instructor data since deletes clear verification status
+            await Promise.all([loadEffortRecords(), loadInstructor()])
         } else {
             $q.notify({
                 type: "negative",
@@ -557,11 +573,13 @@ async function deleteRecord(recordId: number) {
 }
 
 async function onRecordCreated() {
+    preSelectedCourseId.value = null
     $q.notify({
         type: "positive",
         message: "Effort record created successfully",
     })
-    await loadEffortRecords()
+    // Reload both effort records and instructor data since creates clear verification status
+    await Promise.all([loadEffortRecords(), loadInstructor()])
 }
 
 async function onRecordUpdated() {
@@ -569,20 +587,26 @@ async function onRecordUpdated() {
         type: "positive",
         message: "Effort record updated successfully",
     })
-    await loadEffortRecords()
+    // Reload both effort records and instructor data since updates clear verification status
+    await Promise.all([loadEffortRecords(), loadInstructor()])
 }
 
-async function onCourseImported() {
+async function onCourseImported(courseId: number) {
     $q.notify({
         type: "positive",
-        message: "Course imported successfully",
+        message: "Course imported successfully. Now add effort for this course.",
     })
-    // Reload effort records in case the imported course affects available courses
-    await loadEffortRecords()
+    // Open the Add Effort dialog with the imported course pre-selected
+    preSelectedCourseId.value = courseId
+    showAddDialog.value = true
 }
 
 async function loadEffortRecords() {
     effortRecords.value = await effortService.getInstructorEffortRecords(personId.value, termCodeNum.value)
+}
+
+async function loadInstructor() {
+    instructor.value = await effortService.getInstructor(personId.value, termCodeNum.value)
 }
 
 async function loadData() {

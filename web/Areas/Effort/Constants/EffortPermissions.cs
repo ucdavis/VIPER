@@ -138,4 +138,10 @@ public static class EffortPermissions
     /// Able to view the audit trail.
     /// </summary>
     public const string ViewAudit = "SVMSecure.Effort.ViewAudit";
+
+    /// <summary>
+    /// Any of the three view-level access permissions (ViewAllDepartments, ViewDept, VerifyEffort).
+    /// Use for controller-level [Permission] attributes to require basic Effort access.
+    /// </summary>
+    public const string AnyViewAccess = $"{ViewAllDepartments},{ViewDept},{VerifyEffort}";
 }

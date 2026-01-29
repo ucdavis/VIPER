@@ -211,6 +211,36 @@ public sealed class InstructorServiceTests : IDisposable
 
     #endregion
 
+    #region CreateInstructorAsync Tests
+
+    [Fact]
+    public async Task CreateInstructorAsync_ThrowsInstructorAlreadyExistsException_WhenInstructorExists()
+    {
+        // Arrange - instructor already exists
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 1,
+            TermCode = 202410,
+            FirstName = "John",
+            LastName = "Doe",
+            EffortDept = "VME",
+            EffortTitleCode = "1234"
+        });
+        await _context.SaveChangesAsync();
+
+        var request = new CreateInstructorRequest { PersonId = 1, TermCode = 202410 };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<Areas.Effort.Exceptions.InstructorAlreadyExistsException>(
+            () => _instructorService.CreateInstructorAsync(request));
+
+        Assert.Equal(1, ex.PersonId);
+        Assert.Equal(202410, ex.TermCode);
+        Assert.Contains("already exists", ex.Message);
+    }
+
+    #endregion
+
     #region UpdateInstructorAsync Tests
 
     [Fact]

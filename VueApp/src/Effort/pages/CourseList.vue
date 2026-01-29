@@ -128,6 +128,7 @@
                         flat
                         round
                         size="sm"
+                        :aria-label="`Link courses to ${props.row.courseCode}`"
                         @click="openLinkDialog(props.row)"
                     >
                         <q-tooltip>Link courses</q-tooltip>
@@ -140,6 +141,7 @@
                         flat
                         round
                         size="sm"
+                        :aria-label="`Edit ${props.row.courseCode}`"
                         @click="openEditDialog(props.row)"
                     >
                         <q-tooltip>Edit course</q-tooltip>
@@ -152,6 +154,7 @@
                         flat
                         round
                         size="sm"
+                        :aria-label="`Delete ${props.row.courseCode}`"
                         @click="confirmDeleteCourse(props.row)"
                     >
                         <q-tooltip>Delete course</q-tooltip>
@@ -216,6 +219,7 @@ import CourseImportDialog from "../components/CourseImportDialog.vue"
 import CourseEditDialog from "../components/CourseEditDialog.vue"
 import CourseAddDialog from "../components/CourseAddDialog.vue"
 import CourseLinkDialog from "../components/CourseLinkDialog.vue"
+import { inflect } from "inflection"
 
 const $q = useQuasar()
 const route = useRoute()
@@ -318,6 +322,9 @@ const columns = computed<QTableColumn[]>(() => [
     },
 ])
 
+// Race condition protection for async loads
+let loadToken = 0
+
 // Methods
 function canEditCourse(course: CourseDto): boolean {
     if (isAdmin.value || hasEditCourse.value) return true
@@ -362,16 +369,24 @@ watch(
 async function loadCourses() {
     if (!selectedTermCode.value) return
 
+    const token = ++loadToken
     isLoading.value = true
+
     try {
         const [coursesResult, deptsResult] = await Promise.all([
             effortService.getCourses(selectedTermCode.value),
             effortService.getDepartments(),
         ])
+
+        // Abort if a newer request has been initiated
+        if (token !== loadToken) return
+
         courses.value = coursesResult
         departments.value = deptsResult
     } finally {
-        isLoading.value = false
+        if (token === loadToken) {
+            isLoading.value = false
+        }
     }
 }
 
@@ -399,7 +414,7 @@ function confirmDeleteCourse(course: CourseDto) {
         if (recordCount > 0) {
             $q.dialog({
                 title: "Confirm Delete",
-                message: `This course has ${recordCount} effort record(s) that will also be deleted. Are you sure you want to proceed?`,
+                message: `This course has ${recordCount} effort ${inflect("record", recordCount)} that will also be deleted. Are you sure you want to proceed?`,
                 cancel: true,
                 persistent: true,
             }).onOk(() => deleteCourse(course.id))

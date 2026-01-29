@@ -1,5 +1,3 @@
-using System.Net.Mail;
-
 namespace Viper.Services
 {
     /// <summary>
@@ -8,7 +6,7 @@ namespace Viper.Services
     public interface IEmailService
     {
         /// <summary>
-        /// Sends an email asynchronously
+        /// Sends an email asynchronously. If isHtml is true, a plaintext version is auto-generated.
         /// </summary>
         /// <param name="to">Recipient email address</param>
         /// <param name="subject">Email subject</param>
@@ -19,7 +17,7 @@ namespace Viper.Services
         Task SendEmailAsync(string to, string subject, string body, bool isHtml = true, string? from = null);
 
         /// <summary>
-        /// Sends an email with multiple recipients asynchronously
+        /// Sends an email with multiple recipients asynchronously. If isHtml is true, a plaintext version is auto-generated.
         /// </summary>
         /// <param name="to">List of recipient email addresses</param>
         /// <param name="subject">Email subject</param>
@@ -30,11 +28,28 @@ namespace Viper.Services
         Task SendEmailAsync(IEnumerable<string> to, string subject, string body, bool isHtml = true, string? from = null);
 
         /// <summary>
-        /// Sends a MailMessage asynchronously
+        /// Sends a multipart email with both HTML and plaintext versions.
+        /// If textBody is null, plaintext is auto-generated from the HTML.
+        /// At least one of htmlBody or textBody must be provided.
         /// </summary>
-        /// <param name="mailMessage">The mail message to send</param>
-        /// <returns>Task representing the async operation</returns>
-        Task SendEmailAsync(MailMessage mailMessage);
+        /// <param name="to">Recipient email address</param>
+        /// <param name="subject">Email subject</param>
+        /// <param name="htmlBody">HTML body content (optional if textBody provided)</param>
+        /// <param name="textBody">Plaintext body (optional, auto-generated from HTML if null)</param>
+        /// <param name="from">Sender email address (optional, uses default if not specified)</param>
+        Task SendMultipartEmailAsync(string to, string subject, string? htmlBody, string? textBody = null, string? from = null);
+
+        /// <summary>
+        /// Sends a multipart email to multiple recipients with both HTML and plaintext versions.
+        /// If textBody is null, plaintext is auto-generated from the HTML.
+        /// At least one of htmlBody or textBody must be provided.
+        /// </summary>
+        /// <param name="to">List of recipient email addresses</param>
+        /// <param name="subject">Email subject</param>
+        /// <param name="htmlBody">HTML body content (optional if textBody provided)</param>
+        /// <param name="textBody">Plaintext body (optional, auto-generated from HTML if null)</param>
+        /// <param name="from">Sender email address (optional, uses default if not specified)</param>
+        Task SendMultipartEmailAsync(IEnumerable<string> to, string subject, string? htmlBody, string? textBody = null, string? from = null);
 
         /// <summary>
         /// Checks if the email service is available and properly configured

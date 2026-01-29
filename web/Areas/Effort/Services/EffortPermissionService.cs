@@ -225,4 +225,32 @@ public class EffortPermissionService : IEffortPermissionService
     {
         return GetCurrentPersonId() == personId && personId != 0;
     }
+
+    /// <inheritdoc />
+    public Task<bool> HasAnyViewAccessAsync(CancellationToken ct = default)
+    {
+        var user = _userHelper.GetCurrentUser();
+        if (user == null)
+        {
+            return Task.FromResult(false);
+        }
+
+        var hasFullAccess = _userHelper.HasPermission(_rapsContext, user, EffortPermissions.ViewAllDepartments);
+        var hasDeptAccess = _userHelper.HasPermission(_rapsContext, user, EffortPermissions.ViewDept);
+        var hasSelfService = _userHelper.HasPermission(_rapsContext, user, EffortPermissions.VerifyEffort);
+
+        return Task.FromResult(hasFullAccess || hasDeptAccess || hasSelfService);
+    }
+
+    /// <inheritdoc />
+    public string? GetCurrentUserEmail()
+    {
+        var user = _userHelper.GetCurrentUser();
+        if (user == null || string.IsNullOrWhiteSpace(user.MailId))
+        {
+            return null;
+        }
+
+        return $"{user.MailId.Trim()}@ucdavis.edu";
+    }
 }

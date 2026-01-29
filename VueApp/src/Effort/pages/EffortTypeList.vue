@@ -370,7 +370,7 @@
                                         v-if="props.row.usageCount > 0"
                                         class="text-caption text-grey-6 q-mt-xs"
                                     >
-                                        Used in {{ props.row.usageCount }} record(s)
+                                        Used in {{ props.row.usageCount }} {{ inflect("record", props.row.usageCount) }}
                                     </div>
                                 </q-card-section>
                             </q-card>
@@ -484,6 +484,7 @@ import { useQuasar } from "quasar"
 import { effortTypeService } from "../services/effort-type-service"
 import type { EffortTypeDto } from "../types"
 import type { QTableColumn, QInput } from "quasar"
+import { inflect } from "inflection"
 
 const $q = useQuasar()
 
@@ -737,7 +738,7 @@ onMounted(loadEffortTypes)
 }
 
 .has-tooltip {
-    border-bottom: 1px dotted currentColor;
+    border-bottom: 1px dotted currentcolor;
     cursor: help;
 }
 </style>

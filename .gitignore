@@ -489,6 +489,10 @@ awscredentials.xml
 # Used to reduce unnecessary dotnet builds
 .build-cache/
 
+# Precommit build artifacts (isolated from dev server)
+.artifacts-precommit/
+.artifacts-lint/
+
 # Effort migration script outputs
 web/Areas/Effort/Scripts/AnalysisOutput/
 web/Areas/Effort/Scripts/RemediationOutput/

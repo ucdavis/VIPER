@@ -14,10 +14,29 @@
                     flat
                     round
                     dense
+                    aria-label="Close dialog"
                 />
             </q-card-section>
 
             <q-card-section>
+                <!-- Verification Warning -->
+                <q-banner
+                    v-if="props.isVerified"
+                    class="bg-orange-2 q-mb-md"
+                    rounded
+                >
+                    <template #avatar>
+                        <q-icon
+                            name="info"
+                            color="orange-9"
+                        />
+                    </template>
+                    <span class="text-orange-9">
+                        This instructor's effort has been verified. Editing this record will clear the verification
+                        status and require re-verification.
+                    </span>
+                </q-banner>
+
                 <!-- Course (read-only) -->
                 <q-input
                     :model-value="courseLabel"
@@ -129,6 +148,7 @@ const props = defineProps<{
     modelValue: boolean
     record: InstructorEffortRecordDto | null
     termCode: number
+    isVerified?: boolean
 }>()
 
 const emit = defineEmits<{
