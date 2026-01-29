@@ -752,7 +752,7 @@ public sealed class VerificationServiceTests : IDisposable
             Action = EffortAuditActions.VerifyEmail,
             ChangedBy = TestPersonId,
             ChangedDate = DateTime.Now,
-            Changes = "{\"RecipientEmail\":\"test@ucdavis.edu\",\"RecipientName\":\"Test User\"}"
+            Changes = "{\"RecipientEmail\":{\"OldValue\":null,\"NewValue\":\"test@ucdavis.edu\"},\"RecipientName\":{\"OldValue\":null,\"NewValue\":\"Test User\"}}"
         });
         await _context.SaveChangesAsync();
 

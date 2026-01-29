@@ -765,25 +765,24 @@ public class InstructorService : IInstructorService
 
         var personIds = instructors.Select(i => i.PersonId).ToList();
 
-        // Get most recent successful email per instructor
+        // Get most recent successful email per instructor using DB-side grouping
         // Filter for successful sends by checking the Changes JSON contains "NewValue":"Success"
         // The audit system stores changes as {"SendResult":{"OldValue":null,"NewValue":"Success"}}
-        var emailAudits = await _context.Audits
+        var lastEmails = await _context.Audits
             .AsNoTracking()
             .Where(a => a.TableName == EffortAuditTables.Persons
                 && personIds.Contains(a.RecordId)
                 && a.TermCode == termCode
                 && a.Action == EffortAuditActions.VerifyEmail
                 && a.Changes != null && a.Changes.Contains("\"NewValue\":\"Success\""))
-            .Select(a => new { a.RecordId, a.ChangedDate, a.ChangedBy })
-            .ToListAsync(ct);
-
-        // Group by PersonId and get the most recent email for each
-        var lastEmails = emailAudits
             .GroupBy(a => a.RecordId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.OrderByDescending(a => a.ChangedDate).First());
+            .Select(g => new
+            {
+                RecordId = g.Key,
+                ChangedDate = g.Max(a => a.ChangedDate),
+                ChangedBy = g.OrderByDescending(a => a.ChangedDate).First().ChangedBy
+            })
+            .ToDictionaryAsync(a => a.RecordId, a => new { a.ChangedDate, a.ChangedBy }, ct);
 
         if (lastEmails.Count == 0) return;
 
@@ -794,13 +793,11 @@ public class InstructorService : IInstructorService
             .Where(p => senderIds.Contains(p.PersonId))
             .ToDictionaryAsync(p => p.PersonId, p => $"{p.FirstName} {p.LastName}", ct);
 
-        foreach (var instructor in instructors)
+        foreach (var instructor in instructors.Where(i => lastEmails.ContainsKey(i.PersonId)))
         {
-            if (lastEmails.TryGetValue(instructor.PersonId, out var emailAudit))
-            {
-                instructor.LastEmailedDate = emailAudit.ChangedDate;
-                instructor.LastEmailedBy = senderNames.GetValueOrDefault(emailAudit.ChangedBy, "Unknown");
-            }
+            var emailAudit = lastEmails[instructor.PersonId];
+            instructor.LastEmailedDate = emailAudit.ChangedDate;
+            instructor.LastEmailedBy = senderNames.GetValueOrDefault(emailAudit.ChangedBy, "Unknown");
         }
     }
 
