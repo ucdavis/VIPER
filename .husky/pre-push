@@ -16,7 +16,7 @@ fi
 
 # Validate format: user/tokens must be alphanumeric (with common token chars), URL must be https
 TOKEN_PATTERN='^[a-zA-Z0-9._-]+$'
-URL_PATTERN='^https://[a-zA-Z0-9._-]+(:[0-9]+)?(/[a-zA-Z0-9._/-]*)?$'
+URL_PATTERN='^https://[a-zA-Z0-9._-]+(:[0-9]+)?(/[a-zA-Z0-9._/%+-]*)*$'
 
 for var in JENKINS_USER JENKINS_API_TOKEN JENKINS_JOB_TOKEN; do
     if [[ ! "${!var}" =~ $TOKEN_PATTERN ]]; then
