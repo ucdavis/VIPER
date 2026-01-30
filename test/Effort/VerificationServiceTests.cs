@@ -103,7 +103,8 @@ public sealed class VerificationServiceTests : IDisposable
 
     private void SeedTestData()
     {
-        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, Status = "Open" });
+        // OpenedDate makes status "Opened"
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, OpenedDate = DateTime.Now });
 
         _context.EffortTypes.AddRange(
             new EffortType { Id = "LEC", Description = "Lecture", IsActive = true, UsesWeeks = false },
@@ -194,8 +195,9 @@ public sealed class VerificationServiceTests : IDisposable
         _permissionServiceMock.Setup(p => p.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
+        // OpenedDate makes status "Opened"
         _termServiceMock.Setup(t => t.GetTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TermDto { TermCode = TestTermCode, Status = "Opened" });
+            .ReturnsAsync(new TermDto { TermCode = TestTermCode, OpenedDate = DateTime.Now });
         _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
 
         _mapperMock.Setup(m => m.Map<PersonDto>(It.IsAny<EffortPerson>()))
@@ -235,8 +237,9 @@ public sealed class VerificationServiceTests : IDisposable
         _permissionServiceMock.Setup(p => p.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
+        // OpenedDate makes status "Opened"
         _termServiceMock.Setup(t => t.GetTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TermDto { TermCode = TestTermCode, Status = "Opened" });
+            .ReturnsAsync(new TermDto { TermCode = TestTermCode, OpenedDate = DateTime.Now });
         _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
 
         _mapperMock.Setup(m => m.Map<PersonDto>(It.IsAny<EffortPerson>()))
@@ -782,6 +785,81 @@ public sealed class VerificationServiceTests : IDisposable
         _emailServiceMock.Verify(
             e => e.SendEmailAsync("verified@ucdavis.edu", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()),
             Times.Never);
+    }
+
+    [Fact]
+    public async Task SendBulkVerificationEmailsAsync_ExcludesRecentlyEmailed_WhenFlagIsFalse()
+    {
+        // Arrange: Set LastEmailed to recent date (within 7-day reply period)
+        var person = await _context.Persons.FindAsync(TestPersonId, TestTermCode);
+        person!.LastEmailed = DateTime.Now.AddDays(-3); // 3 days ago, within 7-day window
+        await _context.SaveChangesAsync();
+
+        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        // Act: Call without includeRecentlyEmailed (defaults to false)
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+
+        // Assert: Should not include recently emailed instructor
+        Assert.Equal(0, result.TotalInstructors);
+        Assert.Equal(0, result.EmailsSent);
+    }
+
+    [Fact]
+    public async Task SendBulkVerificationEmailsAsync_IncludesRecentlyEmailed_WhenFlagIsTrue()
+    {
+        // Arrange: Set LastEmailed to recent date (within 7-day reply period)
+        var person = await _context.Persons.FindAsync(TestPersonId, TestTermCode);
+        person!.LastEmailed = DateTime.Now.AddDays(-3); // 3 days ago, within 7-day window
+        await _context.SaveChangesAsync();
+
+        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+
+        _emailServiceMock
+            .Setup(e => e.SendEmailAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<bool>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+
+        // Act: Call with includeRecentlyEmailed = true
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode, includeRecentlyEmailed: true);
+
+        // Assert: Should include the recently emailed instructor
+        Assert.Equal(1, result.TotalInstructors);
+        Assert.Equal(1, result.EmailsSent);
+    }
+
+    [Fact]
+    public async Task SendBulkVerificationEmailsAsync_IncludesOldEmailed_WhenFlagIsFalse()
+    {
+        // Arrange: Set LastEmailed to old date (outside 7-day reply period)
+        var person = await _context.Persons.FindAsync(TestPersonId, TestTermCode);
+        person!.LastEmailed = DateTime.Now.AddDays(-10); // 10 days ago, outside 7-day window
+        await _context.SaveChangesAsync();
+
+        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+
+        _emailServiceMock
+            .Setup(e => e.SendEmailAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<bool>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+
+        // Act: Call without includeRecentlyEmailed (defaults to false)
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+
+        // Assert: Should include instructors emailed outside the reply window
+        Assert.Equal(1, result.TotalInstructors);
+        Assert.Equal(1, result.EmailsSent);
     }
 
     #endregion

@@ -1,8 +1,9 @@
 <template>
     <q-dialog
-        v-model="dialogOpen"
+        :model-value="modelValue"
         persistent
         maximized-on-mobile
+        @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 1000px; position: relative">
             <q-btn
@@ -13,7 +14,7 @@
                 class="absolute-top-right q-ma-sm"
                 style="z-index: 1"
                 aria-label="Close dialog"
-                @click="dialogOpen = false"
+                @click="handleClose"
             />
             <q-card-section class="q-pb-none q-pr-xl">
                 <div class="text-h6">Harvest Term: {{ props.termName }}</div>
@@ -422,11 +423,9 @@
                     class="q-px-md q-pb-md"
                 >
                     <q-btn
-                        v-close-popup
                         label="Cancel"
                         flat
-                        @keyup.enter="dialogOpen = false"
-                        @keyup.space="dialogOpen = false"
+                        @click="handleClose"
                     />
                     <q-btn
                         label="Confirm Harvest"
@@ -461,11 +460,12 @@ const emit = defineEmits<{
 
 const $q = useQuasar()
 
-// Dialog state
-const dialogOpen = computed({
-    get: () => props.modelValue,
-    set: (value) => emit("update:modelValue", value),
-})
+// Close handler for X button, Cancel button, or Escape key
+function handleClose() {
+    if (!isCommitting.value) {
+        emit("update:modelValue", false)
+    }
+}
 
 // Preview state
 const preview = ref<HarvestPreviewDto | null>(null)
@@ -544,16 +544,19 @@ const guestColumns: QTableColumn[] = [
 ]
 
 // Load preview when dialog opens
-watch(dialogOpen, async (open) => {
-    if (open && props.termCode) {
-        await loadPreview()
-    } else if (!open) {
-        // Reset state when dialog closes
-        preview.value = null
-        loadError.value = null
-        activeTab.value = "crest"
-    }
-})
+watch(
+    () => props.modelValue,
+    async (open) => {
+        if (open && props.termCode) {
+            await loadPreview()
+        } else if (!open) {
+            // Reset state when dialog closes
+            preview.value = null
+            loadError.value = null
+            activeTab.value = "crest"
+        }
+    },
+)
 
 async function loadPreview() {
     if (!props.termCode) return
@@ -645,7 +648,7 @@ function commitHarvest() {
                     type: "positive",
                     message: `Harvest completed: ${data.result.summary.totalInstructors} instructors, ${data.result.summary.totalCourses} courses, ${data.result.summary.totalEffortRecords} effort records`,
                 })
-                dialogOpen.value = false
+                emit("update:modelValue", false)
                 emit("harvested")
             } else {
                 $q.notify({

@@ -65,11 +65,12 @@ public sealed class TermServiceTests : IDisposable
     [Fact]
     public async Task GetTermsAsync_ReturnsAllTerms_OrderedByTermCodeDescending()
     {
-        // Arrange
+        // Arrange - Status is computed from dates:
+        // Closed = ClosedDate set, Opened = OpenedDate set (no ClosedDate), Created = no dates
         _context.Terms.AddRange(
-            new EffortTerm { TermCode = 202310, Status = "Closed" },
-            new EffortTerm { TermCode = 202410, Status = "Opened" },
-            new EffortTerm { TermCode = 202510, Status = "Created" }
+            new EffortTerm { TermCode = 202310, OpenedDate = DateTime.Now.AddDays(-30), ClosedDate = DateTime.Now.AddDays(-1) },
+            new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) },
+            new EffortTerm { TermCode = 202510 }
         );
         await _context.SaveChangesAsync();
 
@@ -100,8 +101,8 @@ public sealed class TermServiceTests : IDisposable
     [Fact]
     public async Task GetTermAsync_ReturnsTerm_WhenTermExists()
     {
-        // Arrange
-        _context.Terms.Add(new EffortTerm { TermCode = 202410, Status = "Opened" });
+        // Arrange - OpenedDate makes status "Opened"
+        _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now });
         await _context.SaveChangesAsync();
 
         // Act
@@ -130,11 +131,11 @@ public sealed class TermServiceTests : IDisposable
     [Fact]
     public async Task GetCurrentTermAsync_ReturnsMostRecentOpenedTerm()
     {
-        // Arrange
+        // Arrange - OpenedDate makes status "Opened", no dates = "Created"
         _context.Terms.AddRange(
-            new EffortTerm { TermCode = 202310, Status = "Opened" },
-            new EffortTerm { TermCode = 202410, Status = "Opened" },
-            new EffortTerm { TermCode = 202510, Status = "Created" }
+            new EffortTerm { TermCode = 202310, OpenedDate = DateTime.Now.AddDays(-30) },
+            new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) },
+            new EffortTerm { TermCode = 202510 }
         );
         await _context.SaveChangesAsync();
 
@@ -149,8 +150,8 @@ public sealed class TermServiceTests : IDisposable
     [Fact]
     public async Task GetCurrentTermAsync_ReturnsNull_WhenNoOpenedTerms()
     {
-        // Arrange
-        _context.Terms.Add(new EffortTerm { TermCode = 202410, Status = "Closed" });
+        // Arrange - ClosedDate makes status "Closed"
+        _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-30), ClosedDate = DateTime.Now.AddDays(-1) });
         await _context.SaveChangesAsync();
 
         // Act
@@ -168,7 +169,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task CreateTermAsync_CreatesNewTerm_WithCreatedStatus()
     {
         // Act
-        var term = await _termService.CreateTermAsync(202510, modifiedBy: 123);
+        var term = await _termService.CreateTermAsync(202510);
 
         // Assert
         Assert.NotNull(term);
@@ -177,7 +178,6 @@ public sealed class TermServiceTests : IDisposable
 
         var savedTerm = await _context.Terms.FindAsync(202510);
         Assert.NotNull(savedTerm);
-        Assert.Equal(123, savedTerm.ModifiedBy);
     }
 
     [Fact]
@@ -189,7 +189,7 @@ public sealed class TermServiceTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.CreateTermAsync(202410, modifiedBy: 123)
+            () => _termService.CreateTermAsync(202410)
         );
     }
 
@@ -200,12 +200,12 @@ public sealed class TermServiceTests : IDisposable
     [Fact]
     public async Task OpenTermAsync_SetsStatusToOpened_AndSetsOpenedDate()
     {
-        // Arrange
-        _context.Terms.Add(new EffortTerm { TermCode = 202410, Status = "Harvested" });
+        // Arrange - HarvestedDate makes status "Harvested"
+        _context.Terms.Add(new EffortTerm { TermCode = 202410, HarvestedDate = DateTime.Now.AddDays(-1) });
         await _context.SaveChangesAsync();
 
         // Act
-        var term = await _termService.OpenTermAsync(202410, modifiedBy: 123);
+        var term = await _termService.OpenTermAsync(202410);
 
         // Assert
         Assert.NotNull(term);
@@ -214,14 +214,13 @@ public sealed class TermServiceTests : IDisposable
 
         var savedTerm = await _context.Terms.FindAsync(202410);
         Assert.NotNull(savedTerm);
-        Assert.Equal(123, savedTerm.ModifiedBy);
     }
 
     [Fact]
     public async Task OpenTermAsync_ReturnsNull_WhenTermDoesNotExist()
     {
         // Act
-        var term = await _termService.OpenTermAsync(999999, modifiedBy: 123);
+        var term = await _termService.OpenTermAsync(999999);
 
         // Assert
         Assert.Null(term);
@@ -234,13 +233,13 @@ public sealed class TermServiceTests : IDisposable
     [Fact]
     public async Task CloseTermAsync_SetsStatusToClosed_WhenNoZeroEnrollmentCourses()
     {
-        // Arrange
-        _context.Terms.Add(new EffortTerm { TermCode = 202410, Status = "Opened" });
+        // Arrange - OpenedDate makes status "Opened"
+        _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Enrollment = 10, Crn = "12345" });
         await _context.SaveChangesAsync();
 
         // Act
-        var (success, errorMessage) = await _termService.CloseTermAsync(202410, modifiedBy: 123);
+        var (success, errorMessage) = await _termService.CloseTermAsync(202410);
 
         // Assert
         Assert.True(success);
@@ -255,14 +254,14 @@ public sealed class TermServiceTests : IDisposable
     [Fact]
     public async Task CloseTermAsync_Fails_WhenCoursesHaveZeroEnrollment()
     {
-        // Arrange
-        _context.Terms.Add(new EffortTerm { TermCode = 202410, Status = "Opened" });
+        // Arrange - OpenedDate makes status "Opened"
+        _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Enrollment = 0, Crn = "12345" });
         _context.Courses.Add(new EffortCourse { Id = 2, TermCode = 202410, Enrollment = 0, Crn = "12346" });
         await _context.SaveChangesAsync();
 
         // Act
-        var (success, errorMessage) = await _termService.CloseTermAsync(202410, modifiedBy: 123);
+        var (success, errorMessage) = await _termService.CloseTermAsync(202410);
 
         // Assert
         Assert.False(success);
@@ -273,7 +272,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task CloseTermAsync_Fails_WhenTermNotFound()
     {
         // Act
-        var (success, errorMessage) = await _termService.CloseTermAsync(999999, modifiedBy: 123);
+        var (success, errorMessage) = await _termService.CloseTermAsync(999999);
 
         // Assert
         Assert.False(success);
@@ -287,17 +286,17 @@ public sealed class TermServiceTests : IDisposable
     [Fact]
     public async Task ReopenTermAsync_SetsStatusToOpened_AndClearsClosedDate()
     {
-        // Arrange
+        // Arrange - ClosedDate makes status "Closed"
         _context.Terms.Add(new EffortTerm
         {
             TermCode = 202410,
-            Status = "Closed",
+            OpenedDate = DateTime.Now.AddDays(-30),
             ClosedDate = DateTime.Now.AddDays(-1)
         });
         await _context.SaveChangesAsync();
 
         // Act
-        var term = await _termService.ReopenTermAsync(202410, modifiedBy: 123);
+        var term = await _termService.ReopenTermAsync(202410);
 
         // Assert
         Assert.NotNull(term);
@@ -312,18 +311,17 @@ public sealed class TermServiceTests : IDisposable
     [Fact]
     public async Task UnopenTermAsync_SetsStatusToHarvested_WhenHarvestedDateExists()
     {
-        // Arrange
+        // Arrange - OpenedDate makes status "Opened"
         _context.Terms.Add(new EffortTerm
         {
             TermCode = 202410,
-            Status = "Opened",
             HarvestedDate = DateTime.Now.AddDays(-5),
             OpenedDate = DateTime.Now
         });
         await _context.SaveChangesAsync();
 
         // Act
-        var term = await _termService.UnopenTermAsync(202410, modifiedBy: 123);
+        var term = await _termService.UnopenTermAsync(202410);
 
         // Assert
         Assert.NotNull(term);
@@ -334,17 +332,16 @@ public sealed class TermServiceTests : IDisposable
     [Fact]
     public async Task UnopenTermAsync_SetsStatusToCreated_WhenNoHarvestedDate()
     {
-        // Arrange
+        // Arrange - OpenedDate makes status "Opened", no HarvestedDate
         _context.Terms.Add(new EffortTerm
         {
             TermCode = 202410,
-            Status = "Opened",
             OpenedDate = DateTime.Now
         });
         await _context.SaveChangesAsync();
 
         // Act
-        var term = await _termService.UnopenTermAsync(202410, modifiedBy: 123);
+        var term = await _termService.UnopenTermAsync(202410);
 
         // Assert
         Assert.NotNull(term);

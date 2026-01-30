@@ -71,7 +71,8 @@ public sealed class EffortRecordServiceTests : IDisposable
 
     private void SeedTestData()
     {
-        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, Status = "Opened" });
+        // OpenedDate makes status "Opened"
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, OpenedDate = DateTime.Now });
 
         _context.EffortTypes.AddRange(
             new EffortType { Id = "LEC", Description = "Lecture", IsActive = true, UsesWeeks = false },
@@ -875,7 +876,8 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task CanEditTermAsync_ReturnsFalse_WhenTermClosedAndNoPermission()
     {
         // Arrange
-        var closedTerm = new EffortTerm { TermCode = 202301, Status = "Closed" };
+        // ClosedDate makes status "Closed"
+        var closedTerm = new EffortTerm { TermCode = 202301, OpenedDate = DateTime.Now.AddDays(-30), ClosedDate = DateTime.Now.AddDays(-1) };
         _context.Terms.Add(closedTerm);
         await _context.SaveChangesAsync();
 
@@ -894,7 +896,8 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task CanEditTermAsync_ReturnsTrue_WhenTermClosedButHasPermission()
     {
         // Arrange
-        var closedTerm = new EffortTerm { TermCode = 202301, Status = "Closed" };
+        // ClosedDate makes status "Closed"
+        var closedTerm = new EffortTerm { TermCode = 202301, OpenedDate = DateTime.Now.AddDays(-30), ClosedDate = DateTime.Now.AddDays(-1) };
         _context.Terms.Add(closedTerm);
         await _context.SaveChangesAsync();
 

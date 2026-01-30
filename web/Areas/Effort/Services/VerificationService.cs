@@ -464,7 +464,7 @@ public class VerificationService : IVerificationService
         }
     }
 
-    public async Task<BulkEmailResult> SendBulkVerificationEmailsAsync(string departmentCode, int termCode, CancellationToken ct = default)
+    public async Task<BulkEmailResult> SendBulkVerificationEmailsAsync(string departmentCode, int termCode, bool includeRecentlyEmailed = false, CancellationToken ct = default)
     {
         // Verify permission to this department
         if (!await _permissionService.CanViewDepartmentAsync(departmentCode, ct))
@@ -482,11 +482,16 @@ public class VerificationService : IVerificationService
         }
 
         // Get unverified instructors in department (including those without records)
+        var cutoffDate = includeRecentlyEmailed
+            ? (DateTime?)null
+            : DateTime.Now.AddDays(-_settings.VerificationReplyDays);
+
         var instructors = await _context.Persons
             .AsNoTracking()
             .Where(p => p.TermCode == termCode
                 && p.EffortDept == departmentCode
-                && p.EffortVerified == null)
+                && p.EffortVerified == null
+                && (cutoffDate == null || p.LastEmailed == null || p.LastEmailed < cutoffDate))
             .ToListAsync(ct);
 
         var result = new BulkEmailResult

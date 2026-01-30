@@ -217,22 +217,19 @@ GO
 -- Description: Effort-specific workflow status for academic terms
 -- Note: Term data comes from VIPER.dbo.vwTerms
 --       This table tracks Effort-specific workflow status only
+--       Status is computed from dates via the EffortTerm.Status property (not stored):
+--         - Closed: ClosedDate IS NOT NULL
+--         - Opened: OpenedDate IS NOT NULL AND ClosedDate IS NULL
+--         - Harvested: HarvestedDate IS NOT NULL AND OpenedDate IS NULL
+--         - Created: All dates are NULL
 -- ----------------------------------------------------------------------------
 CREATE TABLE [effort].[TermStatus] (
     TermCode int NOT NULL,
-    Status varchar(20) NOT NULL DEFAULT 'Created',
     HarvestedDate datetime2(7) NULL,
     OpenedDate datetime2(7) NULL,
     ClosedDate datetime2(7) NULL,
-    CreatedDate datetime2(7) NOT NULL DEFAULT GETDATE(),
-    ModifiedDate datetime2(7) NOT NULL DEFAULT GETDATE(),
-    ModifiedBy int NOT NULL,
-    CONSTRAINT PK_TermStatus PRIMARY KEY CLUSTERED (TermCode),
-    CONSTRAINT FK_TermStatus_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
-    CONSTRAINT CK_TermStatus_Status CHECK (Status IN ('Created', 'Harvested', 'Opened', 'Closed'))
+    CONSTRAINT PK_TermStatus PRIMARY KEY CLUSTERED (TermCode)
 );
-
-CREATE NONCLUSTERED INDEX IX_TermStatus_Status ON [effort].[TermStatus](Status);
 GO
 
 -- ----------------------------------------------------------------------------
@@ -419,7 +416,7 @@ CREATE TABLE [effort].[Percentages] (
     CONSTRAINT FK_Percentages_PercentAssignTypes FOREIGN KEY (PercentAssignTypeId) REFERENCES [effort].[PercentAssignTypes](Id),
     CONSTRAINT FK_Percentages_Units FOREIGN KEY (UnitId) REFERENCES [effort].[Units](Id),
     CONSTRAINT FK_Percentages_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
-    CONSTRAINT CK_Percentages_Percentage CHECK (Percentage BETWEEN 0 AND 100),
+    CONSTRAINT CK_Percentages_Percentage CHECK (Percentage BETWEEN 0 AND 1),
     CONSTRAINT CK_Percentages_DateRange CHECK (EndDate IS NULL OR EndDate >= StartDate)
 );
 

@@ -1,20 +1,21 @@
 <template>
     <q-dialog
-        v-model="dialogOpen"
+        :model-value="modelValue"
         persistent
         maximized-on-mobile
+        @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 600px">
             <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">Add Course Manually</div>
                 <q-space />
                 <q-btn
-                    v-close-popup
                     icon="close"
                     flat
                     round
                     dense
                     aria-label="Close dialog"
+                    @click="handleClose"
                 />
             </q-card-section>
 
@@ -109,9 +110,9 @@
 
             <q-card-actions align="right">
                 <q-btn
-                    v-close-popup
                     label="Cancel"
                     flat
+                    @click="handleClose"
                 />
                 <q-btn
                     label="Create Course"
@@ -125,8 +126,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from "vue"
+import { ref, reactive, watch } from "vue"
 import { useQuasar } from "quasar"
+import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { effortService } from "../services/effort-service"
 
 const props = defineProps<{
@@ -141,11 +143,6 @@ const emit = defineEmits<{
 }>()
 
 const $q = useQuasar()
-
-const dialogOpen = computed({
-    get: () => props.modelValue,
-    set: (value) => emit("update:modelValue", value),
-})
 
 const isCreating = ref(false)
 const formData = ref({
@@ -178,21 +175,35 @@ function clearErrors() {
     errors.custDept = ""
 }
 
-// Reset form when dialog opens
-watch(dialogOpen, (open) => {
-    if (open) {
-        formData.value = {
-            subjCode: "",
-            crseNumb: "",
-            seqNumb: "",
-            crn: "",
-            enrollment: 0,
-            units: 0,
-            custDept: props.departments[0] ?? "",
-        }
-        clearErrors()
+// Unsaved changes tracking
+const { setInitialState, confirmClose } = useUnsavedChanges(formData)
+
+// Handle close (X button, Cancel button, or Escape key) with unsaved changes check
+async function handleClose() {
+    if (await confirmClose()) {
+        emit("update:modelValue", false)
     }
-})
+}
+
+// Reset form when dialog opens
+watch(
+    () => props.modelValue,
+    (open) => {
+        if (open) {
+            formData.value = {
+                subjCode: "",
+                crseNumb: "",
+                seqNumb: "",
+                crn: "",
+                enrollment: 0,
+                units: 0,
+                custDept: props.departments[0] ?? "",
+            }
+            clearErrors()
+            setInitialState()
+        }
+    },
+)
 
 function validate(): boolean {
     clearErrors()
@@ -275,7 +286,7 @@ async function create() {
         })
 
         if (result.success) {
-            dialogOpen.value = false
+            emit("update:modelValue", false)
             emit("created")
         } else {
             $q.notify({ type: "negative", message: result.error ?? "Failed to create course" })

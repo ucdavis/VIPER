@@ -472,6 +472,27 @@ function isConfirmedWarningsOnly(output) {
     return ZERO_ERRORS_PATTERN.test(output) || BUILD_SUCCEEDED_PATTERN.test(output)
 }
 
+/**
+ * Check if --clear-cache flag is present in command line arguments
+ * @returns {boolean} - True if cache should be cleared
+ */
+function shouldClearCache() {
+    return process.argv.includes("--clear-cache")
+}
+
+/**
+ * Clear cache if --clear-cache flag is present
+ * Call this at the start of scripts that use caching
+ * @returns {boolean} - True if cache was cleared
+ */
+function clearCacheIfRequested() {
+    if (shouldClearCache()) {
+        clearBuildCache()
+        return true
+    }
+    return false
+}
+
 module.exports = {
     needsBuild,
     markAsBuilt,
@@ -485,4 +506,6 @@ module.exports = {
     needsFormatCheck,
     markFormatChecked,
     getCachedFormatOutput,
+    shouldClearCache,
+    clearCacheIfRequested,
 }

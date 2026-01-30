@@ -2,19 +2,19 @@
     <q-dialog
         :model-value="modelValue"
         persistent
-        @update:model-value="emit('update:modelValue', $event)"
+        @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 500px">
             <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">Add Effort Record</div>
                 <q-space />
                 <q-btn
-                    v-close-popup
                     icon="close"
                     flat
                     round
                     dense
                     aria-label="Close dialog"
+                    @click="handleClose"
                 />
             </q-card-section>
 
@@ -147,9 +147,9 @@
 
             <q-card-actions align="right">
                 <q-btn
-                    v-close-popup
                     flat
                     label="Cancel"
+                    @click="handleClose"
                 />
                 <q-btn
                     color="primary"
@@ -165,6 +165,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
+import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { effortService } from "../services/effort-service"
 import type { CourseOptionDto, EffortTypeOptionDto, RoleOptionDto } from "../types"
 
@@ -186,6 +187,24 @@ const selectedCourse = ref<number | null>(null)
 const selectedEffortType = ref<string | null>(null)
 const selectedRole = ref<number | null>(null)
 const effortValue = ref<number | null>(null)
+
+// Form data for unsaved changes tracking
+const formData = ref({
+    selectedCourse: null as number | null,
+    selectedEffortType: null as string | null,
+    selectedRole: null as number | null,
+    effortValue: null as number | null,
+})
+
+// Unsaved changes tracking
+const { setInitialState, confirmClose } = useUnsavedChanges(formData)
+
+// Handle close (X button, Cancel button, or Escape key) with unsaved changes check
+async function handleClose() {
+    if (await confirmClose()) {
+        emit("update:modelValue", false)
+    }
+}
 
 // Options data
 const existingCourses = ref<CourseOptionDto[]>([])
@@ -322,7 +341,22 @@ function resetForm() {
     effortValue.value = null
     errorMessage.value = ""
     warningMessage.value = ""
+    syncFormData()
+    setInitialState()
 }
+
+// Sync individual refs to formData for unsaved changes tracking
+function syncFormData() {
+    formData.value = {
+        selectedCourse: selectedCourse.value,
+        selectedEffortType: selectedEffortType.value,
+        selectedRole: selectedRole.value,
+        effortValue: effortValue.value,
+    }
+}
+
+// Keep formData in sync when individual refs change
+watch([selectedCourse, selectedEffortType, selectedRole, effortValue], syncFormData)
 
 async function loadOptions() {
     isLoadingCourses.value = true

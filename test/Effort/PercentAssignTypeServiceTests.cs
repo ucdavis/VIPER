@@ -79,7 +79,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         int personId,
         int percentAssignTypeId,
         string academicYear,
-        decimal percentageValue = 50m)
+        double percentageValue = 0.5)
     {
         var percentage = new Percentage
         {
@@ -87,7 +87,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
             PercentAssignTypeId = percentAssignTypeId,
             AcademicYear = academicYear,
             PercentageValue = percentageValue,
-            StartDate = DateTime.UtcNow
+            StartDate = DateTime.Now
         };
         _context.Percentages.Add(percentage);
         await _context.SaveChangesAsync();
@@ -203,8 +203,8 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         // Arrange - same person/year should only count once even with multiple percentages
         var type = await CreatePercentAssignTypeAsync("Teaching", "Lecture");
         await CreatePersonAsync(1, 202410, "John", "Doe");
-        await CreatePercentageAsync(1, type.Id, "2024-25", 30m);
-        await CreatePercentageAsync(1, type.Id, "2024-25", 20m);
+        await CreatePercentageAsync(1, type.Id, "2024-25", 0.3);
+        await CreatePercentageAsync(1, type.Id, "2024-25", 0.2);
 
         // Act
         var types = await _service.GetPercentAssignTypesAsync();
@@ -431,8 +431,8 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         // Arrange - same person/year with multiple percentages should appear once
         var type = await CreatePercentAssignTypeAsync("Teaching", "Lecture");
         await CreatePersonAsync(1, 202410, "John", "Doe");
-        await CreatePercentageAsync(1, type.Id, "2024-25", 30m);
-        await CreatePercentageAsync(1, type.Id, "2024-25", 20m);
+        await CreatePercentageAsync(1, type.Id, "2024-25", 0.3);
+        await CreatePercentageAsync(1, type.Id, "2024-25", 0.2);
 
         // Act
         var result = await _service.GetInstructorsByTypeAsync(type.Id);

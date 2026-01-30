@@ -159,10 +159,11 @@ public sealed class HarvestServiceTests : IDisposable
     public async Task GeneratePreviewAsync_WithExistingData_AddsWarning()
     {
         // Arrange - Add existing data that will be replaced
+        // HarvestedDate makes status "Harvested"
         _context.Terms.Add(new EffortTerm
         {
             TermCode = TestTermCode,
-            Status = "Harvested"
+            HarvestedDate = DateTime.Now.AddDays(-1)
         });
         _context.Persons.Add(new EffortPerson
         {
@@ -213,11 +214,10 @@ public sealed class HarvestServiceTests : IDisposable
     [Fact]
     public async Task ExecuteHarvestAsync_WithNoData_ReturnsSuccessWithEmptySummary()
     {
-        // Arrange - Create term
+        // Arrange - Create term (no dates = "Created" status)
         _context.Terms.Add(new EffortTerm
         {
-            TermCode = TestTermCode,
-            Status = "Created"
+            TermCode = TestTermCode
         });
         await _context.SaveChangesAsync();
 
@@ -236,12 +236,10 @@ public sealed class HarvestServiceTests : IDisposable
     [Fact]
     public async Task ExecuteHarvestAsync_UpdatesTermStatus_ToHarvested()
     {
-        // Arrange
+        // Arrange - no dates = "Created" status
         _context.Terms.Add(new EffortTerm
         {
-            TermCode = TestTermCode,
-            Status = "Created",
-            HarvestedDate = null
+            TermCode = TestTermCode
         });
         await _context.SaveChangesAsync();
 
@@ -253,15 +251,15 @@ public sealed class HarvestServiceTests : IDisposable
 
         var term = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == TestTermCode);
         Assert.NotNull(term);
-        Assert.Equal("Harvested", term.Status);
+        Assert.Equal("Harvested", term.Status); // Status computed from HarvestedDate
         Assert.NotNull(term.HarvestedDate);
     }
 
     [Fact]
     public async Task ExecuteHarvestAsync_ClearsExistingData_BeforeImporting()
     {
-        // Arrange - Add existing data
-        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, Status = "Harvested" });
+        // Arrange - Add existing data (HarvestedDate makes status "Harvested")
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, HarvestedDate = DateTime.Now.AddDays(-7) });
         _context.Persons.Add(new EffortPerson
         {
             PersonId = 999,
@@ -297,8 +295,8 @@ public sealed class HarvestServiceTests : IDisposable
     [Fact]
     public async Task ExecuteHarvestAsync_CreatesAuditTrail()
     {
-        // Arrange
-        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, Status = "Created" });
+        // Arrange - no dates = "Created" status
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
         await _context.SaveChangesAsync();
 
         // Act
@@ -317,8 +315,8 @@ public sealed class HarvestServiceTests : IDisposable
     [Fact]
     public async Task ExecuteHarvestAsync_SetsHarvestedDateInResult()
     {
-        // Arrange
-        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, Status = "Created" });
+        // Arrange - no dates = "Created" status
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
         await _context.SaveChangesAsync();
 
         var beforeHarvest = DateTime.Now;
@@ -594,8 +592,8 @@ public sealed class HarvestServiceTests : IDisposable
     [Fact]
     public async Task ExecuteHarvestAsync_ReturnsTermCodeInResult()
     {
-        // Arrange
-        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, Status = "Created" });
+        // Arrange - no dates = "Created" status
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
         await _context.SaveChangesAsync();
 
         // Act
@@ -613,8 +611,8 @@ public sealed class HarvestServiceTests : IDisposable
     [Fact]
     public async Task GeneratePreviewAsync_WithExistingData_WarningIncludesCorrectCounts()
     {
-        // Arrange - Add 2 instructors, 3 courses, and records
-        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, Status = "Harvested" });
+        // Arrange - Add 2 instructors, 3 courses, and records (HarvestedDate makes status "Harvested")
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, HarvestedDate = DateTime.Now.AddDays(-7) });
 
         _context.Persons.Add(new EffortPerson { PersonId = 1, TermCode = TestTermCode, FirstName = "A", LastName = "B" });
         _context.Persons.Add(new EffortPerson { PersonId = 2, TermCode = TestTermCode, FirstName = "C", LastName = "D" });

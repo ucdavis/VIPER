@@ -118,7 +118,8 @@ const routes = [
                 "SVMSecure.Effort.DeleteInstructor",
             ],
         },
-        component: () => import("@/Effort/pages/InstructorDetail.vue"),
+        // Reuse InstructorList component - personId param triggers edit dialog
+        component: () => import("@/Effort/pages/InstructorList.vue"),
         name: "InstructorDetail",
     },
     {

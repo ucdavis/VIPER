@@ -1,12 +1,12 @@
 <template>
     <q-dialog
-        v-model="dialogOpen"
+        :model-value="modelValue"
         persistent
         maximized-on-mobile
+        @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 900px; position: relative">
             <q-btn
-                v-close-popup
                 icon="close"
                 flat
                 round
@@ -14,6 +14,7 @@
                 aria-label="Close dialog"
                 class="absolute-top-right q-ma-sm"
                 style="z-index: 1"
+                @click="handleClose"
             />
             <q-card-section class="q-pb-none q-pr-xl">
                 <div class="text-h6">Import Course from Banner ({{ termName }})</div>
@@ -329,11 +330,10 @@ const emit = defineEmits<{
 
 const $q = useQuasar()
 
-// Dialog state
-const dialogOpen = computed({
-    get: () => props.modelValue,
-    set: (value) => emit("update:modelValue", value),
-})
+// Close handler for X button or Escape key
+function handleClose() {
+    emit("update:modelValue", false)
+}
 
 // Search state
 const searchSubjCode = ref("")
@@ -389,17 +389,20 @@ const columns: QTableColumn[] = [
 ]
 
 // Reset search when dialog opens
-watch(dialogOpen, (open) => {
-    if (open) {
-        searchSubjCode.value = ""
-        searchCrseNumb.value = ""
-        searchSeqNumb.value = ""
-        searchCrn.value = ""
-        searchResults.value = []
-        hasSearched.value = false
-        searchError.value = ""
-    }
-})
+watch(
+    () => props.modelValue,
+    (open) => {
+        if (open) {
+            searchSubjCode.value = ""
+            searchCrseNumb.value = ""
+            searchSeqNumb.value = ""
+            searchCrn.value = ""
+            searchResults.value = []
+            hasSearched.value = false
+            searchError.value = ""
+        }
+    },
+)
 
 async function searchCourses() {
     if (!canSearch.value || !props.termCode) return
@@ -448,7 +451,7 @@ async function doImport() {
 
         if (result.success && result.course) {
             showImportOptionsDialog.value = false
-            dialogOpen.value = false
+            emit("update:modelValue", false)
             emit("imported", result.course.id)
         } else {
             importError.value = result.error ?? "Failed to import course"

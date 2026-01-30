@@ -13,6 +13,8 @@
 // 6. RenamePercentagesEffortTypeIdColumn - Rename Percentages.EffortTypeId→Percentages.PercentAssignTypeId
 // 7. DuplicateRecordsCleanup - Remove duplicate (CourseId, PersonId, EffortTypeId) records and add unique constraint
 // 8. AddLastEmailedColumns - Add LastEmailed/LastEmailedBy columns to Persons table (performance optimization)
+// 9. SimplifyTermStatus - Remove redundant columns from TermStatus table
+// 10. FixPercentageConstraint - Update CK_Percentages_Percentage constraint from 0-100 to 0-1
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -23,6 +25,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 
 namespace Viper.Areas.Effort.Scripts
@@ -187,6 +190,40 @@ namespace Viper.Areas.Effort.Scripts
 
                 var (success, message) = RunAddLastEmailedColumnsTask(viperConnectionString, executeMode);
                 taskResults["AddLastEmailedColumns"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 9: Simplify TermStatus table (remove redundant columns)
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 9: Simplify TermStatus Table");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunSimplifyTermStatusTask(viperConnectionString, executeMode);
+                taskResults["SimplifyTermStatus"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 10: Fix Percentage Constraint (0-100 to 0-1)
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 10: Fix Percentage Constraint");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunFixPercentageConstraintTask(viperConnectionString, executeMode);
+                taskResults["FixPercentageConstraint"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
@@ -1792,6 +1829,367 @@ namespace Viper.Areas.Effort.Scripts
                 connection, transaction);
 
             return cmd.ExecuteNonQuery();
+        }
+
+        #endregion
+
+        #region Task 9: Simplify TermStatus Table
+
+        // Columns and constraints to remove from TermStatus table
+        private static readonly string[] TermStatusColumnsToRemove = { "Status", "CreatedDate", "ModifiedDate", "ModifiedBy" };
+        private static readonly string[] TermStatusConstraintsToRemove = { "FK_TermStatus_ModifiedBy", "CK_TermStatus_Status" };
+        private static readonly string[] TermStatusIndexesToRemove = { "IX_TermStatus_Status" };
+
+        private static (bool Success, string Message) RunSimplifyTermStatusTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Begin transaction for dry-run support
+                using var transaction = connection.BeginTransaction();
+
+                try
+                {
+                    var completedSteps = new List<string>();
+
+                    Console.WriteLine("Simplifying TermStatus table (removing redundant columns)...");
+                    Console.WriteLine("  Status is now computed from dates to match legacy ColdFusion logic.");
+                    Console.WriteLine();
+
+                    // Step 1: Drop FK constraint
+                    Console.WriteLine("Step 1: Drop FK_TermStatus_ModifiedBy constraint...");
+                    if (TermStatusForeignKeyExists(connection, transaction, "FK_TermStatus_ModifiedBy"))
+                    {
+                        DropTermStatusConstraint(connection, transaction, "FK_TermStatus_ModifiedBy");
+                        Console.WriteLine("  ✓ Dropped FK_TermStatus_ModifiedBy");
+                        completedSteps.Add("Dropped FK_TermStatus_ModifiedBy");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  - FK_TermStatus_ModifiedBy already removed");
+                    }
+
+                    // Step 2: Drop check constraint
+                    Console.WriteLine();
+                    Console.WriteLine("Step 2: Drop CK_TermStatus_Status constraint...");
+                    if (TermStatusCheckConstraintExists(connection, transaction, "CK_TermStatus_Status"))
+                    {
+                        DropTermStatusConstraint(connection, transaction, "CK_TermStatus_Status");
+                        Console.WriteLine("  ✓ Dropped CK_TermStatus_Status");
+                        completedSteps.Add("Dropped CK_TermStatus_Status");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  - CK_TermStatus_Status already removed");
+                    }
+
+                    // Step 3: Drop index on Status
+                    Console.WriteLine();
+                    Console.WriteLine("Step 3: Drop IX_TermStatus_Status index...");
+                    if (TermStatusIndexExists(connection, transaction, "IX_TermStatus_Status"))
+                    {
+                        DropTermStatusIndex(connection, transaction, "IX_TermStatus_Status");
+                        Console.WriteLine("  ✓ Dropped IX_TermStatus_Status");
+                        completedSteps.Add("Dropped IX_TermStatus_Status");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  - IX_TermStatus_Status already removed");
+                    }
+
+                    // Step 4: Drop columns
+                    Console.WriteLine();
+                    Console.WriteLine("Step 4: Drop redundant columns...");
+                    var existingColumns = GetTermStatusColumns(connection, transaction);
+                    foreach (var column in TermStatusColumnsToRemove)
+                    {
+                        if (existingColumns.Contains(column))
+                        {
+                            DropTermStatusColumn(connection, transaction, column);
+                            Console.WriteLine($"  ✓ Dropped TermStatus.{column}");
+                            completedSteps.Add($"Dropped {column}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"  - Column '{column}' already removed");
+                        }
+                    }
+
+                    Console.WriteLine();
+
+                    // If no steps were needed, skip transaction handling
+                    if (completedSteps.Count == 0)
+                    {
+                        transaction.Rollback();
+                        return (true, "All simplification steps already complete");
+                    }
+
+                    // Commit or rollback based on execute mode
+                    if (executeMode)
+                    {
+                        transaction.Commit();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("  ✓ Transaction committed - changes are permanent");
+                        Console.ResetColor();
+                        return (true, $"Completed {completedSteps.Count} steps: {string.Join(", ", completedSteps)}");
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  ↶ Transaction rolled back - no permanent changes");
+                        Console.ResetColor();
+                        return (true, $"Verified {completedSteps.Count} steps (rolled back)");
+                    }
+                }
+                catch (SqlException ex)
+                {
+                    transaction.Rollback();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                    Console.WriteLine("  ↶ Transaction rolled back");
+                    Console.ResetColor();
+                    return (false, $"Database error: {ex.Message}");
+                }
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        private static HashSet<string> GetTermStatusColumns(SqlConnection connection, SqlTransaction transaction)
+        {
+            var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using var cmd = new SqlCommand(@"
+                SELECT COLUMN_NAME
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = 'effort' AND TABLE_NAME = 'TermStatus'",
+                connection, transaction);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                columns.Add(reader.GetString(0));
+            }
+            return columns;
+        }
+
+        private static bool TermStatusForeignKeyExists(SqlConnection connection, SqlTransaction transaction, string fkName)
+        {
+            using var cmd = new SqlCommand(@"
+                SELECT 1 FROM sys.foreign_keys
+                WHERE name = @FKName AND parent_object_id = OBJECT_ID('[effort].[TermStatus]')",
+                connection, transaction);
+            cmd.Parameters.AddWithValue("@FKName", fkName);
+            return cmd.ExecuteScalar() != null;
+        }
+
+        private static bool TermStatusCheckConstraintExists(SqlConnection connection, SqlTransaction transaction, string constraintName)
+        {
+            using var cmd = new SqlCommand(@"
+                SELECT 1 FROM sys.check_constraints
+                WHERE name = @ConstraintName AND parent_object_id = OBJECT_ID('[effort].[TermStatus]')",
+                connection, transaction);
+            cmd.Parameters.AddWithValue("@ConstraintName", constraintName);
+            return cmd.ExecuteScalar() != null;
+        }
+
+        private static bool TermStatusIndexExists(SqlConnection connection, SqlTransaction transaction, string indexName)
+        {
+            using var cmd = new SqlCommand(@"
+                SELECT 1 FROM sys.indexes
+                WHERE name = @IndexName AND object_id = OBJECT_ID('[effort].[TermStatus]')",
+                connection, transaction);
+            cmd.Parameters.AddWithValue("@IndexName", indexName);
+            return cmd.ExecuteScalar() != null;
+        }
+
+        private static void DropTermStatusConstraint(SqlConnection connection, SqlTransaction transaction, string constraintName)
+        {
+            using var cmd = new SqlCommand($@"
+                ALTER TABLE [effort].[TermStatus] DROP CONSTRAINT [{constraintName}]",
+                connection, transaction);
+            cmd.ExecuteNonQuery();
+        }
+
+        private static void DropTermStatusIndex(SqlConnection connection, SqlTransaction transaction, string indexName)
+        {
+            using var cmd = new SqlCommand($@"
+                DROP INDEX [{indexName}] ON [effort].[TermStatus]",
+                connection, transaction);
+            cmd.ExecuteNonQuery();
+        }
+
+        private static void DropTermStatusColumn(SqlConnection connection, SqlTransaction transaction, string columnName)
+        {
+            // First, drop any default constraints on the column (auto-generated names like DF__TermStatu__...)
+            var defaultConstraintName = GetDefaultConstraintName(connection, transaction, "effort", "TermStatus", columnName);
+            if (defaultConstraintName != null)
+            {
+                using var dropDefaultCmd = new SqlCommand($@"
+                    ALTER TABLE [effort].[TermStatus] DROP CONSTRAINT [{defaultConstraintName}]",
+                    connection, transaction);
+                dropDefaultCmd.ExecuteNonQuery();
+                Console.WriteLine($"    ✓ Dropped default constraint {defaultConstraintName}");
+            }
+
+            using var cmd = new SqlCommand($@"
+                ALTER TABLE [effort].[TermStatus] DROP COLUMN [{columnName}]",
+                connection, transaction);
+            cmd.ExecuteNonQuery();
+        }
+
+        private static string? GetDefaultConstraintName(SqlConnection connection, SqlTransaction transaction, string schemaName, string tableName, string columnName)
+        {
+            using var cmd = new SqlCommand(@"
+                SELECT dc.name
+                FROM sys.default_constraints dc
+                INNER JOIN sys.columns c ON dc.parent_object_id = c.object_id AND dc.parent_column_id = c.column_id
+                WHERE dc.parent_object_id = OBJECT_ID(@TableName)
+                  AND c.name = @ColumnName",
+                connection, transaction);
+            cmd.Parameters.AddWithValue("@TableName", $"[{schemaName}].[{tableName}]");
+            cmd.Parameters.AddWithValue("@ColumnName", columnName);
+            return cmd.ExecuteScalar() as string;
+        }
+
+        #endregion
+
+        #region Task 10: Fix Percentage Constraint
+
+        /// <summary>
+        /// Updates CK_Percentages_Percentage constraint from BETWEEN 0 AND 100 to BETWEEN 0 AND 1.
+        /// The service stores percentages as decimals (0-1) but the constraint was incorrectly defined as 0-100.
+        /// </summary>
+        private static (bool Success, string Message) RunFixPercentageConstraintTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                Console.WriteLine("Checking CK_Percentages_Percentage constraint...");
+                Console.WriteLine("  Service stores percentages as decimals (0-1), constraint should match.");
+                Console.WriteLine();
+
+                // Check current constraint definition
+                string? currentDefinition = GetPercentageConstraintDefinition(connection);
+
+                if (currentDefinition == null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Constraint CK_Percentages_Percentage not found");
+                    Console.ResetColor();
+                    return (true, "Constraint not found - may need manual review");
+                }
+
+                Console.WriteLine($"  Current constraint: {currentDefinition}");
+
+                // Check if already correct (0-1 range)
+                // Use regex with word boundary to avoid false positive: "AND (100)" contains "AND (1)"
+                bool isCorrect =
+                    Regex.IsMatch(currentDefinition, @"\bBETWEEN\s+0\s+AND\s+1(\.0+)?\b", RegexOptions.IgnoreCase) ||
+                    Regex.IsMatch(currentDefinition, @"<=\s*\(?1(\.0+)?\)?\b", RegexOptions.IgnoreCase);
+                if (isCorrect)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✓ Constraint already uses 0-1 range");
+                    Console.ResetColor();
+                    return (true, "Constraint already correct (0-1 range)");
+                }
+
+                Console.WriteLine("  ○ Constraint uses 0-100 range - needs update to 0-1");
+                Console.WriteLine();
+
+                if (!executeMode)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("  [DRY-RUN] Would update constraint to BETWEEN 0 AND 1");
+                    Console.ResetColor();
+                    return (true, "Would update constraint from 0-100 to 0-1");
+                }
+
+                // Drop old constraint and add new one
+                using var transaction = connection.BeginTransaction();
+                try
+                {
+                    Console.WriteLine("  Dropping old constraint...");
+                    using (var dropCmd = new SqlCommand(
+                        "ALTER TABLE [effort].[Percentages] DROP CONSTRAINT [CK_Percentages_Percentage]",
+                        connection, transaction))
+                    {
+                        dropCmd.ExecuteNonQuery();
+                    }
+
+                    Console.WriteLine("  Adding new constraint (0-1 range)...");
+                    using (var addCmd = new SqlCommand(
+                        "ALTER TABLE [effort].[Percentages] ADD CONSTRAINT [CK_Percentages_Percentage] CHECK ([Percentage] >= 0 AND [Percentage] <= 1)",
+                        connection, transaction))
+                    {
+                        addCmd.ExecuteNonQuery();
+                    }
+
+                    transaction.Commit();
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✓ Constraint updated successfully");
+                    Console.ResetColor();
+                    return (true, "Updated constraint from 0-100 to 0-1");
+                }
+                catch (SqlException ex)
+                {
+                    transaction.Rollback();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"  ✗ Failed to update constraint: {ex.Message}");
+                    Console.WriteLine("  ↶ Transaction rolled back");
+                    Console.ResetColor();
+                    return (false, $"Failed to update constraint: {ex.Message}");
+                }
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        private static string? GetPercentageConstraintDefinition(SqlConnection connection)
+        {
+            using var cmd = new SqlCommand(@"
+                SELECT cc.definition
+                FROM sys.check_constraints cc
+                JOIN sys.tables t ON cc.parent_object_id = t.object_id
+                JOIN sys.schemas s ON t.schema_id = s.schema_id
+                WHERE s.name = 'effort'
+                  AND t.name = 'Percentages'
+                  AND cc.name = 'CK_Percentages_Percentage'",
+                connection);
+            return cmd.ExecuteScalar() as string;
         }
 
         #endregion

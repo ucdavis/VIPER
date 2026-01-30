@@ -513,7 +513,7 @@ namespace Viper.Areas.Effort.Scripts
             Console.WriteLine("Migrating TermStatus (workflow tracking from tblStatus)...");
 
             // Step 1: Read from legacy database
-            // Note: tblStatus does not have a ModifiedBy column, so we'll default to PersonId 1
+            // Status is computed from dates (not stored) - matches legacy ColdFusion logic
             var legacyData = new List<(int TermCode, DateTime? Harvested, DateTime? Opened, DateTime? Closed)>();
             using (var cmd = new SqlCommand("SELECT status_TermCode, status_Harvested, status_Opened, status_Closed FROM [dbo].[tblStatus]", effortConnection))
             using (var reader = cmd.ExecuteReader())
@@ -531,38 +531,22 @@ namespace Viper.Areas.Effort.Scripts
 
             // Step 2: Write to VIPER with transaction
             using var insertCmd = new SqlCommand(@"
-            INSERT INTO [effort].[TermStatus] (TermCode, Status, HarvestedDate, OpenedDate, ClosedDate, CreatedDate, ModifiedDate, ModifiedBy)
-            VALUES (@TermCode, @Status, @HarvestedDate, @OpenedDate, @ClosedDate, @CreatedDate, @ModifiedDate, @ModifiedBy)",
+            INSERT INTO [effort].[TermStatus] (TermCode, HarvestedDate, OpenedDate, ClosedDate)
+            VALUES (@TermCode, @HarvestedDate, @OpenedDate, @ClosedDate)",
                 viperConnection, transaction);
 
             insertCmd.Parameters.Add("@TermCode", SqlDbType.Int);
-            insertCmd.Parameters.Add("@Status", SqlDbType.NVarChar, 20);
             insertCmd.Parameters.Add("@HarvestedDate", SqlDbType.DateTime);
             insertCmd.Parameters.Add("@OpenedDate", SqlDbType.DateTime);
             insertCmd.Parameters.Add("@ClosedDate", SqlDbType.DateTime);
-            insertCmd.Parameters.Add("@CreatedDate", SqlDbType.DateTime);
-            insertCmd.Parameters.Add("@ModifiedDate", SqlDbType.DateTime);
-            insertCmd.Parameters.Add("@ModifiedBy", SqlDbType.Int);
 
             int rows = 0;
             foreach (var item in legacyData)
             {
-                // Determine status based on dates
-                string status = item.Closed.HasValue ? "Closed" : item.Opened.HasValue ? "Opened" : item.Harvested.HasValue ? "Harvested" : "Created";
-                DateTime createdDate = item.Harvested ?? item.Opened ?? item.Closed ?? DateTime.Now;
-                DateTime modifiedDate = item.Closed ?? item.Opened ?? item.Harvested ?? DateTime.Now;
-
-                // Default ModifiedBy to 1 (legacy table doesn't track who modified status)
-                int modifiedBy = 1;
-
                 insertCmd.Parameters["@TermCode"].Value = item.TermCode;
-                insertCmd.Parameters["@Status"].Value = status;
                 insertCmd.Parameters["@HarvestedDate"].Value = (object?)item.Harvested ?? DBNull.Value;
                 insertCmd.Parameters["@OpenedDate"].Value = (object?)item.Opened ?? DBNull.Value;
                 insertCmd.Parameters["@ClosedDate"].Value = (object?)item.Closed ?? DBNull.Value;
-                insertCmd.Parameters["@CreatedDate"].Value = createdDate;
-                insertCmd.Parameters["@ModifiedDate"].Value = modifiedDate;
-                insertCmd.Parameters["@ModifiedBy"].Value = modifiedBy;
 
                 insertCmd.ExecuteNonQuery();
                 rows++;

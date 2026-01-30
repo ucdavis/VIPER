@@ -42,6 +42,10 @@ type PersonDto = {
     canSendVerificationEmail: boolean
     lastEmailedDate: string | null
     lastEmailedBy: string | null
+    // Percentage summaries for instructor list display
+    percentAdminSummary: string | null
+    percentClinicalSummary: string | null
+    percentOtherSummary: string | null
 }
 
 type AvailableTermDto = {

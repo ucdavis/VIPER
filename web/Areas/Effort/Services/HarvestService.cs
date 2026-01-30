@@ -128,7 +128,7 @@ public class HarvestService : IHarvestService
             }
 
             // Update term status
-            await UpdateTermStatusAsync(termCode, modifiedBy, ct);
+            await UpdateTermStatusAsync(termCode, ct);
 
             // Add import audit
             var summaryText = BuildSummaryText(harvestContext);
@@ -271,7 +271,7 @@ public class HarvestService : IHarvestService
 
             // Finalize (95% to 100%)
             await progressChannel.WriteAsync(HarvestProgressEvent.Finalizing(), ct);
-            await UpdateTermStatusAsync(termCode, modifiedBy, ct);
+            await UpdateTermStatusAsync(termCode, ct);
 
             var summaryText = BuildSummaryText(harvestContext);
             _auditService.AddImportAudit(termCode, EffortAuditActions.ImportEffort, summaryText);
@@ -396,16 +396,13 @@ public class HarvestService : IHarvestService
         return null;
     }
 
-    private async Task UpdateTermStatusAsync(int termCode, int modifiedBy, CancellationToken ct)
+    private async Task UpdateTermStatusAsync(int termCode, CancellationToken ct)
     {
         var term = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
         if (term != null)
         {
             var oldStatus = term.Status;
-            term.Status = EffortConstants.TermStatusHarvested;
             term.HarvestedDate = DateTime.Now;
-            term.ModifiedDate = DateTime.Now;
-            term.ModifiedBy = modifiedBy;
 
             _auditService.AddTermChangeAudit(termCode, EffortAuditActions.HarvestTerm,
                 new { Status = oldStatus },

@@ -48,9 +48,10 @@ public interface IVerificationService
     /// </summary>
     /// <param name="departmentCode">The department code.</param>
     /// <param name="termCode">The term code.</param>
+    /// <param name="includeRecentlyEmailed">Whether to include instructors emailed within the verification reply period.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Result with counts and any failures.</returns>
-    Task<BulkEmailResult> SendBulkVerificationEmailsAsync(string departmentCode, int termCode, CancellationToken ct = default);
+    Task<BulkEmailResult> SendBulkVerificationEmailsAsync(string departmentCode, int termCode, bool includeRecentlyEmailed = false, CancellationToken ct = default);
 
     /// <summary>
     /// Get the email history for an instructor (verification emails sent).

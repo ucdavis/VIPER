@@ -89,7 +89,13 @@ async function handleViperFetchError(response: any) {
             throw new Error("An error occurred")
         }
         if (isAuthError) {
-            throw new AuthError(message || result?.errorMessage || "Auth Error", response.status)
+            const authMessage =
+                message ||
+                result?.errorMessage ||
+                (response.status === HTTP_STATUS.FORBIDDEN
+                    ? "You don't have permission to perform this action."
+                    : "You are not logged in.")
+            throw new AuthError(authMessage, response.status)
         } else {
             throw new ValidationError(message, result?.errors)
         }
@@ -121,12 +127,15 @@ async function fetchWrapper(url: string, options: any = {}) {
             return r.pagination ? { result: intialResult, pagination: r.pagination } : intialResult
         })
         .catch((error) => {
-            if (error?.status === undefined) {
-                errorHandler.handleError(error)
-                errors = errorHandler.errors.value
-            } else {
+            if (error instanceof ValidationError) {
+                // Validation errors should be handled by the caller, not global error handler
+                errors = [error.message]
+            } else if (error instanceof AuthError) {
                 errorHandler.handleAuthError(error?.message, error.status)
                 errors = [error?.message || "Authentication error"]
+            } else {
+                errorHandler.handleError(error)
+                errors = errorHandler.errors.value
             }
         })
     const resultObj: Result = {
