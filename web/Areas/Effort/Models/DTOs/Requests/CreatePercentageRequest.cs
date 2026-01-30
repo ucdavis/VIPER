@@ -13,7 +13,8 @@ public class CreatePercentageRequest
     [Required]
     public required int PercentAssignTypeId { get; set; }
 
-    public int? UnitId { get; set; }
+    [Required]
+    public required int UnitId { get; set; }
 
     /// <summary>
     /// Optional modifier such as "Acting" or "Interim".

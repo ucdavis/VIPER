@@ -66,7 +66,6 @@ class PercentageService {
                 isValid: false,
                 errors: response.errors ?? ["Validation failed"],
                 warnings: [],
-                totalActivePercent: 0,
             }
         }
         return response.result as PercentageValidationResult

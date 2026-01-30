@@ -23,7 +23,7 @@ type PercentageDto = {
 type CreatePercentageRequest = {
     personId: number
     percentAssignTypeId: number
-    unitId: number | null
+    unitId: number
     modifier: string | null
     comment: string | null
     percentageValue: number
@@ -38,7 +38,6 @@ type PercentageValidationResult = {
     isValid: boolean
     errors: string[]
     warnings: string[]
-    totalActivePercent: number
 }
 
 export type { PercentageDto, CreatePercentageRequest, UpdatePercentageRequest, PercentageValidationResult }

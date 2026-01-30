@@ -315,7 +315,7 @@ async function createPercentage() {
         const request: CreatePercentageRequest = {
             personId: props.personId,
             percentAssignTypeId: form.value.percentAssignTypeId!,
-            unitId: form.value.unitId,
+            unitId: form.value.unitId!,
             modifier: form.value.modifier,
             comment: form.value.comment || null,
             percentageValue: form.value.percentageValue,
