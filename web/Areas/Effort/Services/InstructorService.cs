@@ -780,7 +780,7 @@ public class InstructorService : IInstructorService
 
     /// <summary>
     /// Enriches instructor DTOs with percentage assignment summaries grouped by type class.
-    /// Queries the Percentages table for active assignments and formats them for display.
+    /// Queries the Percentages table for assignments overlapping the term's academic year.
     /// </summary>
     private async Task EnrichWithPercentageSummariesAsync(List<PersonDto> instructors, int termCode, CancellationToken ct)
     {
