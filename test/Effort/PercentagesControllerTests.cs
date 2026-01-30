@@ -101,7 +101,7 @@ public sealed class PercentagesControllerTests
     {
         // Arrange
         var percentages = new List<PercentageDto> { CreateTestPercentage() };
-        _permissionServiceMock.Setup(s => s.CanViewPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanViewPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _percentageServiceMock.Setup(s => s.GetPercentagesForPersonAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(percentages);
@@ -120,7 +120,7 @@ public sealed class PercentagesControllerTests
     public async Task GetPercentagesForPerson_ReturnsNotFound_WhenUserNotAuthorized()
     {
         // Arrange
-        _permissionServiceMock.Setup(s => s.CanViewPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanViewPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         // Act
@@ -141,7 +141,7 @@ public sealed class PercentagesControllerTests
         var percentage = CreateTestPercentage();
         _percentageServiceMock.Setup(s => s.GetPercentageAsync(TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(percentage);
-        _permissionServiceMock.Setup(s => s.CanViewPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanViewPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         // Act
@@ -174,7 +174,7 @@ public sealed class PercentagesControllerTests
         var percentage = CreateTestPercentage();
         _percentageServiceMock.Setup(s => s.GetPercentageAsync(TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(percentage);
-        _permissionServiceMock.Setup(s => s.CanViewPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanViewPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         // Act
@@ -201,7 +201,7 @@ public sealed class PercentagesControllerTests
             Warnings = []
         };
 
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _percentageServiceMock.Setup(s => s.ValidatePercentageAsync(request, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(validationResult);
@@ -222,7 +222,7 @@ public sealed class PercentagesControllerTests
         // Arrange
         var request = CreateTestCreateRequest();
 
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         // Act
@@ -244,7 +244,7 @@ public sealed class PercentagesControllerTests
             Warnings = []
         };
 
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _percentageServiceMock.Setup(s => s.ValidatePercentageAsync(request, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(validationResult);
@@ -269,7 +269,7 @@ public sealed class PercentagesControllerTests
             Warnings = ["Total percentage exceeds 100%"]
         };
 
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _percentageServiceMock.Setup(s => s.ValidatePercentageAsync(request, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(validationResult);
@@ -296,7 +296,7 @@ public sealed class PercentagesControllerTests
             Warnings = []
         };
 
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _percentageServiceMock.Setup(s => s.ValidatePercentageAsync(request, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(validationResult);
@@ -323,7 +323,7 @@ public sealed class PercentagesControllerTests
             Warnings = []
         };
 
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _percentageServiceMock.Setup(s => s.ValidatePercentageAsync(request, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(validationResult);
@@ -355,7 +355,7 @@ public sealed class PercentagesControllerTests
             TotalActivePercent = 50
         };
 
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _percentageServiceMock.Setup(s => s.ValidatePercentageAsync(request, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(validationResult);
@@ -375,7 +375,7 @@ public sealed class PercentagesControllerTests
         // Arrange
         var request = CreateTestCreateRequest();
 
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         // Act
@@ -408,7 +408,7 @@ public sealed class PercentagesControllerTests
 
         _percentageServiceMock.Setup(s => s.GetPercentageAsync(TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingPercentage);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _percentageServiceMock.Setup(s => s.ValidatePercentageAsync(It.IsAny<CreatePercentageRequest>(), TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(validationResult);
@@ -447,7 +447,7 @@ public sealed class PercentagesControllerTests
 
         _percentageServiceMock.Setup(s => s.GetPercentageAsync(TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingPercentage);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         // Act
@@ -472,7 +472,7 @@ public sealed class PercentagesControllerTests
 
         _percentageServiceMock.Setup(s => s.GetPercentageAsync(TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingPercentage);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _percentageServiceMock.Setup(s => s.ValidatePercentageAsync(It.IsAny<CreatePercentageRequest>(), TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(validationResult);
@@ -482,35 +482,6 @@ public sealed class PercentagesControllerTests
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
-    }
-
-    [Fact]
-    public async Task UpdatePercentage_ReturnsConflict_WhenConcurrencyConflict()
-    {
-        // Arrange
-        var existingPercentage = CreateTestPercentage();
-        var request = CreateTestUpdateRequest();
-        var validationResult = new PercentageValidationResult
-        {
-            IsValid = true,
-            Errors = [],
-            Warnings = []
-        };
-
-        _percentageServiceMock.Setup(s => s.GetPercentageAsync(TestPercentageId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingPercentage);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _percentageServiceMock.Setup(s => s.ValidatePercentageAsync(It.IsAny<CreatePercentageRequest>(), TestPercentageId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(validationResult);
-        _percentageServiceMock.Setup(s => s.UpdatePercentageAsync(TestPercentageId, request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("The record has been modified by another user. Please refresh and try again."));
-
-        // Act
-        var result = await _controller.UpdatePercentage(TestPercentageId, request);
-
-        // Assert
-        Assert.IsType<ConflictObjectResult>(result.Result);
     }
 
     [Fact]
@@ -528,7 +499,7 @@ public sealed class PercentagesControllerTests
 
         _percentageServiceMock.Setup(s => s.GetPercentageAsync(TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingPercentage);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _percentageServiceMock.Setup(s => s.ValidatePercentageAsync(It.IsAny<CreatePercentageRequest>(), TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(validationResult);
@@ -558,7 +529,7 @@ public sealed class PercentagesControllerTests
 
         _percentageServiceMock.Setup(s => s.GetPercentageAsync(TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingPercentage);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _percentageServiceMock.Setup(s => s.ValidatePercentageAsync(It.IsAny<CreatePercentageRequest>(), TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(validationResult);
@@ -585,7 +556,7 @@ public sealed class PercentagesControllerTests
 
         _percentageServiceMock.Setup(s => s.GetPercentageAsync(TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingPercentage);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _percentageServiceMock.Setup(s => s.DeletePercentageAsync(TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
@@ -619,7 +590,7 @@ public sealed class PercentagesControllerTests
 
         _percentageServiceMock.Setup(s => s.GetPercentageAsync(TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingPercentage);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         // Act
@@ -637,7 +608,7 @@ public sealed class PercentagesControllerTests
 
         _percentageServiceMock.Setup(s => s.GetPercentageAsync(TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingPercentage);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, 0, It.IsAny<CancellationToken>()))
+        _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _percentageServiceMock.Setup(s => s.DeletePercentageAsync(TestPercentageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);

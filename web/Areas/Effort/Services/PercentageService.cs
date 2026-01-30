@@ -163,14 +163,7 @@ public class PercentageService : IPercentageService
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
-        try
-        {
-            await _context.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            throw new InvalidOperationException("The record has been modified by another user. Please refresh and try again.");
-        }
+        await _context.SaveChangesAsync(ct);
 
         var type = await _context.PercentAssignTypes
             .AsNoTracking()
@@ -325,14 +318,15 @@ public class PercentageService : IPercentageService
         }
 
         var isNewActive = IsActive(request.EndDate);
+        // Calculate totals using decimal to avoid floating-point precision issues
+        var activeNonLeaveTotal = existingPercentages
+            .Where(p => IsActive(p.EndDate))
+            .Where(p => !string.Equals(p.PercentAssignType.Class, LeaveTypeClass, StringComparison.OrdinalIgnoreCase))
+            .Sum(p => (decimal)Math.Round(p.PercentageValue * 100, 2));
+
         if (isNewActive && type != null && !string.Equals(type.Class, LeaveTypeClass, StringComparison.OrdinalIgnoreCase))
         {
-            var activeNonLeaveTotal = existingPercentages
-                .Where(p => IsActive(p.EndDate))
-                .Where(p => !string.Equals(p.PercentAssignType.Class, LeaveTypeClass, StringComparison.OrdinalIgnoreCase))
-                .Sum(p => p.PercentageValue * 100);
-
-            var newTotal = (decimal)activeNonLeaveTotal + request.PercentageValue;
+            var newTotal = activeNonLeaveTotal + Math.Round(request.PercentageValue, 2);
             result.TotalActivePercent = newTotal;
 
             if (newTotal > 100)
@@ -342,12 +336,7 @@ public class PercentageService : IPercentageService
         }
         else
         {
-            var activeNonLeaveTotal = existingPercentages
-                .Where(p => IsActive(p.EndDate))
-                .Where(p => !string.Equals(p.PercentAssignType.Class, LeaveTypeClass, StringComparison.OrdinalIgnoreCase))
-                .Sum(p => p.PercentageValue * 100);
-
-            result.TotalActivePercent = (decimal)activeNonLeaveTotal;
+            result.TotalActivePercent = activeNonLeaveTotal;
         }
 
         return result;
