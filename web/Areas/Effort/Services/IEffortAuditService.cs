@@ -8,7 +8,7 @@ namespace Viper.Areas.Effort.Services;
 /// </summary>
 public interface IEffortAuditService
 {
-    Task LogPercentageChangeAsync(int percentageId, int termCode, string action,
+    Task LogPercentageChangeAsync(int percentageId, int? termCode, string action,
         object? oldValues, object? newValues, CancellationToken ct = default);
 
     Task LogRecordChangeAsync(int recordId, int termCode, string action,

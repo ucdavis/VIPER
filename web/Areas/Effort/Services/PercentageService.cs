@@ -93,7 +93,7 @@ public class PercentageService : IPercentageService
             ? await _context.Units.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.UnitId, ct)
             : null;
 
-        await _auditService.LogPercentageChangeAsync(percentage.Id, 0, EffortAuditActions.CreatePercent,
+        await _auditService.LogPercentageChangeAsync(percentage.Id, null, EffortAuditActions.CreatePercent,
             null,
             new
             {
@@ -172,7 +172,7 @@ public class PercentageService : IPercentageService
             ? await _context.Units.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.UnitId, ct)
             : null;
 
-        await _auditService.LogPercentageChangeAsync(id, 0, EffortAuditActions.UpdatePercent,
+        await _auditService.LogPercentageChangeAsync(id, null, EffortAuditActions.UpdatePercent,
             oldValues,
             new
             {
@@ -219,7 +219,7 @@ public class PercentageService : IPercentageService
         _context.Percentages.Remove(percentage);
         await _context.SaveChangesAsync(ct);
 
-        await _auditService.LogPercentageChangeAsync(id, 0, EffortAuditActions.DeletePercent,
+        await _auditService.LogPercentageChangeAsync(id, null, EffortAuditActions.DeletePercent,
             oldValues, null, ct);
 
         await transaction.CommitAsync(ct);
