@@ -253,4 +253,62 @@ public class EffortPermissionService : IEffortPermissionService
 
         return $"{user.MailId.Trim()}@ucdavis.edu";
     }
+
+    /// <inheritdoc />
+    public async Task<bool> CanViewPersonPercentagesAsync(int personId, CancellationToken ct = default)
+    {
+        var user = _userHelper.GetCurrentUser();
+        if (user == null)
+        {
+            return false;
+        }
+
+        if (await HasFullAccessAsync(ct))
+        {
+            return true;
+        }
+
+        if (!_userHelper.HasPermission(_rapsContext, user, EffortPermissions.ViewDept))
+        {
+            return false;
+        }
+
+        var authorizedDepts = await GetAuthorizedDepartmentsAsync(ct);
+
+        // Check if the person exists in any term with a department the user can access
+        return await _context.Persons
+            .AsNoTracking()
+            .Where(p => p.PersonId == personId)
+            .AnyAsync(p => authorizedDepts.Contains(p.EffortDept) ||
+                          (!string.IsNullOrEmpty(p.ReportUnit) && authorizedDepts.Contains(p.ReportUnit)), ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> CanEditPersonPercentagesAsync(int personId, CancellationToken ct = default)
+    {
+        var user = _userHelper.GetCurrentUser();
+        if (user == null)
+        {
+            return false;
+        }
+
+        if (await HasFullAccessAsync(ct))
+        {
+            return true;
+        }
+
+        if (!_userHelper.HasPermission(_rapsContext, user, EffortPermissions.EditEffort))
+        {
+            return false;
+        }
+
+        var authorizedDepts = await GetAuthorizedDepartmentsAsync(ct);
+
+        // Check if the person exists in any term with a department the user can access
+        return await _context.Persons
+            .AsNoTracking()
+            .Where(p => p.PersonId == personId)
+            .AnyAsync(p => authorizedDepts.Contains(p.EffortDept) ||
+                          (!string.IsNullOrEmpty(p.ReportUnit) && authorizedDepts.Contains(p.ReportUnit)), ct);
+    }
 }

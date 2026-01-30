@@ -79,4 +79,19 @@ public interface IEffortPermissionService
     /// Returns null if not authenticated or no email address found.
     /// </summary>
     string? GetCurrentUserEmail();
+
+    /// <summary>
+    /// Check if current user can view percentage assignments for a person.
+    /// Unlike CanViewPersonEffortAsync, this doesn't require a specific term -
+    /// it checks if the person exists in any term the user has access to.
+    /// Requires ViewAllDepartments or ViewDept permission (no self-service access).
+    /// </summary>
+    Task<bool> CanViewPersonPercentagesAsync(int personId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Check if current user can edit percentage assignments for a person.
+    /// Unlike CanEditPersonEffortAsync, this doesn't require a specific term -
+    /// it checks if the person exists in any term the user has access to.
+    /// </summary>
+    Task<bool> CanEditPersonPercentagesAsync(int personId, CancellationToken ct = default);
 }
