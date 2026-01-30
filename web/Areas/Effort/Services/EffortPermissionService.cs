@@ -297,7 +297,7 @@ public class EffortPermissionService : IEffortPermissionService
             return true;
         }
 
-        if (!_userHelper.HasPermission(_rapsContext, user, EffortPermissions.EditEffort))
+        if (!_userHelper.HasPermission(_rapsContext, user, EffortPermissions.EditInstructor))
         {
             return false;
         }
