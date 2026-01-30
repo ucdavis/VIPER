@@ -20,9 +20,4 @@ public class PercentageValidationResult
     /// Warnings that allow save with user confirmation.
     /// </summary>
     public List<string> Warnings { get; set; } = [];
-
-    /// <summary>
-    /// Sum of all active percentage assignments for the person.
-    /// </summary>
-    public decimal TotalActivePercent { get; set; }
 }

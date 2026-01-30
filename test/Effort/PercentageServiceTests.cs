@@ -177,10 +177,12 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 100,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -201,10 +203,12 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 50,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -224,10 +228,12 @@ public sealed class PercentageServiceTests : IDisposable
     public async Task CreatePercentageAsync_ThrowsException_WhenInvalidTypeId()
     {
         // Arrange
+        var unit = await CreateUnitAsync();
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = 999,
+            UnitId = unit.Id,
             PercentageValue = 50,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -244,10 +250,12 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var type = await CreatePercentAssignTypeAsync("Inactive Type", "Other", isActive: false);
+        var unit = await CreateUnitAsync();
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 50,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -264,10 +272,12 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = -10,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -284,10 +294,12 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 150,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -304,10 +316,12 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 50,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             EndDate = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Local),
@@ -325,10 +339,12 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange - July 2024 should be 2024-2025
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 50,
             StartDate = new DateTime(2024, 7, 15, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -347,10 +363,12 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange - March 2024 should be 2023-2024
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 50,
             StartDate = new DateTime(2024, 3, 15, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -369,10 +387,12 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 50,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -385,7 +405,7 @@ public sealed class PercentageServiceTests : IDisposable
         _auditServiceMock.Verify(
             s => s.LogPercentageChangeAsync(
                 It.IsAny<int>(),
-                0,
+                null,
                 It.Is<string>(a => a.Contains("Create")),
                 null,
                 It.IsAny<object>(),
@@ -402,11 +422,13 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         var existing = await CreatePercentageAsync(100, type.Id, 50, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
 
         var request = new UpdatePercentageRequest
         {
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 75,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -425,9 +447,11 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         var request = new UpdatePercentageRequest
         {
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 75,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -445,11 +469,13 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         var existing = await CreatePercentageAsync(100, type.Id, 50, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
 
         var request = new UpdatePercentageRequest
         {
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 75,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -462,7 +488,7 @@ public sealed class PercentageServiceTests : IDisposable
         _auditServiceMock.Verify(
             s => s.LogPercentageChangeAsync(
                 existing.Id,
-                0,
+                null,
                 It.Is<string>(a => a.Contains("Update")),
                 It.IsAny<object>(),
                 It.IsAny<object>(),
@@ -514,7 +540,7 @@ public sealed class PercentageServiceTests : IDisposable
         _auditServiceMock.Verify(
             s => s.LogPercentageChangeAsync(
                 existing.Id,
-                0,
+                null,
                 It.Is<string>(a => a.Contains("Delete")),
                 It.IsAny<object>(),
                 null,
@@ -531,12 +557,14 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         await CreatePercentageAsync(100, type.Id, 50, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local), new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Local));
 
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 25,
             StartDate = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Local),
             EndDate = new DateTime(2025, 6, 30, 0, 0, 0, DateTimeKind.Local),
@@ -557,12 +585,14 @@ public sealed class PercentageServiceTests : IDisposable
         // Arrange
         var type1 = await CreatePercentAssignTypeAsync("Teaching", "Other");
         var type2 = await CreatePercentAssignTypeAsync("Research", "Other");
+        var unit = await CreateUnitAsync();
         await CreatePercentageAsync(100, type1.Id, 50, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local), new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Local));
 
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type2.Id,
+            UnitId = unit.Id,
             PercentageValue = 25,
             StartDate = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Local),
             EndDate = new DateTime(2025, 6, 30, 0, 0, 0, DateTimeKind.Local),
@@ -583,12 +613,14 @@ public sealed class PercentageServiceTests : IDisposable
         // Arrange
         var type1 = await CreatePercentAssignTypeAsync("Teaching", "Other");
         var type2 = await CreatePercentAssignTypeAsync("Research", "Other");
+        var unit = await CreateUnitAsync();
         await CreatePercentageAsync(100, type1.Id, 60, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
 
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type2.Id,
+            UnitId = unit.Id,
             PercentageValue = 50,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -600,7 +632,6 @@ public sealed class PercentageServiceTests : IDisposable
         // Assert
         Assert.True(result.IsValid);
         Assert.Contains(result.Warnings, w => w.Contains("exceeds 100%"));
-        Assert.Equal(110, result.TotalActivePercent);
     }
 
     [Fact]
@@ -609,6 +640,7 @@ public sealed class PercentageServiceTests : IDisposable
         // Arrange
         var teachingType = await CreatePercentAssignTypeAsync("Teaching", "Other");
         var leaveType = await CreateLeaveTypeAsync();
+        var unit = await CreateUnitAsync();
         await CreatePercentageAsync(100, teachingType.Id, 60, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
         await CreatePercentageAsync(100, leaveType.Id, 100, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
 
@@ -617,6 +649,7 @@ public sealed class PercentageServiceTests : IDisposable
         {
             PersonId = 100,
             PercentAssignTypeId = researchType.Id,
+            UnitId = unit.Id,
             PercentageValue = 30,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -627,7 +660,6 @@ public sealed class PercentageServiceTests : IDisposable
 
         // Assert
         Assert.True(result.IsValid);
-        Assert.Equal(90, result.TotalActivePercent);
         Assert.DoesNotContain(result.Warnings, w => w.Contains("exceeds 100%"));
     }
 
@@ -636,6 +668,7 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var teachingType = await CreatePercentAssignTypeAsync("Teaching", "Other");
+        var unit = await CreateUnitAsync();
         await CreatePercentageAsync(100, teachingType.Id, 100, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
 
         var leaveType = await CreateLeaveTypeAsync();
@@ -643,6 +676,7 @@ public sealed class PercentageServiceTests : IDisposable
         {
             PersonId = 100,
             PercentAssignTypeId = leaveType.Id,
+            UnitId = unit.Id,
             PercentageValue = 50,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -660,10 +694,12 @@ public sealed class PercentageServiceTests : IDisposable
     public async Task ValidatePercentageAsync_ReturnsError_WhenInvalidType()
     {
         // Arrange
+        var unit = await CreateUnitAsync();
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = 999,
+            UnitId = unit.Id,
             PercentageValue = 50,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false
@@ -682,10 +718,12 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 50,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             EndDate = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Local),
@@ -705,12 +743,14 @@ public sealed class PercentageServiceTests : IDisposable
     {
         // Arrange
         var type = await CreatePercentAssignTypeAsync();
+        var unit = await CreateUnitAsync();
         var existing = await CreatePercentageAsync(100, type.Id, 50, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
 
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
             PercentAssignTypeId = type.Id,
+            UnitId = unit.Id,
             PercentageValue = 75,
             StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
             Compensated = false

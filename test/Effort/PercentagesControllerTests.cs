@@ -351,8 +351,7 @@ public sealed class PercentagesControllerTests
         {
             IsValid = true,
             Errors = [],
-            Warnings = [],
-            TotalActivePercent = 50
+            Warnings = []
         };
 
         _permissionServiceMock.Setup(s => s.CanEditPersonPercentagesAsync(TestPersonId, It.IsAny<CancellationToken>()))

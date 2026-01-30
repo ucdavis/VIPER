@@ -89,9 +89,9 @@ public class PercentageService : IPercentageService
         var type = await _context.PercentAssignTypes
             .AsNoTracking()
             .FirstAsync(t => t.Id == request.PercentAssignTypeId, ct);
-        var unit = request.UnitId.HasValue
-            ? await _context.Units.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.UnitId, ct)
-            : null;
+        var unit = await _context.Units
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == request.UnitId, ct);
 
         await _auditService.LogPercentageChangeAsync(percentage.Id, null, EffortAuditActions.CreatePercent,
             null,
@@ -168,9 +168,9 @@ public class PercentageService : IPercentageService
         var type = await _context.PercentAssignTypes
             .AsNoTracking()
             .FirstAsync(t => t.Id == request.PercentAssignTypeId, ct);
-        var unit = request.UnitId.HasValue
-            ? await _context.Units.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.UnitId, ct)
-            : null;
+        var unit = await _context.Units
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == request.UnitId, ct);
 
         await _auditService.LogPercentageChangeAsync(id, null, EffortAuditActions.UpdatePercent,
             oldValues,
@@ -265,22 +265,19 @@ public class PercentageService : IPercentageService
             result.IsValid = false;
         }
 
-        if (request.UnitId.HasValue)
-        {
-            var unit = await _context.Units
-                .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Id == request.UnitId, ct);
+        var unit = await _context.Units
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == request.UnitId, ct);
 
-            if (unit == null)
-            {
-                result.Errors.Add("Invalid unit.");
-                result.IsValid = false;
-            }
-            else if (!unit.IsActive)
-            {
-                result.Errors.Add($"Unit '{unit.Name}' is inactive.");
-                result.IsValid = false;
-            }
+        if (unit == null)
+        {
+            result.Errors.Add("Invalid unit.");
+            result.IsValid = false;
+        }
+        else if (!unit.IsActive)
+        {
+            result.Errors.Add($"Unit '{unit.Name}' is inactive.");
+            result.IsValid = false;
         }
 
         if (request.PercentageValue < 0 || request.PercentageValue > 100)
@@ -327,16 +324,10 @@ public class PercentageService : IPercentageService
         if (isNewActive && type != null && !string.Equals(type.Class, LeaveTypeClass, StringComparison.OrdinalIgnoreCase))
         {
             var newTotal = activeNonLeaveTotal + Math.Round(request.PercentageValue, 2);
-            result.TotalActivePercent = newTotal;
-
             if (newTotal > 100)
             {
                 result.Warnings.Add($"Total active percentage ({newTotal:F0}%) exceeds 100%.");
             }
-        }
-        else
-        {
-            result.TotalActivePercent = activeNonLeaveTotal;
         }
 
         return result;
@@ -390,21 +381,18 @@ public class PercentageService : IPercentageService
             throw new InvalidOperationException($"Percent assignment type '{type.Name}' is inactive.");
         }
 
-        if (request.UnitId.HasValue)
+        var unit = await _context.Units
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == request.UnitId, ct);
+
+        if (unit == null)
         {
-            var unit = await _context.Units
-                .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Id == request.UnitId, ct);
+            throw new InvalidOperationException("Invalid unit.");
+        }
 
-            if (unit == null)
-            {
-                throw new InvalidOperationException("Invalid unit.");
-            }
-
-            if (!unit.IsActive)
-            {
-                throw new InvalidOperationException($"Unit '{unit.Name}' is inactive.");
-            }
+        if (!unit.IsActive)
+        {
+            throw new InvalidOperationException($"Unit '{unit.Name}' is inactive.");
         }
 
         if (request.PercentageValue < 0 || request.PercentageValue > 100)

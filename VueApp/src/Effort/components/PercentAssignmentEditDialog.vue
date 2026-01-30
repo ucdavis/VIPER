@@ -176,7 +176,7 @@
                     dense
                 />
 
-                <!-- Warning Banner -->
+                <!-- Post-save Warning Banner -->
                 <q-banner
                     v-if="warningMessage"
                     class="bg-warning q-mb-md"
@@ -184,17 +184,19 @@
                 >
                     <template #avatar>
                         <q-icon
-                            name="warning"
+                            name="info"
                             color="dark"
                         />
                     </template>
-                    {{ warningMessage }}
+                    <div>
+                        <strong>Saved with notice:</strong> {{ warningMessage }}
+                    </div>
                     <template #action>
                         <q-btn
                             flat
                             dense
-                            label="Proceed Anyway"
-                            @click="saveWithWarning"
+                            label="OK"
+                            @click="acknowledgeWarning"
                         />
                     </template>
                 </q-banner>
@@ -338,7 +340,7 @@ async function savePercentage() {
 
     const request: UpdatePercentageRequest = {
         percentAssignTypeId: form.value.percentAssignTypeId!,
-        unitId: form.value.unitId,
+        unitId: form.value.unitId!,
         modifier: form.value.modifier,
         comment: form.value.comment || null,
         percentageValue: form.value.percentageValue,
@@ -367,7 +369,7 @@ async function savePercentage() {
     emit("saved", result.result!)
 }
 
-function saveWithWarning() {
+function acknowledgeWarning() {
     // Record was already saved, just close and emit the saved result
     if (savedResult.value) {
         emit("update:modelValue", false)
