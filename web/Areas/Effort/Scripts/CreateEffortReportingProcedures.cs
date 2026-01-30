@@ -849,9 +849,20 @@ BEGIN
     DECLARE @ColumnIsNulls AS NVARCHAR(MAX);
     DECLARE @DynamicPivotQuery AS NVARCHAR(MAX);
     DECLARE @start DATE, @end DATE;
+    DECLARE @AcademicYear INT;
 
-    -- Get end date of academic year (June 30 of the year in term code)
-    SET @end = CAST(RIGHT(@TermCode, 4) + '-06-30' AS DATE);
+    -- Extract academic year from term code
+    -- Term codes are either 4 digits (YYYY) or 6 digits (YYYYTT where TT is term)
+    -- For 6-digit codes like 202410, we need LEFT(4) to get 2024
+    -- For 4-digit codes like 2024, we use the value directly
+    SET @AcademicYear = CASE
+        WHEN LEN(@TermCode) = 6 THEN CAST(LEFT(@TermCode, 4) AS INT)
+        WHEN LEN(@TermCode) = 4 THEN CAST(@TermCode AS INT)
+        ELSE CAST(RIGHT(@TermCode, 4) AS INT)  -- Fallback for unexpected formats
+    END;
+
+    -- Get end date of academic year (June 30 of the academic year)
+    SET @end = CAST(CAST(@AcademicYear AS VARCHAR(4)) + '-06-30' AS DATE);
     -- Get start date of academic year (July 1 of previous year)
     SET @start = DATEADD(YEAR, -1, DATEADD(DAY, 1, @end));
 
@@ -895,7 +906,7 @@ BEGIN
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
     INNER JOIN [effort].[TermStatus] ts ON r.TermCode = ts.TermCode
-    WHERE ts.TermCode / 100 = CAST(RIGHT(@TermCode, 4) AS INT)  -- All terms in academic year
+    WHERE ts.TermCode / 100 = @AcademicYear  -- All terms in academic year
         -- Job group filtering matching legacy fn_checkJobGroupAndEffortCode:
         -- Include job groups: 010, 011, 114, 311, 317, 335, 341
         -- Include 124 with effort title code 1898 (acting prof)
@@ -926,7 +937,7 @@ BEGIN
     FROM [effort].[Records] r
     INNER JOIN #Instructors I ON r.PersonId = I.PersonId
     INNER JOIN [effort].[TermStatus] ts ON r.TermCode = ts.TermCode
-    WHERE ts.TermCode / 100 = CAST(RIGHT(@TermCode, 4) AS INT);  -- All terms in academic year
+    WHERE ts.TermCode / 100 = @AcademicYear;  -- All terms in academic year
 
     -- Build dynamic pivot query matching legacy output format exactly
     SET @DynamicPivotQuery =
@@ -1421,7 +1432,7 @@ BEGIN
     SET NOCOUNT ON;
 
     -- Returns raw percent assignment data for a person within a date range
-    -- Used by PercentageService.GetAveragePercentsByTypeAsync to calculate weighted averages
+    -- Available for reporting integrations and external consumers
     -- Returns all percentage assignments that overlap with the specified date range
 
     SELECT

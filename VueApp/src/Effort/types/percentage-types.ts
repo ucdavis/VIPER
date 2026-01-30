@@ -41,23 +41,4 @@ type PercentageValidationResult = {
     totalActivePercent: number
 }
 
-type AveragePercentByTypeDto = {
-    typeClass: string
-    academicYear: string
-    typeName: string
-    unitName: string | null
-    modifier: string | null
-    averagedPercent: number
-    averagedPercentDisplay: string
-    description: string
-    comment: string | null
-    compensated: boolean
-}
-
-export type {
-    PercentageDto,
-    CreatePercentageRequest,
-    UpdatePercentageRequest,
-    PercentageValidationResult,
-    AveragePercentByTypeDto,
-}
+export type { PercentageDto, CreatePercentageRequest, UpdatePercentageRequest, PercentageValidationResult }

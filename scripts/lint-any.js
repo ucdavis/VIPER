@@ -4,6 +4,8 @@ const fs = require("node:fs")
 const path = require("node:path")
 const { spawnSync } = require("node:child_process")
 
+const { env } = process
+
 /**
  * Smart linter that automatically routes files to the correct linter based on location and type
  * Shows all warnings (equivalent to running with LINT_BLOCK_ON_WARNINGS=false)
@@ -23,14 +25,19 @@ const { spawnSync } = require("node:child_process")
 // Get command line arguments
 const args = process.argv.slice(2)
 const shouldFix = args.includes("--fix")
-const inputArgs = args.filter((arg) => arg !== "--fix")
+const shouldClearCache = args.includes("--clear-cache")
+const inputArgs = args.filter((arg) => !["--fix", "--clear-cache"].includes(arg))
 
 if (inputArgs.length === 0) {
     console.log(`
 🔍 Smart Linter - Routes files to the correct linter automatically
 
 Usage:
-  npm run lint [-- --fix] <file|folder|pattern>
+  npm run lint [-- --fix] [-- --clear-cache] <file|folder|pattern>
+
+Options:
+  --fix          Auto-fix issues where possible
+  --clear-cache  Clear the build cache before linting
 
 Examples:
   npm run lint web/Views/Home/Index.cshtml
@@ -38,6 +45,7 @@ Examples:
   npm run lint web/wwwroot/css/directory.css
   npm run lint VueApp/src
   npm run lint -- --fix VueApp/src  (auto-fix issues)
+  npm run lint -- --clear-cache web/  (clear cache and lint)
 
 Supported file types:
   📄 .css, .vue → CSS/Stylelint (accessibility & style)
@@ -282,8 +290,9 @@ function runPrettierCheck(files, fix) {
  * @param {string[]} files - Array of file paths
  * @param {string} description - Description for logging
  * @param {boolean} fix - Whether to pass --fix to the linter
+ * @param {boolean} clearCache - Whether to pass --clear-cache to the linter
  */
-function runLinter(script, files, description, fix) {
+function runLinter(script, files, description, fix, clearCache) {
     if (files.length === 0) {
         return
     }
@@ -291,14 +300,18 @@ function runLinter(script, files, description, fix) {
     console.log(`\n🔍 ${description} (${files.length} files)`)
 
     const scriptPath = path.join(__dirname, script)
-    const scriptArgs = fix ? [...files, "--fix"] : files
+    const scriptArgs = [...files]
+    if (fix) {
+        scriptArgs.push("--fix")
+    }
+    if (clearCache) {
+        scriptArgs.push("--clear-cache")
+    }
 
     const result = spawnSync("node", [scriptPath, ...scriptArgs], {
         stdio: "inherit",
         cwd: projectRoot,
-        env: {
-            ...process.env,
-        },
+        env,
     })
 
     if (result.error) {
@@ -362,12 +375,30 @@ try {
     const prettierPassed = runPrettierCheck(allUniqueFiles, shouldFix)
 
     // Run each linter with its files
-    runLinter("lint-staged-css.js", categories.css, "CSS/Stylelint - Accessibility & Style", shouldFix)
-    runLinter("lint-staged-vue.js", categories.vue, "Vue ESLint - Security & Quality", shouldFix)
-    runLinter("lint-staged-ts.js", categories.ts, "JS/TS Oxlint - Security & Quality", shouldFix)
+    runLinter(
+        "lint-staged-css.js",
+        categories.css,
+        "CSS/Stylelint - Accessibility & Style",
+        shouldFix,
+        shouldClearCache,
+    )
+    runLinter("lint-staged-vue.js", categories.vue, "Vue ESLint - Security & Quality", shouldFix, shouldClearCache)
+    runLinter("lint-staged-ts.js", categories.ts, "JS/TS Oxlint - Security & Quality", shouldFix, shouldClearCache)
     // Route CSHTML files through the dedicated ESLint-based CSHTML linter (security + accessibility)
-    runLinter("lint-staged-cshtml.js", categories.cshtml, "CSHTML - Security & Accessibility", shouldFix)
-    runLinter("lint-staged-dotnet.js", categories.dotnet, ".NET/SonarAnalyzer - Security & Quality", shouldFix)
+    runLinter(
+        "lint-staged-cshtml.js",
+        categories.cshtml,
+        "CSHTML - Security & Accessibility",
+        shouldFix,
+        shouldClearCache,
+    )
+    runLinter(
+        "lint-staged-dotnet.js",
+        categories.dotnet,
+        ".NET/SonarAnalyzer - Security & Quality",
+        shouldFix,
+        shouldClearCache,
+    )
 
     console.log("\n✅ Smart linting complete!")
 

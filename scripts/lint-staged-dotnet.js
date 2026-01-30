@@ -17,6 +17,7 @@ const {
     needsFormatCheck,
     markFormatChecked,
     getCachedFormatOutput,
+    clearCacheIfRequested,
 } = require("./lib/build-cache")
 
 // Platform-specific path patterns
@@ -115,7 +116,10 @@ function parseDotnetFormatOutput(output) {
 const args = process.argv.slice(2)
 const fixFlag = args.includes("--fix")
 const forceFlag = args.includes("--force")
-const rawFiles = args.filter((a) => !["--fix", "--force"].includes(a) && !a.startsWith("--"))
+const rawFiles = args.filter((a) => !["--fix", "--force", "--clear-cache"].includes(a) && !a.startsWith("--"))
+
+// Clear cache if requested (before any other operations)
+clearCacheIfRequested()
 
 const logger = createLogger(".NET")
 

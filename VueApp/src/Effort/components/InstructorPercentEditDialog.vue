@@ -32,7 +32,10 @@
                 </div>
 
                 <!-- Instructor Settings Section -->
-                <div class="q-mb-md">
+                <div
+                    v-if="canEditInstructor"
+                    class="q-mb-md"
+                >
                     <q-select
                         v-model="form.effortDept"
                         :options="groupedDepartments"
@@ -172,7 +175,7 @@
                     </div>
                     <PercentAssignmentTable
                         :percentages="percentages"
-                        :can-edit="canEdit"
+                        :can-edit="canEdit && canEditInstructor"
                         :loading="loadingPercentages"
                         @add="showAddPercentDialog = true"
                         @edit="openEditPercentDialog"
@@ -265,6 +268,7 @@ const props = defineProps<{
     instructor: PersonDto | null
     termCode: number | null
     canEdit: boolean
+    canEditInstructor: boolean
 }>()
 
 const emit = defineEmits<{

@@ -80,5 +80,4 @@ export type {
     CreatePercentageRequest,
     UpdatePercentageRequest,
     PercentageValidationResult,
-    AveragePercentByTypeDto,
 } from "./percentage-types"

@@ -263,33 +263,6 @@ public class PercentagesController : BaseEffortController
     }
 
     /// <summary>
-    /// Get average percentages by type class for a person within a date range.
-    /// Used for MP Vote reporting.
-    /// </summary>
-    [HttpGet("person/{personId:int}/averages")]
-    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.Reports}")]
-    public async Task<ActionResult<Dictionary<string, List<AveragePercentByTypeDto>>>> GetAverages(
-        int personId,
-        [FromQuery] DateTime start,
-        [FromQuery] DateTime end,
-        CancellationToken ct = default)
-    {
-        SetExceptionContext("personId", personId);
-
-        _logger.LogDebug("Getting averages for person {PersonId} from {Start} to {End}",
-            LogSanitizer.SanitizeId(personId.ToString()), start, end);
-
-        if (!await _permissionService.CanViewPersonEffortAsync(personId, 0, ct))
-        {
-            _logger.LogWarning("User not authorized to view averages for person {PersonId}", personId);
-            return NotFound($"Person {personId} not found");
-        }
-
-        var averages = await _percentageService.GetAveragePercentsByTypeAsync(personId, start, end, ct);
-        return Ok(averages);
-    }
-
-    /// <summary>
     /// Parse database exception messages into user-friendly error messages.
     /// SECURITY: Be careful not to expose sensitive internal schema details in user-facing messages.
     /// </summary>

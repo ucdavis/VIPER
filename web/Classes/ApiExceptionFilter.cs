@@ -5,7 +5,8 @@ using System.Net;
 
 namespace Viper.Classes
 {
-    public class ApiExceptionFilter : ExceptionFilterAttribute
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+    public class ApiExceptionFilterAttribute : ExceptionFilterAttribute
     {
         public override void OnException(ExceptionContext context)
         {
@@ -15,12 +16,10 @@ namespace Viper.Classes
 
             // Get any contextual information stored by controllers for enhanced logging
             var contextInfo = new Dictionary<string, object>();
-            if (context.HttpContext.Items.ContainsKey("ExceptionContext"))
+            if (context.HttpContext.Items.TryGetValue("ExceptionContext", out var stored)
+                && stored is Dictionary<string, object> storedContext)
             {
-                if (context.HttpContext.Items["ExceptionContext"] is Dictionary<string, object> storedContext)
-                {
-                    contextInfo = storedContext;
-                }
+                contextInfo = storedContext;
             }
 
             // Enhanced structured logging with correlation ID and contextual information
@@ -36,11 +35,16 @@ namespace Viper.Classes
             }
 
             // Return standardized response with correlation ID for client debugging
+            // SECURITY: Only expose detailed error messages in Development environment
+            // In Production, users get the correlation ID to reference when contacting support
+            var environment = context.HttpContext.RequestServices.GetService<IWebHostEnvironment>();
+            var isDevelopment = environment?.IsDevelopment() ?? false;
+
             context.Result = new ObjectResult(
                 new ApiResponse(HttpStatusCode.InternalServerError, false)
                 {
                     ErrorMessage = "An error has occurred",
-                    Errors = GetErrorList(context),
+                    Errors = isDevelopment ? GetErrorList(context) : ["An unexpected error occurred. Reference ID: " + correlationId],
                     CorrelationId = correlationId
                 }
             );
@@ -54,7 +58,7 @@ namespace Viper.Classes
             while (exception != null)
             {
                 errors.Add(exception.Message);
-                exception = exception?.InnerException;
+                exception = exception.InnerException;
             }
             return errors;
         }

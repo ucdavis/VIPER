@@ -856,7 +856,7 @@ BEGIN
         CONSTRAINT FK_Percentages_PercentAssignTypes FOREIGN KEY (PercentAssignTypeId) REFERENCES [effort].[PercentAssignTypes](Id),
         CONSTRAINT FK_Percentages_Units FOREIGN KEY (UnitId) REFERENCES [effort].[Units](Id),
         CONSTRAINT FK_Percentages_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
-        CONSTRAINT CK_Percentages_Percentage CHECK (Percentage BETWEEN 0 AND 100),
+        CONSTRAINT CK_Percentages_Percentage CHECK (Percentage BETWEEN 0 AND 1),
         CONSTRAINT CK_Percentages_DateRange CHECK (EndDate IS NULL OR EndDate >= StartDate)
     );
 

@@ -765,59 +765,6 @@ public sealed class PercentageServiceTests : IDisposable
 
     #endregion
 
-    #region GetAveragePercentsByTypeAsync Tests
-
-    [Fact]
-    public async Task GetAveragePercentsByTypeAsync_CalculatesWeightedAverage()
-    {
-        // Arrange
-        var type = await CreatePercentAssignTypeAsync("Teaching", "Admin");
-        await CreatePercentageAsync(100, type.Id, 100, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local), new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Local));
-
-        // Act - Date range is full year but percentage only covers half
-        var results = await _percentageService.GetAveragePercentsByTypeAsync(
-            100, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local), new DateTime(2025, 6, 30, 0, 0, 0, DateTimeKind.Local));
-
-        // Assert
-        Assert.Single(results);
-        Assert.True(results.ContainsKey("Admin"));
-        var adminResults = results["Admin"];
-        var dto = Assert.Single(adminResults);
-        Assert.True(dto.AveragedPercent < 100);
-    }
-
-    [Fact]
-    public async Task GetAveragePercentsByTypeAsync_GroupsByTypeClass()
-    {
-        // Arrange
-        var adminType = await CreatePercentAssignTypeAsync("Admin Work", "Admin");
-        var clinicalType = await CreatePercentAssignTypeAsync("Clinical Work", "Clinical");
-        await CreatePercentageAsync(100, adminType.Id, 30, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
-        await CreatePercentageAsync(100, clinicalType.Id, 50, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
-
-        // Act
-        var results = await _percentageService.GetAveragePercentsByTypeAsync(
-            100, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local), new DateTime(2025, 6, 30, 0, 0, 0, DateTimeKind.Local));
-
-        // Assert
-        Assert.Equal(2, results.Count);
-        Assert.True(results.ContainsKey("Admin"));
-        Assert.True(results.ContainsKey("Clinical"));
-    }
-
-    [Fact]
-    public async Task GetAveragePercentsByTypeAsync_ReturnsEmptyDictionary_WhenNoPercentages()
-    {
-        // Act
-        var results = await _percentageService.GetAveragePercentsByTypeAsync(
-            999, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local), new DateTime(2025, 6, 30, 0, 0, 0, DateTimeKind.Local));
-
-        // Assert
-        Assert.Empty(results);
-    }
-
-    #endregion
-
     #region IsActive Calculation Tests
 
     [Fact]

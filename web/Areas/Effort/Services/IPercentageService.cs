@@ -69,15 +69,4 @@ public interface IPercentageService
     /// <returns>Validation result with errors and warnings.</returns>
     Task<PercentageValidationResult> ValidatePercentageAsync(
         CreatePercentageRequest request, int? excludeId = null, CancellationToken ct = default);
-
-    /// <summary>
-    /// Get weighted average percentages by type class for MP Vote reporting.
-    /// </summary>
-    /// <param name="personId">The person ID.</param>
-    /// <param name="start">Start date of the reporting period.</param>
-    /// <param name="end">End date of the reporting period.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>Dictionary keyed by type class with lists of averaged percentages.</returns>
-    Task<Dictionary<string, List<AveragePercentByTypeDto>>> GetAveragePercentsByTypeAsync(
-        int personId, DateTime start, DateTime end, CancellationToken ct = default);
 }

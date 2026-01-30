@@ -89,7 +89,13 @@ async function handleViperFetchError(response: any) {
             throw new Error("An error occurred")
         }
         if (isAuthError) {
-            throw new AuthError(message || result?.errorMessage || "Auth Error", response.status)
+            const authMessage =
+                message ||
+                result?.errorMessage ||
+                (response.status === HTTP_STATUS.FORBIDDEN
+                    ? "You don't have permission to perform this action."
+                    : "You are not logged in.")
+            throw new AuthError(authMessage, response.status)
         } else {
             throw new ValidationError(message, result?.errors)
         }

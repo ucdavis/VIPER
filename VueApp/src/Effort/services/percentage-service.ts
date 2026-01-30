@@ -4,7 +4,6 @@ import type {
     CreatePercentageRequest,
     UpdatePercentageRequest,
     PercentageValidationResult,
-    AveragePercentByTypeDto,
 } from "../types"
 
 const { get, post, put, del } = useFetch()
@@ -109,23 +108,6 @@ class PercentageService {
     async deletePercentage(id: number): Promise<boolean> {
         const response = await del(`${this.baseUrl}/${id}`)
         return response.success
-    }
-
-    /**
-     * Get averaged percentages by type for a person within a date range.
-     * Returns a record keyed by typeClass with arrays of averaged percentages.
-     */
-    async getAveragesByType(
-        personId: number,
-        start: string,
-        end: string,
-    ): Promise<Record<string, AveragePercentByTypeDto[]>> {
-        const params = new URLSearchParams({ start, end })
-        const response = await get(`${this.baseUrl}/person/${personId}/averages?${params.toString()}`)
-        if (!response.success || !response.result) {
-            return {}
-        }
-        return response.result as Record<string, AveragePercentByTypeDto[]>
     }
 }
 

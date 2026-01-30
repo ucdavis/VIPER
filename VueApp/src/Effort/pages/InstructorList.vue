@@ -371,6 +371,7 @@
             :instructor="selectedInstructor"
             :term-code="selectedTermCode"
             :can-edit="canEditTerm"
+            :can-edit-instructor="hasEditInstructor"
             @updated="onInstructorUpdated"
             @closed="closeEditDialog"
         />

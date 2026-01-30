@@ -243,7 +243,7 @@ public class PercentageService : IPercentageService
             .Include(p => p.PercentAssignType)
             .Include(p => p.Unit)
             .Where(p => p.PersonId == personId)
-            .Where(p => HasOverlap(start, end, p.StartDate, p.EndDate))
+            .Where(p => start <= (p.EndDate ?? DateTime.MaxValue) && end >= p.StartDate)
             .OrderByDescending(p => p.StartDate)
             .ThenBy(p => p.PercentAssignType.Name)
             .ToListAsync(ct);
@@ -353,79 +353,6 @@ public class PercentageService : IPercentageService
         return result;
     }
 
-    /// <inheritdoc />
-    public async Task<Dictionary<string, List<AveragePercentByTypeDto>>> GetAveragePercentsByTypeAsync(
-        int personId, DateTime start, DateTime end, CancellationToken ct = default)
-    {
-        var percentages = await _context.Percentages
-            .AsNoTracking()
-            .Include(p => p.PercentAssignType)
-            .Include(p => p.Unit)
-            .Where(p => p.PersonId == personId)
-            .Where(p => HasOverlap(start, end, p.StartDate, p.EndDate))
-            .ToListAsync(ct);
-
-        var totalDays = (end - start).TotalDays + 1;
-        var result = new Dictionary<string, List<AveragePercentByTypeDto>>();
-
-        var groupedByKey = percentages
-            .GroupBy(p => new
-            {
-                p.PercentAssignType.Class,
-                p.PercentAssignType.Name,
-                UnitName = p.Unit?.Name,
-                p.Modifier,
-                p.Compensated
-            });
-
-        foreach (var group in groupedByKey)
-        {
-            var weightedSum = 0m;
-
-            foreach (var p in group)
-            {
-                var overlapStart = p.StartDate > start ? p.StartDate : start;
-                var overlapEnd = (p.EndDate ?? end) < end ? (p.EndDate ?? end) : end;
-                var overlapDays = (overlapEnd - overlapStart).TotalDays + 1;
-
-                if (overlapDays > 0)
-                {
-                    weightedSum += (decimal)(p.PercentageValue * 100) * (decimal)(overlapDays / totalDays);
-                }
-            }
-
-            var averagedPercent = Math.Round(weightedSum, 0);
-
-            var dto = new AveragePercentByTypeDto
-            {
-                TypeClass = group.Key.Class,
-                TypeName = group.Key.Name,
-                UnitName = group.Key.UnitName,
-                Modifier = group.Key.Modifier,
-                Compensated = group.Key.Compensated,
-                AcademicYear = CalculateAcademicYear(start),
-                AveragedPercent = averagedPercent,
-                AveragedPercentDisplay = $"{averagedPercent:F0}%",
-                Description = BuildDescription(group.Key.Name, group.Key.UnitName, group.Key.Modifier),
-                Comment = group.Select(p => p.Comment).FirstOrDefault(c => !string.IsNullOrEmpty(c))
-            };
-
-            if (!result.ContainsKey(group.Key.Class))
-            {
-                result[group.Key.Class] = [];
-            }
-
-            result[group.Key.Class].Add(dto);
-        }
-
-        foreach (var key in result.Keys)
-        {
-            result[key] = result[key].OrderBy(d => d.TypeName).ThenBy(d => d.UnitName).ToList();
-        }
-
-        return result;
-    }
-
     private PercentageDto EnrichDto(Percentage entity)
     {
         var dto = _mapper.Map<PercentageDto>(entity);
@@ -456,20 +383,6 @@ public class PercentageService : IPercentageService
             return $"{date.Year}-{date.Year + 1}";
         }
         return $"{date.Year - 1}-{date.Year}";
-    }
-
-    private static string BuildDescription(string typeName, string? unitName, string? modifier)
-    {
-        var parts = new List<string> { typeName };
-        if (!string.IsNullOrEmpty(unitName))
-        {
-            parts.Add($"({unitName})");
-        }
-        if (!string.IsNullOrEmpty(modifier))
-        {
-            parts.Add($"[{modifier}]");
-        }
-        return string.Join(" ", parts);
     }
 
     private async Task ValidateRequestAsync(CreatePercentageRequest request, CancellationToken ct)
