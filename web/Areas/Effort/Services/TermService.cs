@@ -160,8 +160,8 @@ public class TermService : ITermService
             return null;
         }
 
-        // Can only open if not yet opened (OpenedDate is null)
-        if (term.OpenedDate.HasValue)
+        // Can only open if not yet opened and not closed
+        if (term.OpenedDate.HasValue || term.ClosedDate.HasValue)
         {
             throw new InvalidOperationException("Term must be in Created or Harvested status to open");
         }

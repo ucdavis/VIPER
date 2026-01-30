@@ -931,7 +931,7 @@ public class InstructorService : IInstructorService
         }
 
         // Join multiple assignments with blank line between them
-        return string.Join("\n", summaries);
+        return string.Join("\n\n", summaries);
     }
 
     /// <summary>

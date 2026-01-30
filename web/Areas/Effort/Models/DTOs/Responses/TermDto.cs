@@ -61,9 +61,9 @@ public class TermDto
     // State transition properties for term management UI
 
     /// <summary>
-    /// Whether the term can be opened (not yet opened).
+    /// Whether the term can be opened (not yet opened and not closed).
     /// </summary>
-    public bool CanOpen => !OpenedDate.HasValue;
+    public bool CanOpen => !OpenedDate.HasValue && !ClosedDate.HasValue;
 
     /// <summary>
     /// Whether the term can be closed (currently open).
@@ -87,7 +87,7 @@ public class TermDto
     public bool CanDelete { get; set; }
 
     /// <summary>
-    /// Whether the term can be harvested (not yet opened or re-harvest before opening).
+    /// Whether the term can be harvested (not yet opened and not closed).
     /// </summary>
-    public bool CanHarvest => !OpenedDate.HasValue;
+    public bool CanHarvest => !OpenedDate.HasValue && !ClosedDate.HasValue;
 }

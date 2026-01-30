@@ -78,7 +78,7 @@ public class PercentagesController : BaseEffortController
     /// </summary>
     [HttpPost]
     [Permission(Allow = EffortPermissions.EditInstructor)]
-    public async Task<ActionResult<PercentageDto>> CreatePercentage([FromBody] CreatePercentageRequest request, CancellationToken ct = default)
+    public async Task<ActionResult<PercentageSaveResponse>> CreatePercentage([FromBody] CreatePercentageRequest request, CancellationToken ct = default)
     {
         SetExceptionContext("personId", request.PersonId);
 
@@ -103,10 +103,10 @@ public class PercentagesController : BaseEffortController
 
             _logger.LogInformation("Percentage created: {Id} for person {PersonId}", percentage.Id, request.PersonId);
 
-            return CreatedAtAction(nameof(GetPercentage), new { id = percentage.Id }, new
+            return CreatedAtAction(nameof(GetPercentage), new { id = percentage.Id }, new PercentageSaveResponse
             {
-                result = percentage,
-                warnings = validation.Warnings
+                Result = percentage,
+                Warnings = validation.Warnings
             });
         }
         catch (InvalidOperationException ex)
@@ -152,7 +152,7 @@ public class PercentagesController : BaseEffortController
     /// </summary>
     [HttpPut("{id:int}")]
     [Permission(Allow = EffortPermissions.EditInstructor)]
-    public async Task<ActionResult<PercentageDto>> UpdatePercentage(int id, [FromBody] UpdatePercentageRequest request, CancellationToken ct = default)
+    public async Task<ActionResult<PercentageSaveResponse>> UpdatePercentage(int id, [FromBody] UpdatePercentageRequest request, CancellationToken ct = default)
     {
         SetExceptionContext("id", id);
 
@@ -200,10 +200,10 @@ public class PercentagesController : BaseEffortController
 
             _logger.LogInformation("Percentage updated: {Id}", id);
 
-            return Ok(new
+            return Ok(new PercentageSaveResponse
             {
-                result = percentage,
-                warnings = validation.Warnings
+                Result = percentage,
+                Warnings = validation.Warnings
             });
         }
         catch (InvalidOperationException ex)
