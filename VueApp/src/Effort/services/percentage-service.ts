@@ -75,22 +75,29 @@ class PercentageService {
 
     /**
      * Update an existing percentage assignment.
-     * Returns the updated percentage and any warnings.
+     * Returns the updated percentage and any warnings, or error if failed.
      */
     async updatePercentage(
         id: number,
         request: UpdatePercentageRequest,
     ): Promise<{
-        result: PercentageDto
+        success: boolean
+        result?: PercentageDto
         warnings: string[]
+        error?: string
     }> {
         const response = await put(`${this.baseUrl}/${id}`, request)
         if (!response.success) {
-            throw new Error(response.errors?.[0] ?? "Failed to update percentage")
+            return {
+                success: false,
+                warnings: [],
+                error: response.errors?.[0] ?? "Failed to update percentage assignment",
+            }
         }
         // The API returns { result: PercentageDto, warnings: string[] }
         const data = response.result as { result: PercentageDto; warnings: string[] }
         return {
+            success: true,
             result: data.result ?? (data as unknown as PercentageDto),
             warnings: data.warnings ?? [],
         }

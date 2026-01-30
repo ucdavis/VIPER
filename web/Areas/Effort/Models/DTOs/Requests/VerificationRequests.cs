@@ -25,4 +25,10 @@ public class SendBulkEmailRequest
 
     [Range(1, int.MaxValue)]
     public required int TermCode { get; set; }
+
+    /// <summary>
+    /// Whether to include instructors who were recently emailed (within verification reply days).
+    /// Default is false - only email instructors who haven't been emailed recently.
+    /// </summary>
+    public bool IncludeRecentlyEmailed { get; set; } = false;
 }

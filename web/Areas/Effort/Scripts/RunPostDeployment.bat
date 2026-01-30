@@ -11,6 +11,7 @@ REM   5. Rename Records.SessionType column to Records.EffortType
 REM   6. Rename Percentages.EffortTypeId column to Percentages.PercentAssignTypeId
 REM   7. Duplicate Records Cleanup - Remove duplicates and add unique constraint
 REM   8. Add LastEmailed columns to Persons table (performance optimization)
+REM   9. Simplify TermStatus table - Remove Status/CreatedDate/ModifiedDate/ModifiedBy columns
 REM
 REM Usage:
 REM   RunPostDeployment.bat [environment] [options]
@@ -40,6 +41,7 @@ echo   5. Rename Column - Records.SessionType to Records.EffortType
 echo   6. Rename Column - Percentages.EffortTypeId to Percentages.PercentAssignTypeId
 echo   7. Duplicate Records Cleanup - Remove duplicates and add unique constraint
 echo   8. Add LastEmailed Columns - Add LastEmailed/LastEmailedBy to Persons table
+echo   9. Simplify TermStatus - Remove redundant columns (Status computed from dates)
 echo.
 echo Available options:
 echo   [no args]  DRY-RUN MODE - Shows what would change (default, safe)

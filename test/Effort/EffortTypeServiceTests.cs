@@ -93,7 +93,8 @@ public sealed class EffortTypeServiceTests : IDisposable
         var term = await _context.Terms.FirstOrDefaultAsync();
         if (term == null)
         {
-            term = new EffortTerm { TermCode = 202410, Status = "Open", CreatedDate = DateTime.UtcNow };
+            // OpenedDate makes status "Opened"
+            term = new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now };
             _context.Terms.Add(term);
             await _context.SaveChangesAsync();
         }

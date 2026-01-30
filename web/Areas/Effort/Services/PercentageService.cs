@@ -15,7 +15,7 @@ public class PercentageService : IPercentageService
     private readonly EffortDbContext _context;
     private readonly IMapper _mapper;
     private readonly IEffortAuditService _auditService;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IUserHelper _userHelper;
 
     private const string LeaveTypeClass = "Leave";
 
@@ -23,12 +23,12 @@ public class PercentageService : IPercentageService
         EffortDbContext context,
         IMapper mapper,
         IEffortAuditService auditService,
-        IHttpContextAccessor httpContextAccessor)
+        IUserHelper userHelper)
     {
         _context = context;
         _mapper = mapper;
         _auditService = auditService;
-        _httpContextAccessor = httpContextAccessor;
+        _userHelper = userHelper;
     }
 
     /// <inheritdoc />
@@ -516,20 +516,14 @@ public class PercentageService : IPercentageService
         }
     }
 
-    private int GetCurrentPersonId()
+    private int? GetCurrentPersonId()
     {
-        var user = _httpContextAccessor.HttpContext?.User;
-        if (user == null)
+        var user = _userHelper.GetCurrentUser();
+        if (user != null && user.AaudUserId > 0)
         {
-            return 0;
+            return user.AaudUserId;
         }
 
-        var claim = user.FindFirst("AaudUserId");
-        if (claim != null && int.TryParse(claim.Value, out var personId))
-        {
-            return personId;
-        }
-
-        return 0;
+        return null;
     }
 }

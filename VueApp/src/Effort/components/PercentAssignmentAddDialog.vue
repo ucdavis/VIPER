@@ -2,23 +2,23 @@
     <q-dialog
         :model-value="modelValue"
         persistent
-        @update:model-value="emit('update:modelValue', $event)"
+        @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 550px">
             <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">Add Percentage Assignment</div>
                 <q-space />
                 <q-btn
-                    v-close-popup
                     icon="close"
                     flat
                     round
                     dense
                     aria-label="Close dialog"
+                    @click="handleClose"
                 />
             </q-card-section>
 
-            <q-card-section>
+            <q-card-section class="q-py-sm percent-form">
                 <!-- Type Selection (grouped by class) -->
                 <q-select
                     v-model="form.percentAssignTypeId"
@@ -31,7 +31,6 @@
                     map-options
                     :error="!!errors.type"
                     :error-message="errors.type"
-                    class="q-mb-sm"
                 >
                     <template #option="scope">
                         <q-item-label
@@ -52,6 +51,19 @@
                     </template>
                 </q-select>
 
+                <!-- Modifier Selection -->
+                <q-select
+                    v-model="form.modifier"
+                    :options="modifierOptions"
+                    label="Modifier"
+                    dense
+                    options-dense
+                    outlined
+                    emit-value
+                    map-options
+                    clearable
+                />
+
                 <!-- Unit Selection -->
                 <q-select
                     v-model="form.unitId"
@@ -65,25 +77,10 @@
                     clearable
                     :error="!!errors.unit"
                     :error-message="errors.unit"
-                    class="q-mb-sm"
-                />
-
-                <!-- Modifier Selection -->
-                <q-select
-                    v-model="form.modifier"
-                    :options="modifierOptions"
-                    label="Modifier"
-                    dense
-                    options-dense
-                    outlined
-                    emit-value
-                    map-options
-                    clearable
-                    class="q-mb-sm"
                 />
 
                 <!-- Start Date (Month/Year) -->
-                <div class="row q-col-gutter-sm q-mb-sm">
+                <div class="row q-col-gutter-sm">
                     <div class="col">
                         <q-select
                             v-model="form.startMonth"
@@ -114,7 +111,7 @@
                 </div>
 
                 <!-- End Date (Month/Year) - Optional -->
-                <div class="row q-col-gutter-sm q-mb-sm">
+                <div class="row q-col-gutter-sm">
                     <div class="col">
                         <q-select
                             v-model="form.endMonth"
@@ -158,7 +155,6 @@
                     step="0.1"
                     :error="!!errors.percent"
                     :error-message="errors.percent"
-                    class="q-mb-sm"
                 />
 
                 <!-- Comment Input -->
@@ -168,10 +164,9 @@
                     type="textarea"
                     dense
                     outlined
-                    maxlength="500"
+                    maxlength="100"
                     counter
                     rows="2"
-                    class="q-mb-sm"
                 />
 
                 <!-- Compensated Checkbox -->
@@ -222,9 +217,9 @@
 
             <q-card-actions align="right">
                 <q-btn
-                    v-close-popup
                     flat
                     label="Cancel"
+                    @click="handleClose"
                 />
                 <q-btn
                     color="primary"
@@ -240,6 +235,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
+import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { percentageService } from "../services/percentage-service"
 import { usePercentageForm } from "../composables/use-percentage-form"
 import type { PercentageDto, PercentAssignTypeDto, UnitDto, CreatePercentageRequest } from "../types"
@@ -274,6 +270,16 @@ const {
     resetForm,
 } = usePercentageForm(percentAssignTypesRef, unitsRef)
 
+// Unsaved changes tracking
+const { setInitialState, confirmClose } = useUnsavedChanges(form)
+
+// Handle close (X button, Cancel button, or Escape key) with unsaved changes check
+async function handleClose() {
+    if (await confirmClose()) {
+        emit("update:modelValue", false)
+    }
+}
+
 // Loading and error state
 const isSaving = ref(false)
 const errorMessage = ref("")
@@ -289,6 +295,7 @@ watch(
             errorMessage.value = ""
             warningMessage.value = ""
             pendingWarningConfirm.value = false
+            setInitialState()
         }
     },
 )
@@ -350,3 +357,19 @@ function saveWithWarning() {
     createPercentage()
 }
 </script>
+
+<style scoped>
+/* Reset Quasar field margins and apply consistent spacing */
+.percent-form :deep(.q-field) {
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.percent-form :deep(.q-field--outlined .q-field__control) {
+    padding-bottom: 0;
+}
+
+.percent-form > *:not(:last-child) {
+    margin-bottom: 1rem;
+}
+</style>

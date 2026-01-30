@@ -57,7 +57,9 @@
             >
                 <q-card-section class="q-py-sm">
                     <div class="row items-center justify-between q-mb-xs">
-                        <span class="text-weight-bold">{{ pct.typeName }}</span>
+                        <span class="text-weight-bold"
+                            >{{ pct.typeName }}{{ pct.modifier ? ` (${pct.modifier})` : "" }}</span
+                        >
                         <div v-if="canEdit">
                             <q-btn
                                 flat
@@ -92,7 +94,6 @@
                             class="q-mr-sm"
                         />
                         <span v-if="pct.unitName">{{ pct.unitName }}</span>
-                        <span v-if="pct.modifier">({{ pct.modifier }})</span>
                     </div>
                     <div class="row q-gutter-md text-caption text-grey-7">
                         <span
@@ -152,19 +153,13 @@
                         key="typeName"
                         :props="bodyProps"
                     >
-                        {{ bodyProps.row.typeName }}
+                        {{ bodyProps.row.typeName }}{{ bodyProps.row.modifier ? ` (${bodyProps.row.modifier})` : "" }}
                     </q-td>
                     <q-td
                         key="unitName"
                         :props="bodyProps"
                     >
                         {{ bodyProps.row.unitName }}
-                    </q-td>
-                    <q-td
-                        key="modifier"
-                        :props="bodyProps"
-                    >
-                        {{ bodyProps.row.modifier || "-" }}
                     </q-td>
                     <q-td
                         key="startDate"
@@ -253,13 +248,6 @@
                 </div>
             </template>
         </q-table>
-
-        <!-- Total Active % -->
-        <div class="q-mt-sm text-right">
-            <span :class="totalActivePercent > 100 ? 'text-warning text-weight-bold' : ''">
-                Total Active: {{ totalActivePercent.toFixed(1) }}%
-            </span>
-        </div>
     </div>
 </template>
 
@@ -298,11 +286,6 @@ const filteredPercentages = computed(() => {
     })
 })
 
-// Calculate total active percentage
-const totalActivePercent = computed(() => {
-    return props.percentages.filter((pct) => pct.isActive).reduce((sum, pct) => sum + pct.percentageValue, 0)
-})
-
 // Get badge color based on type class
 function getClassColor(typeClass: string): string {
     const lc = typeClass.toLowerCase()
@@ -318,7 +301,7 @@ function formatDate(dateStr: string): string {
     return date.toLocaleDateString("en-US", { month: "short", year: "numeric" })
 }
 
-// Table columns
+// Table columns - percentage widths for responsiveness, short-data columns constrained to give Comments more space
 const columns: QTableColumn[] = [
     {
         name: "typeClass",
@@ -326,7 +309,7 @@ const columns: QTableColumn[] = [
         field: "typeClass",
         align: "left",
         sortable: true,
-        style: "width: 80px",
+        style: "width: 6%",
     },
     {
         name: "typeName",
@@ -334,6 +317,7 @@ const columns: QTableColumn[] = [
         field: "typeName",
         align: "left",
         sortable: true,
+        style: "width: 10%",
     },
     {
         name: "unitName",
@@ -341,13 +325,7 @@ const columns: QTableColumn[] = [
         field: "unitName",
         align: "left",
         sortable: true,
-    },
-    {
-        name: "modifier",
-        label: "Modifier",
-        field: "modifier",
-        align: "left",
-        format: (val: string | null) => val ?? "-",
+        style: "width: 6%",
     },
     {
         name: "startDate",
@@ -356,6 +334,7 @@ const columns: QTableColumn[] = [
         align: "left",
         sortable: true,
         format: (val: string) => formatDate(val),
+        style: "width: 7%",
     },
     {
         name: "endDate",
@@ -364,6 +343,7 @@ const columns: QTableColumn[] = [
         align: "left",
         sortable: true,
         format: (val: string | null) => (val ? formatDate(val) : "Present"),
+        style: "width: 7%",
     },
     {
         name: "percentageValue",
@@ -372,26 +352,28 @@ const columns: QTableColumn[] = [
         align: "right",
         sortable: true,
         format: (val: number) => `${val.toFixed(1)}%`,
+        style: "width: 6%",
     },
     {
         name: "comment",
         label: "Comments",
         field: "comment",
         align: "left",
+        style: "white-space: normal; word-wrap: break-word",
     },
     {
         name: "compensated",
         label: "Comp",
         field: "compensated",
         align: "center",
-        style: "width: 60px",
+        style: "width: 4%",
     },
     {
         name: "actions",
         label: "Actions",
         field: "id",
         align: "center",
-        style: "width: 100px",
+        style: "width: 7%",
     },
 ]
 </script>

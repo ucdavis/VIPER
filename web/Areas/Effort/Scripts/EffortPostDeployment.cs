@@ -192,6 +192,23 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine();
             }
 
+            // Task 9: Simplify TermStatus table (remove redundant columns)
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 9: Simplify TermStatus Table");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunSimplifyTermStatusTask(viperConnectionString, executeMode);
+                taskResults["SimplifyTermStatus"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
             // Summary
             Console.WriteLine("============================================");
             Console.WriteLine("Post-Deployment Summary");
@@ -1792,6 +1809,218 @@ namespace Viper.Areas.Effort.Scripts
                 connection, transaction);
 
             return cmd.ExecuteNonQuery();
+        }
+
+        #endregion
+
+        #region Task 9: Simplify TermStatus Table
+
+        // Columns and constraints to remove from TermStatus table
+        private static readonly string[] TermStatusColumnsToRemove = { "Status", "CreatedDate", "ModifiedDate", "ModifiedBy" };
+        private static readonly string[] TermStatusConstraintsToRemove = { "FK_TermStatus_ModifiedBy", "CK_TermStatus_Status" };
+        private static readonly string[] TermStatusIndexesToRemove = { "IX_TermStatus_Status" };
+
+        private static (bool Success, string Message) RunSimplifyTermStatusTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Begin transaction for dry-run support
+                using var transaction = connection.BeginTransaction();
+
+                try
+                {
+                    var completedSteps = new List<string>();
+
+                    Console.WriteLine("Simplifying TermStatus table (removing redundant columns)...");
+                    Console.WriteLine("  Status is now computed from dates to match legacy ColdFusion logic.");
+                    Console.WriteLine();
+
+                    // Step 1: Drop FK constraint
+                    Console.WriteLine("Step 1: Drop FK_TermStatus_ModifiedBy constraint...");
+                    if (TermStatusForeignKeyExists(connection, transaction, "FK_TermStatus_ModifiedBy"))
+                    {
+                        DropTermStatusConstraint(connection, transaction, "FK_TermStatus_ModifiedBy");
+                        Console.WriteLine("  ✓ Dropped FK_TermStatus_ModifiedBy");
+                        completedSteps.Add("Dropped FK_TermStatus_ModifiedBy");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  - FK_TermStatus_ModifiedBy already removed");
+                    }
+
+                    // Step 2: Drop check constraint
+                    Console.WriteLine();
+                    Console.WriteLine("Step 2: Drop CK_TermStatus_Status constraint...");
+                    if (TermStatusCheckConstraintExists(connection, transaction, "CK_TermStatus_Status"))
+                    {
+                        DropTermStatusConstraint(connection, transaction, "CK_TermStatus_Status");
+                        Console.WriteLine("  ✓ Dropped CK_TermStatus_Status");
+                        completedSteps.Add("Dropped CK_TermStatus_Status");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  - CK_TermStatus_Status already removed");
+                    }
+
+                    // Step 3: Drop index on Status
+                    Console.WriteLine();
+                    Console.WriteLine("Step 3: Drop IX_TermStatus_Status index...");
+                    if (TermStatusIndexExists(connection, transaction, "IX_TermStatus_Status"))
+                    {
+                        DropTermStatusIndex(connection, transaction, "IX_TermStatus_Status");
+                        Console.WriteLine("  ✓ Dropped IX_TermStatus_Status");
+                        completedSteps.Add("Dropped IX_TermStatus_Status");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  - IX_TermStatus_Status already removed");
+                    }
+
+                    // Step 4: Drop columns
+                    Console.WriteLine();
+                    Console.WriteLine("Step 4: Drop redundant columns...");
+                    var existingColumns = GetTermStatusColumns(connection, transaction);
+                    foreach (var column in TermStatusColumnsToRemove)
+                    {
+                        if (existingColumns.Contains(column))
+                        {
+                            DropTermStatusColumn(connection, transaction, column);
+                            Console.WriteLine($"  ✓ Dropped TermStatus.{column}");
+                            completedSteps.Add($"Dropped {column}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"  - Column '{column}' already removed");
+                        }
+                    }
+
+                    Console.WriteLine();
+
+                    // If no steps were needed, skip transaction handling
+                    if (completedSteps.Count == 0)
+                    {
+                        transaction.Rollback();
+                        return (true, "All simplification steps already complete");
+                    }
+
+                    // Commit or rollback based on execute mode
+                    if (executeMode)
+                    {
+                        transaction.Commit();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("  ✓ Transaction committed - changes are permanent");
+                        Console.ResetColor();
+                        return (true, $"Completed {completedSteps.Count} steps: {string.Join(", ", completedSteps)}");
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  ↶ Transaction rolled back - no permanent changes");
+                        Console.ResetColor();
+                        return (true, $"Verified {completedSteps.Count} steps (rolled back)");
+                    }
+                }
+                catch (SqlException ex)
+                {
+                    transaction.Rollback();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                    Console.WriteLine("  ↶ Transaction rolled back");
+                    Console.ResetColor();
+                    return (false, $"Database error: {ex.Message}");
+                }
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        private static HashSet<string> GetTermStatusColumns(SqlConnection connection, SqlTransaction transaction)
+        {
+            var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using var cmd = new SqlCommand(@"
+                SELECT COLUMN_NAME
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = 'effort' AND TABLE_NAME = 'TermStatus'",
+                connection, transaction);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                columns.Add(reader.GetString(0));
+            }
+            return columns;
+        }
+
+        private static bool TermStatusForeignKeyExists(SqlConnection connection, SqlTransaction transaction, string fkName)
+        {
+            using var cmd = new SqlCommand(@"
+                SELECT 1 FROM sys.foreign_keys
+                WHERE name = @FKName AND parent_object_id = OBJECT_ID('[effort].[TermStatus]')",
+                connection, transaction);
+            cmd.Parameters.AddWithValue("@FKName", fkName);
+            return cmd.ExecuteScalar() != null;
+        }
+
+        private static bool TermStatusCheckConstraintExists(SqlConnection connection, SqlTransaction transaction, string constraintName)
+        {
+            using var cmd = new SqlCommand(@"
+                SELECT 1 FROM sys.check_constraints
+                WHERE name = @ConstraintName AND parent_object_id = OBJECT_ID('[effort].[TermStatus]')",
+                connection, transaction);
+            cmd.Parameters.AddWithValue("@ConstraintName", constraintName);
+            return cmd.ExecuteScalar() != null;
+        }
+
+        private static bool TermStatusIndexExists(SqlConnection connection, SqlTransaction transaction, string indexName)
+        {
+            using var cmd = new SqlCommand(@"
+                SELECT 1 FROM sys.indexes
+                WHERE name = @IndexName AND object_id = OBJECT_ID('[effort].[TermStatus]')",
+                connection, transaction);
+            cmd.Parameters.AddWithValue("@IndexName", indexName);
+            return cmd.ExecuteScalar() != null;
+        }
+
+        private static void DropTermStatusConstraint(SqlConnection connection, SqlTransaction transaction, string constraintName)
+        {
+            using var cmd = new SqlCommand($@"
+                ALTER TABLE [effort].[TermStatus] DROP CONSTRAINT [{constraintName}]",
+                connection, transaction);
+            cmd.ExecuteNonQuery();
+        }
+
+        private static void DropTermStatusIndex(SqlConnection connection, SqlTransaction transaction, string indexName)
+        {
+            using var cmd = new SqlCommand($@"
+                DROP INDEX [{indexName}] ON [effort].[TermStatus]",
+                connection, transaction);
+            cmd.ExecuteNonQuery();
+        }
+
+        private static void DropTermStatusColumn(SqlConnection connection, SqlTransaction transaction, string columnName)
+        {
+            using var cmd = new SqlCommand($@"
+                ALTER TABLE [effort].[TermStatus] DROP COLUMN [{columnName}]",
+                connection, transaction);
+            cmd.ExecuteNonQuery();
         }
 
         #endregion

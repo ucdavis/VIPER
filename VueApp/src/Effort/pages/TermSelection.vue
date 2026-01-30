@@ -230,10 +230,13 @@ const { formatDate } = useDateFunctions()
 const terms = ref<TermDto[]>([])
 const isLoading = ref(false)
 
-// Filter terms by status
-const unopenedTerms = computed(() => terms.value.filter((t) => t.status === "Created" || t.status === "Harvested"))
-const openTerms = computed(() => terms.value.filter((t) => t.status === "Opened"))
-const closedTerms = computed(() => terms.value.filter((t) => t.status === "Closed"))
+// Filter terms by date fields to match legacy system logic (ChangeTerms.cfm)
+// Legacy uses: open = opened IS NOT NULL AND closed IS NULL
+//              closed = closed IS NOT NULL
+//              unopened = opened IS NULL
+const unopenedTerms = computed(() => terms.value.filter((t) => !t.openedDate))
+const openTerms = computed(() => terms.value.filter((t) => t.openedDate && !t.closedDate))
+const closedTerms = computed(() => terms.value.filter((t) => t.closedDate))
 
 // Column definitions
 const unopenedColumns: QTableColumn[] = [

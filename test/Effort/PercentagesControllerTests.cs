@@ -66,7 +66,7 @@ public sealed class PercentagesControllerTests
         EndDate = null,
         Compensated = false,
         IsActive = true,
-        ModifiedDate = DateTime.UtcNow
+        ModifiedDate = DateTime.Now
     };
 
     private static CreatePercentageRequest CreateTestCreateRequest() => new()
@@ -335,7 +335,7 @@ public sealed class PercentagesControllerTests
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
-        Assert.Contains("Failed to create", badRequest.Value?.ToString());
+        Assert.Contains("Failed to save changes", badRequest.Value?.ToString());
     }
 
     #endregion
@@ -570,7 +570,7 @@ public sealed class PercentagesControllerTests
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
-        Assert.Contains("Failed to update", badRequest.Value?.ToString());
+        Assert.Contains("Failed to save changes", badRequest.Value?.ToString());
     }
 
     #endregion

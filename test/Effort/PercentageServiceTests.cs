@@ -1,14 +1,13 @@
 using AutoMapper;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Moq;
-using System.Security.Claims;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
+using Viper.Models.AAUD;
 
 namespace Viper.test.Effort;
 
@@ -17,9 +16,10 @@ namespace Viper.test.Effort;
 /// </summary>
 public sealed class PercentageServiceTests : IDisposable
 {
+    private const int TestUserId = 12345;
     private readonly EffortDbContext _context;
     private readonly Mock<IEffortAuditService> _auditServiceMock;
-    private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
+    private readonly Mock<IUserHelper> _userHelperMock;
     private readonly IMapper _mapper;
     private readonly PercentageService _percentageService;
 
@@ -32,7 +32,7 @@ public sealed class PercentageServiceTests : IDisposable
 
         _context = new EffortDbContext(effortOptions);
         _auditServiceMock = new Mock<IEffortAuditService>();
-        _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
+        _userHelperMock = new Mock<IUserHelper>();
 
         var mapperConfig = new MapperConfiguration(cfg =>
         {
@@ -40,7 +40,8 @@ public sealed class PercentageServiceTests : IDisposable
         });
         _mapper = mapperConfig.CreateMapper();
 
-        SetupHttpContext();
+        var testUser = new AaudUser { AaudUserId = TestUserId, MothraId = "testuser" };
+        _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(testUser);
 
         _auditServiceMock
             .Setup(s => s.LogPercentageChangeAsync(
@@ -49,7 +50,7 @@ public sealed class PercentageServiceTests : IDisposable
             .Returns(Task.CompletedTask);
 
         _percentageService = new PercentageService(
-            _context, _mapper, _auditServiceMock.Object, _httpContextAccessorMock.Object);
+            _context, _mapper, _auditServiceMock.Object, _userHelperMock.Object);
     }
 
     public void Dispose()
@@ -58,18 +59,6 @@ public sealed class PercentageServiceTests : IDisposable
     }
 
     #region Helper Methods
-
-    private void SetupHttpContext()
-    {
-        var claims = new List<Claim>
-        {
-            new("AaudUserId", "12345")
-        };
-        var identity = new ClaimsIdentity(claims, "TestAuth");
-        var principal = new ClaimsPrincipal(identity);
-        var httpContext = new DefaultHttpContext { User = principal };
-        _httpContextAccessorMock.Setup(x => x.HttpContext).Returns(httpContext);
-    }
 
     private async Task<PercentAssignType> CreatePercentAssignTypeAsync(
         string name = "Teaching", string typeClass = "Other", bool isActive = true)

@@ -2,19 +2,19 @@
     <q-dialog
         :model-value="modelValue"
         persistent
-        @update:model-value="emit('update:modelValue', $event)"
+        @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 600px">
             <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">Add Instructor</div>
                 <q-space />
                 <q-btn
-                    v-close-popup
                     icon="close"
                     flat
                     round
                     dense
                     aria-label="Close dialog"
+                    @click="handleClose"
                 />
             </q-card-section>
 
@@ -114,9 +114,9 @@
 
             <q-card-actions align="right">
                 <q-btn
-                    v-close-popup
                     flat
                     label="Cancel"
+                    @click="handleClose"
                 />
                 <q-btn
                     color="primary"
@@ -132,6 +132,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue"
+import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { effortService } from "../services/effort-service"
 import type { AaudPersonDto } from "../types"
 
@@ -152,6 +153,26 @@ const isSearching = ref(false)
 const isSaving = ref(false)
 const errorMessage = ref("")
 
+// Form data for unsaved changes tracking (track if a person was selected)
+const formData = ref({
+    selectedPersonId: null as number | null,
+})
+
+// Unsaved changes tracking
+const { setInitialState, confirmClose } = useUnsavedChanges(formData)
+
+// Handle close (X button, Cancel button, or Escape key) with unsaved changes check
+async function handleClose() {
+    if (await confirmClose()) {
+        emit("update:modelValue", false)
+    }
+}
+
+// Keep formData in sync when selectedPerson changes
+watch(selectedPerson, (person) => {
+    formData.value.selectedPersonId = person?.personId ?? null
+})
+
 // Reset state when dialog opens
 watch(
     () => props.modelValue,
@@ -161,6 +182,8 @@ watch(
             searchResults.value = []
             selectedPerson.value = null
             errorMessage.value = ""
+            formData.value.selectedPersonId = null
+            setInitialState()
         }
     },
 )

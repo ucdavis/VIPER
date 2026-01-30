@@ -116,9 +116,13 @@ public class PercentagesController : BaseEffortController
         }
         catch (DbUpdateException ex)
         {
+            var innerMessage = ex.InnerException?.Message ?? ex.Message;
             _logger.LogWarning(ex, "Database error creating percentage: {Message}",
-                LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
-            return BadRequest("Failed to create percentage assignment. Please check all field values are valid.");
+                LogSanitizer.SanitizeString(innerMessage));
+
+            // Provide user-friendly messages for common constraint violations
+            var userMessage = ParseDbUpdateExceptionMessage(innerMessage);
+            return BadRequest(userMessage);
         }
     }
 
@@ -215,9 +219,13 @@ public class PercentagesController : BaseEffortController
         }
         catch (DbUpdateException ex)
         {
+            var innerMessage = ex.InnerException?.Message ?? ex.Message;
             _logger.LogWarning(ex, "Database error updating percentage: {Message}",
-                LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
-            return BadRequest("Failed to update percentage assignment. Please check all field values are valid.");
+                LogSanitizer.SanitizeString(innerMessage));
+
+            // Provide user-friendly messages for common constraint violations
+            var userMessage = ParseDbUpdateExceptionMessage(innerMessage);
+            return BadRequest(userMessage);
         }
     }
 
@@ -279,5 +287,49 @@ public class PercentagesController : BaseEffortController
 
         var averages = await _percentageService.GetAveragePercentsByTypeAsync(personId, start, end, ct);
         return Ok(averages);
+    }
+
+    /// <summary>
+    /// Parse database exception messages into user-friendly error messages.
+    /// SECURITY: Be careful not to expose sensitive internal schema details in user-facing messages.
+    /// </summary>
+    private static string ParseDbUpdateExceptionMessage(string message)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            return "Failed to save changes. Please check all field values are valid.";
+        }
+
+        // FK constraint violations
+        if (message.Contains("FK_Percentages_Units", StringComparison.OrdinalIgnoreCase))
+        {
+            return "The selected unit is invalid or no longer exists.";
+        }
+        if (message.Contains("FK_Percentages_PercentAssignTypes", StringComparison.OrdinalIgnoreCase))
+        {
+            return "The selected type is invalid or no longer exists.";
+        }
+        if (message.Contains("FK_Percentages_ModifiedBy", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Unable to save changes. Your user account may not be properly configured. Please contact support.";
+        }
+
+        // Check constraint violations
+        if (message.Contains("CK_Percentages_Percentage", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Percentage must be between 0 and 100.";
+        }
+        if (message.Contains("CK_Percentages_DateRange", StringComparison.OrdinalIgnoreCase))
+        {
+            return "End date cannot be before start date.";
+        }
+
+        // String truncation
+        if (message.Contains("String or binary data would be truncated", StringComparison.OrdinalIgnoreCase))
+        {
+            return "One of the text fields exceeds the maximum allowed length.";
+        }
+
+        return "Failed to save changes. Please check all field values are valid.";
     }
 }

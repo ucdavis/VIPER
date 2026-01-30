@@ -160,10 +160,11 @@
                 "VueApp/src/**/composables/use-schedule-operations.ts",
                 "VueApp/src/**/composables/use-schedule-crud.ts",
                 "VueApp/src/**/composables/use-schedule-dialogs.ts",
-                "VueApp/src/**/utils/confirmation-dialog.ts"
+                "VueApp/src/**/utils/confirmation-dialog.ts",
+                "VueApp/src/composables/use-unsaved-changes.ts"
             ],
             "rules": {
-                "promise/avoid-new": "off", // Quasar dialogs require Promise wrapper for async/await
+                "promise/avoid-new": "off" // Quasar dialogs require Promise wrapper for async/await
             }
         },
         {

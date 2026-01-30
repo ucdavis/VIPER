@@ -87,7 +87,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
             PercentAssignTypeId = percentAssignTypeId,
             AcademicYear = academicYear,
             PercentageValue = percentageValue,
-            StartDate = DateTime.UtcNow
+            StartDate = DateTime.Now
         };
         _context.Percentages.Add(percentage);
         await _context.SaveChangesAsync();

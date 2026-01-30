@@ -48,7 +48,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         PercentAssignTypeId = percentAssignTypeId,
         AcademicYear = academicYear,
         PercentageValue = 0.5,
-        StartDate = DateTime.UtcNow
+        StartDate = DateTime.Now
     };
 
     #region GetPercentAssignTypes Tests

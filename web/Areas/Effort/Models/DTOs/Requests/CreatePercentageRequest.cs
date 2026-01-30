@@ -21,7 +21,7 @@ public class CreatePercentageRequest
     [MaxLength(50)]
     public string? Modifier { get; set; }
 
-    [MaxLength(500)]
+    [MaxLength(100)]
     public string? Comment { get; set; }
 
     /// <summary>

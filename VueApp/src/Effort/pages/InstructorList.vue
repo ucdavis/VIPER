@@ -372,6 +372,7 @@
             :term-code="selectedTermCode"
             :can-edit="canEditTerm"
             @updated="onInstructorUpdated"
+            @closed="closeEditDialog"
         />
     </div>
 </template>
@@ -598,6 +599,27 @@ watch(
     },
 )
 
+// Watch for personId in URL to open/close edit dialog
+// Also watch instructors so we can open the dialog after they load
+watch(
+    [() => route.params.personId, instructors],
+    ([newPersonId, currentInstructors]) => {
+        if (newPersonId && currentInstructors.length > 0) {
+            const personId = parseInt(newPersonId as string, 10)
+            const instructor = currentInstructors.find((i) => i.personId === personId)
+            if (instructor && !showEditDialog.value) {
+                selectedInstructor.value = instructor
+                showEditDialog.value = true
+            }
+        } else if (!newPersonId && showEditDialog.value) {
+            // URL no longer has personId, close dialog
+            showEditDialog.value = false
+            selectedInstructor.value = null
+        }
+    },
+    { immediate: true },
+)
+
 async function loadInstructors() {
     if (!selectedTermCode.value) return
 
@@ -625,6 +647,26 @@ async function loadInstructors() {
 function openEditDialog(instructor: PersonDto) {
     selectedInstructor.value = instructor
     showEditDialog.value = true
+    // Update URL to include personId for bookmarkability
+    router.replace({
+        name: "InstructorDetail",
+        params: {
+            termCode: selectedTermCode.value!.toString(),
+            personId: instructor.personId.toString(),
+        },
+    })
+}
+
+function closeEditDialog() {
+    showEditDialog.value = false
+    selectedInstructor.value = null
+    // Remove personId from URL when closing dialog (only if we're on the detail route)
+    if (route.params.personId && selectedTermCode.value) {
+        router.replace({
+            name: "InstructorList",
+            params: { termCode: selectedTermCode.value.toString() },
+        })
+    }
 }
 
 function confirmDeleteInstructor(instructor: PersonDto) {
@@ -679,6 +721,18 @@ function getEmailableCount(deptGroup: DeptGroup): number {
     return deptGroup.instructors.filter((i) => i.canSendVerificationEmail).length
 }
 
+function getRecentlyEmailedCount(deptGroup: DeptGroup): number {
+    return deptGroup.instructors.filter(
+        (i) => i.canSendVerificationEmail && !isEmailedPastDeadline(i) && i.lastEmailedDate !== null,
+    ).length
+}
+
+function getNotRecentlyEmailedCount(deptGroup: DeptGroup): number {
+    return deptGroup.instructors.filter(
+        (i) => i.canSendVerificationEmail && (isEmailedPastDeadline(i) || i.lastEmailedDate === null),
+    ).length
+}
+
 function getDaysSinceEmailed(instructor: PersonDto): number {
     if (!instructor.lastEmailedDate) return -1
     const lastEmailed = new Date(instructor.lastEmailedDate)
@@ -714,9 +768,10 @@ function confirmResendEmail(instructor: PersonDto) {
     const dateStr = formatDate(instructor.lastEmailedDate!)
     const sender = instructor.lastEmailedBy ?? "Unknown"
 
+    const daysAgoText = daysSince === 0 ? "" : ` (${daysSince} ${inflect("day", daysSince)} ago)`
     $q.dialog({
         title: "Resend Verification Email?",
-        message: `${instructor.fullName} was last emailed on ${dateStr} by ${sender} (${daysSince} ${inflect("day", daysSince)} ago). Send another email?`,
+        message: `${instructor.fullName} was last emailed on ${dateStr} by ${sender}${daysAgoText}. Send another email?`,
         cancel: true,
         persistent: true,
     }).onOk(() => sendVerificationEmail(instructor))
@@ -753,16 +808,43 @@ async function sendVerificationEmail(instructor: PersonDto) {
 }
 
 function confirmBulkEmail(deptGroup: DeptGroup) {
-    const emailableCount = getEmailableCount(deptGroup)
-    $q.dialog({
-        title: "Send Verification Emails",
-        message: `This will send verification emails to ${emailableCount} ${inflect("instructor", emailableCount)} in ${deptGroup.dept} who haven't verified. Continue?`,
-        cancel: true,
-        persistent: true,
-    }).onOk(() => sendBulkVerificationEmails(deptGroup.dept))
+    const notRecentlyEmailedCount = getNotRecentlyEmailedCount(deptGroup)
+    const recentlyEmailedCount = getRecentlyEmailedCount(deptGroup)
+
+    if (recentlyEmailedCount === 0) {
+        // No recently emailed instructors - simple confirmation
+        $q.dialog({
+            title: "Send Verification Emails",
+            message: `This will send verification emails to ${notRecentlyEmailedCount} ${inflect("instructor", notRecentlyEmailedCount)} in ${deptGroup.dept} who haven't verified. Continue?`,
+            cancel: true,
+            persistent: true,
+        }).onOk(() => sendBulkVerificationEmails(deptGroup.dept, false))
+    } else {
+        // Some instructors were recently emailed - show checkbox option
+        $q.dialog({
+            title: "Send Verification Emails",
+            message: `This will send verification emails to ${notRecentlyEmailedCount} ${inflect("instructor", notRecentlyEmailedCount)} in ${deptGroup.dept} who haven't verified and haven't been emailed recently.`,
+            cancel: true,
+            persistent: true,
+            class: "bulk-email-dialog",
+            options: {
+                type: "checkbox",
+                model: [],
+                items: [
+                    {
+                        label: `Also email ${recentlyEmailedCount} ${inflect("instructor", recentlyEmailedCount)} who ${recentlyEmailedCount === 1 ? "was" : "were"} recently emailed`,
+                        value: "includeRecent",
+                    },
+                ],
+            },
+        }).onOk((selected: string[]) => {
+            const includeRecentlyEmailed = selected.includes("includeRecent")
+            sendBulkVerificationEmails(deptGroup.dept, includeRecentlyEmailed)
+        })
+    }
 }
 
-async function sendBulkVerificationEmails(dept: string) {
+async function sendBulkVerificationEmails(dept: string, includeRecentlyEmailed: boolean = false) {
     if (!selectedTermCode.value) return
 
     sendingEmailDepts.value.add(dept)
@@ -777,6 +859,7 @@ async function sendBulkVerificationEmails(dept: string) {
         const result: BulkEmailResult = await verificationService.sendBulkVerificationEmails(
             dept,
             selectedTermCode.value,
+            includeRecentlyEmailed,
         )
 
         loadingNotify()
@@ -810,15 +893,23 @@ async function sendBulkVerificationEmails(dept: string) {
         const senderName = `${userStore.userInfo.firstName} ${userStore.userInfo.lastName}`
 
         for (const instructor of instructors.value) {
+            // Skip if not in this department, already verified, can't receive email, or failed
             if (
-                instructor.effortDept === dept &&
-                !instructor.isVerified &&
-                instructor.canSendVerificationEmail &&
-                !failedPersonIds.has(instructor.personId)
+                instructor.effortDept !== dept ||
+                instructor.isVerified ||
+                !instructor.canSendVerificationEmail ||
+                failedPersonIds.has(instructor.personId)
             ) {
-                instructor.lastEmailedDate = now
-                instructor.lastEmailedBy = senderName
+                continue
             }
+
+            // Skip recently emailed instructors if not including them
+            if (!includeRecentlyEmailed && !isEmailedPastDeadline(instructor) && instructor.lastEmailedDate !== null) {
+                continue
+            }
+
+            instructor.lastEmailedDate = now
+            instructor.lastEmailedBy = senderName
         }
     } catch {
         loadingNotify()
@@ -943,5 +1034,15 @@ onMounted(loadTerms)
 /* Unscoped style for tooltip (injected into body) */
 .email-legend-tooltip {
     border: 1px solid #ccc;
+}
+
+/* Remove horizontal dividers and reduce spacing in bulk email dialog checkbox options */
+.bulk-email-dialog .q-separator {
+    display: none;
+}
+
+.bulk-email-dialog .q-card__section.q-card__section--vert.scroll {
+    padding-top: 0;
+    padding-bottom: 0;
 }
 </style>

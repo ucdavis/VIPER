@@ -72,7 +72,7 @@ public sealed class VerificationControllerTests
             CanEdit = true,
             HasVerifyPermission = true,
             TermName = "Fall 2024",
-            LastModifiedDate = DateTime.UtcNow
+            LastModifiedDate = DateTime.Now
         };
         _verificationServiceMock.Setup(s => s.GetMyEffortAsync(202410, It.IsAny<CancellationToken>()))
             .ReturnsAsync(myEffort);
@@ -240,7 +240,7 @@ public sealed class VerificationControllerTests
 
         _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        _verificationServiceMock.Setup(s => s.SendBulkVerificationEmailsAsync("DVM", 202410, It.IsAny<CancellationToken>()))
+        _verificationServiceMock.Setup(s => s.SendBulkVerificationEmailsAsync("DVM", 202410, false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(bulkResult);
 
         // Act
@@ -280,8 +280,8 @@ public sealed class VerificationControllerTests
         var instructor = new PersonDto { PersonId = 123, EffortDept = "DVM" };
         var history = new List<EmailHistoryDto>
         {
-            new() { SentDate = DateTime.UtcNow.AddDays(-1), SentBy = "Admin" },
-            new() { SentDate = DateTime.UtcNow.AddDays(-7), SentBy = "Admin" }
+            new() { SentDate = DateTime.Now.AddDays(-1), SentBy = "Admin" },
+            new() { SentDate = DateTime.Now.AddDays(-7), SentBy = "Admin" }
         };
 
         _instructorServiceMock.Setup(s => s.GetInstructorAsync(123, 202410, It.IsAny<CancellationToken>()))

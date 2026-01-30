@@ -1,20 +1,21 @@
 <template>
     <q-dialog
-        v-model="dialogOpen"
+        :model-value="modelValue"
         persistent
         maximized-on-mobile
+        @keydown.escape="handleClose"
     >
         <q-card style="min-width: 500px; max-width: 700px">
             <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">Link Courses</div>
                 <q-space />
                 <q-btn
-                    v-close-popup
                     icon="close"
                     flat
                     round
                     dense
                     aria-label="Close dialog"
+                    @click="handleClose"
                 />
             </q-card-section>
 
@@ -139,9 +140,9 @@
 
             <q-card-actions align="right">
                 <q-btn
-                    v-close-popup
                     label="Close"
                     flat
+                    @click="handleClose"
                 />
             </q-card-actions>
         </q-card>
@@ -149,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue"
+import { ref, watch, computed } from "vue"
 import { useQuasar } from "quasar"
 import type { QTableColumn } from "quasar"
 import { effortService } from "../services/effort-service"
@@ -169,10 +170,10 @@ const $q = useQuasar()
 
 const INPUT_DEBOUNCE_MS = 300
 
-const dialogOpen = computed({
-    get: () => props.modelValue,
-    set: (value) => emit("update:modelValue", value),
-})
+// Close handler for X button, Close button, or Escape key
+function handleClose() {
+    emit("update:modelValue", false)
+}
 
 // State
 const childRelationships = ref<CourseRelationshipDto[]>([])
