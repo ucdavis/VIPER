@@ -405,7 +405,7 @@ public sealed class PercentageServiceTests : IDisposable
         _auditServiceMock.Verify(
             s => s.LogPercentageChangeAsync(
                 It.IsAny<int>(),
-                0,
+                null,
                 It.Is<string>(a => a.Contains("Create")),
                 null,
                 It.IsAny<object>(),
@@ -488,7 +488,7 @@ public sealed class PercentageServiceTests : IDisposable
         _auditServiceMock.Verify(
             s => s.LogPercentageChangeAsync(
                 existing.Id,
-                0,
+                null,
                 It.Is<string>(a => a.Contains("Update")),
                 It.IsAny<object>(),
                 It.IsAny<object>(),
@@ -540,7 +540,7 @@ public sealed class PercentageServiceTests : IDisposable
         _auditServiceMock.Verify(
             s => s.LogPercentageChangeAsync(
                 existing.Id,
-                0,
+                null,
                 It.Is<string>(a => a.Contains("Delete")),
                 It.IsAny<object>(),
                 null,

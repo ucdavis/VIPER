@@ -3,6 +3,7 @@ using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Options;
 using MimeKit;
+using Viper.Classes.Utilities;
 
 namespace Viper.Services
 {
@@ -27,13 +28,15 @@ namespace Viper.Services
         private readonly ILogger<EmailService> _logger;
         private readonly IHostEnvironment _hostEnvironment;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IUserHelper _userHelper;
 
-        public EmailService(IOptions<EmailSettings> emailSettings, ILogger<EmailService> logger, IHostEnvironment hostEnvironment, IHttpContextAccessor httpContextAccessor)
+        public EmailService(IOptions<EmailSettings> emailSettings, ILogger<EmailService> logger, IHostEnvironment hostEnvironment, IHttpContextAccessor httpContextAccessor, IUserHelper userHelper)
         {
             _emailSettings = emailSettings.Value;
             _logger = logger;
             _hostEnvironment = hostEnvironment;
             _httpContextAccessor = httpContextAccessor;
+            _userHelper = userHelper;
         }
 
         public async Task SendEmailAsync(string to, string subject, string body, bool isHtml = true, string? from = null)
@@ -67,30 +70,63 @@ namespace Viper.Services
                 throw new ArgumentException("At least one of htmlBody or textBody must be provided.");
             }
 
+            var originalRecipients = to.ToList();
+            var actualRecipients = originalRecipients;
+            var actualSubject = subject;
+
+            // Redirect emails to current user when configured (for non-production testing)
+            string? redirectNotice = null;
+            if (_emailSettings.RedirectToCurrentUser)
+            {
+                var currentUserEmail = GetCurrentUserEmail();
+                if (!string.IsNullOrEmpty(currentUserEmail))
+                {
+                    actualRecipients = new List<string> { currentUserEmail };
+                    actualSubject = $"[REDIRECTED] {subject}";
+                    redirectNotice = BuildRedirectNotice(originalRecipients);
+                    _logger.LogWarning("Email redirected from {OriginalRecipients} to current user {RedirectAddress}",
+                        LogSanitizer.SanitizeString(string.Join(", ", originalRecipients)),
+                        LogSanitizer.SanitizeString(currentUserEmail));
+                }
+                else
+                {
+                    _logger.LogInformation("Email suppressed (no logged-in user to redirect to): To={OriginalRecipients}, Subject='{Subject}'",
+                        LogSanitizer.SanitizeString(string.Join(", ", originalRecipients)),
+                        LogSanitizer.SanitizeString(subject));
+                    return;
+                }
+            }
+
             using var message = new MimeMessage();
             try
             {
                 message.From.Add(MailboxAddress.Parse(from ?? _emailSettings.DefaultFromAddress));
 
-                foreach (var recipient in to)
+                foreach (var recipient in actualRecipients)
                 {
                     message.To.Add(MailboxAddress.Parse(recipient));
                 }
 
-                message.Subject = subject;
+                message.Subject = actualSubject;
 
                 // Build multipart body using MailKit's BodyBuilder
                 var builder = new BodyBuilder();
 
                 if (!string.IsNullOrEmpty(htmlBody))
                 {
-                    builder.HtmlBody = htmlBody;
+                    var finalHtmlBody = redirectNotice != null
+                        ? $"{redirectNotice}<hr style=\"margin: 20px 0;\"/>{htmlBody}"
+                        : htmlBody;
+                    builder.HtmlBody = finalHtmlBody;
                     // Auto-generate plaintext if not provided
-                    builder.TextBody = textBody ?? HtmlToTextConverter.Convert(htmlBody);
+                    builder.TextBody = textBody ?? HtmlToTextConverter.Convert(finalHtmlBody);
                 }
                 else if (!string.IsNullOrEmpty(textBody))
                 {
-                    builder.TextBody = textBody;
+                    var finalTextBody = redirectNotice != null
+                        ? $"{HtmlToTextConverter.Convert(redirectNotice)}\n{new string('=', 50)}\n\n{textBody}"
+                        : textBody;
+                    builder.TextBody = finalTextBody;
                 }
 
                 message.Body = builder.ToMessageBody();
@@ -226,6 +262,28 @@ namespace Viper.Services
             return area != null ? $"{area}/{controller}" : controller ?? "Unknown";
         }
 
+        private string? GetCurrentUserEmail()
+        {
+            var user = _userHelper.GetCurrentUser();
+            if (user?.MailId == null) return null;
+
+            // MailId may or may not include @ucdavis.edu
+            return user.MailId.Contains('@') ? user.MailId : $"{user.MailId}@ucdavis.edu";
+        }
+
+        private static string BuildRedirectNotice(List<string> originalRecipients)
+        {
+            return $"""
+                <div style="background-color: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin-bottom: 15px; font-family: sans-serif;">
+                    <strong style="color: #856404;">⚠️ TEST EMAIL - REDIRECTED</strong>
+                    <p style="margin: 10px 0 0 0; color: #856404;">
+                        This email was redirected to you because you triggered it on a non-production environment.<br/>
+                        <strong>Original recipient(s):</strong> {string.Join(", ", originalRecipients)}
+                    </p>
+                </div>
+                """;
+        }
+
     }
 
     /// <summary>
@@ -244,6 +302,13 @@ namespace Viper.Services
         /// Used to construct absolute URLs for email content.
         /// </summary>
         public string? BaseUrl { get; set; }
+
+        /// <summary>
+        /// When true, all emails are redirected to the logged-in user's email address.
+        /// Use for non-production environments to allow testers to see emails their actions generate.
+        /// The original recipients are logged and added to the subject line; CC/BCC are removed.
+        /// </summary>
+        public bool RedirectToCurrentUser { get; set; } = false;
     }
 
     /// <summary>
