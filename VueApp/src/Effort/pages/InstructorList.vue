@@ -411,7 +411,6 @@ const isLoading = ref(false)
 const showAddDialog = ref(false)
 const showEditDialog = ref(false)
 const selectedInstructor = ref<PersonDto | null>(null)
-const canEditTerm = ref(false)
 
 // Email state - using Sets to allow concurrent sends
 const sendingEmailPersonIds = ref<Set<number>>(new Set())
@@ -628,16 +627,12 @@ async function loadInstructors() {
     isLoading.value = true
 
     try {
-        const [result, canEdit] = await Promise.all([
-            effortService.getInstructors(selectedTermCode.value),
-            effortService.canEditTerm(selectedTermCode.value),
-        ])
+        const result = await effortService.getInstructors(selectedTermCode.value)
 
         // Abort if a newer request has been initiated
         if (token !== loadToken) return
 
         instructors.value = result
-        canEditTerm.value = canEdit
     } finally {
         if (token === loadToken) {
             isLoading.value = false
