@@ -1,8 +1,10 @@
+export type ValidationErrors = string[] | Record<string, string[]>
+
 export class ValidationError extends Error {
-    constructor(message: string, errors: Record<string, string[]>) {
+    constructor(message: string, errors?: ValidationErrors) {
         super(message)
-        this.errors = errors
+        this.errors = errors ?? []
     }
 
-    errors: Record<string, string[]> = {}
+    errors: ValidationErrors = []
 }

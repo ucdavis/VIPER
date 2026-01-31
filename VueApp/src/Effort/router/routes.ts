@@ -107,6 +107,21 @@ const routes = [
         name: "InstructorList",
     },
     {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/instructors/:personId(\\d+)/edit`,
+        meta: {
+            layout: EffortLayout,
+            permissions: [
+                "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
+                "SVMSecure.Effort.ImportInstructor",
+                "SVMSecure.Effort.EditInstructor",
+                "SVMSecure.Effort.DeleteInstructor",
+            ],
+        },
+        component: () => import("@/Effort/pages/InstructorList.vue"),
+        name: "InstructorEdit",
+    },
+    {
         path: `/Effort/:termCode(${TERM_CODE_PATTERN})/instructors/:personId(\\d+)`,
         meta: {
             layout: EffortLayout,
@@ -118,8 +133,7 @@ const routes = [
                 "SVMSecure.Effort.DeleteInstructor",
             ],
         },
-        // Reuse InstructorList component - personId param triggers edit dialog
-        component: () => import("@/Effort/pages/InstructorList.vue"),
+        component: () => import("@/Effort/pages/InstructorDetail.vue"),
         name: "InstructorDetail",
     },
     {

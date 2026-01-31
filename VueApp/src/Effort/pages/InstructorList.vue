@@ -645,7 +645,7 @@ function openEditDialog(instructor: PersonDto) {
     showEditDialog.value = true
     // Update URL to include personId for bookmarkability
     router.replace({
-        name: "InstructorDetail",
+        name: "InstructorEdit",
         params: {
             termCode: selectedTermCode.value!.toString(),
             personId: instructor.personId.toString(),
