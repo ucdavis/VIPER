@@ -128,8 +128,14 @@ async function fetchWrapper(url: string, options: any = {}) {
         })
         .catch((error) => {
             if (error instanceof ValidationError) {
-                // Validation errors should be handled by the caller, not global error handler
-                errors = [error.message]
+                // Extract structured errors, falling back to message
+                let validationErrors: string[] = []
+                if (Array.isArray(error.errors)) {
+                    validationErrors = error.errors
+                } else if (error.errors && typeof error.errors === "object") {
+                    validationErrors = Object.values(error.errors).flat()
+                }
+                errors = validationErrors.length > 0 ? validationErrors : [error.message]
             } else if (error instanceof AuthError) {
                 errorHandler.handleAuthError(error?.message, error.status)
                 errors = [error?.message || "Authentication error"]

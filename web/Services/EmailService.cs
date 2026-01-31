@@ -278,7 +278,7 @@ namespace Viper.Services
                     <strong style="color: #856404;">⚠️ TEST EMAIL - REDIRECTED</strong>
                     <p style="margin: 10px 0 0 0; color: #856404;">
                         This email was redirected to you because you triggered it on a non-production environment.<br/>
-                        <strong>Original recipient(s):</strong> {string.Join(", ", originalRecipients)}
+                        <strong>Original recipient(s):</strong> {System.Net.WebUtility.HtmlEncode(string.Join(", ", originalRecipients))}
                     </p>
                 </div>
                 """;

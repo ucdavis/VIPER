@@ -70,6 +70,22 @@
                 </div>
             </div>
 
+            <!-- Zero Effort Warning -->
+            <q-banner
+                v-if="hasZeroEffort"
+                class="bg-warning q-mb-md"
+                rounded
+            >
+                <template #avatar>
+                    <q-icon
+                        name="warning"
+                        color="dark"
+                    />
+                </template>
+                NOTE: This instructor has one or more effort items documented as ZERO effort. Effort cannot be verified
+                until these items have been updated or removed.
+            </q-banner>
+
             <!-- Clinical Effort Note -->
             <p
                 v-if="hasClinicalEffort"
@@ -281,22 +297,6 @@
                     </template>
                 </q-table>
             </div>
-
-            <!-- Zero Effort Warning -->
-            <q-banner
-                v-if="hasZeroEffort"
-                class="bg-warning q-mb-md"
-                rounded
-            >
-                <template #avatar>
-                    <q-icon
-                        name="warning"
-                        color="dark"
-                    />
-                </template>
-                NOTE: This instructor has one or more effort items documented as ZERO effort. Effort cannot be verified
-                until these items have been updated or removed.
-            </q-banner>
         </template>
 
         <!-- Add Effort Dialog -->
