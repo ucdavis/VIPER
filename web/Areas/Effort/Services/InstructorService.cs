@@ -830,10 +830,7 @@ public class InstructorService : IInstructorService
             return;
         }
 
-        // Academic year date range: July 1 (year-1) to June 30 (year)
-        // e.g., AcademicYear 2026 = July 1, 2025 to June 30, 2026
-        var academicYearStart = new DateTime(term.AcademicYear - 1, 7, 1, 0, 0, 0, DateTimeKind.Unspecified);
-        var academicYearEnd = new DateTime(term.AcademicYear, 6, 30, 0, 0, 0, DateTimeKind.Unspecified);
+        var range = AcademicYearHelper.GetDateRange(term.AcademicYear);
 
         // Get all percentage assignments for these persons that overlap with the academic year
         var allPercentages = await _context.Percentages
@@ -841,8 +838,8 @@ public class InstructorService : IInstructorService
             .Include(p => p.PercentAssignType)
             .Include(p => p.Unit)
             .Where(p => personIds.Contains(p.PersonId))
-            .Where(p => p.StartDate <= academicYearEnd)
-            .Where(p => p.EndDate == null || p.EndDate >= academicYearStart)
+            .Where(p => p.StartDate < range.EndDateExclusive)
+            .Where(p => p.EndDate == null || p.EndDate >= range.StartDate)
             .ToListAsync(ct);
 
         // Apply display filtering:
