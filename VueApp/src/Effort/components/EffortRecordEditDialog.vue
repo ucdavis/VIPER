@@ -208,15 +208,14 @@ const courseLabel = computed(() => {
     return `${course.subjCode} ${course.crseNumb.trim()}-${course.seqNumb} (${course.units} units)`
 })
 
-// Computed: Course category flags for filtering effort types
+// Use course classification flags directly from CourseDto (populated by backend CourseClassificationService)
 const courseFlags = computed(() => {
     if (!props.record) return { isDvm: false, is199299: false, isRCourse: false }
     const course = props.record.course
-    const crseNumb = course.crseNumb.trim()
     return {
-        isDvm: course.custDept?.toUpperCase() === "DVM",
-        is199299: crseNumb.startsWith("199") || crseNumb.startsWith("299"),
-        isRCourse: crseNumb.toUpperCase().endsWith("R"),
+        isDvm: course.isDvm ?? false,
+        is199299: course.is199299 ?? false,
+        isRCourse: course.isRCourse ?? false,
     }
 })
 

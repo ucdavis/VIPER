@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Exceptions;
+using Viper.Areas.Effort.Models.DTOs;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -561,8 +562,9 @@ public class EffortRecordService : IEffortRecordService
         }
     }
 
-    private static InstructorEffortRecordDto MapToDto(EffortRecord record)
+    private InstructorEffortRecordDto MapToDto(EffortRecord record)
     {
+        var classification = _courseClassificationService.Classify(record.Course);
         return new InstructorEffortRecordDto
         {
             Id = record.Id,
@@ -587,15 +589,16 @@ public class EffortRecordService : IEffortRecordService
                 Enrollment = record.Course.Enrollment,
                 Units = record.Course.Units,
                 CustDept = record.Course.CustDept
-            }
+            }.WithClassification(classification)
         };
     }
 
-    private static CourseOptionDto MapToCourseOption(EffortCourse course)
+    private CourseOptionDto MapToCourseOption(EffortCourse course)
     {
         var subjCode = course.SubjCode.Trim();
         var crseNumb = course.CrseNumb.Trim();
         var seqNumb = course.SeqNumb.Trim();
+        var classification = _courseClassificationService.Classify(course);
 
         return new CourseOptionDto
         {
@@ -605,11 +608,8 @@ public class EffortRecordService : IEffortRecordService
             SeqNumb = seqNumb,
             Units = course.Units,
             Label = $"{subjCode} {crseNumb}-{seqNumb} ({course.Units} units)",
-            Crn = course.Crn.Trim(),
-            IsDvm = course.CustDept.Equals("DVM", StringComparison.OrdinalIgnoreCase),
-            Is199299 = crseNumb.StartsWith("199") || crseNumb.StartsWith("299"),
-            IsRCourse = crseNumb.EndsWith("R", StringComparison.OrdinalIgnoreCase)
-        };
+            Crn = course.Crn.Trim()
+        }.WithClassification(classification);
     }
 
     private void ValidateEffortTypeForCourse(EffortType effortType, EffortCourse course)

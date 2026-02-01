@@ -358,7 +358,7 @@ import { useRoute } from "vue-router"
 import { useQuasar, type QTableColumn } from "quasar"
 import { verificationService } from "../services/verification-service"
 import { effortService } from "../services/effort-service"
-import type { MyEffortDto, InstructorEffortRecordDto, ChildCourseDto } from "../types"
+import type { MyEffortDto, InstructorEffortRecordDto, ChildCourseDto, EffortTypeOptionDto } from "../types"
 import { VerificationErrorCodes } from "../types"
 import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
 import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
@@ -372,6 +372,7 @@ const termCodeNum = computed(() => parseInt(termCode.value, 10))
 
 // State
 const myEffort = ref<MyEffortDto | null>(null)
+const effortTypes = ref<EffortTypeOptionDto[]>([])
 const isLoading = ref(true)
 const loadError = ref<string | null>(null)
 const verifyConfirmed = ref(false)
@@ -494,10 +495,41 @@ function openEditDialog(record: InstructorEffortRecordDto) {
     showEditDialog.value = true
 }
 
+/**
+ * Checks if the effort type is restricted for the given course classification.
+ * A restricted type is one that cannot be re-added after deletion because it's
+ * not allowed on the course's category (DVM, 199/299, or R-course).
+ * Uses AND logic: check ALL applicable classifications.
+ */
+function isRestrictedEffortType(record: InstructorEffortRecordDto): boolean {
+    const effortType = effortTypes.value.find((et) => et.id === record.effortType)
+    if (!effortType) return false
+
+    const course = record.course
+    // Check each classification - if course has it AND type is not allowed, it's restricted
+    if (course.isDvm && !effortType.allowedOnDvm) return true
+    if (course.is199299 && !effortType.allowedOn199299) return true
+    if (course.isRCourse && !effortType.allowedOnRCourses) return true
+    return false
+}
+
 function confirmDelete(record: InstructorEffortRecordDto) {
+    const isRestricted = isRestrictedEffortType(record)
+    const effortType = effortTypes.value.find((et) => et.id === record.effortType)
+    const effortTypeDesc = effortType?.description ?? record.effortType
+
+    let message = `Are you sure you want to delete the effort record for ${record.course.subjCode} ${record.course.crseNumb.trim()} (${effortTypeDesc})?`
+
+    if (isRestricted) {
+        message =
+            `Warning: This record uses effort type "${effortTypeDesc}" which is restricted for this course type. ` +
+            `If you delete it, you will not be able to add it back with the same effort type. ` +
+            `Are you sure you want to delete this effort record?`
+    }
+
     $q.dialog({
-        title: "Delete Effort Record",
-        message: `Are you sure you want to delete the effort record for ${record.course.subjCode} ${record.course.crseNumb.trim()} (${record.effortType})?`,
+        title: isRestricted ? "Delete Restricted Effort Record" : "Delete Effort Record",
+        message,
         cancel: true,
         persistent: true,
     }).onOk(async () => {
@@ -593,12 +625,16 @@ async function loadData() {
     loadError.value = null
 
     try {
-        const result = await verificationService.getMyEffort(termCodeNum.value)
-        if (!result) {
+        const [effortResult, typesResult] = await Promise.all([
+            verificationService.getMyEffort(termCodeNum.value),
+            effortService.getEffortTypeOptions(),
+        ])
+        if (!effortResult) {
             loadError.value = "Failed to load your effort data. Please try again."
             return
         }
-        myEffort.value = result
+        myEffort.value = effortResult
+        effortTypes.value = typesResult
     } catch {
         loadError.value = "Failed to load your effort data. Please try again."
     } finally {

@@ -157,6 +157,87 @@ public sealed class EffortRecordServiceTests : IDisposable
         Assert.Null(result);
     }
 
+    [Fact]
+    public async Task GetEffortRecordAsync_PopulatesDvmFlag_ForDvmCourse()
+    {
+        // Arrange: Course 2 is a DVM course (SubjCode = "DVM")
+        var record = new EffortRecord
+        {
+            Id = 1,
+            CourseId = 2,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 40
+        };
+        _context.Records.Add(record);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetEffortRecordAsync(1);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.Course.IsDvm);
+        Assert.False(result.Course.Is199299);
+        Assert.False(result.Course.IsRCourse);
+    }
+
+    [Fact]
+    public async Task GetEffortRecordAsync_Populates199299Flag_For199Course()
+    {
+        // Arrange: Course 3 is a VET 199 course (SubjCode="VET" makes it DVM, CrseNumb="199")
+        var record = new EffortRecord
+        {
+            Id = 1,
+            CourseId = 3,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 40
+        };
+        _context.Records.Add(record);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetEffortRecordAsync(1);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.Course.IsDvm);  // VET is a DVM subject code
+        Assert.True(result.Course.Is199299);
+        Assert.False(result.Course.IsRCourse);
+    }
+
+    [Fact]
+    public async Task GetEffortRecordAsync_PopulatesRCourseFlag_ForRCourse()
+    {
+        // Arrange: Course 4 is a VET 290R course (SubjCode="VET" makes it DVM, CrseNumb="290R")
+        var record = new EffortRecord
+        {
+            Id = 1,
+            CourseId = 4,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 40
+        };
+        _context.Records.Add(record);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetEffortRecordAsync(1);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.Course.IsDvm);  // VET is a DVM subject code
+        Assert.False(result.Course.Is199299);
+        Assert.True(result.Course.IsRCourse);
+    }
+
     #endregion
 
     #region CreateEffortRecordAsync Tests
@@ -808,6 +889,37 @@ public sealed class EffortRecordServiceTests : IDisposable
         // Assert: 4 courses seeded, 1 excluded as child = 3 remaining
         Assert.Equal(3, result.AllCourses.Count);
         Assert.DoesNotContain(result.AllCourses, c => c.Id == 2);
+    }
+
+    [Fact]
+    public async Task GetAvailableCoursesAsync_PopulatesClassificationFlags()
+    {
+        // Act
+        var result = await _service.GetAvailableCoursesAsync(TestPersonId, TestTermCode);
+
+        // Assert: Course 1 (VET 410) - IsDvm=true (VET subject code)
+        var vetCourse = result.AllCourses.First(c => c.Id == TestCourseId);
+        Assert.True(vetCourse.IsDvm);
+        Assert.False(vetCourse.Is199299);
+        Assert.False(vetCourse.IsRCourse);
+
+        // Assert: Course 2 (DVM 443) - IsDvm=true
+        var dvmCourse = result.AllCourses.First(c => c.Id == 2);
+        Assert.True(dvmCourse.IsDvm);
+        Assert.False(dvmCourse.Is199299);
+        Assert.False(dvmCourse.IsRCourse);
+
+        // Assert: Course 3 (VET 199) - IsDvm=true, Is199299=true
+        var course199 = result.AllCourses.First(c => c.Id == 3);
+        Assert.True(course199.IsDvm);
+        Assert.True(course199.Is199299);
+        Assert.False(course199.IsRCourse);
+
+        // Assert: Course 4 (VET 290R) - IsDvm=true, IsRCourse=true
+        var rCourse = result.AllCourses.First(c => c.Id == 4);
+        Assert.True(rCourse.IsDvm);
+        Assert.False(rCourse.Is199299);
+        Assert.True(rCourse.IsRCourse);
     }
 
     #endregion
