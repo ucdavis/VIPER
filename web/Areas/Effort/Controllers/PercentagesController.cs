@@ -94,7 +94,7 @@ public class PercentagesController : BaseEffortController
         if (!validation.IsValid)
         {
             _logger.LogWarning("Validation failed for percentage creation: {Errors}", string.Join(", ", validation.Errors));
-            return BadRequest(new { errors = validation.Errors, warnings = validation.Warnings });
+            return BadRequest(validation.Errors);
         }
 
         try
@@ -187,7 +187,7 @@ public class PercentagesController : BaseEffortController
         if (!validation.IsValid)
         {
             _logger.LogWarning("Validation failed for percentage update: {Errors}", string.Join(", ", validation.Errors));
-            return BadRequest(new { errors = validation.Errors, warnings = validation.Warnings });
+            return BadRequest(validation.Errors);
         }
 
         try
