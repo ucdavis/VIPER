@@ -28,8 +28,12 @@ public interface IEffortRecordService
     /// <summary>
     /// Delete an effort record.
     /// </summary>
+    /// <param name="recordId">The record ID to delete.</param>
+    /// <param name="originalModifiedDate">The ModifiedDate from when record was loaded (for concurrency check).</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>True if deleted, false if not found.</returns>
-    Task<bool> DeleteEffortRecordAsync(int recordId, CancellationToken ct = default);
+    /// <exception cref="Exceptions.ConcurrencyConflictException">Thrown if record was modified since loading.</exception>
+    Task<bool> DeleteEffortRecordAsync(int recordId, DateTime? originalModifiedDate, CancellationToken ct = default);
 
     /// <summary>
     /// Get available courses for creating effort records.

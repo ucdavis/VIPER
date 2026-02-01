@@ -258,6 +258,14 @@ public class EffortRecordService : IEffortRecordService
             return (null, null);
         }
 
+        // Optimistic concurrency check: verify record hasn't been modified since loading
+        // For legacy records (ModifiedDate IS NULL), client sends null - NULL matches NULL
+        // For updated records, timestamps must match exactly
+        if (record.ModifiedDate != request.OriginalModifiedDate)
+        {
+            throw new ConcurrencyConflictException(recordId);
+        }
+
         // Validate effort type is active
         var effortType = await _context.EffortTypes
             .FirstOrDefaultAsync(et => et.Id == request.EffortTypeId && et.IsActive, ct);
@@ -373,7 +381,7 @@ public class EffortRecordService : IEffortRecordService
     }
 
     /// <inheritdoc />
-    public async Task<bool> DeleteEffortRecordAsync(int recordId, CancellationToken ct = default)
+    public async Task<bool> DeleteEffortRecordAsync(int recordId, DateTime? originalModifiedDate, CancellationToken ct = default)
     {
         var record = await _context.Records
             .Include(r => r.Course)
@@ -384,6 +392,14 @@ public class EffortRecordService : IEffortRecordService
         if (record == null)
         {
             return false;
+        }
+
+        // Optimistic concurrency check: verify record hasn't been modified since loading
+        // For legacy records (ModifiedDate IS NULL), client sends null - NULL matches NULL
+        // For updated records, timestamps must match exactly
+        if (record.ModifiedDate != originalModifiedDate)
+        {
+            throw new ConcurrencyConflictException(recordId);
         }
 
         // Capture values for audit

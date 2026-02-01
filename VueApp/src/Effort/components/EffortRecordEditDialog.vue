@@ -142,7 +142,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
-import { effortService } from "../services/effort-service"
+import { recordService } from "../services/record-service"
 import type { EffortTypeOptionDto, RoleOptionDto, InstructorEffortRecordDto } from "../types"
 
 const props = defineProps<{
@@ -278,8 +278,8 @@ async function loadOptions() {
 
     try {
         const [effortTypesResult, rolesResult] = await Promise.all([
-            effortService.getEffortTypeOptions(),
-            effortService.getRoleOptions(),
+            recordService.getEffortTypeOptions(),
+            recordService.getRoleOptions(),
         ])
 
         effortTypes.value = effortTypesResult
@@ -299,10 +299,11 @@ async function updateRecord() {
     warningMessage.value = ""
 
     try {
-        const result = await effortService.updateEffortRecord(props.record.id, {
+        const result = await recordService.updateEffortRecord(props.record.id, {
             effortTypeId: selectedEffortType.value!,
             roleId: selectedRole.value!,
             effortValue: effortValue.value!,
+            originalModifiedDate: props.record.modifiedDate,
         })
 
         if (result.success) {
@@ -319,6 +320,13 @@ async function updateRecord() {
             }
         } else {
             errorMessage.value = result.error || "Failed to update effort record"
+            // Close dialog on concurrency conflict so user sees refreshed data
+            if (result.isConflict) {
+                setTimeout(() => {
+                    emit("update:modelValue", false)
+                    emit("updated") // Triggers reload
+                }, 2000)
+            }
         }
     } catch {
         errorMessage.value = "An unexpected error occurred"

@@ -7,15 +7,13 @@ import { setActivePinia, createPinia } from "pinia"
  *
  * These tests validate that the component properly handles errors
  * when updating courses.
- *
- * The actual component UI is tested via Playwright MCP (see SMOKETEST-EFFORT-COURSE.md).
  */
 
-// Mock the effort service
+// Mock the course service
 const mockUpdateCourse = vi.fn()
 const mockUpdateCourseEnrollment = vi.fn()
-vi.mock("../services/effort-service", () => ({
-    effortService: {
+vi.mock("../services/course-service", () => ({
+    courseService: {
         updateCourse: (...args: unknown[]) => mockUpdateCourse(...args),
         updateCourseEnrollment: (...args: unknown[]) => mockUpdateCourseEnrollment(...args),
     },

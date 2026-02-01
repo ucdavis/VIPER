@@ -9,14 +9,14 @@ import { setActivePinia, createPinia } from "pinia"
  * and filters available courses correctly.
  */
 
-// Mock the effort service
+// Mock the course service
 const mockGetCourseRelationships = vi.fn()
 const mockGetAvailableChildCourses = vi.fn()
 const mockCreateCourseRelationship = vi.fn()
 const mockDeleteCourseRelationship = vi.fn()
 
-vi.mock("../services/effort-service", () => ({
-    effortService: {
+vi.mock("../services/course-service", () => ({
+    courseService: {
         getCourseRelationships: (...args: unknown[]) => mockGetCourseRelationships(...args),
         getAvailableChildCourses: (...args: unknown[]) => mockGetAvailableChildCourses(...args),
         createCourseRelationship: (...args: unknown[]) => mockCreateCourseRelationship(...args),

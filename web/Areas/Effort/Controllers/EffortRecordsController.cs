@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
@@ -136,6 +137,12 @@ public class EffortRecordsController : BaseEffortController
                 warning
             });
         }
+        catch (ConcurrencyConflictException ex)
+        {
+            _logger.LogWarning(ex, "Concurrency conflict updating effort record {RecordId}: {Message}",
+                recordId, LogSanitizer.SanitizeString(ex.Message));
+            return Conflict(new { errorMessage = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(ex, "Failed to update effort record: {Message}", LogSanitizer.SanitizeString(ex.Message));
@@ -152,9 +159,15 @@ public class EffortRecordsController : BaseEffortController
     /// <summary>
     /// Delete an effort record.
     /// </summary>
+    /// <param name="recordId">The record ID to delete.</param>
+    /// <param name="originalModifiedDate">The ModifiedDate from when record was loaded (for concurrency check).</param>
+    /// <param name="ct">Cancellation token.</param>
     [HttpDelete("{recordId:int}")]
     [Permission(Allow = $"{EffortPermissions.VerifyEffort},{EffortPermissions.DeleteEffort}")]
-    public async Task<ActionResult> DeleteRecord(int recordId, CancellationToken ct = default)
+    public async Task<ActionResult> DeleteRecord(
+        int recordId,
+        [FromQuery] DateTime? originalModifiedDate,
+        CancellationToken ct = default)
     {
         SetExceptionContext("recordId", recordId);
 
@@ -173,14 +186,23 @@ public class EffortRecordsController : BaseEffortController
             return NotFound($"Record {recordId} not found");
         }
 
-        var deleted = await _recordService.DeleteEffortRecordAsync(recordId, ct);
-        if (!deleted)
+        try
         {
-            return NotFound($"Record {recordId} not found");
-        }
+            var deleted = await _recordService.DeleteEffortRecordAsync(recordId, originalModifiedDate, ct);
+            if (!deleted)
+            {
+                return NotFound($"Record {recordId} not found");
+            }
 
-        _logger.LogInformation("Effort record deleted: {RecordId}", recordId);
-        return NoContent();
+            _logger.LogInformation("Effort record deleted: {RecordId}", recordId);
+            return NoContent();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            _logger.LogWarning(ex, "Concurrency conflict deleting effort record {RecordId}: {Message}",
+                recordId, LogSanitizer.SanitizeString(ex.Message));
+            return Conflict(new { errorMessage = ex.Message });
+        }
     }
 
     /// <summary>

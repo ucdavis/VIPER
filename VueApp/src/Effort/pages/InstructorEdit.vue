@@ -275,7 +275,8 @@ import { ref, computed, watch } from "vue"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { useQuasar } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
-import { effortService } from "../services/effort-service"
+import { instructorService } from "../services/instructor-service"
+import { recordService } from "../services/record-service"
 import { percentageService } from "../services/percentage-service"
 import { percentAssignTypeService } from "../services/percent-assign-type-service"
 import { unitService } from "../services/unit-service"
@@ -457,8 +458,8 @@ async function loadData() {
     try {
         // Load instructor and permission check first
         const [instructorResult, canEditResult] = await Promise.all([
-            effortService.getInstructor(personId.value, termCodeNum.value),
-            effortService.canEditTerm(termCodeNum.value),
+            instructorService.getInstructor(personId.value, termCodeNum.value),
+            recordService.canEditTerm(termCodeNum.value),
         ])
 
         if (!instructorResult) {
@@ -474,10 +475,10 @@ async function loadData() {
 
         // Load all metadata and percentages in parallel
         const [depts, unitsData, titles, groups, types, percentUnits] = await Promise.all([
-            effortService.getInstructorDepartments(),
-            effortService.getReportUnits(),
-            effortService.getTitleCodes(),
-            effortService.getJobGroups(),
+            instructorService.getInstructorDepartments(),
+            instructorService.getReportUnits(),
+            instructorService.getTitleCodes(),
+            instructorService.getJobGroups(),
             percentAssignTypeService.getPercentAssignTypes(true),
             unitService.getUnits(true),
         ])
@@ -509,7 +510,7 @@ async function updateInstructor() {
     settingsErrorMessage.value = ""
 
     try {
-        const result = await effortService.updateInstructor(instructor.value.personId, termCodeNum.value, {
+        const result = await instructorService.updateInstructor(instructor.value.personId, termCodeNum.value, {
             effortDept: form.value.effortDept,
             effortTitleCode: form.value.effortTitleCode,
             jobGroupId: form.value.jobGroupId || null,

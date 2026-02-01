@@ -640,7 +640,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue"
 import { useQuasar } from "quasar"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
-import { effortService } from "../services/effort-service"
+import { instructorService } from "../services/instructor-service"
 import { termService } from "../services/term-service"
 import { verificationService } from "../services/verification-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
@@ -861,7 +861,7 @@ async function loadInstructors() {
     isLoading.value = true
 
     try {
-        const result = await effortService.getInstructors(selectedTermCode.value)
+        const result = await instructorService.getInstructors(selectedTermCode.value)
 
         // Abort if a newer request has been initiated
         if (token !== loadToken) return
@@ -883,7 +883,7 @@ function confirmDeleteInstructor(instructor: PersonDto) {
     }).onOk(async () => {
         if (!selectedTermCode.value) return
 
-        const { recordCount } = await effortService.canDeleteInstructor(instructor.personId, selectedTermCode.value)
+        const { recordCount } = await instructorService.canDeleteInstructor(instructor.personId, selectedTermCode.value)
         if (recordCount > 0) {
             $q.dialog({
                 title: "Confirm Delete",
@@ -900,7 +900,7 @@ function confirmDeleteInstructor(instructor: PersonDto) {
 async function deleteInstructor(personId: number) {
     if (!selectedTermCode.value) return
 
-    const success = await effortService.deleteInstructor(personId, selectedTermCode.value)
+    const success = await instructorService.deleteInstructor(personId, selectedTermCode.value)
     if (success) {
         $q.notify({ type: "positive", message: "Instructor deleted successfully" })
         await loadInstructors()

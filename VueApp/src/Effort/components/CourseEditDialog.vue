@@ -89,7 +89,7 @@
 import { ref, watch } from "vue"
 import { useQuasar, QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
-import { effortService } from "../services/effort-service"
+import { courseService } from "../services/course-service"
 import type { CourseDto } from "../types"
 
 const props = defineProps<{
@@ -153,10 +153,10 @@ async function save() {
 
         if (props.enrollmentOnly) {
             // Use the enrollment-only endpoint for R-course enrollment updates
-            result = await effortService.updateCourseEnrollment(props.course.id, formData.value.enrollment)
+            result = await courseService.updateCourseEnrollment(props.course.id, formData.value.enrollment)
         } else {
             // Use the full update endpoint
-            result = await effortService.updateCourse(props.course.id, {
+            result = await courseService.updateCourse(props.course.id, {
                 enrollment: formData.value.enrollment,
                 units: formData.value.units,
                 custDept: formData.value.custDept,

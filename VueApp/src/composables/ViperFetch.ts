@@ -9,6 +9,8 @@ const HTTP_STATUS = {
     BAD_REQUEST: 400,
     UNAUTHORIZED: 401,
     FORBIDDEN: 403,
+    NOT_FOUND: 404,
+    CONFLICT: 409,
     NO_CONTENT: 204,
     ACCEPTED: 202,
 } as const
@@ -27,6 +29,7 @@ type Result = {
     errors: any
     success: boolean
     pagination: Pagination | null
+    status: number | null
 }
 
 type UrlParams = {
@@ -97,7 +100,7 @@ async function handleViperFetchError(response: any) {
                     : "You are not logged in.")
             throw new AuthError(authMessage, response.status)
         } else {
-            throw new ValidationError(message, result?.errors)
+            throw new ValidationError(message, result?.errors, response.status)
         }
     }
     return response
@@ -113,6 +116,7 @@ async function fetchWrapper(url: string, options: any = {}) {
     addHeader(options, "X-CSRF-TOKEN", token)
 
     let errors: string[] = []
+    let httpStatus: number | null = null
     const result = await fetch(url, options)
         .then((r) => handleViperFetchError(r))
         .then((r) => (r.status === HTTP_STATUS.NO_CONTENT || r.status === HTTP_STATUS.ACCEPTED ? r : r.json()))
@@ -136,6 +140,7 @@ async function fetchWrapper(url: string, options: any = {}) {
                     validationErrors = Object.values(error.errors).flat()
                 }
                 errors = validationErrors.length > 0 ? validationErrors : [error.message]
+                httpStatus = error.status ?? null
             } else if (error instanceof AuthError) {
                 errorHandler.handleAuthError(error?.message, error.status)
                 errors = [error?.message || "Authentication error"]
@@ -149,6 +154,7 @@ async function fetchWrapper(url: string, options: any = {}) {
         errors: errors,
         success: errors.length === 0,
         pagination: null,
+        status: httpStatus,
     }
     if (result && result.pagination) {
         resultObj.pagination = result.pagination
@@ -255,4 +261,4 @@ function useFetch() {
     return { get, post, put, del, patch, createUrlSearchParams }
 }
 
-export { useFetch, postForBlob }
+export { useFetch, postForBlob, HTTP_STATUS }

@@ -7,18 +7,16 @@ import { setActivePinia, createPinia } from "pinia"
  *
  * These tests validate that the component properly handles errors
  * and validates data when editing instructors in the Effort system.
- *
- * The actual component UI is tested via Playwright MCP (see SMOKETEST-EFFORT-PercentAssignment.md).
  */
 
-// Mock the effort service
+// Mock the instructor service
 const mockUpdateInstructor = vi.fn()
 const mockGetDepartments = vi.fn()
 const mockGetReportUnits = vi.fn()
-vi.mock("../services/effort-service", () => ({
-    effortService: {
+vi.mock("../services/instructor-service", () => ({
+    instructorService: {
         updateInstructor: (...args: unknown[]) => mockUpdateInstructor(...args),
-        getDepartments: (...args: unknown[]) => mockGetDepartments(...args),
+        getInstructorDepartments: (...args: unknown[]) => mockGetDepartments(...args),
         getReportUnits: (...args: unknown[]) => mockGetReportUnits(...args),
     },
 }))

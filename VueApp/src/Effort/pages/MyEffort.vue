@@ -357,7 +357,7 @@ import { ref, computed, onMounted } from "vue"
 import { useRoute } from "vue-router"
 import { useQuasar, type QTableColumn } from "quasar"
 import { verificationService } from "../services/verification-service"
-import { effortService } from "../services/effort-service"
+import { recordService } from "../services/record-service"
 import type { MyEffortDto, InstructorEffortRecordDto, ChildCourseDto, EffortTypeOptionDto } from "../types"
 import { VerificationErrorCodes } from "../types"
 import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
@@ -533,14 +533,14 @@ function confirmDelete(record: InstructorEffortRecordDto) {
         cancel: true,
         persistent: true,
     }).onOk(async () => {
-        await deleteRecord(record.id)
+        await deleteRecord(record.id, record.modifiedDate)
     })
 }
 
-async function deleteRecord(recordId: number) {
+async function deleteRecord(recordId: number, originalModifiedDate: string | null) {
     try {
-        const success = await effortService.deleteEffortRecord(recordId)
-        if (success) {
+        const result = await recordService.deleteEffortRecord(recordId, originalModifiedDate)
+        if (result.success) {
             $q.notify({
                 type: "positive",
                 message: "Effort record deleted successfully",
@@ -549,8 +549,12 @@ async function deleteRecord(recordId: number) {
         } else {
             $q.notify({
                 type: "negative",
-                message: "Failed to delete effort record",
+                message: result.error ?? "Failed to delete effort record",
             })
+            // Reload data if it was a concurrency conflict
+            if (result.isConflict) {
+                await loadData()
+            }
         }
     } catch {
         $q.notify({
@@ -627,7 +631,7 @@ async function loadData() {
     try {
         const [effortResult, typesResult] = await Promise.all([
             verificationService.getMyEffort(termCodeNum.value),
-            effortService.getEffortTypeOptions(),
+            recordService.getEffortTypeOptions(),
         ])
         if (!effortResult) {
             loadError.value = "Failed to load your effort data. Please try again."

@@ -129,7 +129,7 @@
 import { ref, reactive, watch } from "vue"
 import { useQuasar } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
-import { effortService } from "../services/effort-service"
+import { courseService } from "../services/course-service"
 
 const props = defineProps<{
     modelValue: boolean
@@ -274,7 +274,7 @@ async function create() {
     isCreating.value = true
 
     try {
-        const result = await effortService.createCourse({
+        const result = await courseService.createCourse({
             termCode: props.termCode,
             crn: formData.value.crn.trim(),
             subjCode: formData.value.subjCode.trim().toUpperCase(),

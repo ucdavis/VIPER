@@ -7,15 +7,13 @@ import { setActivePinia, createPinia } from "pinia"
  *
  * These tests validate that the component properly handles errors
  * when adding instructors to the Effort system.
- *
- * The actual component UI is tested via Playwright MCP (see SMOKETEST-Effort-Manual-Instructor.md).
  */
 
-// Mock the effort service
+// Mock the instructor service
 const mockCreateInstructor = vi.fn()
 const mockSearchPossibleInstructors = vi.fn()
-vi.mock("../services/effort-service", () => ({
-    effortService: {
+vi.mock("../services/instructor-service", () => ({
+    instructorService: {
         createInstructor: (...args: unknown[]) => mockCreateInstructor(...args),
         searchPossibleInstructors: (...args: unknown[]) => mockSearchPossibleInstructors(...args),
     },

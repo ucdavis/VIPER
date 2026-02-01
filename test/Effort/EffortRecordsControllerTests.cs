@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.Effort.Controllers;
+using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
@@ -321,6 +322,36 @@ public sealed class EffortRecordsControllerTests
         Assert.IsType<NotFoundObjectResult>(result.Result);
     }
 
+    [Fact]
+    public async Task UpdateRecord_ReturnsConflict_WhenConcurrencyConflict()
+    {
+        // Arrange
+        var existingRecord = CreateTestRecord();
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LAB",
+            RoleId = 2,
+            EffortValue = 30,
+            OriginalModifiedDate = DateTime.Now.AddHours(-1)
+        };
+
+        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(TestRecordId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingRecord);
+        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _recordServiceMock.Setup(s => s.UpdateEffortRecordAsync(TestRecordId, request, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ConcurrencyConflictException(TestRecordId));
+
+        // Act
+        var result = await _controller.UpdateRecord(TestRecordId, request);
+
+        // Assert
+        var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
+        Assert.NotNull(conflictResult.Value);
+    }
+
     #endregion
 
     #region DeleteRecord Tests
@@ -337,11 +368,11 @@ public sealed class EffortRecordsControllerTests
             .ReturnsAsync(true);
         _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.DeleteEffortRecordAsync(TestRecordId, It.IsAny<CancellationToken>()))
+        _recordServiceMock.Setup(s => s.DeleteEffortRecordAsync(TestRecordId, It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         // Act
-        var result = await _controller.DeleteRecord(TestRecordId);
+        var result = await _controller.DeleteRecord(TestRecordId, null);
 
         // Assert
         Assert.IsType<NoContentResult>(result);
@@ -355,7 +386,7 @@ public sealed class EffortRecordsControllerTests
             .ReturnsAsync((InstructorEffortRecordDto?)null);
 
         // Act
-        var result = await _controller.DeleteRecord(999);
+        var result = await _controller.DeleteRecord(999, null);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);
@@ -374,10 +405,33 @@ public sealed class EffortRecordsControllerTests
             .ReturnsAsync(false);
 
         // Act
-        var result = await _controller.DeleteRecord(TestRecordId);
+        var result = await _controller.DeleteRecord(TestRecordId, null);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteRecord_ReturnsConflict_WhenConcurrencyConflict()
+    {
+        // Arrange
+        var existingRecord = CreateTestRecord();
+        var staleModifiedDate = DateTime.Now.AddHours(-1);
+
+        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(TestRecordId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingRecord);
+        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _recordServiceMock.Setup(s => s.DeleteEffortRecordAsync(TestRecordId, staleModifiedDate, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ConcurrencyConflictException(TestRecordId));
+
+        // Act
+        var result = await _controller.DeleteRecord(TestRecordId, staleModifiedDate);
+
+        // Assert
+        Assert.IsType<ConflictObjectResult>(result);
     }
 
     #endregion

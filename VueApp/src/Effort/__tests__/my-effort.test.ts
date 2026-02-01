@@ -6,8 +6,6 @@ import type { EffortTypeOptionDto } from "../types"
  *
  * These tests validate the restricted effort type detection logic used
  * when warning users about deleting effort records that cannot be re-added.
- *
- * The actual component UI is tested via Playwright MCP (see SMOKETEST-EFFORT-Instructor-Self-Edit.md).
  */
 
 // Type definitions matching the component's usage

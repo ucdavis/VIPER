@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
@@ -792,8 +793,8 @@ public sealed class EffortRecordServiceTests : IDisposable
         });
         await _context.SaveChangesAsync();
 
-        // Act
-        var result = await _service.DeleteEffortRecordAsync(1);
+        // Act - pass null for originalModifiedDate (legacy record)
+        var result = await _service.DeleteEffortRecordAsync(1, null);
 
         // Assert
         Assert.True(result);
@@ -810,7 +811,7 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task DeleteEffortRecordAsync_ReturnsFalse_WhenNotFound()
     {
         // Act
-        var result = await _service.DeleteEffortRecordAsync(999);
+        var result = await _service.DeleteEffortRecordAsync(999, null);
 
         // Assert
         Assert.False(result);
@@ -836,12 +837,203 @@ public sealed class EffortRecordServiceTests : IDisposable
         });
         await _context.SaveChangesAsync();
 
-        // Act
-        await _service.DeleteEffortRecordAsync(1);
+        // Act - pass null for originalModifiedDate (legacy record)
+        await _service.DeleteEffortRecordAsync(1, null);
 
         // Assert
         var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
         Assert.Null(updatedPerson.EffortVerified);
+    }
+
+    #endregion
+
+    #region Concurrency Conflict Tests
+
+    [Fact]
+    public async Task UpdateEffortRecordAsync_ThrowsConcurrencyConflict_WhenModifiedDateMismatch()
+    {
+        // Arrange: Create record with a ModifiedDate
+        var originalDate = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Local);
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20,
+            ModifiedDate = originalDate
+        });
+        await _context.SaveChangesAsync();
+
+        // Request with a DIFFERENT ModifiedDate (simulating stale data)
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LAB",
+            RoleId = 2,
+            EffortValue = 30,
+            OriginalModifiedDate = new DateTime(2024, 1, 14, 10, 30, 0, DateTimeKind.Local) // One day earlier
+        };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ConcurrencyConflictException>(
+            () => _service.UpdateEffortRecordAsync(1, request));
+        Assert.Contains("modified by another user", ex.Message);
+    }
+
+    [Fact]
+    public async Task UpdateEffortRecordAsync_Succeeds_WhenModifiedDateMatches()
+    {
+        // Arrange: Create record with a ModifiedDate
+        var originalDate = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Local);
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20,
+            ModifiedDate = originalDate
+        });
+        await _context.SaveChangesAsync();
+
+        // Request with the SAME ModifiedDate
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LAB",
+            RoleId = 2,
+            EffortValue = 30,
+            OriginalModifiedDate = originalDate
+        };
+
+        // Act
+        var (result, _) = await _service.UpdateEffortRecordAsync(1, request);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("LAB", result.EffortType);
+    }
+
+    [Fact]
+    public async Task UpdateEffortRecordAsync_Succeeds_WhenBothModifiedDatesAreNull()
+    {
+        // Arrange: Create legacy record with NULL ModifiedDate
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20,
+            ModifiedDate = null // Legacy record
+        });
+        await _context.SaveChangesAsync();
+
+        // Request with NULL OriginalModifiedDate
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LAB",
+            RoleId = 2,
+            EffortValue = 30,
+            OriginalModifiedDate = null
+        };
+
+        // Act
+        var (result, _) = await _service.UpdateEffortRecordAsync(1, request);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("LAB", result.EffortType);
+    }
+
+    [Fact]
+    public async Task UpdateEffortRecordAsync_ThrowsConcurrencyConflict_WhenLegacyRecordWasUpdated()
+    {
+        // Arrange: Create record that WAS legacy but has since been updated
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20,
+            ModifiedDate = DateTime.Now // Record was updated after loading
+        });
+        await _context.SaveChangesAsync();
+
+        // Request still has NULL (thinks record is legacy)
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LAB",
+            RoleId = 2,
+            EffortValue = 30,
+            OriginalModifiedDate = null
+        };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ConcurrencyConflictException>(
+            () => _service.UpdateEffortRecordAsync(1, request));
+        Assert.Contains("modified by another user", ex.Message);
+    }
+
+    [Fact]
+    public async Task DeleteEffortRecordAsync_ThrowsConcurrencyConflict_WhenModifiedDateMismatch()
+    {
+        // Arrange: Create record with a ModifiedDate
+        var originalDate = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Local);
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20,
+            ModifiedDate = originalDate
+        });
+        await _context.SaveChangesAsync();
+
+        // Act & Assert: Try to delete with stale date
+        var ex = await Assert.ThrowsAsync<ConcurrencyConflictException>(
+            () => _service.DeleteEffortRecordAsync(1, new DateTime(2024, 1, 14, 10, 30, 0, DateTimeKind.Local)));
+        Assert.Contains("modified by another user", ex.Message);
+
+        // Verify record was NOT deleted
+        Assert.NotNull(await _context.Records.FindAsync(1));
+    }
+
+    [Fact]
+    public async Task DeleteEffortRecordAsync_Succeeds_WhenModifiedDateMatches()
+    {
+        // Arrange: Create record with a ModifiedDate
+        var originalDate = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Local);
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20,
+            ModifiedDate = originalDate
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.DeleteEffortRecordAsync(1, originalDate);
+
+        // Assert
+        Assert.True(result);
+        Assert.Null(await _context.Records.FindAsync(1));
     }
 
     #endregion
