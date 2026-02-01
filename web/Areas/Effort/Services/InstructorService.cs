@@ -862,10 +862,11 @@ public class InstructorService : IInstructorService
             .GroupBy(p => p.PersonId)
             .ToDictionary(
                 g => g.Key,
-                g => g.GroupBy(p => p.PercentAssignType.Class)
+                g => g.GroupBy(p => p.PercentAssignType.Class?.Trim() ?? string.Empty, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(
                         c => c.Key,
-                        c => c.ToList()
+                        c => c.ToList(),
+                        StringComparer.OrdinalIgnoreCase
                     )
             );
 
