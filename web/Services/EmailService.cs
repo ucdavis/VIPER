@@ -118,8 +118,11 @@ namespace Viper.Services
                         ? $"{redirectNotice}<hr style=\"margin: 20px 0;\"/>{htmlBody}"
                         : htmlBody;
                     builder.HtmlBody = finalHtmlBody;
-                    // Auto-generate plaintext if not provided
-                    builder.TextBody = textBody ?? HtmlToTextConverter.Convert(finalHtmlBody);
+                    // Prepend redirect notice to provided plaintext body if redirecting
+                    var finalTextBody = textBody != null && redirectNotice != null
+                        ? $"{HtmlToTextConverter.Convert(redirectNotice)}\n{new string('=', 50)}\n\n{textBody}"
+                        : textBody;
+                    builder.TextBody = finalTextBody ?? HtmlToTextConverter.Convert(finalHtmlBody);
                 }
                 else if (!string.IsNullOrEmpty(textBody))
                 {

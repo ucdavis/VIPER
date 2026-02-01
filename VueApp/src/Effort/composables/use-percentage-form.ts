@@ -10,42 +10,18 @@ const MAX_PERCENT = 100
 const MIN_YEAR = 1998
 const YEAR_RANGE_FUTURE = 1
 
-/**
- * Type option for grouped dropdown display
- */
-export type TypeOption = {
-    label: string
-    value?: number
-    isHeader?: boolean
-    disable?: boolean
-}
+// Static options that don't depend on reactive data
+const modifierOptions = [
+    { label: "None", value: null },
+    { label: "Acting", value: "Acting" },
+    { label: "Interim", value: "Interim" },
+]
 
-/**
- * Form state for percentage assignment
- */
-export type PercentageFormState = {
-    percentAssignTypeId: number | null
-    unitId: number | null
-    modifier: string | null
-    startMonth: number | null
-    startYear: number | null
-    endMonth: number | null
-    endYear: number | null
-    percentageValue: number
-    comment: string
-    compensated: boolean
-}
-
-/**
- * Validation errors for percentage form
- */
-export type PercentageFormErrors = {
-    type: string
-    unit: string
-    startDate: string
-    endDate: string
-    percent: string
-}
+const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "long" })
+const monthOptions = Array.from({ length: 12 }, (_, i) => ({
+    label: monthFormatter.format(new Date(0, i)),
+    value: i + 1,
+}))
 
 /**
  * Format month/year to ISO date string (first of month)
@@ -70,73 +46,127 @@ function parseDateToMonthYear(dateStr: string | null): { month: number | null; y
 }
 
 /**
- * Composable for shared percentage form logic between Add and Edit dialogs
+ * Create default form state
  */
-export function usePercentageForm(
-    percentAssignTypes: Ref<PercentAssignTypeDto[]> | ComputedRef<PercentAssignTypeDto[]>,
-    units: Ref<UnitDto[]> | ComputedRef<UnitDto[]>,
-) {
-    // Form state
-    const form = ref<PercentageFormState>({
+function createDefaultFormState(): PercentageFormState {
+    const currentDate = new Date()
+    return {
         percentAssignTypeId: null,
         unitId: null,
         modifier: null,
-        startMonth: null,
-        startYear: null,
+        startMonth: currentDate.getMonth() + 1,
+        startYear: currentDate.getFullYear(),
         endMonth: null,
         endYear: null,
         percentageValue: 0,
         comment: "",
         compensated: false,
-    })
+    }
+}
 
-    // Validation errors
-    const errors = ref<PercentageFormErrors>({
+/**
+ * Create empty errors state
+ */
+function createEmptyErrors(): PercentageFormErrors {
+    return {
         type: "",
         unit: "",
         startDate: "",
         endDate: "",
         percent: "",
-    })
+    }
+}
 
-    // Group types by class for dropdown
-    const groupedTypeOptions = computed<TypeOption[]>(() => {
-        const groups: Record<string, TypeOption[]> = {}
+/**
+ * Build grouped type options from percent assign types
+ */
+function buildGroupedTypeOptions(types: PercentAssignTypeDto[]): TypeOption[] {
+    const groups: Record<string, TypeOption[]> = {}
+    const activeTypes = types.filter((t) => t.isActive)
 
-        for (const type of percentAssignTypes.value) {
-            if (!type.isActive) {
-                continue
-            }
-            const groupName = type.class || "Other"
-            const groupArray = groups[groupName] ?? (groups[groupName] = [])
-            groupArray.push({
-                label: type.name,
-                value: type.id,
-            })
+    for (const type of activeTypes) {
+        const groupName = type.class || "Other"
+        const groupArray = groups[groupName] ?? (groups[groupName] = [])
+        groupArray.push({
+            label: type.name,
+            value: type.id,
+        })
+    }
+
+    const result: TypeOption[] = []
+    const orderedClasses = ["Admin", "Clinical", "Other"]
+
+    for (const className of orderedClasses) {
+        if (groups[className]) {
+            result.push({ label: className, isHeader: true, disable: true })
+            result.push(...groups[className])
         }
+    }
 
-        const result: TypeOption[] = []
-        const orderedClasses = ["Admin", "Clinical", "Other"]
+    // Add any remaining classes not in the ordered list
+    for (const [className, items] of Object.entries(groups)) {
+        if (!orderedClasses.includes(className)) {
+            result.push({ label: className, isHeader: true, disable: true })
+            result.push(...items)
+        }
+    }
 
-        for (const className of orderedClasses) {
-            if (groups[className]) {
-                result.push({ label: className, isHeader: true, disable: true })
-                result.push(...groups[className])
+    return result
+}
+
+/**
+ * Validate the form and return errors
+ */
+function validateFormState(formState: PercentageFormState): PercentageFormErrors {
+    const formErrors = createEmptyErrors()
+
+    if (formState.percentAssignTypeId === null) {
+        formErrors.type = "Type is required"
+    }
+
+    if (formState.unitId === null) {
+        formErrors.unit = "Unit is required"
+    }
+
+    if (formState.startMonth === null || formState.startYear === null) {
+        formErrors.startDate = "Start date is required"
+    }
+
+    if (formState.percentageValue < MIN_PERCENT || formState.percentageValue > MAX_PERCENT) {
+        formErrors.percent = "Percent must be between 0 and 100"
+    }
+
+    // Validate end date is after start date if provided
+    if (formState.endMonth !== null && formState.endYear !== null) {
+        if (formState.startYear !== null && formState.startMonth !== null) {
+            const startDate = new Date(formState.startYear, formState.startMonth - 1)
+            const endDate = new Date(formState.endYear, formState.endMonth - 1)
+            if (endDate < startDate) {
+                formErrors.endDate = "End date must be after start date"
             }
         }
+    } else if (
+        (formState.endMonth !== null && formState.endYear === null) ||
+        (formState.endMonth === null && formState.endYear !== null)
+    ) {
+        formErrors.endDate = "Both month and year are required for end date"
+    }
 
-        // Add any remaining classes not in the ordered list
-        for (const [className, items] of Object.entries(groups)) {
-            if (!orderedClasses.includes(className)) {
-                result.push({ label: className, isHeader: true, disable: true })
-                result.push(...items)
-            }
-        }
+    return formErrors
+}
 
-        return result
-    })
+/**
+ * Composable for shared percentage form logic between Add and Edit dialogs
+ */
+function usePercentageForm(
+    percentAssignTypes: Ref<PercentAssignTypeDto[]> | ComputedRef<PercentAssignTypeDto[]>,
+    units: Ref<UnitDto[]> | ComputedRef<UnitDto[]>,
+) {
+    const form = ref<PercentageFormState>(createDefaultFormState())
+    const errors = ref<PercentageFormErrors>(createEmptyErrors())
 
-    // Unit options
+    const groupedTypeOptions = computed<TypeOption[]>(() => buildGroupedTypeOptions(percentAssignTypes.value))
+
     const unitOptions = computed(() =>
         units.value
             .filter((u) => u.isActive)
@@ -146,30 +176,6 @@ export function usePercentageForm(
             })),
     )
 
-    // Modifier options
-    const modifierOptions = [
-        { label: "None", value: null },
-        { label: "Acting", value: "Acting" },
-        { label: "Interim", value: "Interim" },
-    ]
-
-    // Month options
-    const monthOptions = [
-        { label: "January", value: 1 },
-        { label: "February", value: 2 },
-        { label: "March", value: 3 },
-        { label: "April", value: 4 },
-        { label: "May", value: 5 },
-        { label: "June", value: 6 },
-        { label: "July", value: 7 },
-        { label: "August", value: 8 },
-        { label: "September", value: 9 },
-        { label: "October", value: 10 },
-        { label: "November", value: 11 },
-        { label: "December", value: 12 },
-    ]
-
-    // Year options (descending order, most recent first)
     const yearOptions = computed(() => {
         const currentYear = new Date().getFullYear()
         const years: { label: string; value: number }[] = []
@@ -179,12 +185,10 @@ export function usePercentageForm(
         return years
     })
 
-    // Check if there are validation errors
     function hasValidationErrors(): boolean {
         return Object.values(errors.value).some((e) => e !== "")
     }
 
-    // Form validation
     const isFormValid = computed(
         () =>
             form.value.percentAssignTypeId !== null &&
@@ -196,78 +200,18 @@ export function usePercentageForm(
             !hasValidationErrors(),
     )
 
-    // Validate form and populate errors
     function validateForm(): boolean {
-        errors.value = {
-            type: "",
-            unit: "",
-            startDate: "",
-            endDate: "",
-            percent: "",
-        }
-
-        if (form.value.percentAssignTypeId === null) {
-            errors.value.type = "Type is required"
-        }
-
-        if (form.value.unitId === null) {
-            errors.value.unit = "Unit is required"
-        }
-
-        if (form.value.startMonth === null || form.value.startYear === null) {
-            errors.value.startDate = "Start date is required"
-        }
-
-        if (form.value.percentageValue < MIN_PERCENT || form.value.percentageValue > MAX_PERCENT) {
-            errors.value.percent = "Percent must be between 0 and 100"
-        }
-
-        // Validate end date is after start date if provided
-        if (form.value.endMonth !== null && form.value.endYear !== null) {
-            if (form.value.startYear !== null && form.value.startMonth !== null) {
-                const startDate = new Date(form.value.startYear, form.value.startMonth - 1)
-                const endDate = new Date(form.value.endYear, form.value.endMonth - 1)
-                if (endDate < startDate) {
-                    errors.value.endDate = "End date must be after start date"
-                }
-            }
-        } else if (
-            (form.value.endMonth !== null && form.value.endYear === null) ||
-            (form.value.endMonth === null && form.value.endYear !== null)
-        ) {
-            errors.value.endDate = "Both month and year are required for end date"
-        }
-
+        errors.value = validateFormState(form.value)
         return !hasValidationErrors()
     }
 
-    // Reset form to default values
     function resetForm() {
-        const currentDate = new Date()
-        form.value = {
-            percentAssignTypeId: null,
-            unitId: null,
-            modifier: null,
-            startMonth: currentDate.getMonth() + 1,
-            startYear: currentDate.getFullYear(),
-            endMonth: null,
-            endYear: null,
-            percentageValue: 0,
-            comment: "",
-            compensated: false,
-        }
-        resetErrors()
+        form.value = createDefaultFormState()
+        errors.value = createEmptyErrors()
     }
 
-    // Reset errors
     function resetErrors() {
-        errors.value = {
-            type: "",
-            unit: "",
-            startDate: "",
-            endDate: "",
-            percent: "",
-        }
+        errors.value = createEmptyErrors()
     }
 
     return {
@@ -287,3 +231,35 @@ export function usePercentageForm(
         resetErrors,
     }
 }
+
+// Type exports
+type TypeOption = {
+    label: string
+    value?: number
+    isHeader?: boolean
+    disable?: boolean
+}
+
+type PercentageFormState = {
+    percentAssignTypeId: number | null
+    unitId: number | null
+    modifier: string | null
+    startMonth: number | null
+    startYear: number | null
+    endMonth: number | null
+    endYear: number | null
+    percentageValue: number
+    comment: string
+    compensated: boolean
+}
+
+type PercentageFormErrors = {
+    type: string
+    unit: string
+    startDate: string
+    endDate: string
+    percent: string
+}
+
+export { usePercentageForm, formatToIsoDate, parseDateToMonthYear }
+export type { TypeOption, PercentageFormState, PercentageFormErrors }

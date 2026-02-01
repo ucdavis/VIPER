@@ -40,7 +40,7 @@ public class PercentagesController : BaseEffortController
 
         if (!await _permissionService.CanViewPersonPercentagesAsync(personId, ct))
         {
-            _logger.LogWarning("User not authorized to view percentages for person {PersonId}", personId);
+            _logger.LogWarning("User not authorized to view percentages for person {PersonId}", LogSanitizer.SanitizeId(personId.ToString()));
             return NotFound($"Person {personId} not found");
         }
 
@@ -66,7 +66,7 @@ public class PercentagesController : BaseEffortController
 
         if (!await _permissionService.CanViewPersonPercentagesAsync(percentage.PersonId, ct))
         {
-            _logger.LogWarning("User not authorized to view percentage {Id}", id);
+            _logger.LogWarning("User not authorized to view percentage {Id}", LogSanitizer.SanitizeId(id.ToString()));
             return NotFound($"Percentage {id} not found");
         }
 
@@ -86,7 +86,7 @@ public class PercentagesController : BaseEffortController
 
         if (!await _permissionService.CanEditPersonPercentagesAsync(request.PersonId, ct))
         {
-            _logger.LogWarning("User not authorized to edit percentages for person {PersonId}", request.PersonId);
+            _logger.LogWarning("User not authorized to edit percentages for person {PersonId}", LogSanitizer.SanitizeId(request.PersonId.ToString()));
             return NotFound($"Person {request.PersonId} not found");
         }
 
@@ -139,7 +139,7 @@ public class PercentagesController : BaseEffortController
 
         if (!await _permissionService.CanEditPersonPercentagesAsync(request.PersonId, ct))
         {
-            _logger.LogWarning("User not authorized to edit percentages for person {PersonId}", request.PersonId);
+            _logger.LogWarning("User not authorized to edit percentages for person {PersonId}", LogSanitizer.SanitizeId(request.PersonId.ToString()));
             return NotFound($"Person {request.PersonId} not found");
         }
 
@@ -166,7 +166,7 @@ public class PercentagesController : BaseEffortController
 
         if (!await _permissionService.CanEditPersonPercentagesAsync(existingPercentage.PersonId, ct))
         {
-            _logger.LogWarning("User not authorized to edit percentage {Id}", id);
+            _logger.LogWarning("User not authorized to edit percentage {Id}", LogSanitizer.SanitizeId(id.ToString()));
             return NotFound($"Percentage {id} not found");
         }
 
@@ -242,7 +242,7 @@ public class PercentagesController : BaseEffortController
 
         if (!await _permissionService.CanEditPersonPercentagesAsync(existingPercentage.PersonId, ct))
         {
-            _logger.LogWarning("User not authorized to delete percentage {Id}", id);
+            _logger.LogWarning("User not authorized to delete percentage {Id}", LogSanitizer.SanitizeId(id.ToString()));
             return NotFound($"Percentage {id} not found");
         }
 
