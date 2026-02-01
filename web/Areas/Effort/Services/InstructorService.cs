@@ -891,7 +891,8 @@ public class InstructorService : IInstructorService
 
             // Format Other summary (any class that isn't Admin or Clinical)
             var otherAssignments = byClass
-                .Where(kvp => kvp.Key != "Admin" && kvp.Key != "Clinical")
+                .Where(kvp => !string.Equals(kvp.Key, "Admin", StringComparison.OrdinalIgnoreCase) &&
+                              !string.Equals(kvp.Key, "Clinical", StringComparison.OrdinalIgnoreCase))
                 .SelectMany(kvp => kvp.Value)
                 .ToList();
             if (otherAssignments.Count > 0)
