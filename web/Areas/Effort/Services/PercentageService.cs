@@ -4,6 +4,7 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -63,7 +64,7 @@ public class PercentageService : IPercentageService
     {
         await ValidateRequestAsync(request, ct);
 
-        var academicYear = CalculateAcademicYear(request.StartDate);
+        var academicYear = AcademicYearHelper.GetAcademicYearString(request.StartDate);
 
         var percentage = new Percentage
         {
@@ -157,7 +158,7 @@ public class PercentageService : IPercentageService
         percentage.StartDate = request.StartDate;
         percentage.EndDate = request.EndDate;
         percentage.Compensated = request.Compensated;
-        percentage.AcademicYear = CalculateAcademicYear(request.StartDate);
+        percentage.AcademicYear = AcademicYearHelper.GetAcademicYearString(request.StartDate);
         percentage.ModifiedDate = DateTime.Now;
         percentage.ModifiedBy = GetCurrentPersonId();
 
@@ -354,15 +355,6 @@ public class PercentageService : IPercentageService
         var newEndDate = newEnd ?? DateTime.MaxValue;
         var existingEndDate = existingEnd ?? DateTime.MaxValue;
         return newStart <= existingEndDate && newEndDate >= existingStart;
-    }
-
-    private static string CalculateAcademicYear(DateTime date)
-    {
-        if (date.Month >= 7)
-        {
-            return $"{date.Year}-{date.Year + 1}";
-        }
-        return $"{date.Year - 1}-{date.Year}";
     }
 
     private async Task ValidateRequestAsync(CreatePercentageRequest request, CancellationToken ct)
