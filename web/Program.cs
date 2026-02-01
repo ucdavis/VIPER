@@ -227,6 +227,7 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortPermissionService, Viper.Areas.Effort.Services.EffortPermissionService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.ITermService, Viper.Areas.Effort.Services.TermService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortAuditService, Viper.Areas.Effort.Services.EffortAuditService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.ICourseClassificationService, Viper.Areas.Effort.Services.CourseClassificationService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.ICourseService, Viper.Areas.Effort.Services.CourseService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.ICourseRelationshipService, Viper.Areas.Effort.Services.CourseRelationshipService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IInstructorService, Viper.Areas.Effort.Services.InstructorService>();

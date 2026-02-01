@@ -53,6 +53,21 @@
                 </h2>
             </div>
 
+            <!-- Add Effort Button -->
+            <div
+                v-if="myEffort.canEdit"
+                class="q-mb-md"
+            >
+                <q-btn
+                    color="primary"
+                    icon="add"
+                    label="Add Effort"
+                    dense
+                    aria-label="Add effort record"
+                    @click="openAddDialog"
+                />
+            </div>
+
             <!-- Already verified banner -->
             <q-banner
                 v-if="myEffort.instructor.isVerified"
@@ -78,9 +93,9 @@
                     />
                 </template>
                 <div>
-                    <strong>You have courses with ZERO effort.</strong>
+                    <strong>You have effort items with ZERO effort.</strong>
                     You will not be able to verify your effort until these items have been updated to document
-                    hours/weeks or are removed. Please work with your departmental Effort admin to resolve these issues.
+                    hours/weeks or are removed.
                 </div>
             </q-banner>
 
@@ -173,7 +188,6 @@
                             <span :class="{ 'text-warning text-weight-bold': isZeroEffortRecord(record.id) }">
                                 {{ record.effortValue ?? 0 }}
                                 {{ record.effortLabel === "weeks" ? "Weeks" : "Hours" }}
-                                <template v-if="isZeroEffortRecord(record.id)"> *** ZERO EFFORT *** </template>
                             </span>
                         </div>
                     </q-card-section>
@@ -207,12 +221,6 @@
                     >
                         {{ props.row.effortValue ?? 0 }}
                         {{ props.row.effortLabel === "weeks" ? "Weeks" : "Hours" }}
-                        <span
-                            v-if="isZeroEffortRecord(props.row.id)"
-                            class="text-weight-bold"
-                        >
-                            *** ZERO ***
-                        </span>
                     </q-td>
                 </template>
                 <template #body-cell-actions="props">
@@ -325,6 +333,15 @@
             </div>
         </template>
 
+        <!-- Add Effort Dialog -->
+        <EffortRecordAddDialog
+            v-model="showAddDialog"
+            :person-id="myEffort?.instructor?.personId ?? 0"
+            :term-code="termCodeNum"
+            :is-verified="myEffort?.instructor?.isVerified ?? false"
+            @created="onRecordCreated"
+        />
+
         <!-- Edit Effort Dialog -->
         <EffortRecordEditDialog
             v-model="showEditDialog"
@@ -343,6 +360,7 @@ import { verificationService } from "../services/verification-service"
 import { effortService } from "../services/effort-service"
 import type { MyEffortDto, InstructorEffortRecordDto, ChildCourseDto } from "../types"
 import { VerificationErrorCodes } from "../types"
+import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
 import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
 
 const route = useRoute()
@@ -360,6 +378,7 @@ const verifyConfirmed = ref(false)
 const isVerifying = ref(false)
 
 // Dialog state
+const showAddDialog = ref(false)
 const showEditDialog = ref(false)
 const selectedRecord = ref<InstructorEffortRecordDto | null>(null)
 
@@ -466,6 +485,10 @@ function formatDate(dateString: string | null): string {
     })
 }
 
+function openAddDialog() {
+    showAddDialog.value = true
+}
+
 function openEditDialog(record: InstructorEffortRecordDto) {
     selectedRecord.value = record
     showEditDialog.value = true
@@ -503,6 +526,14 @@ async function deleteRecord(recordId: number) {
             message: "An error occurred while deleting the record",
         })
     }
+}
+
+async function onRecordCreated() {
+    $q.notify({
+        type: "positive",
+        message: "Effort record created successfully",
+    })
+    await loadData()
 }
 
 async function onRecordUpdated() {

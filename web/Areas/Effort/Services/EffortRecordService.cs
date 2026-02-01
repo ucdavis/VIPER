@@ -18,6 +18,7 @@ public class EffortRecordService : IEffortRecordService
     private readonly RAPSContext _rapsContext;
     private readonly IEffortAuditService _auditService;
     private readonly IInstructorService _instructorService;
+    private readonly ICourseClassificationService _courseClassificationService;
     private readonly IUserHelper _userHelper;
     private readonly ILogger<EffortRecordService> _logger;
 
@@ -26,6 +27,7 @@ public class EffortRecordService : IEffortRecordService
         RAPSContext rapsContext,
         IEffortAuditService auditService,
         IInstructorService instructorService,
+        ICourseClassificationService courseClassificationService,
         IUserHelper userHelper,
         ILogger<EffortRecordService> logger)
     {
@@ -33,6 +35,7 @@ public class EffortRecordService : IEffortRecordService
         _rapsContext = rapsContext;
         _auditService = auditService;
         _instructorService = instructorService;
+        _courseClassificationService = courseClassificationService;
         _userHelper = userHelper;
         _logger = logger;
     }
@@ -201,8 +204,8 @@ public class EffortRecordService : IEffortRecordService
 
         _context.Records.Add(record);
 
-        // Clear EffortVerified on person
-        person.EffortVerified = null;
+        // Handle verification - only clear if NOT a self-edit
+        HandleVerificationOnEdit(person, GetCurrentPersonId(), "create");
 
         await _context.SaveChangesAsync(ct);
 
@@ -337,8 +340,8 @@ public class EffortRecordService : IEffortRecordService
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
-        // Clear EffortVerified on person
-        record.Person.EffortVerified = null;
+        // Handle verification - only clear if NOT a self-edit
+        HandleVerificationOnEdit(record.Person, GetCurrentPersonId(), "update");
 
         await _context.SaveChangesAsync(ct);
 
@@ -394,8 +397,8 @@ public class EffortRecordService : IEffortRecordService
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
-        // Clear EffortVerified on person
-        record.Person.EffortVerified = null;
+        // Handle verification - only clear if NOT a self-edit
+        HandleVerificationOnEdit(record.Person, GetCurrentPersonId(), "delete");
 
         _context.Records.Remove(record);
 
@@ -540,6 +543,24 @@ public class EffortRecordService : IEffortRecordService
         return user?.AaudUserId ?? 0;
     }
 
+    /// <summary>
+    /// Clears verification status if the edit is NOT a self-edit.
+    /// EffortPerson is term-scoped, so we need PersonId + TermCode to find the correct record.
+    /// </summary>
+    private void HandleVerificationOnEdit(EffortPerson person, int editedByPersonId, string action)
+    {
+        var isSelfEdit = editedByPersonId == person.PersonId;
+
+        // Only clear verification if NOT a self-edit
+        if (!isSelfEdit && person.EffortVerified != null)
+        {
+            _logger.LogInformation(
+                "Clearing EffortVerified for PersonId {PersonId} in term {TermCode} due to {Action} by PersonId {EditedBy}",
+                person.PersonId, person.TermCode, action, editedByPersonId);
+            person.EffortVerified = null;
+        }
+    }
+
     private static InstructorEffortRecordDto MapToDto(EffortRecord record)
     {
         return new InstructorEffortRecordDto
@@ -591,26 +612,32 @@ public class EffortRecordService : IEffortRecordService
         };
     }
 
-    private static void ValidateEffortTypeForCourse(EffortType effortType, EffortCourse course)
+    private void ValidateEffortTypeForCourse(EffortType effortType, EffortCourse course)
     {
-        var crseNumb = course.CrseNumb.Trim();
-        var isDvm = course.CustDept.Equals("DVM", StringComparison.OrdinalIgnoreCase);
-        var is199299 = crseNumb.StartsWith("199") || crseNumb.StartsWith("299");
-        var isRCourse = crseNumb.EndsWith("R", StringComparison.OrdinalIgnoreCase);
+        var classification = _courseClassificationService.Classify(course);
 
-        if (isDvm && !effortType.AllowedOnDvm)
+        // Use AND logic - check ALL applicable classifications
+        var errors = new List<string>();
+
+        if (classification.IsDvmCourse && !effortType.AllowedOnDvm)
         {
-            throw new InvalidOperationException($"Effort type '{effortType.Description}' is not allowed on DVM courses.");
+            errors.Add("DVM courses");
         }
 
-        if (is199299 && !effortType.AllowedOn199299)
+        if (classification.Is199299Course && !effortType.AllowedOn199299)
         {
-            throw new InvalidOperationException($"Effort type '{effortType.Description}' is not allowed on 199/299 courses.");
+            errors.Add("199/299 courses");
         }
 
-        if (isRCourse && !effortType.AllowedOnRCourses)
+        if (classification.IsRCourse && !effortType.AllowedOnRCourses)
         {
-            throw new InvalidOperationException($"Effort type '{effortType.Description}' is not allowed on R courses.");
+            errors.Add("R courses");
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Effort type '{effortType.Description}' is not allowed on {string.Join(" or ", errors)}");
         }
     }
 }

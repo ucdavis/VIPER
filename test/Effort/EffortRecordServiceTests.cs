@@ -58,11 +58,14 @@ public sealed class EffortRecordServiceTests : IDisposable
         var testUser = new AaudUser { AaudUserId = TestUserId, MothraId = "testuser" };
         _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(testUser);
 
+        var courseClassificationService = new CourseClassificationService();
+
         _service = new EffortRecordService(
             _context,
             _rapsContext,
             _auditServiceMock.Object,
             _instructorServiceMock.Object,
+            courseClassificationService,
             _userHelperMock.Object,
             _loggerMock.Object);
 

@@ -162,9 +162,10 @@ public sealed class EffortRecordsControllerTests
     }
 
     [Fact]
-    public async Task CreateRecord_ReturnsNotFound_WhenUserNotAuthorizedForPerson()
+    public async Task CreateRecord_ReturnsNotFound_WhenUserNotAuthorized()
     {
-        // Arrange
+        // Arrange - CanEditPersonEffortAsync returns false when user lacks permission
+        // OR when term is not editable (both checked by CanEditPersonEffortAsync)
         var request = new CreateEffortRecordRequest
         {
             PersonId = TestPersonId,
@@ -183,33 +184,6 @@ public sealed class EffortRecordsControllerTests
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
-    }
-
-    [Fact]
-    public async Task CreateRecord_ReturnsBadRequest_WhenTermNotEditable()
-    {
-        // Arrange
-        var request = new CreateEffortRecordRequest
-        {
-            PersonId = TestPersonId,
-            TermCode = TestTermCode,
-            CourseId = 1,
-            EffortTypeId = "LEC",
-            RoleId = 1,
-            EffortValue = 40
-        };
-
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-
-        // Act
-        var result = await _controller.CreateRecord(request);
-
-        // Assert
-        var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
-        Assert.Contains("not open for editing", badRequest.Value?.ToString());
     }
 
     [Fact]
@@ -390,7 +364,8 @@ public sealed class EffortRecordsControllerTests
     [Fact]
     public async Task DeleteRecord_ReturnsNotFound_WhenUserNotAuthorized()
     {
-        // Arrange
+        // Arrange - CanEditPersonEffortAsync returns false when user lacks permission
+        // OR when term is not editable (both checked by CanEditPersonEffortAsync)
         var existingRecord = CreateTestRecord();
 
         _recordServiceMock.Setup(s => s.GetEffortRecordAsync(TestRecordId, It.IsAny<CancellationToken>()))
@@ -403,26 +378,6 @@ public sealed class EffortRecordsControllerTests
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);
-    }
-
-    [Fact]
-    public async Task DeleteRecord_ReturnsBadRequest_WhenTermNotEditable()
-    {
-        // Arrange
-        var existingRecord = CreateTestRecord();
-
-        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(TestRecordId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingRecord);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-
-        // Act
-        var result = await _controller.DeleteRecord(TestRecordId);
-
-        // Assert
-        Assert.IsType<BadRequestObjectResult>(result);
     }
 
     #endregion

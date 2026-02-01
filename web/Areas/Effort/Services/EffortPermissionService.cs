@@ -187,11 +187,24 @@ public class EffortPermissionService : IEffortPermissionService
             return false;
         }
 
+        // Term editability applies to ALL edit paths
+        if (!await IsTermEditableAsync(termCode, ct))
+        {
+            return false;
+        }
+
         if (await HasFullAccessAsync(ct))
         {
             return true;
         }
 
+        // Self-edit path (no need to check term again - already checked above)
+        if (await HasSelfServiceAccessAsync(ct) && IsCurrentUser(personId))
+        {
+            return true;
+        }
+
+        // Department-level edit
         if (!_userHelper.HasPermission(_rapsContext, user, EffortPermissions.EditEffort))
         {
             return false;
@@ -317,5 +330,63 @@ public class EffortPermissionService : IEffortPermissionService
 
         var units = reportUnit.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return units.Any(unit => authorizedDepts.Contains(unit, StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> IsTermEditableAsync(int termCode, CancellationToken ct = default)
+    {
+        var term = await _context.Terms
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
+
+        if (term == null)
+        {
+            return false;
+        }
+
+        // Term is editable if status is "Opened" OR user has EditWhenClosed permission
+        if (term.Status == "Opened")
+        {
+            return true;
+        }
+
+        return await HasPermissionAsync(EffortPermissions.EditWhenClosed, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> CanEditOwnEffortAsync(int personId, int termCode, CancellationToken ct = default)
+    {
+        // Check if user has self-service access (VerifyEffort permission)
+        if (!await HasSelfServiceAccessAsync(ct))
+        {
+            return false;
+        }
+
+        // Check if the user is editing their own record
+        if (!IsCurrentUser(personId))
+        {
+            return false;
+        }
+
+        // Check if the term is editable
+        if (!await IsTermEditableAsync(termCode, ct))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <inheritdoc />
+    public Task<bool> HasPermissionAsync(string permission, CancellationToken ct = default)
+    {
+        var user = _userHelper.GetCurrentUser();
+        if (user == null)
+        {
+            return Task.FromResult(false);
+        }
+
+        var hasPermission = _userHelper.HasPermission(_rapsContext, user, permission);
+        return Task.FromResult(hasPermission);
     }
 }
