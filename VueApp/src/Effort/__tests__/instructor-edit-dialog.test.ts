@@ -3,12 +3,12 @@ import { ref } from "vue"
 import { setActivePinia, createPinia } from "pinia"
 
 /**
- * Tests for InstructorEditDialog error handling and validation behavior.
+ * Tests for InstructorEdit page error handling and validation behavior.
  *
  * These tests validate that the component properly handles errors
  * and validates data when editing instructors in the Effort system.
  *
- * The actual component UI is tested via Playwright MCP (see SMOKETEST-Effort-Manual-Instructor.md).
+ * The actual component UI is tested via Playwright MCP (see SMOKETEST-EFFORT-PercentAssignment.md).
  */
 
 // Mock the effort service
@@ -23,7 +23,7 @@ vi.mock("../services/effort-service", () => ({
     },
 }))
 
-describe("InstructorEditDialog - Error Handling", () => {
+describe("InstructorEdit - Error Handling", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
         vi.clearAllMocks()
@@ -173,7 +173,7 @@ describe("InstructorEditDialog - Error Handling", () => {
     })
 })
 
-describe("InstructorEditDialog - State Management", () => {
+describe("InstructorEdit - State Management", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
         vi.clearAllMocks()
@@ -231,7 +231,7 @@ describe("InstructorEditDialog - State Management", () => {
     })
 })
 
-describe("InstructorEditDialog - Department Grouping", () => {
+describe("InstructorEdit - Department Grouping", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
     })

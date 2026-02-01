@@ -113,12 +113,10 @@ const routes = [
             permissions: [
                 "SVMSecure.Effort.ViewAllDepartments",
                 "SVMSecure.Effort.ViewDept",
-                "SVMSecure.Effort.ImportInstructor",
                 "SVMSecure.Effort.EditInstructor",
-                "SVMSecure.Effort.DeleteInstructor",
             ],
         },
-        component: () => import("@/Effort/pages/InstructorList.vue"),
+        component: () => import("@/Effort/pages/InstructorEdit.vue"),
         name: "InstructorEdit",
     },
     {

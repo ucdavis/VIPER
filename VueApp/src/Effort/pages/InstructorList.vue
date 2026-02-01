@@ -90,8 +90,215 @@
                     />
                 </div>
 
-                <!-- Instructors table for this department -->
+                <!-- Mobile card view -->
+                <div
+                    v-if="$q.screen.lt.md"
+                    class="instructor-cards"
+                >
+                    <q-card
+                        v-for="instructor in deptGroup.instructors"
+                        :key="instructor.personId"
+                        flat
+                        bordered
+                        class="instructor-card"
+                    >
+                        <q-card-section class="q-pa-sm">
+                            <div class="row items-center no-wrap q-mb-xs">
+                                <!-- Verified status -->
+                                <q-icon
+                                    v-if="instructor.isVerified && instructor.recordCount > 0"
+                                    name="check"
+                                    color="positive"
+                                    size="sm"
+                                    class="q-mr-sm"
+                                >
+                                    <q-tooltip>Effort verified</q-tooltip>
+                                </q-icon>
+                                <q-icon
+                                    v-else-if="instructor.isVerified && instructor.recordCount === 0"
+                                    name="check"
+                                    color="info"
+                                    size="sm"
+                                    class="q-mr-sm"
+                                >
+                                    <q-tooltip>Verified no effort</q-tooltip>
+                                </q-icon>
+                                <!-- Name and badges -->
+                                <div class="col card-name-badges">
+                                    <router-link
+                                        :to="{
+                                            name: 'InstructorDetail',
+                                            params: {
+                                                termCode: selectedTermCode,
+                                                personId: instructor.personId,
+                                            },
+                                        }"
+                                        class="text-weight-bold instructor-name"
+                                    >
+                                        {{ instructor.fullName }}
+                                    </router-link>
+                                    <q-badge
+                                        v-if="instructor.recordCount === 0"
+                                        color="orange-8"
+                                        text-color="white"
+                                    >
+                                        No Effort
+                                    </q-badge>
+                                    <q-badge
+                                        v-else-if="instructor.hasZeroHourRecords"
+                                        color="negative"
+                                        text-color="white"
+                                    >
+                                        0 Hours
+                                    </q-badge>
+                                </div>
+                                <!-- Actions -->
+                                <div class="card-actions">
+                                    <!-- Email action -->
+                                    <q-btn
+                                        v-if="instructor.isVerified"
+                                        icon="mark_email_read"
+                                        color="positive"
+                                        dense
+                                        flat
+                                        round
+                                        size="sm"
+                                        disable
+                                    />
+                                    <q-btn
+                                        v-else-if="
+                                            sendingEmailPersonIds.has(instructor.personId) ||
+                                            sendingEmailDepts.has(instructor.effortDept)
+                                        "
+                                        dense
+                                        flat
+                                        round
+                                        size="sm"
+                                        disable
+                                    >
+                                        <q-spinner
+                                            color="primary"
+                                            size="xs"
+                                        />
+                                    </q-btn>
+                                    <q-btn
+                                        v-else-if="isEmailedPastDeadline(instructor)"
+                                        icon="mark_email_unread"
+                                        color="negative"
+                                        dense
+                                        flat
+                                        round
+                                        size="sm"
+                                        @click="confirmResendEmail(instructor)"
+                                    />
+                                    <q-btn
+                                        v-else-if="instructor.lastEmailedDate"
+                                        icon="mark_email_unread"
+                                        color="warning"
+                                        dense
+                                        flat
+                                        round
+                                        size="sm"
+                                        @click="confirmResendEmail(instructor)"
+                                    />
+                                    <q-btn
+                                        v-else
+                                        icon="mail"
+                                        :color="instructor.recordCount === 0 ? 'warning' : 'primary'"
+                                        dense
+                                        flat
+                                        round
+                                        size="sm"
+                                        @click="sendVerificationEmail(instructor)"
+                                    />
+                                    <!-- View effort records -->
+                                    <q-btn
+                                        :icon="getEffortIcon(instructor)"
+                                        :color="getEffortIconColor(instructor)"
+                                        dense
+                                        flat
+                                        round
+                                        size="sm"
+                                        :to="{
+                                            name: 'InstructorDetail',
+                                            params: {
+                                                termCode: selectedTermCode,
+                                                personId: instructor.personId,
+                                            },
+                                        }"
+                                    />
+                                    <!-- Edit -->
+                                    <q-btn
+                                        v-if="hasEditInstructor"
+                                        icon="edit"
+                                        color="primary"
+                                        dense
+                                        flat
+                                        round
+                                        size="sm"
+                                        :to="{
+                                            name: 'InstructorEdit',
+                                            params: {
+                                                termCode: selectedTermCode?.toString(),
+                                                personId: instructor.personId.toString(),
+                                            },
+                                        }"
+                                    />
+                                    <!-- Delete -->
+                                    <q-btn
+                                        v-if="hasDeleteInstructor"
+                                        icon="delete"
+                                        color="negative"
+                                        dense
+                                        flat
+                                        round
+                                        size="sm"
+                                        @click="confirmDeleteInstructor(instructor)"
+                                    />
+                                </div>
+                            </div>
+                            <div
+                                v-if="instructor.title"
+                                class="text-caption text-grey-7"
+                            >
+                                {{ instructor.title }}
+                            </div>
+                            <!-- Percentage summaries -->
+                            <div
+                                v-if="
+                                    instructor.percentAdminSummary ||
+                                    instructor.percentClinicalSummary ||
+                                    instructor.percentOtherSummary
+                                "
+                                class="q-mt-xs text-caption"
+                            >
+                                <div
+                                    v-if="instructor.percentAdminSummary"
+                                    class="percent-line"
+                                >
+                                    <span class="text-weight-medium">Admin:</span> {{ instructor.percentAdminSummary }}
+                                </div>
+                                <div
+                                    v-if="instructor.percentClinicalSummary"
+                                    class="percent-line"
+                                >
+                                    <span class="text-weight-medium">Clinical:</span>
+                                    {{ instructor.percentClinicalSummary }}
+                                </div>
+                                <div
+                                    v-if="instructor.percentOtherSummary"
+                                    class="percent-line"
+                                >
+                                    <span class="text-weight-medium">Other:</span> {{ instructor.percentOtherSummary }}
+                                </div>
+                            </div>
+                        </q-card-section>
+                    </q-card>
+                </div>
+
+                <!-- Desktop table view -->
                 <q-table
+                    v-else
                     :rows="deptGroup.instructors"
                     :columns="columns"
                     row-key="personId"
@@ -116,7 +323,8 @@
                                         anchor="bottom middle"
                                         self="top middle"
                                     >
-                                        <div class="text-subtitle2 q-mb-sm text-dark">Email Status Legend</div>
+                                        <div class="text-subtitle2 q-mb-sm text-dark">Actions Legend</div>
+                                        <div class="legend-section-title">Email Status</div>
                                         <div class="legend-item">
                                             <q-icon
                                                 name="mail"
@@ -156,6 +364,31 @@
                                                 size="xs"
                                             />
                                             <span>Already verified</span>
+                                        </div>
+                                        <div class="legend-section-title">Effort Records</div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="work_history"
+                                                color="primary"
+                                                size="xs"
+                                            />
+                                            <span>Has effort records</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="work_alert"
+                                                color="warning"
+                                                size="xs"
+                                            />
+                                            <span>Has no effort records (can verify)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="work_alert"
+                                                color="negative"
+                                                size="xs"
+                                            />
+                                            <span>Has 0-hour items (cannot verify)</span>
                                         </div>
                                     </q-tooltip>
                                 </q-icon>
@@ -217,6 +450,15 @@
                                     No Effort
                                     <q-tooltip>This instructor has no effort records for this term</q-tooltip>
                                 </q-badge>
+                                <q-badge
+                                    v-else-if="props.row.hasZeroHourRecords"
+                                    color="negative"
+                                    text-color="white"
+                                    class="no-effort-badge"
+                                >
+                                    Item with 0 Hours
+                                    <q-tooltip>This instructor has effort items with 0 hours - cannot verify</q-tooltip>
+                                </q-badge>
                             </div>
                             <div
                                 v-if="props.row.title"
@@ -230,79 +472,81 @@
                         <q-td :props="props">
                             <div class="actions-cell">
                                 <!-- Email action: Already verified -->
-                                <q-icon
+                                <q-btn
                                     v-if="props.row.isVerified"
-                                    name="mark_email_read"
+                                    icon="mark_email_read"
                                     color="positive"
-                                    size="xs"
+                                    dense
+                                    flat
+                                    round
+                                    size="sm"
+                                    disable
+                                    :aria-label="`${props.row.fullName} already verified`"
                                 >
                                     <q-tooltip>Already verified</q-tooltip>
-                                </q-icon>
+                                </q-btn>
                                 <!-- Email action: Loading spinner while sending -->
-                                <q-spinner
+                                <q-btn
                                     v-else-if="
                                         sendingEmailPersonIds.has(props.row.personId) ||
                                         sendingEmailDepts.has(props.row.effortDept)
                                     "
-                                    color="primary"
-                                    size="xs"
-                                />
+                                    dense
+                                    flat
+                                    round
+                                    size="sm"
+                                    disable
+                                    :aria-label="`Sending email to ${props.row.fullName}`"
+                                >
+                                    <q-spinner
+                                        color="primary"
+                                        size="xs"
+                                    />
+                                </q-btn>
                                 <!-- Email action: Emailed past deadline, not verified -->
-                                <span
+                                <q-btn
                                     v-else-if="isEmailedPastDeadline(props.row)"
-                                    class="email-icon-btn"
-                                    tabindex="0"
-                                    role="button"
+                                    icon="mark_email_unread"
+                                    color="negative"
+                                    dense
+                                    flat
+                                    round
+                                    size="sm"
                                     :aria-label="`Resend verification email to ${props.row.fullName} (past deadline)`"
                                     @click="confirmResendEmail(props.row)"
-                                    @keydown.enter.prevent="confirmResendEmail(props.row)"
-                                    @keydown.space.prevent="confirmResendEmail(props.row)"
                                 >
-                                    <q-icon
-                                        name="mark_email_unread"
-                                        color="negative"
-                                        size="xs"
-                                    />
                                     <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
-                                </span>
+                                </q-btn>
                                 <!-- Email action: Emailed within deadline, not verified -->
-                                <span
+                                <q-btn
                                     v-else-if="props.row.lastEmailedDate"
-                                    class="email-icon-btn"
-                                    tabindex="0"
-                                    role="button"
+                                    icon="mark_email_unread"
+                                    color="warning"
+                                    dense
+                                    flat
+                                    round
+                                    size="sm"
                                     :aria-label="`Resend verification email to ${props.row.fullName}`"
                                     @click="confirmResendEmail(props.row)"
-                                    @keydown.enter.prevent="confirmResendEmail(props.row)"
-                                    @keydown.space.prevent="confirmResendEmail(props.row)"
                                 >
-                                    <q-icon
-                                        name="mark_email_unread"
-                                        color="warning"
-                                        size="xs"
-                                    />
                                     <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
-                                </span>
+                                </q-btn>
                                 <!-- Email action: Never emailed, not verified -->
-                                <span
+                                <q-btn
                                     v-else
-                                    class="email-icon-btn"
-                                    tabindex="0"
-                                    role="button"
+                                    icon="mail"
+                                    :color="props.row.recordCount === 0 ? 'warning' : 'primary'"
+                                    dense
+                                    flat
+                                    round
+                                    size="sm"
                                     :aria-label="
                                         props.row.recordCount === 0
                                             ? `Send no-effort verification email to ${props.row.fullName}`
                                             : `Send verification email to ${props.row.fullName}`
                                     "
                                     @click="sendVerificationEmail(props.row)"
-                                    @keydown.enter.prevent="sendVerificationEmail(props.row)"
-                                    @keydown.space.prevent="sendVerificationEmail(props.row)"
                                 >
-                                    <q-icon
-                                        name="mail"
-                                        :color="props.row.recordCount === 0 ? 'warning' : 'primary'"
-                                        size="xs"
-                                    />
                                     <q-tooltip>
                                         {{
                                             props.row.recordCount === 0
@@ -310,7 +554,26 @@
                                                 : "Send verification email"
                                         }}
                                     </q-tooltip>
-                                </span>
+                                </q-btn>
+                                <!-- View effort records action -->
+                                <q-btn
+                                    :icon="getEffortIcon(props.row)"
+                                    :color="getEffortIconColor(props.row)"
+                                    dense
+                                    flat
+                                    round
+                                    size="sm"
+                                    :aria-label="`View effort records for ${props.row.fullName}`"
+                                    :to="{
+                                        name: 'InstructorDetail',
+                                        params: {
+                                            termCode: selectedTermCode,
+                                            personId: props.row.personId,
+                                        },
+                                    }"
+                                >
+                                    <q-tooltip>{{ getEffortTooltip(props.row) }}</q-tooltip>
+                                </q-btn>
                                 <!-- Edit action -->
                                 <q-btn
                                     v-if="hasEditInstructor"
@@ -321,7 +584,13 @@
                                     round
                                     size="sm"
                                     :aria-label="`Edit ${props.row.fullName}`"
-                                    @click="openEditDialog(props.row)"
+                                    :to="{
+                                        name: 'InstructorEdit',
+                                        params: {
+                                            termCode: selectedTermCode?.toString(),
+                                            personId: props.row.personId.toString(),
+                                        },
+                                    }"
                                 >
                                     <q-tooltip>Edit instructor</q-tooltip>
                                 </q-btn>
@@ -364,17 +633,6 @@
             :term-code="selectedTermCode"
             @created="onInstructorCreated"
         />
-
-        <!-- Edit Dialog -->
-        <InstructorPercentEditDialog
-            v-model="showEditDialog"
-            :instructor="selectedInstructor"
-            :term-code="selectedTermCode"
-            :can-edit="hasEditInstructor"
-            :can-edit-instructor="hasEditInstructor"
-            @updated="onInstructorUpdated"
-            @closed="closeEditDialog"
-        />
     </div>
 </template>
 
@@ -390,7 +648,6 @@ import { useUserStore } from "@/store/UserStore"
 import type { PersonDto, TermDto, BulkEmailResult } from "../types"
 import type { QTableColumn } from "quasar"
 import InstructorAddDialog from "../components/InstructorAddDialog.vue"
-import InstructorPercentEditDialog from "../components/InstructorPercentEditDialog.vue"
 import { inflect } from "inflection"
 
 const $q = useQuasar()
@@ -409,8 +666,6 @@ const isLoading = ref(false)
 
 // Dialogs
 const showAddDialog = ref(false)
-const showEditDialog = ref(false)
-const selectedInstructor = ref<PersonDto | null>(null)
 
 // Email state - using Sets to allow concurrent sends
 const sendingEmailPersonIds = ref<Set<number>>(new Set())
@@ -558,8 +813,8 @@ const columns = computed<QTableColumn[]>(() => [
         label: "Actions",
         field: "actions",
         align: "center",
-        style: "width: 120px; min-width: 120px",
-        headerStyle: "width: 120px; min-width: 120px",
+        style: "width: 150px; min-width: 150px",
+        headerStyle: "width: 150px; min-width: 150px",
     },
 ])
 
@@ -599,27 +854,6 @@ watch(
     },
 )
 
-// Watch for personId in URL to open/close edit dialog
-// Also watch instructors so we can open the dialog after they load
-watch(
-    [() => route.params.personId, instructors],
-    ([newPersonId, currentInstructors]) => {
-        if (newPersonId && currentInstructors.length > 0) {
-            const personId = parseInt(newPersonId as string, 10)
-            const instructor = currentInstructors.find((i) => i.personId === personId)
-            if (instructor && !showEditDialog.value) {
-                selectedInstructor.value = instructor
-                showEditDialog.value = true
-            }
-        } else if (!newPersonId && showEditDialog.value) {
-            // URL no longer has personId, close dialog
-            showEditDialog.value = false
-            selectedInstructor.value = null
-        }
-    },
-    { immediate: true },
-)
-
 async function loadInstructors() {
     if (!selectedTermCode.value) return
 
@@ -637,31 +871,6 @@ async function loadInstructors() {
         if (token === loadToken) {
             isLoading.value = false
         }
-    }
-}
-
-function openEditDialog(instructor: PersonDto) {
-    selectedInstructor.value = instructor
-    showEditDialog.value = true
-    // Update URL to include personId for bookmarkability
-    router.replace({
-        name: "InstructorEdit",
-        params: {
-            termCode: selectedTermCode.value!.toString(),
-            personId: instructor.personId.toString(),
-        },
-    })
-}
-
-function closeEditDialog() {
-    showEditDialog.value = false
-    selectedInstructor.value = null
-    // Remove personId from URL when closing dialog (only if we're on the detail route)
-    if (route.params.personId && selectedTermCode.value) {
-        router.replace({
-            name: "InstructorList",
-            params: { termCode: selectedTermCode.value.toString() },
-        })
     }
 }
 
@@ -702,11 +911,6 @@ async function deleteInstructor(personId: number) {
 
 function onInstructorCreated() {
     $q.notify({ type: "positive", message: "Instructor added successfully" })
-    loadInstructors()
-}
-
-function onInstructorUpdated() {
-    $q.notify({ type: "positive", message: "Instructor updated successfully" })
     loadInstructors()
 }
 
@@ -757,6 +961,27 @@ function getEmailTooltip(instructor: PersonDto): string {
         return `Emailed ${dateStr} by ${sender} - ${daysPast} ${inflect("day", daysPast)} past deadline`
     }
     return `Emailed ${dateStr} by ${sender}`
+}
+
+// Effort records icon helpers
+function getEffortIcon(instructor: PersonDto): string {
+    if (instructor.recordCount === 0) return "work_alert"
+    if (instructor.hasZeroHourRecords) return "work_alert"
+    return "work_history"
+}
+
+function getEffortIconColor(instructor: PersonDto): string {
+    // Has records with 0 hours = error (cannot verify)
+    if (instructor.hasZeroHourRecords) return "negative"
+    // No records = warning (can still verify "no effort")
+    if (instructor.recordCount === 0) return "warning"
+    return "primary"
+}
+
+function getEffortTooltip(instructor: PersonDto): string {
+    if (instructor.hasZeroHourRecords) return "View effort records (has 0-hour items, cannot verify)"
+    if (instructor.recordCount === 0) return "View effort records (no records, can verify 'no effort')"
+    return "View effort records"
 }
 
 function confirmResendEmail(instructor: PersonDto) {
@@ -928,6 +1153,40 @@ onMounted(loadTerms)
     }
 }
 
+/* Mobile card view */
+.instructor-cards {
+    display: flex;
+    flex-direction: column;
+}
+
+.instructor-card {
+    border-radius: 0;
+    border-top: none;
+}
+
+.instructor-card:first-child {
+    border-top: 1px solid rgb(0 0 0 / 12%);
+}
+
+.card-name-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 0.5rem;
+    row-gap: 0;
+}
+
+.card-actions {
+    display: flex;
+    gap: 0.125rem;
+    flex-shrink: 0;
+}
+
+.percent-line {
+    white-space: pre-line;
+    line-height: 1.3;
+}
+
 .dept-header {
     background-color: #5f6a6a;
     font-weight: bold;
@@ -966,7 +1225,7 @@ onMounted(loadTerms)
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.125rem 0.5rem;
 }
 
 .no-effort-badge {
@@ -980,6 +1239,19 @@ onMounted(loadTerms)
     padding: 0.25rem 0;
 }
 
+.legend-section-title {
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 0.5rem;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+}
+
+.legend-section-title:first-of-type {
+    margin-top: 0;
+}
+
 .actions-header-content {
     display: inline-flex;
     align-items: center;
@@ -991,38 +1263,6 @@ onMounted(loadTerms)
     align-items: center;
     justify-content: center;
     gap: 0.25rem;
-}
-
-@media screen and (prefers-reduced-motion: reduce) {
-    .email-icon-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        transition: none;
-    }
-}
-
-.email-icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    transition: background-color 0.2s;
-}
-
-.email-icon-btn:hover,
-.email-icon-btn:focus {
-    background-color: rgb(0 0 0 / 10%);
-}
-
-.email-icon-btn:focus-visible {
-    outline: 2px solid currentcolor;
-    outline-offset: 2px;
 }
 </style>
 

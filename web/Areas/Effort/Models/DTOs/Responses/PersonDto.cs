@@ -7,6 +7,7 @@ public class PersonDto
 {
     public int PersonId { get; set; }
     public int TermCode { get; set; }
+    public string? MailId { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string? MiddleInitial { get; set; }
@@ -49,6 +50,12 @@ public class PersonDto
     /// Used for UI display and visual indicators.
     /// </summary>
     public int RecordCount { get; set; }
+
+    /// <summary>
+    /// Whether any effort records have 0 hours/weeks assigned.
+    /// Instructors with 0-hour records cannot verify their effort.
+    /// </summary>
+    public bool HasZeroHourRecords { get; set; }
 
     /// <summary>
     /// Whether verification emails can be sent to this instructor.

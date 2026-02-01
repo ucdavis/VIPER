@@ -143,7 +143,7 @@ public class InstructorService : IInstructorService
     }
 
     /// <summary>
-    /// Executes instructor query with left join to resolve LastEmailedBy sender names.
+    /// Executes instructor query with left joins to resolve LastEmailedBy sender names and MailId.
     /// </summary>
     private async Task<List<PersonDto>> QueryInstructorsWithSenderNamesAsync(
         IQueryable<EffortPerson> baseQuery,
@@ -154,7 +154,15 @@ public class InstructorService : IInstructorService
                     join sender in _context.ViperPersons.AsNoTracking()
                         on p.LastEmailedBy equals sender.PersonId into senders
                     from sender in senders.DefaultIfEmpty()
-                    select new { Person = p, SenderName = sender != null ? sender.FirstName + " " + sender.LastName : null };
+                    join person in _context.ViperPersons.AsNoTracking()
+                        on p.PersonId equals person.PersonId into persons
+                    from person in persons.DefaultIfEmpty()
+                    select new
+                    {
+                        Person = p,
+                        SenderName = sender != null ? sender.FirstName + " " + sender.LastName : null,
+                        MailId = person != null ? person.MailId : null
+                    };
 
         if (applyOrdering)
         {
@@ -164,12 +172,20 @@ public class InstructorService : IInstructorService
         var results = await query.ToListAsync(ct);
         var instructors = results.Select(r => r.Person).ToList();
         var senderNames = results.ToDictionary(r => r.Person.PersonId, r => r.SenderName);
+        var mailIds = results.ToDictionary(r => r.Person.PersonId, r => r.MailId);
 
         var dtos = _mapper.Map<List<PersonDto>>(instructors);
 
-        foreach (var dto in dtos.Where(d => senderNames.TryGetValue(d.PersonId, out var name) && name != null))
+        foreach (var dto in dtos)
         {
-            dto.LastEmailedBy = senderNames[dto.PersonId];
+            if (senderNames.TryGetValue(dto.PersonId, out var name) && name != null)
+            {
+                dto.LastEmailedBy = name;
+            }
+            if (mailIds.TryGetValue(dto.PersonId, out var mailId))
+            {
+                dto.MailId = mailId;
+            }
         }
 
         return dtos;
@@ -758,6 +774,7 @@ public class InstructorService : IInstructorService
     /// Enriches instructor DTOs with effort record counts for the term.
     /// Used for UI display and visual indicators; instructors with zero records
     /// can still receive verification emails to confirm "no effort" status.
+    /// Also detects records with 0 hours/weeks which prevent verification.
     /// </summary>
     private async Task EnrichWithRecordCountsAsync(List<PersonDto> instructors, int termCode, CancellationToken ct)
     {
@@ -765,16 +782,30 @@ public class InstructorService : IInstructorService
 
         var personIds = instructors.Select(i => i.PersonId).ToList();
 
-        var recordCounts = await _context.Records
+        var recordStats = await _context.Records
             .AsNoTracking()
             .Where(r => r.TermCode == termCode && personIds.Contains(r.PersonId))
             .GroupBy(r => r.PersonId)
-            .Select(g => new { PersonId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.PersonId, x => x.Count, ct);
+            .Select(g => new
+            {
+                PersonId = g.Key,
+                Count = g.Count(),
+                HasZeroHours = g.Any(r => (r.Hours ?? 0) == 0 && (r.Weeks ?? 0) == 0)
+            })
+            .ToDictionaryAsync(x => x.PersonId, ct);
 
         foreach (var instructor in instructors)
         {
-            instructor.RecordCount = recordCounts.GetValueOrDefault(instructor.PersonId, 0);
+            if (recordStats.TryGetValue(instructor.PersonId, out var stats))
+            {
+                instructor.RecordCount = stats.Count;
+                instructor.HasZeroHourRecords = stats.HasZeroHours;
+            }
+            else
+            {
+                instructor.RecordCount = 0;
+                instructor.HasZeroHourRecords = false;
+            }
         }
     }
 
