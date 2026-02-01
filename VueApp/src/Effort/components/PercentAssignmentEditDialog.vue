@@ -188,9 +188,7 @@
                             color="dark"
                         />
                     </template>
-                    <div>
-                        <strong>Saved with notice:</strong> {{ warningMessage }}
-                    </div>
+                    <div><strong>Saved with notice:</strong> {{ warningMessage }}</div>
                     <template #action>
                         <q-btn
                             flat
