@@ -7,6 +7,7 @@ using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
+using Viper.Classes.SQLContext;
 
 namespace Viper.test.Effort;
 
@@ -18,6 +19,9 @@ namespace Viper.test.Effort;
 public sealed class CourseServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
+    private readonly VIPERContext _viperContext;
+    private readonly AAUDContext _aaudContext;
+    private readonly CoursesContext _coursesContext;
     private readonly Mock<IEffortAuditService> _auditServiceMock;
     private readonly Mock<ILogger<CourseService>> _loggerMock;
     private readonly CourseService _courseService;
@@ -29,7 +33,22 @@ public sealed class CourseServiceTests : IDisposable
             .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
 
+        var viperOptions = new DbContextOptionsBuilder<VIPERContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        var aaudOptions = new DbContextOptionsBuilder<AAUDContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        var coursesOptions = new DbContextOptionsBuilder<CoursesContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
         _context = new EffortDbContext(effortOptions);
+        _viperContext = new VIPERContext(viperOptions);
+        _aaudContext = new AAUDContext(aaudOptions);
+        _coursesContext = new CoursesContext(coursesOptions);
         _auditServiceMock = new Mock<IEffortAuditService>();
         _loggerMock = new Mock<ILogger<CourseService>>();
 
@@ -37,12 +56,15 @@ public sealed class CourseServiceTests : IDisposable
         _auditServiceMock
             .Setup(s => s.AddCourseChangeAudit(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>()));
 
-        _courseService = new CourseService(_context, _auditServiceMock.Object, _loggerMock.Object);
+        _courseService = new CourseService(_context, _viperContext, _aaudContext, _coursesContext, _auditServiceMock.Object, _loggerMock.Object);
     }
 
     public void Dispose()
     {
         _context.Dispose();
+        _viperContext.Dispose();
+        _aaudContext.Dispose();
+        _coursesContext.Dispose();
     }
 
     #region GetCoursesAsync Tests

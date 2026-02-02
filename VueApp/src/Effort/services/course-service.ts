@@ -213,6 +213,62 @@ class CourseService {
         const response = await del(`${this.baseUrl}/courses/${parentCourseId}/relationships/${relationshipId}`)
         return response.success
     }
+
+    // Self-Service Course Import Operations
+
+    /**
+     * Search for Banner courses that the current user is an instructor for.
+     * Only returns courses where the user is listed as instructor in Banner.
+     * Excludes DVM/VET courses.
+     */
+    async searchBannerCoursesForSelf(
+        termCode: number,
+        filters: { subjCode?: string; crseNumb?: string; seqNumb?: string; crn?: string } = {},
+    ): Promise<BannerCourseDto[]> {
+        const params = new URLSearchParams({ termCode: termCode.toString() })
+        if (filters.subjCode) {
+            params.append("subjCode", filters.subjCode)
+        }
+        if (filters.crseNumb) {
+            params.append("crseNumb", filters.crseNumb)
+        }
+        if (filters.seqNumb) {
+            params.append("seqNumb", filters.seqNumb)
+        }
+        if (filters.crn) {
+            params.append("crn", filters.crn)
+        }
+
+        const response = await get(`${this.baseUrl}/courses/self-service/search?${params.toString()}`)
+        if (!response.success || !Array.isArray(response.result)) {
+            throw new Error(response.errors?.[0] ?? "Search failed")
+        }
+        return response.result as BannerCourseDto[]
+    }
+
+    /**
+     * Import a course from Banner for self-service (instructor importing their own course).
+     * This is idempotent - returns the existing course if already imported.
+     */
+    async importCourseForSelf(
+        request: ImportCourseRequest,
+    ): Promise<{ success: boolean; course?: CourseDto; wasExisting?: boolean; message?: string; error?: string }> {
+        const response = await post(`${this.baseUrl}/courses/self-service/import`, request)
+        if (!response.success) {
+            return {
+                success: false,
+                error: response.errors?.[0] ?? "Failed to import course",
+            }
+        }
+        const result = response.result as {
+            success: boolean
+            course?: CourseDto
+            wasExisting?: boolean
+            message?: string
+            error?: string
+        }
+        return result
+    }
 }
 
 const courseService = new CourseService()

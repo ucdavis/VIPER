@@ -4,6 +4,7 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
+using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
@@ -14,6 +15,9 @@ namespace Viper.Areas.Effort.Services;
 public class CourseService : ICourseService
 {
     private readonly EffortDbContext _context;
+    private readonly VIPERContext _viperContext;
+    private readonly AAUDContext _aaudContext;
+    private readonly CoursesContext _coursesContext;
     private readonly IEffortAuditService _auditService;
     private readonly ILogger<CourseService> _logger;
 
@@ -42,10 +46,16 @@ public class CourseService : ICourseService
 
     public CourseService(
         EffortDbContext context,
+        VIPERContext viperContext,
+        AAUDContext aaudContext,
+        CoursesContext coursesContext,
         IEffortAuditService auditService,
         ILogger<CourseService> logger)
     {
         _context = context;
+        _viperContext = viperContext;
+        _aaudContext = aaudContext;
+        _coursesContext = coursesContext;
         _auditService = auditService;
         _logger = logger;
     }
@@ -465,5 +475,171 @@ public class CourseService : ICourseService
             CustDept = course.CustDept.Trim(),
             ParentCourseId = parentCourseId
         };
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> IsInstructorForCourseAsync(int termCode, string crn, int personId, CancellationToken ct = default)
+    {
+        // Look up the user's MothraId from VIPER Person table
+        var person = await _viperContext.People
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.PersonId == personId, ct);
+
+        if (person == null || string.IsNullOrEmpty(person.MothraId))
+        {
+            _logger.LogWarning("Person {PersonId} not found or has no MothraId", personId);
+            return false;
+        }
+
+        // Look up the PIDM from AAUD Ids table using MothraId
+        var termCodeStr = termCode.ToString();
+        var idsRecord = await _aaudContext.Ids
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.IdsMothraid == person.MothraId && i.IdsTermCode == termCodeStr, ct);
+
+        if (idsRecord == null || string.IsNullOrEmpty(idsRecord.IdsPidm))
+        {
+            _logger.LogDebug("No PIDM found for MothraId {MothraId} in term {TermCode}", person.MothraId, termCode);
+            return false;
+        }
+
+        // Check if there's a POA entry for this PIDM and CRN
+        var crnTrimmed = crn.Trim();
+        var poaExists = await _coursesContext.Poas
+            .AsNoTracking()
+            .AnyAsync(p => p.PoaTermCode == termCodeStr
+                        && p.PoaCrn.Trim() == crnTrimmed
+                        && p.PoaPidm == idsRecord.IdsPidm, ct);
+
+        return poaExists;
+    }
+
+    /// <inheritdoc />
+    public async Task<HashSet<string>> GetInstructorCrnsAsync(int termCode, int personId, IEnumerable<string> crns, CancellationToken ct = default)
+    {
+        var crnList = crns.Select(c => c.Trim()).Distinct().ToList();
+        if (crnList.Count == 0)
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        // Query 1: Look up the user's MothraId from VIPER Person table (once)
+        var person = await _viperContext.People
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.PersonId == personId, ct);
+
+        if (person == null || string.IsNullOrEmpty(person.MothraId))
+        {
+            _logger.LogWarning("Person {PersonId} not found or has no MothraId", personId);
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        // Query 2: Look up PIDM from AAUD Ids table (once)
+        var termCodeStr = termCode.ToString();
+        var idsRecord = await _aaudContext.Ids
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.IdsMothraid == person.MothraId && i.IdsTermCode == termCodeStr, ct);
+
+        if (idsRecord == null || string.IsNullOrEmpty(idsRecord.IdsPidm))
+        {
+            _logger.LogDebug("No PIDM found for MothraId {MothraId} in term {TermCode}", person.MothraId, termCode);
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        // Query 3: Batch query POA for all CRNs at once
+        var instructorCrns = await _coursesContext.Poas
+            .AsNoTracking()
+            .Where(p => p.PoaTermCode == termCodeStr
+                     && p.PoaPidm == idsRecord.IdsPidm
+                     && crnList.Contains(p.PoaCrn.Trim()))
+            .Select(p => p.PoaCrn.Trim())
+            .ToListAsync(ct);
+
+        return new HashSet<string>(instructorCrns, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <inheritdoc />
+    public async Task<ImportCourseForSelfResult> ImportCourseForSelfAsync(int termCode, string crn, decimal? units = null, CancellationToken ct = default)
+    {
+        var crnTrimmed = crn.Trim();
+
+        // First, check if course already exists in Effort (idempotent check)
+        var existingCourse = await _context.Courses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.TermCode == termCode && c.Crn.Trim() == crnTrimmed, ct);
+
+        if (existingCourse != null)
+        {
+            // Course already imported - if units specified and doesn't match, check for variable-unit match
+            if (units.HasValue && existingCourse.Units != units.Value)
+            {
+                // Check if a matching unit value exists
+                existingCourse = await _context.Courses
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.TermCode == termCode
+                                           && c.Crn.Trim() == crnTrimmed
+                                           && c.Units == units.Value, ct);
+
+                if (existingCourse == null)
+                {
+                    // For variable-unit courses, we could create a new record with different units
+                    // But for self-import, we'll just use the existing course
+                    existingCourse = await _context.Courses
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(c => c.TermCode == termCode && c.Crn.Trim() == crnTrimmed, ct);
+                }
+            }
+
+            if (existingCourse != null)
+            {
+                _logger.LogDebug("Course {Crn} already exists for term {TermCode}", LogSanitizer.SanitizeId(crnTrimmed), termCode);
+                return ImportCourseForSelfResult.SuccessExisting(ToDto(existingCourse));
+            }
+        }
+
+        // Fetch course from Banner
+        var bannerCourse = await GetBannerCourseAsync(termCode, crnTrimmed, ct);
+        if (bannerCourse == null)
+        {
+            return ImportCourseForSelfResult.Failure($"Course with CRN {crnTrimmed} not found in Banner for term {termCode}");
+        }
+
+        // Determine units - require units for variable-unit courses
+        var isVariable = bannerCourse.UnitType == "V";
+        if (isVariable && !units.HasValue)
+        {
+            return ImportCourseForSelfResult.Failure("Units are required for variable-unit courses");
+        }
+        var finalUnits = isVariable ? units!.Value : bannerCourse.UnitLow;
+
+        // Validate units for variable-unit courses
+        if (isVariable && (finalUnits < bannerCourse.UnitLow || finalUnits > bannerCourse.UnitHigh))
+        {
+            return ImportCourseForSelfResult.Failure(
+                $"Units {finalUnits} must be between {bannerCourse.UnitLow} and {bannerCourse.UnitHigh}");
+        }
+
+        // Check if course with these units already exists (for variable-unit courses)
+        if (await CourseExistsAsync(termCode, crnTrimmed, finalUnits, ct))
+        {
+            var existingWithUnits = await _context.Courses
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.TermCode == termCode
+                                       && c.Crn.Trim() == crnTrimmed
+                                       && c.Units == finalUnits, ct);
+            if (existingWithUnits != null)
+            {
+                return ImportCourseForSelfResult.SuccessExisting(ToDto(existingWithUnits));
+            }
+        }
+
+        // Import the course
+        var importRequest = new ImportCourseRequest { TermCode = termCode, Crn = crnTrimmed, Units = finalUnits };
+        var importedCourse = await ImportCourseFromBannerAsync(importRequest, bannerCourse, ct);
+
+        _logger.LogInformation("Self-imported course {Crn} for term {TermCode}",
+            LogSanitizer.SanitizeId(crnTrimmed), termCode);
+
+        return ImportCourseForSelfResult.SuccessNew(importedCourse);
     }
 }

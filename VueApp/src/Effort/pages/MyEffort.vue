@@ -53,10 +53,10 @@
                 </h2>
             </div>
 
-            <!-- Add Effort Button -->
+            <!-- Add Effort and Import Course Buttons -->
             <div
                 v-if="myEffort.canEdit"
-                class="q-mb-md"
+                class="q-mb-md q-gutter-sm"
             >
                 <q-btn
                     color="primary"
@@ -65,6 +65,15 @@
                     dense
                     aria-label="Add effort record"
                     @click="openAddDialog"
+                />
+                <q-btn
+                    color="secondary"
+                    icon="cloud_download"
+                    label="Import Course from Banner"
+                    dense
+                    outline
+                    aria-label="Import course from Banner"
+                    @click="openImportDialog"
                 />
             </div>
 
@@ -339,6 +348,7 @@
             :person-id="myEffort?.instructor?.personId ?? 0"
             :term-code="termCodeNum"
             :is-verified="myEffort?.instructor?.isVerified ?? false"
+            :pre-selected-course-id="preSelectedCourseId"
             @created="onRecordCreated"
         />
 
@@ -348,6 +358,14 @@
             :record="selectedRecord"
             :term-code="termCodeNum"
             @updated="onRecordUpdated"
+        />
+
+        <!-- Import Course Dialog -->
+        <CourseImportForSelfDialog
+            v-model="showImportDialog"
+            :term-code="termCodeNum"
+            :term-name="myEffort?.termName ?? ''"
+            @imported="onCourseImported"
         />
     </div>
 </template>
@@ -362,6 +380,7 @@ import type { MyEffortDto, InstructorEffortRecordDto, ChildCourseDto, EffortType
 import { VerificationErrorCodes } from "../types"
 import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
 import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
+import CourseImportForSelfDialog from "../components/CourseImportForSelfDialog.vue"
 
 const route = useRoute()
 const $q = useQuasar()
@@ -381,7 +400,9 @@ const isVerifying = ref(false)
 // Dialog state
 const showAddDialog = ref(false)
 const showEditDialog = ref(false)
+const showImportDialog = ref(false)
 const selectedRecord = ref<InstructorEffortRecordDto | null>(null)
+const preSelectedCourseId = ref<number | null>(null)
 
 // Computed
 const hasClinicalEffort = computed(() => {
@@ -495,6 +516,16 @@ function openEditDialog(record: InstructorEffortRecordDto) {
     showEditDialog.value = true
 }
 
+function openImportDialog() {
+    showImportDialog.value = true
+}
+
+function onCourseImported(courseId: number) {
+    // After importing a course, open the Add Effort dialog with the course pre-selected
+    preSelectedCourseId.value = courseId
+    showAddDialog.value = true
+}
+
 /**
  * Checks if the effort type is restricted for the given course classification.
  * A restricted type is one that cannot be re-added after deletion because it's
@@ -569,6 +600,8 @@ async function onRecordCreated() {
         type: "positive",
         message: "Effort record created successfully",
     })
+    // Reset pre-selected course after creation
+    preSelectedCourseId.value = null
     await loadData()
 }
 
