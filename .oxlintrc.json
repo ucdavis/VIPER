@@ -160,17 +160,19 @@
                 "VueApp/src/**/composables/use-schedule-operations.ts",
                 "VueApp/src/**/composables/use-schedule-crud.ts",
                 "VueApp/src/**/composables/use-schedule-dialogs.ts",
-                "VueApp/src/**/utils/confirmation-dialog.ts"
+                "VueApp/src/**/utils/confirmation-dialog.ts",
+                "VueApp/src/composables/use-unsaved-changes.ts"
             ],
             "rules": {
-                "promise/avoid-new": "off", // Quasar dialogs require Promise wrapper for async/await
+                "promise/avoid-new": "off" // Quasar dialogs require Promise wrapper for async/await
             }
         },
         {
             "files": [
                 "VueApp/src/composables/ViperFetch.ts",
                 "VueApp/src/composables/RequireLogin.ts",
-                "VueApp/src/composables/QuasarConfig.ts"
+                "VueApp/src/composables/QuasarConfig.ts",
+                "VueApp/src/composables/ErrorHandler.ts"
             ],
             "rules": {
                 "unicorn/filename-case": "off" // Legacy core files - keep PascalCase naming for backwards compatibility

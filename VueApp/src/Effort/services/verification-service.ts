@@ -72,9 +72,14 @@ class VerificationService {
 
     /**
      * Send verification emails to all unverified instructors in a department.
+     * @param includeRecentlyEmailed - If true, also email instructors who were emailed within the reply period.
      */
-    async sendBulkVerificationEmails(departmentCode: string, termCode: number): Promise<BulkEmailResult> {
-        const request: SendBulkEmailRequest = { departmentCode, termCode }
+    async sendBulkVerificationEmails(
+        departmentCode: string,
+        termCode: number,
+        includeRecentlyEmailed: boolean = false,
+    ): Promise<BulkEmailResult> {
+        const request: SendBulkEmailRequest = { departmentCode, termCode, includeRecentlyEmailed }
         const response = await post(`${this.baseUrl}/send-bulk-email`, request)
         if (!response.success) {
             return {

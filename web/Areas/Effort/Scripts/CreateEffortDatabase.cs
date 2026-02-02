@@ -696,21 +696,14 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AN
 BEGIN
     -- Term data comes from VIPER.dbo.vwTerms
     -- This table tracks Effort-specific workflow status only
+    -- Status is computed from dates (not stored) to match legacy ColdFusion logic
     CREATE TABLE [effort].[TermStatus] (
         TermCode int NOT NULL,
-        Status varchar(20) NOT NULL DEFAULT 'Created',
         HarvestedDate datetime2(7) NULL,
         OpenedDate datetime2(7) NULL,
         ClosedDate datetime2(7) NULL,
-        CreatedDate datetime2(7) NOT NULL DEFAULT GETDATE(),
-        ModifiedDate datetime2(7) NOT NULL DEFAULT GETDATE(),
-        ModifiedBy int NOT NULL,
-        CONSTRAINT PK_TermStatus PRIMARY KEY CLUSTERED (TermCode),
-        CONSTRAINT FK_TermStatus_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
-        CONSTRAINT CK_TermStatus_Status CHECK (Status IN ('Created', 'Harvested', 'Opened', 'Closed'))
+        CONSTRAINT PK_TermStatus PRIMARY KEY CLUSTERED (TermCode)
     );
-
-    CREATE NONCLUSTERED INDEX IX_TermStatus_Status ON [effort].[TermStatus](Status);
 END";
             cmd.ExecuteNonQuery();
             Console.WriteLine("  ✓ TermStatus table created (workflow tracking)");
@@ -863,7 +856,7 @@ BEGIN
         CONSTRAINT FK_Percentages_PercentAssignTypes FOREIGN KEY (PercentAssignTypeId) REFERENCES [effort].[PercentAssignTypes](Id),
         CONSTRAINT FK_Percentages_Units FOREIGN KEY (UnitId) REFERENCES [effort].[Units](Id),
         CONSTRAINT FK_Percentages_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
-        CONSTRAINT CK_Percentages_Percentage CHECK (Percentage BETWEEN 0 AND 100),
+        CONSTRAINT CK_Percentages_Percentage CHECK (Percentage BETWEEN 0 AND 1),
         CONSTRAINT CK_Percentages_DateRange CHECK (EndDate IS NULL OR EndDate >= StartDate)
     );
 

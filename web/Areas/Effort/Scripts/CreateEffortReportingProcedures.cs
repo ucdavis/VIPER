@@ -143,7 +143,7 @@ namespace Viper.Areas.Effort.Scripts
             return true;
         }
 
-        // List of all managed stored procedures (17 total)
+        // List of all managed stored procedures (18 total)
         static readonly HashSet<string> ManagedProcedures = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             // Merit & Promotion Reports (6 procedures)
@@ -167,7 +167,9 @@ namespace Viper.Areas.Effort.Scripts
             "sp_effort_general_report",
             "sp_zero_effort_check",
             // Banner Integration (1 procedure)
-            "sp_search_banner_courses"
+            "sp_search_banner_courses",
+            // Percent Assignment Reports (1 procedure)
+            "sp_percent_assignments_for_person"
         };
 
         static void CreateReportingProcedures(string connectionString, bool executeMode, bool cleanMode)
@@ -212,6 +214,9 @@ namespace Viper.Areas.Effort.Scripts
 
                 // Banner Integration (1 procedure)
                 CreateProcedure(connection, transaction, "sp_search_banner_courses", GetSearchBannerCoursesSql(), ref successCount, ref failureCount, failedProcedures);
+
+                // Percent Assignment Reports (1 procedure)
+                CreateProcedure(connection, transaction, "sp_percent_assignments_for_person", GetPercentAssignmentsForPersonSql(), ref successCount, ref failureCount, failedProcedures);
 
                 Console.WriteLine();
                 Console.WriteLine($"Summary: {successCount} succeeded, {failureCount} failed");
@@ -823,63 +828,134 @@ END;
 
         static string GetMeritClinicalPercentSql()
         {
+            // IMPORTANT: This procedure matches the legacy dbo.usp_getEffortReportMeritWithClinPercent
+            // signature exactly for backward compatibility with MP Vote.
+            // Parameters: @TermCode varchar(10), @type int (PercentAssignTypeId)
+            // Output: MothraID, Instructor, JGDDesc, plus dynamic PIVOT columns for effort types
             return @"
 CREATE OR ALTER PROCEDURE [effort].[sp_merit_clinical_percent]
-    @TermCode INT,
-    @PercentAssignTypeId INT
+    @TermCode VARCHAR(10),
+    @type INT
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Clinical percentage calculation for merit review
+    -- Clinical percentage report for merit review (MP Vote integration)
+    -- Matches legacy dbo.usp_getEffortReportMeritWithClinPercent exactly
     -- Returns instructors with clinical percentages for the academic year
-    -- Combines effort data with percentage allocations from Percentages table
+    -- with effort data PIVOTed by effort session type
 
-    DECLARE @AcademicYearEnd DATE;
-    DECLARE @AcademicYearStart DATE;
+    DECLARE @ColumnName AS NVARCHAR(MAX);
+    DECLARE @ColumnIsNulls AS NVARCHAR(MAX);
+    DECLARE @DynamicPivotQuery AS NVARCHAR(MAX);
+    DECLARE @start DATE, @end DATE;
+    DECLARE @AcademicYear INT;
 
-    -- Calculate academic year boundaries from term code
-    -- Academic year ends June 30 of the year in the term code
-    SET @AcademicYearEnd = CAST(CAST(LEFT(@TermCode, 4) AS VARCHAR) + '-06-30' AS DATE);
-    -- Academic year starts July 1 of previous year
-    SET @AcademicYearStart = DATEADD(YEAR, -1, DATEADD(DAY, 1, @AcademicYearEnd));
+    -- Extract academic year from term code
+    -- Term codes are either 4 digits (YYYY) or 6 digits (YYYYTT where TT is term)
+    -- For 6-digit codes like 202410, we need LEFT(4) to get 2024
+    -- For 4-digit codes like 2024, we use the value directly
+    SET @AcademicYear = CASE
+        WHEN LEN(@TermCode) = 6 THEN CAST(LEFT(@TermCode, 4) AS INT)
+        WHEN LEN(@TermCode) = 4 THEN CAST(@TermCode AS INT)
+        ELSE CAST(RIGHT(@TermCode, 4) AS INT)  -- Fallback for unexpected formats
+    END;
 
-    -- Return instructors who have clinical percentage allocations
-    -- and their corresponding effort for the academic year
-    SELECT
+    -- Get end date of academic year (June 30 of the academic year)
+    SET @end = CAST(CAST(@AcademicYear AS VARCHAR(4)) + '-06-30' AS DATE);
+    -- Get start date of academic year (July 1 of previous year)
+    SET @start = DATEADD(YEAR, -1, DATEADD(DAY, 1, @end));
+
+    -- Get distinct values of effort type to turn into columns via PIVOT
+    -- ColumnNames will contain [CLI],[DIS],[L/D]...etc.
+    -- ColumnIsNulls will contain ISNULL([CLI],0) AS [CLI], ISNULL([DIS],0) AS [DIS]...etc.
+    SELECT @ColumnName = ISNULL(@ColumnName + ',', '') + QUOTENAME(EffortTypeId),
+           @ColumnIsNulls = ISNULL(@ColumnIsNulls + ', ', '') +
+               'ISNULL(' + QUOTENAME(EffortTypeId) + ',0) AS ' + QUOTENAME(EffortTypeId)
+    FROM (SELECT DISTINCT EffortTypeId FROM [effort].[Records]) AS efforttype;
+
+    -- Create temp table for effort report data
+    CREATE TABLE #EffortReport(
+        [MothraID] VARCHAR(9) NULL,
+        [Instructor] VARCHAR(250) NULL,
+        [JGDDesc] VARCHAR(50) NULL,
+        [EffortType] VARCHAR(3) NULL,
+        [Effort] INT NULL
+    );
+
+    -- Create temp table for eligible instructors
+    CREATE TABLE #Instructors(
+        [MothraID] VARCHAR(9) NULL,
+        [PersonId] INT NULL,
+        [Instructor] VARCHAR(250) NULL,
+        [JGDDesc] VARCHAR(50) NULL
+    );
+
+    -- Get all faculty in an eligible job group at least one term this academic year
+    -- who also have a clinical percentage assignment for the specified type
+    INSERT INTO #Instructors(MothraID, PersonId, Instructor, JGDDesc)
+    SELECT DISTINCT
         up.MothraId,
-        RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) as Instructor,
+        p.PersonId,
+        RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName),
         CASE
             WHEN p.JobGroupId IN ('335', '341', '317') THEN p.Title
             ELSE 'PROFESSOR/IR'
-        END as JobGroupDescription,
-        r.EffortTypeId,
-        SUM(COALESCE(r.Weeks, r.Hours, 0)) as TotalEffort
+        END
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
-    WHERE r.TermCode = @TermCode
-        -- Filter to only instructors with clinical percentages during this academic year
-        AND p.PersonId IN (
-            SELECT DISTINCT pct.PersonId
-            FROM [effort].[Percentages] pct
-            WHERE pct.PercentAssignTypeId = @PercentAssignTypeId
-                AND pct.Percentage > 0
-                -- Percentage period overlaps with academic year
-                AND pct.StartDate <= @AcademicYearEnd
-                AND (pct.EndDate IS NULL OR pct.EndDate >= @AcademicYearStart)
+    INNER JOIN [effort].[TermStatus] ts ON r.TermCode = ts.TermCode
+    WHERE ts.TermCode / 100 = @AcademicYear  -- All terms in academic year
+        -- Job group filtering matching legacy fn_checkJobGroupAndEffortCode:
+        -- Include job groups: 010, 011, 114, 311, 317, 335, 341
+        -- Include 124 with effort title code 1898 (acting prof)
+        -- Include S56 with effort title code 001067 (academic administrators)
+        AND (
+            p.JobGroupId IN ('010', '011', '114', '311', '317', '335', '341')
+            OR (p.JobGroupId = '124' AND RIGHT('00' + p.EffortTitleCode, 6) = '001898')
+            OR (p.JobGroupId = 'S56' AND RIGHT('00' + p.EffortTitleCode, 6) = '001067')
         )
-    GROUP BY
-        up.MothraId,
-        p.LastName,
-        p.FirstName,
-        p.JobGroupId,
-        p.Title,
-        r.EffortTypeId
-    ORDER BY
-        p.LastName,
-        p.FirstName,
-        r.EffortTypeId;
+        -- Filter to instructors with clinical percentage that applies during this academic year
+        AND p.PersonId IN (
+            SELECT pct.PersonId
+            FROM [effort].[Percentages] pct
+            WHERE pct.PercentAssignTypeId = @type
+                AND pct.Percentage > 0
+                AND pct.StartDate <= @end
+                AND (pct.EndDate IS NULL OR pct.EndDate >= @start)
+        );
+
+    -- Get all effort for the academic year for these instructors
+    INSERT INTO #EffortReport (MothraID, Instructor, JGDDesc, EffortType, Effort)
+    SELECT
+        I.MothraID,
+        I.Instructor,
+        I.JGDDesc,
+        r.EffortTypeId,
+        ISNULL(r.Weeks, ISNULL(r.Hours, 0))
+    FROM [effort].[Records] r
+    INNER JOIN #Instructors I ON r.PersonId = I.PersonId
+    INNER JOIN [effort].[TermStatus] ts ON r.TermCode = ts.TermCode
+    WHERE ts.TermCode / 100 = @AcademicYear;  -- All terms in academic year
+
+    -- Build dynamic pivot query matching legacy output format exactly
+    SET @DynamicPivotQuery =
+    'SELECT [MothraID], [Instructor], [JGDDesc],
+    ' + @ColumnIsNulls + '
+    FROM #EffortReport
+    PIVOT
+    (
+    SUM(Effort)
+    FOR [EffortType] IN (' + @ColumnName + ')
+    ) AS p
+    ORDER BY JGDDesc, Instructor';
+
+    EXEC sp_executesql @DynamicPivotQuery;
+
+    -- Clean up
+    DROP TABLE #EffortReport;
+    DROP TABLE #Instructors;
 END;
 ";
         }
@@ -1336,6 +1412,53 @@ BEGIN
         FETCH FIRST 100 ROWS ONLY';
 
     EXEC('SELECT * FROM OPENQUERY(UCDBanner, ''' + @bannerCmd + ''')');
+END;
+";
+        }
+
+        // ============================================
+        // Percent Assignment Procedures
+        // ============================================
+
+        static string GetPercentAssignmentsForPersonSql()
+        {
+            return @"
+CREATE OR ALTER PROCEDURE [effort].[sp_percent_assignments_for_person]
+    @MothraId VARCHAR(9),
+    @StartDate DATE,
+    @EndDate DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Returns raw percent assignment data for a person within a date range
+    -- Available for reporting integrations and external consumers
+    -- Returns all percentage assignments that overlap with the specified date range
+
+    SELECT
+        p.Id,
+        p.PersonId,
+        p.PercentAssignTypeId,
+        t.Class AS TypeClass,
+        t.Name AS TypeName,
+        p.UnitId,
+        u.Name AS UnitName,
+        p.Modifier,
+        p.Percentage,
+        p.StartDate,
+        p.EndDate,
+        p.Comment,
+        p.Compensated,
+        p.AcademicYear
+    FROM [effort].[Percentages] p
+    INNER JOIN [users].[Person] per ON p.PersonId = per.PersonId
+    INNER JOIN [effort].[PercentAssignTypes] t ON p.PercentAssignTypeId = t.Id
+    LEFT JOIN [effort].[Units] u ON p.UnitId = u.Id
+    WHERE per.MothraId = @MothraId
+      AND p.StartDate <= @EndDate
+      AND (p.EndDate IS NULL OR p.EndDate >= @StartDate)
+      AND p.Percentage > 0
+    ORDER BY t.Class, p.StartDate;
 END;
 ";
         }

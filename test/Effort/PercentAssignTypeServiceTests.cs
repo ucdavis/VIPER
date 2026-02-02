@@ -79,7 +79,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         int personId,
         int percentAssignTypeId,
         string academicYear,
-        decimal percentageValue = 50m)
+        double percentageValue = 0.5)
     {
         var percentage = new Percentage
         {
@@ -87,7 +87,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
             PercentAssignTypeId = percentAssignTypeId,
             AcademicYear = academicYear,
             PercentageValue = percentageValue,
-            StartDate = DateTime.UtcNow
+            StartDate = DateTime.Now
         };
         _context.Percentages.Add(percentage);
         await _context.SaveChangesAsync();
@@ -169,8 +169,8 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         var type = await CreatePercentAssignTypeAsync("Teaching", "Lecture");
         await CreatePersonAsync(1, 202410, "John", "Doe");
         await CreatePersonAsync(2, 202410, "Jane", "Smith");
-        await CreatePercentageAsync(1, type.Id, "2024-25");
-        await CreatePercentageAsync(2, type.Id, "2024-25");
+        await CreatePercentageAsync(1, type.Id, "2024-2025");
+        await CreatePercentageAsync(2, type.Id, "2024-2025");
 
         // Act
         var types = await _service.GetPercentAssignTypesAsync();
@@ -186,8 +186,8 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         // Arrange - same person in different years counts as multiple
         var type = await CreatePercentAssignTypeAsync("Teaching", "Lecture");
         await CreatePersonAsync(1, 202410, "John", "Doe");
-        await CreatePercentageAsync(1, type.Id, "2023-24");
-        await CreatePercentageAsync(1, type.Id, "2024-25");
+        await CreatePercentageAsync(1, type.Id, "2023-2024");
+        await CreatePercentageAsync(1, type.Id, "2024-2025");
 
         // Act
         var types = await _service.GetPercentAssignTypesAsync();
@@ -203,8 +203,8 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         // Arrange - same person/year should only count once even with multiple percentages
         var type = await CreatePercentAssignTypeAsync("Teaching", "Lecture");
         await CreatePersonAsync(1, 202410, "John", "Doe");
-        await CreatePercentageAsync(1, type.Id, "2024-25", 30m);
-        await CreatePercentageAsync(1, type.Id, "2024-25", 20m);
+        await CreatePercentageAsync(1, type.Id, "2024-2025", 0.3);
+        await CreatePercentageAsync(1, type.Id, "2024-2025", 0.2);
 
         // Act
         var types = await _service.GetPercentAssignTypesAsync();
@@ -343,7 +343,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         // Arrange
         var type = await CreatePercentAssignTypeAsync("Teaching", "Lecture");
         await CreatePersonAsync(1, 202410, "John", "Doe");
-        await CreatePercentageAsync(1, type.Id, "2024-25");
+        await CreatePercentageAsync(1, type.Id, "2024-2025");
 
         // Act
         var result = await _service.GetInstructorsByTypeAsync(type.Id);
@@ -356,7 +356,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         Assert.Equal("John", instructor.FirstName);
         Assert.Equal("Doe", instructor.LastName);
         Assert.Equal("Doe, John", instructor.FullName);
-        Assert.Equal("2024-25", instructor.AcademicYear);
+        Assert.Equal("2024-2025", instructor.AcademicYear);
     }
 
     [Fact]
@@ -365,8 +365,8 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         // Arrange
         var type = await CreatePercentAssignTypeAsync("Teaching", "Lecture");
         await CreatePersonAsync(1, 202410, "John", "Doe");
-        await CreatePercentageAsync(1, type.Id, "2023-24");
-        await CreatePercentageAsync(1, type.Id, "2024-25");
+        await CreatePercentageAsync(1, type.Id, "2023-2024");
+        await CreatePercentageAsync(1, type.Id, "2024-2025");
 
         // Act
         var result = await _service.GetInstructorsByTypeAsync(type.Id);
@@ -374,8 +374,8 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         // Assert
         Assert.NotNull(result);
         Assert.Equal(2, result.Instructors.Count);
-        Assert.Contains(result.Instructors, i => i.AcademicYear == "2023-24");
-        Assert.Contains(result.Instructors, i => i.AcademicYear == "2024-25");
+        Assert.Contains(result.Instructors, i => i.AcademicYear == "2023-2024");
+        Assert.Contains(result.Instructors, i => i.AcademicYear == "2024-2025");
     }
 
     [Fact]
@@ -386,9 +386,9 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePersonAsync(1, 202410, "John", "Doe");
         await CreatePersonAsync(2, 202410, "Jane", "Smith");
         await CreatePersonAsync(3, 202410, "Alice", "Doe");
-        await CreatePercentageAsync(1, type.Id, "2024-25");
-        await CreatePercentageAsync(2, type.Id, "2023-24");
-        await CreatePercentageAsync(3, type.Id, "2024-25");
+        await CreatePercentageAsync(1, type.Id, "2024-2025");
+        await CreatePercentageAsync(2, type.Id, "2023-2024");
+        await CreatePercentageAsync(3, type.Id, "2024-2025");
 
         // Act
         var result = await _service.GetInstructorsByTypeAsync(type.Id);
@@ -396,12 +396,12 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         // Assert
         Assert.NotNull(result);
         Assert.Equal(3, result.Instructors.Count);
-        Assert.Equal("2023-24", result.Instructors[0].AcademicYear);
+        Assert.Equal("2023-2024", result.Instructors[0].AcademicYear);
         Assert.Equal("Smith", result.Instructors[0].LastName);
-        Assert.Equal("2024-25", result.Instructors[1].AcademicYear);
+        Assert.Equal("2024-2025", result.Instructors[1].AcademicYear);
         Assert.Equal("Doe", result.Instructors[1].LastName);
         Assert.Equal("Alice", result.Instructors[1].FirstName);
-        Assert.Equal("2024-25", result.Instructors[2].AcademicYear);
+        Assert.Equal("2024-2025", result.Instructors[2].AcademicYear);
         Assert.Equal("Doe", result.Instructors[2].LastName);
         Assert.Equal("John", result.Instructors[2].FirstName);
     }
@@ -413,7 +413,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         var type = await CreatePercentAssignTypeAsync("Teaching", "Lecture");
         await CreatePersonAsync(1, 202310, "OldFirst", "OldLast");
         await CreatePersonAsync(1, 202410, "NewFirst", "NewLast");
-        await CreatePercentageAsync(1, type.Id, "2024-25");
+        await CreatePercentageAsync(1, type.Id, "2024-2025");
 
         // Act
         var result = await _service.GetInstructorsByTypeAsync(type.Id);
@@ -431,8 +431,8 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         // Arrange - same person/year with multiple percentages should appear once
         var type = await CreatePercentAssignTypeAsync("Teaching", "Lecture");
         await CreatePersonAsync(1, 202410, "John", "Doe");
-        await CreatePercentageAsync(1, type.Id, "2024-25", 30m);
-        await CreatePercentageAsync(1, type.Id, "2024-25", 20m);
+        await CreatePercentageAsync(1, type.Id, "2024-2025", 0.3);
+        await CreatePercentageAsync(1, type.Id, "2024-2025", 0.2);
 
         // Act
         var result = await _service.GetInstructorsByTypeAsync(type.Id);

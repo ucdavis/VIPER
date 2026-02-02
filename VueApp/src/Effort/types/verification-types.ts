@@ -110,6 +110,7 @@ type SendVerificationEmailRequest = {
 type SendBulkEmailRequest = {
     departmentCode: string
     termCode: number
+    includeRecentlyEmailed?: boolean
 }
 
 /**

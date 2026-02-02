@@ -23,6 +23,7 @@ type TermDto = {
 type PersonDto = {
     personId: number
     termCode: number
+    mailId: string | null
     firstName: string
     lastName: string
     middleInitial: string | null
@@ -39,9 +40,14 @@ type PersonDto = {
     percentClinical: number | null
     isVerified: boolean
     recordCount: number
+    hasZeroHourRecords: boolean
     canSendVerificationEmail: boolean
     lastEmailedDate: string | null
     lastEmailedBy: string | null
+    // Percentage summaries for instructor list display
+    percentAdminSummary: string | null
+    percentClinicalSummary: string | null
+    percentOtherSummary: string | null
 }
 
 type AvailableTermDto = {

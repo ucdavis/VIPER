@@ -51,19 +51,19 @@ public class EffortDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         // EffortTerm (effort.TermStatus)
+        // Status is computed from dates (not stored) to match legacy ColdFusion logic
         modelBuilder.Entity<EffortTerm>(entity =>
         {
             entity.HasKey(e => e.TermCode);
             entity.ToTable("TermStatus", schema: "effort");
 
             entity.Property(e => e.TermCode).HasColumnName("TermCode");
-            entity.Property(e => e.Status).HasColumnName("Status").HasMaxLength(20);
             entity.Property(e => e.HarvestedDate).HasColumnName("HarvestedDate");
             entity.Property(e => e.OpenedDate).HasColumnName("OpenedDate");
             entity.Property(e => e.ClosedDate).HasColumnName("ClosedDate");
-            entity.Property(e => e.CreatedDate).HasColumnName("CreatedDate");
-            entity.Property(e => e.ModifiedDate).HasColumnName("ModifiedDate");
-            entity.Property(e => e.ModifiedBy).HasColumnName("ModifiedBy");
+
+            // Ignore computed Status property - it's derived from dates
+            entity.Ignore(e => e.Status);
         });
 
         // EffortPerson (effort.Persons)
@@ -250,7 +250,7 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("Id");
             entity.Property(e => e.PersonId).HasColumnName("PersonId");
             entity.Property(e => e.AcademicYear).HasColumnName("AcademicYear").HasMaxLength(9).IsFixedLength();
-            entity.Property(e => e.PercentageValue).HasColumnName("Percentage").HasColumnType("decimal(5,2)");
+            entity.Property(e => e.PercentageValue).HasColumnName("Percentage");
             entity.Property(e => e.PercentAssignTypeId).HasColumnName("PercentAssignTypeId");
             entity.Property(e => e.UnitId).HasColumnName("UnitId");
             entity.Property(e => e.Modifier).HasColumnName("Modifier").HasMaxLength(50);

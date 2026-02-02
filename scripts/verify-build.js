@@ -13,9 +13,13 @@ const {
     getCachedBuildOutput,
     filterBuildErrors,
     isConfirmedWarningsOnly,
+    clearCacheIfRequested,
 } = require("./lib/build-cache")
 
 const logger = createLogger("Build Verify")
+
+// Clear cache if --clear-cache flag is passed
+clearCacheIfRequested()
 
 // Configuration
 const TIMEOUT_MS = 60_000 // 1 minute timeout for builds

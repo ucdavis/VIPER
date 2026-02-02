@@ -42,11 +42,11 @@ public class EffortAuditService : IEffortAuditService
 
     // ==================== Logging Methods ====================
 
-    public async Task LogPercentageChangeAsync(int percentageId, int termCode, string action,
+    public async Task LogPercentageChangeAsync(int percentageId, int? termCode, string action,
         object? oldValues, object? newValues, CancellationToken ct = default)
     {
-        await CreateAuditEntryAsync(EffortAuditTables.Percentages, percentageId, termCode, action,
-            SerializeChanges(oldValues, newValues), ct);
+        AddAuditEntry(EffortAuditTables.Percentages, percentageId, termCode, action, SerializeChanges(oldValues, newValues));
+        await _context.SaveChangesAsync(ct);
     }
 
     public async Task LogRecordChangeAsync(int recordId, int termCode, string action,

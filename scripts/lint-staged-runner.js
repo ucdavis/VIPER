@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 
 // Lint staged files only - runs lint-any.js on files staged for commit
-// Usage: npm run lint:staged
+// Usage: npm run lint:staged [--clear-cache]
 
 const { execFileSync } = require("node:child_process")
 const { checkPartiallyStaged, createLogger } = require("./lib/script-utils")
 
 const { env } = process
 const logger = createLogger("LINT:STAGED")
+
+// Parse command line arguments
+const args = process.argv.slice(2)
+const shouldClearCache = args.includes("--clear-cache")
 
 // Get staged files (excluding deleted files)
 function getStagedFiles() {
@@ -39,7 +43,12 @@ logger.info(`Found ${stagedFiles.length} staged file(s)`)
 
 // Run lint-any.js with the staged files
 try {
-    execFileSync("node", ["scripts/lint-any.js", ...stagedFiles], {
+    const lintArgs = ["scripts/lint-any.js", ...stagedFiles]
+    if (shouldClearCache) {
+        lintArgs.push("--clear-cache")
+    }
+
+    execFileSync("node", lintArgs, {
         encoding: "utf8",
         stdio: "inherit",
         env: { ...env, LINT_BLOCK_ON_WARNINGS: "true", DOTNET_USE_COMPILER_SERVER: "1" },

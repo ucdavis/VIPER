@@ -2,19 +2,19 @@
     <q-dialog
         :model-value="modelValue"
         persistent
-        @update:model-value="emit('update:modelValue', $event)"
+        @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 600px">
             <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">Edit Instructor</div>
                 <q-space />
                 <q-btn
-                    v-close-popup
                     icon="close"
                     flat
                     round
                     dense
                     aria-label="Close dialog"
+                    @click="handleClose"
                 />
             </q-card-section>
 
@@ -147,9 +147,9 @@
 
             <q-card-actions align="right">
                 <q-btn
-                    v-close-popup
                     flat
                     label="Cancel"
+                    @click="handleClose"
                 />
                 <q-btn
                     color="primary"
@@ -164,6 +164,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue"
+import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { effortService } from "../services/effort-service"
 import type { PersonDto, DepartmentDto, ReportUnitDto, TitleCodeDto, JobGroupDto } from "../types"
 
@@ -186,6 +187,16 @@ const form = ref({
     reportUnits: [] as string[],
     volunteerWos: false,
 })
+
+// Unsaved changes tracking
+const { setInitialState, confirmClose } = useUnsavedChanges(form)
+
+// Handle close (X button, Cancel button, or Escape key) with unsaved changes check
+async function handleClose() {
+    if (await confirmClose()) {
+        emit("update:modelValue", false)
+    }
+}
 
 const departments = ref<DepartmentDto[]>([])
 const reportUnits = ref<ReportUnitDto[]>([])
@@ -289,6 +300,7 @@ watch(
                 volunteerWos: inst.volunteerWos ?? false,
             }
             errorMessage.value = ""
+            setInitialState()
         }
     },
     { immediate: true },

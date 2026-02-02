@@ -107,6 +107,19 @@ const routes = [
         name: "InstructorList",
     },
     {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/instructors/:personId(\\d+)/edit`,
+        meta: {
+            layout: EffortLayout,
+            permissions: [
+                "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
+                "SVMSecure.Effort.EditInstructor",
+            ],
+        },
+        component: () => import("@/Effort/pages/InstructorEdit.vue"),
+        name: "InstructorEdit",
+    },
+    {
         path: `/Effort/:termCode(${TERM_CODE_PATTERN})/instructors/:personId(\\d+)`,
         meta: {
             layout: EffortLayout,

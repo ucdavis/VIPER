@@ -3,6 +3,7 @@ namespace Viper.Areas.Effort.Models.DTOs.Responses;
 /// <summary>
 /// DTO for term information in the Effort system.
 /// Combines workflow status from effort.TermStatus with term metadata.
+/// Status is computed from date fields to match legacy ColdFusion logic.
 /// </summary>
 public class TermDto
 {
@@ -15,11 +16,6 @@ public class TermDto
     /// Human-readable term name (e.g., "Fall 2024").
     /// </summary>
     public string TermName { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Workflow status: Created, Harvested, Opened, or Closed.
-    /// </summary>
-    public string Status { get; set; } = string.Empty;
 
     /// <summary>
     /// Date when course data was harvested for this term.
@@ -37,36 +33,52 @@ public class TermDto
     public DateTime? ClosedDate { get; set; }
 
     /// <summary>
+    /// Workflow status derived from date fields (matches legacy ColdFusion logic):
+    /// Closed if ClosedDate is set, Opened if OpenedDate is set,
+    /// Harvested if HarvestedDate is set, otherwise Created.
+    /// </summary>
+    public string Status
+    {
+        get
+        {
+            if (ClosedDate.HasValue) return "Closed";
+            if (OpenedDate.HasValue) return "Opened";
+            if (HarvestedDate.HasValue) return "Harvested";
+            return "Created";
+        }
+    }
+
+    /// <summary>
     /// Whether the term is currently open for effort entry.
     /// </summary>
-    public bool IsOpen => Status == "Opened";
+    public bool IsOpen => OpenedDate.HasValue && !ClosedDate.HasValue;
 
     /// <summary>
     /// Whether effort data can be edited (term is open).
     /// </summary>
-    public bool CanEdit => Status == "Opened";
+    public bool CanEdit => IsOpen;
 
     // State transition properties for term management UI
 
     /// <summary>
-    /// Whether the term can be opened (status is Created or Harvested).
+    /// Whether the term can be opened (not yet opened and not closed).
     /// </summary>
-    public bool CanOpen => Status is "Created" or "Harvested";
+    public bool CanOpen => !OpenedDate.HasValue && !ClosedDate.HasValue;
 
     /// <summary>
-    /// Whether the term can be closed (status is Opened).
+    /// Whether the term can be closed (currently open).
     /// </summary>
-    public bool CanClose => Status == "Opened";
+    public bool CanClose => IsOpen;
 
     /// <summary>
-    /// Whether the term can be reopened (status is Closed).
+    /// Whether the term can be reopened (currently closed).
     /// </summary>
-    public bool CanReopen => Status == "Closed";
+    public bool CanReopen => ClosedDate.HasValue;
 
     /// <summary>
-    /// Whether the term can be reverted to unopened state (status is Opened).
+    /// Whether the term can be reverted to unopened state (currently open).
     /// </summary>
-    public bool CanUnopen => Status == "Opened";
+    public bool CanUnopen => IsOpen;
 
     /// <summary>
     /// Whether the term can be deleted (no related persons, courses, or records).
@@ -75,7 +87,7 @@ public class TermDto
     public bool CanDelete { get; set; }
 
     /// <summary>
-    /// Whether the term can be harvested (status is Created or Harvested).
+    /// Whether the term can be harvested (not yet opened and not closed).
     /// </summary>
-    public bool CanHarvest => Status is "Created" or "Harvested";
+    public bool CanHarvest => !OpenedDate.HasValue && !ClosedDate.HasValue;
 }

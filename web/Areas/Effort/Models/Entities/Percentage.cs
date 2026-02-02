@@ -9,7 +9,7 @@ public class Percentage
     public int Id { get; set; }
     public int PersonId { get; set; }
     public string AcademicYear { get; set; } = string.Empty;
-    public decimal PercentageValue { get; set; }
+    public double PercentageValue { get; set; }
     public int PercentAssignTypeId { get; set; }
     public int? UnitId { get; set; }
     public string? Modifier { get; set; }

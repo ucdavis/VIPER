@@ -79,9 +79,10 @@ public class TermService : ITermService
 
     public async Task<TermDto?> GetCurrentTermAsync(CancellationToken ct = default)
     {
+        // Open = OpenedDate IS NOT NULL AND ClosedDate IS NULL (matches legacy logic)
         var term = await _context.Terms
             .AsNoTracking()
-            .Where(t => t.Status == "Opened")
+            .Where(t => t.OpenedDate != null && t.ClosedDate == null)
             .OrderByDescending(t => t.TermCode)
             .FirstOrDefaultAsync(ct);
 
@@ -99,7 +100,7 @@ public class TermService : ITermService
 
     // Term Management Operations
 
-    public async Task<TermDto> CreateTermAsync(int termCode, int modifiedBy, CancellationToken ct = default)
+    public async Task<TermDto> CreateTermAsync(int termCode, CancellationToken ct = default)
     {
         var existingTerm = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
         if (existingTerm != null)
@@ -107,20 +108,17 @@ public class TermService : ITermService
             throw new InvalidOperationException($"Term {termCode} already exists");
         }
 
+        // New term starts with no dates set (Status will be computed as "Created")
         var term = new Models.Entities.EffortTerm
         {
-            TermCode = termCode,
-            Status = "Created",
-            CreatedDate = DateTime.Now,
-            ModifiedDate = DateTime.Now,
-            ModifiedBy = modifiedBy
+            TermCode = termCode
         };
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _context.Terms.Add(term);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.CreateTerm,
             null,
-            new { term.Status, term.CreatedDate });
+            new { Status = term.Status });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
@@ -154,7 +152,7 @@ public class TermService : ITermService
         return true;
     }
 
-    public async Task<TermDto?> OpenTermAsync(int termCode, int modifiedBy, CancellationToken ct = default)
+    public async Task<TermDto?> OpenTermAsync(int termCode, CancellationToken ct = default)
     {
         var term = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
         if (term == null)
@@ -162,17 +160,15 @@ public class TermService : ITermService
             return null;
         }
 
-        if (term.Status is not ("Created" or "Harvested"))
+        // Can only open if not yet opened and not closed
+        if (term.OpenedDate.HasValue || term.ClosedDate.HasValue)
         {
             throw new InvalidOperationException("Term must be in Created or Harvested status to open");
         }
 
         var oldStatus = term.Status;
-        term.Status = "Opened";
         term.OpenedDate = DateTime.Now;
         term.ClosedDate = null;
-        term.ModifiedDate = DateTime.Now;
-        term.ModifiedBy = modifiedBy;
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.OpenTerm,
@@ -186,7 +182,7 @@ public class TermService : ITermService
         return dto;
     }
 
-    public async Task<(bool Success, string? ErrorMessage)> CloseTermAsync(int termCode, int modifiedBy, CancellationToken ct = default)
+    public async Task<(bool Success, string? ErrorMessage)> CloseTermAsync(int termCode, CancellationToken ct = default)
     {
         var (canClose, zeroEnrollmentCount) = await CanCloseTermAsync(termCode, ct);
         if (!canClose)
@@ -200,16 +196,14 @@ public class TermService : ITermService
             return (false, "Term not found");
         }
 
-        if (term.Status != "Opened")
+        // Can only close if currently open (OpenedDate set, ClosedDate not set)
+        if (!term.OpenedDate.HasValue || term.ClosedDate.HasValue)
         {
             return (false, "Term must be opened before it can be closed");
         }
 
         var oldStatus = term.Status;
-        term.Status = "Closed";
         term.ClosedDate = DateTime.Now;
-        term.ModifiedDate = DateTime.Now;
-        term.ModifiedBy = modifiedBy;
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.CloseTerm,
@@ -221,7 +215,7 @@ public class TermService : ITermService
         return (true, null);
     }
 
-    public async Task<TermDto?> ReopenTermAsync(int termCode, int modifiedBy, CancellationToken ct = default)
+    public async Task<TermDto?> ReopenTermAsync(int termCode, CancellationToken ct = default)
     {
         var term = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
         if (term == null)
@@ -229,16 +223,14 @@ public class TermService : ITermService
             return null;
         }
 
-        if (term.Status != "Closed")
+        // Can only reopen if currently closed (ClosedDate is set)
+        if (!term.ClosedDate.HasValue)
         {
             throw new InvalidOperationException("Only closed terms can be reopened");
         }
 
         var oldStatus = term.Status;
-        term.Status = "Opened";
         term.ClosedDate = null;
-        term.ModifiedDate = DateTime.Now;
-        term.ModifiedBy = modifiedBy;
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.ReopenTerm,
@@ -252,7 +244,7 @@ public class TermService : ITermService
         return dto;
     }
 
-    public async Task<TermDto?> UnopenTermAsync(int termCode, int modifiedBy, CancellationToken ct = default)
+    public async Task<TermDto?> UnopenTermAsync(int termCode, CancellationToken ct = default)
     {
         var term = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
         if (term == null)
@@ -260,18 +252,16 @@ public class TermService : ITermService
             return null;
         }
 
-        if (term.Status != "Opened")
+        // Can only unopen if currently open (OpenedDate set, ClosedDate not set)
+        if (!term.OpenedDate.HasValue || term.ClosedDate.HasValue)
         {
             throw new InvalidOperationException("Only opened terms can be reverted to unopened");
         }
 
         var oldStatus = term.Status;
-        // Revert to previous status based on whether it was harvested
-        term.Status = term.HarvestedDate.HasValue ? "Harvested" : "Created";
+        // Clear dates to revert - Status will compute based on remaining dates
         term.OpenedDate = null;
         term.ClosedDate = null;
-        term.ModifiedDate = DateTime.Now;
-        term.ModifiedBy = modifiedBy;
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.UnopenTerm,

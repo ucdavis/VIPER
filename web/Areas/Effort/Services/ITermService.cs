@@ -32,7 +32,7 @@ public interface ITermService
     /// <summary>
     /// Create a new term with initial status "Created".
     /// </summary>
-    Task<TermDto> CreateTermAsync(int termCode, int modifiedBy, CancellationToken ct = default);
+    Task<TermDto> CreateTermAsync(int termCode, CancellationToken ct = default);
 
     /// <summary>
     /// Delete a term. Only succeeds if no courses, persons, or records exist.
@@ -43,23 +43,23 @@ public interface ITermService
     /// <summary>
     /// Open a term for effort entry. Sets status to "Opened" and OpenedDate.
     /// </summary>
-    Task<TermDto?> OpenTermAsync(int termCode, int modifiedBy, CancellationToken ct = default);
+    Task<TermDto?> OpenTermAsync(int termCode, CancellationToken ct = default);
 
     /// <summary>
     /// Close a term. Validates no courses have zero enrollment.
     /// </summary>
     /// <returns>Tuple of (success, errorMessage). Error message contains count of zero-enrollment courses if validation fails.</returns>
-    Task<(bool Success, string? ErrorMessage)> CloseTermAsync(int termCode, int modifiedBy, CancellationToken ct = default);
+    Task<(bool Success, string? ErrorMessage)> CloseTermAsync(int termCode, CancellationToken ct = default);
 
     /// <summary>
     /// Reopen a closed term. Clears ClosedDate and sets status back to "Opened".
     /// </summary>
-    Task<TermDto?> ReopenTermAsync(int termCode, int modifiedBy, CancellationToken ct = default);
+    Task<TermDto?> ReopenTermAsync(int termCode, CancellationToken ct = default);
 
     /// <summary>
     /// Revert an open term back to harvested/created state. Clears OpenedDate.
     /// </summary>
-    Task<TermDto?> UnopenTermAsync(int termCode, int modifiedBy, CancellationToken ct = default);
+    Task<TermDto?> UnopenTermAsync(int termCode, CancellationToken ct = default);
 
     /// <summary>
     /// Check if a term can be deleted (no related courses, persons, or records).

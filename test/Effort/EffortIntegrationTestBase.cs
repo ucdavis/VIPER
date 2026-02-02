@@ -101,12 +101,11 @@ public abstract class EffortIntegrationTestBase : IDisposable
     /// </summary>
     private void SeedBasicTestData()
     {
-        // Add test term
+        // Add test term (OpenedDate makes it "Opened" status)
         EffortContext.Terms.Add(new EffortTerm
         {
             TermCode = TestTermCode,
-            Status = "Open",
-            CreatedDate = DateTime.UtcNow
+            OpenedDate = DateTime.Now
         });
 
         // Add test courses

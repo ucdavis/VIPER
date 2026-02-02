@@ -1,20 +1,21 @@
 <template>
     <q-dialog
-        v-model="dialogOpen"
+        :model-value="modelValue"
         persistent
         maximized-on-mobile
+        @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 500px">
             <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">{{ enrollmentOnly ? "Edit R-Course Enrollment" : "Edit Course" }}</div>
                 <q-space />
                 <q-btn
-                    v-close-popup
                     icon="close"
                     flat
                     round
                     dense
                     aria-label="Close dialog"
+                    @click="handleClose"
                 />
             </q-card-section>
 
@@ -69,9 +70,9 @@
 
             <q-card-actions align="right">
                 <q-btn
-                    v-close-popup
                     label="Cancel"
                     flat
+                    @click="handleClose"
                 />
                 <q-btn
                     label="Save"
@@ -85,8 +86,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue"
+import { ref, watch } from "vue"
 import { useQuasar, QForm } from "quasar"
+import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { effortService } from "../services/effort-service"
 import type { CourseDto } from "../types"
 
@@ -104,11 +106,6 @@ const emit = defineEmits<{
 
 const $q = useQuasar()
 
-const dialogOpen = computed({
-    get: () => props.modelValue,
-    set: (value) => emit("update:modelValue", value),
-})
-
 const formRef = ref<QForm | null>(null)
 const isSaving = ref(false)
 const formData = ref({
@@ -116,6 +113,16 @@ const formData = ref({
     units: 0,
     custDept: "",
 })
+
+// Unsaved changes tracking
+const { setInitialState, confirmClose } = useUnsavedChanges(formData)
+
+// Handle close (X button, Cancel button, or Escape key) with unsaved changes check
+async function handleClose() {
+    if (await confirmClose()) {
+        emit("update:modelValue", false)
+    }
+}
 
 // Reset form when dialog opens with course data
 watch(
@@ -127,6 +134,7 @@ watch(
                 units: props.course.units,
                 custDept: props.course.custDept,
             }
+            setInitialState()
         }
     },
 )
@@ -156,7 +164,7 @@ async function save() {
         }
 
         if (result.success) {
-            dialogOpen.value = false
+            emit("update:modelValue", false)
             emit("updated")
         } else {
             $q.notify({ type: "negative", message: result.error ?? "Failed to update course" })

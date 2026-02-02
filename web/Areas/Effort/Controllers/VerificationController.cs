@@ -149,7 +149,7 @@ public class VerificationController : BaseEffortController
         }
 
         var result = await _verificationService.SendBulkVerificationEmailsAsync(
-            request.DepartmentCode, request.TermCode, ct);
+            request.DepartmentCode, request.TermCode, request.IncludeRecentlyEmailed, ct);
 
         return Ok(result);
     }

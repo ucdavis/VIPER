@@ -18,15 +18,12 @@ namespace Viper.Areas.Effort.Controllers;
 public class TermsController : BaseEffortController
 {
     private readonly ITermService _termService;
-    private readonly IEffortPermissionService _permissionService;
 
     public TermsController(
         ITermService termService,
-        IEffortPermissionService permissionService,
         ILogger<TermsController> logger) : base(logger)
     {
         _termService = termService;
-        _permissionService = permissionService;
     }
 
     /// <summary>
@@ -86,12 +83,10 @@ public class TermsController : BaseEffortController
     {
         SetExceptionContext("termCode", request.TermCode);
 
-        var modifiedBy = _permissionService.GetCurrentPersonId();
-
         try
         {
-            var term = await _termService.CreateTermAsync(request.TermCode, modifiedBy, ct);
-            _logger.LogInformation("Term created: {TermCode} by {ModifiedBy}", request.TermCode, modifiedBy);
+            var term = await _termService.CreateTermAsync(request.TermCode, ct);
+            _logger.LogInformation("Term created: {TermCode}", request.TermCode);
             return CreatedAtAction(nameof(GetTerm), new { termCode = term.TermCode }, term);
         }
         catch (InvalidOperationException ex)
@@ -131,11 +126,10 @@ public class TermsController : BaseEffortController
     {
         SetExceptionContext("termCode", termCode);
 
-        var modifiedBy = _permissionService.GetCurrentPersonId();
         TermDto? term;
         try
         {
-            term = await _termService.OpenTermAsync(termCode, modifiedBy, ct);
+            term = await _termService.OpenTermAsync(termCode, ct);
         }
         catch (InvalidOperationException ex)
         {
@@ -149,7 +143,7 @@ public class TermsController : BaseEffortController
             return NotFound($"Term {termCode} not found");
         }
 
-        _logger.LogInformation("Term opened: {TermCode} by {ModifiedBy}", termCode, modifiedBy);
+        _logger.LogInformation("Term opened: {TermCode}", termCode);
         return Ok(term);
     }
 
@@ -162,8 +156,7 @@ public class TermsController : BaseEffortController
     {
         SetExceptionContext("termCode", termCode);
 
-        var modifiedBy = _permissionService.GetCurrentPersonId();
-        var (success, errorMessage) = await _termService.CloseTermAsync(termCode, modifiedBy, ct);
+        var (success, errorMessage) = await _termService.CloseTermAsync(termCode, ct);
 
         if (!success)
         {
@@ -172,7 +165,7 @@ public class TermsController : BaseEffortController
         }
 
         var term = await _termService.GetTermAsync(termCode, ct);
-        _logger.LogInformation("Term closed: {TermCode} by {ModifiedBy}", termCode, modifiedBy);
+        _logger.LogInformation("Term closed: {TermCode}", termCode);
         return Ok(term);
     }
 
@@ -185,11 +178,10 @@ public class TermsController : BaseEffortController
     {
         SetExceptionContext("termCode", termCode);
 
-        var modifiedBy = _permissionService.GetCurrentPersonId();
         TermDto? term;
         try
         {
-            term = await _termService.ReopenTermAsync(termCode, modifiedBy, ct);
+            term = await _termService.ReopenTermAsync(termCode, ct);
         }
         catch (InvalidOperationException ex)
         {
@@ -203,7 +195,7 @@ public class TermsController : BaseEffortController
             return NotFound($"Term {termCode} not found");
         }
 
-        _logger.LogInformation("Term reopened: {TermCode} by {ModifiedBy}", termCode, modifiedBy);
+        _logger.LogInformation("Term reopened: {TermCode}", termCode);
         return Ok(term);
     }
 
@@ -216,11 +208,10 @@ public class TermsController : BaseEffortController
     {
         SetExceptionContext("termCode", termCode);
 
-        var modifiedBy = _permissionService.GetCurrentPersonId();
         TermDto? term;
         try
         {
-            term = await _termService.UnopenTermAsync(termCode, modifiedBy, ct);
+            term = await _termService.UnopenTermAsync(termCode, ct);
         }
         catch (InvalidOperationException ex)
         {
@@ -234,7 +225,7 @@ public class TermsController : BaseEffortController
             return NotFound($"Term {termCode} not found");
         }
 
-        _logger.LogInformation("Term unopened: {TermCode} by {ModifiedBy}", termCode, modifiedBy);
+        _logger.LogInformation("Term unopened: {TermCode}", termCode);
         return Ok(term);
     }
 

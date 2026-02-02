@@ -36,7 +36,7 @@ Place `awscredentials.xml` in the `web` folder. The app will configure AWS crede
 Start both frontend and backend with hot reload enabled, plus Chrome in debug mode:
 
 ```sh
-npm run dev:fullstack
+npm run dev
 ```
 
 - **Frontend**: Vue.js with Vite dev server (https://localhost:5173) + Hot Module Replacement (HMR)
@@ -159,7 +159,7 @@ Files auto-format on save with consistent 4-space indentation and project style.
 Vue Inspector is enabled in development mode and allows you to click Vue components in the browser to open them directly in your IDE.
 
 **How to Use:**
-1. Start development mode: `npm run dev:fullstack`
+1. Start development mode: `npm run dev`
 2. Press `Ctrl+Shift` to toggle the inspector overlay
 3. Click any Vue component in the browser to open it in your editor
 
@@ -177,7 +177,7 @@ The inspector only works in development mode and is automatically disabled in pr
 The project includes VS Code launch configurations for debugging both frontend and backend code:
 
 **Frontend Debugging (Chrome):**
-1. Start the application with Chrome debugging: `npm run dev:fullstack`
+1. Start the application with Chrome debugging: `npm run dev`
 2. In VS Code, go to Run and Debug (Ctrl+Shift+D)
 3. Select "Attach to Chrome" and press F5
 4. Chrome will launch automatically in debug mode, and VS Code will attach to it
@@ -197,6 +197,14 @@ The project includes VS Code launch configurations for debugging both frontend a
 - `npm run lint:staged` - Lint only git-staged files
 - `npm run precommit` - Run full pre-commit checks manually (lint, test, build verify)
 
+### Build Cache
+
+The linter and build verification scripts use caching to avoid redundant rebuilds. If you encounter stale cache issues (e.g., linter showing warnings for already-fixed code), clear the cache:
+
+- `npm run lint -- --clear-cache <path>` - Clear cache and lint specific files
+- `npm run lint:staged -- --clear-cache` - Clear cache and lint staged files
+- `npm run verify:build -- --clear-cache` - Clear cache and verify build
+
 ## Troubleshooting
 
 ### Hot Reload Issues
@@ -204,7 +212,7 @@ The project includes VS Code launch configurations for debugging both frontend a
 **Frontend not updating**:
 - Ensure Vite dev server is running (you should see "vite connected" in browser console)
 - Check that you're accessing https://localhost:7157 (not the Vite server directly)
-- Try refreshing the browser or restarting `npm run dev:fullstack`
+- Try refreshing the browser or restarting `npm run dev`
 - Verify Vite server URL matches configuration (default: https://localhost:5173)
 
 **Backend not restarting**:
@@ -221,7 +229,7 @@ The project includes VS Code launch configurations for debugging both frontend a
 ### Certificate Issues
 
 **Certificate errors**:
-- Vue dev server: Delete certs in `%APPDATA%/ASP.NET/https`, run `npm run dev:fullstack` again
+- Vue dev server: Delete certs in `%APPDATA%/ASP.NET/https`, run `npm run dev` again
 - .NET HTTPS: Run `dotnet dev-certs https --clean` then `dotnet dev-certs https --trust`
 
 **Database errors**: Ensure `awscredentials.xml` is in `web` folder when doing initial application startup.
@@ -250,7 +258,7 @@ Mailpit captures emails sent by the application during development without sendi
 Mailpit starts automatically:
 ```bash
 npm run dev:backend        # Starts backend + Mailpit
-npm run dev:fullstack      # Starts full stack + Mailpit
+npm run dev      # Starts full stack + Mailpit
 ```
 
 Manual control:
