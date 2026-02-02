@@ -150,7 +150,10 @@ export default defineConfig(({ mode }) => {
             },
             hmr: {
                 overlay: false,
+                protocol: "wss", // Use secure WebSocket since we're on HTTPS
                 port: hmrPort, // Use a different port for HMR WebSocket to avoid proxy conflicts
+                clientPort: hmrPort, // Tell browser clients to connect to this port for HMR
+                host: "localhost", // Ensure HMR connects to localhost even when accessed via backend proxy
             },
         },
         build: {

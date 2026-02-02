@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
+using Viper.EmailTemplates.Services;
 using Viper.Models.ClinicalScheduler;
 using Viper.Services;
 
@@ -20,7 +21,7 @@ namespace Viper.test.ClinicalScheduler
         private readonly Mock<IGradYearService> _mockGradYearService;
         private readonly Mock<IPermissionValidator> _mockPermissionValidator;
         private readonly Mock<IUserHelper> _mockUserHelper;
-        private readonly Mock<IConfiguration> _mockConfiguration;
+        private readonly Mock<IEmailTemplateRenderer> _mockEmailTemplateRenderer;
         private readonly ClinicalSchedulerContext _context;
         private readonly TestableScheduleEditService _service;
         private bool _disposed = false;
@@ -40,7 +41,13 @@ namespace Viper.test.ClinicalScheduler
             _mockEmailNotificationOptions = new Mock<IOptions<EmailNotificationSettings>>();
             _mockPermissionValidator = new Mock<IPermissionValidator>();
             _mockUserHelper = new Mock<IUserHelper>();
-            _mockConfiguration = new Mock<IConfiguration>();
+            _mockEmailTemplateRenderer = new Mock<IEmailTemplateRenderer>();
+            _mockEmailTemplateRenderer
+                .Setup(r => r.RenderAsync<PrimaryEvaluatorRemovedViewModel>(
+                    It.IsAny<string>(),
+                    It.IsAny<PrimaryEvaluatorRemovedViewModel>(),
+                    It.IsAny<Dictionary<string, object>?>()))
+                .ReturnsAsync("<html>Primary evaluator removed</html>");
 
             // Setup default email notification configuration for tests
             var emailNotificationSettings = new EmailNotificationSettings
@@ -86,15 +93,20 @@ namespace Viper.test.ClinicalScheduler
             // Seed the context with required test data
             SeedTestData();
 
+            // Setup email settings
+            var mockEmailSettingsOptions = new Mock<IOptions<EmailSettings>>();
+            mockEmailSettingsOptions.Setup(x => x.Value).Returns(new EmailSettings { BaseUrl = "https://test.example.com" });
+
             _service = new TestableScheduleEditService(
                 _context,
                 _mockAuditService.Object,
                 _mockLogger.Object,
                 _mockEmailService.Object,
                 _mockEmailNotificationOptions.Object,
+                mockEmailSettingsOptions.Object,
                 _mockGradYearService.Object,
                 _mockPermissionValidator.Object,
-                _mockConfiguration.Object);
+                _mockEmailTemplateRenderer.Object);
         }
 
         private void SeedTestData()

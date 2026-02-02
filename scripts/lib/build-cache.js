@@ -414,20 +414,62 @@ function getCachedFormatOutput(cacheKey) {
     return cacheEntry.output || ""
 }
 
+// Matches any MSBuild error line with an error code (e.g., ": error CS1234", ": error NETSDK1045")
+const ERROR_PATTERN = /:\s*error\s+[A-Z]+\d+/i
+
+// Matches MSBuild summary line showing 0 errors (e.g., "0 Error(s)")
+const ZERO_ERRORS_PATTERN = /\b0\s+Error\(s\)/i
+
+// Matches "Build succeeded" message from MSBuild
+const BUILD_SUCCEEDED_PATTERN = /Build succeeded\./i
+
 /**
  * Filter build output to show only error lines (not warnings)
  * @param {string} output - Full build output
- * @returns {string} - Filtered output with only errors, or original if no errors found
+ * @returns {string} - Filtered output with only errors, or original output if no error lines matched
  */
 function filterBuildErrors(output) {
-    if (!output) {
+    if (!output || !output.trim()) {
         return ""
     }
     const errorLines = output
         .split("\n")
-        .filter((line) => line.includes(": error ") || line.includes("Build FAILED") || line.includes("Error(s)"))
+        .filter(
+            (line) =>
+                // Any MSBuild error with error code (CS, MSB, NETSDK, NU, SDK, VBC, etc.)
+                ERROR_PATTERN.test(line) ||
+                // Build failure indicators
+                line.includes("Build FAILED") ||
+                // Generic error indicators (no error code)
+                line.includes("MSBUILD : error") ||
+                // File locking errors
+                line.includes("is being used by another process") ||
+                line.includes("Could not copy") ||
+                // SDK/CLI errors
+                line.includes("It was not possible to find any installed .NET SDKs") ||
+                line.includes("Could not find a part of the path") ||
+                line.includes("Unhandled exception"),
+        )
         .join("\n")
+        .trim()
+    // Fall back to original output when no error lines matched to avoid silent failures
     return errorLines || output
+}
+
+/**
+ * Check if build output confirms success with only warnings (no actual errors).
+ * Returns true ONLY if we can positively confirm the build succeeded with 0 errors.
+ * This is the inverse of error detection - we fail by default unless we confirm success.
+ * @param {string} output - Full build output
+ * @returns {boolean} - True if build confirmed successful with only warnings
+ */
+function isConfirmedWarningsOnly(output) {
+    if (!output || !output.trim()) {
+        return false
+    }
+    // Must have positive confirmation of success: "0 Error(s)" or "Build succeeded."
+    // This ensures we don't miss errors due to pattern gaps
+    return ZERO_ERRORS_PATTERN.test(output) || BUILD_SUCCEEDED_PATTERN.test(output)
 }
 
 module.exports = {
@@ -436,6 +478,7 @@ module.exports = {
     wasBuildSuccessful,
     getCachedBuildOutput,
     filterBuildErrors,
+    isConfirmedWarningsOnly,
     clearBuildCache,
     buildIfNeeded,
     computeProjectHash,

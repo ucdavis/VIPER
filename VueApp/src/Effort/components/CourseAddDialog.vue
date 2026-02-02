@@ -14,6 +14,7 @@
                     flat
                     round
                     dense
+                    aria-label="Close dialog"
                 />
             </q-card-section>
 

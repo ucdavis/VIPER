@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
@@ -174,6 +175,13 @@ public class InstructorsController : BaseEffortController
                 nameof(GetInstructor),
                 new { personId = instructor.PersonId, termCode = instructor.TermCode },
                 instructor);
+        }
+        catch (InstructorAlreadyExistsException ex)
+        {
+            // Race condition: another request created the instructor between our pre-check and database write
+            _logger.LogWarning(ex, "Instructor {PersonId} already exists for term {TermCode} (race condition)",
+                ex.PersonId, ex.TermCode);
+            return Conflict("Instructor already exists for this term");
         }
         catch (InvalidOperationException ex)
         {

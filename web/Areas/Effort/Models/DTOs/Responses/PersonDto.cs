@@ -22,4 +22,28 @@ public class PersonDto
     public bool VolunteerWos { get; set; }
     public double? PercentClinical { get; set; }
     public bool IsVerified => EffortVerified.HasValue;
+
+    /// <summary>
+    /// Number of effort records for this instructor in the term.
+    /// Used for UI display and visual indicators.
+    /// </summary>
+    public int RecordCount { get; set; }
+
+    /// <summary>
+    /// Whether verification emails can be sent to this instructor.
+    /// False if instructor is already verified. Instructors with no effort
+    /// records can still receive emails to verify "no effort" status.
+    /// </summary>
+    public bool CanSendVerificationEmail => !IsVerified;
+
+    /// <summary>
+    /// Date when the last verification email was successfully sent.
+    /// Used to show email status indicators in the UI.
+    /// </summary>
+    public DateTime? LastEmailedDate { get; set; }
+
+    /// <summary>
+    /// Name of the person who sent the last verification email.
+    /// </summary>
+    public string? LastEmailedBy { get; set; }
 }

@@ -10,6 +10,7 @@ REM   4. Add EffortType flag columns (FacultyCanEnter, AllowedOnDvm, AllowedOn19
 REM   5. Rename Records.SessionType column to Records.EffortType
 REM   6. Rename Percentages.EffortTypeId column to Percentages.PercentAssignTypeId
 REM   7. Duplicate Records Cleanup - Remove duplicates and add unique constraint
+REM   8. Add LastEmailed columns to Persons table (performance optimization)
 REM
 REM Usage:
 REM   RunPostDeployment.bat [environment] [options]
@@ -38,6 +39,7 @@ echo   4. EffortType Flag Columns - Add new columns to effort.EffortTypes table
 echo   5. Rename Column - Records.SessionType to Records.EffortType
 echo   6. Rename Column - Percentages.EffortTypeId to Percentages.PercentAssignTypeId
 echo   7. Duplicate Records Cleanup - Remove duplicates and add unique constraint
+echo   8. Add LastEmailed Columns - Add LastEmailed/LastEmailedBy to Persons table
 echo.
 echo Available options:
 echo   [no args]  DRY-RUN MODE - Shows what would change (default, safe)

@@ -3,6 +3,7 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -81,24 +82,20 @@ public class InstructorService : IInstructorService
 
     public async Task<List<PersonDto>> GetInstructorsAsync(int termCode, string? department = null, CancellationToken ct = default)
     {
-        var query = _context.Persons
+        var baseQuery = _context.Persons
             .AsNoTracking()
             .Where(p => p.TermCode == termCode);
 
         if (!string.IsNullOrWhiteSpace(department))
         {
-            query = query.Where(p => p.EffortDept == department);
+            baseQuery = baseQuery.Where(p => p.EffortDept == department);
         }
 
-        var instructors = await query
-            .OrderBy(p => p.LastName)
-            .ThenBy(p => p.FirstName)
-            .ToListAsync(ct);
+        var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct);
 
-        var dtos = _mapper.Map<List<PersonDto>>(instructors);
-
-        // Enrich with titles from dictionary database
-        await EnrichWithTitlesAsync(dtos, ct);
+        await Task.WhenAll(
+            EnrichWithTitlesAsync(dtos, ct),
+            EnrichWithRecordCountsAsync(dtos, termCode, ct));
 
         return dtos;
     }
@@ -110,31 +107,65 @@ public class InstructorService : IInstructorService
             return [];
         }
 
-        var instructors = await _context.Persons
+        var baseQuery = _context.Persons
             .AsNoTracking()
-            .Where(p => p.TermCode == termCode && departments.Contains(p.EffortDept))
-            .OrderBy(p => p.LastName)
-            .ThenBy(p => p.FirstName)
-            .ToListAsync(ct);
+            .Where(p => p.TermCode == termCode && departments.Contains(p.EffortDept));
 
-        var dtos = _mapper.Map<List<PersonDto>>(instructors);
+        var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct);
 
-        await EnrichWithTitlesAsync(dtos, ct);
+        await Task.WhenAll(
+            EnrichWithTitlesAsync(dtos, ct),
+            EnrichWithRecordCountsAsync(dtos, termCode, ct));
 
         return dtos;
     }
 
     public async Task<PersonDto?> GetInstructorAsync(int personId, int termCode, CancellationToken ct = default)
     {
-        var instructor = await _context.Persons
+        var baseQuery = _context.Persons
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.PersonId == personId && p.TermCode == termCode, ct);
+            .Where(p => p.PersonId == personId && p.TermCode == termCode);
 
-        if (instructor == null) return null;
+        var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct, applyOrdering: false);
+        if (dtos.Count == 0) return null;
 
-        var dto = _mapper.Map<PersonDto>(instructor);
-        await EnrichWithTitlesAsync(new List<PersonDto> { dto }, ct);
+        var dto = dtos[0];
+        await EnrichWithTitlesAsync([dto], ct);
+        await EnrichWithRecordCountsAsync([dto], termCode, ct);
         return dto;
+    }
+
+    /// <summary>
+    /// Executes instructor query with left join to resolve LastEmailedBy sender names.
+    /// </summary>
+    private async Task<List<PersonDto>> QueryInstructorsWithSenderNamesAsync(
+        IQueryable<EffortPerson> baseQuery,
+        CancellationToken ct,
+        bool applyOrdering = true)
+    {
+        var query = from p in baseQuery
+                    join sender in _context.ViperPersons.AsNoTracking()
+                        on p.LastEmailedBy equals sender.PersonId into senders
+                    from sender in senders.DefaultIfEmpty()
+                    select new { Person = p, SenderName = sender != null ? sender.FirstName + " " + sender.LastName : null };
+
+        if (applyOrdering)
+        {
+            query = query.OrderBy(x => x.Person.LastName).ThenBy(x => x.Person.FirstName);
+        }
+
+        var results = await query.ToListAsync(ct);
+        var instructors = results.Select(r => r.Person).ToList();
+        var senderNames = results.ToDictionary(r => r.Person.PersonId, r => r.SenderName);
+
+        var dtos = _mapper.Map<List<PersonDto>>(instructors);
+
+        foreach (var dto in dtos.Where(d => senderNames.TryGetValue(d.PersonId, out var name) && name != null))
+        {
+            dto.LastEmailedBy = senderNames[dto.PersonId];
+        }
+
+        return dtos;
     }
 
     public async Task<List<AaudPersonDto>> SearchPossibleInstructorsAsync(int termCode, string? searchTerm = null, CancellationToken ct = default)
@@ -273,7 +304,7 @@ public class InstructorService : IInstructorService
         // Check if instructor already exists for this term
         if (await InstructorExistsAsync(request.PersonId, request.TermCode, ct))
         {
-            throw new InvalidOperationException($"Instructor with PersonId {request.PersonId} already exists for term {request.TermCode}");
+            throw new InstructorAlreadyExistsException(request.PersonId, request.TermCode);
         }
 
         // Look up person from VIPER.users.Person
@@ -714,6 +745,30 @@ public class InstructorService : IInstructorService
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Enriches instructor DTOs with effort record counts for the term.
+    /// Used for UI display and visual indicators; instructors with zero records
+    /// can still receive verification emails to confirm "no effort" status.
+    /// </summary>
+    private async Task EnrichWithRecordCountsAsync(List<PersonDto> instructors, int termCode, CancellationToken ct)
+    {
+        if (instructors.Count == 0) return;
+
+        var personIds = instructors.Select(i => i.PersonId).ToList();
+
+        var recordCounts = await _context.Records
+            .AsNoTracking()
+            .Where(r => r.TermCode == termCode && personIds.Contains(r.PersonId))
+            .GroupBy(r => r.PersonId)
+            .Select(g => new { PersonId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.PersonId, x => x.Count, ct);
+
+        foreach (var instructor in instructors)
+        {
+            instructor.RecordCount = recordCounts.GetValueOrDefault(instructor.PersonId, 0);
+        }
     }
 
     /// <summary>

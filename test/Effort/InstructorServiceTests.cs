@@ -211,6 +211,36 @@ public sealed class InstructorServiceTests : IDisposable
 
     #endregion
 
+    #region CreateInstructorAsync Tests
+
+    [Fact]
+    public async Task CreateInstructorAsync_ThrowsInstructorAlreadyExistsException_WhenInstructorExists()
+    {
+        // Arrange - instructor already exists
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 1,
+            TermCode = 202410,
+            FirstName = "John",
+            LastName = "Doe",
+            EffortDept = "VME",
+            EffortTitleCode = "1234"
+        });
+        await _context.SaveChangesAsync();
+
+        var request = new CreateInstructorRequest { PersonId = 1, TermCode = 202410 };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<Areas.Effort.Exceptions.InstructorAlreadyExistsException>(
+            () => _instructorService.CreateInstructorAsync(request));
+
+        Assert.Equal(1, ex.PersonId);
+        Assert.Equal(202410, ex.TermCode);
+        Assert.Contains("already exists", ex.Message);
+    }
+
+    #endregion
+
     #region UpdateInstructorAsync Tests
 
     [Fact]
@@ -674,6 +704,61 @@ public sealed class InstructorServiceTests : IDisposable
         Assert.True(instructor1.VolunteerWos);
         Assert.NotNull(instructor2);
         Assert.False(instructor2.VolunteerWos);
+    }
+
+    [Fact]
+    public async Task GetInstructorAsync_MapsLastEmailedFieldsCorrectly()
+    {
+        // Arrange - LastEmailed maps to LastEmailedDate, LastEmailedBy resolved to sender name
+        var emailedDate = new DateTime(2024, 10, 15, 14, 30, 0, DateTimeKind.Local);
+        var senderId = 999;
+
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 1,
+            TermCode = 202410,
+            FirstName = "John",
+            LastName = "Doe",
+            EffortDept = "VME",
+            EffortTitleCode = "1234",
+            LastEmailed = emailedDate,
+            LastEmailedBy = senderId
+        });
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 2,
+            TermCode = 202410,
+            FirstName = "Jane",
+            LastName = "Smith",
+            EffortDept = "VME",
+            EffortTitleCode = "1234",
+            LastEmailed = null,
+            LastEmailedBy = null
+        });
+        await _context.SaveChangesAsync();
+
+        // Add sender to ViperPersons (cross-schema reference in EffortDbContext) for name lookup
+        _context.ViperPersons.Add(new ViperPerson
+        {
+            PersonId = senderId,
+            FirstName = "Admin",
+            LastName = "User"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var instructor1 = await _instructorService.GetInstructorAsync(1, 202410);
+        var instructor2 = await _instructorService.GetInstructorAsync(2, 202410);
+
+        // Assert - instructor with email history
+        Assert.NotNull(instructor1);
+        Assert.Equal(emailedDate, instructor1.LastEmailedDate);
+        Assert.Equal("Admin User", instructor1.LastEmailedBy);
+
+        // Assert - instructor without email history
+        Assert.NotNull(instructor2);
+        Assert.Null(instructor2.LastEmailedDate);
+        Assert.Null(instructor2.LastEmailedBy);
     }
 
     #endregion

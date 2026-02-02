@@ -71,9 +71,23 @@
                 :key="deptGroup.dept"
                 class="q-mb-sm"
             >
-                <!-- Department header -->
-                <div class="dept-header text-white q-pa-sm">
-                    {{ deptGroup.dept }}
+                <!-- Department header with bulk email button -->
+                <div class="dept-header text-white q-pa-sm row items-center">
+                    <span class="text-weight-bold">{{ deptGroup.dept }}</span>
+                    <q-space />
+                    <q-btn
+                        v-if="getEmailableCount(deptGroup) > 0"
+                        icon="mail_outline"
+                        :label="`Email ${getEmailableCount(deptGroup)} Unverified ${inflect('Instructor', getEmailableCount(deptGroup))}`"
+                        dense
+                        flat
+                        size="sm"
+                        color="white"
+                        no-caps
+                        :disable="sendingEmailDepts.has(deptGroup.dept)"
+                        :loading="sendingEmailDepts.has(deptGroup.dept)"
+                        @click="confirmBulkEmail(deptGroup)"
+                    />
                 </div>
 
                 <!-- Instructors table for this department -->
@@ -88,32 +102,122 @@
                     :rows-per-page-options="[0]"
                     class="dept-table"
                 >
+                    <template #header-cell-actions="props">
+                        <q-th :props="props">
+                            <span class="actions-header-content">
+                                {{ props.col.label }}
+                                <q-icon
+                                    name="help_outline"
+                                    size="xs"
+                                    class="cursor-pointer"
+                                >
+                                    <q-tooltip
+                                        class="email-legend-tooltip bg-white text-dark shadow-4"
+                                        anchor="bottom middle"
+                                        self="top middle"
+                                    >
+                                        <div class="text-subtitle2 q-mb-sm text-dark">Email Status Legend</div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="mail"
+                                                color="primary"
+                                                size="xs"
+                                            />
+                                            <span>Never emailed (has effort)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="mail"
+                                                color="warning"
+                                                size="xs"
+                                            />
+                                            <span>Never emailed (no effort)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="mark_email_unread"
+                                                color="warning"
+                                                size="xs"
+                                            />
+                                            <span>Emailed within {{ verificationReplyDays }} days</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="mark_email_unread"
+                                                color="negative"
+                                                size="xs"
+                                            />
+                                            <span>Emailed, past deadline</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="mark_email_read"
+                                                color="positive"
+                                                size="xs"
+                                            />
+                                            <span>Already verified</span>
+                                        </div>
+                                    </q-tooltip>
+                                </q-icon>
+                            </span>
+                        </q-th>
+                    </template>
                     <template #body-cell-isVerified="props">
                         <q-td :props="props">
+                            <!-- Verified with effort records -->
                             <q-icon
-                                v-if="props.row.isVerified"
+                                v-if="props.row.isVerified && props.row.recordCount > 0"
                                 name="check"
                                 color="positive"
-                                size="sm"
+                                size="xs"
                             >
                                 <q-tooltip>Effort verified</q-tooltip>
                             </q-icon>
+                            <!-- Verified no effort -->
+                            <q-icon
+                                v-else-if="props.row.isVerified && props.row.recordCount === 0"
+                                name="check"
+                                color="info"
+                                size="xs"
+                            >
+                                <q-tooltip>Verified no effort</q-tooltip>
+                            </q-icon>
+                            <!-- Unverified with no records - show dash -->
+                            <span
+                                v-else-if="props.row.recordCount === 0"
+                                class="text-grey-6"
+                            >
+                                --
+                                <q-tooltip>No effort records - can verify "no effort"</q-tooltip>
+                            </span>
+                            <!-- Unverified with records - no icon needed -->
                         </q-td>
                     </template>
                     <template #body-cell-fullName="props">
                         <q-td :props="props">
-                            <router-link
-                                :to="{
-                                    name: 'InstructorDetail',
-                                    params: {
-                                        termCode: selectedTermCode,
-                                        personId: props.row.personId,
-                                    },
-                                }"
-                                class="text-weight-medium instructor-name"
-                            >
-                                {{ props.row.fullName }}
-                            </router-link>
+                            <div class="instructor-info">
+                                <router-link
+                                    :to="{
+                                        name: 'InstructorDetail',
+                                        params: {
+                                            termCode: selectedTermCode,
+                                            personId: props.row.personId,
+                                        },
+                                    }"
+                                    class="text-weight-medium instructor-name"
+                                >
+                                    {{ props.row.fullName }}
+                                </router-link>
+                                <q-badge
+                                    v-if="props.row.recordCount === 0"
+                                    color="orange-8"
+                                    text-color="white"
+                                    class="no-effort-badge"
+                                >
+                                    No Effort
+                                    <q-tooltip>This instructor has no effort records for this term</q-tooltip>
+                                </q-badge>
+                            </div>
                             <div
                                 v-if="props.row.title"
                                 class="text-caption title-code"
@@ -124,30 +228,118 @@
                     </template>
                     <template #body-cell-actions="props">
                         <q-td :props="props">
-                            <q-btn
-                                v-if="hasEditInstructor"
-                                icon="edit"
-                                color="primary"
-                                dense
-                                flat
-                                round
-                                size="sm"
-                                @click="openEditDialog(props.row)"
-                            >
-                                <q-tooltip>Edit instructor</q-tooltip>
-                            </q-btn>
-                            <q-btn
-                                v-if="hasDeleteInstructor"
-                                icon="delete"
-                                color="negative"
-                                dense
-                                flat
-                                round
-                                size="sm"
-                                @click="confirmDeleteInstructor(props.row)"
-                            >
-                                <q-tooltip>Delete instructor</q-tooltip>
-                            </q-btn>
+                            <div class="actions-cell">
+                                <!-- Email action: Already verified -->
+                                <q-icon
+                                    v-if="props.row.isVerified"
+                                    name="mark_email_read"
+                                    color="positive"
+                                    size="xs"
+                                >
+                                    <q-tooltip>Already verified</q-tooltip>
+                                </q-icon>
+                                <!-- Email action: Loading spinner while sending -->
+                                <q-spinner
+                                    v-else-if="
+                                        sendingEmailPersonIds.has(props.row.personId) ||
+                                        sendingEmailDepts.has(props.row.effortDept)
+                                    "
+                                    color="primary"
+                                    size="xs"
+                                />
+                                <!-- Email action: Emailed past deadline, not verified -->
+                                <span
+                                    v-else-if="isEmailedPastDeadline(props.row)"
+                                    class="email-icon-btn"
+                                    tabindex="0"
+                                    role="button"
+                                    :aria-label="`Resend verification email to ${props.row.fullName} (past deadline)`"
+                                    @click="confirmResendEmail(props.row)"
+                                    @keydown.enter.prevent="confirmResendEmail(props.row)"
+                                    @keydown.space.prevent="confirmResendEmail(props.row)"
+                                >
+                                    <q-icon
+                                        name="mark_email_unread"
+                                        color="negative"
+                                        size="xs"
+                                    />
+                                    <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
+                                </span>
+                                <!-- Email action: Emailed within deadline, not verified -->
+                                <span
+                                    v-else-if="props.row.lastEmailedDate"
+                                    class="email-icon-btn"
+                                    tabindex="0"
+                                    role="button"
+                                    :aria-label="`Resend verification email to ${props.row.fullName}`"
+                                    @click="confirmResendEmail(props.row)"
+                                    @keydown.enter.prevent="confirmResendEmail(props.row)"
+                                    @keydown.space.prevent="confirmResendEmail(props.row)"
+                                >
+                                    <q-icon
+                                        name="mark_email_unread"
+                                        color="warning"
+                                        size="xs"
+                                    />
+                                    <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
+                                </span>
+                                <!-- Email action: Never emailed, not verified -->
+                                <span
+                                    v-else
+                                    class="email-icon-btn"
+                                    tabindex="0"
+                                    role="button"
+                                    :aria-label="
+                                        props.row.recordCount === 0
+                                            ? `Send no-effort verification email to ${props.row.fullName}`
+                                            : `Send verification email to ${props.row.fullName}`
+                                    "
+                                    @click="sendVerificationEmail(props.row)"
+                                    @keydown.enter.prevent="sendVerificationEmail(props.row)"
+                                    @keydown.space.prevent="sendVerificationEmail(props.row)"
+                                >
+                                    <q-icon
+                                        name="mail"
+                                        :color="props.row.recordCount === 0 ? 'warning' : 'primary'"
+                                        size="xs"
+                                    />
+                                    <q-tooltip>
+                                        {{
+                                            props.row.recordCount === 0
+                                                ? "Send no-effort verification email"
+                                                : "Send verification email"
+                                        }}
+                                    </q-tooltip>
+                                </span>
+                                <!-- Edit action -->
+                                <q-btn
+                                    v-if="hasEditInstructor"
+                                    icon="edit"
+                                    color="primary"
+                                    dense
+                                    flat
+                                    round
+                                    size="sm"
+                                    :aria-label="`Edit ${props.row.fullName}`"
+                                    @click="openEditDialog(props.row)"
+                                >
+                                    <q-tooltip>Edit instructor</q-tooltip>
+                                </q-btn>
+                                <!-- Delete action -->
+                                <q-btn
+                                    v-if="hasDeleteInstructor"
+                                    icon="delete"
+                                    color="negative"
+                                    dense
+                                    flat
+                                    round
+                                    size="sm"
+                                    :aria-label="`Delete ${props.row.fullName}`"
+                                    @click="confirmDeleteInstructor(props.row)"
+                                >
+                                    <q-tooltip>Delete instructor</q-tooltip>
+                                </q-btn>
+                            </div>
                         </q-td>
                     </template>
                 </q-table>
@@ -184,18 +376,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue"
+import { ref, computed, onMounted, onUnmounted, watch } from "vue"
 import { useQuasar } from "quasar"
-import { useRoute, useRouter } from "vue-router"
+import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { effortService } from "../services/effort-service"
 import { termService } from "../services/term-service"
+import { verificationService } from "../services/verification-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
-import type { PersonDto, TermDto } from "../types"
+import { useUserStore } from "@/store/UserStore"
+import type { PersonDto, TermDto, BulkEmailResult } from "../types"
 import type { QTableColumn } from "quasar"
 import InstructorAddDialog from "../components/InstructorAddDialog.vue"
 import InstructorEditDialog from "../components/InstructorEditDialog.vue"
+import { inflect } from "inflection"
 
 const $q = useQuasar()
+const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
 const { hasImportInstructor, hasEditInstructor, hasDeleteInstructor } = useEffortPermissions()
@@ -212,6 +408,45 @@ const isLoading = ref(false)
 const showAddDialog = ref(false)
 const showEditDialog = ref(false)
 const selectedInstructor = ref<PersonDto | null>(null)
+
+// Email state - using Sets to allow concurrent sends
+const sendingEmailPersonIds = ref<Set<number>>(new Set())
+const sendingEmailDepts = ref<Set<string>>(new Set())
+const verificationReplyDays = ref(7)
+
+// Warn user if they try to leave while email operations are in progress
+function handleBeforeUnload(e: BeforeUnloadEvent) {
+    if (sendingEmailDepts.value.size > 0 || sendingEmailPersonIds.value.size > 0) {
+        e.preventDefault()
+        // Modern browsers ignore custom messages, but returnValue is required
+        e.returnValue = "Email sending is in progress. Are you sure you want to leave?"
+        return e.returnValue
+    }
+}
+
+onMounted(() => {
+    window.addEventListener("beforeunload", handleBeforeUnload)
+})
+
+onUnmounted(() => {
+    window.removeEventListener("beforeunload", handleBeforeUnload)
+})
+
+onBeforeRouteLeave((_to, _from, next) => {
+    if (sendingEmailDepts.value.size > 0 || sendingEmailPersonIds.value.size > 0) {
+        $q.dialog({
+            title: "Email In Progress",
+            message:
+                "Verification emails are still being sent. Leaving this page may interrupt the process. Are you sure you want to leave?",
+            cancel: true,
+            persistent: true,
+        })
+            .onOk(() => next())
+            .onCancel(() => next(false))
+    } else {
+        next()
+    }
+})
 
 // Computed
 const currentTermName = computed(() => {
@@ -271,8 +506,8 @@ const columns = computed<QTableColumn[]>(() => [
         field: "isVerified",
         align: "center",
         sortable: true,
-        style: "width: 80px",
-        headerStyle: "width: 80px",
+        style: "width: 60px; min-width: 60px",
+        headerStyle: "width: 60px; min-width: 60px",
     },
     {
         name: "fullName",
@@ -280,22 +515,28 @@ const columns = computed<QTableColumn[]>(() => [
         field: "fullName",
         align: "left",
         sortable: true,
+        classes: "instructor-cell",
     },
     {
         name: "actions",
         label: "Actions",
         field: "actions",
         align: "center",
-        style: "width: 100px",
-        headerStyle: "width: 100px",
+        style: "width: 120px; min-width: 120px",
+        headerStyle: "width: 120px; min-width: 120px",
     },
 ])
+
+// Race condition protection for async loads
+let loadToken = 0
 
 // Methods
 async function loadTerms() {
     const paramTermCode = route.params.termCode ? parseInt(route.params.termCode as string, 10) : null
 
-    terms.value = await termService.getTerms()
+    const [termsResult, settings] = await Promise.all([termService.getTerms(), verificationService.getSettings()])
+    terms.value = termsResult
+    verificationReplyDays.value = settings.verificationReplyDays
 
     if (paramTermCode && terms.value.some((t) => t.termCode === paramTermCode)) {
         selectedTermCode.value = paramTermCode
@@ -325,11 +566,20 @@ watch(
 async function loadInstructors() {
     if (!selectedTermCode.value) return
 
+    const token = ++loadToken
     isLoading.value = true
+
     try {
-        instructors.value = await effortService.getInstructors(selectedTermCode.value)
+        const result = await effortService.getInstructors(selectedTermCode.value)
+
+        // Abort if a newer request has been initiated
+        if (token !== loadToken) return
+
+        instructors.value = result
     } finally {
-        isLoading.value = false
+        if (token === loadToken) {
+            isLoading.value = false
+        }
     }
 }
 
@@ -351,7 +601,7 @@ function confirmDeleteInstructor(instructor: PersonDto) {
         if (recordCount > 0) {
             $q.dialog({
                 title: "Confirm Delete",
-                message: `This instructor has ${recordCount} effort record(s) that will also be deleted. Are you sure you want to proceed?`,
+                message: `This instructor has ${recordCount} effort ${inflect("record", recordCount)} that will also be deleted. Are you sure you want to proceed?`,
                 cancel: true,
                 persistent: true,
             }).onOk(() => deleteInstructor(instructor.personId))
@@ -383,6 +633,165 @@ function onInstructorUpdated() {
     loadInstructors()
 }
 
+// Email methods
+type DeptGroup = { dept: string; instructors: PersonDto[] }
+
+function getEmailableCount(deptGroup: DeptGroup): number {
+    return deptGroup.instructors.filter((i) => i.canSendVerificationEmail).length
+}
+
+function getDaysSinceEmailed(instructor: PersonDto): number {
+    if (!instructor.lastEmailedDate) return -1
+    const lastEmailed = new Date(instructor.lastEmailedDate)
+    const now = new Date()
+    return Math.floor((now.getTime() - lastEmailed.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+function isEmailedPastDeadline(instructor: PersonDto): boolean {
+    const daysSince = getDaysSinceEmailed(instructor)
+    return daysSince > verificationReplyDays.value
+}
+
+function formatDate(dateStr: string): string {
+    return new Date(dateStr).toLocaleDateString()
+}
+
+function getEmailTooltip(instructor: PersonDto): string {
+    if (!instructor.lastEmailedDate) return ""
+
+    const daysSince = getDaysSinceEmailed(instructor)
+    const dateStr = formatDate(instructor.lastEmailedDate)
+    const sender = instructor.lastEmailedBy ?? "Unknown"
+
+    if (daysSince > verificationReplyDays.value) {
+        const daysPast = daysSince - verificationReplyDays.value
+        return `Emailed ${dateStr} by ${sender} - ${daysPast} ${inflect("day", daysPast)} past deadline`
+    }
+    return `Emailed ${dateStr} by ${sender}`
+}
+
+function confirmResendEmail(instructor: PersonDto) {
+    const daysSince = getDaysSinceEmailed(instructor)
+    const dateStr = formatDate(instructor.lastEmailedDate!)
+    const sender = instructor.lastEmailedBy ?? "Unknown"
+
+    $q.dialog({
+        title: "Resend Verification Email?",
+        message: `${instructor.fullName} was last emailed on ${dateStr} by ${sender} (${daysSince} ${inflect("day", daysSince)} ago). Send another email?`,
+        cancel: true,
+        persistent: true,
+    }).onOk(() => sendVerificationEmail(instructor))
+}
+
+async function sendVerificationEmail(instructor: PersonDto) {
+    if (!selectedTermCode.value) return
+
+    sendingEmailPersonIds.value.add(instructor.personId)
+    try {
+        const result = await verificationService.sendVerificationEmail(instructor.personId, selectedTermCode.value)
+        if (result.success) {
+            $q.notify({
+                type: "positive",
+                message: `Verification email sent to ${instructor.fullName}`,
+            })
+            // Update the instructor locally instead of reloading all instructors
+            instructor.lastEmailedDate = new Date().toISOString()
+            instructor.lastEmailedBy = `${userStore.userInfo.firstName} ${userStore.userInfo.lastName}`
+        } else {
+            $q.notify({
+                type: "negative",
+                message: result.error ?? "Failed to send email",
+            })
+        }
+    } catch {
+        $q.notify({
+            type: "negative",
+            message: "An error occurred while sending the email",
+        })
+    } finally {
+        sendingEmailPersonIds.value.delete(instructor.personId)
+    }
+}
+
+function confirmBulkEmail(deptGroup: DeptGroup) {
+    const emailableCount = getEmailableCount(deptGroup)
+    $q.dialog({
+        title: "Send Verification Emails",
+        message: `This will send verification emails to ${emailableCount} ${inflect("instructor", emailableCount)} in ${deptGroup.dept} who haven't verified. Continue?`,
+        cancel: true,
+        persistent: true,
+    }).onOk(() => sendBulkVerificationEmails(deptGroup.dept))
+}
+
+async function sendBulkVerificationEmails(dept: string) {
+    if (!selectedTermCode.value) return
+
+    sendingEmailDepts.value.add(dept)
+    const loadingNotify = $q.notify({
+        type: "ongoing",
+        message: `Sending verification emails to ${dept}...`,
+        spinner: true,
+        timeout: 0,
+    })
+
+    try {
+        const result: BulkEmailResult = await verificationService.sendBulkVerificationEmails(
+            dept,
+            selectedTermCode.value,
+        )
+
+        loadingNotify()
+
+        if (result.emailsFailed === 0) {
+            $q.notify({
+                type: "positive",
+                message: `Successfully sent ${result.emailsSent} verification ${inflect("email", result.emailsSent)}`,
+                timeout: 5000,
+            })
+        } else {
+            $q.notify({
+                type: "warning",
+                message: `Sent ${result.emailsSent} ${inflect("email", result.emailsSent)}, ${result.emailsFailed} failed`,
+                timeout: 8000,
+            })
+            // Show details of failures
+            if (result.failures.length > 0) {
+                const failureList = result.failures.map((f) => `${f.instructorName}: ${f.reason}`).join("\n")
+                $q.dialog({
+                    title: "Email Failures",
+                    message: `The following emails could not be sent:\n\n${failureList}`,
+                })
+            }
+        }
+
+        // Update instructors locally instead of reloading
+        // Find all unverified instructors in this department that weren't in the failure list
+        const failedPersonIds = new Set(result.failures.map((f) => f.personId))
+        const now = new Date().toISOString()
+        const senderName = `${userStore.userInfo.firstName} ${userStore.userInfo.lastName}`
+
+        for (const instructor of instructors.value) {
+            if (
+                instructor.effortDept === dept &&
+                !instructor.isVerified &&
+                instructor.canSendVerificationEmail &&
+                !failedPersonIds.has(instructor.personId)
+            ) {
+                instructor.lastEmailedDate = now
+                instructor.lastEmailedBy = senderName
+            }
+        }
+    } catch {
+        loadingNotify()
+        $q.notify({
+            type: "negative",
+            message: "An error occurred while sending bulk emails",
+        })
+    } finally {
+        sendingEmailDepts.value.delete(dept)
+    }
+}
+
 onMounted(loadTerms)
 </script>
 
@@ -400,8 +809,6 @@ onMounted(loadTerms)
 
 .dept-table {
     margin-bottom: 0;
-    table-layout: fixed;
-    width: 100%;
 }
 
 .dept-table :deep(table) {
@@ -409,13 +816,93 @@ onMounted(loadTerms)
     width: 100%;
 }
 
+.dept-table :deep(.instructor-cell) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 0;
+}
+
 .instructor-name {
     color: #800000;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
 }
 
 .title-code {
     color: #666;
     font-size: 0.8em;
     text-transform: uppercase;
+}
+
+.instructor-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.no-effort-badge {
+    flex-shrink: 0;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+}
+
+.actions-header-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.actions-cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+    .email-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        transition: none;
+    }
+}
+
+.email-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.email-icon-btn:hover,
+.email-icon-btn:focus {
+    background-color: rgb(0 0 0 / 10%);
+}
+
+.email-icon-btn:focus-visible {
+    outline: 2px solid currentcolor;
+    outline-offset: 2px;
+}
+</style>
+
+<style>
+/* Unscoped style for tooltip (injected into body) */
+.email-legend-tooltip {
+    border: 1px solid #ccc;
 }
 </style>

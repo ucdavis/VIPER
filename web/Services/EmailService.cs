@@ -1,11 +1,25 @@
-using System.Net.Mail;
 using System.Net.Sockets;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Options;
+using MimeKit;
 
 namespace Viper.Services
 {
     /// <summary>
-    /// Email service implementation with Mailpit support for development
+    /// Exception thrown when email sending fails due to SMTP/network errors.
+    /// Distinct from InvalidOperationException to allow callers to differentiate
+    /// between email send failures and other errors (e.g., template rendering).
+    /// </summary>
+    public class EmailSendException : Exception
+    {
+        public EmailSendException(string message) : base(message) { }
+        public EmailSendException(string message, Exception innerException) : base(message, innerException) { }
+    }
+
+    /// <summary>
+    /// Email service implementation using MailKit with Mailpit support for development.
+    /// Sends multipart emails with both HTML and plaintext versions.
     /// </summary>
     public class EmailService : IEmailService
     {
@@ -29,50 +43,126 @@ namespace Viper.Services
 
         public async Task SendEmailAsync(IEnumerable<string> to, string subject, string body, bool isHtml = true, string? from = null)
         {
-            var mailMessage = new MailMessage();
-
-            foreach (var recipient in to)
+            if (isHtml)
             {
-                mailMessage.To.Add(recipient);
+                // HTML email - send as multipart with auto-generated plaintext
+                await SendMultipartEmailAsync(to, subject, body, textBody: null, from: from);
             }
-
-            mailMessage.Subject = subject;
-            mailMessage.Body = body;
-            mailMessage.IsBodyHtml = isHtml;
-            mailMessage.From = new MailAddress(from ?? _emailSettings.DefaultFromAddress);
-
-            await SendEmailAsync(mailMessage);
+            else
+            {
+                // Plaintext only
+                await SendMultipartEmailAsync(to, subject, htmlBody: null, textBody: body, from: from);
+            }
         }
 
-        public async Task SendEmailAsync(MailMessage mailMessage)
+        public async Task SendMultipartEmailAsync(string to, string subject, string? htmlBody, string? textBody = null, string? from = null)
+        {
+            await SendMultipartEmailAsync(new[] { to }, subject, htmlBody, textBody, from);
+        }
+
+        public async Task SendMultipartEmailAsync(IEnumerable<string> to, string subject, string? htmlBody, string? textBody = null, string? from = null)
+        {
+            if (string.IsNullOrEmpty(htmlBody) && string.IsNullOrEmpty(textBody))
+            {
+                throw new ArgumentException("At least one of htmlBody or textBody must be provided.");
+            }
+
+            using var message = new MimeMessage();
+            try
+            {
+                message.From.Add(MailboxAddress.Parse(from ?? _emailSettings.DefaultFromAddress));
+
+                foreach (var recipient in to)
+                {
+                    message.To.Add(MailboxAddress.Parse(recipient));
+                }
+
+                message.Subject = subject;
+
+                // Build multipart body using MailKit's BodyBuilder
+                var builder = new BodyBuilder();
+
+                if (!string.IsNullOrEmpty(htmlBody))
+                {
+                    builder.HtmlBody = htmlBody;
+                    // Auto-generate plaintext if not provided
+                    builder.TextBody = textBody ?? HtmlToTextConverter.Convert(htmlBody);
+                }
+                else if (!string.IsNullOrEmpty(textBody))
+                {
+                    builder.TextBody = textBody;
+                }
+
+                message.Body = builder.ToMessageBody();
+            }
+            catch (Exception ex) when (ex is not ArgumentException)
+            {
+                throw new EmailSendException($"Failed to build email message: {ex.Message}", ex);
+            }
+
+            await SendMimeMessageAsync(message);
+        }
+
+        private async Task SendMimeMessageAsync(MimeMessage message)
         {
             try
             {
-                using var smtpClient = CreateSmtpClient();
+                using var client = new SmtpClient();
 
-                // Log email details for debugging
+                // Determine SSL/TLS options
+                var secureSocketOptions = SecureSocketOptions.None;
+                if (_emailSettings.EnableSsl)
+                {
+                    secureSocketOptions = SecureSocketOptions.StartTls;
+                }
+
+                // Mailpit and local dev typically use no TLS
+                if (_hostEnvironment.IsDevelopment() && _emailSettings.UseMailpit)
+                {
+                    secureSocketOptions = SecureSocketOptions.None;
+                }
+
                 _logger.LogInformation("Sending email via {SmtpHost}:{SmtpPort} from {RequestContext}, Recipients: {RecipientCount}",
-                    _emailSettings.SmtpHost, _emailSettings.SmtpPort, GetRequestContext(), mailMessage.To.Count);
+                    _emailSettings.SmtpHost, _emailSettings.SmtpPort, GetRequestContext(), message.To.Count);
 
-                await smtpClient.SendMailAsync(mailMessage);
+                await client.ConnectAsync(_emailSettings.SmtpHost, _emailSettings.SmtpPort, secureSocketOptions);
+
+                // No authentication configured - this service is designed for localhost/internal
+                // SMTP relays that don't require auth. If auth is needed in the future,
+                // add Username/Password settings and call client.AuthenticateAsync() here.
+
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
 
                 _logger.LogInformation("Email sent successfully from {RequestContext}", GetRequestContext());
             }
-            catch (Exception ex)
+            catch (SocketException ex)
             {
-                _logger.LogError(ex, "Failed to send email from {RequestContext}, Recipients: {RecipientCount}",
-                    GetRequestContext(), mailMessage.To.Count);
-
                 // In development, if Mailpit is not available, log warning and continue
                 if (_hostEnvironment.IsDevelopment() && _emailSettings.UseMailpit)
                 {
-                    _logger.LogWarning("Mailpit not available, skipping email");
-                    return; // Silent skip in development
+                    _logger.LogWarning(ex, "Mailpit not available at {SmtpHost}:{SmtpPort}, skipping email",
+                        _emailSettings.SmtpHost, _emailSettings.SmtpPort);
+                    return;
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw new EmailSendException(
+                    $"Failed to connect to SMTP server {_emailSettings.SmtpHost}:{_emailSettings.SmtpPort}", ex);
+            }
+            catch (SmtpCommandException ex)
+            {
+                throw new EmailSendException(
+                    $"SMTP command failed with status {ex.StatusCode}: {ex.Message}", ex);
+            }
+            catch (SmtpProtocolException ex)
+            {
+                throw new EmailSendException(
+                    $"SMTP protocol error: {ex.Message}", ex);
+            }
+            catch (Exception ex) when (ex is not EmailSendException)
+            {
+                throw new EmailSendException(
+                    $"Unexpected error sending email: {ex.Message}", ex);
             }
         }
 
@@ -106,17 +196,6 @@ namespace Viper.Services
             }
 
             return status;
-        }
-
-        private SmtpClient CreateSmtpClient()
-        {
-            var smtpClient = new SmtpClient(_emailSettings.SmtpHost, _emailSettings.SmtpPort)
-            {
-                EnableSsl = _emailSettings.EnableSsl,
-                UseDefaultCredentials = _emailSettings.UseDefaultCredentials
-            };
-
-            return smtpClient;
         }
 
         private async Task<bool> IsMailpitAvailableAsync()
@@ -157,9 +236,14 @@ namespace Viper.Services
         public string SmtpHost { get; set; } = "localhost";
         public int SmtpPort { get; set; } = 25;
         public bool EnableSsl { get; set; } = false;
-        public bool UseDefaultCredentials { get; set; } = true;
         public string DefaultFromAddress { get; set; } = "noreply@example.com";
         public bool UseMailpit { get; set; } = false;
+
+        /// <summary>
+        /// Base URL for links in emails (e.g., "https://viper.vetmed.ucdavis.edu/2").
+        /// Used to construct absolute URLs for email content.
+        /// </summary>
+        public string? BaseUrl { get; set; }
     }
 
     /// <summary>

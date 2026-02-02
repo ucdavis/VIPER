@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -16,18 +17,24 @@ public class EffortRecordService : IEffortRecordService
     private readonly EffortDbContext _context;
     private readonly RAPSContext _rapsContext;
     private readonly IEffortAuditService _auditService;
+    private readonly IInstructorService _instructorService;
     private readonly IUserHelper _userHelper;
+    private readonly ILogger<EffortRecordService> _logger;
 
     public EffortRecordService(
         EffortDbContext context,
         RAPSContext rapsContext,
         IEffortAuditService auditService,
-        IUserHelper userHelper)
+        IInstructorService instructorService,
+        IUserHelper userHelper,
+        ILogger<EffortRecordService> logger)
     {
         _context = context;
         _rapsContext = rapsContext;
         _auditService = auditService;
+        _instructorService = instructorService;
         _userHelper = userHelper;
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -58,13 +65,44 @@ public class EffortRecordService : IEffortRecordService
             throw new InvalidOperationException("Effort value must be non-negative.");
         }
 
-        // Validate person exists for this term
+        // Get or create instructor for this term (matches legacy EffortAction.cfm behavior)
         var person = await _context.Persons
             .FirstOrDefaultAsync(p => p.PersonId == request.PersonId && p.TermCode == request.TermCode, ct);
 
         if (person == null)
         {
-            throw new InvalidOperationException($"Person {request.PersonId} not found for term {request.TermCode}");
+            // Auto-create instructor if they don't exist (legacy parity)
+            _logger.LogInformation(
+                "Auto-creating instructor {PersonId} for term {TermCode} during effort record creation",
+                request.PersonId, request.TermCode);
+
+            try
+            {
+                await _instructorService.CreateInstructorAsync(
+                    new CreateInstructorRequest { PersonId = request.PersonId, TermCode = request.TermCode }, ct);
+            }
+            catch (InstructorAlreadyExistsException ex)
+            {
+                // Race condition: another request created the instructor concurrently
+                _logger.LogDebug(ex,
+                    "Instructor {PersonId} for term {TermCode} was created by concurrent request",
+                    request.PersonId, request.TermCode);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // CreateInstructorAsync failed (e.g., VIPER person not found)
+                throw new InvalidOperationException(
+                    $"Failed to create instructor for PersonId {request.PersonId}: {ex.Message}", ex);
+            }
+
+            // Re-fetch the newly created person
+            person = await _context.Persons
+                .FirstOrDefaultAsync(p => p.PersonId == request.PersonId && p.TermCode == request.TermCode, ct);
+
+            if (person == null)
+            {
+                throw new InvalidOperationException($"Person with PersonId {request.PersonId} not found after instructor creation");
+            }
         }
 
         // Validate course exists and is not a child course

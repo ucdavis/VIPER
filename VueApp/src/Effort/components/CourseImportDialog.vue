@@ -11,6 +11,7 @@
                 flat
                 round
                 dense
+                aria-label="Close dialog"
                 class="absolute-top-right q-ma-sm"
                 style="z-index: 1"
             />
@@ -323,7 +324,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     "update:modelValue": [value: boolean]
-    imported: []
+    imported: [courseId: number]
 }>()
 
 const $q = useQuasar()
@@ -445,10 +446,10 @@ async function doImport() {
 
         const result = await effortService.importCourse(request)
 
-        if (result.success) {
+        if (result.success && result.course) {
             showImportOptionsDialog.value = false
             dialogOpen.value = false
-            emit("imported")
+            emit("imported", result.course.id)
         } else {
             importError.value = result.error ?? "Failed to import course"
             $q.notify({ type: "negative", message: importError.value })

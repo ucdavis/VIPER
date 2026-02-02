@@ -10,11 +10,11 @@ namespace Viper.Areas.Effort.Controllers;
 
 /// <summary>
 /// API controller for term operations in the Effort system.
-/// Terms are system-wide data visible to all users with ViewDept permission.
+/// Basic term lookup accessible to users with VerifyEffort permission (self-service).
 /// Management endpoints require ManageTerms permission.
 /// </summary>
 [Route("/api/effort/terms")]
-[Permission(Allow = $"{EffortPermissions.Base},{EffortPermissions.ViewDept},{EffortPermissions.ViewAllDepartments}")]
+[Permission(Allow = $"{EffortPermissions.Base},{EffortPermissions.ViewDept},{EffortPermissions.ViewAllDepartments},{EffortPermissions.VerifyEffort}")]
 public class TermsController : BaseEffortController
 {
     private readonly ITermService _termService;

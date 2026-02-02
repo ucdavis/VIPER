@@ -216,7 +216,7 @@ public sealed class CourseRelationshipsControllerTests
         var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
         var returnedResult = Assert.IsType<CourseRelationshipsResult>(okResult.Value);
         Assert.Single(returnedResult.ChildRelationships);
-        Assert.Equal(DvmDept, returnedResult.ChildRelationships.First().ChildCourse?.CustDept);
+        Assert.Equal(DvmDept, returnedResult.ChildRelationships[0].ChildCourse?.CustDept);
     }
 
     [Fact]

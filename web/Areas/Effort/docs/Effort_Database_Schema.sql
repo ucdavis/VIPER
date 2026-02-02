@@ -290,9 +290,12 @@ CREATE TABLE [effort].[Persons] (
     ReportUnit varchar(50) NULL,
     VolunteerWos tinyint NULL,
     PercentClinical decimal(5,2) NULL,
+    LastEmailed datetime2(7) NULL,
+    LastEmailedBy int NULL,
     CONSTRAINT PK_Persons PRIMARY KEY CLUSTERED (PersonId, TermCode),
     CONSTRAINT FK_Persons_Person FOREIGN KEY (PersonId) REFERENCES [users].[Person](PersonId),
     CONSTRAINT FK_Persons_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
+    CONSTRAINT FK_Persons_LastEmailedBy FOREIGN KEY (LastEmailedBy) REFERENCES [users].[Person](PersonId),
     CONSTRAINT CK_Persons_PercentAdmin CHECK (PercentAdmin BETWEEN 0 AND 100),
     CONSTRAINT CK_Persons_PercentClinical CHECK (PercentClinical IS NULL OR PercentClinical BETWEEN 0 AND 100)
 );

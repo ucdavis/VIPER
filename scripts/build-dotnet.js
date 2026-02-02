@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Build .NET projects for precommit (shared by lint, test, verify)
-// Uses isolated bin/Precommit directory to avoid conflicts with dev server (bin/Debug)
+// Uses --artifacts-path for full isolation from dev server (avoids file lock conflicts)
 //
 // Only builds test/ project - it references web/ so dotnet builds both.
 // Caches both success and failure - if code hasn't changed, result won't change.
@@ -15,12 +15,11 @@ const {
     getCachedBuildOutput,
     filterBuildErrors,
 } = require("./lib/build-cache")
-const path = require("node:path")
 
 const { env } = process
 const logger = createLogger("BUILD")
 
-const outputDir = path.join("test", "bin", "Precommit")
+const artifactsPath = ".artifacts-precommit"
 
 // Check if either project needs rebuild
 const webNeedsBuild = needsBuild("web", "Viper.csproj")
@@ -45,14 +44,18 @@ if (!webNeedsBuild && !testNeedsBuild) {
 }
 
 // Build test project (which also builds web via ProjectReference)
-logger.info(`Building test/ → ${outputDir} (includes web/)`)
+logger.info(`Building test/ → ${artifactsPath} (includes web/)`)
 try {
-    const result = execFileSync("dotnet", ["build", "test/", "-o", outputDir, "--verbosity", "quiet", "--nologo"], {
-        encoding: "utf8",
-        timeout: 120_000,
-        stdio: ["inherit", "pipe", "pipe"],
-        env: { ...env, DOTNET_USE_COMPILER_SERVER: "1" },
-    })
+    const result = execFileSync(
+        "dotnet",
+        ["build", "test/", "--artifacts-path", artifactsPath, "--verbosity", "quiet", "--nologo"],
+        {
+            encoding: "utf8",
+            timeout: 120_000,
+            stdio: ["inherit", "pipe", "pipe"],
+            env: { ...env, DOTNET_USE_COMPILER_SERVER: "1" },
+        },
+    )
 
     // Cache success
     markAsBuilt("web", "Viper.csproj", result, true)

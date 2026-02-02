@@ -5,21 +5,28 @@ import EffortLayout from "@/Effort/layouts/EffortLayout.vue"
 // Using \d{6} for basic validation; backend validates the full format.
 const TERM_CODE_PATTERN = String.raw`\d{6}`
 
+// View-level access permissions - any of these grants access to base Effort pages
+const VIEW_ACCESS_PERMISSIONS = [
+    "SVMSecure.Effort.ViewAllDepartments",
+    "SVMSecure.Effort.ViewDept",
+    "SVMSecure.Effort.VerifyEffort",
+]
+
 const routes = [
     {
         path: "/Effort/",
-        meta: { layout: EffortLayout },
+        meta: { layout: EffortLayout, permissions: VIEW_ACCESS_PERMISSIONS },
         component: () => import("@/Effort/pages/EffortHome.vue"),
         name: "EffortHome",
     },
     {
         path: "/Effort/Home",
-        meta: { layout: EffortLayout },
+        meta: { layout: EffortLayout, permissions: VIEW_ACCESS_PERMISSIONS },
         component: () => import("@/Effort/pages/EffortHome.vue"),
     },
     {
         path: "/Effort/terms",
-        meta: { layout: EffortLayout },
+        meta: { layout: EffortLayout, permissions: VIEW_ACCESS_PERMISSIONS },
         component: () => import("@/Effort/pages/TermSelection.vue"),
         name: "TermSelection",
     },
@@ -151,8 +158,14 @@ const routes = [
         name: "EffortAuditWithTerm",
     },
     {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/my-effort`,
+        meta: { layout: EffortLayout, permissions: VIEW_ACCESS_PERMISSIONS },
+        component: () => import("@/Effort/pages/MyEffort.vue"),
+        name: "MyEffort",
+    },
+    {
         path: `/Effort/:termCode(${TERM_CODE_PATTERN})`,
-        meta: { layout: EffortLayout },
+        meta: { layout: EffortLayout, permissions: VIEW_ACCESS_PERMISSIONS },
         component: () => import("@/Effort/pages/EffortHome.vue"),
         name: "EffortHomeWithTerm",
     },
