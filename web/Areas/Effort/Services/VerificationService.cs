@@ -189,6 +189,38 @@ public class VerificationService : IVerificationService
             };
         }
 
+        // Delete generic R-course records with 0 effort before verification
+        var genericRCourseRecords = await _context.Records
+            .Include(r => r.Course)
+            .Where(r => r.PersonId == currentPersonId
+                     && r.TermCode == termCode
+                     && r.Course.Crn == "RESID"
+                     && (r.Hours ?? 0) == 0
+                     && (r.Weeks ?? 0) == 0)
+            .ToListAsync(ct);
+
+        foreach (var record in genericRCourseRecords)
+        {
+            var courseCode = $"{record.Course.SubjCode.Trim()} {record.Course.CrseNumb.Trim()}-{record.Course.SeqNumb.Trim()}";
+
+            _context.Records.Remove(record);
+
+            await _auditService.LogRecordChangeAsync(
+                record.Id,
+                termCode,
+                EffortAuditActions.RCourseAutoDeleted,
+                new
+                {
+                    record.CourseId,
+                    Course = courseCode,
+                    record.EffortTypeId,
+                    record.Hours,
+                    record.Weeks
+                },
+                null,
+                ct);
+        }
+
         // Set verification timestamp
         var verifiedDate = DateTime.Now;
         var oldValues = new { EffortVerified = (DateTime?)null };
@@ -291,6 +323,12 @@ public class VerificationService : IVerificationService
         if (instructor == null)
         {
             return new EmailSendResult { Success = false, Error = "Instructor not found" };
+        }
+
+        // Guest instructors are placeholders and should not receive emails
+        if (string.Equals(instructor.FirstName, EffortConstants.GuestInstructorFirstName, StringComparison.OrdinalIgnoreCase))
+        {
+            return new EmailSendResult { Success = false, Error = "Guest instructors cannot receive verification emails" };
         }
 
         // Get email address from VIPER Person table
@@ -491,6 +529,7 @@ public class VerificationService : IVerificationService
             .Where(p => p.TermCode == termCode
                 && p.EffortDept == departmentCode
                 && p.EffortVerified == null
+                && p.FirstName.ToUpper() != EffortConstants.GuestInstructorFirstName // Exclude guest instructor placeholders
                 && (cutoffDate == null || p.LastEmailed == null || p.LastEmailed < cutoffDate))
             .ToListAsync(ct);
 
@@ -668,9 +707,16 @@ public class VerificationService : IVerificationService
     /// <summary>
     /// Determines if an effort record has zero effort value.
     /// Clinical (CLI) effort uses weeks starting from ClinicalAsWeeksStartTermCode.
+    /// Generic R-courses (CRN="RESID") are excluded as they are auto-deleted during verification.
     /// </summary>
     private static bool IsZeroEffort(EffortRecord record, bool useWeeksForClinical)
     {
+        // Generic R-courses are not considered zero-effort (they will be auto-deleted during verification)
+        if (record.Course?.Crn == "RESID")
+        {
+            return false;
+        }
+
         if (useWeeksForClinical && record.EffortTypeId == EffortConstants.ClinicalEffortType)
         {
             return (record.Weeks ?? 0) == 0;

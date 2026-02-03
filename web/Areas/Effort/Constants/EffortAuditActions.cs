@@ -56,6 +56,8 @@ public static class EffortAuditActions
 
     // Import Actions (hidden from chairs)
     public const string ImportEffort = "ImportEffort";
+    public const string RCourseAutoCreated = "RCourseAutoCreated";
+    public const string RCourseAutoDeleted = "RCourseAutoDeleted";
 
     /// <summary>
     /// Actions that should be hidden from department-level users (chairs).

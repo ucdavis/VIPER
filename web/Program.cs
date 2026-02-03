@@ -237,6 +237,7 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortRecordService, Viper.Areas.Effort.Services.EffortRecordService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IVerificationService, Viper.Areas.Effort.Services.VerificationService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentageService, Viper.Areas.Effort.Services.PercentageService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IRCourseService, Viper.Areas.Effort.Services.RCourseService>();
     builder.Services.Configure<Viper.Areas.Effort.EffortSettings>(builder.Configuration.GetSection("EffortSettings"));
 
     // In development, derive BaseUrl from ASPNETCORE_HTTPS_PORT if not explicitly configured

@@ -20,6 +20,7 @@ public class EffortRecordService : IEffortRecordService
     private readonly IEffortAuditService _auditService;
     private readonly IInstructorService _instructorService;
     private readonly ICourseClassificationService _courseClassificationService;
+    private readonly IRCourseService _rCourseService;
     private readonly IUserHelper _userHelper;
     private readonly ILogger<EffortRecordService> _logger;
 
@@ -29,6 +30,7 @@ public class EffortRecordService : IEffortRecordService
         IEffortAuditService auditService,
         IInstructorService instructorService,
         ICourseClassificationService courseClassificationService,
+        IRCourseService rCourseService,
         IUserHelper userHelper,
         ILogger<EffortRecordService> logger)
     {
@@ -37,6 +39,7 @@ public class EffortRecordService : IEffortRecordService
         _auditService = auditService;
         _instructorService = instructorService;
         _courseClassificationService = courseClassificationService;
+        _rCourseService = rCourseService;
         _userHelper = userHelper;
         _logger = logger;
     }
@@ -233,6 +236,13 @@ public class EffortRecordService : IEffortRecordService
             .Include(r => r.Course)
             .Include(r => r.RoleNavigation)
             .FirstAsync(r => r.Id == record.Id, ct);
+
+        // Check if we should auto-create R-course for this instructor
+        // This ensures instructors added post-harvest get their R-course once they have a real teaching record
+        if (course.Crn != "RESID" && !_courseClassificationService.IsRCourse(course.CrseNumb))
+        {
+            await TryCreateRCourseForInstructorAsync(request.PersonId, request.TermCode, GetCurrentPersonId(), ct);
+        }
 
         return (MapToDto(createdRecord), warning);
     }
@@ -655,5 +665,34 @@ public class EffortRecordService : IEffortRecordService
             throw new InvalidOperationException(
                 $"Effort type '{effortType.Description}' is not allowed on {string.Join(" or ", errors)}");
         }
+    }
+
+    /// <summary>
+    /// Auto-create generic R-course effort record for an instructor if this is their first non-R-course effort record.
+    /// This ensures instructors added after harvest also get their R-course once they have a real teaching record.
+    /// Delegates the actual creation to IRCourseService for shared logic.
+    /// </summary>
+    private async Task TryCreateRCourseForInstructorAsync(int personId, int termCode, int modifiedBy, CancellationToken ct)
+    {
+        // Count how many non-R-course effort records this instructor has in this term
+        var nonRCourseCount = await _context.Records
+            .AsNoTracking()
+            .Where(r => r.PersonId == personId && r.TermCode == termCode)
+            .Join(_context.Courses.Where(c => c.TermCode == termCode),
+                  r => r.CourseId,
+                  c => c.Id,
+                  (r, c) => c.CrseNumb)
+#pragma warning disable S6610 // "EndsWith" overloads that take a "char" should be used
+            .CountAsync(crseNumb => crseNumb == null || !crseNumb.EndsWith("R"), ct); // TODO(VPR-41): EF Core 10 supports char overload, remove pragma
+#pragma warning restore S6610
+
+        // Only proceed if this is the instructor's first non-R-course record (count = 1, the one we just created)
+        if (nonRCourseCount != 1)
+        {
+            return;
+        }
+
+        // Delegate R-course creation to the shared service
+        await _rCourseService.CreateRCourseEffortRecordAsync(personId, termCode, modifiedBy, RCourseCreationContext.OnDemand, ct);
     }
 }

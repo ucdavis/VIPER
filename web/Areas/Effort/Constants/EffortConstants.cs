@@ -57,9 +57,20 @@ public static class EffortConstants
     public const int DirectorRoleId = 1;
 
     /// <summary>
-    /// Role ID for Clinical Instructor.
+    /// Role ID for Instructor (non-primary instructor role).
     /// </summary>
-    public const int ClinicalInstructorRoleId = 2;
+    public const int InstructorRoleId = 2;
+
+    /// <summary>
+    /// First name used for guest instructor placeholders.
+    /// Guest instructors are department placeholders for unattributed teaching.
+    /// </summary>
+    public const string GuestInstructorFirstName = "GUEST";
+
+    /// <summary>
+    /// Role ID for Clinical Instructor (legacy alias for InstructorRoleId).
+    /// </summary>
+    public const int ClinicalInstructorRoleId = InstructorRoleId;
 
     /// <summary>
     /// Effort type code for Clinical rotations.

@@ -108,6 +108,19 @@
                 </div>
             </q-banner>
 
+            <!-- Generic R-course with zero effort info -->
+            <q-banner
+                v-if="hasGenericRCourseWithZeroEffort"
+                class="bg-info text-white q-mb-md"
+                rounded
+            >
+                <template #avatar>
+                    <q-icon name="info" />
+                </template>
+                The Resident (R) course was added automatically to allow you to record resident teaching effort. If you
+                leave it with 0 effort and verify, it will be automatically removed.
+            </q-banner>
+
             <!-- Clinical effort note -->
             <p
                 v-if="hasClinicalEffort"
@@ -407,6 +420,15 @@ const preSelectedCourseId = ref<number | null>(null)
 // Computed
 const hasClinicalEffort = computed(() => {
     return myEffort.value?.effortRecords.some((r) => r.effortType === "CLI") ?? false
+})
+
+const hasGenericRCourseWithZeroEffort = computed(() => {
+    return (
+        myEffort.value?.effortRecords.some(
+            (r) =>
+                r.course.crn === "RESID" && (r.hours === 0 || r.hours === null) && (r.weeks === 0 || r.weeks === null),
+        ) ?? false
+    )
 })
 
 const columns = computed<QTableColumn[]>(() => {

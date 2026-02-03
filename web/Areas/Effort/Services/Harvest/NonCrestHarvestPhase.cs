@@ -59,8 +59,10 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
         // Get research courses (course number ending in 'R') - these may have 0 enrollment
         var researchCourses = await context.CoursesContext.Baseinfos
             .AsNoTracking()
+#pragma warning disable S6610 // "EndsWith" overloads that take a "char" should be used
             .Where(b => b.BaseinfoTermCode == termCodeStr &&
-                        b.BaseinfoCrseNumb != null && EF.Functions.Like(b.BaseinfoCrseNumb, "%R"))
+                        b.BaseinfoCrseNumb != null && b.BaseinfoCrseNumb.EndsWith("R")) // TODO(VPR-41): EF Core 10 supports char overload, remove pragma
+#pragma warning restore S6610
             .Select(b => new
             {
                 Crn = b.BaseinfoCrn,

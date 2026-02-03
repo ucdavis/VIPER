@@ -4,7 +4,7 @@
 
         <!-- Term selector and filters -->
         <div class="row q-col-gutter-sm q-mb-md items-center">
-            <div class="col-12 col-sm-4 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <q-select
                     v-model="selectedTermCode"
                     :options="terms"
@@ -18,7 +18,7 @@
                     outlined
                 />
             </div>
-            <div class="col-6 col-sm-3 col-md-2">
+            <div class="col-12 col-sm-6 col-md-3">
                 <q-select
                     v-model="selectedDept"
                     :options="deptOptions"
@@ -29,7 +29,7 @@
                     clearable
                 />
             </div>
-            <div class="col-6 col-sm-3 col-md-2">
+            <div class="col-12 col-sm-6 col-md-3">
                 <q-input
                     v-model="searchText"
                     label="Search"
@@ -43,7 +43,7 @@
                 </q-input>
             </div>
 
-            <div class="col-12 col-sm-auto">
+            <div class="col-12 col-sm-6 col-md-auto">
                 <!-- Add course actions -->
                 <q-btn-dropdown
                     v-if="canAddCourse"

@@ -22,6 +22,7 @@ public sealed class EffortRecordServiceTests : IDisposable
     private readonly RAPSContext _rapsContext;
     private readonly Mock<IEffortAuditService> _auditServiceMock;
     private readonly Mock<IInstructorService> _instructorServiceMock;
+    private readonly Mock<IRCourseService> _rCourseServiceMock;
     private readonly Mock<IUserHelper> _userHelperMock;
     private readonly Mock<ILogger<EffortRecordService>> _loggerMock;
     private readonly EffortRecordService _service;
@@ -54,6 +55,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             .Returns(Task.CompletedTask);
 
         _instructorServiceMock = new Mock<IInstructorService>();
+        _rCourseServiceMock = new Mock<IRCourseService>();
         _loggerMock = new Mock<ILogger<EffortRecordService>>();
 
         var testUser = new AaudUser { AaudUserId = TestUserId, MothraId = "testuser" };
@@ -67,6 +69,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             _auditServiceMock.Object,
             _instructorServiceMock.Object,
             courseClassificationService,
+            _rCourseServiceMock.Object,
             _userHelperMock.Object,
             _loggerMock.Object);
 
@@ -79,6 +82,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, OpenedDate = DateTime.Now });
 
         _context.EffortTypes.AddRange(
+            new EffortType { Id = "ADM", Description = "Admin", IsActive = true, UsesWeeks = false, AllowedOnRCourses = true },
             new EffortType { Id = "LEC", Description = "Lecture", IsActive = true, UsesWeeks = false },
             new EffortType { Id = "LAB", Description = "Laboratory", IsActive = true, UsesWeeks = false },
             new EffortType { Id = "CLI", Description = "Clinical", IsActive = true, UsesWeeks = true },
@@ -1124,8 +1128,8 @@ public sealed class EffortRecordServiceTests : IDisposable
         // Act
         var result = await _service.GetEffortTypeOptionsAsync();
 
-        // Assert: 7 seeded, 1 inactive (OLD) = 6 active
-        Assert.Equal(6, result.Count);
+        // Assert: 8 seeded, 1 inactive (OLD) = 7 active
+        Assert.Equal(7, result.Count);
         Assert.All(result, et => Assert.NotEqual("OLD", et.Id));
     }
 
@@ -1246,6 +1250,203 @@ public sealed class EffortRecordServiceTests : IDisposable
         // Act & Assert
         Assert.True(_service.UsesWeeks("CLI", 201604));
         Assert.True(_service.UsesWeeks("CLI", 202410));
+    }
+
+    #endregion
+
+    #region R-Course Auto-Creation Tests
+
+    [Fact]
+    public async Task CreateEffortRecordAsync_CallsRCourseService_WhenFirstNonRCourseAdded()
+    {
+        // Arrange - create a new instructor with no existing effort records
+        var newPersonId = 200;
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            FirstName = "New",
+            LastName = "Instructor",
+            EffortDept = "VME"
+        });
+
+        await _context.SaveChangesAsync();
+
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            CourseId = TestCourseId, // VET 410 - not an R-course
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 40
+        };
+
+        // Act - create the first non-R-course effort record
+        var (result, _) = await _service.CreateEffortRecordAsync(request);
+
+        // Assert - verify the effort record was created
+        Assert.NotNull(result);
+        Assert.Equal(newPersonId, result.PersonId);
+        Assert.Equal("LEC", result.EffortType);
+
+        // Verify RCourseService was called to create R-course (first non-R-course triggers creation)
+        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
+            newPersonId,
+            TestTermCode,
+            TestUserId,
+            RCourseCreationContext.OnDemand,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateEffortRecordAsync_DoesNotCallRCourseService_WhenSecondNonRCourseAdded()
+    {
+        // Arrange - create an instructor with one existing non-R-course record
+        var existingPersonId = 201;
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = existingPersonId,
+            TermCode = TestTermCode,
+            FirstName = "Existing",
+            LastName = "Instructor",
+            EffortDept = "VME"
+        });
+
+        // Add first effort record
+        _context.Records.Add(new EffortRecord
+        {
+            PersonId = existingPersonId,
+            TermCode = TestTermCode,
+            CourseId = TestCourseId, // VET 410 - not an R-course
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 40,
+            Crn = "12345"
+        });
+
+        await _context.SaveChangesAsync();
+
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = existingPersonId,
+            TermCode = TestTermCode,
+            CourseId = 2, // DVM 443 - also not an R-course
+            EffortTypeId = "LAB",
+            RoleId = 1,
+            EffortValue = 20
+        };
+
+        // Act - add a second non-R-course effort record
+        var (result, _) = await _service.CreateEffortRecordAsync(request);
+
+        // Assert - verify the effort record was created
+        Assert.NotNull(result);
+        Assert.Equal(existingPersonId, result.PersonId);
+
+        // Verify RCourseService was NOT called (not the first non-R-course)
+        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<RCourseCreationContext>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateEffortRecordAsync_DoesNotCallRCourseService_WhenAddingRCourseItself()
+    {
+        // Arrange - create a new instructor with no existing effort records
+        var newPersonId = 202;
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            FirstName = "Another",
+            LastName = "Instructor",
+            EffortDept = "VME"
+        });
+
+        await _context.SaveChangesAsync();
+
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            CourseId = 4, // VET 290R - this IS an R-course
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 10
+        };
+
+        // Act - add an R-course as the first effort record
+        var (result, _) = await _service.CreateEffortRecordAsync(request);
+
+        // Assert - verify the effort record was created
+        Assert.NotNull(result);
+
+        // Verify RCourseService was NOT called (adding R-course doesn't trigger auto-creation)
+        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<RCourseCreationContext>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateEffortRecordAsync_DoesNotCallRCourseService_WhenAddingGenericRCourse()
+    {
+        // Arrange - create a new instructor and the generic R-course
+        var newPersonId = 203;
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            FirstName = "Generic",
+            LastName = "RCourse",
+            EffortDept = "VME"
+        });
+
+        // Create the generic R-course (RESID)
+        var genericRCourse = new EffortCourse
+        {
+            Id = 100,
+            TermCode = TestTermCode,
+            Crn = "RESID",
+            SubjCode = "RES",
+            CrseNumb = "000R",
+            SeqNumb = "001",
+            Units = 0,
+            Enrollment = 0,
+            CustDept = "UNK"
+        };
+        _context.Courses.Add(genericRCourse);
+        await _context.SaveChangesAsync();
+
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            CourseId = 100, // RESID - the generic R-course
+            EffortTypeId = "ADM",
+            RoleId = 1,
+            EffortValue = 10
+        };
+
+        // Act - add the generic R-course as the first effort record
+        var (result, _) = await _service.CreateEffortRecordAsync(request);
+
+        // Assert - verify the effort record was created
+        Assert.NotNull(result);
+
+        // Verify RCourseService was NOT called (adding generic R-course doesn't trigger auto-creation)
+        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<RCourseCreationContext>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     #endregion
