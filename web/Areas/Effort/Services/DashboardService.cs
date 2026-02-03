@@ -404,15 +404,13 @@ public class DashboardService : IDashboardService
         }
 
         // Apply states to alerts
-        foreach (var alert in alerts)
+        foreach (var alert in alerts.Where(a => stateDict.ContainsKey((a.AlertType, a.EntityId))))
         {
-            if (stateDict.TryGetValue((alert.AlertType, alert.EntityId), out var state))
+            var state = stateDict[(alert.AlertType, alert.EntityId)];
+            alert.Status = state.Status;
+            if (state.IgnoredDate.HasValue)
             {
-                alert.Status = state.Status;
-                if (state.IgnoredDate.HasValue)
-                {
-                    alert.ReviewedDate = state.IgnoredDate;
-                }
+                alert.ReviewedDate = state.IgnoredDate;
             }
         }
 
