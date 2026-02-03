@@ -573,12 +573,12 @@ public class CourseService : ICourseService
             // Course already imported - if units specified and doesn't match, check for variable-unit match
             if (units.HasValue && existingCourse.Units != units.Value)
             {
-                // Check if a matching unit value exists
+                var requestedUnits = units.Value;
                 existingCourse = await _context.Courses
                     .AsNoTracking()
                     .FirstOrDefaultAsync(c => c.TermCode == termCode
                                            && c.Crn.Trim() == crnTrimmed
-                                           && c.Units == units.Value, ct);
+                                           && c.Units == requestedUnits, ct);
 
                 if (existingCourse == null)
                 {
