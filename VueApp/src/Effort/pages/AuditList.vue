@@ -555,28 +555,6 @@ function getActionColor(action: string): string {
     return "grey"
 }
 
-async function loadFilterOptions(termCode: number | null = null) {
-    const [termsResult, actionsResult, modifiersResult, instructorsResult, subjectCodesResult, courseNumbersResult] =
-        await Promise.all([
-            termService.getTerms(),
-            effortAuditService.getActions(),
-            effortAuditService.getModifiers(),
-            effortAuditService.getInstructors(),
-            effortAuditService.getSubjectCodes(termCode),
-            effortAuditService.getCourseNumbers(termCode),
-        ])
-    terms.value = termsResult
-    actions.value = actionsResult
-    modifiers.value = modifiersResult
-    filteredModifiers.value = modifiersResult
-    instructors.value = instructorsResult
-    filteredInstructors.value = instructorsResult
-    subjectCodes.value = subjectCodesResult
-    courseNumbers.value = courseNumbersResult
-    allSubjectCodes.value = subjectCodesResult
-    allCourseNumbers.value = courseNumbersResult
-}
-
 function filterModifiers(val: string, update: (fn: () => void) => void) {
     update(() => {
         if (!val) {
@@ -879,26 +857,53 @@ onMounted(async () => {
         filter.value.courseNumber = q.courseNumber as string
     }
 
-    await loadFilterOptions(urlTermCode)
+    try {
+        // Load terms first (fast) so dropdown displays correctly, then load data immediately
+        // Other filter options (actions, modifiers, subject-codes, course-numbers) load in background
+        const termsPromise = termService.getTerms()
+        const actionsPromise = effortAuditService.getActions()
+        const modifiersPromise = effortAuditService.getModifiers()
+        const instructorsPromise = effortAuditService.getInstructors()
 
-    // Set termCode after terms loaded to prevent flash of raw number in dropdown
-    if (urlTermCode !== null) {
-        filter.value.termCode = urlTermCode
+        // Wait for terms first - needed for dropdown display
+        terms.value = await termsPromise
+
+        // Set termCode after terms loaded to prevent flash of raw number in dropdown
+        if (urlTermCode !== null) {
+            filter.value.termCode = urlTermCode
+        }
+
+        // Load audit rows immediately - don't wait for slow filter options
+        await loadAuditRows({
+            pagination: pagination.value,
+        })
+
+        // Now load other fast filter options
+        const [actionsResult, modifiersResult, instructorsResult] = await Promise.all([
+            actionsPromise,
+            modifiersPromise,
+            instructorsPromise,
+        ])
+        actions.value = actionsResult
+        modifiers.value = modifiersResult
+        filteredModifiers.value = modifiersResult
+        instructors.value = instructorsResult
+        filteredInstructors.value = instructorsResult
+
+        // Load slow filter options (subject-codes, course-numbers) in background - don't block
+        // These have known issues with 500 errors when filtered by term
+        Promise.allSettled([
+            effortAuditService.getSubjectCodes(urlTermCode),
+            effortAuditService.getCourseNumbers(urlTermCode),
+        ]).then((results) => {
+            subjectCodes.value = results[0].status === "fulfilled" ? results[0].value : []
+            courseNumbers.value = results[1].status === "fulfilled" ? results[1].value : []
+            allSubjectCodes.value = subjectCodes.value
+            allCourseNumbers.value = courseNumbers.value
+        })
+    } finally {
+        isInitializing.value = false
     }
-
-    // Update bidirectional filter options based on URL params
-    if (filter.value.subjectCode) {
-        await updateCourseNumbersForSubjectCode()
-    }
-    if (filter.value.courseNumber) {
-        await updateSubjectCodesForCourseNumber()
-    }
-
-    await loadAuditRows({
-        pagination: pagination.value,
-    })
-
-    isInitializing.value = false
 })
 </script>
 

@@ -54,12 +54,20 @@ const hasOtherMenuAccess = computed(() => {
     )
 })
 
+// Users with dashboard access should land on the dashboard
+const hasDashboardAccess = computed(() => isAdmin.value || hasViewDept.value)
+
 onMounted(async () => {
     const termCode = route.params.termCode ? parseInt(route.params.termCode as string, 10) : null
 
     if (termCode) {
         try {
             await termService.getTerm(termCode)
+            // Redirect to dashboard for users with ViewAllDepartments or ViewDept
+            if (hasDashboardAccess.value) {
+                router.replace({ name: "StaffDashboard", params: { termCode } })
+                return
+            }
             // If user only has access to "My Effort", redirect them there directly
             if (!hasOtherMenuAccess.value) {
                 router.replace({ name: "MyEffort", params: { termCode } })

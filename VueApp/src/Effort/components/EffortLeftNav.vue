@@ -62,6 +62,19 @@
                     </q-item-section>
                 </q-item>
 
+                <!-- Dashboard - bird's eye view for admins and department coordinators -->
+                <q-item
+                    v-if="(isAdmin || hasViewDept) && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'StaffDashboard', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Dashboard</q-item-label>
+                    </q-item-section>
+                </q-item>
+
                 <!-- Instructors - for users with instructor permissions -->
                 <q-item
                     v-if="canViewInstructors && currentTerm"

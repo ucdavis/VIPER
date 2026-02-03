@@ -16,6 +16,7 @@
 // 9. SimplifyTermStatus - Remove redundant columns from TermStatus table
 // 10. FixPercentageConstraint - Update CK_Percentages_Percentage constraint from 0-100 to 0-1
 // 11. AddViewDeptAuditPermission - Add SVMSecure.Effort.ViewDeptAudit permission for department chairs to view audit trail
+// 12. AddAlertStatesTable - Create AlertStates table for persisting data hygiene alert states
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -230,7 +231,7 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine();
             }
 
-            // Task 11: Add ViewDeptAudit permission for department chairs
+// Task 11: Add ViewDeptAudit permission for department chairs
             {
                 Console.WriteLine("----------------------------------------");
                 Console.WriteLine("Task 11: Add ViewDeptAudit Permission to RAPS");
@@ -242,6 +243,23 @@ namespace Viper.Areas.Effort.Scripts
 
                 var (success, message) = RunAddViewDeptAuditPermissionTask(rapsConnectionString, executeMode);
                 taskResults["ViewDeptAuditPermission"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 12: Add AlertStates Table
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 12: Add AlertStates Table");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunAddAlertStatesTableTask(viperConnectionString, executeMode);
+                taskResults["AddAlertStatesTable"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
@@ -2480,6 +2498,92 @@ namespace Viper.Areas.Effort.Scripts
             auditCmd.Parameters.AddWithValue("@PermissionID", permissionId);
             auditCmd.Parameters.AddWithValue("@ModBy", ScriptModBy);
             auditCmd.ExecuteNonQuery();
+        }
+
+        #endregion
+
+        #region Task 12: Add AlertStates Table
+
+        /// <summary>
+        /// Creates the AlertStates table for persisting data hygiene alert states.
+        /// This table stores the review/ignore status of alerts so they persist across server restarts.
+        /// </summary>
+        private static (bool Success, string Message) RunAddAlertStatesTableTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                Console.WriteLine("Checking AlertStates table...");
+                Console.WriteLine();
+
+                // Check if table already exists
+                using var checkCmd = connection.CreateCommand();
+                checkCmd.CommandText = @"
+                    SELECT COUNT(*) FROM sys.tables t
+                    INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+                    WHERE s.name = 'effort' AND t.name = 'AlertStates'";
+                int exists = (int)checkCmd.ExecuteScalar();
+
+                if (exists > 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✓ AlertStates table already exists");
+                    Console.ResetColor();
+                    return (true, "Table already exists");
+                }
+
+                if (!executeMode)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("  ○ AlertStates table would be created");
+                    Console.ResetColor();
+                    return (true, "Would create AlertStates table");
+                }
+
+                // Create the table
+                Console.WriteLine("  Creating AlertStates table...");
+                using var createCmd = connection.CreateCommand();
+                createCmd.CommandText = @"
+                    CREATE TABLE [effort].[AlertStates] (
+                        Id int IDENTITY(1,1) NOT NULL,
+                        TermCode int NOT NULL,
+                        AlertType varchar(20) NOT NULL,
+                        EntityType varchar(20) NOT NULL,
+                        EntityId varchar(50) NOT NULL,
+                        Status varchar(20) NOT NULL DEFAULT 'Active',
+                        IgnoredBy int NULL,
+                        IgnoredDate datetime2(7) NULL,
+                        ResolvedDate datetime2(7) NULL,
+                        ModifiedDate datetime2(7) NOT NULL DEFAULT GETDATE(),
+                        ModifiedBy int NULL,
+                        CONSTRAINT PK_AlertStates PRIMARY KEY CLUSTERED (Id),
+                        CONSTRAINT UQ_AlertStates UNIQUE (TermCode, AlertType, EntityId),
+                        CONSTRAINT FK_AlertStates_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
+                        CONSTRAINT FK_AlertStates_IgnoredBy FOREIGN KEY (IgnoredBy) REFERENCES [users].[Person](PersonId),
+                        CONSTRAINT FK_AlertStates_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
+                        CONSTRAINT CK_AlertStates_Status CHECK (Status IN ('Active', 'Resolved', 'Ignored')),
+                        CONSTRAINT CK_AlertStates_AlertType CHECK (AlertType IN ('NoRecords', 'NoInstructors', 'NoDepartment', 'ZeroHours', 'NotVerified'))
+                    );
+
+                    CREATE NONCLUSTERED INDEX IX_AlertStates_TermCode ON [effort].[AlertStates](TermCode);
+                    CREATE NONCLUSTERED INDEX IX_AlertStates_Status ON [effort].[AlertStates](Status) WHERE Status != 'Active';";
+                createCmd.ExecuteNonQuery();
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  ✓ AlertStates table created successfully");
+                Console.ResetColor();
+
+                return (true, "Created AlertStates table");
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  ✗ SQL Error: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"SQL Error: {ex.Message}");
+            }
         }
 
         #endregion

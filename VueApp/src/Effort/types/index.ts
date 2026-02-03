@@ -81,3 +81,11 @@ export type {
     UpdatePercentageRequest,
     PercentageValidationResult,
 } from "./percentage-types"
+
+export type {
+    DashboardStatsDto,
+    DataHygieneSummaryDto,
+    DepartmentVerificationDto,
+    EffortChangeAlertDto,
+    RecentChangeDto,
+} from "./dashboard-types"

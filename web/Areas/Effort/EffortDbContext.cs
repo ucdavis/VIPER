@@ -34,6 +34,7 @@ public class EffortDbContext : DbContext
     public virtual DbSet<AlternateTitle> AlternateTitles { get; set; }
     public virtual DbSet<CourseRelationship> CourseRelationships { get; set; }
     public virtual DbSet<Audit> Audits { get; set; }
+    public virtual DbSet<AlertState> AlertStates { get; set; }
 
     // Read-only cross-schema reference (users schema in same database)
     public virtual DbSet<ViperPerson> ViperPersons { get; set; }
@@ -358,6 +359,32 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.LegacyCRN).HasColumnName("LegacyCRN").HasMaxLength(20);
             entity.Property(e => e.LegacyMothraID).HasColumnName("LegacyMothraID").HasMaxLength(20);
             entity.Property(e => e.TermCode).HasColumnName("TermCode");
+        });
+
+        // AlertState (effort.AlertStates)
+        modelBuilder.Entity<AlertState>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("AlertStates", schema: "effort");
+
+            entity.HasIndex(e => new { e.TermCode, e.AlertType, e.EntityId })
+                .IsUnique();
+
+            entity.Property(e => e.Id).HasColumnName("Id");
+            entity.Property(e => e.TermCode).HasColumnName("TermCode");
+            entity.Property(e => e.AlertType).HasColumnName("AlertType").HasMaxLength(20);
+            entity.Property(e => e.EntityType).HasColumnName("EntityType").HasMaxLength(20);
+            entity.Property(e => e.EntityId).HasColumnName("EntityId").HasMaxLength(50);
+            entity.Property(e => e.Status).HasColumnName("Status").HasMaxLength(20);
+            entity.Property(e => e.IgnoredBy).HasColumnName("IgnoredBy");
+            entity.Property(e => e.IgnoredDate).HasColumnName("IgnoredDate");
+            entity.Property(e => e.ResolvedDate).HasColumnName("ResolvedDate");
+            entity.Property(e => e.ModifiedDate).HasColumnName("ModifiedDate");
+            entity.Property(e => e.ModifiedBy).HasColumnName("ModifiedBy");
+
+            entity.HasOne(e => e.Term)
+                .WithMany()
+                .HasForeignKey(e => e.TermCode);
         });
 
         // ViperPerson (users.Person) - read-only cross-schema reference

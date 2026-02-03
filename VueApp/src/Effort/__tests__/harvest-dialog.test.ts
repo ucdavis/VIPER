@@ -20,10 +20,14 @@ vi.mock("../services/harvest-service", () => ({
     },
 }))
 
+// Test data - term codes use YYYYXX format (no numeric separators)
+// oxlint-disable-next-line unicorn/numeric-separators-style
+const TEST_TERM_CODE = 202410
+
 // Helper to create a minimal valid preview
 function createMockPreview(overrides: Partial<HarvestPreviewDto> = {}): HarvestPreviewDto {
     return {
-        termCode: 202_410,
+        termCode: TEST_TERM_CODE,
         termName: "Fall 2024",
         crestInstructors: [],
         crestCourses: [],
@@ -63,7 +67,7 @@ describe("HarvestDialog - Error Handling", () => {
             mockGetPreview.mockResolvedValue(null)
 
             // Simulate loadPreview logic
-            const result = await mockGetPreview(202_410)
+            const result = await mockGetPreview(TEST_TERM_CODE)
             if (result) {
                 preview.value = result
             } else {
@@ -81,7 +85,7 @@ describe("HarvestDialog - Error Handling", () => {
 
             // Simulate loadPreview error handling
             try {
-                await mockGetPreview(202_410)
+                await mockGetPreview(TEST_TERM_CODE)
             } catch (err) {
                 loadError.value = err instanceof Error ? err.message : "Failed to load harvest preview"
             }
@@ -96,7 +100,7 @@ describe("HarvestDialog - Error Handling", () => {
 
             // Simulate loadPreview error handling
             try {
-                await mockGetPreview(202_410)
+                await mockGetPreview(TEST_TERM_CODE)
             } catch (err) {
                 loadError.value = err instanceof Error ? err.message : "Failed to load harvest preview"
             }
@@ -113,7 +117,7 @@ describe("HarvestDialog - Error Handling", () => {
 
             // Simulate loadPreview success
             loadError.value = null
-            const result = await mockGetPreview(202_410)
+            const result = await mockGetPreview(TEST_TERM_CODE)
             if (result) {
                 preview.value = result
             }
@@ -127,7 +131,7 @@ describe("HarvestDialog - Error Handling", () => {
         it("should detect failed commit from success: false", () => {
             const result: HarvestResultDto = {
                 success: false,
-                termCode: 202_410,
+                termCode: TEST_TERM_CODE,
                 harvestedDate: null,
                 summary: { totalInstructors: 0, totalCourses: 0, totalEffortRecords: 0, guestAccounts: 0 },
                 warnings: [],
@@ -142,7 +146,7 @@ describe("HarvestDialog - Error Handling", () => {
         it("should use default message when commit fails without error message", () => {
             const result: HarvestResultDto = {
                 success: false,
-                termCode: 202_410,
+                termCode: TEST_TERM_CODE,
                 harvestedDate: null,
                 summary: { totalInstructors: 0, totalCourses: 0, totalEffortRecords: 0, guestAccounts: 0 },
                 warnings: [],
@@ -348,7 +352,7 @@ describe("HarvestDialog - State Reset", () => {
     })
 
     it("should load preview when termCode is provided", async () => {
-        const termCode = ref<number | null>(202_410)
+        const termCode = ref<number | null>(TEST_TERM_CODE)
         const preview = ref<HarvestPreviewDto | null>(null)
 
         const mockPreview = createMockPreview()
@@ -362,7 +366,7 @@ describe("HarvestDialog - State Reset", () => {
             }
         }
 
-        expect(mockGetPreview).toHaveBeenCalledWith(202_410)
+        expect(mockGetPreview).toHaveBeenCalledWith(TEST_TERM_CODE)
         expect(preview.value).not.toBeNull()
     })
 })

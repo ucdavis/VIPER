@@ -21,7 +21,7 @@ namespace Viper.Areas.Effort.Scripts
             "Records", "Percentages", "Persons", "Courses", "TermStatus",
             "Roles", "EffortTypes", "SessionTypes", "Sabbaticals", "UserAccess", "Units",
             "JobCodes", "ReportUnits", "AlternateTitles",
-            "CourseRelationships", "Audits"
+            "CourseRelationships", "Audits", "AlertStates"
         ];
 
         /// <summary>
