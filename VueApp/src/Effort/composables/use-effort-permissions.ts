@@ -30,6 +30,7 @@ const EffortPermissions = {
     VerifyEffort: "SVMSecure.Effort.VerifyEffort",
     ViewAllDepartments: "SVMSecure.Effort.ViewAllDepartments",
     ViewAudit: "SVMSecure.Effort.ViewAudit",
+    ViewDeptAudit: "SVMSecure.Effort.ViewDeptAudit",
     ViewDept: "SVMSecure.Effort.ViewDept",
 } as const
 
@@ -53,6 +54,8 @@ function useEffortPermissions() {
     const hasManageTerms = computed(() => hasPermission(EffortPermissions.ManageTerms))
     const hasVerifyEffort = computed(() => hasPermission(EffortPermissions.VerifyEffort))
     const hasViewAudit = computed(() => hasPermission(EffortPermissions.ViewAudit))
+    const hasViewDeptAudit = computed(() => hasPermission(EffortPermissions.ViewDeptAudit))
+    const hasAnyAuditAccess = computed(() => hasViewAudit.value || hasViewDeptAudit.value)
     const hasImportCourse = computed(() => hasPermission(EffortPermissions.ImportCourse))
     const hasEditCourse = computed(() => hasPermission(EffortPermissions.EditCourse))
     const hasDeleteCourse = computed(() => hasPermission(EffortPermissions.DeleteCourse))
@@ -73,6 +76,8 @@ function useEffortPermissions() {
         hasManageTerms,
         hasVerifyEffort,
         hasViewAudit,
+        hasViewDeptAudit,
+        hasAnyAuditAccess,
         hasImportCourse,
         hasEditCourse,
         hasDeleteCourse,

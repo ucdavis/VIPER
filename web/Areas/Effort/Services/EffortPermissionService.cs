@@ -389,4 +389,23 @@ public class EffortPermissionService : IEffortPermissionService
         var hasPermission = _userHelper.HasPermission(_rapsContext, user, permission);
         return Task.FromResult(hasPermission);
     }
+
+    /// <inheritdoc />
+    public async Task<string?> GetUserDepartmentAsync(CancellationToken ct = default)
+    {
+        var personId = GetCurrentPersonId();
+        if (personId == 0)
+        {
+            return null;
+        }
+
+        // Get from EffortPerson for the current/most recent term
+        var person = await _context.Persons
+            .AsNoTracking()
+            .Where(p => p.PersonId == personId)
+            .OrderByDescending(p => p.TermCode)
+            .FirstOrDefaultAsync(ct);
+
+        return person?.EffortDept;
+    }
 }

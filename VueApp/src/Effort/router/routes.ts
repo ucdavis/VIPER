@@ -160,13 +160,13 @@ const routes = [
     },
     {
         path: "/Effort/audit",
-        meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAudit"] },
+        meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAudit", "SVMSecure.Effort.ViewDeptAudit"] },
         component: () => import("@/Effort/pages/AuditList.vue"),
         name: "EffortAudit",
     },
     {
         path: `/Effort/:termCode(${TERM_CODE_PATTERN})/audit`,
-        meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAudit"] },
+        meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAudit", "SVMSecure.Effort.ViewDeptAudit"] },
         component: () => import("@/Effort/pages/AuditList.vue"),
         name: "EffortAuditWithTerm",
     },

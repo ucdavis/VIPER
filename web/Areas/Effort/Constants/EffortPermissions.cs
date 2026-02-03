@@ -140,6 +140,12 @@ public static class EffortPermissions
     public const string ViewAudit = "SVMSecure.Effort.ViewAudit";
 
     /// <summary>
+    /// Able to view the audit trail for their own department only.
+    /// Department chairs use this permission to see audit entries for their department.
+    /// </summary>
+    public const string ViewDeptAudit = "SVMSecure.Effort.ViewDeptAudit";
+
+    /// <summary>
     /// Any of the three view-level access permissions (ViewAllDepartments, ViewDept, VerifyEffort).
     /// Use for controller-level [Permission] attributes to require basic Effort access.
     /// </summary>

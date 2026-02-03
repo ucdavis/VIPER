@@ -13,9 +13,10 @@ namespace Viper.Areas.Effort.Controllers;
 
 /// <summary>
 /// Controller for viewing effort system audit trail.
+/// Supports both full audit access (ViewAudit) and department-level access (ViewDeptAudit).
 /// </summary>
 [Route("/api/effort/audit")]
-[Permission(Allow = EffortPermissions.ViewAudit)]
+[Permission(Allow = EffortPermissions.ViewAudit + "," + EffortPermissions.ViewDeptAudit)]
 public class AuditController : BaseEffortController
 {
     private readonly IEffortAuditService _auditService;
@@ -36,10 +37,32 @@ public class AuditController : BaseEffortController
     /// Users without full access cannot see import actions.
     /// </summary>
     private async Task<bool> ShouldExcludeImportsAsync(CancellationToken ct)
-        => !await _permissionService.HasFullAccessAsync(ct);
+        => !await _permissionService.HasPermissionAsync(EffortPermissions.ViewAudit, ct);
+
+    /// <summary>
+    /// Get department codes for filtering if user has only ViewDeptAudit permission.
+    /// Returns null if user has full ViewAudit access, or a list with their department code.
+    /// </summary>
+    private async Task<List<string>?> GetDepartmentCodesForFilteringAsync(CancellationToken ct)
+    {
+        var hasFullAccess = await _permissionService.HasPermissionAsync(EffortPermissions.ViewAudit, ct);
+        if (hasFullAccess)
+        {
+            return null;
+        }
+
+        var userDept = await _permissionService.GetUserDepartmentAsync(ct);
+        if (string.IsNullOrEmpty(userDept))
+        {
+            return new List<string>();
+        }
+
+        return new List<string> { userDept };
+    }
 
     /// <summary>
     /// Get paginated audit entries with optional filtering.
+    /// Users with ViewAudit see all entries. Users with ViewDeptAudit only see their department.
     /// </summary>
     [HttpGet]
     [ApiPagination(DefaultPerPage = 25, MaxPerPage = 500)]
@@ -85,6 +108,19 @@ public class AuditController : BaseEffortController
             ExcludeImports = await ShouldExcludeImportsAsync(ct)
         };
 
+        // Check if user has full ViewAudit permission or only ViewDeptAudit
+        var hasFullAccess = await _permissionService.HasPermissionAsync(EffortPermissions.ViewAudit, ct);
+        if (!hasFullAccess)
+        {
+            // User only has ViewDeptAudit - restrict to their department
+            var userDept = await _permissionService.GetUserDepartmentAsync(ct);
+            if (string.IsNullOrEmpty(userDept))
+            {
+                return Forbid();
+            }
+            filter.DepartmentCodes = new List<string> { userDept };
+        }
+
         var page = pagination?.Page ?? 1;
         var perPage = pagination?.PerPage ?? 25;
 
@@ -100,46 +136,54 @@ public class AuditController : BaseEffortController
 
     /// <summary>
     /// Get distinct audit actions for filter dropdown.
+    /// Users with ViewDeptAudit only see actions from their department's audit entries.
     /// </summary>
     [HttpGet("actions")]
     public async Task<ActionResult<List<string>>> GetAuditActions(CancellationToken ct = default)
     {
         SetExceptionContext("Method", nameof(GetAuditActions));
 
-        return await _auditService.GetDistinctActionsAsync(await ShouldExcludeImportsAsync(ct), ct);
+        var departmentCodes = await GetDepartmentCodesForFilteringAsync(ct);
+        return await _auditService.GetDistinctActionsAsync(await ShouldExcludeImportsAsync(ct), departmentCodes, ct);
     }
 
     /// <summary>
     /// Get users who have made audit entries for filter dropdown.
+    /// Users with ViewDeptAudit only see modifiers who have made changes to their department's data.
     /// </summary>
     [HttpGet("modifiers")]
     public async Task<ActionResult<List<ModifierInfo>>> GetModifiers(CancellationToken ct = default)
     {
         SetExceptionContext("Method", nameof(GetModifiers));
 
-        return await _auditService.GetDistinctModifiersAsync(await ShouldExcludeImportsAsync(ct), ct);
+        var departmentCodes = await GetDepartmentCodesForFilteringAsync(ct);
+        return await _auditService.GetDistinctModifiersAsync(await ShouldExcludeImportsAsync(ct), departmentCodes, ct);
     }
 
     /// <summary>
     /// Get instructors who have audit entries for filter dropdown.
+    /// Users with ViewDeptAudit only see instructors from their department.
     /// </summary>
     [HttpGet("instructors")]
     public async Task<ActionResult<List<ModifierInfo>>> GetInstructors(CancellationToken ct = default)
     {
         SetExceptionContext("Method", nameof(GetInstructors));
 
-        return await _auditService.GetDistinctInstructorsAsync(await ShouldExcludeImportsAsync(ct), ct);
+        var departmentCodes = await GetDepartmentCodesForFilteringAsync(ct);
+        return await _auditService.GetDistinctInstructorsAsync(await ShouldExcludeImportsAsync(ct), departmentCodes, ct);
     }
 
     /// <summary>
     /// Get terms that have audit entries for filter dropdown.
+    /// Users with ViewDeptAudit only see terms with audit entries for their department.
     /// </summary>
     [HttpGet("terms")]
     public async Task<ActionResult<List<TermOptionDto>>> GetAuditTerms(CancellationToken ct = default)
     {
         SetExceptionContext("Method", nameof(GetAuditTerms));
 
-        var termCodes = await _auditService.GetAuditTermCodesAsync(await ShouldExcludeImportsAsync(ct), ct);
+        var departmentCodes = await GetDepartmentCodesForFilteringAsync(ct);
+        var termCodes = await _auditService.GetAuditTermCodesAsync(await ShouldExcludeImportsAsync(ct), departmentCodes, ct);
 
         return termCodes.Select(tc =>
         {
@@ -155,25 +199,29 @@ public class AuditController : BaseEffortController
     /// <summary>
     /// Get distinct subject codes for filter dropdown.
     /// Optionally filtered by term code and/or course number.
+    /// Users with ViewDeptAudit only see subject codes for courses with audit entries for their department.
     /// </summary>
     [HttpGet("subject-codes")]
     public async Task<ActionResult<List<string>>> GetSubjectCodes(int? termCode = null, string? courseNumber = null, CancellationToken ct = default)
     {
         SetExceptionContext("Method", nameof(GetSubjectCodes));
 
-        return await _auditService.GetDistinctSubjectCodesAsync(termCode, courseNumber, await ShouldExcludeImportsAsync(ct), ct);
+        var departmentCodes = await GetDepartmentCodesForFilteringAsync(ct);
+        return await _auditService.GetDistinctSubjectCodesAsync(termCode, courseNumber, await ShouldExcludeImportsAsync(ct), departmentCodes, ct);
     }
 
     /// <summary>
     /// Get distinct course numbers for filter dropdown.
     /// Optionally filtered by term code and/or subject code.
+    /// Users with ViewDeptAudit only see course numbers for courses with audit entries for their department.
     /// </summary>
     [HttpGet("course-numbers")]
     public async Task<ActionResult<List<string>>> GetCourseNumbers(int? termCode = null, string? subjectCode = null, CancellationToken ct = default)
     {
         SetExceptionContext("Method", nameof(GetCourseNumbers));
 
-        return await _auditService.GetDistinctCourseNumbersAsync(termCode, subjectCode, await ShouldExcludeImportsAsync(ct), ct);
+        var departmentCodes = await GetDepartmentCodesForFilteringAsync(ct);
+        return await _auditService.GetDistinctCourseNumbersAsync(termCode, subjectCode, await ShouldExcludeImportsAsync(ct), departmentCodes, ct);
     }
 }
 

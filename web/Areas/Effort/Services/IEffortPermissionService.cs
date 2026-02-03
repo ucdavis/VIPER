@@ -110,4 +110,11 @@ public interface IEffortPermissionService
     /// Check if the current user has a specific RAPS permission.
     /// </summary>
     Task<bool> HasPermissionAsync(string permission, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the current user's department code for audit filtering.
+    /// Users with ViewDeptAudit can only see audit entries for their own department.
+    /// Returns the EffortDept from the most recent term record for the current user.
+    /// </summary>
+    Task<string?> GetUserDepartmentAsync(CancellationToken ct = default);
 }
