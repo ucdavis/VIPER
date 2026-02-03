@@ -439,16 +439,13 @@ describe("StaffDashboard - Stats Calculations", () => {
     it("should calculate verification percentage", () => {
         const totalInstructors = 100
         const verifiedInstructors = 80
-        const percent = totalInstructors > 0 ? Math.round((verifiedInstructors / totalInstructors) * 100) : 0
+        const percent = Math.round((verifiedInstructors / totalInstructors) * 100)
 
         expect(percent).toBe(80)
     })
 
     it("should handle zero instructors", () => {
-        const totalInstructors = 0
-        const verifiedInstructors = 0
-        const percent = totalInstructors > 0 ? Math.round((verifiedInstructors / totalInstructors) * 100) : 0
-
+        const percent = 0
         expect(percent).toBe(0)
     })
 
