@@ -22,6 +22,7 @@ public class HarvestService : IHarvestService
     private readonly IEffortAuditService _auditService;
     private readonly ITermService _termService;
     private readonly IInstructorService _instructorService;
+    private readonly IRCourseService _rCourseService;
     private readonly ILogger<HarvestService> _logger;
 
     public HarvestService(
@@ -35,6 +36,7 @@ public class HarvestService : IHarvestService
         IEffortAuditService auditService,
         ITermService termService,
         IInstructorService instructorService,
+        IRCourseService rCourseService,
         ILogger<HarvestService> logger)
     {
         _phases = phases;
@@ -47,6 +49,7 @@ public class HarvestService : IHarvestService
         _auditService = auditService;
         _termService = termService;
         _instructorService = instructorService;
+        _rCourseService = rCourseService;
         _logger = logger;
     }
 
@@ -126,6 +129,10 @@ public class HarvestService : IHarvestService
                 }
                 harvestContext.CreatedRecords.Clear();
             }
+
+            // Phase 7: Generate R-courses for eligible instructors (post-harvest step)
+            _logger.LogInformation("Generating R-courses for eligible instructors in term {TermCode}", termCode);
+            await GenerateRCoursesForEligibleInstructorsAsync(termCode, modifiedBy, ct);
 
             // Update term status
             await UpdateTermStatusAsync(termCode, ct);
@@ -269,6 +276,16 @@ public class HarvestService : IHarvestService
                 harvestContext.CreatedRecords.Clear();
             }
 
+            // Phase 7: Generate R-courses for eligible instructors (90-95% progress)
+            await progressChannel.WriteAsync(new HarvestProgressEvent
+            {
+                Phase = "rcourse",
+                Progress = 0.92,
+                Message = "Generating R-courses for eligible instructors..."
+            }, ct);
+            _logger.LogInformation("Generating R-courses for eligible instructors in term {TermCode}", termCode);
+            await GenerateRCoursesForEligibleInstructorsAsync(termCode, modifiedBy, ct);
+
             // Finalize (95% to 100%)
             await progressChannel.WriteAsync(HarvestProgressEvent.Finalizing(), ct);
             await UpdateTermStatusAsync(termCode, ct);
@@ -315,6 +332,42 @@ public class HarvestService : IHarvestService
             progressChannel.Complete();
         }
     }
+
+    #region R-Course Generation
+
+    /// <summary>
+    /// Generate R-courses for all eligible instructors in the term.
+    /// An instructor is eligible if they have at least one non-R-course effort record.
+    /// This must run AFTER all Banner course imports are complete.
+    /// Delegates actual R-course creation to IRCourseService for shared logic.
+    /// </summary>
+    private async Task GenerateRCoursesForEligibleInstructorsAsync(int termCode, int modifiedBy, CancellationToken ct)
+    {
+        // Find all instructors in the term who have at least one non-R-course effort record
+        var eligibleInstructors = await _context.Records
+            .AsNoTracking()
+            .Where(r => r.TermCode == termCode)
+            .Join(_context.Courses.Where(c => c.TermCode == termCode),
+                  r => r.CourseId,
+                  c => c.Id,
+                  (r, c) => new { r.PersonId, c.CrseNumb })
+#pragma warning disable S6610 // "EndsWith" overloads that take a "char" should be used
+            .Where(x => x.CrseNumb == null || !x.CrseNumb.EndsWith("R")) // TODO(VPR-41): EF Core 10 supports char overload, remove pragma
+#pragma warning restore S6610
+            .Select(x => x.PersonId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        _logger.LogInformation("Found {Count} eligible instructors for R-course generation in term {TermCode}",
+            eligibleInstructors.Count, termCode);
+
+        foreach (var personId in eligibleInstructors)
+        {
+            await _rCourseService.CreateRCourseEffortRecordAsync(personId, termCode, modifiedBy, RCourseCreationContext.Harvest, ct);
+        }
+    }
+
+    #endregion
 
     #region Private Helpers
 

@@ -4,7 +4,7 @@
 
         <!-- Term selector and filters -->
         <div class="row q-col-gutter-sm q-mb-md items-center">
-            <div class="col-12 col-sm-4 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <q-select
                     v-model="selectedTermCode"
                     :options="terms"
@@ -18,7 +18,7 @@
                     outlined
                 />
             </div>
-            <div class="col-6 col-sm-3 col-md-2">
+            <div class="col-12 col-sm-6 col-md-3">
                 <q-select
                     v-model="selectedDept"
                     :options="deptOptions"
@@ -29,7 +29,7 @@
                     clearable
                 />
             </div>
-            <div class="col-6 col-sm-3 col-md-2">
+            <div class="col-12 col-sm-6 col-md-3">
                 <q-input
                     v-model="searchText"
                     label="Search"
@@ -43,7 +43,7 @@
                 </q-input>
             </div>
 
-            <div class="col-12 col-sm-auto">
+            <div class="col-12 col-sm-6 col-md-auto">
                 <q-btn
                     v-if="hasImportInstructor"
                     color="primary"
@@ -72,16 +72,33 @@
                 class="q-mb-sm"
             >
                 <!-- Department header with bulk email button -->
-                <div class="dept-header text-white q-pa-sm row items-center">
-                    <span class="text-weight-bold">{{ deptGroup.dept }}</span>
+                <div
+                    class="dept-header text-white q-pa-sm row items-center"
+                    :class="{
+                        'dept-header--no-dept': deptGroup.dept === 'No Department',
+                        'dept-header--collapsible': hasMultipleDepts,
+                    }"
+                    :tabindex="hasMultipleDepts ? 0 : undefined"
+                    :role="hasMultipleDepts ? 'button' : undefined"
+                    :aria-expanded="hasMultipleDepts ? !collapsedDepts.has(deptGroup.dept) : undefined"
+                    @click="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
+                    @keyup.enter="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
+                    @keyup.space.prevent="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
+                >
+                    <q-icon
+                        v-if="hasMultipleDepts"
+                        :name="collapsedDepts.has(deptGroup.dept) ? 'expand_more' : 'expand_less'"
+                        size="sm"
+                        class="q-mr-xs"
+                    />
+                    <span class="text-weight-bold">{{ deptGroup.dept }} ({{ deptGroup.instructors.length }})</span>
                     <q-space />
                     <q-btn
                         v-if="getEmailableCount(deptGroup) > 0"
                         icon="mail_outline"
                         :label="`Email ${getEmailableCount(deptGroup)} Unverified ${inflect('Instructor', getEmailableCount(deptGroup))}`"
-                        dense
                         flat
-                        size="sm"
+                        size="0.75rem"
                         color="white"
                         no-caps
                         :disable="sendingEmailDepts.has(deptGroup.dept)"
@@ -92,7 +109,8 @@
 
                 <!-- Mobile card view -->
                 <div
-                    v-if="$q.screen.lt.md"
+                    v-if="$q.screen.lt.sm"
+                    v-show="!collapsedDepts.has(deptGroup.dept)"
                     class="instructor-cards"
                 >
                     <q-card
@@ -151,74 +169,88 @@
                                     >
                                         0 Hours
                                     </q-badge>
+                                    <div
+                                        v-if="instructor.title"
+                                        class="text-caption text-grey-7 card-title"
+                                    >
+                                        {{ instructor.title }}
+                                    </div>
                                 </div>
                                 <!-- Actions -->
                                 <div class="card-actions">
-                                    <!-- Email action -->
+                                    <!-- Email action: Guest instructor (cannot be emailed) -->
                                     <q-btn
-                                        v-if="instructor.isVerified"
-                                        icon="mark_email_read"
-                                        color="positive"
-                                        dense
+                                        v-if="instructor.isGuest"
+                                        icon="mail_off"
+                                        color="grey"
                                         flat
                                         round
-                                        size="sm"
-                                        disable
-                                    />
-                                    <q-btn
-                                        v-else-if="
-                                            sendingEmailPersonIds.has(instructor.personId) ||
-                                            sendingEmailDepts.has(instructor.effortDept)
-                                        "
-                                        dense
-                                        flat
-                                        round
-                                        size="sm"
+                                        size="0.75rem"
                                         disable
                                     >
-                                        <q-spinner
-                                            color="primary"
-                                            size="xs"
-                                        />
+                                        <q-tooltip>Guest instructors cannot be emailed</q-tooltip>
                                     </q-btn>
-                                    <q-btn
-                                        v-else-if="isEmailedPastDeadline(instructor)"
-                                        icon="mark_email_unread"
-                                        color="negative"
-                                        dense
-                                        flat
-                                        round
-                                        size="sm"
-                                        @click="confirmResendEmail(instructor)"
-                                    />
-                                    <q-btn
-                                        v-else-if="instructor.lastEmailedDate"
-                                        icon="mark_email_unread"
-                                        color="warning"
-                                        dense
-                                        flat
-                                        round
-                                        size="sm"
-                                        @click="confirmResendEmail(instructor)"
-                                    />
-                                    <q-btn
-                                        v-else
-                                        icon="mail"
-                                        :color="instructor.recordCount === 0 ? 'warning' : 'primary'"
-                                        dense
-                                        flat
-                                        round
-                                        size="sm"
-                                        @click="sendVerificationEmail(instructor)"
-                                    />
+                                    <!-- Email actions for non-guest instructors -->
+                                    <template v-else>
+                                        <q-btn
+                                            v-if="instructor.isVerified"
+                                            icon="mark_email_read"
+                                            color="positive"
+                                            flat
+                                            round
+                                            size="0.75rem"
+                                            disable
+                                        />
+                                        <q-btn
+                                            v-else-if="
+                                                sendingEmailPersonIds.has(instructor.personId) ||
+                                                sendingEmailDepts.has(instructor.effortDept)
+                                            "
+                                            flat
+                                            round
+                                            size="0.75rem"
+                                            disable
+                                        >
+                                            <q-spinner
+                                                color="primary"
+                                                size="sm"
+                                            />
+                                        </q-btn>
+                                        <q-btn
+                                            v-else-if="isEmailedPastDeadline(instructor)"
+                                            icon="mark_email_unread"
+                                            color="negative"
+                                            flat
+                                            round
+                                            size="0.75rem"
+                                            @click="confirmResendEmail(instructor)"
+                                        />
+                                        <q-btn
+                                            v-else-if="instructor.lastEmailedDate"
+                                            icon="mark_email_unread"
+                                            color="warning"
+                                            flat
+                                            round
+                                            size="0.75rem"
+                                            @click="confirmResendEmail(instructor)"
+                                        />
+                                        <q-btn
+                                            v-else
+                                            icon="mail"
+                                            :color="instructor.recordCount === 0 ? 'warning' : 'primary'"
+                                            flat
+                                            round
+                                            size="0.75rem"
+                                            @click="sendVerificationEmail(instructor)"
+                                        />
+                                    </template>
                                     <!-- View effort records -->
                                     <q-btn
                                         :icon="getEffortIcon(instructor)"
                                         :color="getEffortIconColor(instructor)"
-                                        dense
                                         flat
                                         round
-                                        size="sm"
+                                        size="0.75rem"
                                         :to="{
                                             name: 'InstructorDetail',
                                             params: {
@@ -232,10 +264,9 @@
                                         v-if="hasEditInstructor"
                                         icon="edit"
                                         color="primary"
-                                        dense
                                         flat
                                         round
-                                        size="sm"
+                                        size="0.75rem"
                                         :to="{
                                             name: 'InstructorEdit',
                                             params: {
@@ -249,19 +280,12 @@
                                         v-if="hasDeleteInstructor"
                                         icon="delete"
                                         color="negative"
-                                        dense
                                         flat
                                         round
-                                        size="sm"
+                                        size="0.75rem"
                                         @click="confirmDeleteInstructor(instructor)"
                                     />
                                 </div>
-                            </div>
-                            <div
-                                v-if="instructor.title"
-                                class="text-caption text-grey-7"
-                            >
-                                {{ instructor.title }}
                             </div>
                             <!-- Percentage summaries -->
                             <div
@@ -270,7 +294,7 @@
                                     instructor.percentClinicalSummary ||
                                     instructor.percentOtherSummary
                                 "
-                                class="q-mt-xs text-caption"
+                                class="q-mt-xs text-caption card-percentages"
                             >
                                 <div
                                     v-if="instructor.percentAdminSummary"
@@ -299,6 +323,7 @@
                 <!-- Desktop table view -->
                 <q-table
                     v-else
+                    v-show="!collapsedDepts.has(deptGroup.dept)"
                     :rows="deptGroup.instructors"
                     :columns="columns"
                     row-key="personId"
@@ -364,6 +389,14 @@
                                                 size="xs"
                                             />
                                             <span>Already verified</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <q-icon
+                                                name="mail_off"
+                                                color="grey"
+                                                size="xs"
+                                            />
+                                            <span>Guest instructor (cannot email)</span>
                                         </div>
                                         <div class="legend-section-title">Effort Records</div>
                                         <div class="legend-item">
@@ -471,98 +504,108 @@
                     <template #body-cell-actions="props">
                         <q-td :props="props">
                             <div class="actions-cell">
-                                <!-- Email action: Already verified -->
+                                <!-- Email action: Guest instructor (cannot be emailed) -->
                                 <q-btn
-                                    v-if="props.row.isVerified"
-                                    icon="mark_email_read"
-                                    color="positive"
-                                    dense
+                                    v-if="props.row.isGuest"
+                                    icon="mail_off"
+                                    color="grey"
                                     flat
                                     round
-                                    size="sm"
+                                    size="0.75rem"
                                     disable
-                                    :aria-label="`${props.row.fullName} already verified`"
+                                    :aria-label="`${props.row.fullName} is a guest instructor`"
                                 >
-                                    <q-tooltip>Already verified</q-tooltip>
+                                    <q-tooltip>Guest instructors cannot be emailed</q-tooltip>
                                 </q-btn>
-                                <!-- Email action: Loading spinner while sending -->
-                                <q-btn
-                                    v-else-if="
-                                        sendingEmailPersonIds.has(props.row.personId) ||
-                                        sendingEmailDepts.has(props.row.effortDept)
-                                    "
-                                    dense
-                                    flat
-                                    round
-                                    size="sm"
-                                    disable
-                                    :aria-label="`Sending email to ${props.row.fullName}`"
-                                >
-                                    <q-spinner
-                                        color="primary"
-                                        size="xs"
-                                    />
-                                </q-btn>
-                                <!-- Email action: Emailed past deadline, not verified -->
-                                <q-btn
-                                    v-else-if="isEmailedPastDeadline(props.row)"
-                                    icon="mark_email_unread"
-                                    color="negative"
-                                    dense
-                                    flat
-                                    round
-                                    size="sm"
-                                    :aria-label="`Resend verification email to ${props.row.fullName} (past deadline)`"
-                                    @click="confirmResendEmail(props.row)"
-                                >
-                                    <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
-                                </q-btn>
-                                <!-- Email action: Emailed within deadline, not verified -->
-                                <q-btn
-                                    v-else-if="props.row.lastEmailedDate"
-                                    icon="mark_email_unread"
-                                    color="warning"
-                                    dense
-                                    flat
-                                    round
-                                    size="sm"
-                                    :aria-label="`Resend verification email to ${props.row.fullName}`"
-                                    @click="confirmResendEmail(props.row)"
-                                >
-                                    <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
-                                </q-btn>
-                                <!-- Email action: Never emailed, not verified -->
-                                <q-btn
-                                    v-else
-                                    icon="mail"
-                                    :color="props.row.recordCount === 0 ? 'warning' : 'primary'"
-                                    dense
-                                    flat
-                                    round
-                                    size="sm"
-                                    :aria-label="
-                                        props.row.recordCount === 0
-                                            ? `Send no-effort verification email to ${props.row.fullName}`
-                                            : `Send verification email to ${props.row.fullName}`
-                                    "
-                                    @click="sendVerificationEmail(props.row)"
-                                >
-                                    <q-tooltip>
-                                        {{
+                                <!-- Email actions for non-guest instructors -->
+                                <template v-else>
+                                    <!-- Email action: Already verified -->
+                                    <q-btn
+                                        v-if="props.row.isVerified"
+                                        icon="mark_email_read"
+                                        color="positive"
+                                        flat
+                                        round
+                                        size="0.75rem"
+                                        disable
+                                        :aria-label="`${props.row.fullName} already verified`"
+                                    >
+                                        <q-tooltip>Already verified</q-tooltip>
+                                    </q-btn>
+                                    <!-- Email action: Loading spinner while sending -->
+                                    <q-btn
+                                        v-else-if="
+                                            sendingEmailPersonIds.has(props.row.personId) ||
+                                            sendingEmailDepts.has(props.row.effortDept)
+                                        "
+                                        flat
+                                        round
+                                        size="0.75rem"
+                                        disable
+                                        :aria-label="`Sending email to ${props.row.fullName}`"
+                                    >
+                                        <q-spinner
+                                            color="primary"
+                                            size="0.75rem"
+                                        />
+                                    </q-btn>
+                                    <!-- Email action: Emailed past deadline, not verified -->
+                                    <q-btn
+                                        v-else-if="isEmailedPastDeadline(props.row)"
+                                        icon="mark_email_unread"
+                                        color="negative"
+                                        flat
+                                        round
+                                        size="0.75rem"
+                                        :aria-label="`Resend verification email to ${props.row.fullName} (past deadline)`"
+                                        @click="confirmResendEmail(props.row)"
+                                    >
+                                        <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
+                                    </q-btn>
+                                    <!-- Email action: Emailed within deadline, not verified -->
+                                    <q-btn
+                                        v-else-if="props.row.lastEmailedDate"
+                                        icon="mark_email_unread"
+                                        color="warning"
+                                        flat
+                                        round
+                                        size="0.75rem"
+                                        :aria-label="`Resend verification email to ${props.row.fullName}`"
+                                        @click="confirmResendEmail(props.row)"
+                                    >
+                                        <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
+                                    </q-btn>
+                                    <!-- Email action: Never emailed, not verified -->
+                                    <q-btn
+                                        v-else
+                                        icon="mail"
+                                        :color="props.row.recordCount === 0 ? 'warning' : 'primary'"
+                                        flat
+                                        round
+                                        size="0.75rem"
+                                        :aria-label="
                                             props.row.recordCount === 0
-                                                ? "Send no-effort verification email"
-                                                : "Send verification email"
-                                        }}
-                                    </q-tooltip>
-                                </q-btn>
+                                                ? `Send no-effort verification email to ${props.row.fullName}`
+                                                : `Send verification email to ${props.row.fullName}`
+                                        "
+                                        @click="sendVerificationEmail(props.row)"
+                                    >
+                                        <q-tooltip>
+                                            {{
+                                                props.row.recordCount === 0
+                                                    ? "Send no-effort verification email"
+                                                    : "Send verification email"
+                                            }}
+                                        </q-tooltip>
+                                    </q-btn>
+                                </template>
                                 <!-- View effort records action -->
                                 <q-btn
                                     :icon="getEffortIcon(props.row)"
                                     :color="getEffortIconColor(props.row)"
-                                    dense
                                     flat
                                     round
-                                    size="sm"
+                                    size="0.75rem"
                                     :aria-label="`View effort records for ${props.row.fullName}`"
                                     :to="{
                                         name: 'InstructorDetail',
@@ -579,10 +622,9 @@
                                     v-if="hasEditInstructor"
                                     icon="edit"
                                     color="primary"
-                                    dense
                                     flat
                                     round
-                                    size="sm"
+                                    size="0.75rem"
                                     :aria-label="`Edit ${props.row.fullName}`"
                                     :to="{
                                         name: 'InstructorEdit',
@@ -599,10 +641,9 @@
                                     v-if="hasDeleteInstructor"
                                     icon="delete"
                                     color="negative"
-                                    dense
                                     flat
                                     round
-                                    size="sm"
+                                    size="0.75rem"
                                     :aria-label="`Delete ${props.row.fullName}`"
                                     @click="confirmDeleteInstructor(props.row)"
                                 >
@@ -640,7 +681,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue"
 import { useQuasar } from "quasar"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
-import { effortService } from "../services/effort-service"
+import { instructorService } from "../services/instructor-service"
 import { termService } from "../services/term-service"
 import { verificationService } from "../services/verification-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
@@ -663,6 +704,7 @@ const instructors = ref<PersonDto[]>([])
 const selectedDept = ref<string | null>(null)
 const searchText = ref("")
 const isLoading = ref(false)
+const collapsedDepts = ref<Set<string>>(new Set())
 
 // Dialogs
 const showAddDialog = ref(false)
@@ -714,7 +756,12 @@ const currentTermName = computed(() => {
 })
 
 const deptOptions = computed(() => {
-    const uniqueDepts = [...new Set(instructors.value.map((i) => i.effortDept))].sort()
+    const hasNoDept = instructors.value.some((i) => !i.effortDept)
+    const uniqueDepts = [...new Set(instructors.value.map((i) => i.effortDept).filter((d): d is string => !!d))].sort()
+    // Add "No Department" option if any instructors lack a department
+    if (hasNoDept) {
+        uniqueDepts.unshift("No Department")
+    }
     return ["", ...uniqueDepts]
 })
 
@@ -722,7 +769,11 @@ const filteredInstructors = computed(() => {
     let result = instructors.value
 
     if (selectedDept.value) {
-        result = result.filter((i) => i.effortDept === selectedDept.value)
+        if (selectedDept.value === "No Department") {
+            result = result.filter((i) => !i.effortDept)
+        } else {
+            result = result.filter((i) => i.effortDept === selectedDept.value)
+        }
     }
 
     if (searchText.value) {
@@ -743,19 +794,34 @@ const groupedInstructors = computed(() => {
     const groups: Record<string, PersonDto[]> = {}
 
     for (const instructor of filteredInstructors.value) {
-        const dept = instructor.effortDept || "UNK"
+        const dept = instructor.effortDept || "No Department"
         const groupArray = groups[dept] ?? (groups[dept] = [])
         groupArray.push(instructor)
     }
 
-    // Sort departments and return as array with guaranteed instructor arrays
+    // Sort departments, but put "No Department" first
     return Object.keys(groups)
-        .sort()
+        .sort((a, b) => {
+            if (a === "No Department") return -1
+            if (b === "No Department") return 1
+            return a.localeCompare(b)
+        })
         .map((dept) => ({
             dept,
             instructors: groups[dept] ?? [],
         }))
 })
+
+// Check if user can see multiple departments (enables collapsible headers)
+const hasMultipleDepts = computed(() => groupedInstructors.value.length > 1)
+
+function toggleDeptCollapse(dept: string) {
+    if (collapsedDepts.value.has(dept)) {
+        collapsedDepts.value.delete(dept)
+    } else {
+        collapsedDepts.value.add(dept)
+    }
+}
 
 // Check if any instructor has "Other %" content to determine column width
 const hasOtherPercent = computed(() => {
@@ -769,8 +835,8 @@ const columns = computed<QTableColumn[]>(() => [
         field: "isVerified",
         align: "center",
         sortable: true,
-        style: "width: 60px; min-width: 60px",
-        headerStyle: "width: 60px; min-width: 60px",
+        style: "width: 55px; min-width: 55px; padding-left: 8px",
+        headerStyle: "width: 55px; min-width: 55px; padding-left: 8px",
     },
     {
         name: "fullName",
@@ -813,8 +879,8 @@ const columns = computed<QTableColumn[]>(() => [
         label: "Actions",
         field: "actions",
         align: "center",
-        style: "width: 150px; min-width: 150px",
-        headerStyle: "width: 150px; min-width: 150px",
+        style: "width: 185px; min-width: 185px",
+        headerStyle: "width: 185px; min-width: 185px",
     },
 ])
 
@@ -861,7 +927,7 @@ async function loadInstructors() {
     isLoading.value = true
 
     try {
-        const result = await effortService.getInstructors(selectedTermCode.value)
+        const result = await instructorService.getInstructors(selectedTermCode.value)
 
         // Abort if a newer request has been initiated
         if (token !== loadToken) return
@@ -883,7 +949,7 @@ function confirmDeleteInstructor(instructor: PersonDto) {
     }).onOk(async () => {
         if (!selectedTermCode.value) return
 
-        const { recordCount } = await effortService.canDeleteInstructor(instructor.personId, selectedTermCode.value)
+        const { recordCount } = await instructorService.canDeleteInstructor(instructor.personId, selectedTermCode.value)
         if (recordCount > 0) {
             $q.dialog({
                 title: "Confirm Delete",
@@ -900,7 +966,7 @@ function confirmDeleteInstructor(instructor: PersonDto) {
 async function deleteInstructor(personId: number) {
     if (!selectedTermCode.value) return
 
-    const success = await effortService.deleteInstructor(personId, selectedTermCode.value)
+    const success = await instructorService.deleteInstructor(personId, selectedTermCode.value)
     if (success) {
         $q.notify({ type: "positive", message: "Instructor deleted successfully" })
         await loadInstructors()
@@ -1172,14 +1238,23 @@ onMounted(loadTerms)
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    column-gap: 0.5rem;
-    row-gap: 0;
+    gap: 0 0.5rem;
 }
 
 .card-actions {
     display: flex;
-    gap: 0.125rem;
+    gap: 0.5rem;
     flex-shrink: 0;
+}
+
+.card-title {
+    flex-basis: 100%;
+}
+
+.card-percentages {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
 }
 
 .percent-line {
@@ -1192,8 +1267,36 @@ onMounted(loadTerms)
     font-weight: bold;
 }
 
+.dept-header--collapsible {
+    cursor: pointer;
+    user-select: none;
+}
+
+.dept-header--collapsible:hover,
+.dept-header--collapsible:focus {
+    background-color: #4a5454;
+}
+
+.dept-header--collapsible:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: -2px;
+}
+
+.dept-header--no-dept {
+    background-color: var(--q-negative);
+}
+
+.dept-header--no-dept.dept-header--collapsible:hover,
+.dept-header--no-dept.dept-header--collapsible:focus {
+    background-color: #a83232;
+}
+
 .dept-table {
     margin-bottom: 0;
+}
+
+.dept-table :deep(.q-table__middle) {
+    overflow-x: hidden;
 }
 
 .dept-table :deep(table) {
@@ -1219,6 +1322,7 @@ onMounted(loadTerms)
     color: #666;
     font-size: 0.8em;
     text-transform: uppercase;
+    margin-top: -2px;
 }
 
 .instructor-info {
@@ -1262,7 +1366,7 @@ onMounted(loadTerms)
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.25rem;
+    gap: 0.5rem;
 }
 </style>
 

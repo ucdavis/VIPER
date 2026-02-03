@@ -332,7 +332,8 @@
 import { ref, computed, onMounted } from "vue"
 import { useRoute } from "vue-router"
 import { useQuasar, type QTableColumn } from "quasar"
-import { effortService } from "../services/effort-service"
+import { instructorService } from "../services/instructor-service"
+import { recordService } from "../services/record-service"
 import { termService } from "../services/term-service"
 import type { PersonDto, TermDto, InstructorEffortRecordDto } from "../types"
 import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
@@ -544,14 +545,14 @@ function confirmDelete(record: InstructorEffortRecordDto) {
         cancel: true,
         persistent: true,
     }).onOk(async () => {
-        await deleteRecord(record.id)
+        await deleteRecord(record.id, record.modifiedDate)
     })
 }
 
-async function deleteRecord(recordId: number) {
+async function deleteRecord(recordId: number, originalModifiedDate: string | null) {
     try {
-        const success = await effortService.deleteEffortRecord(recordId)
-        if (success) {
+        const result = await recordService.deleteEffortRecord(recordId, originalModifiedDate)
+        if (result.success) {
             $q.notify({
                 type: "positive",
                 message: "Effort record deleted successfully",
@@ -561,8 +562,12 @@ async function deleteRecord(recordId: number) {
         } else {
             $q.notify({
                 type: "negative",
-                message: "Failed to delete effort record",
+                message: result.error ?? "Failed to delete effort record",
             })
+            // Reload data if it was a concurrency conflict
+            if (result.isConflict) {
+                await Promise.all([loadEffortRecords(), loadInstructor()])
+            }
         }
     } catch {
         $q.notify({
@@ -602,11 +607,11 @@ async function onCourseImported(courseId: number) {
 }
 
 async function loadEffortRecords() {
-    effortRecords.value = await effortService.getInstructorEffortRecords(personId.value, termCodeNum.value)
+    effortRecords.value = await instructorService.getInstructorEffortRecords(personId.value, termCodeNum.value)
 }
 
 async function loadInstructor() {
-    instructor.value = await effortService.getInstructor(personId.value, termCodeNum.value)
+    instructor.value = await instructorService.getInstructor(personId.value, termCodeNum.value)
 }
 
 async function loadData() {
@@ -615,10 +620,10 @@ async function loadData() {
 
     try {
         const [instructorResult, recordsResult, termsResult, canEditResult] = await Promise.all([
-            effortService.getInstructor(personId.value, termCodeNum.value),
-            effortService.getInstructorEffortRecords(personId.value, termCodeNum.value),
+            instructorService.getInstructor(personId.value, termCodeNum.value),
+            instructorService.getInstructorEffortRecords(personId.value, termCodeNum.value),
             termService.getTerms(),
-            effortService.canEditTerm(termCodeNum.value),
+            recordService.canEditTerm(termCodeNum.value),
         ])
 
         if (!instructorResult) {

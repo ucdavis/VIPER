@@ -3,7 +3,7 @@ namespace Viper.Areas.Effort.Models.DTOs.Responses;
 /// <summary>
 /// DTO for course information in the Effort system.
 /// </summary>
-public class CourseDto
+public class CourseDto : ICourseClassificationFlags
 {
     public int Id { get; set; }
     public string Crn { get; set; } = string.Empty;
@@ -26,4 +26,10 @@ public class CourseDto
     /// Used to determine if the link button should be hidden (child courses cannot become parents).
     /// </summary>
     public int? ParentCourseId { get; set; }
+
+    // ICourseClassificationFlags implementation
+    // Populated by CourseClassificationService.Classify() to ensure consistency with backend validation
+    public bool IsDvm { get; set; }
+    public bool Is199299 { get; set; }
+    public bool IsRCourse { get; set; }
 }

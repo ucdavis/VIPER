@@ -133,7 +133,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
-import { effortService } from "../services/effort-service"
+import { instructorService } from "../services/instructor-service"
 import type { AaudPersonDto } from "../types"
 
 const props = defineProps<{
@@ -205,7 +205,7 @@ async function onFilter(val: string, update: (fn: () => void) => void, abort: ()
 
     isSearching.value = true
     try {
-        const results = await effortService.searchPossibleInstructors(props.termCode, val)
+        const results = await instructorService.searchPossibleInstructors(props.termCode, val)
         update(() => {
             searchResults.value = results
         })
@@ -225,7 +225,7 @@ async function addInstructor() {
     errorMessage.value = ""
 
     try {
-        const result = await effortService.createInstructor({
+        const result = await instructorService.createInstructor({
             personId: selectedPerson.value.personId,
             termCode: props.termCode,
         })

@@ -416,4 +416,5 @@ public class CoursesController : BaseEffortController
 
         return Ok(filteredDepts);
     }
+
 }

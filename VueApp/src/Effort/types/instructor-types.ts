@@ -155,6 +155,8 @@ type UpdateEffortRecordRequest = {
     effortTypeId: string
     roleId: number
     effortValue: number
+    /** ModifiedDate from when record was loaded - for optimistic concurrency */
+    originalModifiedDate?: string | null
 }
 
 type EffortRecordResult = {

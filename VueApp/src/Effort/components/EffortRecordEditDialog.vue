@@ -142,7 +142,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
-import { effortService } from "../services/effort-service"
+import { recordService } from "../services/record-service"
 import type { EffortTypeOptionDto, RoleOptionDto, InstructorEffortRecordDto } from "../types"
 
 const props = defineProps<{
@@ -208,15 +208,14 @@ const courseLabel = computed(() => {
     return `${course.subjCode} ${course.crseNumb.trim()}-${course.seqNumb} (${course.units} units)`
 })
 
-// Computed: Course category flags for filtering effort types
+// Use course classification flags directly from CourseDto (populated by backend CourseClassificationService)
 const courseFlags = computed(() => {
     if (!props.record) return { isDvm: false, is199299: false, isRCourse: false }
     const course = props.record.course
-    const crseNumb = course.crseNumb.trim()
     return {
-        isDvm: course.custDept?.toUpperCase() === "DVM",
-        is199299: crseNumb.startsWith("199") || crseNumb.startsWith("299"),
-        isRCourse: crseNumb.toUpperCase().endsWith("R"),
+        isDvm: course.isDvm ?? false,
+        is199299: course.is199299 ?? false,
+        isRCourse: course.isRCourse ?? false,
     }
 })
 
@@ -279,8 +278,8 @@ async function loadOptions() {
 
     try {
         const [effortTypesResult, rolesResult] = await Promise.all([
-            effortService.getEffortTypeOptions(),
-            effortService.getRoleOptions(),
+            recordService.getEffortTypeOptions(),
+            recordService.getRoleOptions(),
         ])
 
         effortTypes.value = effortTypesResult
@@ -300,10 +299,11 @@ async function updateRecord() {
     warningMessage.value = ""
 
     try {
-        const result = await effortService.updateEffortRecord(props.record.id, {
+        const result = await recordService.updateEffortRecord(props.record.id, {
             effortTypeId: selectedEffortType.value!,
             roleId: selectedRole.value!,
             effortValue: effortValue.value!,
+            originalModifiedDate: props.record.modifiedDate,
         })
 
         if (result.success) {
@@ -320,6 +320,13 @@ async function updateRecord() {
             }
         } else {
             errorMessage.value = result.error || "Failed to update effort record"
+            // Close dialog on concurrency conflict so user sees refreshed data
+            if (result.isConflict) {
+                setTimeout(() => {
+                    emit("update:modelValue", false)
+                    emit("updated") // Triggers reload
+                }, 2000)
+            }
         }
     } catch {
         errorMessage.value = "An unexpected error occurred"

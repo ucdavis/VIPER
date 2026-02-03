@@ -29,7 +29,7 @@ const { env } = process
 function runCommand(command, args, options = {}) {
     return new Promise((resolve, reject) => {
         const child = spawn(command, args, {
-            stdio: "inherit", // This preserves colors by inheriting parent's stdio
+            stdio: ["ignore", "inherit", "inherit"], // Ignore stdin, inherit stdout/stderr for colors
             shell: true,
             ...options,
         })

@@ -340,8 +340,10 @@ const columns: QTableColumn[] = [
     { name: "closedDate", label: "Closed", field: "closedDate", align: "left" },
 ]
 
-async function loadTerms() {
-    isLoading.value = true
+async function loadTerms(options?: { background?: boolean }) {
+    if (!options?.background) {
+        isLoading.value = true
+    }
     try {
         const [termsResult, availableResult] = await Promise.all([
             termService.getTerms(),
@@ -372,7 +374,7 @@ function confirmTermAction(config: TermActionConfig) {
         const result = await config.action()
         if (result && (typeof result !== "object" || (result as { success?: boolean }).success !== false)) {
             $q.notify({ type: "positive", message: config.successMessage })
-            await loadTerms()
+            await loadTerms({ background: true })
         }
     })
 }
@@ -440,7 +442,7 @@ function openHarvestDialog(term: TermDto) {
 }
 
 function onHarvested() {
-    loadTerms()
+    loadTerms({ background: true })
 }
 
 onMounted(loadTerms)

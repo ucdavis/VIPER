@@ -94,4 +94,27 @@ public interface IEffortPermissionService
     /// it checks if the person exists in any term the user has access to.
     /// </summary>
     Task<bool> CanEditPersonPercentagesAsync(int personId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Check if a term is editable (term is open OR user has EditWhenClosed permission).
+    /// </summary>
+    Task<bool> IsTermEditableAsync(int termCode, CancellationToken ct = default);
+
+    /// <summary>
+    /// Check if the current user can edit their OWN effort only.
+    /// This is a SELF-EDIT check - requires VerifyEffort permission AND being the record owner.
+    /// </summary>
+    Task<bool> CanEditOwnEffortAsync(int personId, int termCode, CancellationToken ct = default);
+
+    /// <summary>
+    /// Check if the current user has a specific RAPS permission.
+    /// </summary>
+    Task<bool> HasPermissionAsync(string permission, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the current user's department code for audit filtering.
+    /// Users with ViewDeptAudit can only see audit entries for their own department.
+    /// Returns the EffortDept from the most recent term record for the current user.
+    /// </summary>
+    Task<string?> GetUserDepartmentAsync(CancellationToken ct = default);
 }

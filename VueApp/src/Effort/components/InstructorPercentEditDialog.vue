@@ -245,7 +245,7 @@
 import { ref, computed, watch } from "vue"
 import { useQuasar } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
-import { effortService } from "../services/effort-service"
+import { instructorService } from "../services/instructor-service"
 import { percentageService } from "../services/percentage-service"
 import { percentAssignTypeService } from "../services/percent-assign-type-service"
 import { unitService } from "../services/unit-service"
@@ -394,10 +394,10 @@ async function loadData() {
     try {
         // Load instructor metadata lookups and percent assignment data in parallel
         const [depts, unitsData, titles, groups, types, percentUnits] = await Promise.all([
-            effortService.getInstructorDepartments(),
-            effortService.getReportUnits(),
-            effortService.getTitleCodes(),
-            effortService.getJobGroups(),
+            instructorService.getInstructorDepartments(),
+            instructorService.getReportUnits(),
+            instructorService.getTitleCodes(),
+            instructorService.getJobGroups(),
             percentAssignTypeService.getPercentAssignTypes(true),
             unitService.getUnits(true),
         ])
@@ -468,7 +468,7 @@ async function updateInstructor() {
     settingsErrorMessage.value = ""
 
     try {
-        const result = await effortService.updateInstructor(props.instructor.personId, props.termCode, {
+        const result = await instructorService.updateInstructor(props.instructor.personId, props.termCode, {
             effortDept: form.value.effortDept,
             effortTitleCode: form.value.effortTitleCode,
             jobGroupId: form.value.jobGroupId || null,

@@ -4,7 +4,7 @@
 
         <!-- Term selector and filters -->
         <div class="row q-col-gutter-sm q-mb-md items-center">
-            <div class="col-12 col-sm-4 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <q-select
                     v-model="selectedTermCode"
                     :options="terms"
@@ -18,7 +18,7 @@
                     outlined
                 />
             </div>
-            <div class="col-6 col-sm-3 col-md-2">
+            <div class="col-12 col-sm-6 col-md-3">
                 <q-select
                     v-model="selectedDept"
                     :options="deptOptions"
@@ -29,7 +29,7 @@
                     clearable
                 />
             </div>
-            <div class="col-6 col-sm-3 col-md-2">
+            <div class="col-12 col-sm-6 col-md-3">
                 <q-input
                     v-model="searchText"
                     label="Search"
@@ -43,7 +43,7 @@
                 </q-input>
             </div>
 
-            <div class="col-12 col-sm-auto">
+            <div class="col-12 col-sm-6 col-md-auto">
                 <!-- Add course actions -->
                 <q-btn-dropdown
                     v-if="canAddCourse"
@@ -210,7 +210,7 @@
 import { ref, computed, onMounted, watch } from "vue"
 import { useQuasar } from "quasar"
 import { useRoute, useRouter } from "vue-router"
-import { effortService } from "../services/effort-service"
+import { courseService } from "../services/course-service"
 import { termService } from "../services/term-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import type { CourseDto, TermDto } from "../types"
@@ -374,8 +374,8 @@ async function loadCourses() {
 
     try {
         const [coursesResult, deptsResult] = await Promise.all([
-            effortService.getCourses(selectedTermCode.value),
-            effortService.getDepartments(),
+            courseService.getCourses(selectedTermCode.value),
+            courseService.getDepartments(),
         ])
 
         // Abort if a newer request has been initiated
@@ -410,7 +410,7 @@ function confirmDeleteCourse(course: CourseDto) {
         persistent: true,
     }).onOk(async () => {
         // Check record count first
-        const { recordCount } = await effortService.canDeleteCourse(course.id)
+        const { recordCount } = await courseService.canDeleteCourse(course.id)
         if (recordCount > 0) {
             $q.dialog({
                 title: "Confirm Delete",
@@ -425,7 +425,7 @@ function confirmDeleteCourse(course: CourseDto) {
 }
 
 async function deleteCourse(courseId: number) {
-    const success = await effortService.deleteCourse(courseId)
+    const success = await courseService.deleteCourse(courseId)
     if (success) {
         $q.notify({ type: "positive", message: "Course deleted successfully" })
         await loadCourses()

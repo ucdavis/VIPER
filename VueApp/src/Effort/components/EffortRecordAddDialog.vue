@@ -166,7 +166,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
-import { effortService } from "../services/effort-service"
+import { recordService } from "../services/record-service"
 import type { CourseOptionDto, EffortTypeOptionDto, RoleOptionDto } from "../types"
 
 const props = defineProps<{
@@ -364,9 +364,9 @@ async function loadOptions() {
 
     try {
         const [coursesResult, effortTypesResult, rolesResult] = await Promise.all([
-            effortService.getAvailableCourses(props.personId, props.termCode),
-            effortService.getEffortTypeOptions(),
-            effortService.getRoleOptions(),
+            recordService.getAvailableCourses(props.personId, props.termCode),
+            recordService.getEffortTypeOptions(),
+            recordService.getRoleOptions(),
         ])
 
         existingCourses.value = coursesResult.existingCourses
@@ -404,7 +404,7 @@ async function createRecord() {
     warningMessage.value = ""
 
     try {
-        const result = await effortService.createEffortRecord({
+        const result = await recordService.createEffortRecord({
             personId: props.personId,
             termCode: props.termCode,
             courseId: selectedCourse.value!,

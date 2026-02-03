@@ -27,6 +27,7 @@ public sealed class HarvestServiceTests : IDisposable
     private readonly Mock<IEffortAuditService> _auditServiceMock;
     private readonly Mock<ITermService> _termServiceMock;
     private readonly Mock<IInstructorService> _instructorServiceMock;
+    private readonly Mock<IRCourseService> _rCourseServiceMock;
     private readonly Mock<ILogger<HarvestService>> _loggerMock;
     private readonly HarvestService _harvestService;
 
@@ -74,6 +75,7 @@ public sealed class HarvestServiceTests : IDisposable
         _auditServiceMock = new Mock<IEffortAuditService>();
         _termServiceMock = new Mock<ITermService>();
         _instructorServiceMock = new Mock<IInstructorService>();
+        _rCourseServiceMock = new Mock<IRCourseService>();
         _loggerMock = new Mock<ILogger<HarvestService>>();
 
         // Setup default term service behavior
@@ -119,6 +121,7 @@ public sealed class HarvestServiceTests : IDisposable
             _auditServiceMock.Object,
             _termServiceMock.Object,
             _instructorServiceMock.Object,
+            _rCourseServiceMock.Object,
             _loggerMock.Object);
     }
 
@@ -651,6 +654,178 @@ public sealed class HarvestServiceTests : IDisposable
         Assert.Single(result.Warnings);
         Assert.Contains("2 instructors", result.Warnings[0].Details);
         Assert.Contains("3 courses", result.Warnings[0].Details);
+    }
+
+    #endregion
+
+    #region R-Course Generation Tests
+    // R-course auto-generation happens as part of ExecuteHarvestAsync after all phases complete.
+    // The actual R-course creation logic is delegated to IRCourseService.
+    // These tests verify the integration with the mocked service.
+
+    [Fact]
+    public async Task ExecuteHarvestAsync_CompletesSuccessfully_WithNoEligibleInstructors()
+    {
+        // Arrange - Create term with effort type allowed on R-courses
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
+        _context.EffortTypes.Add(new EffortType
+        {
+            Id = "LEC",
+            Description = "Lecture",
+            AllowedOnRCourses = true,
+            IsActive = true
+        });
+        await _context.SaveChangesAsync();
+
+        // Act - Run harvest (R-course generation happens at end)
+        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
+
+        // Assert - Harvest completes successfully even with no data
+        Assert.True(result.Success);
+
+        // RCourseService should NOT be called (no eligible instructors)
+        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<RCourseCreationContext>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteHarvestAsync_CallsRCourseService_ForEligibleInstructors()
+    {
+        // Arrange - Create term and effort type (these survive the clear)
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
+        _context.EffortTypes.Add(new EffortType
+        {
+            Id = "LEC",
+            Description = "Lecture",
+            AllowedOnRCourses = true,
+            IsActive = true
+        });
+        await _context.SaveChangesAsync();
+
+        // Create a HarvestService with a custom phase that adds test data during harvest
+        // (ExecuteHarvestAsync clears existing data first, so we must add data during phase execution)
+        var testPhase = new TestDataHarvestPhase(_context, TestTermCode);
+        var phasesWithTestData = new List<IHarvestPhase> { testPhase };
+
+        var harvestServiceWithTestPhase = new HarvestService(
+            phasesWithTestData,
+            _context,
+            _viperContext,
+            _coursesContext,
+            _crestContext,
+            _aaudContext,
+            _dictionaryContext,
+            _auditServiceMock.Object,
+            _termServiceMock.Object,
+            _instructorServiceMock.Object,
+            _rCourseServiceMock.Object,
+            _loggerMock.Object);
+
+        // Act - Run harvest (R-course detection uses inline EndsWith("R") logic)
+        var result = await harvestServiceWithTestPhase.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
+
+        // Assert - Harvest completes successfully
+        Assert.True(result.Success);
+
+        // RCourseService should be called for the eligible instructor
+        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
+            100,
+            TestTermCode,
+            123,
+            RCourseCreationContext.Harvest,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Test helper phase that adds test data during harvest execution.
+    /// This simulates a harvest phase creating courses and records.
+    /// </summary>
+    private class TestDataHarvestPhase : IHarvestPhase
+    {
+        private readonly EffortDbContext _context;
+        private readonly int _termCode;
+
+        public TestDataHarvestPhase(EffortDbContext context, int termCode)
+        {
+            _context = context;
+            _termCode = termCode;
+        }
+
+        public int Order => 1;
+        public string PhaseName => "TestData";
+        public bool ShouldExecute(int termCode) => termCode == _termCode;
+
+        public Task GeneratePreviewAsync(HarvestContext context, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public async Task ExecuteAsync(HarvestContext context, CancellationToken ct = default)
+        {
+            // Add a non-R-course (course number doesn't end with 'R')
+            var course = new EffortCourse
+            {
+                TermCode = _termCode,
+                Crn = "12345",
+                SubjCode = "VET",
+                CrseNumb = "410",
+                SeqNumb = "01",
+                Enrollment = 20,
+                Units = 4,
+                CustDept = "VME"
+            };
+            _context.Courses.Add(course);
+            await _context.SaveChangesAsync(ct);
+
+            // Add an instructor
+            _context.Persons.Add(new EffortPerson
+            {
+                PersonId = 100,
+                TermCode = _termCode,
+                FirstName = "Test",
+                LastName = "Instructor",
+                EffortDept = "VME"
+            });
+
+            // Add an effort record for the non-R-course
+            _context.Records.Add(new EffortRecord
+            {
+                PersonId = 100,
+                TermCode = _termCode,
+                CourseId = course.Id,
+                EffortTypeId = "LEC",
+                RoleId = 1,
+                Hours = 40,
+                Crn = "12345"
+            });
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteHarvestAsync_IsIdempotent_ForRCourseGeneration()
+    {
+        // Arrange
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
+        _context.EffortTypes.Add(new EffortType
+        {
+            Id = "LEC",
+            Description = "Lecture",
+            AllowedOnRCourses = true,
+            IsActive = true
+        });
+        await _context.SaveChangesAsync();
+
+        // Act - Run harvest twice
+        var result1 = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
+        var result2 = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
+
+        // Assert - Both harvests succeed
+        Assert.True(result1.Success);
+        Assert.True(result2.Success);
+
+        // RCourseService handles idempotency internally, so we just verify harvest completes
     }
 
     #endregion

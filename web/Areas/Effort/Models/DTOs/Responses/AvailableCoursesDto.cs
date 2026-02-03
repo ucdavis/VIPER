@@ -20,7 +20,7 @@ public class AvailableCoursesDto
 /// <summary>
 /// DTO for a course option in dropdowns.
 /// </summary>
-public class CourseOptionDto
+public class CourseOptionDto : ICourseClassificationFlags
 {
     /// <summary>
     /// The course ID.
@@ -57,18 +57,8 @@ public class CourseOptionDto
     /// </summary>
     public string Crn { get; set; } = string.Empty;
 
-    /// <summary>
-    /// True if this is a DVM course (clinical courses).
-    /// </summary>
+    // ICourseClassificationFlags implementation
     public bool IsDvm { get; set; }
-
-    /// <summary>
-    /// True if this is a 199/299 course.
-    /// </summary>
     public bool Is199299 { get; set; }
-
-    /// <summary>
-    /// True if this is an R course (research).
-    /// </summary>
     public bool IsRCourse { get; set; }
 }

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Exceptions;
+using Viper.Areas.Effort.Models.DTOs;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -18,6 +19,8 @@ public class EffortRecordService : IEffortRecordService
     private readonly RAPSContext _rapsContext;
     private readonly IEffortAuditService _auditService;
     private readonly IInstructorService _instructorService;
+    private readonly ICourseClassificationService _courseClassificationService;
+    private readonly IRCourseService _rCourseService;
     private readonly IUserHelper _userHelper;
     private readonly ILogger<EffortRecordService> _logger;
 
@@ -26,6 +29,8 @@ public class EffortRecordService : IEffortRecordService
         RAPSContext rapsContext,
         IEffortAuditService auditService,
         IInstructorService instructorService,
+        ICourseClassificationService courseClassificationService,
+        IRCourseService rCourseService,
         IUserHelper userHelper,
         ILogger<EffortRecordService> logger)
     {
@@ -33,6 +38,8 @@ public class EffortRecordService : IEffortRecordService
         _rapsContext = rapsContext;
         _auditService = auditService;
         _instructorService = instructorService;
+        _courseClassificationService = courseClassificationService;
+        _rCourseService = rCourseService;
         _userHelper = userHelper;
         _logger = logger;
     }
@@ -201,8 +208,8 @@ public class EffortRecordService : IEffortRecordService
 
         _context.Records.Add(record);
 
-        // Clear EffortVerified on person
-        person.EffortVerified = null;
+        // Handle verification - only clear if NOT a self-edit
+        HandleVerificationOnEdit(person, GetCurrentPersonId(), "create");
 
         await _context.SaveChangesAsync(ct);
 
@@ -230,6 +237,13 @@ public class EffortRecordService : IEffortRecordService
             .Include(r => r.RoleNavigation)
             .FirstAsync(r => r.Id == record.Id, ct);
 
+        // Check if we should auto-create R-course for this instructor
+        // This ensures instructors added post-harvest get their R-course once they have a real teaching record
+        if (course.Crn != "RESID" && !_courseClassificationService.IsRCourse(course.CrseNumb))
+        {
+            await TryCreateRCourseForInstructorAsync(request.PersonId, request.TermCode, GetCurrentPersonId(), ct);
+        }
+
         return (MapToDto(createdRecord), warning);
     }
 
@@ -252,6 +266,14 @@ public class EffortRecordService : IEffortRecordService
         if (record == null)
         {
             return (null, null);
+        }
+
+        // Optimistic concurrency check: verify record hasn't been modified since loading
+        // For legacy records (ModifiedDate IS NULL), client sends null - NULL matches NULL
+        // For updated records, timestamps must match exactly
+        if (record.ModifiedDate != request.OriginalModifiedDate)
+        {
+            throw new ConcurrencyConflictException(recordId);
         }
 
         // Validate effort type is active
@@ -337,8 +359,8 @@ public class EffortRecordService : IEffortRecordService
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
-        // Clear EffortVerified on person
-        record.Person.EffortVerified = null;
+        // Handle verification - only clear if NOT a self-edit
+        HandleVerificationOnEdit(record.Person, GetCurrentPersonId(), "update");
 
         await _context.SaveChangesAsync(ct);
 
@@ -369,7 +391,7 @@ public class EffortRecordService : IEffortRecordService
     }
 
     /// <inheritdoc />
-    public async Task<bool> DeleteEffortRecordAsync(int recordId, CancellationToken ct = default)
+    public async Task<bool> DeleteEffortRecordAsync(int recordId, DateTime? originalModifiedDate, CancellationToken ct = default)
     {
         var record = await _context.Records
             .Include(r => r.Course)
@@ -380,6 +402,14 @@ public class EffortRecordService : IEffortRecordService
         if (record == null)
         {
             return false;
+        }
+
+        // Optimistic concurrency check: verify record hasn't been modified since loading
+        // For legacy records (ModifiedDate IS NULL), client sends null - NULL matches NULL
+        // For updated records, timestamps must match exactly
+        if (record.ModifiedDate != originalModifiedDate)
+        {
+            throw new ConcurrencyConflictException(recordId);
         }
 
         // Capture values for audit
@@ -394,8 +424,8 @@ public class EffortRecordService : IEffortRecordService
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
-        // Clear EffortVerified on person
-        record.Person.EffortVerified = null;
+        // Handle verification - only clear if NOT a self-edit
+        HandleVerificationOnEdit(record.Person, GetCurrentPersonId(), "delete");
 
         _context.Records.Remove(record);
 
@@ -540,8 +570,27 @@ public class EffortRecordService : IEffortRecordService
         return user?.AaudUserId ?? 0;
     }
 
-    private static InstructorEffortRecordDto MapToDto(EffortRecord record)
+    /// <summary>
+    /// Clears verification status if the edit is NOT a self-edit.
+    /// EffortPerson is term-scoped, so we need PersonId + TermCode to find the correct record.
+    /// </summary>
+    private void HandleVerificationOnEdit(EffortPerson person, int editedByPersonId, string action)
     {
+        var isSelfEdit = editedByPersonId == person.PersonId;
+
+        // Only clear verification if NOT a self-edit
+        if (!isSelfEdit && person.EffortVerified != null)
+        {
+            _logger.LogInformation(
+                "Clearing EffortVerified for PersonId {PersonId} in term {TermCode} due to {Action} by PersonId {EditedBy}",
+                person.PersonId, person.TermCode, action, editedByPersonId);
+            person.EffortVerified = null;
+        }
+    }
+
+    private InstructorEffortRecordDto MapToDto(EffortRecord record)
+    {
+        var classification = _courseClassificationService.Classify(record.Course);
         return new InstructorEffortRecordDto
         {
             Id = record.Id,
@@ -566,15 +615,16 @@ public class EffortRecordService : IEffortRecordService
                 Enrollment = record.Course.Enrollment,
                 Units = record.Course.Units,
                 CustDept = record.Course.CustDept
-            }
+            }.WithClassification(classification)
         };
     }
 
-    private static CourseOptionDto MapToCourseOption(EffortCourse course)
+    private CourseOptionDto MapToCourseOption(EffortCourse course)
     {
         var subjCode = course.SubjCode.Trim();
         var crseNumb = course.CrseNumb.Trim();
         var seqNumb = course.SeqNumb.Trim();
+        var classification = _courseClassificationService.Classify(course);
 
         return new CourseOptionDto
         {
@@ -584,33 +634,65 @@ public class EffortRecordService : IEffortRecordService
             SeqNumb = seqNumb,
             Units = course.Units,
             Label = $"{subjCode} {crseNumb}-{seqNumb} ({course.Units} units)",
-            Crn = course.Crn.Trim(),
-            IsDvm = course.CustDept.Equals("DVM", StringComparison.OrdinalIgnoreCase),
-            Is199299 = crseNumb.StartsWith("199") || crseNumb.StartsWith("299"),
-            IsRCourse = crseNumb.EndsWith("R", StringComparison.OrdinalIgnoreCase)
-        };
+            Crn = course.Crn.Trim()
+        }.WithClassification(classification);
     }
 
-    private static void ValidateEffortTypeForCourse(EffortType effortType, EffortCourse course)
+    private void ValidateEffortTypeForCourse(EffortType effortType, EffortCourse course)
     {
-        var crseNumb = course.CrseNumb.Trim();
-        var isDvm = course.CustDept.Equals("DVM", StringComparison.OrdinalIgnoreCase);
-        var is199299 = crseNumb.StartsWith("199") || crseNumb.StartsWith("299");
-        var isRCourse = crseNumb.EndsWith("R", StringComparison.OrdinalIgnoreCase);
+        var classification = _courseClassificationService.Classify(course);
 
-        if (isDvm && !effortType.AllowedOnDvm)
+        // Use AND logic - check ALL applicable classifications
+        var errors = new List<string>();
+
+        if (classification.IsDvmCourse && !effortType.AllowedOnDvm)
         {
-            throw new InvalidOperationException($"Effort type '{effortType.Description}' is not allowed on DVM courses.");
+            errors.Add("DVM courses");
         }
 
-        if (is199299 && !effortType.AllowedOn199299)
+        if (classification.Is199299Course && !effortType.AllowedOn199299)
         {
-            throw new InvalidOperationException($"Effort type '{effortType.Description}' is not allowed on 199/299 courses.");
+            errors.Add("199/299 courses");
         }
 
-        if (isRCourse && !effortType.AllowedOnRCourses)
+        if (classification.IsRCourse && !effortType.AllowedOnRCourses)
         {
-            throw new InvalidOperationException($"Effort type '{effortType.Description}' is not allowed on R courses.");
+            errors.Add("R courses");
         }
+
+        if (errors.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Effort type '{effortType.Description}' is not allowed on {string.Join(" or ", errors)}");
+        }
+    }
+
+    /// <summary>
+    /// Auto-create generic R-course effort record for an instructor if this is their first non-R-course effort record.
+    /// This ensures instructors added after harvest also get their R-course once they have a real teaching record.
+    /// Delegates the actual creation to IRCourseService for shared logic.
+    /// </summary>
+    private async Task TryCreateRCourseForInstructorAsync(int personId, int termCode, int modifiedBy, CancellationToken ct)
+    {
+        // Count how many non-R-course effort records this instructor has in this term
+        var nonRCourseCount = await _context.Records
+            .AsNoTracking()
+            .Where(r => r.PersonId == personId && r.TermCode == termCode)
+            .Join(_context.Courses.Where(c => c.TermCode == termCode),
+                  r => r.CourseId,
+                  c => c.Id,
+                  (r, c) => c.CrseNumb)
+#pragma warning disable S6610 // "EndsWith" overloads that take a "char" should be used
+            .CountAsync(crseNumb => crseNumb == null || !crseNumb.EndsWith("R"), ct); // TODO(VPR-41): EF Core 10 supports char overload, remove pragma
+#pragma warning restore S6610
+
+        // Only proceed if this is the instructor's first non-R-course record (count = 1, the one we just created)
+        if (nonRCourseCount != 1)
+        {
+            return;
+        }
+
+        // Delegate R-course creation to the shared service
+        await _rCourseService.CreateRCourseEffortRecordAsync(personId, termCode, modifiedBy, RCourseCreationContext.OnDemand, ct);
     }
 }

@@ -314,29 +314,40 @@ public class EffortAuditService : IEffortAuditService
     }
 
     /// <inheritdoc />
-    public async Task<List<string>> GetDistinctActionsAsync(bool excludeImports, CancellationToken ct = default)
-    {
-        var query = _context.Audits
-            .AsNoTracking()
-            .Select(a => a.Action)
-            .Distinct();
-
-        if (excludeImports)
-        {
-            query = query.Where(a => !EffortAuditActions.ImportActions.Contains(a));
-        }
-
-        return await query.OrderBy(a => a).ToListAsync(ct);
-    }
-
-    /// <inheritdoc />
-    public async Task<List<ModifierInfo>> GetDistinctModifiersAsync(bool excludeImports = false, CancellationToken ct = default)
+    public async Task<List<string>> GetDistinctActionsAsync(bool excludeImports, List<string>? departmentCodes = null, CancellationToken ct = default)
     {
         var query = _context.Audits.AsNoTracking();
 
         if (excludeImports)
         {
             query = query.Where(a => !EffortAuditActions.ImportActions.Contains(a.Action));
+        }
+
+        if (departmentCodes != null)
+        {
+            query = ApplyDepartmentFilter(query, departmentCodes);
+        }
+
+        return await query
+            .Select(a => a.Action)
+            .Distinct()
+            .OrderBy(a => a)
+            .ToListAsync(ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<List<ModifierInfo>> GetDistinctModifiersAsync(bool excludeImports = false, List<string>? departmentCodes = null, CancellationToken ct = default)
+    {
+        var query = _context.Audits.AsNoTracking();
+
+        if (excludeImports)
+        {
+            query = query.Where(a => !EffortAuditActions.ImportActions.Contains(a.Action));
+        }
+
+        if (departmentCodes != null)
+        {
+            query = ApplyDepartmentFilter(query, departmentCodes);
         }
 
         var modifierIds = await query
@@ -359,13 +370,18 @@ public class EffortAuditService : IEffortAuditService
     }
 
     /// <inheritdoc />
-    public async Task<List<int>> GetAuditTermCodesAsync(bool excludeImports = false, CancellationToken ct = default)
+    public async Task<List<int>> GetAuditTermCodesAsync(bool excludeImports = false, List<string>? departmentCodes = null, CancellationToken ct = default)
     {
         // Base query with optional import filtering
         var baseQuery = _context.Audits.AsNoTracking();
         if (excludeImports)
         {
             baseQuery = baseQuery.Where(a => !EffortAuditActions.ImportActions.Contains(a.Action));
+        }
+
+        if (departmentCodes != null)
+        {
+            baseQuery = ApplyDepartmentFilter(baseQuery, departmentCodes);
         }
 
         // Get term codes from TermCode column and from Records/Persons joins
@@ -404,13 +420,18 @@ public class EffortAuditService : IEffortAuditService
     }
 
     /// <inheritdoc />
-    public async Task<List<ModifierInfo>> GetDistinctInstructorsAsync(bool excludeImports = false, CancellationToken ct = default)
+    public async Task<List<ModifierInfo>> GetDistinctInstructorsAsync(bool excludeImports = false, List<string>? departmentCodes = null, CancellationToken ct = default)
     {
         // Base query with optional import filtering
         var baseQuery = _context.Audits.AsNoTracking();
         if (excludeImports)
         {
             baseQuery = baseQuery.Where(a => !EffortAuditActions.ImportActions.Contains(a.Action));
+        }
+
+        if (departmentCodes != null)
+        {
+            baseQuery = ApplyDepartmentFilter(baseQuery, departmentCodes);
         }
 
         // Get PersonIds from Records table audits
@@ -464,9 +485,9 @@ public class EffortAuditService : IEffortAuditService
     }
 
     /// <inheritdoc />
-    public async Task<List<string>> GetDistinctSubjectCodesAsync(int? termCode = null, string? courseNumber = null, bool excludeImports = false, CancellationToken ct = default)
+    public async Task<List<string>> GetDistinctSubjectCodesAsync(int? termCode = null, string? courseNumber = null, bool excludeImports = false, List<string>? departmentCodes = null, CancellationToken ct = default)
     {
-        var query = BuildAuditCourseQuery(termCode, excludeImports);
+        var query = BuildAuditCourseQuery(termCode, excludeImports, departmentCodes);
 
         if (!string.IsNullOrEmpty(courseNumber))
         {
@@ -482,9 +503,9 @@ public class EffortAuditService : IEffortAuditService
     }
 
     /// <inheritdoc />
-    public async Task<List<string>> GetDistinctCourseNumbersAsync(int? termCode = null, string? subjectCode = null, bool excludeImports = false, CancellationToken ct = default)
+    public async Task<List<string>> GetDistinctCourseNumbersAsync(int? termCode = null, string? subjectCode = null, bool excludeImports = false, List<string>? departmentCodes = null, CancellationToken ct = default)
     {
-        var query = BuildAuditCourseQuery(termCode, excludeImports);
+        var query = BuildAuditCourseQuery(termCode, excludeImports, departmentCodes);
 
         if (!string.IsNullOrEmpty(subjectCode))
         {
@@ -499,7 +520,7 @@ public class EffortAuditService : IEffortAuditService
             .ToListAsync(ct);
     }
 
-    private IQueryable<EffortCourse> BuildAuditCourseQuery(int? termCode, bool excludeImports = false)
+    private IQueryable<EffortCourse> BuildAuditCourseQuery(int? termCode, bool excludeImports = false, List<string>? departmentCodes = null)
     {
         var auditQuery = _context.Audits
             .AsNoTracking()
@@ -508,6 +529,11 @@ public class EffortAuditService : IEffortAuditService
         if (excludeImports)
         {
             auditQuery = auditQuery.Where(a => !EffortAuditActions.ImportActions.Contains(a.Action));
+        }
+
+        if (departmentCodes != null)
+        {
+            auditQuery = ApplyDepartmentFilter(auditQuery, departmentCodes);
         }
 
         var recordAuditQuery = auditQuery.Join(_context.Records, a => a.RecordId, r => r.Id, (a, r) => r);
@@ -525,6 +551,47 @@ public class EffortAuditService : IEffortAuditService
     }
 
     // ==================== Helper Methods ====================
+
+    /// <summary>
+    /// Apply department filtering to an audit query.
+    /// Filters audit entries to only those related to persons in the specified departments.
+    /// </summary>
+    private IQueryable<Audit> ApplyDepartmentFilter(IQueryable<Audit> query, List<string> departmentCodes)
+    {
+        // Normalize department codes for case-insensitive comparison
+        var normalizedDeptCodes = departmentCodes
+            .Where(d => !string.IsNullOrWhiteSpace(d))
+            .Select(d => d.Trim().ToUpper())
+            .ToList();
+
+        if (normalizedDeptCodes.Count == 0)
+        {
+            // Empty list means "deny all" - user has department-scoped access but no mapped department
+            return query.Where(_ => false);
+        }
+
+        // Find PersonIds in the specified departments
+        var personIdsInDepts = _context.Persons
+            .Where(p => normalizedDeptCodes.Contains(p.EffortDept.Trim().ToUpper()))
+            .Select(p => p.PersonId)
+            .Distinct();
+
+        // Find RecordIds for persons in these departments
+        var recordIdsInDepts = _context.Records
+            .Where(r => personIdsInDepts.Contains(r.PersonId))
+            .Select(r => r.Id);
+
+        // Find PercentageIds for persons in these departments
+        var percentageIdsInDepts = _context.Percentages
+            .Where(p => personIdsInDepts.Contains(p.PersonId))
+            .Select(p => p.Id);
+
+        // Filter audit entries to only those related to these departments
+        return query.Where(a =>
+            (a.TableName == EffortAuditTables.Records && recordIdsInDepts.Contains(a.RecordId)) ||
+            (a.TableName == EffortAuditTables.Persons && personIdsInDepts.Contains(a.RecordId)) ||
+            (a.TableName == EffortAuditTables.Percentages && percentageIdsInDepts.Contains(a.RecordId)));
+    }
 
     private IQueryable<Audit> BuildFilteredQuery(EffortAuditFilter filter)
     {
@@ -633,6 +700,40 @@ public class EffortAuditService : IEffortAuditService
                 (a.TableName == EffortAuditTables.Records && matchingRecordIds.Contains(a.RecordId)) ||
                 (a.TableName == EffortAuditTables.Persons && a.RecordId == instructorId) ||
                 (a.TableName == EffortAuditTables.Percentages && matchingPercentageIds.Contains(a.RecordId)));
+        }
+
+        if (filter.DepartmentCodes != null && filter.DepartmentCodes.Count > 0)
+        {
+            // Normalize department codes for case-insensitive comparison
+            var normalizedDeptCodes = filter.DepartmentCodes
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .Select(d => d.Trim().ToUpper())
+                .ToList();
+
+            if (normalizedDeptCodes.Count > 0)
+            {
+                // Find PersonIds in the specified departments
+                var personIdsInDepts = _context.Persons
+                    .Where(p => normalizedDeptCodes.Contains(p.EffortDept.Trim().ToUpper()))
+                    .Select(p => p.PersonId)
+                    .Distinct();
+
+                // Find RecordIds for persons in these departments
+                var recordIdsInDepts = _context.Records
+                    .Where(r => personIdsInDepts.Contains(r.PersonId))
+                    .Select(r => r.Id);
+
+                // Find PercentageIds for persons in these departments
+                var percentageIdsInDepts = _context.Percentages
+                    .Where(p => personIdsInDepts.Contains(p.PersonId))
+                    .Select(p => p.Id);
+
+                // Filter audit entries to only those related to these departments
+                query = query.Where(a =>
+                    (a.TableName == EffortAuditTables.Records && recordIdsInDepts.Contains(a.RecordId)) ||
+                    (a.TableName == EffortAuditTables.Persons && personIdsInDepts.Contains(a.RecordId)) ||
+                    (a.TableName == EffortAuditTables.Percentages && percentageIdsInDepts.Contains(a.RecordId)));
+            }
         }
 
         return query;

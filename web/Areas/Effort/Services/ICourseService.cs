@@ -138,4 +138,36 @@ public interface ICourseService
     /// <param name="bannerDeptCode">The Banner department code.</param>
     /// <returns>The mapped custodial department code.</returns>
     string GetCustodialDepartmentForBannerCode(string bannerDeptCode);
+
+    /// <summary>
+    /// Import a course from Banner for self-service (instructors importing their own courses).
+    /// This is idempotent - if the course already exists, it returns the existing course.
+    /// </summary>
+    /// <param name="termCode">The term code.</param>
+    /// <param name="crn">The course reference number.</param>
+    /// <param name="units">Optional units for variable-unit courses.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Import result with the course (new or existing) and status.</returns>
+    Task<ImportCourseForSelfResult> ImportCourseForSelfAsync(int termCode, string crn, decimal? units = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Check if the current user is an instructor for a course in Banner (via POA table).
+    /// </summary>
+    /// <param name="termCode">The term code.</param>
+    /// <param name="crn">The course reference number.</param>
+    /// <param name="personId">The PersonId to check.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>True if the person is listed as an instructor for the course.</returns>
+    Task<bool> IsInstructorForCourseAsync(int termCode, string crn, int personId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get all CRNs from the provided list where the person is an instructor (batch query via POA table).
+    /// This is more efficient than calling IsInstructorForCourseAsync in a loop.
+    /// </summary>
+    /// <param name="termCode">The term code.</param>
+    /// <param name="personId">The PersonId to check.</param>
+    /// <param name="crns">The CRNs to check.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Set of CRNs where the person is listed as an instructor.</returns>
+    Task<HashSet<string>> GetInstructorCrnsAsync(int termCode, int personId, IEnumerable<string> crns, CancellationToken ct = default);
 }

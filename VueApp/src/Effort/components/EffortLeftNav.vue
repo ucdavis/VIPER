@@ -169,9 +169,9 @@
                     </q-item-section>
                 </q-item>
 
-                <!-- Audit - only for ViewAudit users (term optional) -->
+                <!-- Audit - for ViewAudit or ViewDeptAudit users (term optional) -->
                 <q-item
-                    v-if="hasViewAudit"
+                    v-if="hasAnyAuditAccess"
                     clickable
                     v-ripple
                     :to="
@@ -230,7 +230,7 @@ const {
     hasManageTerms,
     hasManageUnits,
     hasManageEffortTypes,
-    hasViewAudit,
+    hasAnyAuditAccess,
     hasImportCourse,
     hasEditCourse,
     hasDeleteCourse,

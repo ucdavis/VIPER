@@ -53,6 +53,30 @@
                 </h2>
             </div>
 
+            <!-- Add Effort and Import Course Buttons -->
+            <div
+                v-if="myEffort.canEdit"
+                class="q-mb-md q-gutter-sm"
+            >
+                <q-btn
+                    color="primary"
+                    icon="add"
+                    label="Add Effort"
+                    dense
+                    aria-label="Add effort record"
+                    @click="openAddDialog"
+                />
+                <q-btn
+                    color="secondary"
+                    icon="cloud_download"
+                    label="Import Course from Banner"
+                    dense
+                    outline
+                    aria-label="Import course from Banner"
+                    @click="openImportDialog"
+                />
+            </div>
+
             <!-- Already verified banner -->
             <q-banner
                 v-if="myEffort.instructor.isVerified"
@@ -78,10 +102,23 @@
                     />
                 </template>
                 <div>
-                    <strong>You have courses with ZERO effort.</strong>
+                    <strong>You have effort items with ZERO effort.</strong>
                     You will not be able to verify your effort until these items have been updated to document
-                    hours/weeks or are removed. Please work with your departmental Effort admin to resolve these issues.
+                    hours/weeks or are removed.
                 </div>
+            </q-banner>
+
+            <!-- Generic R-course with zero effort info -->
+            <q-banner
+                v-if="hasGenericRCourseWithZeroEffort"
+                class="bg-info text-white q-mb-md"
+                rounded
+            >
+                <template #avatar>
+                    <q-icon name="info" />
+                </template>
+                The Resident (R) course was added automatically to allow you to record resident teaching effort. If you
+                leave it with 0 effort and verify, it will be automatically removed.
             </q-banner>
 
             <!-- Clinical effort note -->
@@ -173,7 +210,6 @@
                             <span :class="{ 'text-warning text-weight-bold': isZeroEffortRecord(record.id) }">
                                 {{ record.effortValue ?? 0 }}
                                 {{ record.effortLabel === "weeks" ? "Weeks" : "Hours" }}
-                                <template v-if="isZeroEffortRecord(record.id)"> *** ZERO EFFORT *** </template>
                             </span>
                         </div>
                     </q-card-section>
@@ -207,12 +243,6 @@
                     >
                         {{ props.row.effortValue ?? 0 }}
                         {{ props.row.effortLabel === "weeks" ? "Weeks" : "Hours" }}
-                        <span
-                            v-if="isZeroEffortRecord(props.row.id)"
-                            class="text-weight-bold"
-                        >
-                            *** ZERO ***
-                        </span>
                     </q-td>
                 </template>
                 <template #body-cell-actions="props">
@@ -325,12 +355,30 @@
             </div>
         </template>
 
+        <!-- Add Effort Dialog -->
+        <EffortRecordAddDialog
+            v-model="showAddDialog"
+            :person-id="myEffort?.instructor?.personId ?? 0"
+            :term-code="termCodeNum"
+            :is-verified="myEffort?.instructor?.isVerified ?? false"
+            :pre-selected-course-id="preSelectedCourseId"
+            @created="onRecordCreated"
+        />
+
         <!-- Edit Effort Dialog -->
         <EffortRecordEditDialog
             v-model="showEditDialog"
             :record="selectedRecord"
             :term-code="termCodeNum"
             @updated="onRecordUpdated"
+        />
+
+        <!-- Import Course Dialog -->
+        <CourseImportForSelfDialog
+            v-model="showImportDialog"
+            :term-code="termCodeNum"
+            :term-name="myEffort?.termName ?? ''"
+            @imported="onCourseImported"
         />
     </div>
 </template>
@@ -340,10 +388,12 @@ import { ref, computed, onMounted } from "vue"
 import { useRoute } from "vue-router"
 import { useQuasar, type QTableColumn } from "quasar"
 import { verificationService } from "../services/verification-service"
-import { effortService } from "../services/effort-service"
-import type { MyEffortDto, InstructorEffortRecordDto, ChildCourseDto } from "../types"
+import { recordService } from "../services/record-service"
+import type { MyEffortDto, InstructorEffortRecordDto, ChildCourseDto, EffortTypeOptionDto } from "../types"
 import { VerificationErrorCodes } from "../types"
+import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
 import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
+import CourseImportForSelfDialog from "../components/CourseImportForSelfDialog.vue"
 
 const route = useRoute()
 const $q = useQuasar()
@@ -354,18 +404,31 @@ const termCodeNum = computed(() => parseInt(termCode.value, 10))
 
 // State
 const myEffort = ref<MyEffortDto | null>(null)
+const effortTypes = ref<EffortTypeOptionDto[]>([])
 const isLoading = ref(true)
 const loadError = ref<string | null>(null)
 const verifyConfirmed = ref(false)
 const isVerifying = ref(false)
 
 // Dialog state
+const showAddDialog = ref(false)
 const showEditDialog = ref(false)
+const showImportDialog = ref(false)
 const selectedRecord = ref<InstructorEffortRecordDto | null>(null)
+const preSelectedCourseId = ref<number | null>(null)
 
 // Computed
 const hasClinicalEffort = computed(() => {
     return myEffort.value?.effortRecords.some((r) => r.effortType === "CLI") ?? false
+})
+
+const hasGenericRCourseWithZeroEffort = computed(() => {
+    return (
+        myEffort.value?.effortRecords.some(
+            (r) =>
+                r.course.crn === "RESID" && (r.hours === 0 || r.hours === null) && (r.weeks === 0 || r.weeks === null),
+        ) ?? false
+    )
 })
 
 const columns = computed<QTableColumn[]>(() => {
@@ -466,26 +529,71 @@ function formatDate(dateString: string | null): string {
     })
 }
 
+function openAddDialog() {
+    showAddDialog.value = true
+}
+
 function openEditDialog(record: InstructorEffortRecordDto) {
     selectedRecord.value = record
     showEditDialog.value = true
 }
 
+function openImportDialog() {
+    showImportDialog.value = true
+}
+
+function onCourseImported(courseId: number) {
+    // After importing a course, open the Add Effort dialog with the course pre-selected
+    preSelectedCourseId.value = courseId
+    showAddDialog.value = true
+}
+
+/**
+ * Checks if the effort type is restricted for the given course classification.
+ * A restricted type is one that cannot be re-added after deletion because it's
+ * not allowed on the course's category (DVM, 199/299, or R-course).
+ * Uses AND logic: check ALL applicable classifications.
+ */
+function isRestrictedEffortType(record: InstructorEffortRecordDto): boolean {
+    const effortType = effortTypes.value.find((et) => et.id === record.effortType)
+    if (!effortType) return false
+
+    const course = record.course
+    // Check each classification - if course has it AND type is not allowed, it's restricted
+    if (course.isDvm && !effortType.allowedOnDvm) return true
+    if (course.is199299 && !effortType.allowedOn199299) return true
+    if (course.isRCourse && !effortType.allowedOnRCourses) return true
+    return false
+}
+
 function confirmDelete(record: InstructorEffortRecordDto) {
+    const isRestricted = isRestrictedEffortType(record)
+    const effortType = effortTypes.value.find((et) => et.id === record.effortType)
+    const effortTypeDesc = effortType?.description ?? record.effortType
+
+    let message = `Are you sure you want to delete the effort record for ${record.course.subjCode} ${record.course.crseNumb.trim()} (${effortTypeDesc})?`
+
+    if (isRestricted) {
+        message =
+            `Warning: This record uses effort type "${effortTypeDesc}" which is restricted for this course type. ` +
+            `If you delete it, you will not be able to add it back with the same effort type. ` +
+            `Are you sure you want to delete this effort record?`
+    }
+
     $q.dialog({
-        title: "Delete Effort Record",
-        message: `Are you sure you want to delete the effort record for ${record.course.subjCode} ${record.course.crseNumb.trim()} (${record.effortType})?`,
+        title: isRestricted ? "Delete Restricted Effort Record" : "Delete Effort Record",
+        message,
         cancel: true,
         persistent: true,
     }).onOk(async () => {
-        await deleteRecord(record.id)
+        await deleteRecord(record.id, record.modifiedDate)
     })
 }
 
-async function deleteRecord(recordId: number) {
+async function deleteRecord(recordId: number, originalModifiedDate: string | null) {
     try {
-        const success = await effortService.deleteEffortRecord(recordId)
-        if (success) {
+        const result = await recordService.deleteEffortRecord(recordId, originalModifiedDate)
+        if (result.success) {
             $q.notify({
                 type: "positive",
                 message: "Effort record deleted successfully",
@@ -494,8 +602,12 @@ async function deleteRecord(recordId: number) {
         } else {
             $q.notify({
                 type: "negative",
-                message: "Failed to delete effort record",
+                message: result.error ?? "Failed to delete effort record",
             })
+            // Reload data if it was a concurrency conflict
+            if (result.isConflict) {
+                await loadData()
+            }
         }
     } catch {
         $q.notify({
@@ -503,6 +615,16 @@ async function deleteRecord(recordId: number) {
             message: "An error occurred while deleting the record",
         })
     }
+}
+
+async function onRecordCreated() {
+    $q.notify({
+        type: "positive",
+        message: "Effort record created successfully",
+    })
+    // Reset pre-selected course after creation
+    preSelectedCourseId.value = null
+    await loadData()
 }
 
 async function onRecordUpdated() {
@@ -562,12 +684,16 @@ async function loadData() {
     loadError.value = null
 
     try {
-        const result = await verificationService.getMyEffort(termCodeNum.value)
-        if (!result) {
+        const [effortResult, typesResult] = await Promise.all([
+            verificationService.getMyEffort(termCodeNum.value),
+            recordService.getEffortTypeOptions(),
+        ])
+        if (!effortResult) {
             loadError.value = "Failed to load your effort data. Please try again."
             return
         }
-        myEffort.value = result
+        myEffort.value = effortResult
+        effortTypes.value = typesResult
     } catch {
         loadError.value = "Failed to load your effort data. Please try again."
     } finally {

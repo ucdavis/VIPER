@@ -15,6 +15,7 @@
 // 8. AddLastEmailedColumns - Add LastEmailed/LastEmailedBy columns to Persons table (performance optimization)
 // 9. SimplifyTermStatus - Remove redundant columns from TermStatus table
 // 10. FixPercentageConstraint - Update CK_Percentages_Percentage constraint from 0-100 to 0-1
+// 11. AddViewDeptAuditPermission - Add SVMSecure.Effort.ViewDeptAudit permission for department chairs to view audit trail
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -224,6 +225,23 @@ namespace Viper.Areas.Effort.Scripts
 
                 var (success, message) = RunFixPercentageConstraintTask(viperConnectionString, executeMode);
                 taskResults["FixPercentageConstraint"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 11: Add ViewDeptAudit permission for department chairs
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 11: Add ViewDeptAudit Permission to RAPS");
+                Console.WriteLine("----------------------------------------");
+
+                string rapsConnectionString = EffortScriptHelper.GetConnectionString(configuration, "RAPS", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(rapsConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunAddViewDeptAuditPermissionTask(rapsConnectionString, executeMode);
+                taskResults["ViewDeptAuditPermission"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
@@ -2190,6 +2208,278 @@ namespace Viper.Areas.Effort.Scripts
                   AND cc.name = 'CK_Percentages_Percentage'",
                 connection);
             return cmd.ExecuteScalar() as string;
+        }
+
+        #endregion
+
+        #region Task 11: Add ViewDeptAudit Permission
+
+        /// <summary>
+        /// Creates SVMSecure.Effort.ViewDeptAudit permission and assigns it to Chairperson and Vice-Chairperson roles.
+        /// This permission allows department chairs to view the audit trail for their own department only.
+        /// </summary>
+        private static (bool Success, string Message) RunAddViewDeptAuditPermissionTask(string connectionString, bool executeMode)
+        {
+            const string ViewDeptAuditPermission = "SVMSecure.Effort.ViewDeptAudit";
+            const string ViewDeptAuditDescription = "View audit trail for own department only (department chairs)";
+
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                Console.WriteLine($"Target Permission: {ViewDeptAuditPermission}");
+                Console.WriteLine();
+
+                // Find Chairpersons and Vice-Chairpersons roles
+                var chairRoleId = GetRoleIdByName(connection, "Chairpersons");
+                var viceChairRoleId = GetRoleIdByName(connection, "Chairpersons(Vice)");
+
+                if (chairRoleId == null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Warning: 'Chairpersons' role not found in RAPS");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.WriteLine($"  Found 'Chairpersons' role (RoleID = {chairRoleId})");
+                }
+
+                if (viceChairRoleId == null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Warning: 'Chairpersons(Vice)' role not found in RAPS");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.WriteLine($"  Found 'Chairpersons(Vice)' role (RoleID = {viceChairRoleId})");
+                }
+
+                if (chairRoleId == null && viceChairRoleId == null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("  ERROR: Neither chair role found. Cannot proceed.");
+                    Console.ResetColor();
+                    return (false, "Required roles not found");
+                }
+
+                Console.WriteLine();
+
+                // Check if target permission already exists
+                int? existingPermissionId = GetPermissionId(connection, ViewDeptAuditPermission);
+                if (existingPermissionId != null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"  Permission already exists (PermissionID = {existingPermissionId}).");
+                    Console.ResetColor();
+                    Console.WriteLine();
+                    Console.WriteLine("Current role mappings:");
+                    ShowCurrentMappings(connection, existingPermissionId.Value);
+
+                    // Check if any roles are missing the permission (before starting transaction)
+                    Console.WriteLine();
+                    Console.WriteLine("Checking for missing role assignments...");
+
+                    bool chairNeedsPermission = chairRoleId != null && !RoleHasPermission(connection, chairRoleId.Value, existingPermissionId.Value);
+                    bool viceChairNeedsPermission = viceChairRoleId != null && !RoleHasPermission(connection, viceChairRoleId.Value, existingPermissionId.Value);
+
+                    if (chairRoleId != null && !chairNeedsPermission)
+                    {
+                        Console.WriteLine($"  ✓ 'Chairpersons' role already has permission");
+                    }
+                    if (viceChairRoleId != null && !viceChairNeedsPermission)
+                    {
+                        Console.WriteLine($"  ✓ 'Chairpersons(Vice)' role already has permission");
+                    }
+
+                    if (!chairNeedsPermission && !viceChairNeedsPermission)
+                    {
+                        Console.WriteLine("  No roles need updating.");
+                        return (true, "All roles already have permission");
+                    }
+
+                    // Add missing permissions in a transaction
+                    using var updateTransaction = connection.BeginTransaction();
+                    try
+                    {
+                        int addedRoles = 0;
+
+                        if (chairNeedsPermission)
+                        {
+                            if (executeMode)
+                            {
+                                AssignPermissionToRole(connection, updateTransaction, chairRoleId!.Value, existingPermissionId.Value, "Chairpersons");
+                            }
+                            Console.WriteLine($"  + Adding permission to 'Chairpersons' role");
+                            addedRoles++;
+                        }
+
+                        if (viceChairNeedsPermission)
+                        {
+                            if (executeMode)
+                            {
+                                AssignPermissionToRole(connection, updateTransaction, viceChairRoleId!.Value, existingPermissionId.Value, "Chairpersons(Vice)");
+                            }
+                            Console.WriteLine($"  + Adding permission to 'Chairpersons(Vice)' role");
+                            addedRoles++;
+                        }
+
+                        if (executeMode)
+                        {
+                            updateTransaction.Commit();
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine($"  ✓ Added permission to {addedRoles} role(s)");
+                            Console.ResetColor();
+                            return (true, $"Added permission to {addedRoles} role(s)");
+                        }
+                        else
+                        {
+                            updateTransaction.Rollback();
+                            Console.ForegroundColor = ConsoleColor.Cyan;
+                            Console.WriteLine($"  ↶ Would add permission to {addedRoles} role(s) (dry-run)");
+                            Console.ResetColor();
+                            return (true, $"Would add permission to {addedRoles} role(s) (dry-run)");
+                        }
+                    }
+                    catch (SqlException ex)
+                    {
+                        updateTransaction.Rollback();
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                        Console.ResetColor();
+                        return (false, $"Database error: {ex.Message}");
+                    }
+                }
+
+                Console.WriteLine($"  Permission does not exist yet.");
+
+                Console.WriteLine();
+
+                // Create the permission and assign to roles in a transaction
+                using var transaction = connection.BeginTransaction();
+                try
+                {
+                    // Create the new permission
+                    int newPermissionId = CreatePermission(connection, transaction, ViewDeptAuditPermission, ViewDeptAuditDescription);
+                    Console.WriteLine($"Created permission '{ViewDeptAuditPermission}' with PermissionID = {newPermissionId}");
+
+                    int assignedRoles = 0;
+
+                    // Assign to Chairpersons role
+                    if (chairRoleId != null)
+                    {
+                        AssignPermissionToRole(connection, transaction, chairRoleId.Value, newPermissionId, "Chairpersons");
+                        assignedRoles++;
+                        Console.WriteLine($"Assigned permission to 'Chairpersons' role");
+                    }
+
+                    // Assign to Chairpersons(Vice) role
+                    if (viceChairRoleId != null)
+                    {
+                        AssignPermissionToRole(connection, transaction, viceChairRoleId.Value, newPermissionId, "Chairpersons(Vice)");
+                        assignedRoles++;
+                        Console.WriteLine($"Assigned permission to 'Chairpersons(Vice)' role");
+                    }
+
+                    // Commit or rollback based on execute mode
+                    if (executeMode)
+                    {
+                        transaction.Commit();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("  ✓ Transaction committed - changes are permanent");
+                        Console.ResetColor();
+                        return (true, $"Created permission (ID={newPermissionId}) and assigned to {assignedRoles} role(s)");
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  ↶ Transaction rolled back - no permanent changes");
+                        Console.ResetColor();
+                        return (true, $"Verified permission creation with {assignedRoles} role assignment(s) (rolled back)");
+                    }
+                }
+                catch (SqlException ex)
+                {
+                    transaction.Rollback();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                    Console.WriteLine("  ↶ Transaction rolled back");
+                    Console.ResetColor();
+                    return (false, $"Database error: {ex.Message}");
+                }
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Get a role ID by role name.
+        /// </summary>
+        private static int? GetRoleIdByName(SqlConnection connection, string roleName)
+        {
+            using var cmd = new SqlCommand(
+                "SELECT RoleID FROM tblRoles WHERE Role = @RoleName",
+                connection);
+            cmd.Parameters.AddWithValue("@RoleName", roleName);
+            var result = cmd.ExecuteScalar();
+            return result == null ? null : Convert.ToInt32(result);
+        }
+
+        /// <summary>
+        /// Check if a role already has a specific permission.
+        /// </summary>
+        private static bool RoleHasPermission(SqlConnection connection, int roleId, int permissionId)
+        {
+            using var cmd = new SqlCommand(
+                "SELECT COUNT(*) FROM tblRolePermissions WHERE RoleID = @RoleId AND PermissionID = @PermissionId",
+                connection);
+            cmd.Parameters.AddWithValue("@RoleId", roleId);
+            cmd.Parameters.AddWithValue("@PermissionId", permissionId);
+            var count = Convert.ToInt32(cmd.ExecuteScalar());
+            return count > 0;
+        }
+
+        /// <summary>
+        /// Assign a permission to a role.
+        /// </summary>
+        private static void AssignPermissionToRole(SqlConnection connection, SqlTransaction transaction, int roleId, int permissionId, string roleName)
+        {
+            // Insert role permission with Allow access (1)
+            using var cmd = new SqlCommand(@"
+                INSERT INTO tblRolePermissions (RoleID, PermissionID, Access, ModBy, ModTime)
+                VALUES (@RoleID, @PermissionID, 1, @ModBy, GETDATE())",
+                connection, transaction);
+            cmd.Parameters.AddWithValue("@RoleID", roleId);
+            cmd.Parameters.AddWithValue("@PermissionID", permissionId);
+            cmd.Parameters.AddWithValue("@ModBy", ScriptModBy);
+            cmd.ExecuteNonQuery();
+
+            // Create audit entry
+            using var auditCmd = new SqlCommand(@"
+                INSERT INTO tblLog (RoleID, PermissionID, Audit, Detail, ModTime, ModBy)
+                VALUES (@RoleID, @PermissionID, 'UpdateRolePermission', '1', GETDATE(), @ModBy)",
+                connection, transaction);
+            auditCmd.Parameters.AddWithValue("@RoleID", roleId);
+            auditCmd.Parameters.AddWithValue("@PermissionID", permissionId);
+            auditCmd.Parameters.AddWithValue("@ModBy", ScriptModBy);
+            auditCmd.ExecuteNonQuery();
         }
 
         #endregion

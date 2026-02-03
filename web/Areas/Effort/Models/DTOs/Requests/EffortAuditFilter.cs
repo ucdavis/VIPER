@@ -54,4 +54,10 @@ public class EffortAuditFilter
     /// When true, excludes import-related actions from results.
     /// </summary>
     public bool ExcludeImports { get; set; }
+
+    /// <summary>
+    /// Filter by department codes. Used for department-level audit access.
+    /// When set, only shows audit entries related to the specified departments.
+    /// </summary>
+    public List<string>? DepartmentCodes { get; set; }
 }

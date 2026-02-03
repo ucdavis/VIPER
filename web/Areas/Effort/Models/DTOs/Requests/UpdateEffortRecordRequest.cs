@@ -20,4 +20,11 @@ public class UpdateEffortRecordRequest
     /// The effort value (hours or weeks depending on effort type and term).
     /// </summary>
     public required int EffortValue { get; set; }
+
+    /// <summary>
+    /// The ModifiedDate from when the record was loaded.
+    /// Used for optimistic concurrency - update will fail if record was modified by another user.
+    /// For legacy records with null ModifiedDate, send null (first-edit-wins).
+    /// </summary>
+    public DateTime? OriginalModifiedDate { get; set; }
 }

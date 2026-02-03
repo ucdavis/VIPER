@@ -187,11 +187,24 @@ public class EffortPermissionService : IEffortPermissionService
             return false;
         }
 
+        // Term editability applies to ALL edit paths
+        if (!await IsTermEditableAsync(termCode, ct))
+        {
+            return false;
+        }
+
         if (await HasFullAccessAsync(ct))
         {
             return true;
         }
 
+        // Self-edit path (no need to check term again - already checked above)
+        if (await HasSelfServiceAccessAsync(ct) && IsCurrentUser(personId))
+        {
+            return true;
+        }
+
+        // Department-level edit
         if (!_userHelper.HasPermission(_rapsContext, user, EffortPermissions.EditEffort))
         {
             return false;
@@ -255,36 +268,21 @@ public class EffortPermissionService : IEffortPermissionService
     }
 
     /// <inheritdoc />
-    public async Task<bool> CanViewPersonPercentagesAsync(int personId, CancellationToken ct = default)
+    public Task<bool> CanViewPersonPercentagesAsync(int personId, CancellationToken ct = default)
     {
-        var user = _userHelper.GetCurrentUser();
-        if (user == null)
-        {
-            return false;
-        }
-
-        if (await HasFullAccessAsync(ct))
-        {
-            return true;
-        }
-
-        if (!_userHelper.HasPermission(_rapsContext, user, EffortPermissions.ViewDept))
-        {
-            return false;
-        }
-
-        var authorizedDepts = await GetAuthorizedDepartmentsAsync(ct);
-
-        // Check if the person exists in any term with a department the user can access
-        return await _context.Persons
-            .AsNoTracking()
-            .Where(p => p.PersonId == personId)
-            .AnyAsync(p => authorizedDepts.Contains(p.EffortDept) ||
-                          (!string.IsNullOrEmpty(p.ReportUnit) && authorizedDepts.Contains(p.ReportUnit)), ct);
+        return HasPersonAccessAsync(personId, EffortPermissions.ViewDept, ct);
     }
 
     /// <inheritdoc />
-    public async Task<bool> CanEditPersonPercentagesAsync(int personId, CancellationToken ct = default)
+    public Task<bool> CanEditPersonPercentagesAsync(int personId, CancellationToken ct = default)
+    {
+        return HasPersonAccessAsync(personId, EffortPermissions.EditInstructor, ct);
+    }
+
+    /// <summary>
+    /// Checks if the current user has access to a person's data based on department authorization.
+    /// </summary>
+    private async Task<bool> HasPersonAccessAsync(int personId, string requiredPermission, CancellationToken ct)
     {
         var user = _userHelper.GetCurrentUser();
         if (user == null)
@@ -297,18 +295,117 @@ public class EffortPermissionService : IEffortPermissionService
             return true;
         }
 
-        if (!_userHelper.HasPermission(_rapsContext, user, EffortPermissions.EditInstructor))
+        if (!_userHelper.HasPermission(_rapsContext, user, requiredPermission))
         {
             return false;
         }
 
         var authorizedDepts = await GetAuthorizedDepartmentsAsync(ct);
 
-        // Check if the person exists in any term with a department the user can access
-        return await _context.Persons
+        // Load person records then check in memory (ReportUnit can contain comma-separated values)
+        var persons = await _context.Persons
             .AsNoTracking()
             .Where(p => p.PersonId == personId)
-            .AnyAsync(p => authorizedDepts.Contains(p.EffortDept) ||
-                          (!string.IsNullOrEmpty(p.ReportUnit) && authorizedDepts.Contains(p.ReportUnit)), ct);
+            .Select(p => new { p.EffortDept, p.ReportUnit })
+            .ToListAsync(ct);
+
+        return persons.Any(p =>
+            authorizedDepts.Contains(p.EffortDept, StringComparer.OrdinalIgnoreCase) ||
+            HasMatchingReportUnit(p.ReportUnit, authorizedDepts));
+    }
+
+    /// <summary>
+    /// Checks if any of the comma-separated report units match an authorized department.
+    /// Handles edge cases: null/empty input, whitespace segments, and case-insensitive matching.
+    /// Example: "DEPT1, , DEPT2 " matches if "dept1" or "dept2" are in authorizedDepts.
+    /// </summary>
+    private static bool HasMatchingReportUnit(string? reportUnit, List<string> authorizedDepts)
+    {
+        ArgumentNullException.ThrowIfNull(authorizedDepts);
+
+        if (string.IsNullOrEmpty(reportUnit))
+        {
+            return false;
+        }
+
+        var units = reportUnit.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return units.Any(unit => authorizedDepts.Contains(unit, StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> IsTermEditableAsync(int termCode, CancellationToken ct = default)
+    {
+        var term = await _context.Terms
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
+
+        if (term == null)
+        {
+            return false;
+        }
+
+        // Term is editable if status is "Opened" OR user has EditWhenClosed permission
+        if (term.Status == "Opened")
+        {
+            return true;
+        }
+
+        return await HasPermissionAsync(EffortPermissions.EditWhenClosed, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> CanEditOwnEffortAsync(int personId, int termCode, CancellationToken ct = default)
+    {
+        // Check if user has self-service access (VerifyEffort permission)
+        if (!await HasSelfServiceAccessAsync(ct))
+        {
+            return false;
+        }
+
+        // Check if the user is editing their own record
+        if (!IsCurrentUser(personId))
+        {
+            return false;
+        }
+
+        // Check if the term is editable
+        if (!await IsTermEditableAsync(termCode, ct))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <inheritdoc />
+    public Task<bool> HasPermissionAsync(string permission, CancellationToken ct = default)
+    {
+        var user = _userHelper.GetCurrentUser();
+        if (user == null)
+        {
+            return Task.FromResult(false);
+        }
+
+        var hasPermission = _userHelper.HasPermission(_rapsContext, user, permission);
+        return Task.FromResult(hasPermission);
+    }
+
+    /// <inheritdoc />
+    public async Task<string?> GetUserDepartmentAsync(CancellationToken ct = default)
+    {
+        var personId = GetCurrentPersonId();
+        if (personId == 0)
+        {
+            return null;
+        }
+
+        // Get from EffortPerson for the current/most recent term
+        var person = await _context.Persons
+            .AsNoTracking()
+            .Where(p => p.PersonId == personId)
+            .OrderByDescending(p => p.TermCode)
+            .FirstOrDefaultAsync(ct);
+
+        return person?.EffortDept;
     }
 }

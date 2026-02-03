@@ -153,7 +153,7 @@
 import { ref, watch, computed } from "vue"
 import { useQuasar } from "quasar"
 import type { QTableColumn } from "quasar"
-import { effortService } from "../services/effort-service"
+import { courseService } from "../services/course-service"
 import type { CourseDto, CourseRelationshipDto } from "../types"
 
 const props = defineProps<{
@@ -254,8 +254,8 @@ async function loadData() {
 
     try {
         const [relationshipsResult, available] = await Promise.all([
-            effortService.getCourseRelationships(props.course.id),
-            effortService.getAvailableChildCourses(props.course.id),
+            courseService.getCourseRelationships(props.course.id),
+            courseService.getAvailableChildCourses(props.course.id),
         ])
 
         childRelationships.value = relationshipsResult.childRelationships
@@ -288,7 +288,7 @@ async function addRelationship() {
     isAdding.value = true
 
     try {
-        const result = await effortService.createCourseRelationship(props.course.id, {
+        const result = await courseService.createCourseRelationship(props.course.id, {
             childCourseId: selectedChildCourse.value.id,
             relationshipType: relationshipType.value,
         })
@@ -324,7 +324,7 @@ async function deleteRelationship(relationship: CourseRelationshipDto) {
     deletingId.value = relationship.id
 
     try {
-        const success = await effortService.deleteCourseRelationship(props.course.id, relationship.id)
+        const success = await courseService.deleteCourseRelationship(props.course.id, relationship.id)
 
         if (success) {
             $q.notify({ type: "positive", message: "Link removed successfully" })
