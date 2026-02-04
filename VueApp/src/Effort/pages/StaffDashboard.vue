@@ -49,19 +49,21 @@
                             <div class="text-overline text-grey-7">INSTRUCTORS</div>
                             <div class="text-h4 q-my-sm">{{ stats.totalInstructors }}</div>
                             <div class="text-caption">
-                                <span
+                                <q-badge
                                     v-if="stats.pendingInstructors > 0"
-                                    class="text-warning"
+                                    color="amber-2"
+                                    text-color="brown-10"
                                 >
                                     {{ stats.pendingInstructors }} pending verification
-                                </span>
-                                <span
+                                </q-badge>
+                                <q-badge
                                     v-else
-                                    class="text-positive"
+                                    color="positive"
                                 >
                                     All verified
-                                </span>
+                                </q-badge>
                             </div>
+                            <div class="text-caption text-grey-7 q-mt-xs">{{ stats.totalRecords }} effort records</div>
                         </q-card-section>
                         <q-separator />
                         <q-card-actions>
@@ -84,18 +86,25 @@
                             <div class="text-overline text-grey-7">COURSES</div>
                             <div class="text-h4 q-my-sm">{{ stats.totalCourses }}</div>
                             <div class="text-caption">
-                                <span
+                                <q-badge
                                     v-if="stats.coursesWithoutInstructors > 0"
-                                    class="text-warning"
+                                    color="amber-2"
+                                    text-color="brown-10"
+                                    class="clickable-badge"
+                                    role="button"
+                                    tabindex="0"
+                                    @click="scrollToNoInstructorsAlert"
+                                    @keyup.enter="scrollToNoInstructorsAlert"
+                                    @keyup.space.prevent="scrollToNoInstructorsAlert"
                                 >
                                     {{ stats.coursesWithoutInstructors }} without instructors
-                                </span>
-                                <span
+                                </q-badge>
+                                <q-badge
                                     v-else
-                                    class="text-positive"
+                                    color="positive"
                                 >
                                     All have instructors
-                                </span>
+                                </q-badge>
                             </div>
                         </q-card-section>
                         <q-separator />
@@ -124,7 +133,9 @@
                                     <div
                                         class="text-h5"
                                         :class="
-                                            stats.hygieneSummary.activeAlerts > 0 ? 'text-warning' : 'text-positive'
+                                            stats.hygieneSummary.activeAlerts > 0
+                                                ? 'text-warning-accessible'
+                                                : 'text-positive'
                                         "
                                     >
                                         {{ stats.hygieneSummary.activeAlerts }}
@@ -164,27 +175,41 @@
                     <q-card class="stat-card">
                         <q-card-section>
                             <div class="text-overline text-grey-7">TERM STATUS</div>
-                            <div class="text-h6 q-my-sm">{{ stats.currentTerm?.termName }}</div>
-                            <div class="row q-col-gutter-sm">
-                                <div class="col-6">
-                                    <q-badge
-                                        :color="getTermStatusColor(stats.currentTerm?.status)"
-                                        class="q-pa-sm"
-                                    >
-                                        {{ stats.currentTerm?.status }}
-                                    </q-badge>
+                            <div class="term-status-row q-my-sm">
+                                <span class="text-h6">{{ stats.currentTerm?.termName }}</span>
+                                <q-badge
+                                    :color="getTermStatusColor(stats.currentTerm?.status)"
+                                    class="q-pa-sm q-ml-sm"
+                                >
+                                    {{ stats.currentTerm?.status }}
+                                </q-badge>
+                            </div>
+                            <div class="row q-col-gutter-sm q-mt-sm text-caption text-grey-7">
+                                <div
+                                    v-if="stats.currentTerm?.harvestedDate"
+                                    class="col-auto"
+                                >
+                                    Harvested: {{ formatDate(stats.currentTerm.harvestedDate) }}
                                 </div>
-                                <div class="col-6 text-right">
-                                    <span class="text-caption text-grey-7">
-                                        {{ stats.totalRecords }} effort records
-                                    </span>
+                                <div
+                                    v-if="stats.currentTerm?.openedDate"
+                                    class="col-auto"
+                                >
+                                    Opened: {{ formatDate(stats.currentTerm.openedDate) }}
+                                </div>
+                                <div
+                                    v-if="stats.currentTerm?.closedDate"
+                                    class="col-auto"
+                                >
+                                    Closed: {{ formatDate(stats.currentTerm.closedDate) }}
                                 </div>
                             </div>
                             <div
-                                v-if="stats.currentTerm?.harvestedDate"
-                                class="text-caption text-grey-7 q-mt-sm"
+                                v-if="stats.currentTerm?.closedDate && stats.currentTerm?.openedDate"
+                                class="text-caption text-grey-6 q-mt-xs"
                             >
-                                Data harvested: {{ formatDate(stats.currentTerm.harvestedDate) }}
+                                Open for
+                                {{ getTermDuration(stats.currentTerm.openedDate, stats.currentTerm.closedDate) }}
                             </div>
                         </q-card-section>
                         <q-separator />
@@ -215,75 +240,139 @@
                         </q-item-section>
                     </template>
                     <q-card-section class="q-pt-none">
-                        <!-- Needs Follow-up Section -->
-                        <template v-if="needsFollowupDepts.length > 0">
-                            <div class="text-subtitle2 text-warning q-mb-sm">
-                                <q-icon
-                                    name="warning"
-                                    class="q-mr-xs"
-                                />
-                                Needs Follow-up (&lt;80% verified)
-                            </div>
-                            <div class="row q-col-gutter-sm q-mb-md">
-                                <div
-                                    v-for="dept in needsFollowupDepts"
-                                    :key="dept.departmentCode"
-                                    class="col-12 col-md-6 col-lg-4"
-                                >
-                                    <div class="dept-row">
-                                        <div class="dept-name text-truncate">{{ dept.departmentName }}</div>
-                                        <div class="dept-stats">
-                                            <q-linear-progress
-                                                :value="dept.verificationPercent / 100"
-                                                color="warning"
-                                                size="8px"
-                                                class="q-mr-sm"
-                                                style="width: 100px"
-                                                rounded
-                                            />
-                                            <span class="text-caption">
-                                                {{ dept.verificationPercent }}%
-                                                <span class="text-grey-6">
+                        <!-- For Open terms: show split view with Needs Follow-up vs On Track -->
+                        <template v-if="isTermOpen">
+                            <!-- Needs Follow-up Section -->
+                            <template v-if="needsFollowupDepts.length > 0">
+                                <div class="text-subtitle2 text-negative q-mb-sm">
+                                    <q-icon
+                                        name="warning"
+                                        class="q-mr-xs"
+                                    />
+                                    Needs Follow-up (&lt;80% verified)
+                                </div>
+                                <div class="row q-col-gutter-sm q-mb-md">
+                                    <div
+                                        v-for="dept in needsFollowupDepts"
+                                        :key="dept.departmentCode"
+                                        class="col-12 col-md-6 col-lg-4"
+                                    >
+                                        <div
+                                            class="dept-row dept-row--clickable"
+                                            :class="{ 'dept-row--no-dept': isNoDept(dept) }"
+                                            role="button"
+                                            tabindex="0"
+                                            :aria-label="`View ${getDeptDisplayName(dept)} instructors`"
+                                            @click="navigateToDepartment(dept.departmentCode)"
+                                            @keyup.enter="navigateToDepartment(dept.departmentCode)"
+                                            @keyup.space.prevent="navigateToDepartment(dept.departmentCode)"
+                                        >
+                                            <div class="dept-name text-truncate">
+                                                {{ getDeptDisplayName(dept) }}
+                                            </div>
+                                            <div class="dept-stats">
+                                                <span class="dept-percent text-caption">
+                                                    {{ dept.verificationPercent }}%
+                                                </span>
+                                                <q-linear-progress
+                                                    :value="dept.verificationPercent / 100"
+                                                    color="negative"
+                                                    size="8px"
+                                                    class="dept-bar"
+                                                    rounded
+                                                />
+                                                <span class="dept-count text-caption text-grey-6">
                                                     ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                                 </span>
-                                            </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </template>
+
+                            <!-- On Track Section -->
+                            <template v-if="onTrackDepts.length > 0">
+                                <div class="text-subtitle2 text-positive q-mb-sm">
+                                    <q-icon
+                                        name="check_circle"
+                                        class="q-mr-xs"
+                                    />
+                                    On Track (&ge;80% verified)
+                                </div>
+                                <div class="row q-col-gutter-sm">
+                                    <div
+                                        v-for="dept in onTrackDepts"
+                                        :key="dept.departmentCode"
+                                        class="col-12 col-md-6 col-lg-4"
+                                    >
+                                        <div
+                                            class="dept-row dept-row--clickable"
+                                            :class="{ 'dept-row--no-dept': isNoDept(dept) }"
+                                            role="button"
+                                            tabindex="0"
+                                            :aria-label="`View ${getDeptDisplayName(dept)} instructors`"
+                                            @click="navigateToDepartment(dept.departmentCode)"
+                                            @keyup.enter="navigateToDepartment(dept.departmentCode)"
+                                            @keyup.space.prevent="navigateToDepartment(dept.departmentCode)"
+                                        >
+                                            <div class="dept-name text-truncate">
+                                                {{ getDeptDisplayName(dept) }}
+                                            </div>
+                                            <div class="dept-stats">
+                                                <span class="dept-percent text-caption">
+                                                    {{ dept.verificationPercent }}%
+                                                </span>
+                                                <q-linear-progress
+                                                    :value="dept.verificationPercent / 100"
+                                                    color="positive"
+                                                    size="8px"
+                                                    class="dept-bar"
+                                                    rounded
+                                                />
+                                                <span class="dept-count text-caption text-grey-6">
+                                                    ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
                         </template>
 
-                        <!-- On Track Section -->
-                        <template v-if="onTrackDepts.length > 0">
-                            <div class="text-subtitle2 text-positive q-mb-sm">
-                                <q-icon
-                                    name="check_circle"
-                                    class="q-mr-xs"
-                                />
-                                On Track (&ge;80% verified)
-                            </div>
+                        <!-- For Closed terms: show all departments sorted by verification % descending -->
+                        <template v-else>
                             <div class="row q-col-gutter-sm">
                                 <div
-                                    v-for="dept in onTrackDepts"
+                                    v-for="dept in sortedDepartments"
                                     :key="dept.departmentCode"
                                     class="col-12 col-md-6 col-lg-4"
                                 >
-                                    <div class="dept-row">
-                                        <div class="dept-name text-truncate">{{ dept.departmentName }}</div>
+                                    <div
+                                        class="dept-row dept-row--clickable"
+                                        :class="{ 'dept-row--no-dept': isNoDept(dept) }"
+                                        role="button"
+                                        tabindex="0"
+                                        :aria-label="`View ${getDeptDisplayName(dept)} instructors`"
+                                        @click="navigateToDepartment(dept.departmentCode)"
+                                        @keyup.enter="navigateToDepartment(dept.departmentCode)"
+                                        @keyup.space.prevent="navigateToDepartment(dept.departmentCode)"
+                                    >
+                                        <div class="dept-name text-truncate">
+                                            {{ getDeptDisplayName(dept) }}
+                                        </div>
                                         <div class="dept-stats">
+                                            <span class="dept-percent text-caption">
+                                                {{ dept.verificationPercent }}%
+                                            </span>
                                             <q-linear-progress
                                                 :value="dept.verificationPercent / 100"
-                                                color="positive"
+                                                :color="getProgressColor(dept.verificationPercent)"
                                                 size="8px"
-                                                class="q-mr-sm"
-                                                style="width: 100px"
+                                                class="dept-bar"
                                                 rounded
                                             />
-                                            <span class="text-caption">
-                                                {{ dept.verificationPercent }}%
-                                                <span class="text-grey-6">
-                                                    ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
-                                                </span>
+                                            <span class="dept-count text-caption text-grey-6">
+                                                ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                             </span>
                                         </div>
                                     </div>
@@ -305,17 +394,6 @@
                         <q-item-section>
                             <div class="text-h6">Recent Changes</div>
                         </q-item-section>
-                        <q-item-section side>
-                            <q-btn
-                                flat
-                                dense
-                                size="sm"
-                                label="View Full Audit Log"
-                                color="primary"
-                                :to="{ name: 'EffortAuditWithTerm', params: { termCode } }"
-                                @click.stop
-                            />
-                        </q-item-section>
                     </template>
                     <q-card-section class="q-pt-none">
                         <template v-if="recentChanges.length === 0">
@@ -328,7 +406,7 @@
                             separator
                         >
                             <q-item
-                                v-for="change in recentChanges"
+                                v-for="change in displayedChanges"
                                 :key="change.id"
                             >
                                 <q-item-section avatar>
@@ -359,6 +437,32 @@
                                 </q-item-section>
                             </q-item>
                         </q-list>
+
+                        <!-- Show more / View full audit log -->
+                        <div
+                            v-if="recentChanges.length > 5"
+                            class="text-center q-mt-sm"
+                        >
+                            <q-btn
+                                v-if="!showAllChanges"
+                                flat
+                                dense
+                                size="sm"
+                                color="primary"
+                                icon-right="expand_more"
+                                :label="`Show ${recentChanges.length - 5} more`"
+                                @click="showAllChanges = true"
+                            />
+                            <q-btn
+                                v-else
+                                flat
+                                dense
+                                size="sm"
+                                color="primary"
+                                label="View Full Audit Log"
+                                :to="{ name: 'EffortAuditWithTerm', params: { termCode } }"
+                            />
+                        </div>
                     </q-card-section>
                 </q-expansion-item>
             </q-card>
@@ -401,7 +505,7 @@
                                 header-class="text-negative"
                             >
                                 <template #header>
-                                    <q-item-section avatar>
+                                    <q-item-section side>
                                         <q-icon
                                             name="domain_disabled"
                                             color="negative"
@@ -465,10 +569,10 @@
                                 v-if="zeroHoursAlerts.length > 0"
                                 v-model="expandedSections.zeroHours"
                                 dense
-                                header-class="text-warning"
+                                header-class="text-warning-accessible"
                             >
                                 <template #header>
-                                    <q-item-section avatar>
+                                    <q-item-section side>
                                         <q-icon
                                             name="timer_off"
                                             color="warning"
@@ -527,15 +631,83 @@
                                 </q-list>
                             </q-expansion-item>
 
+                            <!-- No Effort Records -->
+                            <q-expansion-item
+                                v-if="noRecordsAlerts.length > 0"
+                                v-model="expandedSections.noRecords"
+                                dense
+                                header-class="text-warning-accessible"
+                            >
+                                <template #header>
+                                    <q-item-section side>
+                                        <q-icon
+                                            name="warning"
+                                            color="warning"
+                                        />
+                                    </q-item-section>
+                                    <q-item-section>
+                                        Instructors with No Effort Records ({{ noRecordsAlerts.length }})
+                                    </q-item-section>
+                                </template>
+                                <q-list
+                                    dense
+                                    separator
+                                    class="q-ml-lg"
+                                >
+                                    <q-item
+                                        v-for="alert in noRecordsAlerts"
+                                        :key="`${alert.alertType}-${alert.entityId}`"
+                                        :class="{ 'bg-grey-2': alert.status !== 'Active' }"
+                                    >
+                                        <q-item-section>
+                                            <q-item-label>
+                                                {{ alert.entityName }}
+                                                <q-badge
+                                                    v-if="alert.status === 'Ignored'"
+                                                    color="grey"
+                                                    class="q-ml-sm"
+                                                >
+                                                    Ignored
+                                                </q-badge>
+                                            </q-item-label>
+                                            <q-item-label caption>{{ alert.description }}</q-item-label>
+                                        </q-item-section>
+                                        <q-item-section side>
+                                            <div class="row q-gutter-xs">
+                                                <q-btn
+                                                    v-if="alert.status === 'Active'"
+                                                    flat
+                                                    dense
+                                                    size="sm"
+                                                    label="Edit/Review"
+                                                    color="primary"
+                                                    @click="navigateToEdit(alert)"
+                                                />
+                                                <q-btn
+                                                    v-if="alert.status === 'Active'"
+                                                    flat
+                                                    dense
+                                                    size="sm"
+                                                    label="Ignore"
+                                                    color="grey"
+                                                    @click="ignoreAlert(alert)"
+                                                />
+                                            </div>
+                                        </q-item-section>
+                                    </q-item>
+                                </q-list>
+                            </q-expansion-item>
+
                             <!-- Courses with No Instructors -->
                             <q-expansion-item
                                 v-if="noInstructorsAlerts.length > 0"
+                                id="no-instructors-alerts"
                                 v-model="expandedSections.noInstructors"
                                 dense
-                                header-class="text-warning"
+                                header-class="text-warning-accessible"
                             >
                                 <template #header>
-                                    <q-item-section avatar>
+                                    <q-item-section side>
                                         <q-icon
                                             name="school"
                                             color="warning"
@@ -594,22 +766,22 @@
                                 </q-list>
                             </q-expansion-item>
 
-                            <!-- No Effort Records -->
+                            <!-- Verification Overdue (only for open terms) -->
                             <q-expansion-item
-                                v-if="noRecordsAlerts.length > 0"
-                                v-model="expandedSections.noRecords"
+                                v-if="notVerifiedAlerts.length > 0"
+                                v-model="expandedSections.notVerified"
                                 dense
-                                header-class="text-warning"
+                                header-class="text-info"
                             >
                                 <template #header>
-                                    <q-item-section avatar>
+                                    <q-item-section side>
                                         <q-icon
-                                            name="warning"
-                                            color="warning"
+                                            name="schedule"
+                                            color="info"
                                         />
                                     </q-item-section>
                                     <q-item-section>
-                                        Instructors with No Effort Records ({{ noRecordsAlerts.length }})
+                                        Verification Overdue ({{ notVerifiedAlerts.length }})
                                     </q-item-section>
                                 </template>
                                 <q-list
@@ -618,7 +790,7 @@
                                     class="q-ml-lg"
                                 >
                                     <q-item
-                                        v-for="alert in noRecordsAlerts"
+                                        v-for="alert in notVerifiedAlerts"
                                         :key="`${alert.alertType}-${alert.entityId}`"
                                         :class="{ 'bg-grey-2': alert.status !== 'Active' }"
                                     >
@@ -642,7 +814,7 @@
                                                     flat
                                                     dense
                                                     size="sm"
-                                                    label="Edit/Review"
+                                                    label="View"
                                                     color="primary"
                                                     @click="navigateToEdit(alert)"
                                                 />
@@ -689,7 +861,7 @@
 
         <!-- All Alerts Dialog -->
         <q-dialog v-model="showAlertsDialog">
-            <q-card style="min-width: 600px; max-width: 90vw">
+            <q-card style="width: 600px; max-width: 95vw">
                 <q-card-section class="row items-center">
                     <div class="text-h6">All Data Hygiene Alerts</div>
                     <q-space />
@@ -739,7 +911,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue"
+import { ref, computed, watch, nextTick } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { dashboardService } from "../services/dashboard-service"
 import type { DashboardStatsDto, DepartmentVerificationDto, EffortChangeAlertDto, RecentChangeDto } from "../types"
@@ -755,11 +927,13 @@ const allAlerts = ref<EffortChangeAlertDto[]>([])
 const recentChanges = ref<RecentChangeDto[]>([])
 const showIgnoredAlerts = ref(false)
 const showAlertsDialog = ref(false)
+const showAllChanges = ref(false)
 const expandedSections = ref({
-    noDept: true,
-    zeroHours: true,
-    noInstructors: true,
-    noRecords: true,
+    noDept: false,
+    zeroHours: false,
+    noInstructors: false,
+    noRecords: false,
+    notVerified: false,
 })
 const sectionExpanded = ref({
     departments: true,
@@ -776,11 +950,30 @@ const needsFollowupDepts = computed(() => departments.value.filter((d) => !d.mee
 
 const onTrackDepts = computed(() => departments.value.filter((d) => d.meetsThreshold))
 
+const isTermOpen = computed(() => stats.value?.currentTerm?.status === "Opened")
+
+// For closed terms: sort by verification percentage descending, then by instructor count descending
+const sortedDepartments = computed(() =>
+    [...departments.value].sort((a, b) => {
+        if (b.verificationPercent !== a.verificationPercent) {
+            return b.verificationPercent - a.verificationPercent
+        }
+        return b.totalInstructors - a.totalInstructors
+    })
+)
+
 const visibleAlerts = computed(() => {
     if (showIgnoredAlerts.value) {
         return alerts.value
     }
     return alerts.value.filter((a) => a.status !== "Ignored")
+})
+
+const displayedChanges = computed(() => {
+    if (showAllChanges.value) {
+        return recentChanges.value
+    }
+    return recentChanges.value.slice(0, 5)
 })
 
 const noDeptAlerts = computed(() => visibleAlerts.value.filter((a) => a.alertType === "NoDepartment"))
@@ -791,15 +984,62 @@ const noRecordsAlerts = computed(() => visibleAlerts.value.filter((a) => a.alert
 
 const noInstructorsAlerts = computed(() => visibleAlerts.value.filter((a) => a.alertType === "NoInstructors"))
 
+// Only show verification overdue alerts for open terms - they're not actionable for closed terms
+const notVerifiedAlerts = computed(() => {
+    if (stats.value?.currentTerm?.status !== "Opened") return []
+    return visibleAlerts.value.filter((a) => a.alertType === "NotVerified")
+})
+
+function navigateToDepartment(deptCode: string) {
+    if (!termCode.value) return
+    router.push({
+        name: "InstructorList",
+        params: { termCode: termCode.value.toString() },
+        query: { dept: deptCode },
+    })
+}
+
+function scrollToNoInstructorsAlert() {
+    sectionExpanded.value.dataHygiene = true
+    expandedSections.value.noInstructors = true
+
+    // Allow Vue to render the expanded elements, then wait for CSS animations
+    nextTick(() => {
+        setTimeout(() => {
+            const el = document.getElementById("no-instructors-alerts")
+            el?.scrollIntoView({ behavior: "smooth", block: "start" })
+        }, 300)
+    })
+}
+
 function getProgressColor(percent: number): string {
-    if (percent >= 80) return "positive"
-    if (percent >= 50) return "warning"
+    if (percent >= 70) return "positive"
+    if (percent >= 30) return "warning"
     return "negative"
 }
 
 function formatDate(dateString: string): string {
     const date = new Date(dateString)
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
+function getTermDuration(openedDate: string, closedDate: string): string {
+    const opened = new Date(openedDate)
+    const closed = new Date(closedDate)
+    const diffMs = closed.getTime() - opened.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+    if (diffDays < 7) {
+        return `${diffDays} day${diffDays !== 1 ? "s" : ""}`
+    }
+
+    const weeks = Math.floor(diffDays / 7)
+    const remainingDays = diffDays % 7
+
+    if (remainingDays === 0) {
+        return `${weeks} week${weeks !== 1 ? "s" : ""}`
+    }
+    return `${weeks} week${weeks !== 1 ? "s" : ""}, ${remainingDays} day${remainingDays !== 1 ? "s" : ""}`
 }
 
 function getChangeIcon(action: string): string {
@@ -823,6 +1063,14 @@ function formatChangeAction(action: string): string {
         .replace(/([A-Z])/g, " $1")
         .trim()
         .replace(/^./, (str) => str.toUpperCase())
+}
+
+function getDeptDisplayName(dept: DepartmentVerificationDto): string {
+    return dept.departmentCode === "UNK" ? "No Department" : dept.departmentName
+}
+
+function isNoDept(dept: DepartmentVerificationDto): boolean {
+    return dept.departmentCode === "UNK"
 }
 
 function getTermStatusColor(status: string | undefined): string {
@@ -899,7 +1147,7 @@ function navigateToEdit(alert: EffortChangeAlertDto) {
     let route
     if (alert.entityType === "Course") {
         route = router.resolve({
-            name: "CourseEdit",
+            name: "CourseDetail",
             params: { termCode: termCode.value, courseId: alert.entityId },
         })
     } else if (alert.alertType === "NoDepartment") {
@@ -944,21 +1192,96 @@ watch(
 .dept-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 12px;
     padding: 8px 12px;
     border-radius: 4px;
     background-color: #f5f5f5;
 }
 
+@media screen and (prefers-reduced-motion: reduce) {
+    .dept-row--clickable {
+        cursor: pointer;
+        transition: none;
+    }
+}
+
+.dept-row--clickable {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.dept-row--clickable:hover,
+.dept-row--clickable:focus {
+    background-color: #e0e0e0;
+    outline: none;
+}
+
+.dept-row--no-dept {
+    background-color: #fdecea;
+    border-left: 3px solid var(--q-negative);
+}
+
+.dept-row--no-dept:hover,
+.dept-row--no-dept:focus {
+    background-color: #fad4d0;
+}
+
+.dept-row--no-dept .dept-name {
+    color: var(--q-negative);
+    font-weight: 500;
+}
+
 .dept-name {
-    flex: 1;
+    width: 80px;
     font-size: 0.9rem;
-    margin-right: 12px;
+    flex-shrink: 0;
 }
 
 .dept-stats {
+    flex: 1;
     display: flex;
     align-items: center;
-    white-space: nowrap;
+    gap: 8px;
+}
+
+.dept-percent {
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.dept-bar {
+    flex: 1;
+    min-width: 60px;
+}
+
+.dept-count {
+    width: 65px;
+    flex-shrink: 0;
+}
+
+.term-status-row {
+    display: flex;
+    align-items: baseline;
+}
+
+/* Accessible warning text color for headers and larger text */
+.text-warning-accessible {
+    color: #664d03 !important;
+}
+
+.clickable-badge {
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.clickable-badge:hover,
+.clickable-badge:focus {
+    filter: brightness(0.95);
+    outline: none;
+}
+
+#no-instructors-alerts {
+    scroll-margin-top: 140px;
 }
 </style>
