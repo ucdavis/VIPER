@@ -1,11 +1,42 @@
 ﻿@using Viper.Models.RAPS
-@*
-
-*@
 @{
     List<TblPermission> permissions = (List<TblPermission>)(ViewData["Permissions"] ?? new List<TblPermission>());
+    List<TblRole> roles = (List<TblRole>)(ViewData["Roles"] ?? new List<TblRole>());
+    bool has2fa = (bool)(ViewData["Has2FA"] ?? false);
+}
+
+<h2>2FA Authentication</h2>
+@if (has2fa)
+{
+    <p style="color: green; font-weight: bold;">✓ You have the 2faAuthentication policy (logged in with Duo)</p>
+}
+else
+{
+    <p style="color: red;">✗ You do not have the 2faAuthentication policy (not logged in with Duo)</p>
+}
+
+<h2>Roles (@roles.Count)</h2>
+@if (roles.Count == 0)
+{
+    <p style="color: gray;">No roles assigned</p>
+}
+else
+{
+    foreach (var r in roles)
+    {
+        <p style="margin:0">@r.Role</p>
+    }
+}
+
+<h2>Permissions (@permissions.Count)</h2>
+@if (permissions.Count == 0)
+{
+    <p style="color: gray;">No permissions assigned</p>
+}
+else
+{
     foreach (var p in permissions)
     {
-        <p style="margin:0">@p.Permission</p>        
+        <p style="margin:0">@p.Permission</p>
     }
 }
