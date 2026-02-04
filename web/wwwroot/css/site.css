@@ -24,8 +24,14 @@ body {
 }
 */
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+.btn:focus,
+.btn:active:focus,
+.btn-link.nav-link:focus,
+.form-control:focus,
+.form-check-input:focus {
+    box-shadow:
+        0 0 0 0.1rem white,
+        0 0 0 0.25rem #258cfb;
 }
 
 /*Placeholders used when loading*/
@@ -38,7 +44,7 @@ body {
 }
 #mainNavPlaceholder {
     height: 50px;
-    background-color: #1D4776;
+    background-color: #1d4776;
 }
 
 /*Top nav/header styles*/
@@ -52,7 +58,7 @@ body {
     font-size: 1.6em !important;
     font-weight: normal;
     vertical-align: bottom;
-    margin-left: .6em;
+    margin-left: 0.6em;
     padding-bottom: 1px;
 }
 
@@ -62,8 +68,8 @@ body {
 }
 
 .mainLayoutViperMode {
-    margin-left: .6em;
-    margin-top: .2em;
+    margin-left: 0.6em;
+    margin-top: 0.2em;
     vertical-align: bottom;
     color: red;
 }
@@ -85,7 +91,7 @@ body {
 
 #mainLayoutHeaderSections {
     /*background-color: #1D4776;*/
-    background-color: #FFCD00;
+    background-color: #ffcd00;
     min-height: 36px;
     border-bottom: 1px solid silver;
     /*padding: 0 12px;*/
@@ -93,11 +99,10 @@ body {
 
 #mainLayoutHeaderSections .selectedTopNav {
     /*background-color: #4F7094;*/
-    background-color: #FFE699;
+    background-color: #ffe699;
 }
 
 #mainLayoutHeaderSections a.q-btn.navLink {
-    
 }
 
 /*Left Nav styles*/
@@ -109,14 +114,14 @@ body {
     font-size: 1.2rem;
     margin: 0;
     line-height: 1.5rem;
-    padding: .2rem .5rem .1rem .5rem;
+    padding: 0.2rem 0.5rem 0.1rem 0.5rem;
     font-weight: bold;
 }
 
 #leftNavMenu .leftNavHeader {
     font-weight: bold;
     font-size: 1rem;
-    padding: 1.5rem .5rem .1rem .5rem;
+    padding: 1.5rem 0.5rem 0.1rem 0.5rem;
     /*background-color: #FFD24C;*/
     /*color: white;*/
 }
@@ -126,7 +131,7 @@ body {
 }
 
 #leftNavMenu .leftNavLink {
-    padding-left: .5rem;
+    padding-left: 0.5rem;
     /*background-color: #CDD6E0;*/
 }
 
@@ -166,15 +171,15 @@ body {
 }
 
 .sticky-header-table .q-table__middle table thead tr:first-child th {
-    top: 0
+    top: 0;
 }
-    
+
 /* this is when the loading indicator appears */
 .q-table--loading thead tr:last-child th {
     /* height of all previous header rows */
     top: 48px;
 }
-    
+
 /* prevent scrolling behind sticky top row on focus */
 .sticky-header-table .q-table__middle table tbody {
     /* height of all previous header rows */
@@ -183,14 +188,14 @@ body {
 
 /* fallback */
 @font-face {
-    font-family: 'Material Icons';
+    font-family: "Material Icons";
     font-style: normal;
     font-weight: 400;
-    src: url(https://fonts.gstatic.com/s/materialicons/v140/flUhRq6tzZclQEJ-Vdg-IuiaDsNc.woff2) format('woff2');
+    src: url(https://fonts.gstatic.com/s/materialicons/v140/flUhRq6tzZclQEJ-Vdg-IuiaDsNc.woff2) format("woff2");
 }
 
 .material-icons {
-    font-family: 'Material Icons';
+    font-family: "Material Icons";
     font-weight: normal;
     font-style: normal;
     font-size: 24px;
@@ -201,7 +206,7 @@ body {
     white-space: nowrap;
     word-wrap: normal;
     direction: ltr;
-    -webkit-font-feature-settings: 'liga';
+    -webkit-font-feature-settings: "liga";
     -webkit-font-smoothing: antialiased;
 }
 
@@ -218,16 +223,15 @@ body {
 .q-page-container .text-h3 {
     font-size: 1.2rem;
     line-height: 1.2rem;
-    margin: .0rem 0rem .5rem 0rem;
+    margin: 0rem 0rem 0.5rem 0rem;
     font-weight: bold;
 }
-
 
 .q-page-container h4,
 .q-page-container .text-h4 {
     font-size: 1.1rem;
     line-height: 1.1rem;
-    margin: .0rem 0rem .5rem 0rem;
+    margin: 0rem 0rem 0.5rem 0rem;
     font-weight: bold;
 }
 
@@ -235,7 +239,7 @@ body {
 .q-page-container .text-h5 {
     font-size: 1rem;
     line-height: 1rem;
-    margin: .0rem 0rem .5rem 0rem;
+    margin: 0rem 0rem 0.5rem 0rem;
     font-weight: bold;
 }
 
@@ -243,7 +247,7 @@ body {
 .q-page-container .text-h6 {
     font-size: 1rem;
     line-height: 1rem;
-    margin: .0rem 0rem .5rem 0rem;
+    margin: 0rem 0rem 0.5rem 0rem;
 }
 
 .q-avatar .smallPhoto {

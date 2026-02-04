@@ -1,25 +1,25 @@
-import ViperLayout from '@/layouts/ViperLayout.vue'
+import ViperLayout from "@/layouts/ViperLayout.vue"
 //import ViperLayoutSimple from '@/layouts/ViperLayoutSimple.vue'
 
 const routes = [
     {
-        path: '/Computing/',
-        alias: '/Computing/Home',
+        path: "/Computing/",
+        alias: "/Computing/Home",
         meta: { layout: ViperLayout, allowUnAuth: false },
-        component: () => import('@/Computing/pages/Home.vue'),
-        name: "ExampleAppHome"
+        component: () => import("@/Computing/pages/Home.vue"),
+        name: "ExampleAppHome",
     },
     {
-        path: '/Computing/BiorenderStudents',
+        path: "/Computing/BiorenderStudents",
         meta: { layout: ViperLayout, allowUnAuth: false },
-        component: () => import('@/Computing/pages/BiorenderStudents.vue'),
-        name: "AnotherPage"
+        component: () => import("@/Computing/pages/BiorenderStudents.vue"),
+        name: "AnotherPage",
     },
     {
-        path: '/:catchAll(.*)*',
+        path: "/:catchAll(.*)*",
         meta: { layout: ViperLayout },
-        component: () => import('@/pages/Error404.vue')
-    }
+        component: () => import("@/pages/Error404.vue"),
+    },
 ]
 
-export default routes
+export { routes }

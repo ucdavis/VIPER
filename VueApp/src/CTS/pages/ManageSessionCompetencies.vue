@@ -56,7 +56,7 @@ function getSessionCompetencies() {
 
 function getLegacySessionCompetencies() {
     get(apiUrl + "cts/legacyCompetencies/session/" + sessionId).then(
-        (r) => (legacyCompetencies.value = r.result.filter((c: LegacyComptency) => c.dvmCompetencyId != null)),
+        (r) => (legacyCompetencies.value = r.result.filter((c: LegacyComptency) => c.dvmCompetencyId !== null)),
     )
 }
 
@@ -79,7 +79,7 @@ function filterComps(val: any, update: any) {
 }
 
 async function submitSessionComp() {
-    var postOrPut = compAddUpdate.value.sessionCompetencyId == null ? post : put
+    var postOrPut = compAddUpdate.value.sessionCompetencyId === null ? post : put
     var success = false
     if (multiRole.value) {
         success = true
@@ -89,7 +89,7 @@ async function submitSessionComp() {
             compAddUpdate.value.levelIds = compAddUpdateRolesAndLevels.value.reduce<number[]>(
                 (result: number[], val: string) => {
                     var rid = val.split("-")[0] ?? ""
-                    if (parseInt(rid) == role.roleId) {
+                    if (parseInt(rid) === role.roleId) {
                         const levelIdStr = val.split("-")[1] ?? ""
                         if (levelIdStr) {
                             result.push(parseInt(levelIdStr))
@@ -135,7 +135,7 @@ function selectComp(sc: SessionCompetency) {
     compAddUpdate.value.sessionCompetencyId = sc.sessionCompetencyId
     compAddUpdate.value.competencyId = sc.competencyId
 
-    var compValues = sessionCompetencies.value.filter((c: SessionCompetency) => c.competencyId == sc.competencyId)
+    var compValues = sessionCompetencies.value.filter((c: SessionCompetency) => c.competencyId === sc.competencyId)
 
     if (multiRole.value) {
         //get all levelids for all roles for this comp
@@ -158,7 +158,7 @@ function selectComp(sc: SessionCompetency) {
 
 async function delComp(sc: SessionCompetency) {
     var u = apiUrl + "cts/courses/" + courseId + "/sessions/" + sessionId + "/competencies/" + sc.competencyId
-    if (sc.roleId != null) {
+    if (sc.roleId !== null) {
         u += "?roleId=" + sc.roleId
     }
     await del(u)

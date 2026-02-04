@@ -1,13 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Connections.Features;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing.Template;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
@@ -26,7 +19,7 @@ namespace Viper.Areas.RAPS.Controllers
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSCacheService _rapsCacheService;
-        public IUserHelper UserHelper;
+        public IUserHelper UserHelper { get; private set; }
 
         public RoleTemplatesController(RAPSContext context, AAUDContext aaudContext)
         {
@@ -124,9 +117,9 @@ namespace Viper.Areas.RAPS.Controllers
 
             if (memberId.StartsWith("loginid:"))
             {
-                var userIdLookup = _context.VwAaudUser
+                var userIdLookup = await _context.VwAaudUser
                     .Where(u => u.LoginId == memberId.Substring(memberId.IndexOf(":") + 1))
-                    .FirstOrDefault();
+                    .FirstOrDefaultAsync();
                 if (userIdLookup == null)
                 {
                     return NotFound();
@@ -169,7 +162,6 @@ namespace Viper.Areas.RAPS.Controllers
                     : u.MothraId == memberId)
                 .FirstOrDefaultAsync();
 
-            List<TblRole> userRoles = new();
             List<RoleApplyPreview> rolesToApply = new();
 
             //if user is not found, return the object with placeholder text
@@ -178,7 +170,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return null;
             }
 
-            userRoles = await _context.TblRoleMembers
+            List<TblRole> userRoles = await _context.TblRoleMembers
                 .Include(rm => rm.Role)
                 .Where(rm => rm.MemberId == user.MothraId)
                 .Select(rm => rm.Role)

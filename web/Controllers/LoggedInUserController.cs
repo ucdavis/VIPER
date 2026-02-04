@@ -1,9 +1,7 @@
-﻿using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
-using Polly;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Web.Authorization;
 
 namespace Viper.Controllers
 {

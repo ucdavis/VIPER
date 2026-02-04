@@ -1,5 +1,4 @@
-﻿using System.Data;
-using System.Linq.Expressions;
+using System.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,18 +15,18 @@ namespace Viper.Areas.RAPS.Controllers
     public class RolesController : ApiController
     {
         private readonly RAPSContext _context;
-		public IRAPSSecurityServiceWrapper SecurityService;
-        public IUserHelper UserHelper;
-		public IRAPSAuditServiceWrapper AuditService;
+        public IRAPSSecurityServiceWrapper SecurityService { get; internal set; }
+        public IUserHelper UserHelper { get; internal set; }
+        public IRAPSAuditServiceWrapper AuditService { get; internal set; }
 
         public RolesController(RAPSContext context)
         {
             _context = context;
             RAPSSecurityService rss = new(_context);
-			SecurityService = new RAPSSecurityServiceWrapper(rss);
+            SecurityService = new RAPSSecurityServiceWrapper(rss);
             UserHelper = new UserHelper();
             RAPSAuditService ras = new(_context);
-			AuditService = new RAPSAuditServiceWrapper(ras);
+            AuditService = new RAPSAuditServiceWrapper(ras);
         }
 
         //Get all view names
@@ -47,21 +46,21 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             allInstances ??= false;
-            if(SecurityService.IsAllowedTo("ViewAllRoles", instance))
+            if (SecurityService.IsAllowedTo("ViewAllRoles", instance))
             {
-                if(!SecurityService.IsAllowedTo("ManageAllPermissions", instance))
+                if (!SecurityService.IsAllowedTo("ManageAllPermissions", instance))
                 {
                     application = 0;
                 }
                 var q = _context.TblRoles
                     .Include(r => r.TblRoleMembers.Where(rm => rm.ViewName == null))
                     .Where((r => application == null || r.Application == application));
-                if(!(bool)allInstances)
+                if (!(bool)allInstances)
                 {
                     q = q.Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance));
                 }
                 List<TblRole> roles = await q
-                    .OrderBy(r => r.Role.ToUpper().StartsWith("VIPERFORMS") ? 1 : 
+                    .OrderBy(r => r.Role.ToUpper().StartsWith("VIPERFORMS") ? 1 :
                         r.Role.ToUpper().StartsWith("VMACS.VMTH") ? 2 :
                         r.Role.ToUpper().StartsWith("VMACS.VMLF") ? 3 :
                         r.Role.ToUpper().StartsWith("VMACS.UCVMCSD") ? 4 :
@@ -99,14 +98,14 @@ namespace Viper.Areas.RAPS.Controllers
                 .ThenInclude(cr => cr.Role)
                 .Where(r => r.RoleId == roleId)
                 .FirstOrDefaultAsync();
-            
+
             if (tblRole == null)
             {
                 return NotFound();
             }
 
             List<TblRole> childRoles = new();
-            foreach(TblAppRole r in tblRole.ChildRoles)
+            foreach (TblAppRole r in tblRole.ChildRoles)
             {
                 childRoles.Add(r.Role);
             }
@@ -144,8 +143,8 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             _context.ChangeTracker.Clear();
-			_context.SetModified(tblRole);
-			AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Update);
+            _context.SetModified(tblRole);
+            AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Update);
 
             try
             {
@@ -176,9 +175,9 @@ namespace Viper.Areas.RAPS.Controllers
                 .Where(ar => ar.AppRoleId == roleId)
                 .ToListAsync();
             //remove deleted roles
-            foreach(TblAppRole childRole in childRoles)
+            foreach (TblAppRole childRole in childRoles)
             {
-                if(!roleIds.Contains(childRole.RoleId))
+                if (!roleIds.Contains(childRole.RoleId))
                 {
                     _context.Remove(childRole);
                 }
@@ -190,7 +189,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             //add new roles
-            foreach(int id in roleIds)
+            foreach (int id in roleIds)
             {
                 _context.Add(new TblAppRole()
                 {
@@ -206,37 +205,37 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpPost]
         public async Task<ActionResult<TblRole>> PostTblRole(string instance, RoleCreateUpdate role)
         {
-			if (_context.TblRoles == null)
-			{
-				return Problem("Entity set 'RAPSContext.TblRoles'  is null.");
-			}
+            if (_context.TblRoles == null)
+            {
+                return Problem("Entity set 'RAPSContext.TblRoles'  is null.");
+            }
 
             try
             {
-			    using var transaction = _context.Database.BeginTransaction();
-			    TblRole tblRole = CreateTblRoleFromDTO(role);
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                TblRole tblRole = CreateTblRoleFromDTO(role);
                 if (!SecurityService.RoleBelongsToInstance(instance, tblRole))
                 {
                     return ValidationProblem("Role name is invalid for this instance");
                 }
-			    _context.TblRoles.Add(tblRole);
-			    await _context.SaveChangesAsync();
-				AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Create);
-			    await _context.SaveChangesAsync();
-			    transaction.Commit();
+                _context.TblRoles.Add(tblRole);
+                await _context.SaveChangesAsync();
+                AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Create);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
 
-			    return CreatedAtAction("GetTblRole", new { id = tblRole.RoleId }, tblRole);
-			}
-			catch (DbUpdateConcurrencyException ex)
-			{
-				return Problem("The record was not updated because it was locked. " + ex.InnerException?.Message);
-			}
-			catch (Exception ex)
-			{
-				return Problem("There was a problem updating the database. " + ex.InnerException?.Message);
-			}
+                return CreatedAtAction("GetTblRole", new { id = tblRole.RoleId }, tblRole);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return Problem("The record was not updated because it was locked. " + ex.InnerException?.Message);
+            }
+            catch (Exception ex)
+            {
+                return Problem("There was a problem updating the database. " + ex.InnerException?.Message);
+            }
 
-		}
+        }
 
         // DELETE: Roles/5
         [HttpDelete("{roleId}")]
@@ -253,7 +252,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             _context.TblRoles.Remove(tblRole);
-			AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Delete);
+            AuditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Delete);
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -261,13 +260,13 @@ namespace Viper.Areas.RAPS.Controllers
 
         private static TblRole CreateTblRoleFromDTO(RoleCreateUpdate role)
         {
-            var tblRole = new TblRole() 
-            { 
-                Role = role.Role, 
-                Description = role.Description, 
-                ViewName = role.ViewName, 
-                Application = (byte)role.Application, 
-                AccessCode = role.AccessCode 
+            var tblRole = new TblRole()
+            {
+                Role = role.Role,
+                Description = role.Description,
+                ViewName = role.ViewName,
+                Application = (byte)role.Application,
+                AccessCode = role.AccessCode
             };
             if (role.RoleId != null && role.RoleId > 0)
             {
@@ -281,6 +280,6 @@ namespace Viper.Areas.RAPS.Controllers
             return (_context.TblRoles?.Any(e => e.RoleId == roleId)).GetValueOrDefault();
         }
 
-		
-	}
+
+    }
 }

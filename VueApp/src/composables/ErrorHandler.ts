@@ -2,7 +2,7 @@ import type { Ref } from "vue"
 import { ref } from "vue"
 import { useErrorStore } from "@/store/ErrorStore"
 
-const HTTP_UNAUTHORIZED = 401
+const HTTP_STATUS_UNAUTHORIZED = 401
 
 const errors: Ref<string[]> = ref([])
 export function useGenericErrorHandler() {
@@ -16,7 +16,7 @@ export function useGenericErrorHandler() {
     function handleAuthError(errorMessage: string | null | undefined, status: number) {
         const errorStore = useErrorStore()
         if (!errorMessage) {
-            errorStore.setError(status === HTTP_UNAUTHORIZED ? "You are not logged in." : "Access denied.")
+            errorStore.setError(status === HTTP_STATUS_UNAUTHORIZED ? "You are not logged in." : "Access denied.")
         } else {
             errorStore.setError(errorMessage)
         }

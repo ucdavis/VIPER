@@ -1,7 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Polly;
 using System.Text.Json;
 using System.Data;
 using Viper.Areas.RAPS.Models;
@@ -229,8 +228,8 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return result;
             }
-            var user = _context.VwAaudUser
-                    .FirstOrDefault(u => u.MothraId == memberId);
+            var user = await _context.VwAaudUser
+                    .FirstOrDefaultAsync(u => u.MothraId == memberId);
             if (user == null || string.IsNullOrEmpty(user.LoginId))
             {
                 return NotFound();
@@ -260,7 +259,7 @@ namespace Viper.Areas.RAPS.Controllers
             //only return vmacs response for admins
             if (_securityService.IsAllowedTo("RAPS.Admin") && messages.Count > 1)
             {
-                var finalMessage = messages.Last();
+                var finalMessage = messages[^1];
                 try
                 {
                     var vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(finalMessage);

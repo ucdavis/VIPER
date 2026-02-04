@@ -1,12 +1,9 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Viper.Classes.SQLContext;
 using Viper.Classes;
 using Web.Authorization;
-using Microsoft.EntityFrameworkCore;
-using NLog;
-using Viper.Areas.CTS.Services;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -16,19 +13,13 @@ namespace Viper.Areas.CTS.Controllers
     [Permission(Allow = "SVMSecure.CTS")]
     public class CTSController : AreaController
     {
-        private readonly VIPERContext _viperContext;
         private readonly RAPSContext _rapsContext;
-        private readonly CtsSecurityService ctsSecurityService;
-        private readonly IWebHostEnvironment environment;
-        public IUserHelper UserHelper;
+        public IUserHelper UserHelper { get; private set; }
 
         public CTSController(VIPERContext context, RAPSContext rapsContext, IWebHostEnvironment env)
         {
-            _viperContext = context;
             _rapsContext = rapsContext;
-            ctsSecurityService = new CtsSecurityService(rapsContext, _viperContext);
             UserHelper = new UserHelper();
-            environment = env;
         }
 
         /// <summary>
@@ -89,7 +80,7 @@ namespace Viper.Areas.CTS.Controllers
         [Route("/[area]")]
         public IActionResult Index()
         {
-           
+
             return View("~/Areas/CTS/Views/Index.cshtml");
         }
 

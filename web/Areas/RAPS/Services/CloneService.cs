@@ -1,10 +1,8 @@
-﻿using Microsoft.AspNetCore.JsonPatch.Internal;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 using Viper.Areas.RAPS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Viper.Areas.RAPS.Services
 {
@@ -13,7 +11,7 @@ namespace Viper.Areas.RAPS.Services
         private readonly RAPSContext _context;
         private readonly RAPSAuditService _auditService;
         private readonly RAPSSecurityService _securityService;
-        public IUserHelper UserHelper;
+        public IUserHelper UserHelper { get; private set; }
         private static readonly List<string> restrictedRoles = new()
         {
             "IT Leadership & Supervisors",
@@ -66,26 +64,26 @@ namespace Viper.Areas.RAPS.Services
         public async Task<MemberCloneObjects> GetUserComparison(string instance, string sourceMemberId, string targetMemberId)
         {
             MemberCloneObjects cloneObjects = new();
-            List<TblRole> roles= await _context.TblRoles
+            List<TblRole> roles = await _context.TblRoles
                 .Where(RAPSSecurityService.FilterRolesToInstance(instance))
                 .Where(r => !restrictedRoles.Contains(r.Role))
                 .ToListAsync();
             List<TblRoleMember> sourceMemberRoles = await GetRoleMembers(instance, sourceMemberId);
             List<TblRoleMember> targetMemberRoles = await GetRoleMembers(instance, targetMemberId);
 
-            foreach(TblRole role in roles)
+            foreach (TblRole role in roles)
             {
                 TblRoleMember? source = sourceMemberRoles.FirstOrDefault(rm => rm.Role.RoleId == role.RoleId);
                 TblRoleMember? target = targetMemberRoles.FirstOrDefault(rm => rm.Role.RoleId == role.RoleId);
-                RoleClone? r = CompareRoleMembers(source, target);                
-                if(r != null)
+                RoleClone? r = CompareRoleMembers(source, target);
+                if (r != null)
                 {
                     cloneObjects.Roles.Add(r);
                 }
             }
             cloneObjects.Roles.Sort((r1, r2) => r1.Role.ToUpper().CompareTo(r2.Role.ToUpper()));
 
-            if(_securityService.IsAllowedTo("ClonePermissions", instance))
+            if (_securityService.IsAllowedTo("ClonePermissions", instance))
             {
                 List<TblPermission> permissions = await _context.TblPermissions
                     .Where(RAPSSecurityService.FilterPermissionsToInstance(instance))
@@ -97,7 +95,7 @@ namespace Viper.Areas.RAPS.Services
                     TblMemberPermission? source = sourceMemberPermissions.FirstOrDefault(rp => rp.PermissionId == permission.PermissionId);
                     TblMemberPermission? target = targetMemberPermissions.FirstOrDefault(rp => rp.PermissionId == permission.PermissionId);
                     PermissionClone? p = CompareMemberPermissions(source, target);
-                    if(p != null)
+                    if (p != null)
                     {
                         cloneObjects.Permissions.Add(p);
                     }
@@ -118,7 +116,7 @@ namespace Viper.Areas.RAPS.Services
         {
             RoleClone? roleClone = null;
             RoleClone.CloneAction? action = null;
-            if (source != null && target != null 
+            if (source != null && target != null
                 && (source.StartDate != target.StartDate || source.EndDate != target.EndDate))
             {
                 //in both source and target, but dates are different
@@ -131,7 +129,7 @@ namespace Viper.Areas.RAPS.Services
             else if (source != null && target == null)
             {
                 action = RoleClone.CloneAction.Create;
-                
+
             }
             if (action != null)
             {
@@ -175,7 +173,7 @@ namespace Viper.Areas.RAPS.Services
                 action = PermissionClone.CloneAction.Create;
             }
 
-            if(action != null)
+            if (action != null)
             {
                 permissionClone = new PermissionClone()
                 {
@@ -191,9 +189,9 @@ namespace Viper.Areas.RAPS.Services
         public async Task Clone(string instance, string sourceMemberId, string targetMemberId, CloneConfirm objectsToClone)
         {
             MemberCloneObjects memberCloneObjects = await GetUserComparison(instance, sourceMemberId, targetMemberId);
-            foreach(RoleClone role in memberCloneObjects.Roles)
+            foreach (RoleClone role in memberCloneObjects.Roles)
             {
-                if(objectsToClone.RoleIds.Contains(role.RoleId))
+                if (objectsToClone.RoleIds.Contains(role.RoleId))
                 {
                     RAPSAuditService.AuditActionType action = RAPSAuditService.AuditActionType.Create;
                     TblRoleMember rm = new()
@@ -205,7 +203,7 @@ namespace Viper.Areas.RAPS.Services
                         StartDate = role.Source?.StartDate?.ToDateTime(new TimeOnly(0, 0, 0)),
                         EndDate = role.Source?.EndDate?.ToDateTime(new TimeOnly(0, 0, 0))
                     };
-                    switch(role.Action)
+                    switch (role.Action)
                     {
                         case RoleClone.CloneAction.Create:
                             rm.AddDate = DateTime.Now;
@@ -225,7 +223,7 @@ namespace Viper.Areas.RAPS.Services
             }
             await _context.SaveChangesAsync();
 
-            foreach(PermissionClone permission in memberCloneObjects.Permissions)
+            foreach (PermissionClone permission in memberCloneObjects.Permissions)
             {
                 if (objectsToClone.PermissionIds.Contains(permission.PermissionId))
                 {

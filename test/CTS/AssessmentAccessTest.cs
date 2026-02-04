@@ -1,19 +1,13 @@
-﻿using Moq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Moq;
 using Viper.Areas.CTS.Services;
 using Viper.Classes.SQLContext;
-using Viper.test.RAPS;
 
 namespace Viper.test.CTS
 {
     public class AssessmentAccessTest
     {
-        Mock<VIPERContext> context = new Mock<VIPERContext>();
-        Mock<RAPSContext> rapsContext = new Mock<RAPSContext>();
+        readonly Mock<VIPERContext> context = new Mock<VIPERContext>();
+        readonly Mock<RAPSContext> rapsContext = new Mock<RAPSContext>();
 
         /// <summary>
         /// Test that a student can access their own assessments, but not an assessment of another student
@@ -72,8 +66,8 @@ namespace Viper.test.CTS
             //act
             var chiefCanAccessAssessmentOnService = chiefCtsSec.CheckStudentAssessmentViewAccess(SetupUsers.studentUser1.AaudUserId,
                 SetupUsers.facultyUser.AaudUserId, SetupServices.ServiceChiefs[0].ServiceId);
-            var chiefCanAccessAssessmentOnOtherService = chiefCtsSec.CheckStudentAssessmentViewAccess(SetupUsers.studentUser1.AaudUserId, 
-                SetupUsers.facultyUser.AaudUserId, SetupServices.Services.Where(s => s.ServiceId != SetupServices.ServiceChiefs[0].ServiceId).First().ServiceId);
+            var chiefCanAccessAssessmentOnOtherService = chiefCtsSec.CheckStudentAssessmentViewAccess(SetupUsers.studentUser1.AaudUserId,
+                SetupUsers.facultyUser.AaudUserId, SetupServices.Services.First(s => s.ServiceId != SetupServices.ServiceChiefs[0].ServiceId).ServiceId);
 
             //assert
             Assert.True(chiefCanAccessAssessmentOnService, "Chief cannot view assessment on their service.");

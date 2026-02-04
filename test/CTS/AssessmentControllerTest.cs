@@ -1,37 +1,29 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Moq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 using Viper.Areas.CTS.Controllers;
 using Viper.Areas.CTS.Models;
 using Viper.Classes.SQLContext;
-using Viper.Models.AAUD;
-using Viper.Models.CTS;
-using Viper.Models.RAPS;
 
 namespace Viper.test.CTS
 {
     public class AssessmentControllerTest
     {
-        Mock<VIPERContext> context = new Mock<VIPERContext>();
-        Mock<RAPSContext> rapsContext = new Mock<RAPSContext>();
+        readonly Mock<VIPERContext> context = new Mock<VIPERContext>();
+        readonly Mock<RAPSContext> rapsContext = new Mock<RAPSContext>();
 
         private AssessmentController GetAssessmentController(SetupUsers.UserType userType)
         {
             var ctsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, userType);
-            
+
             return new AssessmentController(context.Object, rapsContext.Object, ctsSec, SetupUsers.GetUserHelperForUserType(userType).Object);
         }
 
 
         [Fact]
-        public async void GetAssessmentsCheckForbid()
+        public async Task GetAssessmentsCheckForbid()
         {
             //arrange
             SetupAssessments.SetupEncountersTable(context);
@@ -70,7 +62,7 @@ namespace Viper.test.CTS
         }
 
         [Fact]
-        public async void GetAssessmentsCheckData()
+        public async Task GetAssessmentsCheckData()
         {
             //arrange
             SetupAssessments.SetupEncountersTable(context);
@@ -97,7 +89,7 @@ namespace Viper.test.CTS
         }
 
         [Fact]
-        public async void GetAssessorsCheck()
+        public async Task GetAssessorsCheck()
         {
             //arrange
             var actrlAsFac = GetAssessmentController(SetupUsers.UserType.Faculty);
@@ -119,7 +111,7 @@ namespace Viper.test.CTS
         }
 
         [Fact]
-        public async void GetAssessmentCheck()
+        public async Task GetAssessmentCheck()
         {
             //arrange
             SetupAssessments.SetupEncountersTable(context);
@@ -158,7 +150,7 @@ namespace Viper.test.CTS
         }
 
         [Fact]
-        public async void CreateStudentEpaCheck()
+        public async Task CreateStudentEpaCheck()
         {
             //arrange
             SetupAssessments.SetupEncountersTable(context);
@@ -171,7 +163,7 @@ namespace Viper.test.CTS
             facadeMock.Setup(f => f.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(transMock.Object);
             facadeMock.Setup(f => f.BeginTransaction()).Returns(transMock.Object);
             context.SetupGet(d => d.Database).Returns(facadeMock.Object);
-            
+
             var actrlAsFac = GetAssessmentController(SetupUsers.UserType.Faculty);
             var newEpa = new CreateUpdateStudentEpa()
             {
@@ -194,7 +186,7 @@ namespace Viper.test.CTS
         }
 
         [Fact]
-        public async void UpdateStudentEpaCheck()
+        public async Task UpdateStudentEpaCheck()
         {
             //arrange
             SetupAssessments.SetupEncountersTable(context);
@@ -211,8 +203,8 @@ namespace Viper.test.CTS
             var actrlAsFac = GetAssessmentController(SetupUsers.UserType.Faculty);
             var actrlAsStd = GetAssessmentController(SetupUsers.UserType.Student);
 
-            var encId1 = SetupAssessments.Encounters.Where(e => e.EnteredBy == SetupUsers.facultyUser.AaudUserId).First().EncounterId;
-            var encId2 = SetupAssessments.Encounters.Where(e => e.EnteredBy != SetupUsers.facultyUser.AaudUserId).First().EncounterId;
+            var encId1 = SetupAssessments.Encounters.First(e => e.EnteredBy == SetupUsers.facultyUser.AaudUserId).EncounterId;
+            var encId2 = SetupAssessments.Encounters.First(e => e.EnteredBy != SetupUsers.facultyUser.AaudUserId).EncounterId;
 
             var epa1 = new CreateUpdateStudentEpa()
             {
@@ -266,12 +258,12 @@ namespace Viper.test.CTS
                 Assert.NotNull(a.Result);
                 var result = a.Result as ObjectResult;
                 var forbidResult = a.Result as ForbidResult;
-                if(result != null)
+                if (result != null)
                 {
                     Assert.Equal((int)HttpStatusCode.Forbidden, result?.StatusCode);
                 }
                 Assert.True(result != null || forbidResult != null);
-                
+
             }
             catch (Exception)
             {

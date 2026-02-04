@@ -1,4 +1,4 @@
-﻿using Viper.Models.RAPS;
+using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Models
 {
@@ -37,7 +37,7 @@ namespace Viper.Areas.RAPS.Models
             RoleName = rm.Role?.FriendlyName;
             RoleDescription = rm.Role?.Description;
 
-            if(rm.AaudUser != null)
+            if (rm.AaudUser != null)
             {
                 UserName = rm.AaudUser.DisplayLastName + ", " + rm.AaudUser.DisplayFirstName;
                 LoginId = rm.AaudUser.LoginId;

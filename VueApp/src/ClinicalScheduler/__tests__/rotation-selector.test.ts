@@ -112,7 +112,7 @@ describe("RotationSelector", () => {
 
     describe("Data Transformation", () => {
         it("sorts rotations alphabetically by display name", () => {
-            const sorted = [...componentLogic.mockRotationsResponse].sort((a, b) =>
+            const sorted = componentLogic.mockRotationsResponse.toSorted((a, b) =>
                 componentLogic.getRotationDisplayName(a).localeCompare(componentLogic.getRotationDisplayName(b)),
             )
 
@@ -159,7 +159,7 @@ describe("RotationSelector", () => {
         })
 
         it("returns empty array when no services are allowed", () => {
-            const allowedServiceIds: number[] = new Set([])
+            const allowedServiceIds = new Set<number>()
             const filtered = componentLogic.mockRotationsResponse.filter((r) => allowedServiceIds.has(r.serviceId))
 
             expect(filtered).toHaveLength(0)

@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router"
 import { effortRoutes as routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
-import checkHasOnePermission from "@/composables/CheckPagePermission"
+import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 
 const baseUrl = import.meta.env.VITE_VIPER_HOME
 const router = createRouter({

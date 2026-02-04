@@ -1,14 +1,12 @@
-﻿using Viper.Models.VIPER;
-
 namespace Viper.Areas.CMS.Models
 {
     public partial class CMSFile : Viper.Models.VIPER.File
     {
-        public string FriendlyURL;
+        public string FriendlyURL { get; set; }
 
-        public string URL;
+        public string URL { get; set; }
 
-        public CMSFileMetaData MetaData;
+        public CMSFileMetaData MetaData { get; set; }
 
         public CMSFile()
         {

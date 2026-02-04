@@ -79,8 +79,8 @@ async function loadAssessments(page: number, perPage: number, sortBy: string, de
     })
 
     if (!canViewAll.value) {
-        if (services.value.length == 0 || mineOnly.value) {
-            p.set("enteredById", userStore.userInfo.userId != null ? userStore.userInfo.userId.toString() : "")
+        if (services.value.length === 0 || mineOnly.value) {
+            p.set("enteredById", userStore.userInfo.userId !== null ? userStore.userInfo.userId.toString() : "")
         } else {
             const firstService = services.value[0]
             if (firstService) {
@@ -283,10 +283,8 @@ loadPageData()
         <template #body-cell-action="props">
             <q-td :props="props">
                 <router-link
-                    :props="props"
                     v-if="props.row.editable"
                     :to="{ name: 'AssessmentEpaEdit', query: { assessmentId: props.row.encounterId } }"
-                    v-slot="props"
                 >
                     <q-btn
                         color="primary"
