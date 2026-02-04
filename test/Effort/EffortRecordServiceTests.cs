@@ -460,6 +460,38 @@ public sealed class EffortRecordServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateEffortRecordAsync_PreservesEffortVerified_OnSelfEdit()
+    {
+        // Arrange: Set up a verified instructor
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var originalVerificationDate = DateTime.Now.AddDays(-1);
+        person.EffortVerified = originalVerificationDate;
+        await _context.SaveChangesAsync();
+
+        // Mock the current user as the instructor themselves (self-edit)
+        var selfUser = new AaudUser { AaudUserId = TestPersonId, MothraId = "selfinstructor" };
+        _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(selfUser);
+
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            CourseId = TestCourseId,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 40
+        };
+
+        // Act
+        await _service.CreateEffortRecordAsync(request);
+
+        // Assert: Verification should be preserved for self-edit
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        Assert.NotNull(updatedPerson.EffortVerified);
+        Assert.Equal(originalVerificationDate, updatedPerson.EffortVerified);
+    }
+
+    [Fact]
     public async Task CreateEffortRecordAsync_ThrowsInvalidOperation_WhenCourseIsChild()
     {
         // Arrange: Make course 1 a child of course 2
@@ -777,6 +809,82 @@ public sealed class EffortRecordServiceTests : IDisposable
         Assert.Contains("not allowed on DVM courses", ex.Message);
     }
 
+    [Fact]
+    public async Task UpdateEffortRecordAsync_ClearsEffortVerified_OnPerson()
+    {
+        // Arrange: Set up a verified instructor with an existing record
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        person.EffortVerified = DateTime.Now;
+        await _context.SaveChangesAsync();
+
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20
+        });
+        await _context.SaveChangesAsync();
+
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 30  // Change hours from 20 to 30
+        };
+
+        // Act
+        await _service.UpdateEffortRecordAsync(1, request);
+
+        // Assert
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        Assert.Null(updatedPerson.EffortVerified);
+    }
+
+    [Fact]
+    public async Task UpdateEffortRecordAsync_PreservesEffortVerified_OnSelfEdit()
+    {
+        // Arrange: Set up a verified instructor with an existing record
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var originalVerificationDate = DateTime.Now.AddDays(-1);
+        person.EffortVerified = originalVerificationDate;
+        await _context.SaveChangesAsync();
+
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20
+        });
+        await _context.SaveChangesAsync();
+
+        // Mock the current user as the instructor themselves (self-edit)
+        var selfUser = new AaudUser { AaudUserId = TestPersonId, MothraId = "selfinstructor" };
+        _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(selfUser);
+
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 30  // Change hours from 20 to 30
+        };
+
+        // Act
+        await _service.UpdateEffortRecordAsync(1, request);
+
+        // Assert: Verification should be preserved for self-edit
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        Assert.NotNull(updatedPerson.EffortVerified);
+        Assert.Equal(originalVerificationDate, updatedPerson.EffortVerified);
+    }
+
     #endregion
 
     #region DeleteEffortRecordAsync Tests
@@ -847,6 +955,40 @@ public sealed class EffortRecordServiceTests : IDisposable
         // Assert
         var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
         Assert.Null(updatedPerson.EffortVerified);
+    }
+
+    [Fact]
+    public async Task DeleteEffortRecordAsync_PreservesEffortVerified_OnSelfEdit()
+    {
+        // Arrange: Set up a verified instructor with an existing record
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var originalVerificationDate = DateTime.Now.AddDays(-1);
+        person.EffortVerified = originalVerificationDate;
+        await _context.SaveChangesAsync();
+
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20
+        });
+        await _context.SaveChangesAsync();
+
+        // Mock the current user as the instructor themselves (self-edit)
+        var selfUser = new AaudUser { AaudUserId = TestPersonId, MothraId = "selfinstructor" };
+        _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(selfUser);
+
+        // Act - pass null for originalModifiedDate (legacy record)
+        await _service.DeleteEffortRecordAsync(1, null);
+
+        // Assert: Verification should be preserved for self-edit
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        Assert.NotNull(updatedPerson.EffortVerified);
+        Assert.Equal(originalVerificationDate, updatedPerson.EffortVerified);
     }
 
     #endregion

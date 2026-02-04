@@ -106,10 +106,9 @@
                         />
                     </template>
                     <div>
-                        No courses found where you are listed as an instructor.
+                        No courses found.
                         <ul class="q-mt-sm q-mb-none">
                             <li>Make sure you are searching for the correct term</li>
-                            <li>DVM/VET courses are not shown (contact department staff)</li>
                             <li>You may need to wait for Banner data to sync</li>
                         </ul>
                     </div>

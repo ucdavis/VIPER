@@ -27,6 +27,7 @@ public sealed class VerificationServiceTests : IDisposable
     private readonly Mock<IEffortPermissionService> _permissionServiceMock;
     private readonly Mock<ITermService> _termServiceMock;
     private readonly Mock<IEmailService> _emailServiceMock;
+    private readonly Mock<ICourseClassificationService> _classificationServiceMock;
     private readonly Mock<IMapper> _mapperMock;
     private readonly Mock<ILogger<VerificationService>> _loggerMock;
     private readonly EffortSettings _settings;
@@ -55,6 +56,7 @@ public sealed class VerificationServiceTests : IDisposable
         _permissionServiceMock = new Mock<IEffortPermissionService>();
         _termServiceMock = new Mock<ITermService>();
         _emailServiceMock = new Mock<IEmailService>();
+        _classificationServiceMock = new Mock<ICourseClassificationService>();
         _mapperMock = new Mock<IMapper>();
         _loggerMock = new Mock<ILogger<VerificationService>>();
 
@@ -98,6 +100,7 @@ public sealed class VerificationServiceTests : IDisposable
             _permissionServiceMock.Object,
             _termServiceMock.Object,
             _emailServiceMock.Object,
+            _classificationServiceMock.Object,
             _mapperMock.Object,
             _loggerMock.Object,
             settingsOptions,
@@ -251,7 +254,17 @@ public sealed class VerificationServiceTests : IDisposable
         _mapperMock.Setup(m => m.Map<PersonDto>(It.IsAny<EffortPerson>()))
             .Returns(new PersonDto { PersonId = TestPersonId });
         _mapperMock.Setup(m => m.Map<List<InstructorEffortRecordDto>>(It.IsAny<List<EffortRecord>>()))
-            .Returns(new List<InstructorEffortRecordDto> { new() { Id = 1, CourseId = TestCourseId } });
+            .Returns(new List<InstructorEffortRecordDto>
+            {
+                new()
+                {
+                    Id = 1,
+                    CourseId = TestCourseId,
+                    Hours = 0,
+                    EffortType = "LEC",
+                    Course = new CourseDto { SubjCode = "VET", CrseNumb = "410" }
+                }
+            });
 
         // Act
         var result = await _service.GetMyEffortAsync(TestTermCode);
@@ -615,10 +628,12 @@ public sealed class VerificationServiceTests : IDisposable
             TermCode = TestTermCode,
             EffortTypeId = "LEC",
             RoleId = 1,
-            Hours = 0,
-            Course = genericRCourse
+            Hours = 0
         });
         await _context.SaveChangesAsync();
+
+        // Clear the change tracker so Include() must resolve from the database
+        _context.ChangeTracker.Clear();
 
         // Act
         var result = await _service.CanVerifyAsync(TestPersonId, TestTermCode);
@@ -706,6 +721,7 @@ public sealed class VerificationServiceTests : IDisposable
             _permissionServiceMock.Object,
             _termServiceMock.Object,
             _emailServiceMock.Object,
+            _classificationServiceMock.Object,
             _mapperMock.Object,
             _loggerMock.Object,
             Options.Create(badSettings),

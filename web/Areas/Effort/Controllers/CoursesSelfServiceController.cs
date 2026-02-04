@@ -18,24 +18,22 @@ namespace Viper.Areas.Effort.Controllers;
 public class CoursesSelfServiceController : BaseEffortController
 {
     private readonly ICourseService _courseService;
+    private readonly IInstructorService _instructorService;
     private readonly IEffortPermissionService _permissionService;
-    private readonly ICourseClassificationService _classificationService;
 
     public CoursesSelfServiceController(
         ICourseService courseService,
+        IInstructorService instructorService,
         IEffortPermissionService permissionService,
-        ICourseClassificationService classificationService,
         ILogger<CoursesSelfServiceController> logger) : base(logger)
     {
         _courseService = courseService;
+        _instructorService = instructorService;
         _permissionService = permissionService;
-        _classificationService = classificationService;
     }
 
     /// <summary>
-    /// Search for Banner courses that the current user is an instructor for.
-    /// This is for self-service import - only returns courses where the user is listed as instructor.
-    /// Excludes DVM/VET courses which must be imported by staff.
+    /// Search for Banner courses for self-service import.
     /// </summary>
     [HttpGet("search")]
     public async Task<ActionResult<IEnumerable<BannerCourseDto>>> SearchBannerCoursesForSelf(
@@ -56,24 +54,15 @@ public class CoursesSelfServiceController : BaseEffortController
 
         try
         {
-            var allCourses = await _courseService.SearchBannerCoursesAsync(termCode, subjCode, crseNumb, seqNumb, crn, ct);
-
-            // Filter out DVM/VET courses first (no DB call needed)
-            var nonDvmCourses = allCourses
-                .Where(course => !_classificationService.IsDvmCourse(course.SubjCode))
-                .ToList();
-
-            // Batch query: get all CRNs where user is instructor (3 queries total instead of 3N)
+            // Ensure caller is an instructor for this term in the Effort system
             var personId = _permissionService.GetCurrentPersonId();
-            var courseCrns = nonDvmCourses.Select(c => c.Crn).ToList();
-            var instructorCrns = await _courseService.GetInstructorCrnsAsync(termCode, personId, courseCrns, ct);
+            if (!await _instructorService.InstructorExistsAsync(personId, termCode, ct))
+            {
+                return Forbid();
+            }
 
-            // Filter in-memory using the HashSet (O(1) lookup per course)
-            var filteredCourses = nonDvmCourses
-                .Where(course => instructorCrns.Contains(course.Crn.Trim()))
-                .ToList();
-
-            return Ok(filteredCourses);
+            var courses = await _courseService.SearchBannerCoursesAsync(termCode, subjCode, crseNumb, seqNumb, crn, ct);
+            return Ok(courses);
         }
         catch (Microsoft.Data.SqlClient.SqlException ex)
         {
@@ -95,9 +84,8 @@ public class CoursesSelfServiceController : BaseEffortController
     }
 
     /// <summary>
-    /// Import a course from Banner for self-service (instructors importing their own courses).
+    /// Import a course from Banner for self-service.
     /// This is idempotent - if the course already exists, it returns the existing course.
-    /// DVM/VET courses cannot be imported by instructors.
     /// </summary>
     [HttpPost("import")]
     public async Task<ActionResult<ImportCourseForSelfResult>> ImportCourseForSelf(
@@ -118,6 +106,13 @@ public class CoursesSelfServiceController : BaseEffortController
             return BadRequest("Term is not open for editing");
         }
 
+        // Ensure caller is an instructor for this term in the Effort system
+        var personId = _permissionService.GetCurrentPersonId();
+        if (!await _instructorService.InstructorExistsAsync(personId, request.TermCode, ct))
+        {
+            return Forbid();
+        }
+
         // Fetch course from Banner to validate
         var bannerCourse = await _courseService.GetBannerCourseAsync(request.TermCode, request.Crn, ct);
         if (bannerCourse == null)
@@ -125,23 +120,6 @@ public class CoursesSelfServiceController : BaseEffortController
             _logger.LogWarning("Course {Crn} not found in Banner for term {TermCode}",
                 LogSanitizer.SanitizeId(request.Crn), request.TermCode);
             return NotFound($"Course with CRN {request.Crn} not found in Banner for term {request.TermCode}");
-        }
-
-        // Reject DVM/VET courses
-        if (_classificationService.IsDvmCourse(bannerCourse.SubjCode))
-        {
-            _logger.LogWarning("Instructor attempted to import DVM/VET course {Crn}",
-                LogSanitizer.SanitizeId(request.Crn));
-            return BadRequest("DVM and VET courses cannot be imported by instructors. Please contact your department administrator.");
-        }
-
-        // Verify user is an instructor for this course
-        var personId = _permissionService.GetCurrentPersonId();
-        if (!await _courseService.IsInstructorForCourseAsync(request.TermCode, request.Crn, personId, ct))
-        {
-            _logger.LogWarning("User {PersonId} is not an instructor for course {Crn}",
-                personId, LogSanitizer.SanitizeId(request.Crn));
-            return BadRequest("You are not listed as an instructor for this course in Banner");
         }
 
         // Import the course (idempotent)

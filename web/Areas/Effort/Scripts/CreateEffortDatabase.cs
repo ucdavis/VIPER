@@ -645,46 +645,46 @@ BEGIN
         CONSTRAINT PK_SessionTypes PRIMARY KEY CLUSTERED (Id)
     );
 
-    -- Seed with 36 distinct session types from legacy database analysis
+    -- Seed with 36 session types from CREST tbl_sessiontype (legacy source of truth)
     -- IMPORTANT: Keep in sync with EffortScriptHelper.ValidSessionTypes
     -- CLI is the ONLY session type that uses weeks instead of hours
     INSERT INTO [effort].[SessionTypes] (Id, Description, UsesWeeks) VALUES
     ('ACT', 'Activity', 0),
-    ('AUT', 'Autopsy', 0),
-    ('CBL', 'Case-Based Learning', 0),
-    ('CLI', 'Clinical', 1),   -- ONLY CLI uses weeks
+    ('AUT', 'Autotutorial', 0),
+    ('CBL', 'Case Based Learning', 0),
+    ('CLI', 'Clinical Activity', 1),   -- ONLY CLI uses weeks
     ('CON', 'Conference', 0),
-    ('D/L', 'Distance Learning', 0),
+    ('D/L', 'Discussion/Laboratory', 0),
     ('DIS', 'Discussion', 0),
-    ('DSL', 'Distance Learning', 0),
+    ('DSL', 'Directed Self Learning', 0),
     ('EXM', 'Examination', 0),
-    ('FAS', 'Faculty Assessment', 0),
+    ('FAS', 'Formative Assessment', 0),
     ('FWK', 'Fieldwork', 0),
     ('IND', 'Independent Study', 0),
     ('INT', 'Internship', 0),
     ('JLC', 'Journal Club', 0),
-    ('L/D', 'Lab/Discussion', 0),
+    ('L/D', 'Laboratory/Discussion', 0),
     ('LAB', 'Laboratory', 0),
     ('LEC', 'Lecture', 0),
-    ('LED', 'Lab/Discussion', 0),
+    ('LED', 'Lecture/Discussion', 0),
     ('LIS', 'Listening', 0),
-    ('LLA', 'Lab/Lecture', 0),
-    ('PBL', 'Problem-Based Learning', 0),
-    ('PER', 'Performance', 0),
-    ('PRA', 'Practicum', 0),
-    ('PRB', 'Problem', 0),
+    ('LLA', 'Lecture/Laboratory', 0),
+    ('PBL', 'Problem Based Learning', 0),
+    ('PER', 'Performance Instruction', 0),
+    ('PRA', 'Practice', 0),
+    ('PRB', 'Extensive Problem Solving', 0),
     ('PRJ', 'Project', 0),
     ('PRS', 'Presentation', 0),
     ('SEM', 'Seminar', 0),
     ('STD', 'Studio', 0),
-    ('T-D', 'Team-Discussion', 0),
-    ('TBL', 'Team-Based Learning', 0),
-    ('TMP', 'Temporary', 0),
+    ('T-D', 'Term Paper or Discussion', 0),
+    ('TBL', 'Team Based Learning', 0),
+    ('TMP', 'Term Paper', 0),
     ('TUT', 'Tutorial', 0),
     ('VAR', 'Variable', 0),
-    ('WED', 'Wednesday', 0),
+    ('WED', 'Web Electronic Discussion', 0),
     ('WRK', 'Workshop', 0),
-    ('WVL', 'Work-Variable Learning', 0);
+    ('WVL', 'Web Virtual Lecture', 0);
 END";
             cmd.ExecuteNonQuery();
             Console.WriteLine($"  ✓ SessionTypes table created and seeded ({EffortScriptHelper.ValidSessionTypes.Length} rows)");

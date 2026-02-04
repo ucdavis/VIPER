@@ -108,19 +108,6 @@
                 </div>
             </q-banner>
 
-            <!-- Generic R-course with zero effort info -->
-            <q-banner
-                v-if="hasGenericRCourseWithZeroEffort"
-                class="bg-info text-white q-mb-md"
-                rounded
-            >
-                <template #avatar>
-                    <q-icon name="info" />
-                </template>
-                The Resident (R) course was added automatically to allow you to record resident teaching effort. If you
-                leave it with 0 effort and verify, it will be automatically removed.
-            </q-banner>
-
             <!-- Clinical effort note -->
             <p
                 v-if="hasClinicalEffort"
@@ -157,125 +144,18 @@
                 <div>No effort records for this term.</div>
             </div>
 
-            <!-- Mobile Card View -->
-            <div
+            <!-- Effort Records Display -->
+            <EffortRecordsDisplay
                 v-if="myEffort.effortRecords.length > 0"
-                class="lt-sm q-mb-lg"
-            >
-                <q-card
-                    v-for="record in myEffort.effortRecords"
-                    :key="record.id"
-                    flat
-                    bordered
-                    class="q-mb-sm"
-                    :class="{ 'zero-effort-card': isZeroEffortRecord(record.id) }"
-                >
-                    <q-card-section class="q-py-sm">
-                        <div class="row items-center justify-between q-mb-xs">
-                            <span class="text-primary text-weight-bold">
-                                {{ record.course.subjCode }}
-                                {{ record.course.crseNumb.trim() }}-{{ record.course.seqNumb }}
-                            </span>
-                            <div>
-                                <q-btn
-                                    v-if="myEffort.canEdit"
-                                    flat
-                                    dense
-                                    round
-                                    icon="edit"
-                                    color="primary"
-                                    size="sm"
-                                    aria-label="Edit effort record"
-                                    @click="openEditDialog(record)"
-                                />
-                                <q-btn
-                                    v-if="myEffort.canEdit"
-                                    flat
-                                    dense
-                                    round
-                                    icon="delete"
-                                    color="negative"
-                                    size="sm"
-                                    aria-label="Delete effort record"
-                                    @click="confirmDelete(record)"
-                                />
-                            </div>
-                        </div>
-                        <div class="text-body2 q-mb-xs">
-                            {{ record.roleDescription }} &bull; {{ record.effortType }}
-                        </div>
-                        <div class="row q-gutter-md text-caption text-grey-7">
-                            <span>{{ record.course.units }} units</span>
-                            <span>Enroll: {{ record.course.enrollment }}</span>
-                            <span :class="{ 'text-warning text-weight-bold': isZeroEffortRecord(record.id) }">
-                                {{ record.effortValue ?? 0 }}
-                                {{ record.effortLabel === "weeks" ? "Weeks" : "Hours" }}
-                            </span>
-                        </div>
-                    </q-card-section>
-                </q-card>
-            </div>
-
-            <!-- Effort Records Table (desktop) -->
-            <q-table
-                v-if="myEffort.effortRecords.length > 0"
-                :rows="myEffort.effortRecords"
-                :columns="columns"
-                row-key="id"
-                dense
-                flat
-                bordered
-                hide-pagination
-                wrap-cells
-                :rows-per-page-options="[0]"
-                class="effort-table q-mb-lg gt-xs"
-            >
-                <template #body-cell-course="props">
-                    <q-td :props="props">
-                        {{ props.row.course.subjCode }}
-                        {{ props.row.course.crseNumb.trim() }}-{{ props.row.course.seqNumb }}
-                    </q-td>
-                </template>
-                <template #body-cell-effort="props">
-                    <q-td
-                        :props="props"
-                        :class="{ 'zero-effort': isZeroEffortRecord(props.row.id) }"
-                    >
-                        {{ props.row.effortValue ?? 0 }}
-                        {{ props.row.effortLabel === "weeks" ? "Weeks" : "Hours" }}
-                    </q-td>
-                </template>
-                <template #body-cell-actions="props">
-                    <q-td :props="props">
-                        <q-btn
-                            v-if="myEffort?.canEdit"
-                            flat
-                            dense
-                            round
-                            icon="edit"
-                            color="primary"
-                            size="sm"
-                            aria-label="Edit effort record"
-                            @click="openEditDialog(props.row)"
-                        >
-                            <q-tooltip>Edit</q-tooltip>
-                        </q-btn>
-                        <q-btn
-                            v-if="myEffort?.canEdit"
-                            flat
-                            dense
-                            round
-                            icon="delete"
-                            color="negative"
-                            size="sm"
-                            aria-label="Delete effort record"
-                            @click="confirmDelete(props.row)"
-                        >
-                            <q-tooltip>Delete</q-tooltip>
-                        </q-btn>
-                    </q-td>
-                </template>
-            </q-table>
+                :records="myEffort.effortRecords"
+                :term-code="termCode"
+                :can-edit="myEffort.canEdit"
+                :can-delete="myEffort.canEdit"
+                :zero-effort-record-ids="myEffort.zeroEffortRecordIds"
+                no-data-message="No effort records for this term"
+                @edit="openEditDialog"
+                @delete="confirmDelete"
+            />
 
             <!-- Cross-Listed / Sectioned Courses Section -->
             <div
@@ -394,6 +274,7 @@ import { VerificationErrorCodes } from "../types"
 import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
 import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
 import CourseImportForSelfDialog from "../components/CourseImportForSelfDialog.vue"
+import EffortRecordsDisplay from "../components/EffortRecordsDisplay.vue"
 
 const route = useRoute()
 const $q = useQuasar()
@@ -420,69 +301,6 @@ const preSelectedCourseId = ref<number | null>(null)
 // Computed
 const hasClinicalEffort = computed(() => {
     return myEffort.value?.effortRecords.some((r) => r.effortType === "CLI") ?? false
-})
-
-const hasGenericRCourseWithZeroEffort = computed(() => {
-    return (
-        myEffort.value?.effortRecords.some(
-            (r) =>
-                r.course.crn === "RESID" && (r.hours === 0 || r.hours === null) && (r.weeks === 0 || r.weeks === null),
-        ) ?? false
-    )
-})
-
-const columns = computed<QTableColumn[]>(() => {
-    const cols: QTableColumn[] = [
-        {
-            name: "course",
-            label: "Course",
-            field: (row: InstructorEffortRecordDto) =>
-                `${row.course.subjCode} ${row.course.crseNumb.trim()}-${row.course.seqNumb}`,
-            align: "left",
-        },
-        {
-            name: "units",
-            label: "Units",
-            field: (row: InstructorEffortRecordDto) => row.course.units,
-            align: "left",
-        },
-        {
-            name: "enrollment",
-            label: "Enroll",
-            field: (row: InstructorEffortRecordDto) => row.course.enrollment,
-            align: "left",
-        },
-        {
-            name: "role",
-            label: "Role",
-            field: "roleDescription",
-            align: "left",
-        },
-        {
-            name: "effortType",
-            label: "Effort Type",
-            field: "effortType",
-            align: "left",
-        },
-        {
-            name: "effort",
-            label: "Effort",
-            field: "effortValue",
-            align: "left",
-        },
-    ]
-
-    // Add actions column if user can edit
-    if (myEffort.value?.canEdit) {
-        cols.push({
-            name: "actions",
-            label: "Actions",
-            field: "id",
-            align: "center",
-        })
-    }
-
-    return cols
 })
 
 const childColumns: QTableColumn[] = [
@@ -513,10 +331,6 @@ const childColumns: QTableColumn[] = [
 ]
 
 // Methods
-function isZeroEffortRecord(recordId: number): boolean {
-    return myEffort.value?.zeroEffortRecordIds.includes(recordId) ?? false
-}
-
 function formatDate(dateString: string | null): string {
     if (!dateString) return ""
     const date = new Date(dateString)
@@ -703,18 +517,3 @@ async function loadData() {
 
 onMounted(loadData)
 </script>
-
-<style scoped>
-.effort-table {
-    width: 100%;
-}
-
-.effort-table :deep(.zero-effort) {
-    background-color: #fff3cd;
-    color: #856404;
-}
-
-.zero-effort-card {
-    background-color: #fff3cd;
-}
-</style>

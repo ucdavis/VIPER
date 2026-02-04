@@ -25,6 +25,7 @@ public class VerificationService : IVerificationService
     private readonly IEffortPermissionService _permissionService;
     private readonly ITermService _termService;
     private readonly IEmailService _emailService;
+    private readonly ICourseClassificationService _classificationService;
     private readonly IMapper _mapper;
     private readonly ILogger<VerificationService> _logger;
     private readonly EffortSettings _settings;
@@ -38,6 +39,7 @@ public class VerificationService : IVerificationService
         IEffortPermissionService permissionService,
         ITermService termService,
         IEmailService emailService,
+        ICourseClassificationService classificationService,
         IMapper mapper,
         ILogger<VerificationService> logger,
         IOptions<EffortSettings> settings,
@@ -50,6 +52,7 @@ public class VerificationService : IVerificationService
         _permissionService = permissionService;
         _termService = termService;
         _emailService = emailService;
+        _classificationService = classificationService;
         _mapper = mapper;
         _logger = logger;
         _settings = settings.Value;
@@ -88,6 +91,14 @@ public class VerificationService : IVerificationService
             .ToListAsync(ct);
 
         var recordDtos = _mapper.Map<List<InstructorEffortRecordDto>>(records);
+
+        // Enrich course DTOs with classification flags (not available from entity mapping)
+        foreach (var course in recordDtos.Select(record => record.Course))
+        {
+            course.IsDvm = _classificationService.IsDvmCourse(course.SubjCode);
+            course.Is199299 = _classificationService.Is199299Course(course.CrseNumb);
+            course.IsRCourse = _classificationService.IsRCourse(course.CrseNumb);
+        }
 
         // Get child courses for all parent courses
         var courseIds = records.Select(r => r.CourseId).Distinct().ToList();

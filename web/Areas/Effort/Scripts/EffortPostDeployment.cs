@@ -16,7 +16,8 @@
 // 9. SimplifyTermStatus - Remove redundant columns from TermStatus table
 // 10. FixPercentageConstraint - Update CK_Percentages_Percentage constraint from 0-100 to 0-1
 // 11. AddViewDeptAuditPermission - Add SVMSecure.Effort.ViewDeptAudit permission for department chairs to view audit trail
-// 12. AddAlertStatesTable - Create AlertStates table for persisting data hygiene alert states
+// 12. FixEffortTypeDescriptions - Fix incorrect EffortType descriptions to match legacy CREST tbl_sessiontype
+// 13. AddAlertStatesTable - Create AlertStates table for persisting data hygiene alert states
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -248,10 +249,27 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine();
             }
 
-            // Task 12: Add AlertStates Table
+            // Task 12: Fix EffortType descriptions to match legacy CREST tbl_sessiontype
             {
                 Console.WriteLine("----------------------------------------");
-                Console.WriteLine("Task 12: Add AlertStates Table");
+                Console.WriteLine("Task 12: Fix EffortType Descriptions");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunFixEffortTypeDescriptionsTask(viperConnectionString, executeMode);
+                taskResults["FixEffortTypeDescriptions"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 13: Add AlertStates Table
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 13: Add AlertStates Table");
                 Console.WriteLine("----------------------------------------");
 
                 string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
@@ -2502,7 +2520,165 @@ namespace Viper.Areas.Effort.Scripts
 
         #endregion
 
-        #region Task 12: Add AlertStates Table
+        #region Task 12: Fix EffortType Descriptions
+
+        /// <summary>
+        /// Correct descriptions from CREST tbl_sessiontype for the 36 used session types
+        /// </summary>
+        private static readonly Dictionary<string, string> CorrectEffortTypeDescriptions = new()
+        {
+            { "ACT", "Activity" },
+            { "AUT", "Autotutorial" },
+            { "CBL", "Case Based Learning" },
+            { "CLI", "Clinical Activity" },
+            { "CON", "Conference" },
+            { "D/L", "Discussion/Laboratory" },
+            { "DIS", "Discussion" },
+            { "DSL", "Directed Self Learning" },
+            { "EXM", "Examination" },
+            { "FAS", "Formative Assessment" },
+            { "FWK", "Fieldwork" },
+            { "IND", "Independent Study" },
+            { "INT", "Internship" },
+            { "JLC", "Journal Club" },
+            { "L/D", "Laboratory/Discussion" },
+            { "LAB", "Laboratory" },
+            { "LEC", "Lecture" },
+            { "LED", "Lecture/Discussion" },
+            { "LIS", "Listening" },
+            { "LLA", "Lecture/Laboratory" },
+            { "PBL", "Problem Based Learning" },
+            { "PER", "Performance Instruction" },
+            { "PRA", "Practice" },
+            { "PRB", "Extensive Problem Solving" },
+            { "PRJ", "Project" },
+            { "PRS", "Presentation" },
+            { "SEM", "Seminar" },
+            { "STD", "Studio" },
+            { "T-D", "Term Paper or Discussion" },
+            { "TBL", "Team Based Learning" },
+            { "TMP", "Term Paper" },
+            { "TUT", "Tutorial" },
+            { "VAR", "Variable" },
+            { "WED", "Web Electronic Discussion" },
+            { "WRK", "Workshop" },
+            { "WVL", "Web Virtual Lecture" }
+        };
+
+        private static (bool Success, string Message) RunFixEffortTypeDescriptionsTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Check if EffortTypes table exists (it should after Task 3 rename)
+                using var checkCmd = new SqlCommand(
+                    "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'EffortTypes'",
+                    connection);
+                int tableExists = (int)checkCmd.ExecuteScalar();
+
+                if (tableExists == 0)
+                {
+                    Console.WriteLine("  ⚠ EffortTypes table does not exist - skipping");
+                    return (true, "Skipped - EffortTypes table does not exist");
+                }
+
+                // Find which descriptions need updating
+                var typesToUpdate = new List<(string Id, string CurrentDesc, string CorrectDesc)>();
+
+                using (var selectCmd = new SqlCommand(
+                    "SELECT Id, Description FROM [effort].[EffortTypes]", connection))
+                using (var reader = selectCmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string id = reader.GetString(0).Trim();
+                        string currentDesc = reader.GetString(1);
+
+                        if (CorrectEffortTypeDescriptions.TryGetValue(id, out string? correctDesc)
+                            && !string.Equals(currentDesc, correctDesc, StringComparison.Ordinal))
+                        {
+                            typesToUpdate.Add((id, currentDesc, correctDesc));
+                        }
+                    }
+                }
+
+                if (typesToUpdate.Count == 0)
+                {
+                    Console.WriteLine("  ✓ All EffortType descriptions are already correct");
+                    return (true, "No changes needed - all descriptions correct");
+                }
+
+                Console.WriteLine($"  Found {typesToUpdate.Count} EffortType(s) with incorrect descriptions:");
+                foreach (var (id, currentDesc, correctDesc) in typesToUpdate)
+                {
+                    Console.WriteLine($"    {id}: \"{currentDesc}\" → \"{correctDesc}\"");
+                }
+                Console.WriteLine();
+
+                // Execute the updates within a transaction (rollback in dry-run mode)
+                int updatedCount = 0;
+                using var transaction = connection.BeginTransaction();
+
+                try
+                {
+                    foreach (var (id, _, correctDesc) in typesToUpdate)
+                    {
+                        using var updateCmd = new SqlCommand(
+                            "UPDATE [effort].[EffortTypes] SET Description = @Description WHERE Id = @Id",
+                            connection, transaction);
+                        updateCmd.Parameters.AddWithValue("@Description", correctDesc);
+                        updateCmd.Parameters.AddWithValue("@Id", id);
+
+                        int rowsAffected = updateCmd.ExecuteNonQuery();
+                        if (rowsAffected > 0)
+                        {
+                            updatedCount++;
+                        }
+                    }
+
+                    // Commit or rollback based on execute mode
+                    if (executeMode)
+                    {
+                        transaction.Commit();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"  ✓ Updated {updatedCount} EffortType description(s)");
+                        Console.ResetColor();
+                        return (true, $"Updated {updatedCount} description(s)");
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine($"  ✓ Verified {updatedCount} update(s) would succeed");
+                        Console.WriteLine("  ↶ Transaction rolled back - no permanent changes");
+                        Console.ResetColor();
+                        return (true, $"Verified {updatedCount} update(s) (rolled back)");
+                    }
+                }
+                catch (SqlException ex)
+                {
+                    transaction.Rollback();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"  ✗ Database error: {ex.Message}");
+                    Console.WriteLine("  ↶ Transaction rolled back");
+                    Console.ResetColor();
+                    return (false, $"Database error: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  ✗ Error: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Task 13: Add AlertStates Table
 
         /// <summary>
         /// Creates the AlertStates table for persisting data hygiene alert states.

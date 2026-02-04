@@ -22,6 +22,7 @@ public class InstructorService : IInstructorService
     private readonly AAUDContext _aaudContext;
     private readonly DictionaryContext _dictionaryContext;
     private readonly IEffortAuditService _auditService;
+    private readonly ICourseClassificationService _classificationService;
     private readonly IMapper _mapper;
     private readonly ILogger<InstructorService> _logger;
     private readonly IMemoryCache _cache;
@@ -66,6 +67,7 @@ public class InstructorService : IInstructorService
         AAUDContext aaudContext,
         DictionaryContext dictionaryContext,
         IEffortAuditService auditService,
+        ICourseClassificationService classificationService,
         IMapper mapper,
         ILogger<InstructorService> logger,
         IMemoryCache cache)
@@ -75,6 +77,7 @@ public class InstructorService : IInstructorService
         _aaudContext = aaudContext;
         _dictionaryContext = dictionaryContext;
         _auditService = auditService;
+        _classificationService = classificationService;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
@@ -1159,7 +1162,10 @@ public class InstructorService : IInstructorService
                 SeqNumb = r.Course.SeqNumb,
                 Enrollment = r.Course.Enrollment,
                 Units = r.Course.Units,
-                CustDept = r.Course.CustDept
+                CustDept = r.Course.CustDept,
+                IsDvm = _classificationService.IsDvmCourse(r.Course.SubjCode),
+                Is199299 = _classificationService.Is199299Course(r.Course.CrseNumb),
+                IsRCourse = _classificationService.IsRCourse(r.Course.CrseNumb)
             },
             ChildCourses = childrenByParent.TryGetValue(r.CourseId, out var children)
                 ? children

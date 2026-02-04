@@ -4,7 +4,6 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
-using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
@@ -15,9 +14,6 @@ namespace Viper.Areas.Effort.Services;
 public class CourseService : ICourseService
 {
     private readonly EffortDbContext _context;
-    private readonly VIPERContext _viperContext;
-    private readonly AAUDContext _aaudContext;
-    private readonly CoursesContext _coursesContext;
     private readonly IEffortAuditService _auditService;
     private readonly ILogger<CourseService> _logger;
 
@@ -46,16 +42,10 @@ public class CourseService : ICourseService
 
     public CourseService(
         EffortDbContext context,
-        VIPERContext viperContext,
-        AAUDContext aaudContext,
-        CoursesContext coursesContext,
         IEffortAuditService auditService,
         ILogger<CourseService> logger)
     {
         _context = context;
-        _viperContext = viperContext;
-        _aaudContext = aaudContext;
-        _coursesContext = coursesContext;
         _auditService = auditService;
         _logger = logger;
     }
@@ -475,87 +465,6 @@ public class CourseService : ICourseService
             CustDept = course.CustDept.Trim(),
             ParentCourseId = parentCourseId
         };
-    }
-
-    /// <inheritdoc />
-    public async Task<bool> IsInstructorForCourseAsync(int termCode, string crn, int personId, CancellationToken ct = default)
-    {
-        // Look up the user's MothraId from VIPER Person table
-        var person = await _viperContext.People
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.PersonId == personId, ct);
-
-        if (person == null || string.IsNullOrEmpty(person.MothraId))
-        {
-            _logger.LogWarning("Person {PersonId} not found or has no MothraId", personId);
-            return false;
-        }
-
-        // Look up the PIDM from AAUD Ids table using MothraId
-        var termCodeStr = termCode.ToString();
-        var idsRecord = await _aaudContext.Ids
-            .AsNoTracking()
-            .FirstOrDefaultAsync(i => i.IdsMothraid == person.MothraId && i.IdsTermCode == termCodeStr, ct);
-
-        if (idsRecord == null || string.IsNullOrEmpty(idsRecord.IdsPidm))
-        {
-            _logger.LogDebug("No PIDM found for MothraId {MothraId} in term {TermCode}", person.MothraId, termCode);
-            return false;
-        }
-
-        // Check if there's a POA entry for this PIDM and CRN
-        var crnTrimmed = crn.Trim();
-        var poaExists = await _coursesContext.Poas
-            .AsNoTracking()
-            .AnyAsync(p => p.PoaTermCode == termCodeStr
-                        && p.PoaCrn.Trim() == crnTrimmed
-                        && p.PoaPidm == idsRecord.IdsPidm, ct);
-
-        return poaExists;
-    }
-
-    /// <inheritdoc />
-    public async Task<HashSet<string>> GetInstructorCrnsAsync(int termCode, int personId, IEnumerable<string> crns, CancellationToken ct = default)
-    {
-        var crnList = crns.Select(c => c.Trim()).Distinct().ToList();
-        if (crnList.Count == 0)
-        {
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        }
-
-        // Query 1: Look up the user's MothraId from VIPER Person table (once)
-        var person = await _viperContext.People
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.PersonId == personId, ct);
-
-        if (person == null || string.IsNullOrEmpty(person.MothraId))
-        {
-            _logger.LogWarning("Person {PersonId} not found or has no MothraId", personId);
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        }
-
-        // Query 2: Look up PIDM from AAUD Ids table (once)
-        var termCodeStr = termCode.ToString();
-        var idsRecord = await _aaudContext.Ids
-            .AsNoTracking()
-            .FirstOrDefaultAsync(i => i.IdsMothraid == person.MothraId && i.IdsTermCode == termCodeStr, ct);
-
-        if (idsRecord == null || string.IsNullOrEmpty(idsRecord.IdsPidm))
-        {
-            _logger.LogDebug("No PIDM found for MothraId {MothraId} in term {TermCode}", person.MothraId, termCode);
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        }
-
-        // Query 3: Batch query POA for all CRNs at once
-        var instructorCrns = await _coursesContext.Poas
-            .AsNoTracking()
-            .Where(p => p.PoaTermCode == termCodeStr
-                     && p.PoaPidm == idsRecord.IdsPidm
-                     && crnList.Contains(p.PoaCrn.Trim()))
-            .Select(p => p.PoaCrn.Trim())
-            .ToListAsync(ct);
-
-        return new HashSet<string>(instructorCrns, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc />

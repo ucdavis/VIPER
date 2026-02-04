@@ -40,15 +40,18 @@
                 <!-- Course Selection -->
                 <q-select
                     v-model="selectedCourse"
-                    :options="courseOptions"
+                    :options="filteredCourseOptions"
                     label="Course *"
                     dense
                     options-dense
                     outlined
                     emit-value
                     map-options
+                    use-input
+                    input-debounce="0"
                     :loading="isLoadingCourses"
                     class="q-mb-md"
+                    @filter="filterCourses"
                 >
                     <template #option="scope">
                         <q-item-label
@@ -263,6 +266,32 @@ const courseOptions = computed<CourseOption[]>(() => {
     return options
 })
 
+// Filtered course options for type-ahead search
+const filteredCourseOptions = ref<CourseOption[]>([])
+
+// Filter function for course dropdown
+function filterCourses(val: string, update: (fn: () => void) => void) {
+    update(() => {
+        if (!val) {
+            filteredCourseOptions.value = courseOptions.value
+        } else {
+            const needle = val.toLowerCase()
+            filteredCourseOptions.value = courseOptions.value
+                .filter((opt) => {
+                    // Always keep headers visible if they have matching items below them
+                    if (opt.isHeader) return true
+                    return opt.label.toLowerCase().includes(needle)
+                })
+                .filter((opt, index, arr) => {
+                    // Remove headers that have no items following them
+                    if (!opt.isHeader) return true
+                    const nextItem = arr[index + 1]
+                    return nextItem && !nextItem.isHeader
+                })
+        }
+    })
+}
+
 // Computed: Get selected course object from options (includes flags for filtering)
 const selectedCourseObj = computed(() => {
     if (!selectedCourse.value) return null
@@ -373,6 +402,9 @@ async function loadOptions() {
         allCourses.value = coursesResult.allCourses
         effortTypes.value = effortTypesResult
         roles.value = rolesResult
+
+        // Initialize filtered options with all courses
+        filteredCourseOptions.value = courseOptions.value
 
         // Default role to "Instructor" (ID 2) if available
         const instructorRole = rolesResult.find((r) => r.id === 2)
