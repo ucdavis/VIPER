@@ -46,6 +46,15 @@ const routes = [
         name: "StaffDashboard",
     },
     {
+        path: "/Effort/dashboard",
+        meta: {
+            layout: EffortLayout,
+            permissions: ["SVMSecure.Effort.ViewAllDepartments", "SVMSecure.Effort.ViewDept"],
+        },
+        component: () => import("@/Effort/pages/StaffDashboard.vue"),
+        name: "StaffDashboardNoTerm",
+    },
+    {
         path: "/Effort/percent-assign-types",
         meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAllDepartments"] },
         component: () => import("@/Effort/pages/PercentAssignTypeList.vue"),
