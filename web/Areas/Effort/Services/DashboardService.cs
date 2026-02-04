@@ -130,24 +130,15 @@ public class DashboardService : IDashboardService
             })
             .ToListAsync(ct);
 
-        // Get department names from ReportUnits
-        var deptCodesToLookup = deptStats.Select(d => d.DepartmentCode).ToList();
-        var deptNames = await _context.ReportUnits
-            .Where(ru => deptCodesToLookup.Contains(ru.UnitCode))
-            .ToDictionaryAsync(ru => ru.UnitCode, ru => ru.UnitName, ct);
-
         return deptStats
             .Select(d =>
             {
                 var code = string.IsNullOrWhiteSpace(d.DepartmentCode) ? "" : d.DepartmentCode;
-                var displayName = string.IsNullOrWhiteSpace(code)
-                    ? "No Department"
-                    : deptNames.GetValueOrDefault(code) ?? code;
 
                 return new DepartmentVerificationDto
                 {
                     DepartmentCode = code,
-                    DepartmentName = displayName,
+                    DepartmentName = string.IsNullOrWhiteSpace(code) ? "No Department" : code,
                     TotalInstructors = d.TotalInstructors,
                     VerifiedInstructors = d.VerifiedInstructors,
                     MeetsThreshold = d.TotalInstructors > 0 && (double)d.VerifiedInstructors / d.TotalInstructors * 100 >= threshold
@@ -292,11 +283,13 @@ public class DashboardService : IDashboardService
             .Select(p => new { p.PersonId, p.FirstName, p.LastName, p.EffortDept })
             .ToListAsync(ct);
 
-        // Only add as alerts if term has been open for a while (30+ days)
+        // Only add as alerts if term is still open and has been open for 30+ days
         var term = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
         // S6561: This is a business date comparison (not benchmarking) - clock drift is acceptable
 #pragma warning disable S6561
-        var isOverdue = term?.OpenedDate != null && (DateTime.Today - term.OpenedDate.Value).TotalDays > 30;
+        var isOverdue = term?.OpenedDate != null
+            && term.ClosedDate == null
+            && (DateTime.Today - term.OpenedDate.Value).TotalDays > 30;
 #pragma warning restore S6561
 
         if (isOverdue)

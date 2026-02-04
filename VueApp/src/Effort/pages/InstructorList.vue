@@ -333,6 +333,7 @@
                     hide-pagination
                     :rows-per-page-options="[0]"
                     class="dept-table"
+                    :class="{ 'dept-table--no-dept': deptGroup.dept === 'No Department' }"
                 >
                     <template #header-cell-actions="props">
                         <q-th :props="props">
@@ -448,15 +449,6 @@
                             >
                                 <q-tooltip>Verified no effort</q-tooltip>
                             </q-icon>
-                            <!-- Unverified with no records - show dash -->
-                            <span
-                                v-else-if="props.row.recordCount === 0"
-                                class="text-grey-6"
-                            >
-                                --
-                                <q-tooltip>No effort records - can verify "no effort"</q-tooltip>
-                            </span>
-                            <!-- Unverified with records - no icon needed -->
                         </q-td>
                     </template>
                     <template #body-cell-fullName="props">
@@ -755,10 +747,17 @@ const currentTermName = computed(() => {
     return term?.termName ?? ""
 })
 
+// Helper to check if department should be treated as "No Department"
+function isNoDept(effortDept: string | null | undefined): boolean {
+    return !effortDept || effortDept === "UNK"
+}
+
 const deptOptions = computed(() => {
-    const hasNoDept = instructors.value.some((i) => !i.effortDept)
-    const uniqueDepts = [...new Set(instructors.value.map((i) => i.effortDept).filter((d): d is string => !!d))].sort()
-    // Add "No Department" option if any instructors lack a department
+    const hasNoDept = instructors.value.some((i) => isNoDept(i.effortDept))
+    const uniqueDepts = [
+        ...new Set(instructors.value.map((i) => i.effortDept).filter((d): d is string => !!d && d !== "UNK")),
+    ].sort()
+    // Add "No Department" option if any instructors lack a department or have UNK
     if (hasNoDept) {
         uniqueDepts.unshift("No Department")
     }
@@ -770,7 +769,7 @@ const filteredInstructors = computed(() => {
 
     if (selectedDept.value) {
         if (selectedDept.value === "No Department") {
-            result = result.filter((i) => !i.effortDept)
+            result = result.filter((i) => isNoDept(i.effortDept))
         } else {
             result = result.filter((i) => i.effortDept === selectedDept.value)
         }
@@ -794,7 +793,7 @@ const groupedInstructors = computed(() => {
     const groups: Record<string, PersonDto[]> = {}
 
     for (const instructor of filteredInstructors.value) {
-        const dept = instructor.effortDept || "No Department"
+        const dept = isNoDept(instructor.effortDept) ? "No Department" : instructor.effortDept!
         const groupArray = groups[dept] ?? (groups[dept] = [])
         groupArray.push(instructor)
     }
@@ -933,6 +932,17 @@ async function loadInstructors() {
         if (token !== loadToken) return
 
         instructors.value = result
+
+        // Apply department filter from query param if present
+        // Map "UNK" from Staff Dashboard to "No Department" label used in dropdown
+        const deptParam = route.query.dept as string | undefined
+        if (deptParam) {
+            if (deptParam === "UNK" && instructors.value.some((i) => isNoDept(i.effortDept))) {
+                selectedDept.value = "No Department"
+            } else if (instructors.value.some((i) => i.effortDept === deptParam)) {
+                selectedDept.value = deptParam
+            }
+        }
     } finally {
         if (token === loadToken) {
             isLoading.value = false
@@ -1293,6 +1303,16 @@ onMounted(loadTerms)
 
 .dept-table {
     margin-bottom: 0;
+    border-radius: 0;
+}
+
+.dept-table :deep(.q-table__container) {
+    border-radius: 0;
+}
+
+.dept-table--no-dept {
+    border: 2px solid var(--q-negative);
+    border-top: none;
 }
 
 .dept-table :deep(.q-table__middle) {

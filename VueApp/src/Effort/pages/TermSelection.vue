@@ -234,7 +234,7 @@ const isLoading = ref(false)
 // Legacy uses: open = opened IS NOT NULL AND closed IS NULL
 //              closed = closed IS NOT NULL
 //              unopened = opened IS NULL
-const unopenedTerms = computed(() => terms.value.filter((t) => !t.openedDate))
+const unopenedTerms = computed(() => terms.value.filter((t) => !t.openedDate && !t.closedDate))
 const openTerms = computed(() => terms.value.filter((t) => t.openedDate && !t.closedDate))
 const closedTerms = computed(() => terms.value.filter((t) => t.closedDate))
 
