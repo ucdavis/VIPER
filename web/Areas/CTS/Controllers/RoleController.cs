@@ -1,7 +1,6 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
 using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -56,7 +55,7 @@ namespace Viper.Areas.CTS.Controllers
         public async Task<ActionResult<RoleDto>> UpdateRole(int roleId, RoleDto roleDto)
         {
             var role = await context.Roles.FindAsync(roleId);
-            if(role == null)
+            if (role == null)
             {
                 return NotFound();
             }

@@ -1,16 +1,16 @@
-﻿namespace Viper.Areas.CTS.Models
+namespace Viper.Areas.CTS.Models
 {
     public class LevelCreateUpdate
     {
         public int? LevelId { get; set; }
-		public string LevelName { get; set; } = null!;
-		public string? Description { get; set; }
-		public bool Active { get; set; }
-		public int Order { get; set; }
-		public bool Course { get; set; }
-		public bool Clinical { get; set; }
-		public bool Epa { get; set; }
-		public bool Milestone { get; set; }
-		public bool Dops { get; set; }
-	}
+        public required string LevelName { get; set; }
+        public string? Description { get; set; }
+        public required bool Active { get; set; }
+        public required int Order { get; set; }
+        public required bool Course { get; set; }
+        public required bool Clinical { get; set; }
+        public required bool Epa { get; set; }
+        public required bool Milestone { get; set; }
+        public required bool Dops { get; set; }
+    }
 }

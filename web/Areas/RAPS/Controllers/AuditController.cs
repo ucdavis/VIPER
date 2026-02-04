@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.RAPS.Models;
@@ -39,7 +34,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             return await _auditService.GetAuditEntries(
                 startDate: startDate, endDate: endDate, auditType: auditType,
-                modBy: modBy, modifiedUser: modifiedUser, roleId: roleId, 
+                modBy: modBy, modifiedUser: modifiedUser, roleId: roleId,
                 search: search, permissionId: permissionId
             );
         }

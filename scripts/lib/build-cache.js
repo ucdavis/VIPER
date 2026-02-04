@@ -13,6 +13,10 @@ const logger = createLogger("Cache")
 // Enable via QUIET_CACHE=1 environment variable
 const quietMode = env.QUIET_CACHE === "1"
 
+// Staged mode uses git staged content for hashing instead of working directory
+// Automatically detected when running via lint-staged, or can be forced via USE_STAGED_CONTENT=1
+const useStagedContent = env.USE_STAGED_CONTENT === "1" || env.npm_lifecycle_event === "lint:staged"
+
 /**
  * Build caching utilities using content hashing
  * Tracks file content hashes to determine if rebuilds are needed
@@ -25,6 +29,9 @@ const CACHE_FILE = path.join(CACHE_DIR, "build-hashes.json")
 
 // Hash display length for log messages
 const HASH_DISPLAY_LENGTH = 12
+
+// Max buffer size for reading staged file content (10MB)
+const MAX_STAGED_BUFFER = 10_485_760
 
 // Ensure cache directory exists
 function ensureCacheDir() {
@@ -72,14 +79,50 @@ function findFiles(dir, extensions = [".cs", ".csproj"], excludeDirs = ["bin", "
 }
 
 /**
+ * Get the staged content of a file from git index
+ * @param {string} filePath - Path to the file (absolute or relative)
+ * @returns {Buffer} - File content from staging area, or null if not staged/error
+ */
+function getStagedContent(filePath) {
+    try {
+        // Convert to relative path for git
+        const relativePath = path.relative(process.cwd(), filePath).replaceAll("\\", "/")
+
+        // Use git show :path to get staged content (: prefix means index/staging area)
+        const content = execFileSync("git", ["show", `:${relativePath}`], {
+            encoding: "buffer",
+            stdio: ["pipe", "pipe", "pipe"],
+            maxBuffer: MAX_STAGED_BUFFER,
+        })
+
+        return content
+    } catch {
+        // File not staged or git error - return null to fall back to working directory
+        return null
+    }
+}
+
+/**
  * Compute SHA-256 hash of a single file
+ * Uses staged content when useStagedContent is enabled, falls back to working directory
  * @param {string} filePath - Path to the file
  * @returns {string} - Hex-encoded hash
  */
 function hashFile(filePath) {
     try {
         const hash = crypto.createHash("sha256")
-        const content = fs.readFileSync(filePath)
+
+        // When in staged mode, try to get content from git staging area first
+        let content = null
+        if (useStagedContent) {
+            content = getStagedContent(filePath)
+        }
+
+        // Fall back to working directory if not using staged content or file not staged
+        if (content === null) {
+            content = fs.readFileSync(filePath)
+        }
+
         hash.update(content)
         return hash.digest("hex")
     } catch (error) {

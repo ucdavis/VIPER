@@ -211,30 +211,28 @@ internal static partial class ViteProxyHelpers
 
         // Only copy request body for methods that typically support it
         var method = context.Request.Method.ToUpperInvariant();
-        if (method != "GET" && method != "HEAD")
+        if (method != "GET" && method != "HEAD"
+            && ((context.Request.ContentLength.HasValue && context.Request.ContentLength > 0) ||
+                (!context.Request.ContentLength.HasValue && context.Request.Body.CanRead)))
         {
-            if ((context.Request.ContentLength.HasValue && context.Request.ContentLength > 0) ||
-                (!context.Request.ContentLength.HasValue && context.Request.Body.CanRead))
-            {
-                requestMessage.Content = new StreamContent(context.Request.Body);
+            requestMessage.Content = new StreamContent(context.Request.Body);
 
-                // Copy content-specific headers to Content.Headers after creating StreamContent
-                // Exclude headers that should be handled automatically by HttpClient
-                var forbiddenContentHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            // Copy content-specific headers to Content.Headers after creating StreamContent
+            // Exclude headers that should be handled automatically by HttpClient
+            var forbiddenContentHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "Content-Length",
+                "Content-Type",
+                "Content-Encoding",
+                "Content-Disposition",
+                "Content-Range"
+            };
+            foreach (var header in context.Request.Headers)
+            {
+                if (header.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
+                    !forbiddenContentHeaders.Contains(header.Key))
                 {
-                    "Content-Length",
-                    "Content-Type",
-                    "Content-Encoding",
-                    "Content-Disposition",
-                    "Content-Range"
-                };
-                foreach (var header in context.Request.Headers)
-                {
-                    if (header.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
-                        !forbiddenContentHeaders.Contains(header.Key))
-                    {
-                        requestMessage.Content.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
-                    }
+                    requestMessage.Content.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
                 }
             }
         }

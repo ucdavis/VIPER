@@ -1,6 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.CTS;
 
 public partial class Bundle
@@ -19,13 +16,9 @@ public partial class Bundle
 
     public virtual ICollection<BundleCompetencyGroup> BundleCompetencyGroups { get; set; } = new List<BundleCompetencyGroup>();
 
-    //public virtual ICollection<BundleLevel> BundleLevels { get; set; } = new List<BundleLevel>();
-
     public virtual ICollection<BundleRole> BundleRoles { get; set; } = new List<BundleRole>();
 
     public virtual ICollection<BundleService> BundleServices { get; set; } = new List<BundleService>();
 
     public virtual ICollection<MilestoneLevel> MilestoneLevels { get; set; } = new List<MilestoneLevel>();
-
-    //public virtual ICollection<StudentCompetency> StudentCompetencies { get; set; } = new List<StudentCompetency>();
 }

@@ -69,7 +69,7 @@ namespace Viper.Controllers
             await base.OnActionExecutionAsync(context, next);
         }
 
-        private NavMenu Nav()
+        private static NavMenu Nav()
         {
             var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
             if (menu != null)

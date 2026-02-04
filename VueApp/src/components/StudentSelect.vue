@@ -100,10 +100,10 @@ function setupFilterOptions() {
     if (props.serviceId) {
         options.push("Service")
     }
-    if (props.allStudents == "all" && props.statusToggle) {
+    if (props.allStudents === "all" && props.statusToggle) {
         options.push("Active")
         options.push("Inactive")
-    } else if (props.allStudents != "hide") {
+    } else if (props.allStudents !== "hide") {
         options.push("All")
     }
     if (props.classLevel && props.classLevel.length) {
@@ -115,7 +115,7 @@ function setupFilterOptions() {
     }
 
     void setupClassYears()
-    if (props.classYears != undefined && props.classYears.length > 0) {
+    if (props.classYears !== undefined && props.classYears.length > 0) {
         options.push("Class of")
     }
 
@@ -127,11 +127,11 @@ function setupFilterOptions() {
 /* Take class year options and create the list for the class years dropdown */
 async function setupClassYears() {
     let classYears: string[] = []
-    if (props.classYears != undefined && props.classYears.length > 0) {
-        if (props.classYears.length == 1 && props.classYears[0] == "all") {
+    if (props.classYears !== undefined && props.classYears.length > 0) {
+        if (props.classYears.length === 1 && props.classYears[0] === "all") {
             const r = await get(studentsUrl + "dvm/classYears?activeOnly=false")
             classYears = r.result
-        } else if (props.classYears.length == 1 && props.classYears[0] == "active") {
+        } else if (props.classYears.length === 1 && props.classYears[0] === "active") {
             const r = await get(studentsUrl + "dvm/classYears")
             classYears = r.result
         } else {
@@ -157,7 +157,7 @@ async function getStudents() {
         case "V3":
         case "V2":
         case "V1":
-            students.value = (await getAllStudents()).filter((s) => s.classLevel == studentOptionsType.value)
+            students.value = (await getAllStudents()).filter((s) => s.classLevel === studentOptionsType.value)
             break
         case "Class of":
             students.value = await getStudentsByClassYear()
@@ -171,9 +171,9 @@ async function getStudents() {
             break
     }
 
-    if (props.autoSelectStudent != null && students.value != null) {
-        const std = students.value.find((s) => s.personId == props.autoSelectStudent)
-        if (std != undefined) {
+    if (props.autoSelectStudent !== null && students.value !== null) {
+        const std = students.value.find((s) => s.personId === props.autoSelectStudent)
+        if (std !== undefined) {
             selectedStudent.value = std
         }
     }
@@ -182,9 +182,9 @@ async function getStudents() {
 //get 'all' students - may include active, inactive, or both depending on props
 async function getAllStudents() {
     //cache allStudents - only load once
-    if (allStudentsData.value.length == 0) {
+    if (allStudentsData.value.length === 0) {
         let u = studentsUrl + "dvm"
-        if (props.allStudents == "inactive" || props.allStudents == "all") {
+        if (props.allStudents === "inactive" || props.allStudents === "all") {
             u += "?includeAllClassYears=true"
         }
         loading.value = true
@@ -204,7 +204,7 @@ async function getAllStudents() {
 
 //get students currently on given service id
 async function getServiceStudents() {
-    if (props.serviceId && props.serviceId != studentsLoadedForServiceId.value) {
+    if (props.serviceId && props.serviceId !== studentsLoadedForServiceId.value) {
         const d = new Date().toJSON().split("T")[0]
         loading.value = true
         const r = await get(
@@ -220,7 +220,7 @@ async function getServiceStudents() {
 //get students by class year
 async function getStudentsByClassYear() {
     if (selectedClassYear.value && selectedClassYear.value > 0) {
-        if (selectedClassYear.value != studentsLoadedForClassYear.value) {
+        if (selectedClassYear.value !== studentsLoadedForClassYear.value) {
             loading.value = true
             const r = await get(studentsUrl + "dvm?classYear=" + selectedClassYear.value.toString())
             studentsForClassYear.value = r.result
@@ -234,7 +234,7 @@ async function getStudentsByClassYear() {
 
 //filter students - start with whatever student population is currently selected and then filter on name
 function studentSearch(val: string, update: (callback: () => void) => void) {
-    if (students.value == null) {
+    if (students.value === null) {
         void getStudents()
     }
     if (val === "") {
@@ -245,7 +245,7 @@ function studentSearch(val: string, update: (callback: () => void) => void) {
     }
     update(() => {
         const s = val.toLowerCase()
-        if (students.value != null) {
+        if (students.value !== null) {
             students.value = students.value.filter(
                 (v) => (v.firstName.toLowerCase() + v.lastName.toLowerCase()).indexOf(s) > -1,
             )

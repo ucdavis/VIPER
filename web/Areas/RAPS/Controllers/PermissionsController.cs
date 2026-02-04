@@ -1,21 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Threading.Tasks;
-using AngleSharp.Dom;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Polly;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Models;
 using Viper.Models.RAPS;
 using Web.Authorization;
 
@@ -55,10 +45,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
         public async Task<ActionResult<TblPermission>> GetTblPermission(int permissionId)
         {
-          if (_context.TblPermissions == null)
-          {
-              return NotFound();
-          }
+            if (_context.TblPermissions == null)
+            {
+                return NotFound();
+            }
             var tblPermission = await _context.TblPermissions.FindAsync(permissionId);
 
             if (tblPermission == null)
@@ -78,13 +68,13 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return BadRequest();
             }
-            
+
             TblPermission? existingPermission = GetPermissionByName(permission.Permission);
             if (existingPermission != null && existingPermission.PermissionId != permissionId)
             {
                 return ValidationProblem("Permission name must be unique");
             }
-            else if(existingPermission != null)
+            else if (existingPermission != null)
             {
                 _context.Entry(existingPermission).State = EntityState.Detached;
             }
@@ -123,18 +113,18 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             TblPermission? existingPermission = GetPermissionByName(permission.Permission);
-            if (existingPermission != null) 
+            if (existingPermission != null)
             {
                 return ValidationProblem("Permission name must be unique");
             }
 
             TblPermission tblPermission = CreateTblPermissionFromDto(permission);
-            using var transaction = _context.Database.BeginTransaction();
+            using var transaction = await _context.Database.BeginTransactionAsync();
             _context.TblPermissions.Add(tblPermission);
             await _context.SaveChangesAsync();
             _auditService.AuditPermissionChange(tblPermission, RAPSAuditService.AuditActionType.Create);
             await _context.SaveChangesAsync();
-            transaction.Commit();
+            await transaction.CommitAsync();
 
             return CreatedAtAction("GetTblPermission", new { id = tblPermission.PermissionId }, tblPermission);
         }

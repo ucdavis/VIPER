@@ -1,5 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -17,7 +15,7 @@ namespace Viper.Models.RAPS
         public string? SpridenId { get; set; }
         public string? Pidm { get; set; }
         public string? EmployeeId { get; set; }
-        public int? VmacsId { get; set; } 
+        public int? VmacsId { get; set; }
         public string? VmcasId { get; set; }
         public int? MivId { get; set; }
         public string DisplayFirstName { get; set; } = string.Empty;

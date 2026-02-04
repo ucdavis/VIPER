@@ -1,13 +1,13 @@
-﻿namespace Viper.Areas.CTS.Models
+namespace Viper.Areas.CTS.Models
 {
     public class BundleCompetencyDto
     {
         public int BundleCompetencyId { get; set; }
         public int BundleId { get; set; }
-        
+
         public int? RoleId { get; set; }
         public string? RoleName { get; set; } = null!;
-        
+
         public IEnumerable<LevelDto> Levels { get; set; } = new List<LevelDto>();
 
         //comp info

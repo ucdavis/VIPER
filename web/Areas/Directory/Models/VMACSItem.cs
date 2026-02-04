@@ -1,7 +1,4 @@
-﻿using System.Text;
 using System.Xml.Serialization;
-using Viper.Areas.RAPS.Models;
-using Viper.Models.AAUD;
 
 namespace Viper.Areas.Directory.Models
 {

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 using System.Linq.Dynamic.Core;
@@ -32,13 +32,13 @@ namespace Viper.Areas.RAPS.Services
         /// </summary>
         /// <param name="debugOnly"></param>
         /// <returns></returns>
-        public async Task<List<string>> UpdateRoles(bool debugOnly=false)
+        public async Task<List<string>> UpdateRoles(bool debugOnly = false)
         {
             List<string> messages = new();
             var roles = await _RAPSContext.TblRoles
                     .Where(r => !string.IsNullOrEmpty(r.ViewName))
                     .ToListAsync();
-            foreach(var role in roles )
+            foreach (var role in roles)
             {
                 await UpdateRole(role, messages, debugOnly);
             }
@@ -51,11 +51,11 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="role">The role</param>
         /// <param name="messages">If running as a routine for multiple roles, the messages will be appended to this list.</param>
         /// <param name="debugOnly">If true, only write messages, don't change the DB</param>
-        public async Task<List<string>> UpdateRole(TblRole role, List<string>? messages = null, bool debugOnly=false)
+        public async Task<List<string>> UpdateRole(TblRole role, List<string>? messages = null, bool debugOnly = false)
         {
-            if(string.IsNullOrEmpty(role.ViewName))
+            if (string.IsNullOrEmpty(role.ViewName))
             {
-                return messages ?? new List<string>() { string.Format("Role {0} has no view", role.Role)};
+                return messages ?? new List<string>() { string.Format("Role {0} has no view", role.Role) };
             }
             messages ??= new();
             messages.Add(string.Format("Role {0} - View {1}", role.Role, role.ViewName));
@@ -69,7 +69,7 @@ namespace Viper.Areas.RAPS.Services
             //Add members that do not have the role, and for members added with an inactive date range, remove the membership with the date range and add the role
             foreach (string? member in members)
             {
-                if(!string.IsNullOrEmpty(member))
+                if (!string.IsNullOrEmpty(member))
                 {
                     TblRoleMember? roleMember = roleMembers.FirstOrDefault(rm => rm.MemberId.Trim() == member.Trim());
                     if (roleMember == null)
@@ -77,7 +77,7 @@ namespace Viper.Areas.RAPS.Services
                         messages.Add(string.Format("Adding {0}", member));
                         toAdd.Add(member);
                     }
-                    else if(roleMember.StartDate > DateTime.Now || roleMember.EndDate < DateTime.Now)
+                    else if (roleMember.StartDate > DateTime.Now || roleMember.EndDate < DateTime.Now)
                     {
                         messages.Add(string.Format("Converting {0} to role membership without dates", member));
                         toDelete.Add(roleMember);
@@ -87,10 +87,11 @@ namespace Viper.Areas.RAPS.Services
             }
 
             //Remove members that were added via this view if they are no longer in the view. Check first that the view is not empty.
-            if(members.Count > 0) {
+            if (members.Count > 0)
+            {
                 foreach (TblRoleMember roleMember in roleMembers)
                 {
-                    if(!string.IsNullOrEmpty(roleMember.MemberId.Trim()) && !members.Contains(roleMember.MemberId)
+                    if (!string.IsNullOrEmpty(roleMember.MemberId.Trim()) && !members.Contains(roleMember.MemberId)
                         && roleMember.ViewName == role.ViewName)
                     {
                         messages.Add(string.Format("Removing {0}", roleMember.MemberId));
@@ -103,13 +104,13 @@ namespace Viper.Areas.RAPS.Services
                 messages.Add(string.Format("View {0} has 0 members", role.ViewName));
             }
 
-            if(!debugOnly)
+            if (!debugOnly)
             {
-                foreach(string toAddMemberId in toAdd)
+                foreach (string toAddMemberId in toAdd)
                 {
                     AddRoleMember(role.RoleId, toAddMemberId, role.ViewName);
                 }
-                foreach(TblRoleMember toDeleteMember in toDelete)
+                foreach (TblRoleMember toDeleteMember in toDelete)
                 {
                     DeleteRoleMember(toDeleteMember, role.ViewName);
                 }

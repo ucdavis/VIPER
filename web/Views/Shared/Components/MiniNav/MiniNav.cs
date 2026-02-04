@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Viper.Models.AAUD;
 
 namespace Viper.Views.Shared.Components.MiniNav

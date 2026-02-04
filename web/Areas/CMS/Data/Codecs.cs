@@ -1,4 +1,4 @@
-﻿// FROM https://rextester.com/TGN19503
+// FROM https://rextester.com/TGN19503
 
 using System.Text;
 

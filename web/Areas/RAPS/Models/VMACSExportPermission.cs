@@ -1,11 +1,11 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace Viper.Areas.RAPS.Models
 {
     public class VMACSExportPermission
     {
         [JsonPropertyName("id")]
-        public int Id {  get; set; }
+        public int Id { get; set; }
         [JsonPropertyName("group")]
         public required string Group { get; set; }
         [JsonPropertyName("permission")]

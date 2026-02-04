@@ -1,4 +1,4 @@
-﻿// Adapted from https://dotnetthoughts.net/generate-dynamic-xml-sitemaps-in-aspnet5/
+// Adapted from https://dotnetthoughts.net/generate-dynamic-xml-sitemaps-in-aspnet5/
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
@@ -9,12 +9,10 @@ namespace Viper.Classes
 {
     public class SitemapMiddleware
     {
-        private RequestDelegate _next;
-        private string _rootUrl;
-        public SitemapMiddleware(RequestDelegate next, string rootUrl)
+        private readonly RequestDelegate _next;
+        public SitemapMiddleware(RequestDelegate next)
         {
             _next = next;
-            _rootUrl = rootUrl;
         }
 
         public async Task Invoke(HttpContext context)
@@ -24,12 +22,11 @@ namespace Viper.Classes
             {
                 try
                 {
-                    // override default root url
-                    _rootUrl = HttpHelper.GetRootURL();
+                    var rootUrl = HttpHelper.GetRootURL();
                     var stream = context.Response.Body;
                     context.Response.StatusCode = 200;
                     context.Response.ContentType = "application/xml";
-                    string sitemapContent = "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">";
+                    var sitemapContent = new StringBuilder("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">");
                     var controllers = Assembly.GetExecutingAssembly().GetTypes()
                         .Where(type => typeof(Controller).IsAssignableFrom(type)
                         || type.Name.EndsWith("controller")).ToList();
@@ -59,7 +56,7 @@ namespace Viper.Classes
                                 ))
                                 && excludeAttribute == null && excludeAttributeClass == null) // and method and class do not have "search exclude" attribute
                             {
-                                string url = string.Format("{0}/{1}/{2}", _rootUrl, controller.Name.ToLower().Replace("controller", ""), method.Name.ToLower());
+                                string url = string.Format("{0}/{1}/{2}", rootUrl, controller.Name.ToLower().Replace("controller", ""), method.Name.ToLower());
                                 string lastMod = DateTime.UtcNow.ToString("yyyy-MM-dd").ToString();
 
                                 if (!URLs.ContainsKey(url))
@@ -72,17 +69,17 @@ namespace Viper.Classes
                         }
                         foreach (var url in URLs)
                         {
-                            sitemapContent += "<url>";
-                            sitemapContent += "<loc>" + url.Key + "</loc>";
-                            sitemapContent += "<lastmod>" + url.Value + "</lastmod>";
-                            sitemapContent += "</url>";
+                            sitemapContent.Append("<url>");
+                            sitemapContent.Append("<loc>").Append(url.Key).Append("</loc>");
+                            sitemapContent.Append("<lastmod>").Append(url.Value).Append("</lastmod>");
+                            sitemapContent.Append("</url>");
                         }
                     }
-                    sitemapContent += "</urlset>";
+                    sitemapContent.Append("</urlset>");
                     using (var memoryStream = new MemoryStream())
                     {
-                        var bytes = Encoding.UTF8.GetBytes(sitemapContent);
-                        memoryStream.Write(bytes, 0, bytes.Length);
+                        var bytes = Encoding.UTF8.GetBytes(sitemapContent.ToString());
+                        await memoryStream.WriteAsync(bytes.AsMemory());
                         memoryStream.Seek(0, SeekOrigin.Begin);
                         await memoryStream.CopyToAsync(stream, bytes.Length);
                     }
@@ -101,10 +98,9 @@ namespace Viper.Classes
 
     public static class BuilderExtensions
     {
-        public static IApplicationBuilder UseSitemapMiddleware(this IApplicationBuilder app,
-            string rootUrl = "")
+        public static IApplicationBuilder UseSitemapMiddleware(this IApplicationBuilder app)
         {
-            return app.UseMiddleware<SitemapMiddleware>(new[] { rootUrl });
+            return app.UseMiddleware<SitemapMiddleware>();
         }
     }
 }

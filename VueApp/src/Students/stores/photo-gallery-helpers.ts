@@ -75,7 +75,7 @@ function groupStudentsByType(students: StudentPhoto[], groupType: string | null)
         // No grouping - return all students in a single group
         grouped.set(
             "All Students",
-            [...students].sort((a, b) => a.lastName.localeCompare(b.lastName)),
+            students.toSorted((a: StudentPhoto, b: StudentPhoto) => a.lastName.localeCompare(b.lastName)),
         )
         return grouped
     }
@@ -101,13 +101,13 @@ function groupStudentsByType(students: StudentPhoto[], groupType: string | null)
     for (const [groupName, groupStudents] of grouped) {
         grouped.set(
             groupName,
-            groupStudents.sort((a, b) => a.lastName.localeCompare(b.lastName)),
+            groupStudents.toSorted((a: StudentPhoto, b: StudentPhoto) => a.lastName.localeCompare(b.lastName)),
         )
     }
 
     // Sort the map keys (group names) naturally
     const sortedGrouped = new Map<string, StudentPhoto[]>()
-    const sortedKeys = [...grouped.keys()].sort((a, b) => {
+    const sortedKeys = [...grouped.keys()].toSorted((a: string, b: string) => {
         // Put "Unassigned" at the end
         if (a === "Unassigned") {
             return 1

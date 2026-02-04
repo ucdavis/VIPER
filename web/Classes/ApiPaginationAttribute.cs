@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using System.Net;
 using Viper.Models;
 
 namespace Viper.Classes
 {
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
     public class ApiPaginationAttribute : ActionFilterAttribute
     {
         public int DefaultPerPage { get; set; } = 25;
@@ -19,15 +20,15 @@ namespace Viper.Classes
             context.HttpContext.Items[NameOfPaginationParameter] = pagination;
         }
 
-        public override async Task OnResultExecutionAsync(ResultExecutingContext filterContext, ResultExecutionDelegate next)
+        public override async Task OnResultExecutionAsync(ResultExecutingContext context, ResultExecutionDelegate next)
         {
-            if (filterContext.Result is not ObjectResult objectResult || objectResult.Value == null)
+            if (context.Result is not ObjectResult objectResult || objectResult.Value == null)
             {
                 return;
             }
 
             var result = objectResult.Value;
-            if (filterContext.HttpContext.Items[NameOfPaginationParameter] is ApiPagination pagination && result != null)
+            if (context.HttpContext.Items[NameOfPaginationParameter] is ApiPagination pagination && result != null)
             {
                 //check for success response
                 HttpStatusCode statusCode = objectResult.StatusCode != null ? (HttpStatusCode)objectResult.StatusCode : HttpStatusCode.InternalServerError;
@@ -57,7 +58,7 @@ namespace Viper.Classes
                     else
                     {
                         apiResponse.Result = result;
-                        setNextAndPrevLinks(pagination, filterContext);
+                        setNextAndPrevLinks(pagination, context);
                         apiResponse.Pagination = pagination;
                     }
                     //set the returned value
@@ -87,7 +88,7 @@ namespace Viper.Classes
             url += (queryString.Length > 0 ? "&" : "") + "perPage=" + pagination.PerPage;
 
             //create next previous links, if valid
-            pagination.Next = pagination.Page < pagination.Pages 
+            pagination.Next = pagination.Page < pagination.Pages
                 ? $"{url}&page={pagination.Page + 1}"
                 : null;
             pagination.Previous = pagination.Page > 1
@@ -105,7 +106,7 @@ namespace Viper.Classes
             {
                 perPage = DefaultPerPage;
             }
-            if(perPage == 0)
+            if (perPage == 0)
             {
                 perPage = MaxPerPage;
             }

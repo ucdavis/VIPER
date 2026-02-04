@@ -1,4 +1,4 @@
-﻿namespace Viper.Models.IAM
+namespace Viper.Models.IAM
 {
     /// <summary>
     /// Interface for all IAM data objects. Allows objects to have a filterable ID for when we want unique records.

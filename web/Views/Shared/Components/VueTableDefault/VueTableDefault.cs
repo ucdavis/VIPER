@@ -1,11 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using System.Data;
 using System.Text;
 
 namespace Viper.Views.Shared.Components.VueTableDefault
 {
     [ViewComponent(Name = "VueTableDefault")]
-    
+
     public class VueTableDefaultViewComponent : ViewComponent
     {
         public VueTableDefaultViewComponent()
@@ -32,7 +32,7 @@ namespace Viper.Views.Shared.Components.VueTableDefault
         /// </summary>
         /// <param name="data">Enumerable list of objects</param>
         /// <returns>JavaScript "columns" object string if data is not null</returns>
-        public static string GetDefaultColumnNames(IEnumerable<Object>? data, IEnumerable<string>? skipColumns = null, IEnumerable<Tuple<string,string>>? altColumnNames = null)
+        public static string GetDefaultColumnNames(IEnumerable<Object>? data, IEnumerable<string>? skipColumns = null, IEnumerable<Tuple<string, string>>? altColumnNames = null)
         {
             StringBuilder output = new StringBuilder();
 
@@ -68,7 +68,8 @@ namespace Viper.Views.Shared.Components.VueTableDefault
                         {
                             string? altName = altColumnNames.FirstOrDefault(alt => alt.Item1.ToLower().Equals(propertyName.ToLower()))?.Item2;
 
-                            if(altName != null) {
+                            if (altName != null)
+                            {
                                 output.Append(String.Format("label:'{0}'", altName));
                             }
                             else
@@ -77,20 +78,20 @@ namespace Viper.Views.Shared.Components.VueTableDefault
                             }
 
                         }
-                            
+
                         output.Append('}');
 
                         if (!propery.Equals(last))
                         {
                             output.Append(',');
                         }
-                    }                    
+                    }
 
                 }
 
                 output.Append(']');
             }
-            
+
             return output.ToString();
         }
         #endregion
@@ -131,7 +132,7 @@ namespace Viper.Views.Shared.Components.VueTableDefault
 
                             if (propery.PropertyType.Name.ToLower() == "string" || propery.PropertyType.Name.ToLower() == "datetime")
                             {
-                                value = "'" + value?.Replace("'","\\'").Replace("\"", "\\\"").Replace("\n", "").Replace("\r", "") + "'";
+                                value = "'" + value?.Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", "").Replace("\r", "") + "'";
                             }
                             else if (propery.PropertyType.Name.ToLower().Contains("bool"))
                             {
@@ -147,7 +148,7 @@ namespace Viper.Views.Shared.Components.VueTableDefault
 
                         }
                     }
-                    
+
                     output.Append('}');
 
                     if (!obj.Equals(lastObj))

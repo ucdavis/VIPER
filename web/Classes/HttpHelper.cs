@@ -1,4 +1,4 @@
-﻿using Ganss.Xss;
+using Ganss.Xss;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -30,7 +30,7 @@ namespace Viper
             Environment = env;
             HttpHelper.httpContextAccessor = httpContextAccessor;
             HttpHelper.authorizationService = authorizationService;
-            HttpHelper.dataProtectionProvider = dataProtectionProvider;          
+            HttpHelper.dataProtectionProvider = dataProtectionProvider;
 
             var sanitizer = new HtmlSanitizer();
             sanitizer.AllowedAttributes.Add("class");
@@ -110,7 +110,7 @@ namespace Viper
                 }
 
             }
-            
+
             return rootURL ?? String.Empty;
         }
         /// <summary>

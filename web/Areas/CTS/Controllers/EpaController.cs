@@ -1,4 +1,4 @@
-﻿using Ganss.Xss;
+using Ganss.Xss;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes;
@@ -31,7 +31,7 @@ namespace Viper.Areas.CTS.Controllers
                 .OrderBy(e => e.Name)
                 .Select(e => new Models.Epa(e))
                 .ToListAsync();
-            
+
             epas.ForEach(e =>
             {
                 e.Description = e.Description != null ? sanitizer.Sanitize(e.Description) : null;

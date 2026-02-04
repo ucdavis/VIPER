@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using NLog;
 using System.Linq.Dynamic.Core;
@@ -29,7 +29,7 @@ namespace Viper.Areas.RAPS.Services
             _auditService = new RAPSAuditService(_context);
             _uInformService = new();
         }
-        
+
         /// <summary>
         /// Get all Raps groups, along with info from ou or ad3
         /// </summary>
@@ -59,7 +59,6 @@ namespace Viper.Areas.RAPS.Services
             List<Group> groups = new();
             foreach (OuGroup group in result)
             {
-                OuGroupRole? role = group.OuGroupRoles.FirstOrDefault(g => g.IsGroupRole);
                 //for OU groups, look up the box sync attribute
                 bool BoxSync = ldapGroups.FirstOrDefault(lg => lg.DistinguishedName.ToLower() == group.Name.ToLower())
                     ?.ExtensionAttribute3?.ToLower() == "ucdboxsync";
@@ -94,7 +93,7 @@ namespace Viper.Areas.RAPS.Services
             };
 
             //First create the ou group in the DB
-            using var transaction = _context.Database.BeginTransaction();
+            using var transaction = await _context.Database.BeginTransactionAsync();
             _context.OuGroups.Add(newOuGroup);
             await _context.SaveChangesAsync();
             _auditService.AuditGroupChange(newOuGroup, RAPSAuditService.AuditActionType.Create);
@@ -136,7 +135,7 @@ namespace Viper.Areas.RAPS.Services
             };
             _context.TblAppRoles.Add(appRole);
             await _context.SaveChangesAsync();
-            transaction.Commit();
+            await transaction.CommitAsync();
 
             return newOuGroup;
         }
@@ -177,7 +176,7 @@ namespace Viper.Areas.RAPS.Services
             //remove members of the group role
             TblRole groupRole = await GetGroupRole(ouGroup.OugroupId);
             List<TblRoleMember> groupRoleMembers = await _context.TblRoleMembers.Where(rm => rm.RoleId == groupRole.RoleId).ToListAsync();
-            foreach(TblRoleMember roleMember in groupRoleMembers)
+            foreach (TblRoleMember roleMember in groupRoleMembers)
             {
                 _context.TblRoleMembers.Remove(roleMember);
                 _auditService.AuditRoleMemberChange(roleMember, RAPSAuditService.AuditActionType.Delete, "Membership removed during deletion of group.");
@@ -186,7 +185,7 @@ namespace Viper.Areas.RAPS.Services
 
             //remove the link between the group role and the app role
             TblAppRole? appRole = await _context.TblAppRoles.FirstOrDefaultAsync(ap => ap.RoleId == groupRole.RoleId);
-            if(appRole != null)
+            if (appRole != null)
             {
                 _context.TblAppRoles.Remove(appRole);
             }
@@ -219,25 +218,25 @@ namespace Viper.Areas.RAPS.Services
         /// <returns></returns>
         public async Task<List<GroupMember>> GetAllMembers(int groupId, string groupName, bool filterToActive = false)
         {
-            List<GroupMember> members = new();         
+            List<GroupMember> members = new();
 
             //Get members from the DB
             List<TblRoleMember> roleMembers = await GetAllRoleMembers(groupId, filterToActive);
 
             //Create a list of members that should be in the group, plus a list of the roles that qualify them
-            foreach(var roleMember in roleMembers)
+            foreach (var roleMember in roleMembers)
             {
-                if (members.Count == 0 || members.Last().MemberId != roleMember.MemberId)
+                if (members.Count == 0 || members[^1].MemberId != roleMember.MemberId)
                 {
                     members.Add(CreateGroupMember(roleMember));
                 }
-                members.Last().Roles.Add(CreateGroupMemberRole(roleMember));
+                members[^1].Roles.Add(CreateGroupMemberRole(roleMember));
             }
 
             //Compare to users in the group in AD. Set a flag if they are in the members list and in the group. If they are in the group in AD,
             //but not in the members list, add an entry so we know to remove them.
             await CompareToGroup(groupName, members);
-            
+
             return members;
         }
 
@@ -255,7 +254,7 @@ namespace Viper.Areas.RAPS.Services
             Dictionary<string, bool> membersInRoles = new();
             foreach (GroupMember m in members)
             {
-                if(m.LoginId != null)
+                if (m.LoginId != null)
                 {
                     membersInRoles[m.LoginId] = true;
                 }
@@ -289,7 +288,7 @@ namespace Viper.Areas.RAPS.Services
             {
                 ManagedGroup managedGroup = await _uInformService.GetManagedGroup(groupName);
                 List<AdUser> usersInGroup = await _uInformService.GetGroupMembers(managedGroup.ObjectGuid);
-                foreach(AdUser user in usersInGroup)
+                foreach (AdUser user in usersInGroup)
                 {
                     //Record this user is in the group
                     membersInGroupLookup[user.SamAccountName] = true;
@@ -317,9 +316,8 @@ namespace Viper.Areas.RAPS.Services
             List<GroupMember> members = await GetAllMembers(groupId, groupName, true);
             var toRemove = members.Where(m => m.Roles.Count == 0);
             var toAdd = members.Where(m => !(m.IsInGroup ?? true)); //IsInGroup must be non-null and false
-            bool isOu = IsOuGroup(groupName);
 
-            if(IsOuGroup(groupName))
+            if (IsOuGroup(groupName))
             {
                 foreach (GroupMember m in toRemove)
                 {
@@ -336,7 +334,7 @@ namespace Viper.Areas.RAPS.Services
             else
             {
                 ManagedGroup? managedGroup = await _uInformService.GetManagedGroup(groupName);
-                if(managedGroup != null)
+                if (managedGroup != null)
                 {
                     foreach (GroupMember m in toRemove)
                     {
@@ -351,22 +349,22 @@ namespace Viper.Areas.RAPS.Services
                     }
                 }
             }
-            
+
         }
 
-        private void UpdateOuGroupMember(string groupName, string loginId, bool add)
+        private static void UpdateOuGroupMember(string groupName, string loginId, bool add)
         {
             string? dn = null;
-            if(HttpHelper.Cache != null)
+            if (HttpHelper.Cache != null)
             {
                 dn = HttpHelper.Cache.Get<string>("ou.ad3-distinguishedname-" + loginId);
             }
-            if(dn == null)
+            if (dn == null)
             {
                 dn = ActiveDirectoryService.GetUser(loginId)?.DistinguishedName;
                 HttpHelper.Cache?.Set("ou.ad3-distinguishedname-" + loginId, dn, new TimeSpan(0, 20, 0));
             }
-            
+
             if (dn != null)
             {
                 if (add)
@@ -377,7 +375,7 @@ namespace Viper.Areas.RAPS.Services
                 {
                     ActiveDirectoryService.RemoveUserFromGroup(dn, groupName);
                 }
-                
+
             }
         }
 
@@ -393,7 +391,7 @@ namespace Viper.Areas.RAPS.Services
                 userGuid = (await _uInformService.GetUser(samAccountName: loginId)).ObjectGuid;
                 HttpHelper.Cache?.Set("ad3-userGuid-" + loginId, userGuid, new TimeSpan(0, 20, 0));
             }
-            
+
             if (userGuid != null)
             {
                 if (add)
@@ -406,7 +404,7 @@ namespace Viper.Areas.RAPS.Services
                 }
             }
         }
-        
+
         /// <summary>
         /// Return true if the group is in ou.ad3.ucdavis.edu, based on the name of the group
         /// </summary>

@@ -1,11 +1,12 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Viper.Models.CTS;
 
 namespace Viper.Areas.CTS.Models
 {
     public class AutoMapperProfileCts : Profile
     {
-        public AutoMapperProfileCts() {
+        public AutoMapperProfileCts()
+        {
             CreateMap<BundleCompetency, BundleCompetencyDto>()
                 .ForMember(dest => dest.Levels, opt => opt.MapFrom(src => src.BundleCompetencyLevels.Select(bcl => bcl.Level).ToList()))
                 .ForMember(dest => dest.CompetencyName, opt => opt.MapFrom(src => src.Competency.Name))
@@ -28,9 +29,9 @@ namespace Viper.Areas.CTS.Models
             CreateMap<Bundle, MilestoneDto>()
                 .ForMember(dest => dest.MilestoneId, opt => opt.MapFrom(src => src.BundleId))
                 .ForMember(
-                    dest => dest.CompetencyName, 
-                    opt => opt.MapFrom(src => 
-                        src.BundleCompetencies.Count > 0 
+                    dest => dest.CompetencyName,
+                    opt => opt.MapFrom(src =>
+                        src.BundleCompetencies.Count > 0
                             ? src.BundleCompetencies.First().Competency.Name
                             : null
                     ))

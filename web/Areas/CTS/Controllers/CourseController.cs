@@ -1,18 +1,11 @@
-﻿using Amazon.SimpleSystemsManagement.Model;
 using AutoMapper;
-using Microsoft.AspNetCore.JsonPatch.Internal;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Polly.Caching;
-using System.Data;
 using Viper.Areas.CTS.Models;
-using Viper.Areas.CTS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
 using Web.Authorization;
-using static System.Runtime.CompilerServices.RuntimeHelpers;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -27,7 +20,6 @@ namespace Viper.Areas.CTS.Controllers
     [Permission(Allow = "SVMSecure.CTS", Deny = "SVMSecure.CTS.Student")]
     public class CourseController : ApiController
     {
-        private readonly CrestCourseService courseService;
         private readonly RAPSContext rapsContext;
         private readonly VIPERContext context;
         private readonly IMapper mapper;
@@ -40,7 +32,6 @@ namespace Viper.Areas.CTS.Controllers
         {
             this.mapper = mapper;
             this.context = context;
-            courseService = new(context);
             this.rapsContext = rapsContext;
         }
 
@@ -99,7 +90,7 @@ namespace Viper.Areas.CTS.Controllers
 
             try
             {
-                using var trans = context.Database.BeginTransaction();
+                using var trans = await context.Database.BeginTransactionAsync();
                 foreach (var r in toRemove)
                 {
                     context.Remove(r);
@@ -204,7 +195,7 @@ namespace Viper.Areas.CTS.Controllers
             int lastComp = 0;
             int? lastRole = 0;
             SessionCompetencyDto? current = null;
-            foreach(var sessionCompetency in sessionComps)
+            foreach (var sessionCompetency in sessionComps)
             {
                 if (lastComp != sessionCompetency.CompetencyId || lastRole != sessionCompetency.RoleId)
                 {
@@ -213,7 +204,7 @@ namespace Viper.Areas.CTS.Controllers
                     lastComp = sessionCompetency.CompetencyId;
                     lastRole = sessionCompetency.RoleId;
                 }
-                if(current != null)
+                if (current != null)
                 {
                     current.Levels.Add(new LevelIdAndNameDto()
                     {
@@ -277,7 +268,7 @@ namespace Viper.Areas.CTS.Controllers
 
             try
             {
-                using var trans = context.Database.BeginTransaction();
+                using var trans = await context.Database.BeginTransactionAsync();
                 foreach (var r in toRemove)
                 {
                     context.Remove(r);
@@ -319,16 +310,16 @@ namespace Viper.Areas.CTS.Controllers
                 .Where(rc => rc.RoleId == roleId)
                 .ToListAsync();
 
-            if(comps.Count == 0)
+            if (comps.Count == 0)
             {
                 return NotFound();
             }
 
-            foreach(var sc in comps)
+            foreach (var sc in comps)
             {
                 context.Remove(sc);
             }
-            
+
             await context.SaveChangesAsync();
             return NoContent();
         }
@@ -447,7 +438,7 @@ namespace Viper.Areas.CTS.Controllers
                 .ToListAsync();
 
             //get allowed courses per term
-            var allTerms = courseList.Select(c => c.AcademicYear).ToList().Distinct();
+            var allTerms = courseList.Select(c => c.AcademicYear).Distinct();
             List<int> validCourseIds = new List<int>();
             foreach (var t in allTerms)
             {
@@ -456,7 +447,6 @@ namespace Viper.Areas.CTS.Controllers
             }
             courseList = courseList.Where(c => validCourseIds.Contains(c.CourseId)).ToList();
 
-            //var courses = await courseService.GetCourses(termCode: termCode, subjectCode: subjectCode, courseNum: courseNum);
             var courseDtos = mapper.Map<List<CourseDto>>(courseList);
 
             foreach (var c in courseDtos)

@@ -1,8 +1,6 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
-using System.Reflection.Metadata;
 using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -68,7 +66,7 @@ namespace Viper.Areas.CTS.Controllers
             var compExistsAlready = await context.BundleCompetencies
                 .Where(bc => bc.BundleId == bundleId && bc.CompetencyId == bundleComp.CompetencyId && bc.RoleId == bundleComp.RoleId)
                 .AnyAsync();
-            if(compExistsAlready)
+            if (compExistsAlready)
             {
                 return BadRequest("Competency is already a part of this bundle.");
             }
@@ -83,7 +81,7 @@ namespace Viper.Areas.CTS.Controllers
             };
 
             //Create the bundle competency and add levels
-            using var trans = context.Database.BeginTransaction();
+            using var trans = await context.Database.BeginTransactionAsync();
             context.Add(bundleCompetency);
             await context.SaveChangesAsync();
 
@@ -110,7 +108,7 @@ namespace Viper.Areas.CTS.Controllers
         [Permission(Allow = "SVMSecure.CTS.Manage")]
         public async Task<ActionResult<BundleCompetencyDto>> UpdateBundleCompetency(int bundleId, int bundleCompetencyId, BundleCompetencyAddUpdate bundleCompetency)
         {
-            var bundleComp = context.BundleCompetencies.Find(bundleCompetencyId);
+            var bundleComp = await context.BundleCompetencies.FindAsync(bundleCompetencyId);
             if (bundleComp == null)
             {
                 return NotFound();
@@ -120,7 +118,7 @@ namespace Viper.Areas.CTS.Controllers
                 return NotFound();
             }
 
-            using var trans = context.Database.BeginTransaction();
+            using var trans = await context.Database.BeginTransactionAsync();
             bundleComp.Order = bundleCompetency.Order;
             bundleComp.RoleId = bundleCompetency.RoleId;
             var existingLevels = await context.BundleCompetencyLevels.Where(bcl => bcl.BundleCompetencyId == bundleCompetencyId).ToListAsync();
@@ -153,7 +151,7 @@ namespace Viper.Areas.CTS.Controllers
         [Permission(Allow = "SVMSecure.CTS.Manage")]
         public async Task<ActionResult<BundleCompetencyDto>> DeleteBundleCompetency(int bundleId, int bundleCompetencyId)
         {
-            var bundleComp = context.BundleCompetencies.Find(bundleCompetencyId);
+            var bundleComp = await context.BundleCompetencies.FindAsync(bundleCompetencyId);
             if (bundleComp == null)
             {
                 return NotFound();

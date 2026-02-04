@@ -9,7 +9,6 @@ namespace Viper.Areas.RAPS.Services
     {
         private static readonly HttpClient _httpClient = new();
         private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
-        //private readonly NLog.Logger _logger;
         private readonly string _apiBase;
         private static readonly List<HttpMethod> _allowedHttpMethods = new()
         {
@@ -22,7 +21,6 @@ namespace Viper.Areas.RAPS.Services
 
         public UinformService()
         {
-            //_logger = HttpHelper.Logger;
             _apiBase = (HttpHelper.Environment?.IsProduction() ?? false)
                 ? "https://ws.uinform.ucdavis.edu/"
                 : "https://ws.uinform-test.ucdavis.edu/";
@@ -286,14 +284,14 @@ namespace Viper.Areas.RAPS.Services
         }
 
         //Private classes used to communicate with the API
-        private class SearchClass
+        private sealed class SearchClass
         {
             public string Property { get; set; } = "ExtensionAttribute6";
             public string Value { get; set; } = string.Empty;
             public string MatchType { get; set; } = "LIKE";
         }
 
-        private class ManagedGroupAddEdit
+        private sealed class ManagedGroupAddEdit
         {
             public string GroupName { get; set; } = string.Empty;
             public string DisplayName { get; set; } = string.Empty;
@@ -302,7 +300,7 @@ namespace Viper.Areas.RAPS.Services
             public string ExtensionAttribute6 { get; set; } = _ourGroupIdentifier;
         }
 
-        private class AddRemoveMember
+        private sealed class AddRemoveMember
         {
             public string UserGuid { get; set; } = string.Empty;
             public string Action { get; set; } = string.Empty;

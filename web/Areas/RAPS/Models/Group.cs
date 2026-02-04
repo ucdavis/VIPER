@@ -1,11 +1,10 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
 using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Models
 {
     public class Group : GroupAddEdit
     {
-        public ICollection<GroupRole> GroupRoles { get; set; } = new List<GroupRole>();
+        public ICollection<GroupRole> GroupRoles { get; set; }
 
         public int? GroupRoleId { get; set; } = 0;
         public int? GroupRoleMemberCount { get; set; } = 0;
@@ -40,12 +39,12 @@ namespace Viper.Areas.RAPS.Models
             Name = group.Name;
             Description = group.Description;
             GroupRoles = new List<GroupRole>();
-            if(group?.OuGroupRoles != null)
+            if (group?.OuGroupRoles != null)
             {
-                foreach(OuGroupRole gr in group.OuGroupRoles)
+                foreach (OuGroupRole gr in group.OuGroupRoles)
                 {
                     GroupRoles.Add(new GroupRole(gr));
-                    if(gr.IsGroupRole)
+                    if (gr.IsGroupRole)
                     {
                         GroupRoleId = gr.RoleId;
                         GroupRoleMemberCount = gr?.Role?.TblRoleMembers?.Count;

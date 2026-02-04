@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
@@ -75,7 +75,7 @@ namespace Viper.Areas.CTS.Controllers
             foreach (var ml in milestoneLevels)
             {
                 //look for existing to determine whether to add milestoneLevel or update description
-                var existingLevel = existingLevels.Where(el => el.LevelId == ml.LevelId).FirstOrDefault();
+                var existingLevel = existingLevels.FirstOrDefault(el => el.LevelId == ml.LevelId);
                 if (existingLevel != null)
                 {
                     existingLevel.Description = ml.Description;
@@ -96,7 +96,7 @@ namespace Viper.Areas.CTS.Controllers
             //e.g. if the level is no longer in use
             var levelIds = milestoneLevels.Select(ml => ml.LevelId).ToList();
             var toDelete = existingLevels.Where(el => !levelIds.Contains(el.LevelId)).ToList();
-            foreach(var deleteLevel in toDelete)
+            foreach (var deleteLevel in toDelete)
             {
                 context.MilestoneLevels.Remove(deleteLevel);
             }
@@ -107,7 +107,7 @@ namespace Viper.Areas.CTS.Controllers
                 .Include(ml => ml.Level)
                 .Where(ml => ml.BundleId == milestoneId)
                 .ToListAsync();
-            return mapper.Map<List<MilestoneLevelDto>>(savedLevels);                
+            return mapper.Map<List<MilestoneLevelDto>>(savedLevels);
         }
     }
 }

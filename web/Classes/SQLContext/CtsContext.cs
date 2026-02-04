@@ -1,4 +1,3 @@
-﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Models.CTS;
 
@@ -13,7 +12,7 @@ public partial class VIPERContext : DbContext
     public virtual DbSet<Epa> Epas { get; set; }
     public virtual DbSet<EpaService> EpaServices { get; set; }
     public virtual DbSet<Encounter> Encounters { get; set; }
-    public virtual DbSet<EncounterInstructor> EncounterInstructors { get; set; } 
+    public virtual DbSet<EncounterInstructor> EncounterInstructors { get; set; }
     public virtual DbSet<CtsAudit> CtsAudits { get; set; }
     public virtual DbSet<Role> Roles { get; set; }
     public virtual DbSet<Bundle> Bundles { get; set; }
@@ -484,37 +483,37 @@ public partial class VIPERContext : DbContext
             entity.HasKey(e => new { e.CourseId, e.SessionId, e.EduTaskOfferid });
             entity.HasAlternateKey(e => e.EduTaskOfferid);
             entity.ToTable("vwCourseSessionOffering", schema: "cts");
-			entity.Property(e => e.Crn).IsRequired(false);
-			entity.Property(e => e.SsaCourseNum).IsRequired(false);
-			entity.Property(e => e.SessionType).IsRequired(false);
-			entity.Property(e => e.FromDate).IsRequired(false);
-			entity.Property(e => e.ThruDate).IsRequired(false);
-			entity.Property(e => e.FromTime).IsRequired(false);
-			entity.Property(e => e.ThruTime).IsRequired(false);
-			entity.Property(e => e.Room).IsRequired(false);
-			entity.Property(e => e.TypeOrder).HasColumnName("type_order").IsRequired(false);
-			entity.Property(e => e.StudentGroup).IsRequired(false);
-			entity.Property(e => e.ReadingRequired).HasColumnName("reading_required").IsRequired(false);
-			entity.Property(e => e.ReadingRecommended).HasColumnName("reading_recommended").IsRequired(false);
-			entity.Property(e => e.ReadingSessionMaterial).HasColumnName("reading_sessionmaterial").IsRequired(false);
-			entity.Property(e => e.KeyConcept).IsRequired(false);
-			entity.Property(e => e.Equipment).IsRequired(false);
-			entity.Property(e => e.Notes).IsRequired(false);
-			entity.Property(e => e.ModifyDate).IsRequired(false);
-			entity.Property(e => e.ModifyPersonId).IsRequired(false);
-			entity.Property(e => e.PaceOrder).HasColumnName("pace_order").IsRequired(false);
-			entity.Property(e => e.Vocabulary).IsRequired(false);
-			entity.Property(e => e.Supplemental).IsRequired(false);
-			entity.Property(e => e.OfferingNotes).IsRequired(false);
-			entity.Property(e => e.SeqNumb).IsRequired(false);
-			entity.Property(e => e.SvmBlockId).HasColumnName("SVM_blockID").IsRequired(false);
-			entity.Property(e => e.MediasiteSchedule).IsRequired(false);
-			entity.Property(e => e.MediasitePresentation).IsRequired(false);
-			entity.Property(e => e.MediasiteLive).IsRequired(false);
-			entity.Property(e => e.MediasiteTemplate).IsRequired(false);
-			entity.Property(e => e.CanvasCourseId).IsRequired(false);
-			entity.Property(e => e.CanvasEventId).IsRequired(false);
-		});
+            entity.Property(e => e.Crn).IsRequired(false);
+            entity.Property(e => e.SsaCourseNum).IsRequired(false);
+            entity.Property(e => e.SessionType).IsRequired(false);
+            entity.Property(e => e.FromDate).IsRequired(false);
+            entity.Property(e => e.ThruDate).IsRequired(false);
+            entity.Property(e => e.FromTime).IsRequired(false);
+            entity.Property(e => e.ThruTime).IsRequired(false);
+            entity.Property(e => e.Room).IsRequired(false);
+            entity.Property(e => e.TypeOrder).HasColumnName("type_order").IsRequired(false);
+            entity.Property(e => e.StudentGroup).IsRequired(false);
+            entity.Property(e => e.ReadingRequired).HasColumnName("reading_required").IsRequired(false);
+            entity.Property(e => e.ReadingRecommended).HasColumnName("reading_recommended").IsRequired(false);
+            entity.Property(e => e.ReadingSessionMaterial).HasColumnName("reading_sessionmaterial").IsRequired(false);
+            entity.Property(e => e.KeyConcept).IsRequired(false);
+            entity.Property(e => e.Equipment).IsRequired(false);
+            entity.Property(e => e.Notes).IsRequired(false);
+            entity.Property(e => e.ModifyDate).IsRequired(false);
+            entity.Property(e => e.ModifyPersonId).IsRequired(false);
+            entity.Property(e => e.PaceOrder).HasColumnName("pace_order").IsRequired(false);
+            entity.Property(e => e.Vocabulary).IsRequired(false);
+            entity.Property(e => e.Supplemental).IsRequired(false);
+            entity.Property(e => e.OfferingNotes).IsRequired(false);
+            entity.Property(e => e.SeqNumb).IsRequired(false);
+            entity.Property(e => e.SvmBlockId).HasColumnName("SVM_blockID").IsRequired(false);
+            entity.Property(e => e.MediasiteSchedule).IsRequired(false);
+            entity.Property(e => e.MediasitePresentation).IsRequired(false);
+            entity.Property(e => e.MediasiteLive).IsRequired(false);
+            entity.Property(e => e.MediasiteTemplate).IsRequired(false);
+            entity.Property(e => e.CanvasCourseId).IsRequired(false);
+            entity.Property(e => e.CanvasEventId).IsRequired(false);
+        });
 
         modelBuilder.Entity<Course>(entity =>
         {
@@ -549,13 +548,6 @@ public partial class VIPERContext : DbContext
                 e.SessionId
             });
         });
-        
-        /*
-        modelBuilder.Entity<Outcome>(entity =>
-        {
-
-        });
-        */
 
         modelBuilder.Entity<Instance>(entity =>
         {
@@ -575,13 +567,8 @@ public partial class VIPERContext : DbContext
         });
     }
 
-    /*
-     * Stored procedures
-     */
     public virtual List<MyCourse> GetMyCourses(string academicYear, int userPidm)
     {
-        //var academicYearParam = new SqlParameter("@academicYear", academicYear);
-        //var userPidmParam = new SqlParameter("@userPidm", userPidm);
         return MyCourses.FromSql($"getMyCourses {academicYear} {userPidm}").ToList();
     }
 

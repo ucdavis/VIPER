@@ -1,11 +1,11 @@
-﻿using MockQueryable.Moq;
+using MockQueryable.Moq;
 using Moq;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
 
 namespace Viper.test.CTS
 {
-    internal class SetupServices
+    internal static class SetupServices
     {
         public static readonly List<Service> Services = new()
         {

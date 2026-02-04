@@ -1,3 +1,1 @@
-<template>
-    CMS Home
-</template>
+<template>CMS Home</template>

@@ -1,4 +1,4 @@
-﻿using System.DirectoryServices.Protocols;
+using System.DirectoryServices.Protocols;
 using System.Runtime.Versioning;
 
 namespace Viper.Areas.RAPS.Models
@@ -46,14 +46,14 @@ namespace Viper.Areas.RAPS.Models
                         case "title": Title = v.ToString(); break;
                         case "department": Department = v.ToString(); break;
                         case "uidNumber": UidNumber = v.ToString(); break;
-                        
+
                         case "memberOf":
                             List<string> groups = new();
                             foreach (string group in attr.GetValues(typeof(string)))
                             {
                                 groups.Add(group);
                             }
-                            MemberOf = string.Join(",", groups); 
+                            MemberOf = string.Join(",", groups);
                             break;
                         default: break;
                     }

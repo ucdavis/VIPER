@@ -1,13 +1,11 @@
-﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Caching.Memory;
-using System.Data;
 using System.Security.Claims;
 using Viper;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
-using static System.Formats.Asn1.AsnWriter;
 
 namespace Web.Authorization
 {
@@ -17,11 +15,10 @@ namespace Web.Authorization
     /// </summary>
     class ClaimsTransformer : IClaimsTransformation
     {
-        public static string EmulationCacheNamePrefix = "Emulation-";
+        public static readonly string EmulationCacheNamePrefix = "Emulation-";
 
         private readonly IServiceScopeFactory scopeFactory;
-        private IMemoryCache cache;
-        public IUserHelper UserHelper;
+        public IUserHelper UserHelper { get; private set; }
 
         /// <summary>
         /// Construct a new ClaimsTransformer with the memory cache injected
@@ -29,7 +26,6 @@ namespace Web.Authorization
         /// <param name="memoryCache">The application memory cache</param>
         public ClaimsTransformer(IMemoryCache memoryCache, IServiceScopeFactory scopeFactory)
         {
-            cache = memoryCache;
             this.scopeFactory = scopeFactory;
             UserHelper = new UserHelper();
         }
@@ -37,15 +33,15 @@ namespace Web.Authorization
         /// <summary>
         /// Function to create a new claims principle with the users roles injected in
         /// </summary>
-        /// <param name="originalPrincipal">The current ClaimsPrincipal created from the authentication</param>
+        /// <param name="principal">The current ClaimsPrincipal created from the authentication</param>
         /// <returns>A new ClaimsPrincipal with all roles and properties</returns>
-        public Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal originalPrincipal)
+        public Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
         {
-            ClaimsIdentity? originalIdentity = originalPrincipal?.Identity as ClaimsIdentity;
+            ClaimsIdentity? originalIdentity = principal?.Identity as ClaimsIdentity;
 
             ClaimsIdentity identity = new ClaimsIdentity(originalIdentity?.Claims, originalIdentity?.AuthenticationType, originalIdentity?.NameClaimType, originalIdentity?.RoleClaimType);
 
-            string? loginId = originalPrincipal?.Identity?.Name;
+            string? loginId = principal?.Identity?.Name;
 
             // check to see if this user is emulating another user
             string? encryptedEmulatedLoginId;
@@ -55,30 +51,22 @@ namespace Web.Authorization
                 AAUDContext aaudContext = scope.ServiceProvider.GetRequiredService<AAUDContext>();
                 RAPSContext rapsContext = scope.ServiceProvider.GetRequiredService<RAPSContext>();
 
-                if (HttpHelper.Cache != null && loginId != null)
+                if (HttpHelper.Cache != null && loginId != null
+                    && HttpHelper.Cache.TryGetValue<string>(ClaimsTransformer.EmulationCacheNamePrefix + loginId, out encryptedEmulatedLoginId))
                 {
-                    // check for emulation and if so, swap the login id with the emulated user before setting role claims
-                    if (HttpHelper.Cache.TryGetValue<string>(ClaimsTransformer.EmulationCacheNamePrefix + loginId, out encryptedEmulatedLoginId))
+                    // make sure the emulating user has permission to emulate
+                    AaudUser? emulatingUser = UserHelper.GetByLoginId(aaudContext, loginId);
+                    var protector = HttpHelper.DataProtectionProvider?.CreateProtector("Viper.Emulation", loginId);
+
+                    if (UserHelper.HasPermission(rapsContext, emulatingUser, "SVMSecure.SU")
+                        && protector != null && encryptedEmulatedLoginId != null)
                     {
-                        // make sure the emulating user has permission to emulate
-                        AaudUser? emulatingUser = UserHelper.GetByLoginId(aaudContext, loginId);
-                        if (UserHelper.HasPermission(rapsContext, emulatingUser, "SVMSecure.SU"))
-                        {
-                            var protector = HttpHelper.DataProtectionProvider?.CreateProtector("Viper.Emulation", loginId);
+                        // set the login id to the emulated user
+                        loginId = protector.Unprotect(encryptedEmulatedLoginId);
 
-                            if (protector != null && encryptedEmulatedLoginId != null) {  
-                                
-                                // set the login id to the emulated user
-                                loginId = protector.Unprotect(encryptedEmulatedLoginId);
-
-                                // replace the actual users login id with the emulated users login id
-                                identity.RemoveClaim(identity.FindFirst(ClaimTypes.Name));
-                                identity.AddClaim(new Claim(ClaimTypes.Name, loginId));
-
-                            }
-                           
-                        }
-
+                        // replace the actual users login id with the emulated users login id
+                        identity.RemoveClaim(identity.FindFirst(ClaimTypes.Name));
+                        identity.AddClaim(new Claim(ClaimTypes.Name, loginId));
                     }
 
                 }
@@ -87,7 +75,6 @@ namespace Web.Authorization
                 try
                 {
                     AaudUser? user = UserHelper.GetByLoginId(aaudContext, loginId);
-                    string? memberID = user?.MothraId;
 
                     if (user != null)
                     {
@@ -122,10 +109,10 @@ namespace Web.Authorization
 
             }
 
-            ClaimsPrincipal principal = new ClaimsPrincipal(identity);
+            ClaimsPrincipal newPrincipal = new ClaimsPrincipal(identity);
 
-            return Task.FromResult(principal);
-            
+            return Task.FromResult(newPrincipal);
+
         }
     }
 }

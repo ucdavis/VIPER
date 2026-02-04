@@ -1,4 +1,4 @@
-﻿namespace Web.Authorization
+namespace Web.Authorization
 {
     public class CasSettings
     {

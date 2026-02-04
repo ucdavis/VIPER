@@ -1,4 +1,4 @@
-﻿namespace Viper.Areas.CMS.Models
+namespace Viper.Areas.CMS.Models
 {
     public class CMSFileMetaData
     {

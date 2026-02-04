@@ -1,10 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
-using static Viper.Areas.RAPS.Models.RolePermissionComparison;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -160,7 +159,8 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     permissions[p.PermissionId] = new PermissionResult() { PermissionId = p.PermissionId, PermissionName = p.Permission, Source = p.Role, Access = p.Access == 1 };
                 }
-            };
+            }
+
 
             //add permissions assigned manually (could be deny or allow)
             foreach (var p in permsAssigned)
@@ -184,10 +184,12 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     permissions[p.PermissionId] = new PermissionResult() { PermissionId = p.PermissionId, PermissionName = p.Permission, Source = "Member Permission", Access = p.Access == 1 };
                 }
-            };
+            }
 
-            return permissions.Values.OrderBy(p => p.PermissionName)
+
+            return permissions.Values
                 .Where(p => _securityService.PermissionBelongsToInstance(instance, p.PermissionName))
+                .OrderBy(p => p.PermissionName)
                 .ToList();
         }
 

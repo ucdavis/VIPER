@@ -1,4 +1,4 @@
-﻿using Viper.Models.CTS;
+using Viper.Models.CTS;
 
 namespace Viper.Areas.CTS.Models
 {
@@ -21,12 +21,12 @@ namespace Viper.Areas.CTS.Models
 
         public StudentEpaAssessment(Encounter encounter) : base(encounter, encounter.Level)
         {
-            if(encounter.Epa != null && encounter.EpaId != null)
+            if (encounter.Epa != null && encounter.EpaId != null)
             {
                 EpaId = (int)encounter.EpaId;
                 EpaName = encounter.Epa.Name;
             }
-            if(encounter.Service != null)
+            if (encounter.Service != null)
             {
                 ServiceId = encounter.ServiceId;
                 ServiceName = encounter.Service?.ServiceName;

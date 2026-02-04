@@ -1,4 +1,4 @@
-﻿using Viper.Models.RAPS;
+using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Models
 {

@@ -95,7 +95,7 @@ export function useBulkDeletion() {
 
                     // Show warning for removed primary evaluators
                     if (removedPrimaryEvaluators.length > 0) {
-                        const uniqueWeeks = [...new Set(removedPrimaryEvaluators.map((pe) => pe.weekNumber))].sort()
+                        const uniqueWeeks = [...new Set(removedPrimaryEvaluators.map((pe) => pe.weekNumber))].toSorted()
                         const uniqueInstructorNames = [...new Set(removedPrimaryEvaluators.map((pe) => pe.name))]
                         const instructorNames = uniqueInstructorNames.join(", ")
                         $q.notify({

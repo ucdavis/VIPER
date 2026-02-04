@@ -1,4 +1,4 @@
-﻿using Viper.Models.IAM;
+using Viper.Models.IAM;
 
 namespace Viper.Areas.Computing.Model
 {
@@ -12,7 +12,7 @@ namespace Viper.Areas.Computing.Model
         {
             get
             {
-                if(StudentAssociations == null)
+                if (StudentAssociations == null)
                 {
                     return new List<string>();
                 }
@@ -28,12 +28,12 @@ namespace Viper.Areas.Computing.Model
                     {
                         types.Add("Grad");
                     }
-                    if (new[] { "VM", "LW", "L0", "M0", "MD" }.Contains(l)) 
+                    if (new[] { "VM", "LW", "L0", "M0", "MD" }.Contains(l))
                     {
                         types.Add("Prof");
                     }
                 }
-                
+
                 return types;
             }
         }

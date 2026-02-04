@@ -1,7 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using Viper.Models.RAPS;
-
 namespace Viper.Models.VIPER;
 
 public partial class ContentBlockToPermission

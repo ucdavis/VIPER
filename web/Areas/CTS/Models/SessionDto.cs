@@ -1,4 +1,4 @@
-﻿namespace Viper.Areas.CTS.Models
+namespace Viper.Areas.CTS.Models
 {
     public class SessionDto
     {
@@ -17,6 +17,5 @@
 
         public int CompetencyCount { get; set; }
         public int LegacyComptencyCount { get; set; }
-        //public List<SessionCompetencyDto> Competencies { get; set; } = new List<SessionCompetencyDto>();
     }
 }

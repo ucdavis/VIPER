@@ -1,4 +1,4 @@
-﻿namespace Viper.Models.RAPS
+namespace Viper.Models.RAPS
 {
     public class GetVmacsUserPermissionsResult
     {

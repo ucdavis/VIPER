@@ -1,8 +1,6 @@
-﻿using AngleSharp.Dom;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Client;
 using System.Data;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
@@ -10,7 +8,6 @@ using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 using Web.Authorization;
-using static Viper.Areas.RAPS.Models.RolePermissionComparison;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -20,7 +17,6 @@ namespace Viper.Areas.RAPS.Controllers
     public class RolePermissionsController : ApiController
     {
         private readonly RAPSContext _context;
-        private readonly AAUDContext _aaudContext;
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
         private readonly RAPSCacheService _rapsCacheService;
@@ -30,8 +26,7 @@ namespace Viper.Areas.RAPS.Controllers
             _context = context;
             _securityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
-            _aaudContext = aaudContext;
-            _rapsCacheService = new RAPSCacheService(_context, _aaudContext);
+            _rapsCacheService = new RAPSCacheService(_context, aaudContext);
         }
 
         private ActionResult? CheckRoleAndPermissionParams(string instance, int? roleId, int? permissionId)
@@ -77,7 +72,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
             if (roleId != null)
             {
-                TblRole? role = _context.TblRoles.Find(roleId);
+                TblRole? role = await _context.TblRoles.FindAsync(roleId);
                 if (role == null)
                 {
                     return NotFound();
@@ -171,14 +166,14 @@ namespace Viper.Areas.RAPS.Controllers
                 return BadRequest("Role already contains permission");
             }
 
-            using var transaction = _context.Database.BeginTransaction();
+            using var transaction = await _context.Database.BeginTransactionAsync();
             TblRolePermission tblRolePermission = new();
             UpdateTblRolePermissionsWithDto(tblRolePermission, rolePermission);
             _context.TblRolePermissions.Add(tblRolePermission);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             _auditService.AuditRolePermissionChange(tblRolePermission, RAPSAuditService.AuditActionType.Create);
-            _context.SaveChanges();
-            transaction.Commit();
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             await ClearCacheForAllRoleMembers(rolePermission.RoleId);
 

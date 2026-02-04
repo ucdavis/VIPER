@@ -1,4 +1,4 @@
-﻿using Viper.Models.RAPS;
+using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Models
 {
@@ -19,15 +19,11 @@ namespace Viper.Areas.RAPS.Models
             RoleTemplateId = rt.RoleTemplateId;
             TemplateName = rt.TemplateName;
             Description = rt.Description;
-            Roles = new List<RoleSimplified>();
-            foreach (var rtr in rt.RoleTemplateRoles)
+            Roles = rt.RoleTemplateRoles.Select(rtr => new RoleSimplified()
             {
-                Roles.Add(new RoleSimplified()
-                {
-                    RoleId = rtr.Role.RoleId,
-                    FriendlyName = rtr.Role.FriendlyName
-                });
-            }
+                RoleId = rtr.Role.RoleId,
+                FriendlyName = rtr.Role.FriendlyName
+            }).ToList();
         }
     }
 

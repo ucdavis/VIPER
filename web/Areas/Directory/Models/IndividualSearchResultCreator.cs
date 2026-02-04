@@ -1,13 +1,13 @@
-﻿using System.Runtime.Versioning;
+using System.Runtime.Versioning;
 using Viper.Models.AAUD;
 using System.Text.Json;
 
 namespace Viper.Areas.Directory.Models
 {
-    public class IndividualSearchResultCreator
+    public static class IndividualSearchResultCreator
     {
         [SupportedOSPlatform("windows")]
-        public static IndividualSearchResult CreateIndividualSearchResult(AaudUser? aaudUser, LdapUserContact? ldapUserContact, bool includeDetail=false)
+        public static IndividualSearchResult CreateIndividualSearchResult(AaudUser? aaudUser, LdapUserContact? ldapUserContact, bool includeDetail = false)
         {
             if (includeDetail)
             {
@@ -88,11 +88,11 @@ namespace Viper.Areas.Directory.Models
             indiv.Phone = ldapUserContact.TelephoneNumber;
             indiv.Mobile = ldapUserContact.Mobile;
             indiv.UserName = ldapUserContact.Uid;
-            if(string.IsNullOrEmpty(indiv.DisplayFullName))
+            if (string.IsNullOrEmpty(indiv.DisplayFullName))
             {
                 indiv.DisplayFullName = ldapUserContact.DisplayName;
             }
-            if(string.IsNullOrEmpty(indiv.Name))
+            if (string.IsNullOrEmpty(indiv.Name))
             {
                 indiv.Name = ldapUserContact.DisplayName;
             }

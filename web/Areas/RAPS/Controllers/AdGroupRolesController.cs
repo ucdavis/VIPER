@@ -1,8 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
-using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -71,18 +70,18 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            if(GroupRoleExists(groupId, roleId))
+            if (GroupRoleExists(groupId, roleId))
             {
                 return BadRequest("Role is already linked to the group.");
             }
 
-            using var transaction = _context.Database.BeginTransaction();
+            using var transaction = await _context.Database.BeginTransactionAsync();
             OuGroupRole groupRole = new() { OugroupId = groupId, RoleId = roleId };
             _context.OuGroupRoles.Add(groupRole);
             await _context.SaveChangesAsync();
             _auditService.AuditOuGroupRoleChange(groupRole, RAPSAuditService.AuditActionType.Create);
             await _context.SaveChangesAsync();
-            transaction.Commit();
+            await transaction.CommitAsync();
 
             return CreatedAtAction("AddRoleToGroup", new { groupId, roleId }, groupRole);
         }
@@ -91,16 +90,16 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpDelete("Groups/{groupId}/Roles/{roleId}")]
         public async Task<IActionResult> DeleteTblRoleMembers(int groupId, int roleId)
         {
-            OuGroupRole? groupRole = _context.OuGroupRoles.Find(groupId, roleId);
+            OuGroupRole? groupRole = await _context.OuGroupRoles.FindAsync(groupId, roleId);
             if (_context.OuGroupRoles == null || !GroupExists(groupId) || groupRole == null)
             {
                 return NotFound();
             }
 
             //check that this isn't the group membership role
-            OuGroupRole? groupMemberRole = _context.OuGroupRoles
-                .FirstOrDefault(gr => gr.OugroupId == groupId && gr.IsGroupRole);
-            if(groupMemberRole != null && groupMemberRole.RoleId == roleId)
+            OuGroupRole? groupMemberRole = await _context.OuGroupRoles
+                .FirstOrDefaultAsync(gr => gr.OugroupId == groupId && gr.IsGroupRole);
+            if (groupMemberRole != null && groupMemberRole.RoleId == roleId)
             {
                 return BadRequest("You cannot remove the group membership role.");
             }

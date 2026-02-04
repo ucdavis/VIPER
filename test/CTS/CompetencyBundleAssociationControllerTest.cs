@@ -19,7 +19,7 @@ namespace Viper.test.CTS
         {
             _mockContext = new Mock<VIPERContext>();
             _controller = new CompetencyBundleAssociationController(_mockContext.Object);
-            
+
             // Setup test data
             _testBundles = new List<Bundle>
             {
@@ -34,22 +34,22 @@ namespace Viper.test.CTS
             _testCompetencies = new List<Competency>
             {
                 // Competency with no bundles (unbundled)
-                new Competency 
-                { 
-                    CompetencyId = 1, 
-                    Number = "1.1", 
-                    Name = "Unbundled Competency", 
+                new Competency
+                {
+                    CompetencyId = 1,
+                    Number = "1.1",
+                    Name = "Unbundled Competency",
                     DomainId = 1,
                     Domain = testDomain,
                     Order = 1,
                     BundleCompetencies = new List<BundleCompetency>()
                 },
                 // Competency with clinical bundle
-                new Competency 
-                { 
-                    CompetencyId = 2, 
-                    Number = "1.2", 
-                    Name = "Clinical Competency", 
+                new Competency
+                {
+                    CompetencyId = 2,
+                    Number = "1.2",
+                    Name = "Clinical Competency",
                     DomainId = 1,
                     Domain = testDomain,
                     Order = 2,
@@ -59,11 +59,11 @@ namespace Viper.test.CTS
                     }
                 },
                 // Competency with assessment bundle
-                new Competency 
-                { 
-                    CompetencyId = 3, 
-                    Number = "1.3", 
-                    Name = "Assessment Competency", 
+                new Competency
+                {
+                    CompetencyId = 3,
+                    Number = "1.3",
+                    Name = "Assessment Competency",
                     DomainId = 1,
                     Domain = testDomain,
                     Order = 3,
@@ -73,11 +73,11 @@ namespace Viper.test.CTS
                     }
                 },
                 // Competency with milestone bundle
-                new Competency 
-                { 
-                    CompetencyId = 4, 
-                    Number = "1.4", 
-                    Name = "Milestone Competency", 
+                new Competency
+                {
+                    CompetencyId = 4,
+                    Number = "1.4",
+                    Name = "Milestone Competency",
                     DomainId = 1,
                     Domain = testDomain,
                     Order = 4,
@@ -87,11 +87,11 @@ namespace Viper.test.CTS
                     }
                 },
                 // Competency with multiple bundles
-                new Competency 
-                { 
-                    CompetencyId = 5, 
-                    Number = "1.5", 
-                    Name = "Multi-Bundle Competency", 
+                new Competency
+                {
+                    CompetencyId = 5,
+                    Number = "1.5",
+                    Name = "Multi-Bundle Competency",
                     DomainId = 1,
                     Domain = testDomain,
                     Order = 5,
@@ -117,7 +117,7 @@ namespace Viper.test.CTS
             // Assert
             var okResult = Assert.IsType<ActionResult<List<CompetencyBundleAssociationDto>>>(result);
             var competencies = Assert.IsType<List<CompetencyBundleAssociationDto>>(okResult.Value);
-            
+
             Assert.Single(competencies);
             Assert.Equal("Unbundled Competency", competencies[0].Name);
             Assert.Empty(competencies[0].Bundles);
@@ -132,7 +132,7 @@ namespace Viper.test.CTS
             // Assert
             var okResult = Assert.IsType<ActionResult<List<CompetencyBundleAssociationDto>>>(result);
             var competencies = Assert.IsType<List<CompetencyBundleAssociationDto>>(okResult.Value);
-            
+
             Assert.Equal(2, competencies.Count);
             Assert.Contains(competencies, c => c.Name == "Clinical Competency");
             Assert.Contains(competencies, c => c.Name == "Multi-Bundle Competency");
@@ -148,7 +148,7 @@ namespace Viper.test.CTS
             // Assert
             var okResult = Assert.IsType<ActionResult<List<CompetencyBundleAssociationDto>>>(result);
             var competencies = Assert.IsType<List<CompetencyBundleAssociationDto>>(okResult.Value);
-            
+
             Assert.Equal(2, competencies.Count);
             Assert.Contains(competencies, c => c.Name == "Assessment Competency");
             Assert.Contains(competencies, c => c.Name == "Multi-Bundle Competency");
@@ -164,7 +164,7 @@ namespace Viper.test.CTS
             // Assert
             var okResult = Assert.IsType<ActionResult<List<CompetencyBundleAssociationDto>>>(result);
             var competencies = Assert.IsType<List<CompetencyBundleAssociationDto>>(okResult.Value);
-            
+
             Assert.Single(competencies);
             Assert.Equal("Milestone Competency", competencies[0].Name);
             Assert.Contains(competencies[0].Bundles, b => b.Milestone);
@@ -179,7 +179,7 @@ namespace Viper.test.CTS
             // Assert
             var okResult = Assert.IsType<ActionResult<List<CompetencyBundleAssociationDto>>>(result);
             var competencies = Assert.IsType<List<CompetencyBundleAssociationDto>>(okResult.Value);
-            
+
             Assert.Equal(3, competencies.Count);
             Assert.Contains(competencies, c => c.Name == "Clinical Competency");
             Assert.Contains(competencies, c => c.Name == "Assessment Competency");
@@ -195,7 +195,7 @@ namespace Viper.test.CTS
             // Assert
             var okResult = Assert.IsType<ActionResult<List<CompetencyBundleAssociationDto>>>(result);
             var competencies = Assert.IsType<List<CompetencyBundleAssociationDto>>(okResult.Value);
-            
+
             Assert.Single(competencies);
             Assert.Equal("Unbundled Competency", competencies[0].Name);
             Assert.Empty(competencies[0].Bundles);
@@ -210,7 +210,7 @@ namespace Viper.test.CTS
             // Assert
             var okResult = Assert.IsType<ActionResult<List<CompetencyBundleAssociationDto>>>(result);
             var competencies = Assert.IsType<List<CompetencyBundleAssociationDto>>(okResult.Value);
-            
+
             // Verify competencies are in order
             for (int i = 0; i < competencies.Count - 1; i++)
             {
@@ -243,12 +243,12 @@ namespace Viper.test.CTS
         public void CompetencyBundleAssociationDto_HandlesNullBundleCompetencies()
         {
             // Arrange
-            var competency = new Competency 
-            { 
-                CompetencyId = 10, 
-                Number = "2.1", 
-                Name = "Test", 
-                BundleCompetencies = null! 
+            var competency = new Competency
+            {
+                CompetencyId = 10,
+                Number = "2.1",
+                Name = "Test",
+                BundleCompetencies = null!
             };
 
             // Act

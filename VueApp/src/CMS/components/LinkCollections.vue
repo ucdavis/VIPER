@@ -132,7 +132,7 @@ async function getLinkCollection() {
 async function loadLinks(collectionId: number) {
     const { get } = useFetch()
     let baseUrl = import.meta.env.VITE_API_URL + "cms/linkCollections/" + collectionId + "/links"
-    if (props.groupByTagCategory != null && props.groupByTagCategory.length > 0) {
+    if (props.groupByTagCategory !== null && props.groupByTagCategory.length > 0) {
         baseUrl += "?groupByTagCategory=" + encodeURIComponent(props.groupByTagCategory)
     }
 
@@ -142,7 +142,7 @@ async function loadLinks(collectionId: number) {
 }
 
 function loadFilters() {
-    if (linkCollection.value != null) {
+    if (linkCollection.value !== null) {
         for (var tagCat of linkCollection.value.linkCollectionTagCategories) {
             tagFilters.value.push({
                 linkCollectionTagCategoryId: tagCat.linkCollectionTagCategoryId,
@@ -153,7 +153,7 @@ function loadFilters() {
         }
         for (var l of links.value) {
             for (var lt of l.linkTags) {
-                var t = tagFilters.value.find((t) => t.linkCollectionTagCategoryId == lt.linkCollectionTagCategoryId)
+                var t = tagFilters.value.find((t) => t.linkCollectionTagCategoryId === lt.linkCollectionTagCategoryId)
                 if (t) {
                     t.options.push(lt.value)
                 }
@@ -165,7 +165,10 @@ function loadFilters() {
 
         for (var tagOptions of tagFilters.value) {
             tagOptions.options = [...new Set(tagOptions.options)]
-            if (props.groupByTagCategory != null && props.groupByTagCategory == tagOptions.linkCollectionTagCategory) {
+            if (
+                props.groupByTagCategory !== null &&
+                props.groupByTagCategory === tagOptions.linkCollectionTagCategory
+            ) {
                 groupByValues.value = tagOptions.options.sort()
                 groupById.value = tagOptions.linkCollectionTagCategoryId
             }
@@ -174,12 +177,12 @@ function loadFilters() {
 }
 
 function getInGroup(linksIn: Link[], groupByValue: string) {
-    if (props.groupByTagCategory == null || props.groupByTagCategory.length == 0 || groupById.value == null) {
+    if (props.groupByTagCategory === null || props.groupByTagCategory.length === 0 || groupById.value === null) {
         return linksIn
     }
     return linksIn.filter((l) => {
         const findTag = l.linkTags.find((lt) => {
-            return lt.linkCollectionTagCategoryId == groupById.value && lt.value == groupByValue
+            return lt.linkCollectionTagCategoryId === groupById.value && lt.value === groupByValue
         })
         return findTag !== undefined
     })
@@ -188,16 +191,16 @@ function getInGroup(linksIn: Link[], groupByValue: string) {
 function applyFilters() {
     filteredLinks.value = links.value
     for (var tf of tagFilters.value) {
-        if (tf.selected != null && tf.selected != "") {
+        if (tf.selected !== null && tf.selected !== "") {
             filteredLinks.value = filteredLinks.value.filter((fl: Link) => {
                 const findTag = fl.linkTags.find((lt: LinkTag) => {
-                    return lt.linkCollectionTagCategoryId == tf.linkCollectionTagCategoryId && lt.value == tf.selected
+                    return lt.linkCollectionTagCategoryId === tf.linkCollectionTagCategoryId && lt.value === tf.selected
                 })
                 return findTag !== undefined
             })
         }
     }
-    if (search.value != null && search.value.length) {
+    if (search.value !== null && search.value.length) {
         let sv = search.value.toLowerCase()
         filteredLinks.value = filteredLinks.value.filter((fl: Link) => {
             return (

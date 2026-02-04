@@ -1,5 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
 using Viper.Models.VIPER;
 
 namespace Viper.Models.CTS;

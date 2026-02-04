@@ -1,4 +1,4 @@
-﻿using System.DirectoryServices.AccountManagement;
+using System.DirectoryServices.AccountManagement;
 using System.DirectoryServices.Protocols;
 using System.Runtime.Versioning;
 using Viper.Areas.RAPS.Models;
@@ -72,7 +72,8 @@ namespace Viper.Classes.Utilities
             "ucdStudentSID"
         };
 
-        private enum Server {
+        private enum Server
+        {
             AD3,
             OU
         }
@@ -94,7 +95,8 @@ namespace Viper.Classes.Utilities
             if (name != null)
             {
                 filter = string.Format("(&{0}(cn=*{1}*))", filter, name);
-            };
+            }
+
 
             var searchResults = SearchActiveDirectory(filter, Server.OU, ObjectType.Group);
             List<LdapGroup> groups = new();

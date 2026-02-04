@@ -1,4 +1,3 @@
-﻿using Viper.Areas.RAPS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 
@@ -10,7 +9,7 @@ namespace Viper.Areas.RAPS.Services
     public class RoleMemberService
     {
         private readonly RAPSContext _context;
-        public IUserHelper UserHelper;
+        public IUserHelper UserHelper { get; private set; }
         public RoleMemberService(RAPSContext context)
         {
             _context = context;
@@ -25,7 +24,7 @@ namespace Viper.Areas.RAPS.Services
                 return "User is already a member of this role";
             }
 
-            using var transaction = _context.Database.BeginTransaction();
+            using var transaction = await _context.Database.BeginTransactionAsync();
             TblRoleMember tblRoleMember = new()
             {
                 RoleId = roleId,
@@ -38,10 +37,10 @@ namespace Viper.Areas.RAPS.Services
             };
 
             _context.TblRoleMembers.Add(tblRoleMember);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             new RAPSAuditService(_context).AuditRoleMemberChange(tblRoleMember, RAPSAuditService.AuditActionType.Create, comment);
-            _context.SaveChanges();
-            transaction.Commit();
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             return null;
         }

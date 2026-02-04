@@ -1,41 +1,43 @@
-﻿using System.Net;
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Viper;
 
 namespace Web.Authorization
 {
-	/// <summary>
-	/// Use for classes or methods to require that the requestor is in one of the pre-defined list of IPs in the allow lists located in appSettings
-	/// Usage: [ClientIpRestrictions("InternalAllowlist")]
-	/// </summary>
-	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
-	public class ClientIpRestrictionsAttribute : TypeFilterAttribute
+    /// <summary>
+    /// Use for classes or methods to require that the requestor is in one of the pre-defined list of IPs in the allow lists located in appSettings
+    /// Usage: [ClientIpRestrictions("InternalAllowlist")]
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+    public class ClientIpRestrictionsAttribute : TypeFilterAttribute
     {
-        public ClientIpRestrictionsAttribute(params string[] safeListName) : base(typeof(ClientIpFilter))
+        public ClientIpRestrictionsAttribute(params string[] safeListName) : base(typeof(ClientIpFilterAttribute))
         {
             Arguments = new object[] { safeListName };
         }
     }
 
-    // Taken from https://docs.microsoft.com/en-us/aspnet/core/security/ip-safelist?view=aspnetcore-2.2 
+    // Taken from https://docs.microsoft.com/en-us/aspnet/core/security/ip-safelist?view=aspnetcore-2.2
     // and https://stackoverflow.com/questions/9622967/how-to-see-if-an-ip-address-belongs-inside-of-a-range-of-ips-using-cidr-notation
-    public class ClientIpFilter : ActionFilterAttribute
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+    public class ClientIpFilterAttribute : ActionFilterAttribute
     {
         private readonly ILogger _logger;
         private readonly IEnumerable<string>? _safelist;
 
-        public ClientIpFilter(ILoggerFactory loggerFactory, IConfiguration configuration, string safeListName)
+        public ClientIpFilterAttribute(ILoggerFactory loggerFactory, IConfiguration configuration, string safeListName)
         {
             _logger = loggerFactory.CreateLogger("ClientIPCheckFilter");
             _safelist = configuration.GetSection("IPAddressAllowlistConfiguration:" + safeListName).Get<string[]>();
         }
 
-        public ClientIpFilter(ILoggerFactory loggerFactory, IConfiguration configuration, IEnumerable<string> safeListNames)
+        public ClientIpFilterAttribute(ILoggerFactory loggerFactory, IConfiguration configuration, IEnumerable<string> safeListNames)
         {
             _logger = loggerFactory.CreateLogger("ClientIPCheckFilter");
 
-            _safelist = safeListNames.SelectMany(safeListName => {
+            _safelist = safeListNames.SelectMany(safeListName =>
+            {
 #pragma warning disable CS8603 // Possible null reference return.
                 return configuration.GetSection("IPAddressAllowlistConfiguration:" + safeListName).Get<string[]>();
 #pragma warning restore CS8603 // Possible null reference return.
@@ -45,15 +47,15 @@ namespace Web.Authorization
         public override void OnActionExecuting(ActionExecutingContext context)
         {
             _logger.LogInformation(
-                $"Remote IpAddress: {context.HttpContext.Connection.RemoteIpAddress}");
+                "Remote IpAddress: {RemoteIpAddress}", context.HttpContext.Connection.RemoteIpAddress);
 
             var remoteIp = context.HttpContext.Connection.RemoteIpAddress;
-            _logger.LogDebug($"Request from Remote IP address: {remoteIp}");
+            _logger.LogDebug("Request from Remote IP address: {RemoteIpAddress}", remoteIp);
 
             if (!IsSafeIp(remoteIp, _safelist))
             {
                 _logger.LogInformation(
-                    $"Forbidden Request from Remote IP address: {remoteIp}");
+                    "Forbidden Request from Remote IP address: {RemoteIpAddress}", remoteIp);
                 context.Result = new StatusCodeResult(401);
                 return;
             }

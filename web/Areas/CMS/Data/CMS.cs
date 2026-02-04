@@ -1,22 +1,16 @@
-﻿using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using OWASP.AntiSamy.Html;
 using System.IO.Compression;
 using System.Net;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using System.Security.Cryptography.Xml;
-using System.Text;
 using System.Text.Json;
 using Viper.Areas.CMS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Models;
 using Viper.Models.AAUD;
 using Viper.Models.VIPER;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Viper.Areas.CMS.Data
 {
@@ -26,8 +20,14 @@ namespace Viper.Areas.CMS.Data
         private readonly VIPERContext? _viperContext;
         private readonly RAPSContext? _rapsContext;
 
-        public IUserHelper UserHelper;
-        public Dictionary<string, string> MimeTypes = new()
+        private IUserHelper _userHelper = null!;
+        public IUserHelper UserHelper
+        {
+            get => _userHelper;
+            set => _userHelper = value;
+        }
+
+        private Dictionary<string, string> _mimeTypes = new()
         {
             ["pdf"] = "application/pdf",
             ["docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -56,6 +56,11 @@ namespace Viper.Areas.CMS.Data
             ["dmg"] = "application/x-apple-diskimage",
             ["exe"] = "application/vnd.microsoft.portable-executable"
         };
+        public Dictionary<string, string> MimeTypes
+        {
+            get => _mimeTypes;
+            set => _mimeTypes = value;
+        }
 
         #endregion
 
@@ -100,27 +105,27 @@ namespace Viper.Areas.CMS.Data
             {
                 foreach (var b in blocks)
                 {
-					var hasAccess = b.AllowPublicAccess; //block is available without authentication
-					if (!hasAccess && currentUser != null)
-					{
-						hasAccess = 
-							//CMS admin
-							UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.CMS.ManageContentBlocks") || 
-							//available to all logged in users
-							b.ContentBlockToPermissions.Count == 0 && UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure") ||
-							//available due to having specific permission(s)
-							b.ContentBlockToPermissions.Count > 0 && b.ContentBlockToPermissions
-								.Any(cp => UserHelper.GetAllPermissions(_rapsContext, currentUser)
-									.Any(p => string.Compare(cp.Permission, p.Permission, true) == 0));
-					}
-					// only include blocks that the user has permission to see
+                    var hasAccess = b.AllowPublicAccess; //block is available without authentication
+                    if (!hasAccess && currentUser != null)
+                    {
+                        hasAccess =
+                            //CMS admin
+                            UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.CMS.ManageContentBlocks") ||
+                            //available to all logged in users
+                            b.ContentBlockToPermissions.Count == 0 && UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure") ||
+                            //available due to having specific permission(s)
+                            b.ContentBlockToPermissions.Count > 0 && b.ContentBlockToPermissions
+                                .Any(cp => UserHelper.GetAllPermissions(_rapsContext, currentUser)
+                                    .Any(p => string.Compare(cp.Permission, p.Permission, true) == 0));
+                    }
+                    // only include blocks that the user has permission to see
                     if (hasAccess)
-                    {                        
+                    {
                         goodBlocks.Add(b);
                     }
                 }
 
-                if(goodBlocks.Any())
+                if (goodBlocks.Any())
                 {
                     Sanitize(goodBlocks);
                 }
@@ -136,7 +141,7 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get content blocks without filtering on permissions
         /// </summary>
-        /// <param name="contentBlockId"></param>
+        /// <param name="contentBlockID"></param>
         /// <param name="friendlyName"></param>
         /// <param name="system"></param>
         /// <param name="viperSectionPath"></param>
@@ -145,7 +150,7 @@ namespace Viper.Areas.CMS.Data
         /// <param name="allowPublicAccess"></param>
         /// <param name="status"></param>
         /// <returns>List of blocks</returns>
-        public IEnumerable<ContentBlock>? GetContentBlocks(int? contentBlockId = null, string? friendlyName = null, string? system = null,
+        public IEnumerable<ContentBlock>? GetContentBlocks(int? contentBlockID = null, string? friendlyName = null, string? system = null,
             string? viperSectionPath = null, string? page = null, int? blockOrder = null,
             bool? allowPublicAccess = null, int? status = null)
         {
@@ -155,7 +160,7 @@ namespace Viper.Areas.CMS.Data
                     .Include(f => f.ContentBlockToFiles)
                         .ThenInclude(cbf => cbf.File)
                     .Include(h => h.ContentHistories)
-                    .Where(c => c.ContentBlockId.Equals(contentBlockId) || contentBlockId == null)
+                    .Where(c => c.ContentBlockId.Equals(contentBlockID) || contentBlockID == null)
                     .Where(c => string.IsNullOrEmpty(c.FriendlyName) ? string.IsNullOrEmpty(friendlyName) : c.FriendlyName.Equals(friendlyName) || string.IsNullOrEmpty(friendlyName))
                     .Where(c => c.System.Equals(system) || string.IsNullOrEmpty(system))
                     .Where(c => string.IsNullOrEmpty(c.ViperSectionPath) ? string.IsNullOrEmpty(viperSectionPath) : c.ViperSectionPath.Equals(viperSectionPath) || string.IsNullOrEmpty(viperSectionPath))
@@ -189,7 +194,7 @@ namespace Viper.Areas.CMS.Data
         }
         #endregion
 
-        public void Sanitize(IEnumerable<ContentBlock> blocks)
+        public static void Sanitize(IEnumerable<ContentBlock> blocks)
         {
             Policy policy = Policy.GetInstance("antisamy-cms.xml");
             var antiSamy = new AntiSamy();
@@ -677,7 +682,7 @@ namespace Viper.Areas.CMS.Data
     {
         IEnumerable<ContentBlock>? GetContentBlocksAllowed(int? contentBlockID, string? friendlyName, string? system, string? viperSectionPath, string? page, int? blockOrder, bool? allowPublicAccess, int? status);
 
-        IEnumerable<ContentBlock>? GetContentBlocks(int? contentBlockID, string? friendlyName, string? system, string? viperSectionPath, string? page, int? blockOrder, bool? allowPublicAccess, int? status);
+        IEnumerable<ContentBlock>? GetContentBlocks(int? contentBlockID = null, string? friendlyName = null, string? system = null, string? viperSectionPath = null, string? page = null, int? blockOrder = null, bool? allowPublicAccess = null, int? status = null);
 
         CMSFile? GetFile(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name);
 
