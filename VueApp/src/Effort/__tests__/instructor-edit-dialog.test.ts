@@ -21,6 +21,10 @@ vi.mock("../services/instructor-service", () => ({
     },
 }))
 
+// Test data - term codes use YYYYXX format (no numeric separators)
+// oxlint-disable-next-line unicorn/numeric-separators-style
+const TEST_TERM_CODE = 202410
+
 describe("InstructorEdit - Error Handling", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
@@ -195,7 +199,7 @@ describe("InstructorEdit - State Management", () => {
         it("should populate form with instructor data", () => {
             const instructor = {
                 personId: 1,
-                termCode: 202_410,
+                termCode: TEST_TERM_CODE,
                 firstName: "John",
                 lastName: "Doe",
                 effortDept: "VME",
