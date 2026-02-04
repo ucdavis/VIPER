@@ -1,20 +1,30 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Filters;
+using System.Security.Claims;
 
 namespace Web.Authorization
 {
-	/// <summary>
-	/// Require DUO authorization
-	/// Usage: [Authorize(Policy = "2faAuthentication")]
-	/// </summary>
-	public class DuoAuthenticationRequirement : AuthorizationHandler<DuoAuthenticationRequirement>, IAuthorizationRequirement
+    /// <summary>
+    /// Require DUO authorization
+    /// Usage: [Authorize(Policy = "2faAuthentication")]
+    /// </summary>
+    public class DuoAuthenticationRequirement : AuthorizationHandler<DuoAuthenticationRequirement>, IAuthorizationRequirement
     {
+        /// <summary>
+        /// Checks if the user has authenticated with Duo 2FA
+        /// </summary>
+        public static bool HasDuoAuthentication(ClaimsPrincipal user)
+        {
+            return user.HasClaim("credentialType", "DuoCredential")
+                || user.HasClaim("credentialType", "DuoSecurityUniversalPromptCredential")
+                || user.HasClaim("credentialType", "DuoSecurityCredential");
+        }
+
         protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, DuoAuthenticationRequirement requirement)
         {
             HttpContext? httpContext = ((context.Resource as AuthorizationFilterContext)?.HttpContext ?? context.Resource) as HttpContext;
 
-            // Does the user have the DOU claim?
-            if (context.User.HasClaim("credentialType", "DuoCredential") || context.User.HasClaim("credentialType", "DuoSecurityUniversalPromptCredential") || context.User.HasClaim("credentialType", "DuoSecurityCredential"))
+            if (HasDuoAuthentication(context.User))
             {
                 context.Succeed(requirement);
             }
@@ -31,7 +41,7 @@ namespace Web.Authorization
                 }
                 else
                 {
-                    throw new Exception("DUO two-factor authentication is required");
+                    throw new InvalidOperationException("DUO two-factor authentication is required");
                 }
             }
 
