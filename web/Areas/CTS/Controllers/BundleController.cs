@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
@@ -132,7 +132,7 @@ namespace Viper.Areas.CTS.Controllers
 
             try
             {
-                using var trans = context.Database.BeginTransaction();
+                using var trans = await context.Database.BeginTransactionAsync();
                 var bundleRoles = context.BundleRoles.Where(br => br.BundleId == bundleId);
                 foreach (var role in bundleRoles)
                 {
@@ -154,7 +154,7 @@ namespace Viper.Areas.CTS.Controllers
         [Permission(Allow = "SVMSecure.CTS.Manage")]
         public async Task<ActionResult<List<RoleDto>>> SetBundleRoles(int bundleId, List<int> bundleRoles)
         {
-            using var trans = context.Database.BeginTransaction();
+            using var trans = await context.Database.BeginTransactionAsync();
             var existing = await context.BundleRoles.Where(br => br.BundleId == bundleId).ToListAsync();
             foreach (var brId in bundleRoles)
             {

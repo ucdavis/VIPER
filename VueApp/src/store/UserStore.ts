@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+import { defineStore } from "pinia"
 class userObject {
     firstName = ""
     lastName = ""
@@ -10,7 +10,7 @@ class userObject {
     emulating = false
     permissions = [] as string[]
 }
-export const useUserStore = defineStore('userStore', {
+export const useUserStore = defineStore("userStore", {
     state: () => ({
         userInfo: {
             firstName: "",
@@ -21,8 +21,8 @@ export const useUserStore = defineStore('userStore', {
             userId: null,
             token: "",
             emulating: false,
-            permissions: []
-        } as userObject
+            permissions: [],
+        } as userObject,
     }),
     getters: {
         isLoggedIn: (state) => state.userInfo.loginId !== "",
@@ -52,6 +52,6 @@ export const useUserStore = defineStore('userStore', {
             this.userInfo.userId = null
             this.userInfo.token = ""
             this.userInfo.emulating = false
-        }
-    }
+        },
+    },
 })

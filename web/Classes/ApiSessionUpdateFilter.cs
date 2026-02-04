@@ -1,11 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using System.Net;
 using Viper.Classes.Utilities;
 
 namespace Viper.Classes
 {
-    public class ApiSessionUpdateFilter : ActionFilterAttribute
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+    public class ApiSessionUpdateFilterAttribute : ActionFilterAttribute
     {
         public override void OnActionExecuting(ActionExecutingContext context)
         {

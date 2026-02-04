@@ -242,6 +242,34 @@ function formatSingleFile(file, projectRoot) {
 }
 
 /**
+ * Run prettier check on a batch of files
+ * @param {string[]} files - Array of file paths
+ * @returns {{passed: boolean, failed: string[]}} - Result with pass status and failed files
+ */
+function runPrettierCheckBatch(files) {
+    const prettierArgs = ["--check", ...files]
+    const result = spawnSync("npx", ["prettier", ...prettierArgs], {
+        stdio: "pipe",
+        cwd: projectRoot,
+        encoding: "utf8",
+    })
+
+    if (result.error) {
+        console.error("❌ Failed to run prettier:", result.error.message)
+        return { passed: false, failed: files }
+    }
+
+    if (result.status !== 0) {
+        // Parse stderr/stdout to find which files failed
+        const output = (result.stdout || "") + (result.stderr || "")
+        const failedFiles = files.filter((f) => output.includes(f) || output.includes(f.replaceAll("/", "\\")))
+        return { passed: false, failed: failedFiles.length > 0 ? failedFiles : files }
+    }
+
+    return { passed: true, failed: [] }
+}
+
+/**
  * Run prettier check on files
  * @param {string[]} files - Array of file paths
  * @param {boolean} fix - Whether to fix issues
@@ -264,24 +292,41 @@ function runPrettierCheck(files, fix) {
         }
         return allSucceeded
     }
-    // For checking, we can process all files at once
-    const prettierArgs = ["--check", ...files]
-    const result = spawnSync("npx", ["prettier", ...prettierArgs], {
-        stdio: "inherit",
-        cwd: projectRoot,
-    })
 
-    if (result.error) {
-        console.error("❌ Failed to run prettier:", result.error.message)
-        return false
+    // For checking, batch files to avoid command line length limits on Windows
+    // Windows has ~8191 char limit; use conservative batch size
+    const MAX_BATCH_SIZE = 50
+    let allPassed = true
+    const allFailedFiles = []
+
+    for (let i = 0; i < files.length; i += MAX_BATCH_SIZE) {
+        const batch = files.slice(i, i + MAX_BATCH_SIZE)
+        const batchNum = Math.floor(i / MAX_BATCH_SIZE) + 1
+        const totalBatches = Math.ceil(files.length / MAX_BATCH_SIZE)
+
+        if (totalBatches > 1) {
+            process.stdout.write(`  Checking batch ${batchNum}/${totalBatches}...\r`)
+        }
+
+        const { passed, failed } = runPrettierCheckBatch(batch)
+        if (!passed) {
+            allPassed = false
+            allFailedFiles.push(...failed)
+        }
     }
 
-    if (result.status !== 0) {
+    if (files.length > MAX_BATCH_SIZE) {
+        // Clear the batch progress line
+        process.stdout.write("                                        \r")
+    }
+
+    if (!allPassed) {
+        console.log(`\n❌ ${allFailedFiles.length} file(s) have formatting issues`)
         console.log("\n💡 Files need prettier formatting. Run with --fix to auto-format:")
         console.log("   npm run lint -- --fix <files>")
     }
 
-    return result.status === 0
+    return allPassed
 }
 
 /**

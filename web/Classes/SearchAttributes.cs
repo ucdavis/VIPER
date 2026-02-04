@@ -1,4 +1,4 @@
-﻿namespace Viper.Classes
+namespace Viper.Classes
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
     public class SearchExcludeAttribute : Attribute

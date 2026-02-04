@@ -1,18 +1,14 @@
-﻿using Moq;
-using System.Linq;
+using Moq;
 using System.Linq.Dynamic.Core;
 using Viper.Areas.CTS.Services;
 using Viper.Classes.SQLContext;
-using Viper.Models.AAUD;
 using Viper.Models.CTS;
-using Viper.test.RAPS;
 using Microsoft.EntityFrameworkCore;
-using static Viper.Areas.CTS.Services.EncounterCreationService;
 using MockQueryable.Moq;
 
 namespace Viper.test.CTS
 {
-    internal class SetupAssessments
+    internal static class SetupAssessments
     {
         public static readonly List<Encounter> Encounters = new List<Encounter>()
         {
@@ -65,8 +61,8 @@ namespace Viper.test.CTS
 
         public static IQueryable<Encounter> GetEncounters()
         {
-            var people = SetupPeople.GetPeople().ToList();
-            var peopleQ = SetupPeople.GetPeople();
+            _ = SetupPeople.GetPeople().ToList();
+            _ = SetupPeople.GetPeople();
             return Encounters.AsAsyncQueryable();
         }
 

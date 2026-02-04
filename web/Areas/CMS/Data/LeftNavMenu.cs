@@ -1,8 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Viper.Areas.CMS.Models;
+using Microsoft.EntityFrameworkCore;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Models.VIPER;
 
 namespace Viper.Areas.CMS.Data
 {
@@ -11,7 +9,7 @@ namespace Viper.Areas.CMS.Data
         private readonly VIPERContext? _viperContext;
         private readonly RAPSContext? _rapsContext;
 
-        public IUserHelper UserHelper;
+        public IUserHelper UserHelper { get; private set; }
 
         public LeftNavMenu()
         {
@@ -31,7 +29,7 @@ namespace Viper.Areas.CMS.Data
         /// <param name="filterItemsByPermissions">If true, filter items based on the permission of the logged in user. Should be set to false for CMS management functions.</param>
         /// <returns>List of menus matching the arguments</returns>
         public IEnumerable<NavMenu>? GetLeftNavMenus(int? leftNavMenuId = null, string? friendlyName = null, string? system = null,
-                string? viperSectionPath = null, string? page = null, bool filterItemsByPermissions=true)
+                string? viperSectionPath = null, string? page = null, bool filterItemsByPermissions = true)
         {
             var menus = _viperContext?.LeftNavMenus
                 .Include(m => m.LeftNavItems
@@ -43,21 +41,21 @@ namespace Viper.Areas.CMS.Data
                 .Where(m => string.IsNullOrEmpty(viperSectionPath) || m.ViperSectionPath == viperSectionPath)
                 .Where(m => string.IsNullOrEmpty(page) || m.Page == page)
                 .ToList();
-            if(menus == null)
+            if (menus == null)
             {
                 return null;
             }
 
             var currentUser = UserHelper.GetCurrentUser();
             List<NavMenu> cmsMenus = new();
-            foreach(var m in menus)
+            foreach (var m in menus)
             {
                 //by default, filter items based on user permissions
                 List<NavMenuItem> items = new();
-                foreach(var item in m.LeftNavItems)
+                foreach (var item in m.LeftNavItems)
                 {
                     bool includeItem = !filterItemsByPermissions;
-                    if(filterItemsByPermissions)
+                    if (filterItemsByPermissions)
                     {
                         foreach (var p in item.LeftNavItemToPermissions)
                         {
@@ -68,7 +66,7 @@ namespace Viper.Areas.CMS.Data
                             }
                         }
                     }
-                    if(includeItem)
+                    if (includeItem)
                     {
                         items.Add(new(item));
                     }

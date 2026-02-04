@@ -375,14 +375,14 @@ async function loadCollections() {
 }
 
 async function saveCollection() {
-    if (collectionData.value.linkCollection == null || collectionData.value.linkCollection.trim().length == 0) {
+    if (collectionData.value.linkCollection === null || collectionData.value.linkCollection.trim().length === 0) {
         collectionNameInput.value.focus()
         return
     }
 
     const { put, post } = useFetch()
 
-    if (collection.value != null && collection.value.linkCollectionId > 0) {
+    if (collection.value !== null && collection.value.linkCollectionId > 0) {
         await put(apiURL + collection.value.linkCollectionId, { linkCollection: collectionData.value.linkCollection })
     } else {
         await post(apiURL, { linkCollection: collectionData.value.linkCollection })
@@ -450,7 +450,7 @@ function getTagsForCategory(element: LinkWithTags, categoryId: number) {
 
 async function saveLink() {
     const { post, put } = useFetch()
-    if (link.value.linkId == 0) {
+    if (link.value.linkId === 0) {
         const res = await post(apiURL + collectionId.value + "/links", {
             linkCollectionId: collectionId.value,
             url: link.value.url,
@@ -541,7 +541,7 @@ async function loadTags() {
 
 async function createTag() {
     const { post } = useFetch()
-    if (collectionId.value && addTag.value.trim() != "") {
+    if (collectionId.value && addTag.value.trim() !== "") {
         await post(apiURL + collectionId.value + "/tags", {
             linkCollectionId: collectionId.value,
             linkCollectionTagCategory: addTag.value,
@@ -577,7 +577,7 @@ function onDragEnd() {
 watch(collectionId, () => {
     loadLinks()
     loadTags()
-    collection.value = collections.value.find((c) => c.linkCollectionId == collectionId.value) || null
+    collection.value = collections.value.find((c) => c.linkCollectionId === collectionId.value) || null
     collectionData.value.linkCollection = collection.value?.linkCollection || ""
 })
 

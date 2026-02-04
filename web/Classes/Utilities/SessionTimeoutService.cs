@@ -1,13 +1,11 @@
-﻿using Microsoft.IdentityModel.Tokens;
 using NLog;
-using Polly;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 using Viper.Models.VIPER;
 
 namespace Viper.Classes.Utilities
 {
-    public class SessionTimeoutService
+    public static class SessionTimeoutService
     {
         public static void UpdateSessionTimeout()
         {
@@ -16,9 +14,10 @@ namespace Viper.Classes.Utilities
             VIPERContext? context = (VIPERContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(VIPERContext));
             var logger = LogManager.GetCurrentClassLogger();
 
-            if (!string.IsNullOrEmpty(loggedInUserId) && context != null) {
+            if (!string.IsNullOrEmpty(loggedInUserId) && context != null)
+            {
                 SessionTimeout? record = context.SessionTimeouts.Find(loggedInUserId, service);
-                if(record != null)
+                if (record != null)
                 {
                     record.SessionTimeoutDateTime = DateTime.Now.AddSeconds(29 * 60 + 30);
                     context.Update(record);

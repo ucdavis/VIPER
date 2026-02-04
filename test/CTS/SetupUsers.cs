@@ -2,9 +2,9 @@ using Moq;
 using Viper.Areas.CTS.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
-using Viper.Models.RAPS;
 
 namespace Viper.test.CTS;
+
 static internal class SetupUsers
 {
     public enum UserType
@@ -140,12 +140,6 @@ static internal class SetupUsers
             "SVMSecure.CTS.ViewStudentEncounters " => true,
             _ => false
         };
-    }
-
-    //Looks like the same as faculty, but without student assessments
-    static bool EmulateClinicianPermission(string permission)
-    {
-        return permission == "SVMSecure.CTS.StudentAssessments" ? false : EmulateFacultyPermission(permission);
     }
 
     //Same as faculty

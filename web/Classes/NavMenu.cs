@@ -1,4 +1,4 @@
-﻿namespace Viper.Classes
+namespace Viper.Classes
 {
     public class NavMenu
     {

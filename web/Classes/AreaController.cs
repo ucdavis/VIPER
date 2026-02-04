@@ -1,6 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using System.Linq;
 using Viper.Classes.Utilities;
 
 namespace Viper.Classes
@@ -22,7 +21,7 @@ namespace Viper.Classes
             await next();
         }
 
-        protected void ConvertNavLinksForDevelopment(NavMenu menu)
+        protected static void ConvertNavLinksForDevelopment(NavMenu menu)
         {
             if (HttpHelper.Environment?.EnvironmentName == "Development" && menu?.MenuItems != null)
             {

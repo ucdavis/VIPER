@@ -1,4 +1,4 @@
-﻿using NLog;
+using NLog;
 using System.Collections.Specialized;
 using System.Text.Json;
 using System.Web;
@@ -475,7 +475,7 @@ namespace Viper.Classes.Utilities
         /// https://ucdavis.jira.com/wiki/spaces/IAM/pages/688849434/IAM+Web+Services+IAM-WS#IAMWebServices(IAM-WS)-BasicResponseFormat
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        private class IntermediateResponse<T> where T : IIamData
+        private sealed class IntermediateResponse<T> where T : IIamData
         {
             public string ResponseDetails { get; set; } = string.Empty;
             public int ResponseStatus { get; }
@@ -488,7 +488,7 @@ namespace Viper.Classes.Utilities
         /// Data array is an object with a single key - results - that contains an array of data (even for things that return one record)
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        private class DataArray<T> where T : IIamData
+        private sealed class DataArray<T> where T : IIamData
         {
             public IEnumerable<T> Results { get; set; } = new List<T>();
         }

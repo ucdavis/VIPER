@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Viper.Classes.SQLContext;
 
 namespace Viper.Areas.CMS.Controllers

@@ -1,4 +1,3 @@
-﻿using System.Data;
 using System.Linq.Expressions;
 using Viper.Models.RAPS;
 
@@ -62,7 +61,7 @@ namespace Viper.Areas.RAPS.Services
         {
             return _RAPSSecurityService.GetControlledRoleIds(userId);
         }
-        
+
         public string GetDefaultInstanceForUser()
         {
             return _RAPSSecurityService.GetDefaultInstanceForUser();

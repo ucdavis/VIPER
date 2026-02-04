@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Viper.Views.Home
@@ -7,6 +6,7 @@ namespace Viper.Views.Home
     {
         public void OnGet()
         {
+            // Method intentionally left empty.
         }
     }
 }

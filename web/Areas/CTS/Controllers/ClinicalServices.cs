@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -22,7 +22,7 @@ namespace Viper.Areas.CTS.Controllers
         public async Task<ActionResult<List<Service>>> GetServices(int? chiefId = null)
         {
             var servicesQ = context.Services.AsQueryable();
-            if(chiefId != null)
+            if (chiefId != null)
             {
                 var serviceChiefs = await context.ServiceChiefs.Where(c => c.PersonId == chiefId).Select(c => c.ServiceId).ToListAsync();
                 servicesQ = servicesQ.Where(s => serviceChiefs.Contains(s.ServiceId));

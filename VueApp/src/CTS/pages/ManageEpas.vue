@@ -45,7 +45,7 @@ async function submitEpa() {
     } else {
         epaObj.epaId = 0
         r = await post(epaUrl, epaObj)
-        if (r.result != null) {
+        if (r.result !== null) {
             epa.value.epaId = r.result.epaId
         }
     }
@@ -209,8 +209,8 @@ getEpas()
             </q-item-section>
         </q-item>
         <q-item
-            v-for="epa in epas"
-            :key="epa.epaId || `epa-${epa.name}`"
+            v-for="epaItem in epas"
+            :key="epaItem.epaId || `epa-${epaItem.name}`"
         >
             <q-item-section
                 top
@@ -226,13 +226,13 @@ getEpas()
                                 size="md"
                                 icon="edit"
                                 color="primary"
-                                @click="selectEpa(epa)"
+                                @click="selectEpa(epaItem)"
                             />
                         </span>
                         <span class="col">
                             <q-icon
-                                :name="epa.active ? 'check' : 'close'"
-                                :color="epa.active ? 'green' : 'red'"
+                                :name="epaItem.active ? 'check' : 'close'"
+                                :color="epaItem.active ? 'green' : 'red'"
                                 size="md"
                             />
                         </span>
@@ -244,14 +244,14 @@ getEpas()
                 side
                 class="text-dark col-7 col-md-8 col-lg-3"
             >
-                {{ epa.name }}
+                {{ epaItem.name }}
             </q-item-section>
             <!--v-html - this is sanitized in EpaController-->
             <!-- eslint-disable vue/no-v-html, vue/no-v-text-v-html-on-component -->
             <q-item-section
                 top
                 class="text-dark col-12 col-md-6 col-lg-4"
-                v-html="epa.description"
+                v-html="epaItem.description"
             />
             <!-- eslint-enable vue/no-v-html, vue/no-v-text-v-html-on-component -->
             <q-item-section
@@ -260,10 +260,10 @@ getEpas()
             >
                 <q-expansion-item
                     expand-separator
-                    :label="epa.services.length + ' services'"
+                    :label="epaItem.services.length + ' services'"
                 >
                     <span
-                        v-for="epaService in epa.services"
+                        v-for="epaService in epaItem.services"
                         :key="epaService.serviceId"
                     >
                         {{ epaService.serviceName }}<br />

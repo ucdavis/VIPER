@@ -122,7 +122,8 @@ namespace Viper.Areas.Directory.Models
                     var results = context.Database.SqlQueryRaw<string>(query).ToList();
                     foreach (var r in results)
                     {
-                        EmailHost = r.Split("@")[^1];
+                        var parts = r.Split("@");
+                        EmailHost = parts[^1];
                     }
                 }
             }

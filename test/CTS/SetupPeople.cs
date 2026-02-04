@@ -1,19 +1,12 @@
-﻿using Moq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Moq;
 using Viper.Classes.SQLContext;
-using Viper.Models.CTS;
 using Viper.Models.VIPER;
 using Microsoft.EntityFrameworkCore;
-using MockQueryable;
 using MockQueryable.Moq;
 
 namespace Viper.test.CTS
 {
-    internal class SetupPeople
+    internal static class SetupPeople
     {
         public static readonly List<Person> People = new()
         {

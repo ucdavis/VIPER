@@ -1,11 +1,10 @@
-﻿using Viper.Classes;
+using Viper.Classes;
 using Web.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Viper.Classes.SQLContext;
 using Microsoft.EntityFrameworkCore;
 using Viper.Models.CTS;
 using Viper.Areas.CTS.Models;
-using System.DirectoryServices.ActiveDirectory;
 using AutoMapper;
 
 namespace Viper.Areas.CTS.Controllers
@@ -80,10 +79,10 @@ namespace Viper.Areas.CTS.Controllers
                 }
                 else
                 {
-                    var parent = allCompDtos.Where(c => c.CompetencyId == comp.ParentId).FirstOrDefault();
+                    var parent = allCompDtos.FirstOrDefault(c => c.CompetencyId == comp.ParentId);
                     if (parent != null)
                     {
-                        parent.Children.Append(comp);
+                        ((List<CompetencyHierarchyDto>)parent.Children).Add(comp);
                     }
                 }
             }
