@@ -10,6 +10,8 @@ const {
     wasBuildSuccessful,
     getCachedBuildOutput,
     filterBuildErrors,
+    shouldClearCache,
+    clearBuildCache,
 } = require("./lib/build-cache")
 
 const { env } = process
@@ -102,9 +104,35 @@ function runTests() {
 }
 
 /**
+ * Clear caches and build artifacts when --clear-cache is passed
+ */
+function clearCacheIfRequested() {
+    if (shouldClearCache()) {
+        clearBuildCache()
+        // Also delete precommit build directory to force fresh build
+        if (fs.existsSync(precommitBinPath)) {
+            fs.rmSync(precommitBinPath, { recursive: true, force: true })
+        }
+        // Delete main project bin/obj to ensure test project gets fresh dependencies
+        const webBin = path.join("web", "bin")
+        const webObj = path.join("web", "obj")
+        const testObj = path.join("test", "obj")
+        for (const dir of [webBin, webObj, testObj]) {
+            if (fs.existsSync(dir)) {
+                fs.rmSync(dir, { recursive: true, force: true })
+            }
+        }
+        logger.info("🧹 Cleared test build artifacts")
+    }
+}
+
+/**
  * Main execution
  */
 function main() {
+    // Handle --clear-cache flag
+    clearCacheIfRequested()
+
     // Ensure build exists (either from precommit or build now)
     if (!ensureBuild()) {
         process.exit(1)
