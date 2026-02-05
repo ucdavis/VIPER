@@ -372,6 +372,8 @@ const groupedDepartments = computed(() => {
     }
 
     const result: { label: string; value: string; disable?: boolean }[] = []
+    // Add "No Department Selected" option at the beginning
+    result.push({ label: "No Department Selected", value: "" })
     for (const [groupName, items] of Object.entries(groups)) {
         result.push({ label: groupName, value: "", disable: true })
         result.push(...items)
