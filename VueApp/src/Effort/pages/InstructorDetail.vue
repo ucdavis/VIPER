@@ -170,6 +170,7 @@
             :term-code="termCodeNum"
             :is-verified="instructor?.isVerified"
             :pre-selected-course-id="preSelectedCourseId"
+            :existing-records="effortRecords"
             @created="onRecordCreated"
         />
 

@@ -51,6 +51,7 @@ public class EffortRecordService : IEffortRecordService
             .AsNoTracking()
             .Include(r => r.Course)
             .Include(r => r.RoleNavigation)
+            .Include(r => r.EffortTypeNavigation)
             .Where(r => r.Id == recordId)
             .FirstOrDefaultAsync(ct);
 
@@ -66,10 +67,10 @@ public class EffortRecordService : IEffortRecordService
     public async Task<(InstructorEffortRecordDto Record, string? Warning)> CreateEffortRecordAsync(
         CreateEffortRecordRequest request, CancellationToken ct = default)
     {
-        // Validate effort value is non-negative
-        if (request.EffortValue < 0)
+        // Validate effort value is positive
+        if (request.EffortValue <= 0)
         {
-            throw new InvalidOperationException("Effort value must be non-negative.");
+            throw new InvalidOperationException("Effort value must be greater than zero.");
         }
 
         // Get or create instructor for this term (matches legacy EffortAction.cfm behavior)
@@ -235,6 +236,7 @@ public class EffortRecordService : IEffortRecordService
             .AsNoTracking()
             .Include(r => r.Course)
             .Include(r => r.RoleNavigation)
+            .Include(r => r.EffortTypeNavigation)
             .FirstAsync(r => r.Id == record.Id, ct);
 
         // Check if we should auto-create R-course for this instructor
@@ -251,10 +253,10 @@ public class EffortRecordService : IEffortRecordService
     public async Task<(InstructorEffortRecordDto? Record, string? Warning)> UpdateEffortRecordAsync(
         int recordId, UpdateEffortRecordRequest request, CancellationToken ct = default)
     {
-        // Validate effort value is non-negative
-        if (request.EffortValue < 0)
+        // Validate effort value is positive
+        if (request.EffortValue <= 0)
         {
-            throw new InvalidOperationException("Effort value must be non-negative.");
+            throw new InvalidOperationException("Effort value must be greater than zero.");
         }
 
         var record = await _context.Records
@@ -385,6 +387,7 @@ public class EffortRecordService : IEffortRecordService
             .AsNoTracking()
             .Include(r => r.Course)
             .Include(r => r.RoleNavigation)
+            .Include(r => r.EffortTypeNavigation)
             .FirstAsync(r => r.Id == recordId, ct);
 
         return (MapToDto(updatedRecord), warning);
@@ -598,6 +601,7 @@ public class EffortRecordService : IEffortRecordService
             PersonId = record.PersonId,
             TermCode = record.TermCode,
             EffortType = record.EffortTypeId,
+            EffortTypeDescription = record.EffortTypeNavigation?.Description ?? "",
             Role = record.RoleId,
             RoleDescription = record.RoleNavigation?.Description ?? "",
             Hours = record.Hours,

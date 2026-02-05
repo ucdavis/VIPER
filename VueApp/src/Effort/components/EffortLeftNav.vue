@@ -205,7 +205,7 @@
                     v-ripple
                     href="https://ucdsvm.knowledgeowl.com/help/effort-system-overview"
                     target="_blank"
-                    rel="noopener noreferrer"
+                    rel="noopener"
                     class="leftNavLink"
                 >
                     <q-item-section>

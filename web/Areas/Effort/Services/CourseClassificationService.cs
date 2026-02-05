@@ -11,7 +11,7 @@ namespace Viper.Areas.Effort.Services;
 /// </summary>
 public class CourseClassificationService : ICourseClassificationService
 {
-    private static readonly string[] DvmSubjectCodes = { "DVM", "VET" };
+    private static readonly string[] DvmSubjectCodes = { "DVM" };
 
     /// <summary>
     /// Checks if the subject code is a DVM or VET course.

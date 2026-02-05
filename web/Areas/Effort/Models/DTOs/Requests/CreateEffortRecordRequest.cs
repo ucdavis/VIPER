@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Viper.Areas.Effort.Models.DTOs.Requests;
 
 /// <summary>
@@ -8,30 +10,37 @@ public class CreateEffortRecordRequest
     /// <summary>
     /// The person (instructor) ID.
     /// </summary>
-    public required int PersonId { get; set; }
+    [Range(1, int.MaxValue, ErrorMessage = "Person ID is required")]
+    public int PersonId { get; set; }
 
     /// <summary>
-    /// The term code.
+    /// The term code (e.g., 202510 for Fall 2025).
+    /// Must be a valid 6-digit term code.
     /// </summary>
-    public required int TermCode { get; set; }
+    [Range(100000, 999999, ErrorMessage = "Term code must be a valid 6-digit number")]
+    public int TermCode { get; set; }
 
     /// <summary>
     /// The course ID.
     /// </summary>
-    public required int CourseId { get; set; }
+    [Range(1, int.MaxValue, ErrorMessage = "Course is required")]
+    public int CourseId { get; set; }
 
     /// <summary>
     /// The effort type ID (e.g., "LEC", "LAB", "CLI").
     /// </summary>
-    public required string EffortTypeId { get; set; }
+    [Required(ErrorMessage = "Effort type is required")]
+    public string EffortTypeId { get; set; } = string.Empty;
 
     /// <summary>
     /// The role ID.
     /// </summary>
-    public required int RoleId { get; set; }
+    [Range(1, int.MaxValue, ErrorMessage = "Role is required")]
+    public int RoleId { get; set; }
 
     /// <summary>
     /// The effort value (hours or weeks depending on effort type and term).
     /// </summary>
-    public required int EffortValue { get; set; }
+    [Range(1, int.MaxValue, ErrorMessage = "Effort value is required")]
+    public int EffortValue { get; set; }
 }
