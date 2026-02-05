@@ -10,10 +10,10 @@ namespace Viper.Areas.Effort.Services;
 public interface ICourseClassificationService
 {
     /// <summary>
-    /// Checks if the subject code is a DVM or VET course.
+    /// Checks if the subject code is a DVM course.
     /// </summary>
-    /// <param name="subjCode">The subject code to check (e.g., "DVM", "VET", "BIS").</param>
-    /// <returns>True if the subject code is DVM or VET.</returns>
+    /// <param name="subjCode">The subject code to check (e.g., "DVM", "BIS").</param>
+    /// <returns>True if the subject code is DVM.</returns>
     bool IsDvmCourse(string? subjCode);
 
     /// <summary>
@@ -39,14 +39,6 @@ public interface ICourseClassificationService
     /// <param name="crn">The course reference number to check.</param>
     /// <returns>True if the CRN is "RESID".</returns>
     bool IsGenericRCourse(string? crn);
-
-    /// <summary>
-    /// Checks if the course is allowed for self-import by instructors.
-    /// Instructors cannot self-import DVM/VET courses.
-    /// </summary>
-    /// <param name="subjCode">The subject code to check.</param>
-    /// <returns>True if the course can be self-imported by instructors.</returns>
-    bool IsAllowedForSelfImport(string? subjCode);
 
     /// <summary>
     /// Classifies a course and returns all classification flags.

@@ -41,23 +41,19 @@ public class AuditController : BaseEffortController
 
     /// <summary>
     /// Get department codes for filtering if user has only ViewDeptAudit permission.
-    /// Returns null if user has full ViewAudit access, or a list with their department code.
+    /// Returns null if user has full ViewAudit access or ViewAllDepartments, or a list of their authorized departments from UserAccess.
     /// </summary>
     private async Task<List<string>?> GetDepartmentCodesForFilteringAsync(CancellationToken ct)
     {
-        var hasFullAccess = await _permissionService.HasPermissionAsync(EffortPermissions.ViewAudit, ct);
-        if (hasFullAccess)
+        // Users with ViewAudit or ViewAllDepartments can see all departments
+        if (await _permissionService.HasPermissionAsync(EffortPermissions.ViewAudit, ct) ||
+            await _permissionService.HasFullAccessAsync(ct))
         {
             return null;
         }
 
-        var userDept = await _permissionService.GetUserDepartmentAsync(ct);
-        if (string.IsNullOrEmpty(userDept))
-        {
-            return new List<string>();
-        }
-
-        return new List<string> { userDept };
+        var authorizedDepts = await _permissionService.GetAuthorizedDepartmentsAsync(ct);
+        return authorizedDepts.Count == 0 ? new List<string>() : authorizedDepts;
     }
 
     /// <summary>
@@ -108,17 +104,13 @@ public class AuditController : BaseEffortController
             ExcludeImports = await ShouldExcludeImportsAsync(ct)
         };
 
-        // Check if user has full ViewAudit permission or only ViewDeptAudit
-        var hasFullAccess = await _permissionService.HasPermissionAsync(EffortPermissions.ViewAudit, ct);
-        if (!hasFullAccess)
+        // Apply department filtering based on user permissions
+        filter.DepartmentCodes = await GetDepartmentCodesForFilteringAsync(ct);
+
+        // If user doesn't have full access and has no authorized departments, deny access
+        if (filter.DepartmentCodes != null && filter.DepartmentCodes.Count == 0)
         {
-            // User only has ViewDeptAudit - restrict to their department
-            var userDept = await _permissionService.GetUserDepartmentAsync(ct);
-            if (string.IsNullOrEmpty(userDept))
-            {
-                return Forbid();
-            }
-            filter.DepartmentCodes = new List<string> { userDept };
+            return Forbid();
         }
 
         var page = pagination?.Page ?? 1;

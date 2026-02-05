@@ -14,7 +14,7 @@ public class CourseClassificationService : ICourseClassificationService
     private static readonly string[] DvmSubjectCodes = { "DVM" };
 
     /// <summary>
-    /// Checks if the subject code is a DVM or VET course.
+    /// Checks if the subject code is a DVM course.
     /// </summary>
     public bool IsDvmCourse(string? subjCode)
     {
@@ -53,15 +53,6 @@ public class CourseClassificationService : ICourseClassificationService
     {
         if (string.IsNullOrEmpty(crn)) return false;
         return string.Equals(crn, "RESID", StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Checks if the course is allowed for self-import by instructors.
-    /// Instructors cannot self-import DVM/VET courses - these must be imported by staff.
-    /// </summary>
-    public bool IsAllowedForSelfImport(string? subjCode)
-    {
-        return !IsDvmCourse(subjCode);
     }
 
     /// <summary>

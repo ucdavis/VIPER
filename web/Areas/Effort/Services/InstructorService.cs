@@ -226,11 +226,10 @@ public class InstructorService : IInstructorService
             .Take(50) // Limit results for performance
             .ToListAsync(ct);
 
-        // Match the filtering from the stored procedure:
-        // AAUD.person INNER JOIN AAUD.ids ON person_pkey = ids_pkey
-        // INNER JOIN AAUD.employees ON emp_pkey = ids_pkey
-        // WHERE person_term_code = @TermCode AND ids_mothraID IS NOT NULL
-        // NOTE: The SP only filters person by term, not ids or employees
+        // Filter logic: Find people who have an AAUD person record for the requested term
+        // and have an associated employee record (via pKey). The term filter applies only to
+        // the person table - the ids and employees tables are joined by pKey without term filtering.
+        // This ensures we find instructors who are active employees with a current-term person record.
         var mothraIds = people.Select(p => p.MothraId).Where(m => !string.IsNullOrEmpty(m)).ToList();
         var termCodeStr = termCode.ToString();
 
@@ -239,8 +238,8 @@ public class InstructorService : IInstructorService
             return [];
         }
 
-        // Get AAUD person records for the term - this is the key filter
-        // Join to ids to get MothraId mapping (ids is not filtered by term in SP)
+        // Get AAUD person records for the term, joined to ids for MothraId mapping.
+        // Only the person table is filtered by term; ids is joined by pKey only.
         var personWithIds = await _aaudContext.People
             .AsNoTracking()
             .Where(p => p.PersonTermCode == termCodeStr)
@@ -259,7 +258,7 @@ public class InstructorService : IInstructorService
 
         var pKeys = mothraIdToPKey.Values.Distinct().ToList();
 
-        // Get employees (not filtered by term in SP - just joined by pkey)
+        // Get employees by pKey (not filtered by term - confirms they have an employee record)
         var employees = await _aaudContext.Employees
             .AsNoTracking()
             .Where(e => pKeys.Contains(e.EmpPKey))
@@ -276,7 +275,7 @@ public class InstructorService : IInstructorService
         // Build simple department code -> display name lookup (e.g., "VME" -> "Medicine & Epidemiology")
         var deptDisplayNameLookup = Departments.ToDictionary(d => d.Code, d => d.Name, StringComparer.OrdinalIgnoreCase);
 
-        // Batch-fetch job departments for all people (matches legacy jobs query)
+        // Batch-fetch job departments for all people
         var validMothraIds = mothraIds.Where(m => !string.IsNullOrEmpty(m)).ToList();
         var jobDeptsByMothraId = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
@@ -301,9 +300,8 @@ public class InstructorService : IInstructorService
                     StringComparer.OrdinalIgnoreCase);
         }
 
-        // Only include people who have all required AAUD records:
-        // - AAUD.person record for the term (already filtered in mothraIdToPKey via join)
-        // - AAUD.employees record (joined by pKey)
+        // Only include people who have: (1) an AAUD.person record for the term,
+        // and (2) an AAUD.employees record (confirming they are an employee).
         return people
             .Where(p => mothraIdToPKey.TryGetValue(p.MothraId, out var pKey) &&
                         employeeDict.ContainsKey(pKey))
@@ -607,15 +605,10 @@ public class InstructorService : IInstructorService
     }
 
     /// <summary>
-    /// Determine the effort department from AAUD data.
-    /// Priority: 1) Special overrides, 2) First academic dept from jobs, 3) Employee fields, 4) Fallback.
+    /// Determines the effort department from AAUD data.
+    /// Priority: 1) Special overrides for known cases, 2) First academic dept from jobs,
+    /// 3) Employee-level fields (effort/home/alt dept), 4) Non-academic fallback.
     /// </summary>
-    /// <remarks>
-    /// Matches legacy Instructor.cfc logic (lines 61-104):
-    /// - First queries AAUD jobs table for academic departments
-    /// - Then falls back to employee-level fields (effort/home/alt dept)
-    /// - Includes hardcoded overrides for special cases
-    /// </remarks>
     private async Task<string?> DetermineDepartmentAsync(
         string? mothraId,
         int termCode,
@@ -651,7 +644,7 @@ public class InstructorService : IInstructorService
             return null;
         }
 
-        // Step 1: Check AAUD jobs for first academic department (matches legacy qInstructorJobs query)
+        // Step 1: Check AAUD jobs for first academic department
         if (!string.IsNullOrEmpty(mothraId))
         {
             var termCodeStr = termCode.ToString();
@@ -675,7 +668,7 @@ public class InstructorService : IInstructorService
             }
         }
 
-        // Step 2: Fall back to employee fields (matches legacy qDetails checks)
+        // Step 2: Fall back to employee fields
         if (employee == null)
         {
             return null;
@@ -702,7 +695,7 @@ public class InstructorService : IInstructorService
             return altDeptSimple.ToUpperInvariant();
         }
 
-        // No academic dept found - fall back to effort dept even if non-academic (matches legacy line 97)
+        // No academic dept found - fall back to effort dept even if non-academic
         if (effortDeptSimple != null)
         {
             return effortDeptSimple.ToUpperInvariant();
