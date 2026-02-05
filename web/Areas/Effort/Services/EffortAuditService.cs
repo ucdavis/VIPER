@@ -136,7 +136,7 @@ public class EffortAuditService : IEffortAuditService
             ["Department"] = new ChangeDetail { OldValue = null, NewValue = department }
         });
 
-        AddAuditEntry(EffortAuditTables.Persons, personId, termCode, EffortAuditActions.CreatePerson, changes);
+        AddAuditEntry(EffortAuditTables.Persons, personId, termCode, EffortAuditActions.HarvestCreatePerson, changes);
     }
 
     public void AddHarvestCourseAudit(int courseId, int termCode, string subjCode, string crseNumb, string crn)
@@ -148,7 +148,7 @@ public class EffortAuditService : IEffortAuditService
             ["CRN"] = new ChangeDetail { OldValue = null, NewValue = crn }
         });
 
-        AddAuditEntry(EffortAuditTables.Courses, courseId, termCode, EffortAuditActions.CreateCourse, changes);
+        AddAuditEntry(EffortAuditTables.Courses, courseId, termCode, EffortAuditActions.HarvestCreateCourse, changes);
     }
 
     public void AddHarvestRecordAudit(int recordId, int termCode, string mothraId, string courseCode, string effortType, int? hours, int? weeks)
@@ -171,7 +171,7 @@ public class EffortAuditService : IEffortAuditService
         }
 
         var changes = JsonSerializer.Serialize(changesDict);
-        AddAuditEntry(EffortAuditTables.Records, recordId, termCode, EffortAuditActions.CreateEffort, changes);
+        AddAuditEntry(EffortAuditTables.Records, recordId, termCode, EffortAuditActions.HarvestCreateEffort, changes);
     }
 
     /// <summary>
@@ -320,7 +320,7 @@ public class EffortAuditService : IEffortAuditService
 
         if (excludeImports)
         {
-            query = query.Where(a => !EffortAuditActions.ImportActions.Contains(a.Action));
+            query = query.Where(a => !EffortAuditActions.HiddenFromChairsActions.Contains(a.Action));
         }
 
         if (departmentCodes != null)
@@ -342,7 +342,7 @@ public class EffortAuditService : IEffortAuditService
 
         if (excludeImports)
         {
-            query = query.Where(a => !EffortAuditActions.ImportActions.Contains(a.Action));
+            query = query.Where(a => !EffortAuditActions.HiddenFromChairsActions.Contains(a.Action));
         }
 
         if (departmentCodes != null)
@@ -376,7 +376,7 @@ public class EffortAuditService : IEffortAuditService
         var baseQuery = _context.Audits.AsNoTracking();
         if (excludeImports)
         {
-            baseQuery = baseQuery.Where(a => !EffortAuditActions.ImportActions.Contains(a.Action));
+            baseQuery = baseQuery.Where(a => !EffortAuditActions.HiddenFromChairsActions.Contains(a.Action));
         }
 
         if (departmentCodes != null)
@@ -426,7 +426,7 @@ public class EffortAuditService : IEffortAuditService
         var baseQuery = _context.Audits.AsNoTracking();
         if (excludeImports)
         {
-            baseQuery = baseQuery.Where(a => !EffortAuditActions.ImportActions.Contains(a.Action));
+            baseQuery = baseQuery.Where(a => !EffortAuditActions.HiddenFromChairsActions.Contains(a.Action));
         }
 
         if (departmentCodes != null)
@@ -528,7 +528,7 @@ public class EffortAuditService : IEffortAuditService
 
         if (excludeImports)
         {
-            auditQuery = auditQuery.Where(a => !EffortAuditActions.ImportActions.Contains(a.Action));
+            auditQuery = auditQuery.Where(a => !EffortAuditActions.HiddenFromChairsActions.Contains(a.Action));
         }
 
         if (departmentCodes != null)
@@ -630,7 +630,7 @@ public class EffortAuditService : IEffortAuditService
 
         if (filter.ExcludeImports)
         {
-            query = query.Where(a => !EffortAuditActions.ImportActions.Contains(a.Action));
+            query = query.Where(a => !EffortAuditActions.HiddenFromChairsActions.Contains(a.Action));
         }
 
         if (filter.TermCode.HasValue)

@@ -31,10 +31,7 @@ public sealed class CourseClassificationServiceTests
     [InlineData("DVM")]
     [InlineData("dvm")]
     [InlineData("Dvm")]
-    [InlineData("VET")]
-    [InlineData("vet")]
-    [InlineData("Vet")]
-    public void IsDvmCourse_DvmOrVetSubjectCode_ReturnsTrue(string subjCode)
+    public void IsDvmCourse_DvmSubjectCode_ReturnsTrue(string subjCode)
     {
         var result = _service.IsDvmCourse(subjCode);
         Assert.True(result);
@@ -46,6 +43,7 @@ public sealed class CourseClassificationServiceTests
     [InlineData("PMI")]
     [InlineData("BIO")]
     [InlineData("CHE")]
+    [InlineData("VET")]
     public void IsDvmCourse_OtherSubjectCodes_ReturnsFalse(string subjCode)
     {
         var result = _service.IsDvmCourse(subjCode);
@@ -183,47 +181,6 @@ public sealed class CourseClassificationServiceTests
 
     #endregion
 
-    #region IsAllowedForSelfImport Tests
-
-    [Fact]
-    public void IsAllowedForSelfImport_NullInput_ReturnsTrue()
-    {
-        var result = _service.IsAllowedForSelfImport(null);
-        Assert.True(result);
-    }
-
-    [Fact]
-    public void IsAllowedForSelfImport_EmptyString_ReturnsTrue()
-    {
-        var result = _service.IsAllowedForSelfImport("");
-        Assert.True(result);
-    }
-
-    [Theory]
-    [InlineData("DVM")]
-    [InlineData("VET")]
-    [InlineData("dvm")]
-    [InlineData("vet")]
-    public void IsAllowedForSelfImport_DvmOrVetSubjectCode_ReturnsFalse(string subjCode)
-    {
-        var result = _service.IsAllowedForSelfImport(subjCode);
-        Assert.False(result);
-    }
-
-    [Theory]
-    [InlineData("APC")]
-    [InlineData("PHR")]
-    [InlineData("PMI")]
-    [InlineData("BIO")]
-    [InlineData("CHE")]
-    public void IsAllowedForSelfImport_OtherSubjectCodes_ReturnsTrue(string subjCode)
-    {
-        var result = _service.IsAllowedForSelfImport(subjCode);
-        Assert.True(result);
-    }
-
-    #endregion
-
     #region Classify Tests
 
     [Fact]
@@ -285,7 +242,7 @@ public sealed class CourseClassificationServiceTests
     {
         var course = new EffortCourse
         {
-            SubjCode = "VET",
+            SubjCode = "DVM",
             CrseNumb = "200R",
             Crn = "RESID"
         };

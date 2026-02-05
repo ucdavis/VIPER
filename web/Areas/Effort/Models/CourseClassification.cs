@@ -7,7 +7,7 @@ namespace Viper.Areas.Effort.Models;
 public record CourseClassification
 {
     /// <summary>
-    /// True if the course is a DVM or VET subject code.
+    /// True if the course subject code is DVM.
     /// </summary>
     public bool IsDvmCourse { get; init; }
 

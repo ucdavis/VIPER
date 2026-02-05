@@ -17,6 +17,7 @@
 // 10. FixPercentageConstraint - Update CK_Percentages_Percentage constraint from 0-100 to 0-1
 // 11. AddViewDeptAuditPermission - Add SVMSecure.Effort.ViewDeptAudit permission for department chairs to view audit trail
 // 12. FixEffortTypeDescriptions - Fix incorrect EffortType descriptions to match legacy CREST tbl_sessiontype
+// 13. BackfillHarvestAuditActions - Update audit entries from harvest to use new Harvest* action types
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -27,6 +28,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 
@@ -260,6 +262,23 @@ namespace Viper.Areas.Effort.Scripts
 
                 var (success, message) = RunFixEffortTypeDescriptionsTask(viperConnectionString, executeMode);
                 taskResults["FixEffortTypeDescriptions"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 13: Backfill harvest audit action types
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 13: Backfill Harvest Audit Actions");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunBackfillHarvestAuditActionsTask(viperConnectionString, executeMode);
+                taskResults["BackfillHarvestAuditActions"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
@@ -2628,6 +2647,282 @@ namespace Viper.Areas.Effort.Scripts
                         Console.WriteLine($"  ✓ Updated {updatedCount} EffortType description(s)");
                         Console.ResetColor();
                         return (true, $"Updated {updatedCount} description(s)");
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine($"  ✓ Verified {updatedCount} update(s) would succeed");
+                        Console.WriteLine("  ↶ Transaction rolled back - no permanent changes");
+                        Console.ResetColor();
+                        return (true, $"Verified {updatedCount} update(s) (rolled back)");
+                    }
+                }
+                catch (SqlException ex)
+                {
+                    transaction.Rollback();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"  ✗ Database error: {ex.Message}");
+                    Console.WriteLine("  ↶ Transaction rolled back");
+                    Console.ResetColor();
+                    return (false, $"Database error: {ex.Message}");
+                }
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Task 13: Backfill Harvest Audit Actions
+
+        /// <summary>
+        /// Maps old action names to new harvest-specific action names.
+        /// These actions are created during the harvest process and should be
+        /// hidden from department-level users (chairs) who view the audit trail.
+        /// </summary>
+        private static readonly Dictionary<string, string> HarvestActionMappings = new()
+        {
+            { "CreatePerson", "HarvestCreatePerson" },
+            { "CreateCourse", "HarvestCreateCourse" },
+            { "CreateEffort", "HarvestCreateEffort" }
+        };
+
+        /// <summary>
+        /// Backfills historical audit entries with harvest-specific action names.
+        ///
+        /// This task identifies Create* entries that were logged during harvest sessions
+        /// and renames them to Harvest* variants so they can be filtered from chairs.
+        ///
+        /// IMPORTANT: We filter by ChangedBy (the user who ran the harvest) to preserve
+        /// legitimate manual data entry. Analysis of early terms (2008) revealed that
+        /// some Create* entries were from staff manually entering effort data over extended
+        /// periods (e.g., Jan Ilkiw: 10,000+ entries over 2 years). These should remain
+        /// visible to chairs as CreatePerson/CreateCourse/CreateEffort.
+        ///
+        /// The sanity check warnings about "entries from different users" are expected
+        /// for these early terms - they indicate legitimate manual work being preserved.
+        /// </summary>
+        private static (bool Success, string Message) RunBackfillHarvestAuditActionsTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Check if Audits table exists
+                using var checkCmd = new SqlCommand(
+                    "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'Audits'",
+                    connection);
+                int tableExists = (int)checkCmd.ExecuteScalar();
+
+                if (tableExists == 0)
+                {
+                    Console.WriteLine("  ⚠ Audits table does not exist - skipping");
+                    return (true, "Skipped - Audits table does not exist");
+                }
+
+                // Check if any entries already use the new action names (migration already done)
+                using var alreadyMigratedCmd = new SqlCommand(
+                    "SELECT COUNT(*) FROM [effort].[Audits] WHERE Action IN ('HarvestCreatePerson', 'HarvestCreateCourse', 'HarvestCreateEffort')",
+                    connection);
+                int alreadyMigrated = (int)alreadyMigratedCmd.ExecuteScalar();
+
+                if (alreadyMigrated > 0)
+                {
+                    Console.WriteLine($"  ✓ Found {alreadyMigrated} entries already using new Harvest* action names");
+                    Console.WriteLine("    Migration appears to have been run previously");
+                }
+
+                // Find all ImportEffort entries to identify harvest sessions
+                // ImportEffort is logged at the END of harvest with a summary, making it the reliable marker
+                // Since harvest deletes all records for a term, ALL Create* entries before ImportEffort are from that harvest
+                // We also track ChangedBy as a defensive filter - all entries should match the harvest initiator
+                var harvestSessions = new List<(int TermCode, DateTime ImportEffortDate, int ChangedBy)>();
+
+                using (var harvestCmd = new SqlCommand(@"
+                    SELECT TermCode, ChangedDate, ChangedBy
+                    FROM [effort].[Audits]
+                    WHERE Action = 'ImportEffort'
+                      AND TermCode IS NOT NULL
+                    ORDER BY TermCode, ChangedDate",
+                    connection))
+                using (var reader = harvestCmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        harvestSessions.Add((
+                            reader.GetInt32(0),
+                            reader.GetDateTime(1),
+                            reader.GetInt32(2)
+                        ));
+                    }
+                }
+
+                if (harvestSessions.Count == 0)
+                {
+                    Console.WriteLine("  ⚠ No ImportEffort entries found - nothing to backfill");
+                    return (true, "No ImportEffort entries found");
+                }
+
+                Console.WriteLine($"  Found {harvestSessions.Count} harvest session(s)");
+
+                // Count entries that would be updated for each action type
+                var updateCounts = new Dictionary<string, int>();
+                foreach (var (oldAction, _) in HarvestActionMappings)
+                {
+                    updateCounts[oldAction] = 0;
+                }
+
+                // For each harvest session, find and count Create* entries
+                // Harvest deletes all previous records for a term before re-importing,
+                // so ALL Create* entries before ImportEffort for that term are from the harvest.
+                // We filter by ChangedBy as a defensive measure and run sanity checks.
+                foreach (var (termCode, importEffortDate, changedBy) in harvestSessions)
+                {
+                    // Sanity check 1: count entries older than 1 hour before ImportEffort
+                    var sanityWindow = importEffortDate.AddHours(-1);
+                    using var timeCheckCmd = new SqlCommand(@"
+                        SELECT COUNT(*)
+                        FROM [effort].[Audits]
+                        WHERE TermCode = @TermCode
+                          AND ChangedBy = @ChangedBy
+                          AND ChangedDate < @SanityWindow
+                          AND Action IN ('CreatePerson', 'CreateCourse', 'CreateEffort')",
+                        connection);
+                    timeCheckCmd.Parameters.AddWithValue("@TermCode", termCode);
+                    timeCheckCmd.Parameters.AddWithValue("@ChangedBy", changedBy);
+                    timeCheckCmd.Parameters.AddWithValue("@SanityWindow", sanityWindow);
+                    int oldEntries = (int)timeCheckCmd.ExecuteScalar();
+                    if (oldEntries > 0)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine($"  ⚠ Term {termCode}: {oldEntries} entries are >1 hour before ImportEffort");
+                        Console.ResetColor();
+                    }
+
+                    // Sanity check 2: compare count with and without ChangedBy filter
+                    // If different, there are entries from other users - likely manual data entry
+                    // that should remain visible to chairs (expected for early 2008 terms)
+                    using var totalCountCmd = new SqlCommand(@"
+                        SELECT COUNT(*)
+                        FROM [effort].[Audits]
+                        WHERE TermCode = @TermCode
+                          AND ChangedDate <= @ImportEffortDate
+                          AND Action IN ('CreatePerson', 'CreateCourse', 'CreateEffort')",
+                        connection);
+                    totalCountCmd.Parameters.AddWithValue("@TermCode", termCode);
+                    totalCountCmd.Parameters.AddWithValue("@ImportEffortDate", importEffortDate);
+                    int totalWithoutUserFilter = (int)totalCountCmd.ExecuteScalar();
+
+                    using var userCountCmd = new SqlCommand(@"
+                        SELECT COUNT(*)
+                        FROM [effort].[Audits]
+                        WHERE TermCode = @TermCode
+                          AND ChangedBy = @ChangedBy
+                          AND ChangedDate <= @ImportEffortDate
+                          AND Action IN ('CreatePerson', 'CreateCourse', 'CreateEffort')",
+                        connection);
+                    userCountCmd.Parameters.AddWithValue("@TermCode", termCode);
+                    userCountCmd.Parameters.AddWithValue("@ChangedBy", changedBy);
+                    userCountCmd.Parameters.AddWithValue("@ImportEffortDate", importEffortDate);
+                    int totalWithUserFilter = (int)userCountCmd.ExecuteScalar();
+
+                    if (totalWithoutUserFilter != totalWithUserFilter)
+                    {
+                        int diff = totalWithoutUserFilter - totalWithUserFilter;
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine($"  ⚠ Term {termCode}: {diff} manual entries from other users preserved (not converted to Harvest*)");
+                        Console.ResetColor();
+                    }
+
+                    // Count Create* entries matching this harvest session (with ChangedBy filter)
+                    using var countCmd = new SqlCommand(@"
+                        SELECT Action, COUNT(*) as Count
+                        FROM [effort].[Audits]
+                        WHERE TermCode = @TermCode
+                          AND ChangedBy = @ChangedBy
+                          AND ChangedDate <= @ImportEffortDate
+                          AND Action IN ('CreatePerson', 'CreateCourse', 'CreateEffort')
+                        GROUP BY Action",
+                        connection);
+                    countCmd.Parameters.AddWithValue("@TermCode", termCode);
+                    countCmd.Parameters.AddWithValue("@ChangedBy", changedBy);
+                    countCmd.Parameters.AddWithValue("@ImportEffortDate", importEffortDate);
+
+                    using var reader = countCmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        string action = reader.GetString(0);
+                        int count = reader.GetInt32(1);
+                        updateCounts[action] += count;
+                    }
+                }
+
+                int totalToUpdate = updateCounts.Values.Sum();
+                if (totalToUpdate == 0)
+                {
+                    Console.WriteLine("  ✓ No entries need to be updated");
+                    return (true, "No entries to update");
+                }
+
+                Console.WriteLine($"  Found {totalToUpdate} audit entries to update:");
+                foreach (var (action, count) in updateCounts.Where(kv => kv.Value > 0))
+                {
+                    Console.WriteLine($"    {action} → {HarvestActionMappings[action]}: {count} entries");
+                }
+                Console.WriteLine();
+
+                // Execute the updates within a transaction (rollback in dry-run mode)
+                int updatedCount = 0;
+                using var transaction = connection.BeginTransaction();
+
+                try
+                {
+                    foreach (var (termCode, importEffortDate, changedBy) in harvestSessions)
+                    {
+                        foreach (var (oldAction, newAction) in HarvestActionMappings)
+                        {
+                            using var updateCmd = new SqlCommand(@"
+                                UPDATE [effort].[Audits]
+                                SET Action = @NewAction
+                                WHERE TermCode = @TermCode
+                                  AND ChangedBy = @ChangedBy
+                                  AND ChangedDate <= @ImportEffortDate
+                                  AND Action = @OldAction",
+                                connection, transaction);
+                            updateCmd.Parameters.AddWithValue("@NewAction", newAction);
+                            updateCmd.Parameters.AddWithValue("@TermCode", termCode);
+                            updateCmd.Parameters.AddWithValue("@ChangedBy", changedBy);
+                            updateCmd.Parameters.AddWithValue("@ImportEffortDate", importEffortDate);
+                            updateCmd.Parameters.AddWithValue("@OldAction", oldAction);
+
+                            updatedCount += updateCmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Commit or rollback based on execute mode
+                    if (executeMode)
+                    {
+                        transaction.Commit();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"  ✓ Updated {updatedCount} audit entries");
+                        Console.ResetColor();
+                        return (true, $"Updated {updatedCount} entries");
                     }
                     else
                     {

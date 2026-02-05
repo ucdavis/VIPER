@@ -8,7 +8,7 @@ namespace Viper.Areas.Effort.Models.DTOs;
 public interface ICourseClassificationFlags
 {
     /// <summary>
-    /// True if this is a DVM or VET course (SubjCode is "DVM" or "VET").
+    /// True if this is a DVM course (SubjCode is "DVM").
     /// </summary>
     bool IsDvm { get; set; }
 

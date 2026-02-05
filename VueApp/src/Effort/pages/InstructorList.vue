@@ -933,6 +933,12 @@ async function loadInstructors() {
         if (token !== loadToken) return
 
         instructors.value = result
+
+        // Auto-select department if user only has access to one
+        const uniqueDepts = [...new Set(result.map((i) => i.effortDept).filter((d): d is string => !!d))]
+        if (uniqueDepts.length === 1 && !selectedDept.value) {
+            selectedDept.value = uniqueDepts[0] ?? null
+        }
     } finally {
         if (token === loadToken) {
             isLoading.value = false
