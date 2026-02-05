@@ -47,16 +47,41 @@
         <!-- Content when loaded -->
         <template v-else-if="myEffort">
             <!-- Header -->
-            <div class="q-mb-md">
-                <h2 class="q-my-none q-mb-sm">
+            <div class="q-mb-md row items-center justify-between">
+                <h2 class="q-my-none header-title">
                     My Effort<template v-if="myEffort.termName"> for {{ myEffort.termName }}</template>
+                    <a
+                        href="https://ucdsvm.knowledgeowl.com/help/how-do-i-update-and-verify-my-teaching-effort"
+                        target="_blank"
+                        rel="noopener"
+                        class="help-link text-primary lt-sm"
+                        aria-label="Need help? View documentation"
+                    >
+                        <q-icon
+                            name="help_outline"
+                            size="xs"
+                        />
+                    </a>
                 </h2>
+                <a
+                    href="https://ucdsvm.knowledgeowl.com/help/how-do-i-update-and-verify-my-teaching-effort"
+                    target="_blank"
+                    rel="noopener"
+                    class="help-link text-primary gt-xs"
+                    aria-label="Need help? View documentation"
+                >
+                    Need Help
+                    <q-icon
+                        name="help_outline"
+                        size="xs"
+                    />
+                </a>
             </div>
 
             <!-- Add Effort and Import Course Buttons -->
             <div
                 v-if="myEffort.canEdit"
-                class="q-mb-md q-gutter-sm"
+                class="row q-mb-md q-gutter-sm"
             >
                 <q-btn
                     color="primary"
@@ -69,12 +94,14 @@
                 <q-btn
                     color="secondary"
                     icon="cloud_download"
-                    label="Import Course from Banner"
                     dense
                     outline
                     aria-label="Import course from Banner"
                     @click="openImportDialog"
-                />
+                >
+                    <span class="lt-sm q-ml-xs">Import Course</span>
+                    <span class="gt-xs q-ml-xs">Import Course from Banner</span>
+                </q-btn>
             </div>
 
             <!-- Already verified banner -->
@@ -208,11 +235,7 @@
                     />
                     <div class="q-mt-md">
                         <q-btn
-                            :label="
-                                myEffort.effortRecords.length === 0
-                                    ? 'Submit No-Effort Verification'
-                                    : 'Submit Verification'
-                            "
+                            label="Submit Verification"
                             color="primary"
                             :disable="!verifyConfirmed"
                             :loading="isVerifying"
@@ -242,6 +265,7 @@
             :term-code="termCodeNum"
             :is-verified="myEffort?.instructor?.isVerified ?? false"
             :pre-selected-course-id="preSelectedCourseId"
+            :existing-records="myEffort?.effortRecords ?? []"
             @created="onRecordCreated"
         />
 
@@ -517,3 +541,27 @@ async function loadData() {
 
 onMounted(loadData)
 </script>
+
+<style scoped>
+.header-title {
+    display: inline-flex;
+    align-items: center;
+}
+
+.help-link {
+    margin-left: 8px;
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: normal;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.help-link:hover {
+    background-color: rgba(0, 95, 153, 0.1);
+}
+</style>

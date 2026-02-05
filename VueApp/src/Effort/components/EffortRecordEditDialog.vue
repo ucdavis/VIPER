@@ -56,7 +56,7 @@
                     options-dense
                     outlined
                     option-value="id"
-                    option-label="description"
+                    :option-label="(opt: EffortTypeOptionDto) => `${opt.description} (${opt.id})`"
                     emit-value
                     map-options
                     :loading="isLoadingOptions"
@@ -87,6 +87,8 @@
                     dense
                     outlined
                     min="0"
+                    :rules="effortValueRules"
+                    lazy-rules
                     class="q-mb-md"
                 />
 
@@ -144,6 +146,7 @@ import { ref, computed, watch } from "vue"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { recordService } from "../services/record-service"
 import type { EffortTypeOptionDto, RoleOptionDto, InstructorEffortRecordDto } from "../types"
+import { effortValueRules } from "../validation"
 
 const props = defineProps<{
     modelValue: boolean
@@ -242,12 +245,14 @@ const effortLabel = computed(() => {
 
 // Computed: Form validation
 const isFormValid = computed(() => {
-    return (
-        selectedEffortType.value !== null &&
-        selectedRole.value !== null &&
+    // Ensure effortValue is a valid positive integer
+    const isValidEffortValue =
         effortValue.value !== null &&
-        effortValue.value >= 0
-    )
+        Number.isFinite(effortValue.value) &&
+        Number.isInteger(effortValue.value) &&
+        effortValue.value > 0
+
+    return selectedEffortType.value !== null && selectedRole.value !== null && isValidEffortValue
 })
 
 // Reset form when dialog opens with record data

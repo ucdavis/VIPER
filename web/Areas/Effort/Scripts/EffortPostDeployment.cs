@@ -2649,12 +2649,21 @@ namespace Viper.Areas.Effort.Scripts
                     return (false, $"Database error: {ex.Message}");
                 }
             }
-            catch (Exception ex)
+            catch (SqlException ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"  ✗ Error: {ex.Message}");
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
                 Console.ResetColor();
-                return (false, $"Error: {ex.Message}");
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
             }
         }
 

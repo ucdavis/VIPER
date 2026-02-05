@@ -11,6 +11,37 @@
         :rows-per-page-options="[0]"
         :class="tableClass"
     >
+        <template #header-cell-effortType="headerProps">
+            <q-th :props="headerProps">
+                <span class="effort-type-header-content">
+                    {{ headerProps.col.label }}
+                    <q-btn
+                        flat
+                        round
+                        dense
+                        icon="help_outline"
+                        size="xs"
+                        aria-label="Effort type legend"
+                    >
+                        <q-tooltip
+                            class="effort-type-legend-tooltip bg-white text-dark shadow-4"
+                            anchor="bottom middle"
+                            self="top middle"
+                        >
+                            <div class="text-subtitle2 q-mb-sm text-dark">Effort Type Legend</div>
+                            <div
+                                v-for="effortType in uniqueEffortTypes"
+                                :key="effortType.code"
+                                class="legend-item"
+                            >
+                                <span class="text-weight-bold">{{ effortType.code }}</span>
+                                <span> - {{ effortType.description }}</span>
+                            </div>
+                        </q-tooltip>
+                    </q-btn>
+                </span>
+            </q-th>
+        </template>
         <template #body-cell-course="slotProps">
             <q-td :props="slotProps">
                 <router-link
@@ -80,6 +111,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue"
 import type { QTableColumn } from "quasar"
 import type { InstructorEffortRecordDto } from "../types"
 
@@ -87,6 +119,11 @@ type CourseInfo = {
     subjCode: string
     crseNumb: string
     seqNumb: string
+}
+
+type EffortTypeLegendItem = {
+    code: string
+    description: string
 }
 
 const props = withDefaults(
@@ -126,6 +163,18 @@ function isZeroEffort(record: InstructorEffortRecordDto): boolean {
     }
     return record.effortValue === 0
 }
+
+const uniqueEffortTypes = computed<EffortTypeLegendItem[]>(() => {
+    const seen = new Map<string, string>()
+    for (const record of props.records) {
+        if (!seen.has(record.effortType)) {
+            seen.set(record.effortType, record.effortTypeDescription)
+        }
+    }
+    return Array.from(seen.entries())
+        .map(([code, description]) => ({ code, description }))
+        .sort((a, b) => a.code.localeCompare(b.code))
+})
 </script>
 
 <style scoped>
@@ -136,5 +185,22 @@ function isZeroEffort(record: InstructorEffortRecordDto): boolean {
 .effort-table :deep(.zero-effort) {
     background-color: #fff3cd;
     color: #856404;
+}
+
+.effort-type-header-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.legend-item {
+    padding: 0.125rem 0;
+}
+</style>
+
+<style>
+/* Unscoped style for tooltip (injected into body) */
+.effort-type-legend-tooltip {
+    border: 1px solid #ccc;
 }
 </style>

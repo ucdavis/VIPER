@@ -1117,6 +1117,7 @@ public class InstructorService : IInstructorService
             .AsNoTracking()
             .Include(r => r.Course)
             .Include(r => r.RoleNavigation)
+            .Include(r => r.EffortTypeNavigation)
             .Where(r => r.PersonId == personId && r.TermCode == termCode)
             .OrderBy(r => r.RoleNavigation.SortOrder)
             .ThenBy(r => r.Course.SubjCode)
@@ -1146,6 +1147,7 @@ public class InstructorService : IInstructorService
             PersonId = r.PersonId,
             TermCode = r.TermCode,
             EffortType = r.EffortTypeId,
+            EffortTypeDescription = r.EffortTypeNavigation?.Description ?? string.Empty,
             Role = r.RoleId,
             RoleDescription = r.RoleNavigation?.Description ?? string.Empty,
             Hours = r.Hours,

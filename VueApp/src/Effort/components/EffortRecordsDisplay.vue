@@ -56,7 +56,9 @@
                             />
                         </div>
                     </div>
-                    <div class="text-body2 q-mb-xs">{{ record.roleDescription }} &bull; {{ record.effortType }}</div>
+                    <div class="text-body2 q-mb-xs">
+                        {{ record.roleDescription }} &bull; {{ record.effortTypeDescription }} ({{ record.effortType }})
+                    </div>
                     <div class="row q-gutter-md text-caption text-grey-7">
                         <span>{{ record.course.units }} units</span>
                         <span>Enroll: {{ record.course.enrollment }}</span>
@@ -160,7 +162,9 @@
                             </div>
                         </div>
                         <div class="text-body2 q-mb-xs">
-                            {{ record.roleDescription }} &bull; {{ record.effortType }}
+                            {{ record.roleDescription }} &bull; {{ record.effortTypeDescription }} ({{
+                                record.effortType
+                            }})
                         </div>
                         <div class="row q-gutter-md text-caption text-grey-7">
                             <span :class="{ 'text-warning text-weight-bold': isZeroEffort(record) }">

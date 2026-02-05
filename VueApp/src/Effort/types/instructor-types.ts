@@ -62,6 +62,7 @@ type InstructorEffortRecordDto = {
     personId: number
     termCode: number
     effortType: string
+    effortTypeDescription: string
     role: number
     roleDescription: string
     hours: number | null
