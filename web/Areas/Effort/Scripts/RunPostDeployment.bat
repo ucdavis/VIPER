@@ -17,6 +17,7 @@ REM  11. Add ViewDeptAudit permission for department chairs to view audit trail
 REM  12. Fix EffortType Descriptions - Correct descriptions to match legacy CREST tbl_sessiontype
 REM  13. Backfill Harvest Audit Actions - Update audit entries to use new Harvest* action types
 REM  14. Add AlertStates Table - Create table for persisting data hygiene alert states
+REM  15. Duplicate Percentages Cleanup - Remove duplicate percentage assignments
 REM
 REM Usage:
 REM   RunPostDeployment.bat [environment] [options]
@@ -52,6 +53,7 @@ echo  11. ViewDeptAudit Permission - Add permission for department chairs to vie
 echo  12. Fix EffortType Descriptions - Correct descriptions to match legacy CREST
 echo  13. Backfill Harvest Audit Actions - Update audit entries to use Harvest* actions
 echo  14. Add AlertStates Table - Create table for persisting data hygiene alert states
+echo  15. Duplicate Percentages Cleanup - Remove duplicate percentage assignments
 echo.
 echo Available options:
 echo   [no args]  DRY-RUN MODE - Shows what would change (default, safe)

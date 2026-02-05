@@ -36,6 +36,11 @@ public class HarvestPreviewDto
     // Problems
     public List<HarvestWarning> Warnings { get; set; } = [];
     public List<HarvestError> Errors { get; set; } = [];
+
+    /// <summary>
+    /// Preview of percent assignment rollover (Fall terms only).
+    /// </summary>
+    public PercentRolloverPreviewDto? PercentRollover { get; set; }
 }
 
 /// <summary>

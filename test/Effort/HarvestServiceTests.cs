@@ -28,6 +28,7 @@ public sealed class HarvestServiceTests : IDisposable
     private readonly Mock<ITermService> _termServiceMock;
     private readonly Mock<IInstructorService> _instructorServiceMock;
     private readonly Mock<IRCourseService> _rCourseServiceMock;
+    private readonly Mock<IPercentRolloverService> _percentRolloverServiceMock;
     private readonly Mock<ILogger<HarvestService>> _loggerMock;
     private readonly HarvestService _harvestService;
 
@@ -76,6 +77,7 @@ public sealed class HarvestServiceTests : IDisposable
         _termServiceMock = new Mock<ITermService>();
         _instructorServiceMock = new Mock<IInstructorService>();
         _rCourseServiceMock = new Mock<IRCourseService>();
+        _percentRolloverServiceMock = new Mock<IPercentRolloverService>();
         _loggerMock = new Mock<ILogger<HarvestService>>();
 
         // Setup default term service behavior
@@ -122,6 +124,7 @@ public sealed class HarvestServiceTests : IDisposable
             _termServiceMock.Object,
             _instructorServiceMock.Object,
             _rCourseServiceMock.Object,
+            _percentRolloverServiceMock.Object,
             _loggerMock.Object);
     }
 
@@ -723,6 +726,7 @@ public sealed class HarvestServiceTests : IDisposable
             _termServiceMock.Object,
             _instructorServiceMock.Object,
             _rCourseServiceMock.Object,
+            _percentRolloverServiceMock.Object,
             _loggerMock.Object);
 
         // Act - Run harvest (R-course detection uses inline EndsWith("R") logic)

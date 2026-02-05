@@ -19,6 +19,7 @@
 // 12. FixEffortTypeDescriptions - Fix incorrect EffortType descriptions to match legacy CREST tbl_sessiontype
 // 13. BackfillHarvestAuditActions - Update audit entries from harvest to use new Harvest* action types
 // 14. AddAlertStatesTable - Create AlertStates table for persisting data hygiene alert states
+// 15. DuplicatePercentagesCleanup - Remove duplicate percentage assignments (prerequisite for rollover)
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -234,7 +235,7 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine();
             }
 
-// Task 11: Add ViewDeptAudit permission for department chairs
+            // Task 11: Add ViewDeptAudit permission for department chairs
             {
                 Console.WriteLine("----------------------------------------");
                 Console.WriteLine("Task 11: Add ViewDeptAudit Permission to RAPS");
@@ -251,7 +252,7 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine();
             }
 
-// Task 12: Fix EffortType descriptions to match legacy CREST tbl_sessiontype
+            // Task 12: Fix EffortType descriptions to match legacy CREST tbl_sessiontype
             {
                 Console.WriteLine("----------------------------------------");
                 Console.WriteLine("Task 12: Fix EffortType Descriptions");
@@ -297,6 +298,23 @@ namespace Viper.Areas.Effort.Scripts
 
                 var (success, message) = RunAddAlertStatesTableTask(viperConnectionString, executeMode);
                 taskResults["AddAlertStatesTable"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 15: Duplicate Percentages Cleanup (prerequisite for rollover)
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 15: Duplicate Percentages Cleanup");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunDuplicatePercentagesCleanupTask(viperConnectionString, executeMode);
+                taskResults["DuplicatePercentagesCleanup"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
@@ -2539,7 +2557,7 @@ namespace Viper.Areas.Effort.Scripts
 
         #endregion
 
-#region Task 12: Fix EffortType Descriptions
+        #region Task 12: Fix EffortType Descriptions
 
         /// <summary>
         /// Correct descriptions from CREST tbl_sessiontype for the 36 used session types
@@ -3063,6 +3081,103 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine($"  ✗ SQL Error: {ex.Message}");
                 Console.ResetColor();
                 return (false, $"SQL Error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Task 15: Duplicate Percentages Cleanup
+
+        /// <summary>
+        /// Step 15: Remove duplicate percentage assignments.
+        /// Duplicates are defined as records with identical:
+        /// PersonId, PercentAssignTypeId, UnitId, Modifier, Compensated, StartDate, EndDate, Percentage, Comment
+        /// Keeps the record with the lowest Id.
+        /// This is a prerequisite for the percent rollover feature to work correctly.
+        /// </summary>
+        private static (bool Success, string Message) RunDuplicatePercentagesCleanupTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                Console.WriteLine("Analyzing duplicate percentage assignments...");
+                Console.WriteLine("  Duplicates occur when rollover runs multiple times without idempotency checks.");
+                Console.WriteLine();
+
+                // Count duplicates using CTE
+                var countSql = @"
+                    WITH Duplicates AS (
+                        SELECT Id,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY PersonId, PercentAssignTypeId, ISNULL(UnitId, 0),
+                                             ISNULL(Modifier, ''), Compensated, StartDate,
+                                             ISNULL(EndDate, '9999-12-31'), Percentage, ISNULL(Comment, '')
+                                ORDER BY Id
+                            ) AS RowNum
+                        FROM [effort].[Percentages]
+                    )
+                    SELECT COUNT(*) FROM Duplicates WHERE RowNum > 1";
+
+                using var countCmd = new SqlCommand(countSql, connection);
+                var duplicateCount = Convert.ToInt32(countCmd.ExecuteScalar() ?? 0);
+
+                if (duplicateCount == 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✓ No duplicate percentages found");
+                    Console.ResetColor();
+                    return (true, "No duplicates found");
+                }
+
+                Console.WriteLine($"  Found {duplicateCount} duplicate percentage records to remove");
+
+                if (!executeMode)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("  [DRY-RUN] Would delete duplicate percentages (keeping lowest Id)");
+                    Console.ResetColor();
+                    return (true, $"Would delete {duplicateCount} duplicates");
+                }
+
+                // Delete duplicates (keep lowest Id per group)
+                var deleteSql = @"
+                    WITH Duplicates AS (
+                        SELECT Id,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY PersonId, PercentAssignTypeId, ISNULL(UnitId, 0),
+                                             ISNULL(Modifier, ''), Compensated, StartDate,
+                                             ISNULL(EndDate, '9999-12-31'), Percentage, ISNULL(Comment, '')
+                                ORDER BY Id
+                            ) AS RowNum
+                        FROM [effort].[Percentages]
+                    )
+                    DELETE FROM Duplicates WHERE RowNum > 1";
+
+                using var deleteCmd = new SqlCommand(deleteSql, connection);
+                var deleted = deleteCmd.ExecuteNonQuery();
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  ✓ Deleted {deleted} duplicate percentage records");
+                Console.ResetColor();
+                return (true, $"Deleted {deleted} duplicates");
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
             }
         }
 
