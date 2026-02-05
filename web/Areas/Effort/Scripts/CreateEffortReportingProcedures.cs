@@ -4,7 +4,7 @@
 // Author: VIPER2 Development Team
 // Date: 2025-11-14
 // ============================================
-// This script creates 16 complex reporting stored procedures for the Effort database.
+// This script creates 22 complex reporting stored procedures for the Effort database.
 // These SPs are optimized for performance on large datasets and complex aggregations.
 // CRUD operations are handled by Entity Framework repositories instead.
 // ============================================
@@ -143,16 +143,20 @@ namespace Viper.Areas.Effort.Scripts
             return true;
         }
 
-        // List of all managed stored procedures (18 total)
+        // List of all managed stored procedures (22 total)
         static readonly HashSet<string> ManagedProcedures = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            // Merit & Promotion Reports (6 procedures)
+            // Merit & Promotion Reports (10 procedures)
             "sp_merit_summary_report",
             "sp_merit_summary",
             "sp_merit_report",
             "sp_merit_multiyear",
             "sp_merit_average",
             "sp_merit_clinical_percent",
+            "sp_person_learning_activities",
+            "sp_dept_activity_total_exclude",
+            "sp_dept_count_by_job_group_exclude",
+            "sp_instructor_evals_average_exclude",
             // Department Analysis Reports (3 procedures)
             "sp_dept_activity_summary",
             "sp_dept_job_group_count",
@@ -188,13 +192,17 @@ namespace Viper.Areas.Effort.Scripts
 
             try
             {
-                // Merit & Promotion Reports (6 procedures)
+                // Merit & Promotion Reports (10 procedures)
                 CreateProcedure(connection, transaction, "sp_merit_summary_report", GetMeritSummaryReportSql(), ref successCount, ref failureCount, failedProcedures);
                 CreateProcedure(connection, transaction, "sp_merit_summary", GetMeritSummarySql(), ref successCount, ref failureCount, failedProcedures);
                 CreateProcedure(connection, transaction, "sp_merit_report", GetMeritReportSql(), ref successCount, ref failureCount, failedProcedures);
                 CreateProcedure(connection, transaction, "sp_merit_multiyear", GetMeritMultiyearSql(), ref successCount, ref failureCount, failedProcedures);
                 CreateProcedure(connection, transaction, "sp_merit_average", GetMeritAverageSql(), ref successCount, ref failureCount, failedProcedures);
                 CreateProcedure(connection, transaction, "sp_merit_clinical_percent", GetMeritClinicalPercentSql(), ref successCount, ref failureCount, failedProcedures);
+                CreateProcedure(connection, transaction, "sp_person_learning_activities", GetPersonLearningActivitiesSql(), ref successCount, ref failureCount, failedProcedures);
+                CreateProcedure(connection, transaction, "sp_dept_activity_total_exclude", GetDeptActivityTotalExcludeSql(), ref successCount, ref failureCount, failedProcedures);
+                CreateProcedure(connection, transaction, "sp_dept_count_by_job_group_exclude", GetDeptCountByJobGroupExcludeSql(), ref successCount, ref failureCount, failedProcedures);
+                CreateProcedure(connection, transaction, "sp_instructor_evals_average_exclude", GetInstructorEvalsAverageExcludeSql(), ref successCount, ref failureCount, failedProcedures);
 
                 // Department Analysis Reports (3 procedures)
                 CreateProcedure(connection, transaction, "sp_dept_activity_summary", GetDeptActivitySummarySql(), ref successCount, ref failureCount, failedProcedures);
@@ -721,18 +729,18 @@ BEGIN
     IF @ExcludeClinicalTerms IS NOT NULL
     BEGIN
         INSERT INTO @ExcludeClinicalTable (TermCode)
-        SELECT CAST(LTRIM(RTRIM(value)) AS INT)
+        SELECT TRY_CAST(LTRIM(RTRIM(value)) AS INT)
         FROM STRING_SPLIT(@ExcludeClinicalTerms, ',')
-        WHERE LTRIM(RTRIM(value)) <> '';
+        WHERE TRY_CAST(LTRIM(RTRIM(value)) AS INT) IS NOT NULL;
     END
 
     -- Parse didactic term exclusions
     IF @ExcludeDidacticTerms IS NOT NULL
     BEGIN
         INSERT INTO @ExcludeDidacticTable (TermCode)
-        SELECT CAST(LTRIM(RTRIM(value)) AS INT)
+        SELECT TRY_CAST(LTRIM(RTRIM(value)) AS INT)
         FROM STRING_SPLIT(@ExcludeDidacticTerms, ',')
-        WHERE LTRIM(RTRIM(value)) <> '';
+        WHERE TRY_CAST(LTRIM(RTRIM(value)) AS INT) IS NOT NULL;
     END
 
     SELECT
@@ -828,10 +836,7 @@ END;
 
         static string GetMeritClinicalPercentSql()
         {
-            // IMPORTANT: This procedure matches the legacy dbo.usp_getEffortReportMeritWithClinPercent
-            // signature exactly for backward compatibility with MP Vote.
-            // Parameters: @TermCode varchar(10), @type int (PercentAssignTypeId)
-            // Output: MothraID, Instructor, JGDDesc, plus dynamic PIVOT columns for effort types
+            // Used by MP Vote ColdFusion app
             return @"
 CREATE OR ALTER PROCEDURE [effort].[sp_merit_clinical_percent]
     @TermCode VARCHAR(10),
@@ -840,10 +845,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Clinical percentage report for merit review (MP Vote integration)
-    -- Matches legacy dbo.usp_getEffortReportMeritWithClinPercent exactly
-    -- Returns instructors with clinical percentages for the academic year
-    -- with effort data PIVOTed by effort session type
+    -- Clinical percentage report for merit review (MP Vote ColdFusion app)
 
     DECLARE @ColumnName AS NVARCHAR(MAX);
     DECLARE @ColumnIsNulls AS NVARCHAR(MAX);
@@ -1080,43 +1082,63 @@ END;
 
         static string GetInstructorActivityExcludeSql()
         {
+            // Used by ColdFusion EIS.cfc (getPersonMPEffortWithExcludeTerms)
             return @"
 CREATE OR ALTER PROCEDURE [effort].[sp_instructor_activity_exclude]
-    @PersonId INT,
-    @StartTermCode INT,
-    @EndTermCode INT,
-    @ExcludeTerms NVARCHAR(MAX) = NULL
+    @MothraId VARCHAR(9),
+    @YearStart INT,
+    @YearEnd INT,
+    @Activity VARCHAR(3),
+    @ExcludedTerms NVARCHAR(MAX) = NULL,
+    @UseAcademicYear BIT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Instructor activity across date range with term exclusions (e.g., sabbaticals)
+    -- Used by ColdFusion EIS.cfc (getPersonMPEffortWithExcludeTerms)
 
-    DECLARE @ExcludeTermTable TABLE (TermCode INT);
+    DECLARE @ExcludeTable TABLE (TermCode INT);
+    DECLARE @StartTerm INT, @EndTerm INT;
 
-    IF @ExcludeTerms IS NOT NULL
+    -- Parse excluded terms using TRY_CAST for defensive parsing
+    IF @ExcludedTerms IS NOT NULL
     BEGIN
-        INSERT INTO @ExcludeTermTable (TermCode)
-        SELECT CAST(LTRIM(RTRIM(value)) AS INT)
-        FROM STRING_SPLIT(@ExcludeTerms, ',')
-        WHERE LTRIM(RTRIM(value)) <> '';
+        INSERT INTO @ExcludeTable (TermCode)
+        SELECT TRY_CAST(LTRIM(RTRIM(value)) AS INT)
+        FROM STRING_SPLIT(@ExcludedTerms, ',')
+        WHERE TRY_CAST(LTRIM(RTRIM(value)) AS INT) IS NOT NULL;
     END
 
+    -- Calculate term range based on academic year setting
+    -- Academic year: Fall (YearStart*100+10) through Spring (YearEnd*100+03)
+    -- Calendar year: All terms in the year range
+    IF @UseAcademicYear = 1
+    BEGIN
+        SET @StartTerm = @YearStart * 100 + 10;  -- Fall term (e.g., 202410)
+        SET @EndTerm = @YearEnd * 100 + 03;      -- Spring term (e.g., 202503)
+    END
+    ELSE
+    BEGIN
+        SET @StartTerm = @YearStart * 100;       -- Start of year (e.g., 202400)
+        SET @EndTerm = (@YearEnd + 1) * 100 - 1; -- End of year (e.g., 202499)
+    END
+
+    -- Return aggregated weeks and hours for the activity type
+    -- Matches legacy output: weeks, hours
     SELECT
-        r.TermCode,
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
-        c.Crn,
-        r.EffortTypeId,
-        r.Hours,
-        r.Weeks,
-        c.Enrollment,
-        r.RoleId
+        SUM(ISNULL(r.Weeks, 0)) AS weeks,
+        SUM(ISNULL(r.Hours, 0)) AS hours
     FROM [effort].[Records] r
     INNER JOIN [effort].[Courses] c ON r.CourseId = c.Id
-    WHERE r.PersonId = @PersonId
-        AND r.TermCode BETWEEN @StartTermCode AND @EndTermCode
-        AND r.TermCode NOT IN (SELECT TermCode FROM @ExcludeTermTable)
-    ORDER BY r.TermCode, c.SubjCode, c.CrseNumb, c.SeqNumb;
+    INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
+    INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
+    WHERE up.MothraId = @MothraId
+        AND r.TermCode >= @StartTerm
+        AND r.TermCode <= @EndTerm
+        AND r.TermCode NOT IN (SELECT TermCode FROM @ExcludeTable)
+        AND r.EffortTypeId = @Activity
+        AND c.Enrollment > 0
+        AND p.VolunteerWos = 0;
 END;
 ";
         }
@@ -1153,45 +1175,96 @@ END;
 
         static string GetInstructorEvalsMultiyearSql()
         {
+            // Used by ColdFusion MP apps for per-term evaluation details
             return @"
 CREATE OR ALTER PROCEDURE [effort].[sp_instructor_evals_multiyear]
-    @PersonId INT,
-    @StartTermCode INT,
-    @EndTermCode INT,
-    @ExcludeTerms NVARCHAR(MAX) = NULL
+    @StartYear INT,
+    @EndYear INT,
+    @MothraId VARCHAR(9) = NULL,
+    @ExcludedTerms NVARCHAR(MAX) = NULL,
+    @UseAcademicYear BIT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Multi-year instructor course activity with term exclusions
-    -- Returns course-level data that can be joined with evaluation system
+    -- Multi-year instructor evaluation data with term exclusions
 
-    DECLARE @ExcludeTermTable TABLE (TermCode INT);
+    DECLARE @ExcludeTable TABLE (TermCode INT);
+    DECLARE @MyEndYear INT = @EndYear - 1;
 
-    IF @ExcludeTerms IS NOT NULL
+    -- Parse excluded terms using TRY_CAST for defensive parsing
+    IF @ExcludedTerms IS NOT NULL
     BEGIN
-        INSERT INTO @ExcludeTermTable (TermCode)
-        SELECT CAST(LTRIM(RTRIM(value)) AS INT)
-        FROM STRING_SPLIT(@ExcludeTerms, ',')
-        WHERE LTRIM(RTRIM(value)) <> '';
+        INSERT INTO @ExcludeTable (TermCode)
+        SELECT TRY_CAST(LTRIM(RTRIM(value)) AS INT)
+        FROM STRING_SPLIT(@ExcludedTerms, ',')
+        WHERE TRY_CAST(LTRIM(RTRIM(value)) AS INT) IS NOT NULL;
     END
 
+    -- Query EvalHarvest database for per-term evaluation details
+    -- Matches legacy output structure with course details from EvalHarvest
     SELECT
-        r.TermCode,
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
-        c.Crn,
-        r.EffortTypeId,
-        r.RoleId,
-        c.Enrollment,
-        r.Hours,
-        r.Weeks
-    FROM [effort].[Records] r
-    INNER JOIN [effort].[Courses] c ON r.CourseId = c.Id
-    WHERE r.PersonId = @PersonId
-        AND r.TermCode BETWEEN @StartTermCode AND @EndTermCode
-        AND r.TermCode NOT IN (SELECT TermCode FROM @ExcludeTermTable)
-        AND c.Enrollment > 0
-    ORDER BY r.TermCode, c.SubjCode, c.CrseNumb, c.SeqNumb;
+        ti.term_desc AS TermName,
+        course_TermCode AS TermCode,
+        ti.term_academic_year AS AcademicYear,
+        CAST(LEFT(CAST(course_TermCode AS VARCHAR(6)), 4) AS INT) AS CalendarYear,
+        people_MothraID AS MothraID,
+        p.EffortDept AS Dept,
+        RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) AS Instructor,
+        RTRIM(course_subj_code) + ' ' + RTRIM(course_crse_numb) +
+            ' (' + ISNULL(bi.baseinfo_title, '') + ')' AS Course,
+        CASE WHEN poa.poa_mailID IS NULL THEN 2 ELSE 1 END AS Role,
+        quant_mean AS Average,
+        quant_5_n AS n5,
+        quant_4_n AS n4,
+        quant_3_n AS n3,
+        quant_2_n AS n2,
+        quant_1_n AS n1,
+        course_CRN AS CRN,
+        course_subj_code AS SubjCode,
+        course_crse_numb AS CourseNum,
+        CAST(course_TermCode AS VARCHAR(6)) + course_subj_code + course_crse_numb +
+            CASE WHEN course_facilitator_evalid = 0 THEN '0' ELSE '1' END AS CourseKey,
+        p.ReportUnit,
+        course_enrollment AS NumEnrolled,
+        course_enrollment AS OriginalNumEnrolled,
+        quant_respondants AS NumResponses,
+        course_facilitator_evalid AS evalid
+    FROM evalharvest.dbo.eh_questions
+    INNER JOIN evalharvest.dbo.eh_quant ON quest_ID = quant_QuestionID_FK
+    INNER JOIN evalharvest.dbo.eh_Courses ON quest_CRN = course_CRN
+        AND quest_TermCode = course_termCode
+        AND ISNULL(quest_facilitator_evalid, 0) = course_facilitator_evalid
+    INNER JOIN evalharvest.dbo.eh_People ON quant_mailID = people_mailid
+        AND people_TermCode = course_TermCode
+    LEFT JOIN evalharvest.dbo.eh_POA poa ON course_CRN = poa_crn
+        AND course_TermCode = poa_termcode
+        AND people_mailid = poa_mailID
+    LEFT JOIN Courses.dbo.baseinfo bi ON quest_TermCode = bi.baseinfo_term_code
+        AND quest_CRN = bi.baseinfo_crn
+    -- Join with Courses.dbo.terminfo for term name and academic year
+    INNER JOIN Courses.dbo.terminfo ti ON CAST(course_TermCode AS VARCHAR(6)) = ti.term_code
+    -- Join with effort.Persons for job group validation
+    INNER JOIN [users].[Person] up ON people_MothraID = up.MothraId
+    INNER JOIN [effort].[Persons] p ON up.PersonId = p.PersonId AND people_TermCode = p.TermCode
+    WHERE (
+            (@UseAcademicYear = 1 AND LEFT(ti.term_academic_year, 4) BETWEEN @StartYear AND @MyEndYear)
+            OR (@UseAcademicYear = 0 AND course_TermCode >= @StartYear * 100 AND course_TermCode < (@EndYear + 1) * 100)
+        )
+        AND course_TermCode NOT IN (SELECT TermCode FROM @ExcludeTable)
+        AND (@MothraId IS NULL OR people_MothraID = @MothraId)
+        AND quant_mailID IS NOT NULL
+        AND quest_overall = 1
+        -- Job group validation (equivalent to fn_checkJobGroupAndEffortCode)
+        AND (
+            p.JobGroupId IN ('010', '011', '114', '311', '317', '335', '341')
+            OR (p.JobGroupId = '124' AND RIGHT('00' + p.EffortTitleCode, 6) = '001898')
+            OR (p.JobGroupId = 'S56' AND RIGHT('00' + p.EffortTitleCode, 6) = '001067')
+        )
+        AND p.EffortDept <> 'OTH'
+        AND p.VolunteerWos = 0
+        AND quant_mean > 0
+    ORDER BY course_TermCode, course_subj_code, course_facilitator_evalid, course_crse_numb, CourseKey, Course;
 END;
 ";
         }
@@ -1215,9 +1288,9 @@ BEGIN
     IF @ExcludeTerms IS NOT NULL
     BEGIN
         INSERT INTO @ExcludeTermTable (TermCode)
-        SELECT CAST(LTRIM(RTRIM(value)) AS INT)
+        SELECT TRY_CAST(LTRIM(RTRIM(value)) AS INT)
         FROM STRING_SPLIT(@ExcludeTerms, ',')
-        WHERE LTRIM(RTRIM(value)) <> '';
+        WHERE TRY_CAST(LTRIM(RTRIM(value)) AS INT) IS NOT NULL;
     END
 
     SELECT
@@ -1459,6 +1532,372 @@ BEGIN
       AND (p.EndDate IS NULL OR p.EndDate >= @StartDate)
       AND p.Percentage > 0
     ORDER BY t.Class, p.StartDate;
+END;
+";
+        }
+
+        // ============================================
+        // Merit & Promotion - ColdFusion Integration Procedures
+        // ============================================
+
+        static string GetPersonLearningActivitiesSql()
+        {
+            // Used by ColdFusion MPVote and VMTH letter generation
+            return @"
+CREATE OR ALTER PROCEDURE [effort].[sp_person_learning_activities]
+    @MothraId VARCHAR(9),
+    @StartTermCode INT,
+    @EndTermCode INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Returns DISTINCT session types (effort types) for an instructor within a term range
+    -- Used by ColdFusion MPVote and VMTH letter generation
+
+    SELECT DISTINCT
+        r.EffortTypeId AS sessionType,
+        et.Description AS sessionDescription
+    FROM [effort].[Records] r
+    INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
+    INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
+    INNER JOIN [effort].[EffortTypes] et ON r.EffortTypeId = et.Id
+    WHERE up.MothraId = @MothraId
+        AND r.TermCode BETWEEN @StartTermCode AND @EndTermCode
+        AND (COALESCE(r.Hours, 0) > 0 OR COALESCE(r.Weeks, 0) > 0)
+    ORDER BY et.Description;
+END;
+";
+        }
+
+        static string GetDeptActivityTotalExcludeSql()
+        {
+            // Used by ColdFusion EIS.cfc (getDepartmentMPEffortExcludingTerms)
+            return @"
+CREATE OR ALTER PROCEDURE [effort].[sp_dept_activity_total_exclude]
+    @MothraId VARCHAR(9),
+    @YearStart INT,
+    @YearEnd INT,
+    @Activity VARCHAR(3),
+    @ExcludedTerms NVARCHAR(MAX) = NULL,
+    @AllDepts BIT = 0,
+    @UseAcademicYear BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Used by ColdFusion EIS.cfc (getDepartmentMPEffortExcludingTerms)
+
+    DECLARE @ExcludeTable TABLE (TermCode INT);
+    DECLARE @StartTerm INT, @EndTerm INT;
+    DECLARE @PersonDept CHAR(6), @PersonJobGroupId CHAR(3), @PersonReportUnit VARCHAR(50);
+    DECLARE @NamedDept VARCHAR(8), @NamedJobDescription VARCHAR(50);
+
+    -- Parse excluded terms
+    IF @ExcludedTerms IS NOT NULL AND @ExcludedTerms <> ''
+    BEGIN
+        INSERT INTO @ExcludeTable (TermCode)
+        SELECT TRY_CAST(LTRIM(RTRIM(value)) AS INT)
+        FROM STRING_SPLIT(@ExcludedTerms, ',')
+        WHERE TRY_CAST(LTRIM(RTRIM(value)) AS INT) IS NOT NULL;
+    END
+
+    -- Calculate term range based on academic year setting
+    IF @UseAcademicYear = 1
+    BEGIN
+        SET @StartTerm = @YearStart * 100 + 10;  -- Fall term (e.g., 202410)
+        SET @EndTerm = @YearEnd * 100 + 03;      -- Spring term (e.g., 202503)
+    END
+    ELSE
+    BEGIN
+        SET @StartTerm = @YearStart * 100;       -- Start of year (e.g., 202400)
+        SET @EndTerm = (@YearEnd + 1) * 100 - 1; -- End of year (e.g., 202499)
+    END
+
+    -- Get person's department, job group, and report unit (most recent within range)
+    SELECT TOP 1
+        @PersonDept = p.EffortDept,
+        @PersonJobGroupId = p.JobGroupId,
+        @PersonReportUnit = p.ReportUnit
+    FROM [effort].[Persons] p
+    INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
+    WHERE up.MothraId = @MothraId
+        AND p.TermCode >= @StartTerm
+        AND p.TermCode <= @EndTerm
+    ORDER BY p.TermCode DESC;
+
+    -- If no records in range, try with extended end range (legacy behavior)
+    IF @PersonDept IS NULL
+    BEGIN
+        SELECT TOP 1
+            @PersonDept = p.EffortDept,
+            @PersonJobGroupId = p.JobGroupId,
+            @PersonReportUnit = p.ReportUnit
+        FROM [effort].[Persons] p
+        INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
+        WHERE up.MothraId = @MothraId
+            AND p.TermCode >= @StartTerm
+            AND p.TermCode <= @EndTerm + 100
+        ORDER BY p.TermCode DESC;
+    END
+
+    -- Calculate named dept (equivalent to fn_getEffortDept)
+    SET @NamedDept = CASE
+        WHEN @PersonJobGroupId IN ('010', '011', '114', '311', '124') THEN @PersonDept
+        WHEN @PersonReportUnit LIKE '%CAHFS%' THEN 'CAHFS'
+        WHEN @PersonReportUnit LIKE '%WHC%' THEN 'WHC'
+        WHEN @PersonJobGroupId = '317' THEN 'VMTH'
+        ELSE 'All'
+    END;
+
+    -- Calculate named job description (equivalent to fn_getEffortTitle)
+    SET @NamedJobDescription = CASE
+        WHEN @PersonJobGroupId IN ('335', '341', '317') THEN
+            (SELECT TOP 1 p.Title FROM [effort].[Persons] p
+             INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
+             WHERE up.MothraId = @MothraId ORDER BY p.TermCode DESC)
+        WHEN @PersonJobGroupId IN ('210', '211', '212', '216', '221', '223', '225', '357', '928') THEN 'LECTURER'
+        WHEN @PersonJobGroupId IN ('B0A', 'B24', 'B25', 'I15') THEN 'STAFF VET'
+        WHEN @PersonJobGroupId = '729' THEN 'CE SPECIALIST'
+        ELSE 'PROFESSOR/IR'
+    END;
+
+    -- Create temp table for effort report data
+    CREATE TABLE #EffortReport (
+        TermCode INT,
+        MothraID VARCHAR(9),
+        Dept VARCHAR(8),
+        JGDDesc VARCHAR(50),
+        Activity INT DEFAULT 0
+    );
+
+    -- Insert qualifying instructors with their effort
+    INSERT INTO #EffortReport (TermCode, MothraID, Dept, JGDDesc)
+    SELECT DISTINCT
+        r.TermCode,
+        up.MothraId,
+        CASE
+            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124') THEN p.EffortDept
+            WHEN p.ReportUnit LIKE '%CAHFS%' THEN 'CAHFS'
+            WHEN p.ReportUnit LIKE '%WHC%' THEN 'WHC'
+            WHEN p.JobGroupId = '317' THEN 'VMTH'
+            ELSE 'All'
+        END,
+        CASE
+            WHEN p.JobGroupId IN ('335', '341', '317') THEN p.Title
+            WHEN p.JobGroupId IN ('210', '211', '212', '216', '221', '223', '225', '357', '928') THEN 'LECTURER'
+            WHEN p.JobGroupId IN ('B0A', 'B24', 'B25', 'I15') THEN 'STAFF VET'
+            WHEN p.JobGroupId = '729' THEN 'CE SPECIALIST'
+            ELSE 'PROFESSOR/IR'
+        END
+    FROM [effort].[Records] r
+    INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
+    INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
+    WHERE r.TermCode >= @StartTerm
+        AND r.TermCode <= @EndTerm
+        AND r.TermCode NOT IN (SELECT TermCode FROM @ExcludeTable)
+        AND r.EffortTypeId = @Activity
+        -- Job group validation (equivalent to fn_checkJobGroupAndEffortCode)
+        AND (
+            p.JobGroupId IN ('010', '011', '114', '311', '317', '335', '341')
+            OR (p.JobGroupId = '124' AND RIGHT('00' + p.EffortTitleCode, 6) = '001898')
+            OR (p.JobGroupId = 'S56' AND RIGHT('00' + p.EffortTitleCode, 6) = '001067')
+        )
+        AND p.EffortDept <> 'OTH'
+        AND p.VolunteerWos = 0
+    GROUP BY r.TermCode, up.MothraId, p.JobGroupId, p.EffortDept, p.ReportUnit, p.Title
+    HAVING SUM(COALESCE(r.Weeks, r.Hours, 0)) > 0;
+
+    -- Calculate the sum of activity for each person and term
+    UPDATE #EffortReport
+    SET Activity = (
+        SELECT SUM(COALESCE(r.Weeks, r.Hours, 0))
+        FROM [effort].[Records] r
+        INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
+        INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
+        WHERE r.EffortTypeId = @Activity
+            AND r.TermCode = #EffortReport.TermCode
+            AND up.MothraId = #EffortReport.MothraID
+    );
+
+    -- Update the dept/role for the target person
+    UPDATE #EffortReport
+    SET Dept = @NamedDept,
+        JGDDesc = @NamedJobDescription
+    WHERE MothraID = @MothraId;
+
+    -- Return results: Hours, Dept, JGDDesc
+    IF @AllDepts = 1
+    BEGIN
+        SELECT
+            ISNULL(SUM(Activity), 0) AS Hours,
+            '' AS Dept,
+            JGDDesc
+        FROM #EffortReport
+        WHERE JGDDesc = @NamedJobDescription
+        GROUP BY JGDDesc;
+    END
+    ELSE
+    BEGIN
+        SELECT
+            ISNULL(SUM(Activity), 0) AS Hours,
+            Dept,
+            JGDDesc
+        FROM #EffortReport
+        WHERE Dept = @NamedDept
+            AND JGDDesc = @NamedJobDescription
+        GROUP BY Dept, JGDDesc;
+    END
+
+    -- Return empty row if no results (expected by ColdFusion callers)
+    IF @@ROWCOUNT = 0
+        SELECT 0 AS Hours, '' AS Dept, '' AS JGDDesc;
+
+    DROP TABLE #EffortReport;
+END;
+";
+        }
+
+        static string GetDeptCountByJobGroupExcludeSql()
+        {
+            return @"
+CREATE OR ALTER PROCEDURE [effort].[sp_dept_count_by_job_group_exclude]
+    @Year VARCHAR(10),
+    @Dept CHAR(6),
+    @JobGroupDesc VARCHAR(50),
+    @ExcludedTerms NVARCHAR(MAX) = NULL,
+    @FilterOutNoCLIAssigned BIT = 0,
+    @UseAcademicYear BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Used by ColdFusion MP apps for department instructor counts
+
+    DECLARE @ExcludeTable TABLE (TermCode INT);
+    DECLARE @StartTerm INT, @EndTerm INT;
+
+    -- Parse excluded terms
+    IF @ExcludedTerms IS NOT NULL
+    BEGIN
+        INSERT INTO @ExcludeTable (TermCode)
+        SELECT TRY_CAST(LTRIM(RTRIM(value)) AS INT)
+        FROM STRING_SPLIT(@ExcludedTerms, ',')
+        WHERE TRY_CAST(LTRIM(RTRIM(value)) AS INT) IS NOT NULL;
+    END
+
+    -- Parse year parameter
+    IF @UseAcademicYear = 1 AND CHARINDEX('-', @Year) > 0
+    BEGIN
+        -- Academic year format: '2024-2025'
+        DECLARE @AcadYear INT = CAST(LEFT(@Year, 4) AS INT);
+        SET @StartTerm = @AcadYear * 100 + 10;
+        SET @EndTerm = (@AcadYear + 1) * 100 + 03;
+    END
+    ELSE
+    BEGIN
+        -- Calendar year format: '2024'
+        DECLARE @CalYear INT = CAST(@Year AS INT);
+        SET @StartTerm = @CalYear * 100;
+        SET @EndTerm = (@CalYear + 1) * 100;
+    END
+
+    SELECT COUNT(DISTINCT p.PersonId) AS myCount
+    FROM [effort].[Persons] p
+    WHERE p.EffortDept = @Dept
+        AND p.TermCode >= @StartTerm
+        AND p.TermCode < @EndTerm
+        AND p.TermCode NOT IN (SELECT TermCode FROM @ExcludeTable)
+        AND p.VolunteerWos = 0
+        AND (
+            -- Job group matching based on description
+            (@JobGroupDesc = 'PROFESSOR/IR' AND p.JobGroupId IN ('010', '011', '114', '311', '124'))
+            OR (@JobGroupDesc = 'LECTURER' AND p.JobGroupId IN ('210', '211', '212', '216', '221', '223', '225', '357', '928'))
+            OR (@JobGroupDesc LIKE '%CLINICAL%' AND p.JobGroupId IN ('317', '335', '341'))
+            OR p.Title LIKE '%' + @JobGroupDesc + '%'
+        )
+        AND (
+            @FilterOutNoCLIAssigned = 0
+            OR EXISTS (
+                SELECT 1 FROM [effort].[Records] r
+                WHERE r.PersonId = p.PersonId
+                    AND r.TermCode = p.TermCode
+                    AND r.EffortTypeId = 'CLI'
+                    AND COALESCE(r.Hours, r.Weeks, 0) > 0
+            )
+        );
+END;
+";
+        }
+
+        static string GetInstructorEvalsAverageExcludeSql()
+        {
+            // Used by ColdFusion MP apps for instructor evaluation averages
+            return @"
+CREATE OR ALTER PROCEDURE [effort].[sp_instructor_evals_average_exclude]
+    @StartTerm INT,
+    @EndTerm INT,
+    @Dept VARCHAR(3) = NULL,
+    @MothraId VARCHAR(9) = NULL,
+    @ExcludedTerms NVARCHAR(MAX) = NULL,
+    @FacilitatorEvals BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Used by ColdFusion MP apps for instructor evaluation reporting
+
+    DECLARE @ExcludeTable TABLE (TermCode INT);
+
+    -- Parse excluded terms using TRY_CAST for defensive parsing
+    IF @ExcludedTerms IS NOT NULL
+    BEGIN
+        INSERT INTO @ExcludeTable (TermCode)
+        SELECT TRY_CAST(LTRIM(RTRIM(value)) AS INT)
+        FROM STRING_SPLIT(@ExcludedTerms, ',')
+        WHERE TRY_CAST(LTRIM(RTRIM(value)) AS INT) IS NOT NULL;
+    END
+
+    -- Query EvalHarvest database for evaluation averages
+    -- Weighted average: (5*n5 + 4*n4 + 3*n3 + 2*n2 + 1*n1) / total responses
+    SELECT
+        ROUND(
+            (SUM(quant_5_n) * 5.0 + SUM(quant_4_n) * 4.0 + SUM(quant_3_n) * 3.0 +
+             SUM(quant_2_n) * 2.0 + SUM(quant_1_n) * 1.0) /
+            NULLIF(SUM(quant_5_n + quant_4_n + quant_3_n + quant_2_n + quant_1_n), 0),
+            2
+        ) AS avgEval,
+        MIN(quant_mean) AS minEval,
+        MAX(quant_mean) AS maxEval
+    FROM evalharvest.dbo.eh_questions
+    INNER JOIN evalharvest.dbo.eh_quant ON quest_ID = quant_QuestionID_FK
+    INNER JOIN evalharvest.dbo.eh_Courses ON quest_CRN = course_CRN
+        AND quest_TermCode = course_termCode
+        AND ISNULL(quest_facilitator_evalid, 0) = course_facilitator_evalid
+    INNER JOIN evalharvest.dbo.eh_People ON quant_mailID = people_mailid
+        AND people_TermCode = course_TermCode
+    -- Join with effort.Persons via users.Person to get job group and department
+    -- Matches legacy: INNER JOIN tblPerson ON people_mothraID = person_MothraID AND people_termCode = person_termCode
+    INNER JOIN [users].[Person] up ON people_MothraID = up.MothraId
+    INNER JOIN [effort].[Persons] p ON up.PersonId = p.PersonId AND people_TermCode = p.TermCode
+    WHERE course_TermCode BETWEEN @StartTerm AND @EndTerm
+        AND course_TermCode NOT IN (SELECT TermCode FROM @ExcludeTable)
+        AND quant_mailID IS NOT NULL
+        AND quest_overall = 1
+        -- Job group validation (equivalent to fn_checkJobGroupAndEffortCode)
+        AND (
+            p.JobGroupId IN ('010', '011', '114', '311', '317', '335', '341')
+            OR (p.JobGroupId = '124' AND RIGHT('00' + p.EffortTitleCode, 6) = '001898')
+            OR (p.JobGroupId = 'S56' AND RIGHT('00' + p.EffortTitleCode, 6) = '001067')
+        )
+        AND p.EffortDept <> 'OTH'
+        AND p.VolunteerWos = 0
+        AND (@Dept IS NULL OR p.EffortDept = @Dept)
+        AND (@MothraId IS NULL OR people_MothraID = @MothraId)
+        -- Facilitator filter: @FacilitatorEvals = 0 means non-facilitator evals only,
+        -- @FacilitatorEvals = 1 means facilitator evals only
+        AND @FacilitatorEvals = (CASE WHEN course_facilitator_evalid = 0 THEN 0 ELSE 1 END)
+        AND quant_mean > 0;
 END;
 ";
         }
