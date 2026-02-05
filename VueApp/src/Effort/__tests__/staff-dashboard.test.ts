@@ -250,11 +250,13 @@ describe("StaffDashboard - Alert Icons", () => {
         entityId: "1",
         entityName: "Test",
         departmentCode: "VME",
+        recordCount: 1,
         severity: "Medium",
         status: "Active",
         isResolved: false,
         isIgnored: false,
         reviewedDate: null,
+        reviewedBy: null,
     })
 
     it("should return warning for NoRecords", () => {
@@ -291,11 +293,13 @@ describe("StaffDashboard - Alert Colors", () => {
         entityId: "1",
         entityName: "Test",
         departmentCode: "VME",
+        recordCount: 1,
         severity,
         status: "Active",
         isResolved: false,
         isIgnored: false,
         reviewedDate: null,
+        reviewedBy: null,
     })
 
     it("should return negative for High severity", () => {
@@ -369,11 +373,13 @@ describe("StaffDashboard - Alert Filtering", () => {
             entityId: "1",
             entityName: "John Doe",
             departmentCode: "VME",
+            recordCount: 1,
             severity: "Medium",
             status: "Active",
             isResolved: false,
             isIgnored: false,
             reviewedDate: null,
+            reviewedBy: null,
         },
         {
             alertType: "ZeroHours",
@@ -383,11 +389,13 @@ describe("StaffDashboard - Alert Filtering", () => {
             entityId: "2",
             entityName: "Jane Smith",
             departmentCode: "APC",
+            recordCount: 1,
             severity: "Medium",
             status: "Ignored",
             isResolved: false,
             isIgnored: true,
             reviewedDate: "2024-10-01",
+            reviewedBy: "Admin User",
         },
         {
             alertType: "NoDepartment",
@@ -397,11 +405,13 @@ describe("StaffDashboard - Alert Filtering", () => {
             entityId: "3",
             entityName: "Bob Wilson",
             departmentCode: "",
+            recordCount: 1,
             severity: "High",
             status: "Active",
             isResolved: false,
             isIgnored: false,
             reviewedDate: null,
+            reviewedBy: null,
         },
     ]
 
@@ -463,5 +473,161 @@ describe("StaffDashboard - Stats Calculations", () => {
         const coursesWithoutInstructors = totalCourses - coursesWithInstructors
 
         expect(coursesWithoutInstructors).toBe(5)
+    })
+})
+
+// Helper functions extracted from StaffDashboard.vue for testing
+function getDeptDisplayName(dept: DepartmentVerificationDto): string {
+    return dept.departmentCode === "UNK" ? "No Department" : dept.departmentName
+}
+
+function isNoDept(dept: DepartmentVerificationDto): boolean {
+    return dept.departmentCode === "UNK"
+}
+
+describe("StaffDashboard - Department Display Name", () => {
+    const makeDept = (code: string, name: string): DepartmentVerificationDto => ({
+        departmentCode: code,
+        departmentName: name,
+        totalInstructors: 10,
+        verifiedInstructors: 5,
+        unverifiedInstructors: 5,
+        verificationPercent: 50,
+        meetsThreshold: false,
+        status: "NeedsFollowup",
+    })
+
+    it("should return 'No Department' for UNK code", () => {
+        expect(getDeptDisplayName(makeDept("UNK", "Unknown"))).toBe("No Department")
+    })
+
+    it("should return department name for normal codes", () => {
+        expect(getDeptDisplayName(makeDept("VME", "Medicine & Epidemiology"))).toBe("Medicine & Epidemiology")
+    })
+
+    it("should identify UNK as no-department", () => {
+        expect(isNoDept(makeDept("UNK", "Unknown"))).toBe(true)
+    })
+
+    it("should not flag normal departments as no-department", () => {
+        expect(isNoDept(makeDept("VME", "Medicine"))).toBe(false)
+        expect(isNoDept(makeDept("APC", "Anatomy"))).toBe(false)
+    })
+})
+
+describe("StaffDashboard - Department Sorting (Closed Terms)", () => {
+    const departments: DepartmentVerificationDto[] = [
+        {
+            departmentCode: "APC",
+            departmentName: "Anatomy",
+            totalInstructors: 10,
+            verifiedInstructors: 5,
+            unverifiedInstructors: 5,
+            verificationPercent: 50,
+            meetsThreshold: false,
+            status: "NeedsFollowup",
+        },
+        {
+            departmentCode: "VME",
+            departmentName: "Medicine",
+            totalInstructors: 20,
+            verifiedInstructors: 20,
+            unverifiedInstructors: 0,
+            verificationPercent: 100,
+            meetsThreshold: true,
+            status: "Complete",
+        },
+        {
+            departmentCode: "PMI",
+            departmentName: "Pathology",
+            totalInstructors: 5,
+            verifiedInstructors: 5,
+            unverifiedInstructors: 0,
+            verificationPercent: 100,
+            meetsThreshold: true,
+            status: "Complete",
+        },
+    ]
+
+    it("should sort by verification percent descending", () => {
+        const sorted = [...departments].sort((a, b) => {
+            if (b.verificationPercent !== a.verificationPercent) {
+                return b.verificationPercent - a.verificationPercent
+            }
+            return b.totalInstructors - a.totalInstructors
+        })
+        expect(sorted[0].departmentCode).toBe("VME")
+        expect(sorted[2].departmentCode).toBe("APC")
+    })
+
+    it("should break ties by instructor count descending", () => {
+        const sorted = [...departments].sort((a, b) => {
+            if (b.verificationPercent !== a.verificationPercent) {
+                return b.verificationPercent - a.verificationPercent
+            }
+            return b.totalInstructors - a.totalInstructors
+        })
+        // VME (100%, 20 instructors) before PMI (100%, 5 instructors)
+        expect(sorted[0].departmentCode).toBe("VME")
+        expect(sorted[1].departmentCode).toBe("PMI")
+    })
+})
+
+describe("StaffDashboard - NotVerified Alerts Filtering", () => {
+    const makeAlerts = (): EffortChangeAlertDto[] => [
+        {
+            alertType: "NotVerified",
+            title: "Verification Overdue",
+            description: "Effort not verified after 30+ days",
+            entityType: "Instructor",
+            entityId: "1",
+            entityName: "John Doe",
+            departmentCode: "VME",
+            recordCount: 1,
+            severity: "Low",
+            status: "Active",
+            isResolved: false,
+            isIgnored: false,
+            reviewedDate: null,
+            reviewedBy: null,
+        },
+        {
+            alertType: "NoRecords",
+            title: "No Records",
+            description: "",
+            entityType: "Instructor",
+            entityId: "2",
+            entityName: "Jane Smith",
+            departmentCode: "APC",
+            recordCount: 1,
+            severity: "Medium",
+            status: "Active",
+            isResolved: false,
+            isIgnored: false,
+            reviewedDate: null,
+            reviewedBy: null,
+        },
+    ]
+
+    it("should include NotVerified alerts when term is Open", () => {
+        const termStatus = "Opened"
+        const alerts = makeAlerts()
+        const notVerified =
+            termStatus === "Opened" ? alerts.filter((a) => a.alertType === "NotVerified") : []
+        expect(notVerified).toHaveLength(1)
+    })
+
+    it("should exclude NotVerified alerts when term is Closed", () => {
+        const termStatus = "Closed"
+        const notVerified =
+            termStatus === "Opened" ? makeAlerts().filter((a) => a.alertType === "NotVerified") : []
+        expect(notVerified).toHaveLength(0)
+    })
+
+    it("should exclude NotVerified alerts when term is Harvested", () => {
+        const termStatus = "Harvested"
+        const notVerified =
+            termStatus === "Opened" ? makeAlerts().filter((a) => a.alertType === "NotVerified") : []
+        expect(notVerified).toHaveLength(0)
     })
 })

@@ -742,6 +742,12 @@ async function clearFilter() {
     courseNumbers.value = newCourseNumbers
     allSubjectCodes.value = newSubjectCodes
     allCourseNumbers.value = newCourseNumbers
+
+    // Re-apply subject code pre-selection if user only has access to one
+    if (newSubjectCodes.length === 1) {
+        filter.value.subjectCode = newSubjectCodes[0] ?? null
+    }
+
     router.replace({ name: "EffortAudit", query: {} })
     await applyFilters()
 }
@@ -900,6 +906,11 @@ onMounted(async () => {
             courseNumbers.value = results[1].status === "fulfilled" ? results[1].value : []
             allSubjectCodes.value = subjectCodes.value
             allCourseNumbers.value = courseNumbers.value
+
+            // Auto-select subject code if user only has access to one (ViewDeptAudit users)
+            if (subjectCodes.value.length === 1 && !filter.value.subjectCode) {
+                filter.value.subjectCode = subjectCodes.value[0] ?? null
+            }
         })
     } finally {
         isInitializing.value = false

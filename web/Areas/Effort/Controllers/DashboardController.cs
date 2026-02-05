@@ -54,7 +54,21 @@ public class DashboardController : BaseEffortController
 
         var deptFilter = await GetDepartmentFilterAsync(ct);
         var stats = await _dashboardService.GetDashboardStatsAsync(termCode, deptFilter, ct);
+
+        // Set audit access flag for frontend conditional rendering
+        stats.HasAuditAccess = await HasAuditAccessAsync(ct);
+
         return Ok(stats);
+    }
+
+    /// <summary>
+    /// Check if current user has any audit viewing permission.
+    /// </summary>
+    private async Task<bool> HasAuditAccessAsync(CancellationToken ct)
+    {
+        return await _permissionService.HasPermissionAsync(EffortPermissions.ViewAudit, ct) ||
+               await _permissionService.HasPermissionAsync(EffortPermissions.ViewDeptAudit, ct) ||
+               await _permissionService.HasFullAccessAsync(ct);
     }
 
     /// <summary>
@@ -115,10 +129,11 @@ public class DashboardController : BaseEffortController
 
     /// <summary>
     /// Get recent changes for a term from the audit log.
-    /// Restricted to admin/audit users - ViewDept users cannot see cross-department audit data.
+    /// Users with ViewAudit or ViewAllDepartments see all changes.
+    /// Users with ViewDeptAudit only see changes for their authorized departments.
     /// </summary>
     [HttpGet("{termCode:int}/recent-changes")]
-    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewAudit}")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewAudit},{EffortPermissions.ViewDeptAudit}")]
     public async Task<ActionResult<IEnumerable<EffortAuditRow>>> GetRecentChanges(
         int termCode,
         [FromQuery] int limit = 10,
@@ -127,10 +142,20 @@ public class DashboardController : BaseEffortController
     {
         SetExceptionContext("termCode", termCode);
 
+        // Get department filtering based on user permissions (same pattern as AuditController)
+        var departmentCodes = await GetDepartmentCodesForAuditFilteringAsync(ct);
+
+        // If user has ViewDeptAudit but no authorized departments, deny access
+        if (departmentCodes != null && departmentCodes.Count == 0)
+        {
+            return Forbid();
+        }
+
         var filter = new EffortAuditFilter
         {
             TermCode = termCode,
-            ExcludeImports = true
+            ExcludeImports = !await _permissionService.HasPermissionAsync(EffortPermissions.ViewAudit, ct),
+            DepartmentCodes = departmentCodes
         };
 
         var safeLimit = Math.Clamp(limit, 1, 100);
@@ -143,6 +168,24 @@ public class DashboardController : BaseEffortController
             ct);
 
         return Ok(recentChanges);
+    }
+
+    /// <summary>
+    /// Get department codes for audit filtering based on user permissions.
+    /// Returns null if user has ViewAudit or ViewAllDepartments (no filtering needed).
+    /// Returns list of authorized departments for ViewDeptAudit users.
+    /// </summary>
+    private async Task<List<string>?> GetDepartmentCodesForAuditFilteringAsync(CancellationToken ct)
+    {
+        // Users with ViewAudit or ViewAllDepartments can see all departments
+        if (await _permissionService.HasPermissionAsync(EffortPermissions.ViewAudit, ct) ||
+            await _permissionService.HasFullAccessAsync(ct))
+        {
+            return null;
+        }
+
+        var authorizedDepts = await _permissionService.GetAuthorizedDepartmentsAsync(ct);
+        return authorizedDepts.Count == 0 ? [] : authorizedDepts;
     }
 
     /// <summary>
@@ -184,7 +227,7 @@ public class DashboardController : BaseEffortController
         _logger.LogInformation("Alert ignored: {AlertType}/{EntityId}",
             LogSanitizer.SanitizeString(alertType),
             LogSanitizer.SanitizeString(entityId));
-        return Ok();
+        return NoContent();
     }
 }
 

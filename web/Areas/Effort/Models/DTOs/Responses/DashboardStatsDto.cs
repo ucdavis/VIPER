@@ -67,6 +67,12 @@ public class DashboardStatsDto
     /// Data hygiene summary for dashboard card.
     /// </summary>
     public DataHygieneSummaryDto HygieneSummary { get; set; } = new();
+
+    /// <summary>
+    /// Whether the current user has access to view audit/recent changes.
+    /// True if user has ViewAudit, ViewDeptAudit, or ViewAllDepartments permission.
+    /// </summary>
+    public bool HasAuditAccess { get; set; }
 }
 
 /// <summary>

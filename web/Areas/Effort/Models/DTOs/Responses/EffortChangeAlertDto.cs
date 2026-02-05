@@ -46,6 +46,11 @@ public class EffortChangeAlertDto
     public string Severity { get; set; } = "Medium";
 
     /// <summary>
+    /// Number of grouped records (e.g., multiple zero-hour records on the same course).
+    /// </summary>
+    public int RecordCount { get; set; } = 1;
+
+    /// <summary>
     /// Alert status: Active, Resolved, Ignored
     /// </summary>
     public string Status { get; set; } = "Active";
@@ -64,4 +69,9 @@ public class EffortChangeAlertDto
     /// When the alert was ignored (if applicable).
     /// </summary>
     public DateTime? ReviewedDate { get; set; }
+
+    /// <summary>
+    /// Display name of the user who ignored the alert.
+    /// </summary>
+    public string? ReviewedBy { get; set; }
 }

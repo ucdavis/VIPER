@@ -16,6 +16,8 @@ type DashboardStatsDto = {
     instructorsWithNoRecords: number
     instructorsWithEffortMismatch: number
     hygieneSummary: DataHygieneSummaryDto
+    /** Whether the current user has access to view audit/recent changes */
+    hasAuditAccess: boolean
 }
 
 /**
@@ -52,11 +54,13 @@ type EffortChangeAlertDto = {
     entityId: string
     entityName: string
     departmentCode: string
+    recordCount: number
     severity: "High" | "Medium" | "Low"
     status: "Active" | "Resolved" | "Ignored"
     isResolved: boolean
     isIgnored: boolean
     reviewedDate: string | null
+    reviewedBy: string | null
 }
 
 /**

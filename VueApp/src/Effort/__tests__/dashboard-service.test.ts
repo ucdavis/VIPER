@@ -217,5 +217,96 @@ describe("DashboardService", () => {
 
             expect(result).toEqual([])
         })
+
+        it("should return empty array when result is not an array", async () => {
+            mockGet.mockResolvedValue({ success: true, result: "not-an-array" })
+
+            const result = await dashboardService.getRecentChanges(TEST_TERM_CODE)
+
+            expect(result).toEqual([])
+        })
+    })
+
+    describe("getStats - hasAuditAccess flag", () => {
+        it("should pass through hasAuditAccess=true from API response", async () => {
+            const mockStats = {
+                totalInstructors: 10,
+                verifiedInstructors: 8,
+                hasAuditAccess: true,
+                hygieneSummary: { activeAlerts: 0, resolvedAlerts: 0, ignoredAlerts: 0 },
+            }
+            mockGet.mockResolvedValue({ success: true, result: mockStats })
+
+            const result = await dashboardService.getStats(TEST_TERM_CODE)
+
+            expect(result).not.toBeNull()
+            expect(result!.hasAuditAccess).toBe(true)
+        })
+
+        it("should pass through hasAuditAccess=false from API response", async () => {
+            const mockStats = {
+                totalInstructors: 10,
+                verifiedInstructors: 8,
+                hasAuditAccess: false,
+                hygieneSummary: { activeAlerts: 0, resolvedAlerts: 0, ignoredAlerts: 0 },
+            }
+            mockGet.mockResolvedValue({ success: true, result: mockStats })
+
+            const result = await dashboardService.getStats(TEST_TERM_CODE)
+
+            expect(result).not.toBeNull()
+            expect(result!.hasAuditAccess).toBe(false)
+        })
+    })
+
+    describe("conditional loading based on hasAuditAccess", () => {
+        it("should only call getRecentChanges when hasAuditAccess is true", async () => {
+            // Simulate the loadDashboard pattern from StaffDashboard.vue
+            const statsWithAccess = { hasAuditAccess: true }
+            mockGet
+                .mockResolvedValueOnce({ success: true, result: statsWithAccess }) // getStats
+                .mockResolvedValueOnce({ success: true, result: [] }) // getDepartmentVerification
+                .mockResolvedValueOnce({ success: true, result: [] }) // getAllAlerts
+                .mockResolvedValueOnce({ success: true, result: [] }) // getRecentChanges
+
+            // Replicate loadDashboard logic
+            const [statsData] = await Promise.all([
+                dashboardService.getStats(TEST_TERM_CODE),
+                dashboardService.getDepartmentVerification(TEST_TERM_CODE),
+                dashboardService.getAllAlerts(TEST_TERM_CODE, true),
+            ])
+
+            let recentChanges: unknown[] = []
+            if (statsData?.hasAuditAccess) {
+                recentChanges = await dashboardService.getRecentChanges(TEST_TERM_CODE, 10)
+            }
+
+            // 4 API calls: stats + departments + alerts + recentChanges
+            expect(mockGet).toHaveBeenCalledTimes(4)
+            expect(recentChanges).toEqual([])
+        })
+
+        it("should skip getRecentChanges when hasAuditAccess is false", async () => {
+            const statsNoAccess = { hasAuditAccess: false }
+            mockGet
+                .mockResolvedValueOnce({ success: true, result: statsNoAccess }) // getStats
+                .mockResolvedValueOnce({ success: true, result: [] }) // getDepartmentVerification
+                .mockResolvedValueOnce({ success: true, result: [] }) // getAllAlerts
+
+            const [statsData] = await Promise.all([
+                dashboardService.getStats(TEST_TERM_CODE),
+                dashboardService.getDepartmentVerification(TEST_TERM_CODE),
+                dashboardService.getAllAlerts(TEST_TERM_CODE, true),
+            ])
+
+            let recentChanges: unknown[] = []
+            if (statsData?.hasAuditAccess) {
+                recentChanges = await dashboardService.getRecentChanges(TEST_TERM_CODE, 10)
+            }
+
+            // Only 3 API calls: stats + departments + alerts (no recentChanges)
+            expect(mockGet).toHaveBeenCalledTimes(3)
+            expect(recentChanges).toEqual([])
+        })
     })
 })

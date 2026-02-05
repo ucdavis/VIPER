@@ -251,7 +251,7 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine();
             }
 
-            // Task 12: Fix EffortType descriptions to match legacy CREST tbl_sessiontype
+// Task 12: Fix EffortType descriptions to match legacy CREST tbl_sessiontype
             {
                 Console.WriteLine("----------------------------------------");
                 Console.WriteLine("Task 12: Fix EffortType Descriptions");
@@ -2539,7 +2539,7 @@ namespace Viper.Areas.Effort.Scripts
 
         #endregion
 
-        #region Task 12: Fix EffortType Descriptions
+#region Task 12: Fix EffortType Descriptions
 
         /// <summary>
         /// Correct descriptions from CREST tbl_sessiontype for the 36 used session types
