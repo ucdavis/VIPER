@@ -1011,6 +1011,19 @@ public class EffortAuditService : IEffortAuditService
 
         var personIds = percentages.Values.Select(p => p.PersonId).Distinct().ToList();
 
+        // For deleted percentages, extract PersonId from the Changes JSON
+        foreach (var (_, audit) in items)
+        {
+            if (!percentages.ContainsKey(audit.RecordId) && !string.IsNullOrEmpty(audit.Changes))
+            {
+                var personId = ExtractPersonIdFromChanges(audit.Changes);
+                if (personId.HasValue && !personIds.Contains(personId.Value))
+                {
+                    personIds.Add(personId.Value);
+                }
+            }
+        }
+
         var personRecords = await _context.Persons
             .AsNoTracking()
             .Where(p => personIds.Contains(p.PersonId))
@@ -1030,7 +1043,50 @@ public class EffortAuditService : IEffortAuditService
                     row.InstructorName = $"{person.LastName}, {person.FirstName}";
                 }
             }
+            else
+            {
+                // Percentage was deleted - resolve instructor from Changes JSON
+                var personId = ExtractPersonIdFromChanges(audit.Changes);
+                if (personId.HasValue)
+                {
+                    row.InstructorPersonId = personId.Value;
+                    if (mostRecentPersons.TryGetValue(personId.Value, out var person))
+                    {
+                        row.InstructorName = $"{person.LastName}, {person.FirstName}";
+                    }
+                }
+            }
         }
+    }
+
+    /// <summary>
+    /// Extracts PersonId from the audit Changes JSON (used for deleted records).
+    /// </summary>
+    private static int? ExtractPersonIdFromChanges(string? changesJson)
+    {
+        if (string.IsNullOrEmpty(changesJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            var changes = JsonSerializer.Deserialize<Dictionary<string, ChangeDetail>>(changesJson);
+            if (changes != null && changes.TryGetValue("PersonId", out var personIdChange))
+            {
+                var value = personIdChange.OldValue ?? personIdChange.NewValue;
+                if (int.TryParse(value, out var personId))
+                {
+                    return personId;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Legacy or malformed JSON - skip
+        }
+
+        return null;
     }
 
     private static string GetTermName(int termCode)

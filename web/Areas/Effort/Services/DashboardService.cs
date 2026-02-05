@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
+using Viper.Classes.SQLContext;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -12,11 +13,13 @@ namespace Viper.Areas.Effort.Services;
 public class DashboardService : IDashboardService
 {
     private readonly EffortDbContext _context;
+    private readonly AAUDContext _aaudContext;
     private readonly ITermService _termService;
 
-    public DashboardService(EffortDbContext context, ITermService termService)
+    public DashboardService(EffortDbContext context, AAUDContext aaudContext, ITermService termService)
     {
         _context = context;
+        _aaudContext = aaudContext;
         _termService = termService;
     }
 
@@ -260,19 +263,36 @@ public class DashboardService : IDashboardService
             .Join(_context.Courses, x => x.CourseId, c => c.Id, (x, c) => new { x.Id, x.PersonId, x.FirstName, x.LastName, x.EffortDept, c.SubjCode, c.CrseNumb, c.SeqNumb })
             .ToListAsync(ct);
 
-        foreach (var record in zeroHourRecords)
+        // Group by instructor+course to avoid duplicate alerts when multiple records exist
+        var groupedZeroHours = zeroHourRecords
+            .GroupBy(r => new { r.PersonId, r.SubjCode, r.CrseNumb, r.SeqNumb })
+            .Select(g => new
+            {
+                g.First().PersonId,
+                g.First().FirstName,
+                g.First().LastName,
+                g.First().EffortDept,
+                g.First().SubjCode,
+                g.First().CrseNumb,
+                g.First().SeqNumb,
+                Count = g.Count()
+            });
+
+        foreach (var record in groupedZeroHours)
         {
             var fullName = $"{record.FirstName} {record.LastName}".Trim();
             var courseName = $"{record.SubjCode.Trim()} {record.CrseNumb.Trim()}-{record.SeqNumb.Trim()}";
+            var description = $"0 hours on {courseName}";
             alerts.Add(new EffortChangeAlertDto
             {
                 AlertType = "ZeroHours",
                 Title = "Zero Hours Assigned",
-                Description = $"0 hours on {courseName}",
+                Description = description,
                 EntityType = "Instructor",
                 EntityId = record.PersonId.ToString(),
                 EntityName = fullName,
                 DepartmentCode = record.EffortDept,
+                RecordCount = record.Count,
                 Severity = "Medium"
             });
         }
@@ -396,6 +416,19 @@ public class DashboardService : IDashboardService
             }
         }
 
+        // Look up display names for users who ignored alerts
+        var ignoredByIds = states
+            .Where(s => s.IgnoredBy.HasValue)
+            .Select(s => s.IgnoredBy!.Value)
+            .Distinct()
+            .ToList();
+        var userNames = ignoredByIds.Count > 0
+            ? await _aaudContext.AaudUsers
+                .AsNoTracking()
+                .Where(u => ignoredByIds.Contains(u.AaudUserId))
+                .ToDictionaryAsync(u => u.AaudUserId, u => $"{u.DisplayFirstName} {u.DisplayLastName}", ct)
+            : new Dictionary<int, string>();
+
         // Apply states to alerts
         foreach (var alert in alerts.Where(a => stateDict.ContainsKey((a.AlertType, a.EntityId))))
         {
@@ -404,6 +437,10 @@ public class DashboardService : IDashboardService
             if (state.IgnoredDate.HasValue)
             {
                 alert.ReviewedDate = state.IgnoredDate;
+            }
+            if (state.IgnoredBy.HasValue && userNames.TryGetValue(state.IgnoredBy.Value, out var name))
+            {
+                alert.ReviewedBy = name;
             }
         }
 

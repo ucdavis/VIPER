@@ -383,8 +383,11 @@
                 </q-expansion-item>
             </q-card>
 
-            <!-- Recent Changes Section -->
-            <q-card class="q-mb-lg">
+            <!-- Recent Changes Section (only shown if user has audit access) -->
+            <q-card
+                v-if="stats.hasAuditAccess"
+                class="q-mb-lg"
+            >
                 <q-expansion-item
                     v-model="sectionExpanded.recentChanges"
                     header-class="text-h6"
@@ -533,7 +536,9 @@
                                                     color="grey"
                                                     class="q-ml-sm"
                                                 >
-                                                    Ignored
+                                                    Ignored<template v-if="alert.reviewedBy">
+                                                        by {{ alert.reviewedBy }}</template
+                                                    >
                                                 </q-badge>
                                             </q-item-label>
                                             <q-item-label caption>{{ alert.description }}</q-item-label>
@@ -600,10 +605,15 @@
                                                     color="grey"
                                                     class="q-ml-sm"
                                                 >
-                                                    Ignored
+                                                    Ignored<template v-if="alert.reviewedBy">
+                                                        by {{ alert.reviewedBy }}</template
+                                                    >
                                                 </q-badge>
                                             </q-item-label>
-                                            <q-item-label caption>{{ alert.description }}</q-item-label>
+                                            <q-item-label caption
+                                                >{{ alert.description }} ({{ alert.recordCount }}
+                                                {{ inflect("record", alert.recordCount) }})</q-item-label
+                                            >
                                         </q-item-section>
                                         <q-item-section side>
                                             <div class="row q-gutter-xs">
@@ -667,7 +677,9 @@
                                                     color="grey"
                                                     class="q-ml-sm"
                                                 >
-                                                    Ignored
+                                                    Ignored<template v-if="alert.reviewedBy">
+                                                        by {{ alert.reviewedBy }}</template
+                                                    >
                                                 </q-badge>
                                             </q-item-label>
                                             <q-item-label caption>{{ alert.description }}</q-item-label>
@@ -735,7 +747,9 @@
                                                     color="grey"
                                                     class="q-ml-sm"
                                                 >
-                                                    Ignored
+                                                    Ignored<template v-if="alert.reviewedBy">
+                                                        by {{ alert.reviewedBy }}</template
+                                                    >
                                                 </q-badge>
                                             </q-item-label>
                                             <q-item-label caption>{{ alert.description }}</q-item-label>
@@ -802,7 +816,9 @@
                                                     color="grey"
                                                     class="q-ml-sm"
                                                 >
-                                                    Ignored
+                                                    Ignored<template v-if="alert.reviewedBy">
+                                                        by {{ alert.reviewedBy }}</template
+                                                    >
                                                 </q-badge>
                                             </q-item-label>
                                             <q-item-label caption>{{ alert.description }}</q-item-label>
@@ -913,9 +929,12 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue"
 import { useRoute, useRouter } from "vue-router"
+import { useQuasar } from "quasar"
 import { dashboardService } from "../services/dashboard-service"
 import type { DashboardStatsDto, DepartmentVerificationDto, EffortChangeAlertDto, RecentChangeDto } from "../types"
+import { inflect } from "inflection"
 
+const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
 
@@ -959,7 +978,7 @@ const sortedDepartments = computed(() =>
             return b.verificationPercent - a.verificationPercent
         }
         return b.totalInstructors - a.totalInstructors
-    })
+    }),
 )
 
 const visibleAlerts = computed(() => {
@@ -1124,18 +1143,24 @@ async function loadDashboard() {
 
     loading.value = true
     try {
-        const [statsData, deptsData, allAlertsData, recentChangesData] = await Promise.all([
+        // Fetch stats first to determine if user has audit access
+        const [statsData, deptsData, allAlertsData] = await Promise.all([
             dashboardService.getStats(termCode.value),
             dashboardService.getDepartmentVerification(termCode.value),
             dashboardService.getAllAlerts(termCode.value, true),
-            dashboardService.getRecentChanges(termCode.value, 10),
         ])
 
         stats.value = statsData
         departments.value = deptsData
         alerts.value = allAlertsData
         allAlerts.value = allAlertsData
-        recentChanges.value = recentChangesData
+
+        // Only fetch recent changes if user has audit access
+        if (statsData?.hasAuditAccess) {
+            recentChanges.value = await dashboardService.getRecentChanges(termCode.value, 10)
+        } else {
+            recentChanges.value = []
+        }
     } finally {
         loading.value = false
     }
@@ -1170,7 +1195,10 @@ async function ignoreAlert(alert: EffortChangeAlertDto) {
     const success = await dashboardService.ignoreAlert(termCode.value, alert.alertType, alert.entityId)
     if (success) {
         alert.status = "Ignored"
-        await loadDashboard()
+        $q.notify({
+            type: "positive",
+            message: "Alert ignored",
+        })
     }
 }
 
