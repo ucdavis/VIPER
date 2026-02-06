@@ -213,7 +213,6 @@ async function verifyDotNetBuild() {
                 "./test/Viper.test.csproj",
                 "--artifacts-path",
                 ".artifacts-precommit",
-                "--no-restore",
                 "--nologo",
                 "--verbosity",
                 "quiet",

@@ -257,6 +257,14 @@ function clearBuildCache(projectName) {
             if (fs.existsSync(CACHE_FILE)) {
                 fs.unlinkSync(CACHE_FILE)
             }
+            // Also clear the isolated artifacts directories used by verify:build and lint
+            const artifactsDirs = [".artifacts-precommit", ".artifacts-lint"]
+            for (const dir of artifactsDirs) {
+                const artifactsDir = path.join(process.cwd(), dir)
+                if (fs.existsSync(artifactsDir)) {
+                    fs.rmSync(artifactsDir, { recursive: true, force: true })
+                }
+            }
             logger.info("🧹 Cleared all build cache")
         } catch (error) {
             logger.warning(`Could not clear build cache: ${error.message}`)

@@ -16,6 +16,7 @@ REM  10. Fix Percentage Constraint - Update CK_Percentages_Percentage from 0-100
 REM  11. Add ViewDeptAudit permission for department chairs to view audit trail
 REM  12. Fix EffortType Descriptions - Correct descriptions to match legacy CREST tbl_sessiontype
 REM  13. Backfill Harvest Audit Actions - Update audit entries to use new Harvest* action types
+REM  14. Add AlertStates Table - Create table for persisting data hygiene alert states
 REM
 REM Usage:
 REM   RunPostDeployment.bat [environment] [options]
@@ -50,6 +51,7 @@ echo  10. Fix Percentage Constraint - Update from 0-100 to 0-1 range
 echo  11. ViewDeptAudit Permission - Add permission for department chairs to view audit
 echo  12. Fix EffortType Descriptions - Correct descriptions to match legacy CREST
 echo  13. Backfill Harvest Audit Actions - Update audit entries to use Harvest* actions
+echo  14. Add AlertStates Table - Create table for persisting data hygiene alert states
 echo.
 echo Available options:
 echo   [no args]  DRY-RUN MODE - Shows what would change (default, safe)

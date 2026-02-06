@@ -200,6 +200,7 @@ import { useQuasar, type QTableColumn } from "quasar"
 import { instructorService } from "../services/instructor-service"
 import { recordService } from "../services/record-service"
 import { termService } from "../services/term-service"
+import { useEffortPermissions } from "../composables/use-effort-permissions"
 import type { PersonDto, TermDto, InstructorEffortRecordDto } from "../types"
 import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
 import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
@@ -208,6 +209,7 @@ import EffortRecordsDisplay from "../components/EffortRecordsDisplay.vue"
 
 const route = useRoute()
 const $q = useQuasar()
+const { hasEditEffort, isAdmin } = useEffortPermissions()
 
 // Route params
 const termCode = computed(() => route.params.termCode as string)
@@ -320,9 +322,9 @@ const childColumns: QTableColumn[] = [
     },
 ]
 
-// Permission checks - based on canEditTerm which checks term status and EditWhenClosed permission
-const canEdit = computed(() => canEditTerm.value)
-const canDelete = computed(() => canEditTerm.value)
+// Permission checks - term must be editable AND user must have EditEffort (or be admin)
+const canEdit = computed(() => canEditTerm.value && (hasEditEffort.value || isAdmin.value))
+const canDelete = computed(() => canEditTerm.value && (hasEditEffort.value || isAdmin.value))
 
 // Methods
 function formatDate(dateString: string | null): string {

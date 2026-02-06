@@ -545,6 +545,9 @@ namespace Viper.Areas.Effort.Scripts
                 CreateCourseRelationshipsTable(connection, transaction);
                 CreateAuditsTable(connection, transaction);
 
+                // 6. Alert states table (for data hygiene dashboard)
+                CreateAlertStatesTable(connection, transaction);
+
                 Console.WriteLine();
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"  ✓ All {EffortScriptHelper.ExpectedTableCount} tables created successfully in transaction");
@@ -1081,6 +1084,41 @@ BEGIN
 END";
             cmd.ExecuteNonQuery();
             Console.WriteLine("  ✓ Audits table created");
+        }
+
+        static void CreateAlertStatesTable(SqlConnection connection, SqlTransaction transaction)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'AlertStates')
+BEGIN
+    CREATE TABLE [effort].[AlertStates] (
+        Id int IDENTITY(1,1) NOT NULL,
+        TermCode int NOT NULL,
+        AlertType varchar(20) NOT NULL,
+        EntityType varchar(20) NOT NULL,
+        EntityId varchar(50) NOT NULL,
+        Status varchar(20) NOT NULL DEFAULT 'Active',
+        IgnoredBy int NULL,
+        IgnoredDate datetime2(7) NULL,
+        ResolvedDate datetime2(7) NULL,
+        ModifiedDate datetime2(7) NOT NULL DEFAULT GETDATE(),
+        ModifiedBy int NULL,
+        CONSTRAINT PK_AlertStates PRIMARY KEY CLUSTERED (Id),
+        CONSTRAINT UQ_AlertStates UNIQUE (TermCode, AlertType, EntityId),
+        CONSTRAINT FK_AlertStates_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
+        CONSTRAINT FK_AlertStates_IgnoredBy FOREIGN KEY (IgnoredBy) REFERENCES [users].[Person](PersonId),
+        CONSTRAINT FK_AlertStates_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
+        CONSTRAINT CK_AlertStates_Status CHECK (Status IN ('Active', 'Resolved', 'Ignored')),
+        CONSTRAINT CK_AlertStates_AlertType CHECK (AlertType IN ('NoRecords', 'NoInstructors', 'NoDepartment', 'ZeroHours', 'NotVerified'))
+    );
+
+    CREATE NONCLUSTERED INDEX IX_AlertStates_TermCode ON [effort].[AlertStates](TermCode);
+    CREATE NONCLUSTERED INDEX IX_AlertStates_Status ON [effort].[AlertStates](Status) WHERE Status != 'Active';
+END";
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("  ✓ AlertStates table created");
         }
 
         // Helper method to validate and report results (DRY principle)

@@ -10,7 +10,7 @@ Date: 2025-11-06
 Architecture:
 - Creates [VIPER].[effort] schema (NOT a separate database)
 - Shadow Schema: [VIPER].[EffortShadow] schema with views pointing to [effort] tables
-- 16 tables total with proper dependency ordering
+- 17 tables total with proper dependency ordering
 
 Tables:
 1. Lookup Tables (no dependencies): Roles, PercentAssignTypes, EffortTypes, Units,
@@ -18,7 +18,7 @@ Tables:
 2. Term and Course Tables: TermStatus, Courses
 3. Person Tables: Persons, AlternateTitles, UserAccess
 4. Main Data Tables: Records, Percentages, Sabbaticals
-5. Relationship and Audit Tables: CourseRelationships, Audits
+5. Relationship and Audit Tables: CourseRelationships, Audits, AlertStates
 
 NOTE: This file is FOR DOCUMENTATION AND REVIEW ONLY.
       The actual schema is created by running: dotnet script CreateEffortDatabase.cs
@@ -512,6 +512,40 @@ CREATE NONCLUSTERED INDEX IX_Audits_ChangedBy ON [effort].[Audits](ChangedBy);
 CREATE NONCLUSTERED INDEX IX_Audits_TermCode ON [effort].[Audits](TermCode) WHERE TermCode IS NOT NULL;
 GO
 
+-- ----------------------------------------------------------------------------
+-- Table: AlertStates
+-- Description: Persisted states for data hygiene alerts
+-- Purpose: Allows alert review/ignore states to survive server restarts
+-- Statuses:
+--   - Active: Alert needs attention
+--   - Resolved: Issue was fixed (automatic when underlying issue no longer exists)
+--   - Ignored: User dismissed the alert (manual)
+-- ----------------------------------------------------------------------------
+CREATE TABLE [effort].[AlertStates] (
+    Id int IDENTITY(1,1) NOT NULL,
+    TermCode int NOT NULL,
+    AlertType varchar(20) NOT NULL,        -- NoRecords, NoInstructors, NoDepartment, ZeroHours, NotVerified
+    EntityType varchar(20) NOT NULL,       -- Instructor, Course
+    EntityId varchar(50) NOT NULL,         -- PersonId, CourseId, etc.
+    Status varchar(20) NOT NULL DEFAULT 'Active',
+    IgnoredBy int NULL,
+    IgnoredDate datetime2(7) NULL,
+    ResolvedDate datetime2(7) NULL,
+    ModifiedDate datetime2(7) NOT NULL DEFAULT GETDATE(),
+    ModifiedBy int NULL,
+    CONSTRAINT PK_AlertStates PRIMARY KEY CLUSTERED (Id),
+    CONSTRAINT UQ_AlertStates UNIQUE (TermCode, AlertType, EntityId),
+    CONSTRAINT FK_AlertStates_TermStatus FOREIGN KEY (TermCode) REFERENCES [effort].[TermStatus](TermCode),
+    CONSTRAINT FK_AlertStates_IgnoredBy FOREIGN KEY (IgnoredBy) REFERENCES [users].[Person](PersonId),
+    CONSTRAINT FK_AlertStates_ModifiedBy FOREIGN KEY (ModifiedBy) REFERENCES [users].[Person](PersonId),
+    CONSTRAINT CK_AlertStates_Status CHECK (Status IN ('Active', 'Resolved', 'Ignored')),
+    CONSTRAINT CK_AlertStates_AlertType CHECK (AlertType IN ('NoRecords', 'NoInstructors', 'NoDepartment', 'ZeroHours', 'NotVerified'))
+);
+
+CREATE NONCLUSTERED INDEX IX_AlertStates_TermCode ON [effort].[AlertStates](TermCode);
+CREATE NONCLUSTERED INDEX IX_AlertStates_Status ON [effort].[AlertStates](Status) WHERE Status != 'Active';
+GO
+
 -- ============================================================================
 -- SCHEMA CREATION COMPLETE
 -- ============================================================================
@@ -520,7 +554,7 @@ PRINT '=========================================================================
 PRINT 'EFFORT SCHEMA CREATION COMPLETE';
 PRINT '================================================================================';
 PRINT '';
-PRINT 'Tables Created: 16';
+PRINT 'Tables Created: 17';
 PRINT '';
 PRINT 'Lookup Tables (6): Roles, PercentAssignTypes, EffortTypes, Units, JobCodes,';
 PRINT '                   ReportUnits';
@@ -531,7 +565,7 @@ PRINT 'Person Tables (3): Persons, AlternateTitles, UserAccess';
 PRINT '';
 PRINT 'Main Data Tables (3): Records, Percentages, Sabbaticals';
 PRINT '';
-PRINT 'Relationship/Audit Tables (2): CourseRelationships, Audits';
+PRINT 'Relationship/Audit Tables (3): CourseRelationships, Audits, AlertStates';
 PRINT '';
 PRINT 'Seed Data Inserted:';
 PRINT '  - Roles: 3 rows';

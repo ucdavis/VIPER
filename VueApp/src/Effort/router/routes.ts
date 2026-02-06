@@ -37,6 +37,24 @@ const routes = [
         name: "TermManagement",
     },
     {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/dashboard`,
+        meta: {
+            layout: EffortLayout,
+            permissions: ["SVMSecure.Effort.ViewAllDepartments", "SVMSecure.Effort.ViewDept"],
+        },
+        component: () => import("@/Effort/pages/StaffDashboard.vue"),
+        name: "StaffDashboard",
+    },
+    {
+        path: "/Effort/dashboard",
+        meta: {
+            layout: EffortLayout,
+            permissions: ["SVMSecure.Effort.ViewAllDepartments", "SVMSecure.Effort.ViewDept"],
+        },
+        component: () => import("@/Effort/pages/StaffDashboard.vue"),
+        name: "StaffDashboardNoTerm",
+    },
+    {
         path: "/Effort/percent-assign-types",
         meta: { layout: EffortLayout, permissions: ["SVMSecure.Effort.ViewAllDepartments"] },
         component: () => import("@/Effort/pages/PercentAssignTypeList.vue"),
