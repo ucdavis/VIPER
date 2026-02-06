@@ -60,8 +60,10 @@ namespace Viper.Controllers
             return View();
         }
 
+#pragma warning disable S6967 // Action filter override doesn't receive model-bound data
         public override async Task OnActionExecutionAsync(ActionExecutingContext context,
                                          ActionExecutionDelegate next)
+#pragma warning restore S6967
         {
             ViewData["ViperLeftNav"] = Nav();
             await base.OnActionExecutionAsync(context, next);
@@ -260,6 +262,12 @@ namespace Viper.Controllers
                 ViewData["Permissions"] = _userHelper.GetAllPermissions(_rapsContext, u)
                     .OrderBy(p => p.Permission)
                     .ToList();
+
+                ViewData["Roles"] = _userHelper.GetRoles(_rapsContext, u)
+                    .OrderBy(r => r.Role)
+                    .ToList();
+
+                ViewData["Has2FA"] = DuoAuthenticationRequirement.HasDuoAuthentication(HttpContext.User);
             }
             return View();
         }
