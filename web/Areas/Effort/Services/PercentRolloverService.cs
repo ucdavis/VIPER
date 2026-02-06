@@ -171,27 +171,23 @@ public class PercentRolloverService : IPercentRolloverService
             .Where(p => sourceIds.Contains(p.Id))
             .ToListAsync(ct);
 
-        var created = 0;
-        foreach (var source in sourceRecords)
+        var newRecords = sourceRecords.Select(source => new Percentage
         {
-            var newRecord = new Percentage
-            {
-                PersonId = source.PersonId,
-                AcademicYear = preview.TargetAcademicYearDisplay,  // String: "2025-2026"
-                PercentageValue = source.PercentageValue,
-                PercentAssignTypeId = source.PercentAssignTypeId,
-                UnitId = source.UnitId,
-                Modifier = source.Modifier,
-                Comment = source.Comment,
-                StartDate = preview.NewStartDate,
-                EndDate = preview.NewEndDate,
-                Compensated = source.Compensated,
-                ModifiedDate = DateTime.Now,
-                ModifiedBy = modifiedBy
-            };
-            _context.Percentages.Add(newRecord);
-            created++;
-        }
+            PersonId = source.PersonId,
+            AcademicYear = preview.TargetAcademicYearDisplay,  // String: "2025-2026"
+            PercentageValue = source.PercentageValue,
+            PercentAssignTypeId = source.PercentAssignTypeId,
+            UnitId = source.UnitId,
+            Modifier = source.Modifier,
+            Comment = source.Comment,
+            StartDate = preview.NewStartDate,
+            EndDate = preview.NewEndDate,
+            Compensated = source.Compensated,
+            ModifiedDate = DateTime.Now,
+            ModifiedBy = modifiedBy
+        }).ToList();
+        _context.Percentages.AddRange(newRecords);
+        var created = newRecords.Count;
 
         // NOTE: SaveChangesAsync is called by HarvestService after this method returns
         // This keeps rollover within the same transaction as the rest of harvest

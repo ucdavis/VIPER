@@ -161,4 +161,15 @@ public interface IInstructorService
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Dictionary mapping raw codes to simple names, or null if unavailable.</returns>
     Task<Dictionary<string, string>?> GetDepartmentSimpleNameLookupAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Resolve departments for multiple instructors in a single batch.
+    /// Uses the full resolution chain (override → jobs → employee fields → fallback).
+    /// </summary>
+    /// <param name="mothraIds">List of MothraIDs to resolve.</param>
+    /// <param name="termCode">The term code for AAUD lookup.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Dictionary mapping MothraID to resolved department code (at least "UNK").</returns>
+    Task<Dictionary<string, string>> BatchResolveDepartmentsAsync(
+        List<string> mothraIds, int termCode, CancellationToken ct = default);
 }
