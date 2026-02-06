@@ -68,6 +68,7 @@ type InstructorEffortRecordDto = {
     hours: number | null
     weeks: number | null
     crn: string
+    notes: string | null
     modifiedDate: string | null
     effortValue: number | null
     effortLabel: string
@@ -150,12 +151,14 @@ type CreateEffortRecordRequest = {
     effortTypeId: string
     roleId: number
     effortValue: number
+    notes?: string | null
 }
 
 type UpdateEffortRecordRequest = {
     effortTypeId: string
     roleId: number
     effortValue: number
+    notes?: string | null
     /** ModifiedDate from when record was loaded - for optimistic concurrency */
     originalModifiedDate?: string | null
 }

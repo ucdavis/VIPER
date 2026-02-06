@@ -19,6 +19,7 @@ REM  13. Backfill Harvest Audit Actions - Update audit entries to use new Harves
 REM  14. Add AlertStates Table - Create table for persisting data hygiene alert states
 REM  15. Duplicate Percentages Cleanup - Remove duplicate percentage assignments
 REM  16. Delete Guest Persons and Records - Purge legacy guest placeholder accounts
+REM  17. Add Notes Column - Add optional Notes column to Records table for instructor notes
 REM
 REM Usage:
 REM   RunPostDeployment.bat [environment] [options]
@@ -56,6 +57,7 @@ echo  13. Backfill Harvest Audit Actions - Update audit entries to use Harvest* 
 echo  14. Add AlertStates Table - Create table for persisting data hygiene alert states
 echo  15. Duplicate Percentages Cleanup - Remove duplicate percentage assignments
 echo  16. Delete Guest Persons/Records - Purge legacy guest placeholder accounts
+echo  17. Add Notes Column - Add optional Notes column to Records table for instructor notes
 echo.
 echo Available options:
 echo   [no args]  DRY-RUN MODE - Shows what would change (default, safe)

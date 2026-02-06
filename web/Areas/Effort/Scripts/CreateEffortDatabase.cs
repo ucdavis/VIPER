@@ -805,6 +805,7 @@ BEGIN
         Hours int NULL,
         Weeks int NULL,
         Crn varchar(5) NOT NULL,
+        Notes varchar(500) NULL,
         ModifiedDate datetime2(7) NULL,
         ModifiedBy int NULL,
         CONSTRAINT PK_Records PRIMARY KEY CLUSTERED (Id),

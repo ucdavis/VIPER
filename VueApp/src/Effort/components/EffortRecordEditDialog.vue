@@ -89,6 +89,20 @@
                     min="0"
                     :rules="effortValueRules"
                     lazy-rules
+                />
+
+                <!-- Notes -->
+                <q-input
+                    v-model="notes"
+                    label="Notes"
+                    type="textarea"
+                    dense
+                    outlined
+                    maxlength="500"
+                    counter
+                    rows="2"
+                    :rules="notesRules"
+                    reactive-rules
                     class="q-mb-md"
                 />
 
@@ -146,7 +160,7 @@ import { ref, computed, watch } from "vue"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { recordService } from "../services/record-service"
 import type { EffortTypeOptionDto, RoleOptionDto, InstructorEffortRecordDto } from "../types"
-import { effortValueRules } from "../validation"
+import { effortValueRules, notesRules } from "../validation"
 
 const props = defineProps<{
     modelValue: boolean
@@ -164,12 +178,14 @@ const emit = defineEmits<{
 const selectedEffortType = ref<string | null>(null)
 const selectedRole = ref<number | null>(null)
 const effortValue = ref<number | null>(null)
+const notes = ref<string | null>(null)
 
 // Form data for unsaved changes tracking
 const formData = ref({
     selectedEffortType: null as string | null,
     selectedRole: null as number | null,
     effortValue: null as number | null,
+    notes: null as string | null,
 })
 
 // Unsaved changes tracking
@@ -188,11 +204,12 @@ function syncFormData() {
         selectedEffortType: selectedEffortType.value,
         selectedRole: selectedRole.value,
         effortValue: effortValue.value,
+        notes: notes.value,
     }
 }
 
 // Keep formData in sync when individual refs change
-watch([selectedEffortType, selectedRole, effortValue], syncFormData)
+watch([selectedEffortType, selectedRole, effortValue, notes], syncFormData)
 
 // Options data
 const effortTypes = ref<EffortTypeOptionDto[]>([])
@@ -274,6 +291,7 @@ function populateForm() {
     selectedEffortType.value = props.record.effortType
     selectedRole.value = props.record.role
     effortValue.value = props.record.effortValue ?? 0
+    notes.value = props.record.notes
     syncFormData()
     setInitialState()
 }
@@ -308,6 +326,7 @@ async function updateRecord() {
             effortTypeId: selectedEffortType.value!,
             roleId: selectedRole.value!,
             effortValue: effortValue.value!,
+            notes: notes.value?.trim() || null,
             originalModifiedDate: props.record.modifiedDate,
         })
 
