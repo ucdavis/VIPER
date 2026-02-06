@@ -81,7 +81,6 @@ namespace Viper.Areas.Effort.Scripts
             // Unused instructor activity variants (no ColdFusion references found)
             "usp_getEffortInstructorActivity",
             "usp_getEffortInstructorActivity2",
-            "usp_getEffortInstructorActivityWithExcludeTerms",
             "usp_getEffortInstructorActivityWithExcludeTerms2",
 
             // Superseded evaluation and instructor lookup variants
