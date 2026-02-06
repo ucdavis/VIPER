@@ -4,7 +4,7 @@
 // Author: VIPER2 Development Team
 // Date: 2025-11-14
 // ============================================
-// This script creates 22 complex reporting stored procedures for the Effort database.
+// This script creates 23 complex reporting stored procedures for the Effort database.
 // These SPs are optimized for performance on large datasets and complex aggregations.
 // CRUD operations are handled by Entity Framework repositories instead.
 // ============================================
@@ -143,10 +143,10 @@ namespace Viper.Areas.Effort.Scripts
             return true;
         }
 
-        // List of all managed stored procedures (22 total)
+        // List of all managed stored procedures (23 total)
         static readonly HashSet<string> ManagedProcedures = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            // Merit & Promotion Reports (10 procedures)
+            // Merit & Promotion Reports (11 procedures)
             "sp_merit_summary_report",
             "sp_merit_summary",
             "sp_merit_report",
@@ -157,6 +157,7 @@ namespace Viper.Areas.Effort.Scripts
             "sp_dept_activity_total_exclude",
             "sp_dept_count_by_job_group_exclude",
             "sp_instructor_evals_average_exclude",
+            "sp_get_sabbatical_terms",
             // Department Analysis Reports (3 procedures)
             "sp_dept_activity_summary",
             "sp_dept_job_group_count",
@@ -192,7 +193,7 @@ namespace Viper.Areas.Effort.Scripts
 
             try
             {
-                // Merit & Promotion Reports (10 procedures)
+                // Merit & Promotion Reports (11 procedures)
                 CreateProcedure(connection, transaction, "sp_merit_summary_report", GetMeritSummaryReportSql(), ref successCount, ref failureCount, failedProcedures);
                 CreateProcedure(connection, transaction, "sp_merit_summary", GetMeritSummarySql(), ref successCount, ref failureCount, failedProcedures);
                 CreateProcedure(connection, transaction, "sp_merit_report", GetMeritReportSql(), ref successCount, ref failureCount, failedProcedures);
@@ -203,6 +204,7 @@ namespace Viper.Areas.Effort.Scripts
                 CreateProcedure(connection, transaction, "sp_dept_activity_total_exclude", GetDeptActivityTotalExcludeSql(), ref successCount, ref failureCount, failedProcedures);
                 CreateProcedure(connection, transaction, "sp_dept_count_by_job_group_exclude", GetDeptCountByJobGroupExcludeSql(), ref successCount, ref failureCount, failedProcedures);
                 CreateProcedure(connection, transaction, "sp_instructor_evals_average_exclude", GetInstructorEvalsAverageExcludeSql(), ref successCount, ref failureCount, failedProcedures);
+                CreateProcedure(connection, transaction, "sp_get_sabbatical_terms", GetSabbaticalTermsSql(), ref successCount, ref failureCount, failedProcedures);
 
                 // Department Analysis Reports (3 procedures)
                 CreateProcedure(connection, transaction, "sp_dept_activity_summary", GetDeptActivitySummarySql(), ref successCount, ref failureCount, failedProcedures);
@@ -1799,14 +1801,14 @@ BEGIN
         -- Calendar year format: '2024'
         DECLARE @CalYear INT = CAST(@Year AS INT);
         SET @StartTerm = @CalYear * 100;
-        SET @EndTerm = (@CalYear + 1) * 100;
+        SET @EndTerm = (@CalYear + 1) * 100 - 1;
     END
 
     SELECT COUNT(DISTINCT p.PersonId) AS myCount
     FROM [effort].[Persons] p
     WHERE p.EffortDept = @Dept
         AND p.TermCode >= @StartTerm
-        AND p.TermCode < @EndTerm
+        AND p.TermCode <= @EndTerm
         AND p.TermCode NOT IN (SELECT TermCode FROM @ExcludeTable)
         AND p.VolunteerWos = 0
         AND (
@@ -1898,6 +1900,35 @@ BEGIN
         -- @FacilitatorEvals = 1 means facilitator evals only
         AND @FacilitatorEvals = (CASE WHEN course_facilitator_evalid = 0 THEN 0 ELSE 1 END)
         AND quant_mean > 0;
+END;
+";
+        }
+
+        static string GetSabbaticalTermsSql()
+        {
+            // Used by ColdFusion MPVote and VMTH Letter for exclusion terms
+            return @"
+CREATE OR ALTER PROCEDURE [effort].[sp_get_sabbatical_terms]
+    @MothraId VARCHAR(9)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Returns sabbatical exclusion terms for a person
+    -- Used by ColdFusion MPVote and VMTH Letter generation
+    -- Replaces legacy effort.cfc.Instructor.getInstructorSabbaticTerms()
+
+    SELECT
+        s.Id,
+        s.PersonId,
+        p.MothraId,
+        s.ExcludeClinicalTerms AS sab_ExcludeClinTerms,
+        s.ExcludeDidacticTerms AS sab_ExcludeDidacticTerms,
+        s.ModifiedDate,
+        s.ModifiedBy
+    FROM [effort].[Sabbaticals] s
+    INNER JOIN [users].[Person] p ON s.PersonId = p.PersonId
+    WHERE p.MothraId = @MothraId;
 END;
 ";
         }
