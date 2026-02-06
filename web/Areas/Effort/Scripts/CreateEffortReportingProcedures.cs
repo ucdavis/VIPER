@@ -1789,7 +1789,7 @@ BEGIN
     END
 
     -- Parse year parameter
-    IF @UseAcademicYear = 1 AND CHARINDEX('-', @Year) > 0
+    IF CHARINDEX('-', @Year) > 0
     BEGIN
         -- Academic year format: '2024-2025'
         DECLARE @AcadYear INT = CAST(LEFT(@Year, 4) AS INT);
