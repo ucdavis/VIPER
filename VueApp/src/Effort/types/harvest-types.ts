@@ -172,6 +172,7 @@ type ClinicalAssignmentPreview = {
     courseNumber: string
     effortType: string
     weeks: number
+    existingWeeks: number | null
     roleName: string
 }
 

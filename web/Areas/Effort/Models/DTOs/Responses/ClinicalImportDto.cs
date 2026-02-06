@@ -28,6 +28,7 @@ public class ClinicalAssignmentPreview
     public string CourseNumber { get; set; } = "";
     public string EffortType { get; set; } = "CLI";
     public int Weeks { get; set; }
+    public int? ExistingWeeks { get; set; }
     public string RoleName { get; set; } = "Instructor";
 }
 

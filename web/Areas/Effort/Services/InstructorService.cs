@@ -704,6 +704,70 @@ public class InstructorService : IInstructorService
         return null;
     }
 
+    public async Task<Dictionary<string, string>> BatchResolveDepartmentsAsync(
+        List<string> mothraIds, int termCode, CancellationToken ct = default)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (mothraIds.Count == 0) return result;
+
+        var validMothraIds = mothraIds.Where(m => !string.IsNullOrEmpty(m)).Distinct().ToList();
+        if (validMothraIds.Count == 0) return result;
+
+        var termCodeStr = termCode.ToString();
+        var deptSimpleNameLookup = await GetDepartmentSimpleNameLookupAsync(ct);
+
+        // Batch-fetch AAUD IDs and employees
+        var idsRecords = await _aaudContext.Ids
+            .AsNoTracking()
+            .Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && validMothraIds.Contains(i.IdsMothraid))
+            .Select(i => new { i.IdsMothraid, i.IdsPKey })
+            .ToListAsync(ct);
+
+        var mothraIdToPKey = idsRecords
+            .Where(i => !string.IsNullOrEmpty(i.IdsMothraid) && !string.IsNullOrEmpty(i.IdsPKey))
+            .GroupBy(i => i.IdsMothraid!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().IdsPKey!, StringComparer.OrdinalIgnoreCase);
+
+        var pKeys = mothraIdToPKey.Values.Distinct().ToList();
+
+        var employees = await _aaudContext.Employees
+            .AsNoTracking()
+            .Where(e => e.EmpTermCode == termCodeStr && pKeys.Contains(e.EmpPKey))
+            .ToDictionaryAsync(e => e.EmpPKey ?? "", e => e, ct);
+
+        // Batch-fetch jobs
+        var jobData = await _aaudContext.Jobs
+            .AsNoTracking()
+            .Where(job => job.JobTermCode == termCodeStr)
+            .Join(
+                _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && validMothraIds.Contains(i.IdsMothraid)),
+                job => job.JobPKey,
+                ids => ids.IdsPKey,
+                (job, ids) => new { ids.IdsMothraid, job.JobDepartmentCode })
+            .ToListAsync(ct);
+
+        var jobDeptsByMothraId = jobData
+            .Where(item => item.IdsMothraid != null)
+            .GroupBy(item => item.IdsMothraid!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(item => item.JobDepartmentCode).ToList(),
+                StringComparer.OrdinalIgnoreCase);
+
+        // Resolve each person
+        foreach (var mothraId in validMothraIds)
+        {
+            var employee = mothraIdToPKey.TryGetValue(mothraId, out var pKey) && employees.TryGetValue(pKey, out var emp)
+                ? emp
+                : null;
+
+            var dept = DetermineDepartmentFromJobs(mothraId, employee, jobDeptsByMothraId, deptSimpleNameLookup) ?? "UNK";
+            result[mothraId] = dept;
+        }
+
+        return result;
+    }
+
     /// <summary>
     /// Determine the effort department from AAUD data using pre-fetched job departments.
     /// Used by batch operations to avoid N+1 queries.
@@ -1053,7 +1117,6 @@ public class InstructorService : IInstructorService
 
     /// <summary>
     /// Gets a cached lookup of raw department codes to simple names from the dictionary database.
-    /// Replicates the logic in dictionary.dbo.fn_get_deptSimpleName function using dvtSVMUnit table.
     /// </summary>
     public async Task<Dictionary<string, string>?> GetDepartmentSimpleNameLookupAsync(CancellationToken ct = default)
     {

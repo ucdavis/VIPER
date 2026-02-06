@@ -28,6 +28,22 @@
             bordered
             :pagination="pagination"
         >
+            <template #body-cell-weeks="slotProps">
+                <q-td :props="slotProps">
+                    <template v-if="hasWeeksChange(slotProps.row)">
+                        <span class="text-strike text-grey-7">{{ getExistingWeeks(slotProps.row) }}</span>
+                        <q-icon
+                            name="arrow_forward"
+                            size="xs"
+                            class="q-mx-xs"
+                        />
+                        <span class="text-bold text-info">{{ slotProps.row.weeks }}</span>
+                    </template>
+                    <template v-else>
+                        {{ slotProps.row.weeks }}
+                    </template>
+                </q-td>
+            </template>
             <template
                 v-if="showStatus"
                 #body-cell-status="slotProps"
@@ -86,6 +102,14 @@ function getStatus(row: ClinicalEffortRow): string {
     if ("status" in row) return row.status
     if ("isNew" in row) return row.isNew ? "New" : "Exists"
     return ""
+}
+
+function hasWeeksChange(row: ClinicalEffortRow): boolean {
+    return "existingWeeks" in row && row.existingWeeks !== null
+}
+
+function getExistingWeeks(row: ClinicalEffortRow): number | null {
+    return "existingWeeks" in row ? row.existingWeeks : null
 }
 
 function getStatusColor(status: string): string {

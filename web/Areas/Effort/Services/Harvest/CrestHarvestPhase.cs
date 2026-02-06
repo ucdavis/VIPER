@@ -128,10 +128,8 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
             }
 
             var titleDesc = context.TitleLookup.TryGetValue(instructor.TitleCode, out var desc) ? desc : instructor.TitleCode;
-            var dept = context.DeptSimpleNameLookup != null && context.DeptSimpleNameLookup.TryGetValue(instructor.HomeDept, out var deptName)
-                ? deptName
-                : instructor.HomeDept;
-            if (string.IsNullOrEmpty(dept)) dept = "UNK";
+            // HomeDept is already fully resolved by BatchResolveDepartmentsAsync
+            var dept = instructor.HomeDept;
 
             context.Preview.CrestInstructors.Add(new HarvestPersonPreview
             {
@@ -280,7 +278,8 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
 
         var validTitleCodesSet = validTitleCodes.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        context.DeptSimpleNameLookup ??= await context.InstructorService.GetDepartmentSimpleNameLookupAsync(ct);
+        // Batch-resolve departments using full resolution chain (jobs → employee fields → fallback)
+        var batchDepts = await context.InstructorService.BatchResolveDepartmentsAsync(candidateMothraIds, context.TermCode, ct);
 
         // Build lookups
         var pKeyToEmployee = employees.ToDictionary(e => e.EmpPKey ?? "", e => e, StringComparer.OrdinalIgnoreCase);
@@ -317,14 +316,14 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
                     continue;
                 }
 
-                var homeDept = ResolveDeptSimpleName(emp.EmpHomeDept, context.DeptSimpleNameLookup) ?? "";
+                var dept = batchDepts.GetValueOrDefault(mothraId, "UNK");
 
                 detailsForMothraId.Add(new CrestInstructorDto(
                     MothraId: mothraId,
                     FirstName: (person.PersonFirstName ?? "").ToUpperInvariant(),
                     LastName: (person.PersonLastName ?? "").ToUpperInvariant(),
                     TitleCode: titleCode,
-                    HomeDept: homeDept));
+                    HomeDept: dept));
             }
 
             // Only include if single record (legacy HAVING COUNT(*) = 1)

@@ -250,7 +250,9 @@ public class DashboardService : IDashboardService
         }
 
         // Get effort records with 0 hours assigned (data quality issue)
-        var recordsQuery = _context.Records.Where(r => r.TermCode == termCode && r.Hours == 0);
+        // Exclude generic R-courses (CRN="RESID") — they are auto-generated placeholders
+        // that get removed on verification, consistent with instructor list suppression
+        var recordsQuery = _context.Records.Where(r => r.TermCode == termCode && r.Hours == 0 && r.Course.Crn != "RESID");
         if (hasDeptFilter)
         {
             var personIdsInDepts = await instructorsQuery.Select(p => p.PersonId).ToListAsync(ct);

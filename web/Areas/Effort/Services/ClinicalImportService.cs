@@ -467,15 +467,16 @@ public class ClinicalImportService : IClinicalImportService
                     var key = (source.MothraId, source.CourseKey);
                     if (existingLookup.TryGetValue(key, out var existing))
                     {
-                        var status = existing.Weeks != source.Weeks ? "Update" : "Skip";
+                        var isUpdate = existing.Weeks != source.Weeks;
                         assignments.Add(new ClinicalAssignmentPreview
                         {
-                            Status = status,
+                            Status = isUpdate ? "Update" : "Skip",
                             ExistingRecordId = existing.Id,
                             MothraId = source.FirstRecord.MothraId,
                             InstructorName = source.FirstRecord.PersonName,
                             CourseNumber = source.FirstRecord.CourseKey,
-                            Weeks = source.Weeks
+                            Weeks = source.Weeks,
+                            ExistingWeeks = isUpdate ? existing.Weeks : null
                         });
                     }
                     else
