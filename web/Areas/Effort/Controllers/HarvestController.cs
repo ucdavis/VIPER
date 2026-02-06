@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Helpers;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
 using Viper.Classes.Utilities;
@@ -49,7 +50,7 @@ public class HarvestController : BaseEffortController
             return NotFound($"Term {termCode} not found");
         }
 
-        if (term.Status is not ("Created" or "Harvested"))
+        if (!TermValidationHelper.CanHarvest(term.Status))
         {
             _logger.LogWarning("Invalid term status for harvest: {TermCode} is {Status}", termCode, term.Status);
             return BadRequest($"Term must be in Created or Harvested status to harvest. Current status: {term.Status}");
@@ -79,7 +80,7 @@ public class HarvestController : BaseEffortController
             return NotFound($"Term {termCode} not found");
         }
 
-        if (term.Status is not ("Created" or "Harvested"))
+        if (!TermValidationHelper.CanHarvest(term.Status))
         {
             _logger.LogWarning("Invalid term status for harvest: {TermCode} is {Status}", termCode, term.Status);
             return BadRequest($"Term must be in Created or Harvested status to harvest. Current status: {term.Status}");
@@ -121,7 +122,7 @@ public class HarvestController : BaseEffortController
             return;
         }
 
-        if (term.Status is not ("Created" or "Harvested"))
+        if (!TermValidationHelper.CanHarvest(term.Status))
         {
             _logger.LogWarning("Invalid term status for harvest: {TermCode} is {Status}", termCode, term.Status);
             Response.StatusCode = 400;

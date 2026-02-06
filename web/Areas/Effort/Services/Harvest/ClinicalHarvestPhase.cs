@@ -209,6 +209,17 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
             {
                 var courseId = await ImportCourseAsync(course, context, ct);
                 context.CourseIdLookup[key] = courseId;
+
+                // Also add course code key for clinical effort records that don't have CRNs
+                // This is needed because clinical effort records have empty CRN but courses may have CRN from Banner
+                if (!string.IsNullOrWhiteSpace(course.Crn))
+                {
+                    var codeKey = $"{course.SubjCode}{course.CrseNumb}-{course.Units}";
+                    if (!context.CourseIdLookup.ContainsKey(codeKey))
+                    {
+                        context.CourseIdLookup[codeKey] = courseId;
+                    }
+                }
             }
         }
 
@@ -221,7 +232,6 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
         // Get all instructors from all phases for lookup
         var allInstructors = context.Preview.CrestInstructors
             .Concat(context.Preview.NonCrestInstructors)
-            .Concat(context.Preview.GuestAccounts)
             .DistinctBy(p => p.MothraId)
             .ToList();
 

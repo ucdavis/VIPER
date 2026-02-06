@@ -23,9 +23,6 @@ public class HarvestPreviewDto
     public List<HarvestCoursePreview> ClinicalCourses { get; set; } = [];
     public List<HarvestRecordPreview> ClinicalEffort { get; set; } = [];
 
-    // Phase 4: Guest Accounts
-    public List<HarvestPersonPreview> GuestAccounts { get; set; } = [];
-
     // Items that exist but won't be re-imported (will be deleted)
     public List<HarvestPersonPreview> RemovedInstructors { get; set; } = [];
     public List<HarvestCoursePreview> RemovedCourses { get; set; } = [];
@@ -36,6 +33,11 @@ public class HarvestPreviewDto
     // Problems
     public List<HarvestWarning> Warnings { get; set; } = [];
     public List<HarvestError> Errors { get; set; } = [];
+
+    /// <summary>
+    /// Preview of percent assignment rollover (Fall terms only).
+    /// </summary>
+    public PercentRolloverPreviewDto? PercentRollover { get; set; }
 }
 
 /// <summary>
@@ -44,12 +46,12 @@ public class HarvestPreviewDto
 public class HarvestPersonPreview
 {
     /// <summary>
-    /// MothraID or guest account ID (e.g., APCGUEST).
+    /// MothraID for this instructor.
     /// </summary>
     public string MothraId { get; set; } = string.Empty;
 
     /// <summary>
-    /// PersonId from users.Person table (0 for guest accounts).
+    /// PersonId from users.Person table.
     /// </summary>
     public int PersonId { get; set; }
 
@@ -69,7 +71,7 @@ public class HarvestPersonPreview
     public string TitleDescription { get; set; } = string.Empty;
 
     /// <summary>
-    /// Source of this data: CREST, NonCREST, Clinical, or Guest.
+    /// Source of this data: CREST, NonCREST, or Clinical.
     /// </summary>
     public string Source { get; set; } = string.Empty;
 
@@ -124,6 +126,12 @@ public class HarvestRecordPreview
     /// Source of this data: CREST or Clinical.
     /// </summary>
     public string Source { get; set; } = string.Empty;
+
+    /// <summary>
+    /// True if this effort record does not exist for this term and will be created.
+    /// False if a matching record (same person, course, effort type) already exists.
+    /// </summary>
+    public bool IsNew { get; set; }
 }
 
 /// <summary>
@@ -134,7 +142,6 @@ public class HarvestSummary
     public int TotalInstructors { get; set; }
     public int TotalCourses { get; set; }
     public int TotalEffortRecords { get; set; }
-    public int GuestAccounts { get; set; }
 }
 
 /// <summary>

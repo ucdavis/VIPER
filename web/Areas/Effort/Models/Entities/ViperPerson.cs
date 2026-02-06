@@ -10,4 +10,5 @@ public class ViperPerson
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string? MailId { get; set; }
+    public string MothraId { get; set; } = string.Empty;
 }

@@ -58,7 +58,7 @@
                 <q-card-section class="q-py-sm">
                     <div class="row items-center justify-between q-mb-xs">
                         <span class="text-weight-bold"
-                            >{{ pct.typeName }}{{ pct.modifier ? ` (${pct.modifier})` : "" }}</span
+                            >{{ formatTypeWithModifier(pct.typeName, pct.modifier) }}</span
                         >
                         <div v-if="canEdit">
                             <q-btn
@@ -89,7 +89,7 @@
                     </div>
                     <div class="text-body2 q-mb-xs">
                         <q-badge
-                            :color="getClassColor(pct.typeClass)"
+                            :color="getTypeClassColor(pct.typeClass)"
                             :label="pct.typeClass"
                             class="q-mr-sm"
                         />
@@ -145,7 +145,7 @@
                         :props="bodyProps"
                     >
                         <q-badge
-                            :color="getClassColor(bodyProps.row.typeClass)"
+                            :color="getTypeClassColor(bodyProps.row.typeClass)"
                             :label="bodyProps.row.typeClass"
                         />
                     </q-td>
@@ -153,7 +153,7 @@
                         key="typeName"
                         :props="bodyProps"
                     >
-                        {{ bodyProps.row.typeName }}{{ bodyProps.row.modifier ? ` (${bodyProps.row.modifier})` : "" }}
+                        {{ formatTypeWithModifier(bodyProps.row.typeName, bodyProps.row.modifier) }}
                     </q-td>
                     <q-td
                         key="unitName"
@@ -255,6 +255,7 @@
 import { ref, computed } from "vue"
 import { useQuasar, type QTableColumn } from "quasar"
 import type { PercentageDto } from "../types"
+import { formatTypeWithModifier, getTypeClassColor } from "../utils/format"
 
 const props = defineProps<{
     percentages: PercentageDto[]
@@ -285,14 +286,6 @@ const filteredPercentages = computed(() => {
         return true
     })
 })
-
-// Get badge color based on type class
-function getClassColor(typeClass: string): string {
-    const lc = typeClass.toLowerCase()
-    if (lc === "admin") return "blue"
-    if (lc === "clinical") return "green"
-    return "orange"
-}
 
 // Format date for display
 function formatDate(dateStr: string): string {

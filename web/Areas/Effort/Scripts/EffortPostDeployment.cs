@@ -19,6 +19,8 @@
 // 12. FixEffortTypeDescriptions - Fix incorrect EffortType descriptions to match legacy CREST tbl_sessiontype
 // 13. BackfillHarvestAuditActions - Update audit entries from harvest to use new Harvest* action types
 // 14. AddAlertStatesTable - Create AlertStates table for persisting data hygiene alert states
+// 15. DuplicatePercentagesCleanup - Remove duplicate percentage assignments (prerequisite for rollover)
+// 16. DeleteGuestPersonsAndRecords - Purge legacy guest placeholder accounts and their effort records
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -234,7 +236,7 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine();
             }
 
-// Task 11: Add ViewDeptAudit permission for department chairs
+            // Task 11: Add ViewDeptAudit permission for department chairs
             {
                 Console.WriteLine("----------------------------------------");
                 Console.WriteLine("Task 11: Add ViewDeptAudit Permission to RAPS");
@@ -251,7 +253,7 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine();
             }
 
-// Task 12: Fix EffortType descriptions to match legacy CREST tbl_sessiontype
+            // Task 12: Fix EffortType descriptions to match legacy CREST tbl_sessiontype
             {
                 Console.WriteLine("----------------------------------------");
                 Console.WriteLine("Task 12: Fix EffortType Descriptions");
@@ -297,6 +299,40 @@ namespace Viper.Areas.Effort.Scripts
 
                 var (success, message) = RunAddAlertStatesTableTask(viperConnectionString, executeMode);
                 taskResults["AddAlertStatesTable"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 15: Duplicate Percentages Cleanup (prerequisite for rollover)
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 15: Duplicate Percentages Cleanup");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunDuplicatePercentagesCleanupTask(viperConnectionString, executeMode);
+                taskResults["DuplicatePercentagesCleanup"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 16: Delete Guest Persons and Records
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 16: Delete Guest Persons and Records");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunDeleteGuestPersonsAndRecordsTask(viperConnectionString, executeMode);
+                taskResults["DeleteGuestPersonsAndRecords"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
@@ -2539,7 +2575,7 @@ namespace Viper.Areas.Effort.Scripts
 
         #endregion
 
-#region Task 12: Fix EffortType Descriptions
+        #region Task 12: Fix EffortType Descriptions
 
         /// <summary>
         /// Correct descriptions from CREST tbl_sessiontype for the 36 used session types
@@ -3063,6 +3099,206 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine($"  ✗ SQL Error: {ex.Message}");
                 Console.ResetColor();
                 return (false, $"SQL Error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Task 15: Duplicate Percentages Cleanup
+
+        /// <summary>
+        /// Step 15: Remove duplicate percentage assignments.
+        /// Duplicates are defined as records with identical:
+        /// PersonId, PercentAssignTypeId, UnitId, Modifier, Compensated, StartDate, EndDate, Percentage, Comment
+        /// Keeps the record with the lowest Id.
+        /// This is a prerequisite for the percent rollover feature to work correctly.
+        /// </summary>
+        private static (bool Success, string Message) RunDuplicatePercentagesCleanupTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                Console.WriteLine("Analyzing duplicate percentage assignments...");
+                Console.WriteLine("  Duplicates occur when rollover runs multiple times without idempotency checks.");
+                Console.WriteLine();
+
+                // Count duplicates using CTE
+                var countSql = @"
+                    WITH Duplicates AS (
+                        SELECT Id,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY PersonId, PercentAssignTypeId, ISNULL(UnitId, 0),
+                                             ISNULL(Modifier, ''), Compensated, StartDate,
+                                             ISNULL(EndDate, '9999-12-31'), Percentage, ISNULL(Comment, '')
+                                ORDER BY Id
+                            ) AS RowNum
+                        FROM [effort].[Percentages]
+                    )
+                    SELECT COUNT(*) FROM Duplicates WHERE RowNum > 1";
+
+                using var countCmd = new SqlCommand(countSql, connection);
+                var duplicateCount = Convert.ToInt32(countCmd.ExecuteScalar() ?? 0);
+
+                if (duplicateCount == 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✓ No duplicate percentages found");
+                    Console.ResetColor();
+                    return (true, "No duplicates found");
+                }
+
+                Console.WriteLine($"  Found {duplicateCount} duplicate percentage records to remove");
+
+                if (!executeMode)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("  [DRY-RUN] Would delete duplicate percentages (keeping lowest Id)");
+                    Console.ResetColor();
+                    return (true, $"Would delete {duplicateCount} duplicates");
+                }
+
+                // Delete duplicates (keep lowest Id per group)
+                var deleteSql = @"
+                    WITH Duplicates AS (
+                        SELECT Id,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY PersonId, PercentAssignTypeId, ISNULL(UnitId, 0),
+                                             ISNULL(Modifier, ''), Compensated, StartDate,
+                                             ISNULL(EndDate, '9999-12-31'), Percentage, ISNULL(Comment, '')
+                                ORDER BY Id
+                            ) AS RowNum
+                        FROM [effort].[Percentages]
+                    )
+                    DELETE FROM Duplicates WHERE RowNum > 1";
+
+                using var deleteCmd = new SqlCommand(deleteSql, connection);
+                var deleted = deleteCmd.ExecuteNonQuery();
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  ✓ Deleted {deleted} duplicate percentage records");
+                Console.ResetColor();
+                return (true, $"Deleted {deleted} duplicates");
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Task 16: Delete Guest Persons and Records
+
+        /// <summary>
+        /// Step 16: Delete legacy guest placeholder accounts (APCGUEST, PHRGUEST, etc.) and their effort records.
+        /// Guest accounts were department-level placeholders imported during Harvest. Only 8 effort records
+        /// from 2007-2009 exist. No current M&amp;P review references data that old. Safe to fully remove.
+        /// </summary>
+        private static (bool Success, string Message) RunDeleteGuestPersonsAndRecordsTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Known guest placeholder departments - guest accounts were imported as "{dept}, GUEST"
+                var guestDepts = "'APC','PHR','PMI','VMB','VME','VSR'";
+                var guestPredicate = $"[FirstName] = 'GUEST' AND [LastName] IN ({guestDepts})";
+
+                Console.WriteLine("Analyzing guest placeholder accounts...");
+                Console.WriteLine("  Guest accounts have FirstName = 'GUEST' and LastName = department code.");
+                Console.WriteLine();
+
+                // Count guest persons
+                var countPersonsSql = $"SELECT COUNT(*) FROM [effort].[Persons] WHERE {guestPredicate}";
+                using var countPersonsCmd = new SqlCommand(countPersonsSql, connection);
+                var guestPersonCount = Convert.ToInt32(countPersonsCmd.ExecuteScalar() ?? 0);
+
+                // Count effort records tied to guest persons (Persons PK is composite: PersonId + TermCode)
+                var countRecordsSql = $@"
+                    SELECT COUNT(*)
+                    FROM [effort].[Records] r
+                    INNER JOIN [effort].[Persons] p ON r.[PersonId] = p.[PersonId] AND r.[TermCode] = p.[TermCode]
+                    WHERE p.{guestPredicate}";
+                using var countRecordsCmd = new SqlCommand(countRecordsSql, connection);
+                var guestRecordCount = Convert.ToInt32(countRecordsCmd.ExecuteScalar() ?? 0);
+
+                if (guestPersonCount == 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✓ No guest persons found");
+                    Console.ResetColor();
+                    return (true, "No guest persons found");
+                }
+
+                Console.WriteLine($"  Found {guestPersonCount} guest person records");
+                Console.WriteLine($"  Found {guestRecordCount} effort records tied to guest persons");
+
+                if (!executeMode)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine($"  [DRY-RUN] Would delete {guestRecordCount} effort records and {guestPersonCount} guest persons");
+                    Console.ResetColor();
+                    return (true, $"Would delete {guestRecordCount} records and {guestPersonCount} persons");
+                }
+
+                // Delete records and persons in one transaction
+                using var tx = connection.BeginTransaction();
+
+                // Delete effort records first (FK constraint)
+                var deleteRecordsSql = $@"
+                    DELETE r
+                    FROM [effort].[Records] r
+                    INNER JOIN [effort].[Persons] p ON r.[PersonId] = p.[PersonId] AND r.[TermCode] = p.[TermCode]
+                    WHERE p.{guestPredicate}";
+                using var deleteRecordsCmd = new SqlCommand(deleteRecordsSql, connection, tx);
+                var deletedRecords = deleteRecordsCmd.ExecuteNonQuery();
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  ✓ Deleted {deletedRecords} effort records");
+                Console.ResetColor();
+
+                // Delete guest persons
+                var deletePersonsSql = $"DELETE FROM [effort].[Persons] WHERE {guestPredicate}";
+                using var deletePersonsCmd = new SqlCommand(deletePersonsSql, connection, tx);
+                var deletedPersons = deletePersonsCmd.ExecuteNonQuery();
+
+                tx.Commit();
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  ✓ Deleted {deletedPersons} guest person records");
+                Console.ResetColor();
+                return (true, $"Deleted {deletedRecords} records and {deletedPersons} persons");
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
             }
         }
 
