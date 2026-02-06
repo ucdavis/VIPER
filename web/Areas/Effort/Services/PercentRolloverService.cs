@@ -70,10 +70,11 @@ public class PercentRolloverService : IPercentRolloverService
         var existingTargetRecords = await _context.Percentages
             .AsNoTracking()
             .Where(p => p.StartDate >= july1Start && p.StartDate < july1Start.AddDays(1))
-            .Select(p => new { p.PersonId, p.PercentAssignTypeId, p.UnitId, p.Modifier, p.Compensated, p.PercentageValue, p.Comment })
+            .Select(p => new { p.PersonId, p.PercentAssignTypeId, p.UnitId, p.Modifier, p.Compensated, p.PercentageValue, p.Comment, p.EndDate })
             .ToListAsync(ct);
 
         var existingKeys = existingTargetRecords
+            .Where(r => r.EndDate == result.NewEndDate)
             .Select(r => (r.PersonId, r.PercentAssignTypeId, r.UnitId, r.Modifier, r.Compensated, r.PercentageValue, r.Comment))
             .ToHashSet();
 

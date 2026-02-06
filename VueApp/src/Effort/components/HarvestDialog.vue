@@ -92,21 +92,17 @@
                         rounded
                     >
                         <div class="row q-col-gutter-md">
-                            <div class="col-6 col-sm-3 text-center">
+                            <div class="col-6 col-sm-4 text-center">
                                 <div class="text-h5">{{ preview.summary.totalInstructors }}</div>
                                 <div class="text-caption">Instructors</div>
                             </div>
-                            <div class="col-6 col-sm-3 text-center">
+                            <div class="col-6 col-sm-4 text-center">
                                 <div class="text-h5">{{ preview.summary.totalCourses }}</div>
                                 <div class="text-caption">Courses</div>
                             </div>
-                            <div class="col-6 col-sm-3 text-center">
+                            <div class="col-6 col-sm-4 text-center">
                                 <div class="text-h5">{{ preview.summary.totalEffortRecords }}</div>
                                 <div class="text-caption">Effort Records</div>
-                            </div>
-                            <div class="col-6 col-sm-3 text-center">
-                                <div class="text-h5">{{ preview.summary.guestAccounts }}</div>
-                                <div class="text-caption">Guest Accounts</div>
                             </div>
                         </div>
                     </q-banner>
@@ -256,7 +252,7 @@
                                 ({{
                                     preview.removedCourses
                                         .slice(0, 3)
-                                        .map((c) => c.subjCode + c.crseNumb)
+                                        .map((c) => `${c.subjCode.trim()} ${c.crseNumb.trim()}`)
                                         .join(", ")
                                 }}{{ preview.removedCourses.length > 3 ? "..." : "" }})
                             </span>
@@ -284,10 +280,6 @@
                         <q-tab
                             name="clinical"
                             label="Clinical"
-                        />
-                        <q-tab
-                            name="guests"
-                            label="Guests"
                         />
                         <q-tab
                             v-if="preview?.percentRollover"
@@ -336,7 +328,16 @@
                                 bordered
                                 :pagination="tablePagination"
                                 class="q-mb-md"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
 
                             <div class="row items-center justify-between q-mb-sm">
                                 <div class="text-subtitle2">Courses ({{ preview.crestCourses.length }})</div>
@@ -366,7 +367,16 @@
                                 bordered
                                 :pagination="tablePagination"
                                 class="q-mb-md"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
 
                             <div class="row items-center justify-between q-mb-sm">
                                 <div class="text-subtitle2">Effort Records ({{ preview.crestEffort.length }})</div>
@@ -395,7 +405,16 @@
                                 flat
                                 bordered
                                 :pagination="tablePagination"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
                         </q-tab-panel>
 
                         <!-- Non-CREST Tab -->
@@ -431,7 +450,16 @@
                                 bordered
                                 :pagination="tablePagination"
                                 class="q-mb-md"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
 
                             <div class="row items-center justify-between q-mb-sm">
                                 <div class="text-subtitle2">Courses ({{ preview.nonCrestCourses.length }})</div>
@@ -461,7 +489,16 @@
                                 bordered
                                 :pagination="tablePagination"
                                 class="q-mb-md"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
 
                             <div class="row items-center justify-between q-mb-sm">
                                 <div class="text-subtitle2">Effort Records ({{ preview.nonCrestEffort.length }})</div>
@@ -490,7 +527,16 @@
                                 flat
                                 bordered
                                 :pagination="tablePagination"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
                         </q-tab-panel>
 
                         <!-- Clinical Tab -->
@@ -526,7 +572,16 @@
                                 bordered
                                 :pagination="tablePagination"
                                 class="q-mb-md"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
 
                             <div class="row items-center justify-between q-mb-sm">
                                 <div class="text-subtitle2">Courses ({{ preview.clinicalCourses.length }})</div>
@@ -556,47 +611,22 @@
                                 bordered
                                 :pagination="tablePagination"
                                 class="q-mb-md"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
 
                             <ClinicalEffortPreviewTable
                                 :rows="preview.clinicalEffort"
                                 title="Effort Records"
+                                show-status
                                 :pagination="{ rowsPerPage: 5 }"
-                            />
-                        </q-tab-panel>
-
-                        <!-- Guests Tab -->
-                        <q-tab-panel
-                            name="guests"
-                            class="q-pa-none q-pt-md"
-                        >
-                            <div class="row items-center justify-between q-mb-sm">
-                                <div class="text-subtitle2">Guest Accounts ({{ preview.guestAccounts.length }})</div>
-                                <q-input
-                                    v-model="guestFilter"
-                                    placeholder="Search..."
-                                    dense
-                                    outlined
-                                    clearable
-                                    class="compact-search"
-                                >
-                                    <template #prepend>
-                                        <q-icon
-                                            name="search"
-                                            size="xs"
-                                        />
-                                    </template>
-                                </q-input>
-                            </div>
-                            <q-table
-                                :rows="preview.guestAccounts"
-                                :columns="guestColumns"
-                                row-key="personId"
-                                :filter="guestFilter"
-                                dense
-                                flat
-                                bordered
-                                :pagination="tablePagination"
                             />
                         </q-tab-panel>
 
@@ -656,7 +686,6 @@
                                 <RolloverAssignmentTable
                                     :rows="preview.percentRollover.existingAssignments"
                                     :rows-per-page="5"
-                                    :show-search="false"
                                 />
                             </q-expansion-item>
 
@@ -690,7 +719,6 @@
                                 <RolloverAssignmentTable
                                     :rows="preview.percentRollover.excludedByAudit"
                                     :rows-per-page="5"
-                                    :show-search="false"
                                 />
                             </q-expansion-item>
                         </q-tab-panel>
@@ -772,7 +800,6 @@ const nonCrestCourseFilter = ref("")
 const nonCrestEffortFilter = ref("")
 const clinicalInstructorFilter = ref("")
 const clinicalCourseFilter = ref("")
-const guestFilter = ref("")
 
 // Computed for removed items warning
 const hasRemovedItems = computed(
@@ -820,13 +847,27 @@ const effortColumns: QTableColumn[] = [
     { name: "effortType", label: "Type", field: "effortType", align: "left" },
     { name: "hours", label: "Hours", field: "hours", align: "center" },
     { name: "roleName", label: "Role", field: "roleName", align: "left" },
+    {
+        name: "status",
+        label: "Status",
+        field: (row) => (row.isNew ? "New" : "Exists"),
+        align: "left",
+        sortable: true,
+    },
 ]
 
-const guestColumns: QTableColumn[] = [
-    { name: "personId", label: "ID", field: "personId", align: "left" },
-    { name: "fullName", label: "Name", field: "fullName", align: "left" },
-    { name: "department", label: "Department", field: "department", align: "left" },
-]
+function getStatusColor(status: string): string {
+    switch (status) {
+        case "New":
+            return "positive"
+        case "Exists":
+            return "grey-6"
+        case "In CREST":
+            return "info"
+        default:
+            return "grey"
+    }
+}
 
 function formatDate(dateStr: string | undefined): string {
     if (!dateStr) return ""

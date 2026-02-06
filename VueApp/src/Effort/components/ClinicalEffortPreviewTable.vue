@@ -27,7 +27,6 @@
             flat
             bordered
             :pagination="pagination"
-            :grid="$q.screen.lt.md"
         >
             <template
                 v-if="showStatus"
@@ -35,41 +34,10 @@
             >
                 <q-td :props="slotProps">
                     <q-badge
-                        :color="getStatusColor(slotProps.row.status)"
-                        :label="slotProps.row.status"
+                        :color="getStatusColor(getStatus(slotProps.row))"
+                        :label="getStatus(slotProps.row)"
                     />
                 </q-td>
-            </template>
-            <!-- Mobile card view -->
-            <template #item="slotProps">
-                <div class="q-pa-xs col-12">
-                    <q-card
-                        flat
-                        bordered
-                        class="q-pa-sm"
-                    >
-                        <div class="row items-center q-mb-xs">
-                            <q-badge
-                                v-if="showStatus"
-                                :color="getStatusColor(slotProps.row.status)"
-                                :label="slotProps.row.status"
-                                class="q-mr-sm"
-                            />
-                            <span class="text-weight-medium">{{ getInstructorName(slotProps.row) }}</span>
-                        </div>
-                        <div class="text-caption text-grey-8">
-                            <span class="text-weight-medium">{{ getCourseCode(slotProps.row) }}</span>
-                            &middot; {{ slotProps.row.effortType }} &middot; {{ getWeeks(slotProps.row) }}
-                            {{ inflect("week", getWeeks(slotProps.row)) }}
-                        </div>
-                        <div
-                            v-if="slotProps.row.roleName"
-                            class="text-caption text-grey-6"
-                        >
-                            {{ slotProps.row.roleName }}
-                        </div>
-                    </q-card>
-                </div>
             </template>
         </q-table>
     </div>
@@ -77,7 +45,6 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue"
-import { useQuasar } from "quasar"
 import type { QTableColumn } from "quasar"
 import { inflect } from "inflection"
 import type { ClinicalAssignmentPreview, HarvestRecordPreview } from "../types"
@@ -98,7 +65,6 @@ const props = withDefaults(
     },
 )
 
-const $q = useQuasar()
 const filter = ref("")
 
 function getInstructorName(row: ClinicalEffortRow): string {
@@ -109,10 +75,6 @@ function getCourseCode(row: ClinicalEffortRow): string {
     return "courseNumber" in row ? row.courseNumber : row.courseCode
 }
 
-function getWeeks(row: ClinicalEffortRow): number {
-    return row.weeks ?? 0
-}
-
 function rowKey(row: ClinicalEffortRow): string {
     const mothraId = row.mothraId
     const course = getCourseCode(row)
@@ -120,10 +82,18 @@ function rowKey(row: ClinicalEffortRow): string {
     return `${mothraId}-${course}-${status}`
 }
 
+function getStatus(row: ClinicalEffortRow): string {
+    if ("status" in row) return row.status
+    if ("isNew" in row) return row.isNew ? "New" : "Exists"
+    return ""
+}
+
 function getStatusColor(status: string): string {
     switch (status) {
         case "New":
             return "positive"
+        case "Exists":
+            return "grey-6"
         case "Update":
             return "info"
         case "Delete":
@@ -136,13 +106,7 @@ function getStatusColor(status: string): string {
 }
 
 const tableColumns = computed<QTableColumn[]>(() => {
-    const columns: QTableColumn[] = []
-
-    if (props.showStatus) {
-        columns.push({ name: "status", label: "Status", field: "status", align: "left", sortable: true })
-    }
-
-    columns.push(
+    const columns: QTableColumn[] = [
         {
             name: "instructor",
             label: "Instructor",
@@ -160,7 +124,17 @@ const tableColumns = computed<QTableColumn[]>(() => {
         { name: "effortType", label: "Type", field: "effortType", align: "left", sortable: true },
         { name: "weeks", label: "Weeks", field: "weeks", align: "center", sortable: true },
         { name: "roleName", label: "Role", field: "roleName", align: "left", sortable: true },
-    )
+    ]
+
+    if (props.showStatus) {
+        columns.push({
+            name: "status",
+            label: "Status",
+            field: (row) => getStatus(row),
+            align: "left",
+            sortable: true,
+        })
+    }
 
     return columns
 })

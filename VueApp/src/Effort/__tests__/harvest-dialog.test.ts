@@ -38,14 +38,12 @@ function createMockPreview(overrides: Partial<HarvestPreviewDto> = {}): HarvestP
         clinicalInstructors: [],
         clinicalCourses: [],
         clinicalEffort: [],
-        guestAccounts: [],
         removedInstructors: [],
         removedCourses: [],
         summary: {
             totalInstructors: 0,
             totalCourses: 0,
             totalEffortRecords: 0,
-            guestAccounts: 0,
         },
         warnings: [],
         errors: [],
@@ -133,7 +131,7 @@ describe("HarvestDialog - Error Handling", () => {
                 success: false,
                 termCode: TEST_TERM_CODE,
                 harvestedDate: null,
-                summary: { totalInstructors: 0, totalCourses: 0, totalEffortRecords: 0, guestAccounts: 0 },
+                summary: { totalInstructors: 0, totalCourses: 0, totalEffortRecords: 0 },
                 warnings: [],
                 errorMessage: "Term is locked",
             }
@@ -148,7 +146,7 @@ describe("HarvestDialog - Error Handling", () => {
                 success: false,
                 termCode: TEST_TERM_CODE,
                 harvestedDate: null,
-                summary: { totalInstructors: 0, totalCourses: 0, totalEffortRecords: 0, guestAccounts: 0 },
+                summary: { totalInstructors: 0, totalCourses: 0, totalEffortRecords: 0 },
                 warnings: [],
                 errorMessage: null,
             }
@@ -384,7 +382,6 @@ describe("HarvestDialog - Summary Display", () => {
                     totalInstructors: 25,
                     totalCourses: 15,
                     totalEffortRecords: 100,
-                    guestAccounts: 6,
                 },
             }),
         )
@@ -392,7 +389,6 @@ describe("HarvestDialog - Summary Display", () => {
         expect(preview.value?.summary.totalInstructors).toBe(25)
         expect(preview.value?.summary.totalCourses).toBe(15)
         expect(preview.value?.summary.totalEffortRecords).toBe(100)
-        expect(preview.value?.summary.guestAccounts).toBe(6)
     })
 
     it("should track warning count correctly", () => {

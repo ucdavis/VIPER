@@ -263,7 +263,6 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.CrestHarvestPhase>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.NonCrestHarvestPhase>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.ClinicalHarvestPhase>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.GuestAccountPhase>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IHarvestService, Viper.Areas.Effort.Services.HarvestService>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES

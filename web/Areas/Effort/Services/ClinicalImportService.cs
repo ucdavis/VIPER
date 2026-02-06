@@ -399,7 +399,7 @@ public class ClinicalImportService : IClinicalImportService
             {
                 g.Key.MothraId,
                 g.Key.CourseKey,
-                Weeks = g.Count(),
+                Weeks = g.Select(s => s.WeekId).Distinct().Count(),
                 FirstRecord = g.First()
             })
             .ToList();
@@ -532,7 +532,7 @@ public class ClinicalImportService : IClinicalImportService
                 g.Key.CourseKey,
                 SubjCode = g.First().SubjCode,
                 CrseNumb = g.First().CrseNumb,
-                Weeks = g.Count(),
+                Weeks = g.Select(s => s.WeekId).Distinct().Count(),
                 FirstRecord = g.First()
             })
             .ToList();
@@ -687,7 +687,7 @@ public class ClinicalImportService : IClinicalImportService
                 g.Key.CourseKey,
                 SubjCode = g.First().SubjCode,
                 CrseNumb = g.First().CrseNumb,
-                Weeks = g.Count(),
+                Weeks = g.Select(s => s.WeekId).Distinct().Count(),
                 FirstRecord = g.First()
             })
             .ToList();
@@ -937,7 +937,7 @@ public class ClinicalImportService : IClinicalImportService
             return courses[0];
         }
 
-        return courses.MinBy(c => ClinicalCoursePriority.GetValueOrDefault(c, 0)) ?? courses[0];
+        return courses.MinBy(c => ClinicalCoursePriority.GetValueOrDefault(c, int.MaxValue)) ?? courses[0];
     }
 
     /// <summary>

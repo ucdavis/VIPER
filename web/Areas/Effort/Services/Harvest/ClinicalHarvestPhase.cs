@@ -232,7 +232,6 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
         // Get all instructors from all phases for lookup
         var allInstructors = context.Preview.CrestInstructors
             .Concat(context.Preview.NonCrestInstructors)
-            .Concat(context.Preview.GuestAccounts)
             .DistinctBy(p => p.MothraId)
             .ToList();
 

@@ -38,13 +38,13 @@ type HarvestRecordPreview = {
     roleId: number
     roleName: string
     source: string
+    isNew: boolean
 }
 
 type HarvestSummary = {
     totalInstructors: number
     totalCourses: number
     totalEffortRecords: number
-    guestAccounts: number
 }
 
 type HarvestWarning = {
@@ -125,7 +125,6 @@ type HarvestPreviewDto = {
     clinicalInstructors: HarvestPersonPreview[]
     clinicalCourses: HarvestCoursePreview[]
     clinicalEffort: HarvestRecordPreview[]
-    guestAccounts: HarvestPersonPreview[]
     removedInstructors: HarvestPersonPreview[]
     removedCourses: HarvestCoursePreview[]
     summary: HarvestSummary

@@ -20,6 +20,7 @@
 // 13. BackfillHarvestAuditActions - Update audit entries from harvest to use new Harvest* action types
 // 14. AddAlertStatesTable - Create AlertStates table for persisting data hygiene alert states
 // 15. DuplicatePercentagesCleanup - Remove duplicate percentage assignments (prerequisite for rollover)
+// 16. DeleteGuestPersonsAndRecords - Purge legacy guest placeholder accounts and their effort records
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -315,6 +316,23 @@ namespace Viper.Areas.Effort.Scripts
 
                 var (success, message) = RunDuplicatePercentagesCleanupTask(viperConnectionString, executeMode);
                 taskResults["DuplicatePercentagesCleanup"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 16: Delete Guest Persons and Records
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 16: Delete Guest Persons and Records");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunDeleteGuestPersonsAndRecordsTask(viperConnectionString, executeMode);
+                taskResults["DeleteGuestPersonsAndRecords"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
@@ -3162,6 +3180,109 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine($"  ✓ Deleted {deleted} duplicate percentage records");
                 Console.ResetColor();
                 return (true, $"Deleted {deleted} duplicates");
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Task 16: Delete Guest Persons and Records
+
+        /// <summary>
+        /// Step 16: Delete legacy guest placeholder accounts (APCGUEST, PHRGUEST, etc.) and their effort records.
+        /// Guest accounts were department-level placeholders imported during Harvest. Only 8 effort records
+        /// from 2007-2009 exist. No current M&amp;P review references data that old. Safe to fully remove.
+        /// </summary>
+        private static (bool Success, string Message) RunDeleteGuestPersonsAndRecordsTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Known guest placeholder departments - guest accounts were imported as "{dept}, GUEST"
+                var guestDepts = "'APC','PHR','PMI','VMB','VME','VSR'";
+                var guestPredicate = $"[FirstName] = 'GUEST' AND [LastName] IN ({guestDepts})";
+
+                Console.WriteLine("Analyzing guest placeholder accounts...");
+                Console.WriteLine("  Guest accounts have FirstName = 'GUEST' and LastName = department code.");
+                Console.WriteLine();
+
+                // Count guest persons
+                var countPersonsSql = $"SELECT COUNT(*) FROM [effort].[Persons] WHERE {guestPredicate}";
+                using var countPersonsCmd = new SqlCommand(countPersonsSql, connection);
+                var guestPersonCount = Convert.ToInt32(countPersonsCmd.ExecuteScalar() ?? 0);
+
+                // Count effort records tied to guest persons (Persons PK is composite: PersonId + TermCode)
+                var countRecordsSql = $@"
+                    SELECT COUNT(*)
+                    FROM [effort].[Records] r
+                    INNER JOIN [effort].[Persons] p ON r.[PersonId] = p.[PersonId] AND r.[TermCode] = p.[TermCode]
+                    WHERE p.{guestPredicate}";
+                using var countRecordsCmd = new SqlCommand(countRecordsSql, connection);
+                var guestRecordCount = Convert.ToInt32(countRecordsCmd.ExecuteScalar() ?? 0);
+
+                if (guestPersonCount == 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✓ No guest persons found");
+                    Console.ResetColor();
+                    return (true, "No guest persons found");
+                }
+
+                Console.WriteLine($"  Found {guestPersonCount} guest person records");
+                Console.WriteLine($"  Found {guestRecordCount} effort records tied to guest persons");
+
+                if (!executeMode)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine($"  [DRY-RUN] Would delete {guestRecordCount} effort records and {guestPersonCount} guest persons");
+                    Console.ResetColor();
+                    return (true, $"Would delete {guestRecordCount} records and {guestPersonCount} persons");
+                }
+
+                // Delete records and persons in one transaction
+                using var tx = connection.BeginTransaction();
+
+                // Delete effort records first (FK constraint)
+                var deleteRecordsSql = $@"
+                    DELETE r
+                    FROM [effort].[Records] r
+                    INNER JOIN [effort].[Persons] p ON r.[PersonId] = p.[PersonId] AND r.[TermCode] = p.[TermCode]
+                    WHERE p.{guestPredicate}";
+                using var deleteRecordsCmd = new SqlCommand(deleteRecordsSql, connection, tx);
+                var deletedRecords = deleteRecordsCmd.ExecuteNonQuery();
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  ✓ Deleted {deletedRecords} effort records");
+                Console.ResetColor();
+
+                // Delete guest persons
+                var deletePersonsSql = $"DELETE FROM [effort].[Persons] WHERE {guestPredicate}";
+                using var deletePersonsCmd = new SqlCommand(deletePersonsSql, connection, tx);
+                var deletedPersons = deletePersonsCmd.ExecuteNonQuery();
+
+                tx.Commit();
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  ✓ Deleted {deletedPersons} guest person records");
+                Console.ResetColor();
+                return (true, $"Deleted {deletedRecords} records and {deletedPersons} persons");
             }
             catch (SqlException ex)
             {

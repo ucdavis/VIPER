@@ -172,7 +172,6 @@ public class DashboardService : IDashboardService
 
         var instructorsNoRecords = await instructorsQuery
             .Where(p => !_context.Records.Any(r => r.PersonId == p.PersonId && r.TermCode == termCode))
-            .Where(p => p.FirstName != "GUEST") // Exclude guest accounts
             .Select(p => new { p.PersonId, p.FirstName, p.LastName, p.EffortDept })
             .ToListAsync(ct);
 

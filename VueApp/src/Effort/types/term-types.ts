@@ -41,7 +41,6 @@ type PersonDto = {
     volunteerWos: boolean
     percentClinical: number | null
     isVerified: boolean
-    isGuest: boolean
     recordCount: number
     hasZeroHourRecords: boolean
     canSendVerificationEmail: boolean

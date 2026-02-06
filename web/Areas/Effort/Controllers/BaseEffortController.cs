@@ -50,11 +50,16 @@ public abstract class BaseEffortController : ApiController
             return true;
         }
 
-        // Parse the Origin and compare to the request host
+        // Parse the Origin and compare full origin (scheme + host + port) to the request
         if (Uri.TryCreate(origin, UriKind.Absolute, out var originUri))
         {
-            var requestHost = Request.Host.Host;
-            if (string.Equals(originUri.Host, requestHost, StringComparison.OrdinalIgnoreCase))
+            var requestScheme = Request.Scheme;
+            var requestHost = Request.Host;
+            var expectedPort = requestHost.Port ?? (string.Equals(requestScheme, "https", StringComparison.OrdinalIgnoreCase) ? 443 : 80);
+
+            if (string.Equals(originUri.Scheme, requestScheme, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(originUri.Host, requestHost.Host, StringComparison.OrdinalIgnoreCase)
+                && originUri.Port == expectedPort)
             {
                 return true;
             }

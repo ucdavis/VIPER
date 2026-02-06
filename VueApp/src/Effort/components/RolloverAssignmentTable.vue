@@ -28,28 +28,15 @@
             dense
             flat
             bordered
-            :grid="$q.screen.lt.sm"
             :pagination="pagination"
         >
-            <template #item="{ row }">
-                <div class="q-pa-xs col-xs-12 col-sm-6">
-                    <q-card
-                        flat
-                        bordered
-                    >
-                        <q-card-section class="q-pa-sm">
-                            <div class="text-weight-medium">{{ row.personName }}</div>
-                            <div class="text-caption text-grey-7">
-                                {{ row.typeName }} · {{ Math.round(row.percentageValue * 100) }}%
-                            </div>
-                            <div class="text-caption">
-                                {{ row.unitName }}
-                                <span v-if="row.modifier"> · {{ row.modifier }}</span>
-                                <span v-if="row.compensated"> · Compensated</span>
-                            </div>
-                        </q-card-section>
-                    </q-card>
-                </div>
+            <template #body-cell-typeClass="{ row }">
+                <q-td>
+                    <q-badge
+                        :color="getTypeClassColor(row.typeClass)"
+                        :label="row.typeClass"
+                    />
+                </q-td>
             </template>
         </q-table>
     </div>
@@ -57,9 +44,9 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue"
-import { useQuasar } from "quasar"
 import type { QTableColumn } from "quasar"
 import type { PercentRolloverItemPreview } from "../types"
+import { formatTypeWithModifier, getTypeClassColor } from "../utils/format"
 
 const props = withDefaults(
     defineProps<{
@@ -79,8 +66,6 @@ const emit = defineEmits<{
     "update:filter": [value: string]
 }>()
 
-const $q = useQuasar()
-
 const localFilter = ref(props.filter)
 
 watch(
@@ -98,7 +83,15 @@ const pagination = { rowsPerPage: props.rowsPerPage }
 
 const columns: QTableColumn[] = [
     { name: "personName", label: "Instructor", field: "personName", align: "left", sortable: true },
-    { name: "typeName", label: "Type", field: "typeName", align: "left", sortable: true },
+    { name: "typeClass", label: "Type", field: "typeClass", align: "left", sortable: true },
+    {
+        name: "typeName",
+        label: "Title",
+        field: "typeName",
+        align: "left",
+        sortable: true,
+        format: (val: string, row: PercentRolloverItemPreview) => formatTypeWithModifier(val, row.modifier),
+    },
     {
         name: "percentageValue",
         label: "%",
@@ -108,7 +101,6 @@ const columns: QTableColumn[] = [
         sortable: true,
     },
     { name: "unitName", label: "Unit", field: "unitName", align: "left" },
-    { name: "modifier", label: "Modifier", field: "modifier", align: "left" },
     {
         name: "compensated",
         label: "Comp",
