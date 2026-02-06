@@ -148,6 +148,7 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.Hours).HasColumnName("Hours");
             entity.Property(e => e.Weeks).HasColumnName("Weeks");
             entity.Property(e => e.Crn).HasColumnName("Crn").HasMaxLength(5);
+            entity.Property(e => e.Notes).HasColumnName("Notes").HasMaxLength(500);
             entity.Property(e => e.ModifiedDate).HasColumnName("ModifiedDate");
             entity.Property(e => e.ModifiedBy).HasColumnName("ModifiedBy");
 

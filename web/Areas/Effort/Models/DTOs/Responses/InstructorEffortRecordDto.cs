@@ -17,6 +17,7 @@ public class InstructorEffortRecordDto
     public int? Hours { get; set; }
     public int? Weeks { get; set; }
     public string Crn { get; set; } = string.Empty;
+    public string? Notes { get; set; }
     public DateTime? ModifiedDate { get; set; }
 
     /// <summary>
