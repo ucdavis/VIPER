@@ -1146,6 +1146,7 @@ public class InstructorService : IInstructorService
             Hours = r.Hours,
             Weeks = r.Weeks,
             Crn = r.Crn,
+            Notes = r.Notes,
             ModifiedDate = r.ModifiedDate,
             Course = new CourseDto
             {

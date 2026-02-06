@@ -153,6 +153,57 @@ public sealed class EffortRecordServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetEffortRecordAsync_ReturnsNotes_WhenPresent()
+    {
+        // Arrange
+        var record = new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 40,
+            Notes = "Test notes"
+        };
+        _context.Records.Add(record);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetEffortRecordAsync(1);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Test notes", result.Notes);
+    }
+
+    [Fact]
+    public async Task GetEffortRecordAsync_ReturnsNullNotes_WhenAbsent()
+    {
+        // Arrange
+        var record = new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 40
+        };
+        _context.Records.Add(record);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetEffortRecordAsync(1);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Null(result.Notes);
+    }
+
+    [Fact]
     public async Task GetEffortRecordAsync_ReturnsNull_WhenNotFound()
     {
         // Act
@@ -258,7 +309,8 @@ public sealed class EffortRecordServiceTests : IDisposable
             CourseId = TestCourseId,
             EffortTypeId = "LEC",
             RoleId = 1,
-            EffortValue = 40
+            EffortValue = 40,
+            Notes = "  Test notes with whitespace  "
         };
 
         // Act
@@ -268,6 +320,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         Assert.NotNull(result);
         Assert.Equal("LEC", result.EffortType);
         Assert.Equal(40, result.Hours);
+        Assert.Equal("Test notes with whitespace", result.Notes);
         Assert.Null(result.Weeks);
         Assert.Null(warning);
 
@@ -700,7 +753,8 @@ public sealed class EffortRecordServiceTests : IDisposable
         {
             EffortTypeId = "LAB",
             RoleId = 2,
-            EffortValue = 30
+            EffortValue = 30,
+            Notes = "Updated notes"
         };
 
         // Act
@@ -711,6 +765,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         Assert.Equal("LAB", result.EffortType);
         Assert.Equal(30, result.Hours);
         Assert.Equal(2, result.Role);
+        Assert.Equal("Updated notes", result.Notes);
         Assert.Null(warning);
 
         _auditServiceMock.Verify(
