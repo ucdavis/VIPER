@@ -18,6 +18,8 @@ type TermDto = {
     canUnopen: boolean
     canDelete: boolean
     canHarvest: boolean
+    canRolloverPercent: boolean
+    canImportClinical: boolean
 }
 
 type PersonDto = {
@@ -39,7 +41,6 @@ type PersonDto = {
     volunteerWos: boolean
     percentClinical: number | null
     isVerified: boolean
-    isGuest: boolean
     recordCount: number
     hasZeroHourRecords: boolean
     canSendVerificationEmail: boolean

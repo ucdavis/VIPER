@@ -336,12 +336,6 @@ public class VerificationService : IVerificationService
             return new EmailSendResult { Success = false, Error = "Instructor not found" };
         }
 
-        // Guest instructors are placeholders and should not receive emails
-        if (string.Equals(instructor.FirstName, EffortConstants.GuestInstructorFirstName, StringComparison.OrdinalIgnoreCase))
-        {
-            return new EmailSendResult { Success = false, Error = "Guest instructors cannot receive verification emails" };
-        }
-
         // Get email address from VIPER Person table
         var person = await _viperContext.People
             .AsNoTracking()
@@ -540,7 +534,6 @@ public class VerificationService : IVerificationService
             .Where(p => p.TermCode == termCode
                 && p.EffortDept == departmentCode
                 && p.EffortVerified == null
-                && p.FirstName.ToUpper() != EffortConstants.GuestInstructorFirstName // Exclude guest instructor placeholders
                 && (cutoffDate == null || p.LastEmailed == null || p.LastEmailed < cutoffDate))
             .ToListAsync(ct);
 

@@ -2,6 +2,7 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Helpers;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Classes.SQLContext;
 
@@ -61,6 +62,10 @@ public class TermService : ITermService
             var dto = _mapper.Map<TermDto>(t);
             dto.TermName = GetTermName(t.TermCode);
             dto.CanDelete = !termsWithData.Contains(t.TermCode);
+            // Use term status and term code for rollover eligibility (Fall terms, not Closed)
+            dto.CanRolloverPercent = TermValidationHelper.CanRolloverPercent(dto.Status, t.TermCode);
+            // Use term status and term code for clinical import eligibility
+            dto.CanImportClinical = TermValidationHelper.CanImportClinical(dto.Status, t.TermCode);
             return dto;
         }).ToList();
     }
@@ -74,6 +79,10 @@ public class TermService : ITermService
         if (term == null) return null;
         var dto = _mapper.Map<TermDto>(term);
         dto.TermName = GetTermName(termCode);
+        // Use term status and term code for rollover eligibility (Fall terms, not Closed)
+        dto.CanRolloverPercent = TermValidationHelper.CanRolloverPercent(dto.Status, termCode);
+        // Use term status and term code for clinical import eligibility
+        dto.CanImportClinical = TermValidationHelper.CanImportClinical(dto.Status, termCode);
         return dto;
     }
 
@@ -96,6 +105,14 @@ public class TermService : ITermService
     {
         var termName = TermCodeService.GetTermCodeDescription(termCode);
         return termName.StartsWith("Unknown Term") ? $"Term {termCode}" : termName;
+    }
+
+    public async Task<string?> GetTermTypeAsync(int termCode, CancellationToken ct = default)
+    {
+        var viperTerm = await _viperContext.Terms
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
+        return viperTerm?.TermType;
     }
 
     // Term Management Operations

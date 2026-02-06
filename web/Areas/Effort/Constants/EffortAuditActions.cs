@@ -58,6 +58,8 @@ public static class EffortAuditActions
     public const string ImportEffort = "ImportEffort";
     public const string RCourseAutoCreated = "RCourseAutoCreated";
     public const string RCourseAutoDeleted = "RCourseAutoDeleted";
+    public const string RolloverPercentAssignments = "RolloverPercentAssignments";
+    public const string ImportClinical = "ImportClinical";
 
     // Harvest-specific actions for audit entries created during data import
     public const string HarvestCreatePerson = "HarvestCreatePerson";
@@ -74,6 +76,8 @@ public static class EffortAuditActions
         HarvestTerm,
         RCourseAutoCreated,
         RCourseAutoDeleted,
+        RolloverPercentAssignments,
+        ImportClinical,
         HarvestCreatePerson,
         HarvestCreateCourse,
         HarvestCreateEffort

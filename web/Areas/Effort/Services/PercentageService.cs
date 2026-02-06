@@ -141,6 +141,8 @@ public class PercentageService : IPercentageService
 
         var oldValues = new
         {
+            percentage.PersonId,
+            percentage.PercentAssignTypeId,
             TypeName = percentage.PercentAssignType.Name,
             TypeClass = percentage.PercentAssignType.Class,
             UnitName = percentage.Unit?.Name,
@@ -207,6 +209,7 @@ public class PercentageService : IPercentageService
         var oldValues = new
         {
             percentage.PersonId,
+            percentage.PercentAssignTypeId,
             TypeName = percentage.PercentAssignType.Name,
             TypeClass = percentage.PercentAssignType.Class,
             UnitName = percentage.Unit?.Name,

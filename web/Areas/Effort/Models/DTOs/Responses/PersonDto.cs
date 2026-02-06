@@ -25,13 +25,6 @@ public class PersonDto
     public bool IsVerified => EffortVerified.HasValue;
 
     /// <summary>
-    /// Whether this is a guest instructor placeholder (FirstName = "GUEST").
-    /// Guest instructors are department placeholders used for unattributed teaching
-    /// and should not receive verification emails.
-    /// </summary>
-    public bool IsGuest => string.Equals(FirstName, Viper.Areas.Effort.Constants.EffortConstants.GuestInstructorFirstName, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>
     /// Summary of Admin percentage assignments overlapping the term's academic year for display in instructor list.
     /// Includes any assignments where StartDate &lt;= AcademicYearEnd AND (EndDate is null OR EndDate &gt;= AcademicYearStart).
     /// Format: "X% - TypeName" or multi-line for multiple assignments.
@@ -66,10 +59,10 @@ public class PersonDto
 
     /// <summary>
     /// Whether verification emails can be sent to this instructor.
-    /// False if instructor is already verified or is a guest placeholder.
+    /// False if instructor is already verified.
     /// Instructors with no effort records can still receive emails to verify "no effort" status.
     /// </summary>
-    public bool CanSendVerificationEmail => !IsVerified && !IsGuest;
+    public bool CanSendVerificationEmail => !IsVerified;
 
     /// <summary>
     /// Date when the last verification email was successfully sent.

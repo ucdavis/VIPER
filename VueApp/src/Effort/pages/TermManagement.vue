@@ -78,33 +78,71 @@
                 </template>
                 <template #body-cell-harvestedDate="props">
                     <q-td :props="props">
-                        <div class="row items-center no-wrap">
-                            <span>{{ formatDate(props.row.harvestedDate) }}</span>
-                            <q-btn
-                                v-if="props.row.canHarvest"
-                                icon="cloud_download"
-                                :label="props.row.harvestedDate ? 'Re-Harvest' : 'Harvest'"
-                                color="info"
-                                text-color="white"
-                                dense
-                                no-caps
-                                size="sm"
-                                padding="2px sm"
-                                class="q-ml-sm"
-                                @click="openHarvestDialog(props.row)"
-                                @keyup.enter="openHarvestDialog(props.row)"
-                                @keyup.space="openHarvestDialog(props.row)"
-                            >
-                                <q-tooltip>Import instructors and courses from CREST and Clinical Scheduler</q-tooltip>
-                            </q-btn>
+                        <div class="row items-center">
+                            <span class="q-mr-sm">{{ formatDate(props.row.harvestedDate) }}</span>
+                            <div class="row q-gutter-xs wrap">
+                                <q-btn
+                                    v-if="props.row.canHarvest"
+                                    icon="cloud_download"
+                                    :label="props.row.harvestedDate ? 'Re-Harvest' : 'Harvest'"
+                                    color="info"
+                                    text-color="white"
+                                    dense
+                                    no-caps
+                                    size="sm"
+                                    padding="2px sm"
+                                    class="term-action-btn"
+                                    @click="openHarvestDialog(props.row)"
+                                    @keyup.enter="openHarvestDialog(props.row)"
+                                    @keyup.space="openHarvestDialog(props.row)"
+                                >
+                                    <q-tooltip
+                                        >Import instructors and courses from CREST and Clinical Scheduler</q-tooltip
+                                    >
+                                </q-btn>
+                                <q-btn
+                                    v-if="props.row.canRolloverPercent"
+                                    icon="event_repeat"
+                                    label="Percent Rollover"
+                                    color="cyan-8"
+                                    text-color="white"
+                                    dense
+                                    no-caps
+                                    size="sm"
+                                    padding="2px sm"
+                                    class="term-action-btn"
+                                    @click="openRolloverDialog(props.row)"
+                                    @keyup.enter="openRolloverDialog(props.row)"
+                                    @keyup.space="openRolloverDialog(props.row)"
+                                >
+                                    <q-tooltip>Roll forward percent assignments to the new academic year</q-tooltip>
+                                </q-btn>
+                                <q-btn
+                                    v-if="props.row.canImportClinical"
+                                    icon="medical_services"
+                                    label="Import Clinical"
+                                    color="teal-8"
+                                    text-color="white"
+                                    dense
+                                    no-caps
+                                    size="sm"
+                                    padding="2px sm"
+                                    class="term-action-btn"
+                                    @click="openClinicalDialog(props.row)"
+                                    @keyup.enter="openClinicalDialog(props.row)"
+                                    @keyup.space="openClinicalDialog(props.row)"
+                                >
+                                    <q-tooltip>Import clinical rotation assignments from Clinical Scheduler</q-tooltip>
+                                </q-btn>
+                            </div>
                         </div>
                     </q-td>
                 </template>
                 <template #body-cell-openedDate="props">
                     <q-td :props="props">
-                        <div class="row items-center no-wrap">
-                            <span>{{ formatDate(props.row.openedDate) }}</span>
-                            <div class="q-ml-sm">
+                        <div class="row items-center">
+                            <span class="q-mr-sm">{{ formatDate(props.row.openedDate) }}</span>
+                            <div class="row q-gutter-xs wrap">
                                 <q-btn
                                     v-if="props.row.canOpen"
                                     icon="add_circle"
@@ -115,6 +153,7 @@
                                     no-caps
                                     size="sm"
                                     padding="2px sm"
+                                    class="term-action-btn"
                                     @click="confirmOpenTerm(props.row)"
                                     @keyup.enter="confirmOpenTerm(props.row)"
                                     @keyup.space="confirmOpenTerm(props.row)"
@@ -129,6 +168,7 @@
                                     no-caps
                                     size="sm"
                                     padding="2px sm"
+                                    class="term-action-btn"
                                     @click="confirmUnopenTerm(props.row)"
                                     @keyup.enter="confirmUnopenTerm(props.row)"
                                     @keyup.space="confirmUnopenTerm(props.row)"
@@ -139,9 +179,9 @@
                 </template>
                 <template #body-cell-closedDate="props">
                     <q-td :props="props">
-                        <div class="row items-center no-wrap">
-                            <span>{{ formatDate(props.row.closedDate) }}</span>
-                            <div class="q-ml-sm">
+                        <div class="row items-center">
+                            <span class="q-mr-sm">{{ formatDate(props.row.closedDate) }}</span>
+                            <div class="row q-gutter-xs wrap">
                                 <q-btn
                                     v-if="props.row.canClose"
                                     icon="lock"
@@ -152,6 +192,7 @@
                                     no-caps
                                     size="sm"
                                     padding="2px sm"
+                                    class="term-action-btn"
                                     @click="confirmCloseTerm(props.row)"
                                     @keyup.enter="confirmCloseTerm(props.row)"
                                     @keyup.space="confirmCloseTerm(props.row)"
@@ -166,6 +207,7 @@
                                     no-caps
                                     size="sm"
                                     padding="2px sm"
+                                    class="term-action-btn"
                                     @click="confirmReopenTerm(props.row)"
                                     @keyup.enter="confirmReopenTerm(props.row)"
                                     @keyup.space="confirmReopenTerm(props.row)"
@@ -207,96 +249,129 @@
                                 >Closed: {{ formatDate(term.closedDate) }}</span
                             >
                         </div>
+                        <div class="row q-gutter-xs q-mt-sm wrap">
+                            <q-btn
+                                v-if="term.canHarvest"
+                                icon="cloud_download"
+                                :label="term.harvestedDate ? 'Re-Harvest' : 'Harvest'"
+                                color="info"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="openHarvestDialog(term)"
+                                @keyup.enter="openHarvestDialog(term)"
+                                @keyup.space="openHarvestDialog(term)"
+                            />
+                            <q-btn
+                                v-if="term.canRolloverPercent"
+                                icon="event_repeat"
+                                label="Percent Rollover"
+                                color="cyan-8"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="openRolloverDialog(term)"
+                                @keyup.enter="openRolloverDialog(term)"
+                                @keyup.space="openRolloverDialog(term)"
+                            />
+                            <q-btn
+                                v-if="term.canImportClinical"
+                                icon="medical_services"
+                                label="Import Clinical"
+                                color="teal-8"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="openClinicalDialog(term)"
+                                @keyup.enter="openClinicalDialog(term)"
+                                @keyup.space="openClinicalDialog(term)"
+                            />
+                            <q-btn
+                                v-if="term.canOpen"
+                                icon="add_circle"
+                                label="Open"
+                                color="positive"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="confirmOpenTerm(term)"
+                                @keyup.enter="confirmOpenTerm(term)"
+                                @keyup.space="confirmOpenTerm(term)"
+                            />
+                            <q-btn
+                                v-if="term.canUnopen"
+                                icon="history"
+                                label="Unopen"
+                                color="warning"
+                                text-color="dark"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="confirmUnopenTerm(term)"
+                                @keyup.enter="confirmUnopenTerm(term)"
+                                @keyup.space="confirmUnopenTerm(term)"
+                            />
+                            <q-btn
+                                v-if="term.canClose"
+                                icon="lock"
+                                label="Close"
+                                color="negative"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="confirmCloseTerm(term)"
+                                @keyup.enter="confirmCloseTerm(term)"
+                                @keyup.space="confirmCloseTerm(term)"
+                            />
+                            <q-btn
+                                v-if="term.canReopen"
+                                icon="lock_open"
+                                label="Reopen"
+                                color="secondary"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="confirmReopenTerm(term)"
+                                @keyup.enter="confirmReopenTerm(term)"
+                                @keyup.space="confirmReopenTerm(term)"
+                            />
+                            <q-btn
+                                v-if="term.canDelete"
+                                icon="delete"
+                                label="Delete"
+                                color="negative"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="confirmDeleteTerm(term)"
+                                @keyup.enter="confirmDeleteTerm(term)"
+                                @keyup.space="confirmDeleteTerm(term)"
+                            />
+                        </div>
                     </q-card-section>
-                    <q-card-actions
-                        align="left"
-                        class="q-pt-none"
-                    >
-                        <q-btn
-                            v-if="term.canHarvest"
-                            icon="cloud_download"
-                            :label="term.harvestedDate ? 'Re-Harvest' : 'Harvest'"
-                            color="info"
-                            text-color="white"
-                            dense
-                            no-caps
-                            size="sm"
-                            padding="2px sm"
-                            @click="openHarvestDialog(term)"
-                            @keyup.enter="openHarvestDialog(term)"
-                            @keyup.space="openHarvestDialog(term)"
-                        />
-                        <q-btn
-                            v-if="term.canOpen"
-                            icon="add_circle"
-                            label="Open"
-                            color="positive"
-                            text-color="white"
-                            dense
-                            no-caps
-                            size="sm"
-                            padding="2px sm"
-                            @click="confirmOpenTerm(term)"
-                            @keyup.enter="confirmOpenTerm(term)"
-                            @keyup.space="confirmOpenTerm(term)"
-                        />
-                        <q-btn
-                            v-if="term.canUnopen"
-                            icon="history"
-                            label="Unopen"
-                            color="warning"
-                            text-color="dark"
-                            dense
-                            no-caps
-                            size="sm"
-                            padding="2px sm"
-                            @click="confirmUnopenTerm(term)"
-                            @keyup.enter="confirmUnopenTerm(term)"
-                            @keyup.space="confirmUnopenTerm(term)"
-                        />
-                        <q-btn
-                            v-if="term.canClose"
-                            icon="lock"
-                            label="Close"
-                            color="negative"
-                            text-color="white"
-                            dense
-                            no-caps
-                            size="sm"
-                            padding="2px sm"
-                            @click="confirmCloseTerm(term)"
-                            @keyup.enter="confirmCloseTerm(term)"
-                            @keyup.space="confirmCloseTerm(term)"
-                        />
-                        <q-btn
-                            v-if="term.canReopen"
-                            icon="lock_open"
-                            label="Reopen"
-                            color="secondary"
-                            text-color="white"
-                            dense
-                            no-caps
-                            size="sm"
-                            padding="2px sm"
-                            @click="confirmReopenTerm(term)"
-                            @keyup.enter="confirmReopenTerm(term)"
-                            @keyup.space="confirmReopenTerm(term)"
-                        />
-                        <q-btn
-                            v-if="term.canDelete"
-                            icon="delete"
-                            label="Delete"
-                            color="negative"
-                            text-color="white"
-                            dense
-                            no-caps
-                            size="sm"
-                            padding="2px sm"
-                            @click="confirmDeleteTerm(term)"
-                            @keyup.enter="confirmDeleteTerm(term)"
-                            @keyup.space="confirmDeleteTerm(term)"
-                        />
-                    </q-card-actions>
                 </q-card>
             </div>
         </template>
@@ -308,6 +383,22 @@
             :term-name="harvestTermName"
             @harvested="onHarvested"
         />
+
+        <!-- Percent Rollover Dialog -->
+        <PercentRolloverDialog
+            v-model="rolloverDialogOpen"
+            :term-code="rolloverTermCode"
+            :term-name="rolloverTermName"
+            @completed="onRolloverCompleted"
+        />
+
+        <!-- Clinical Import Dialog -->
+        <ClinicalImportDialog
+            v-model="clinicalDialogOpen"
+            :term-code="clinicalTermCode"
+            :term-name="clinicalTermName"
+            @completed="onClinicalCompleted"
+        />
     </div>
 </template>
 
@@ -317,6 +408,8 @@ import { useQuasar } from "quasar"
 import { termService } from "../services/term-service"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import HarvestDialog from "../components/HarvestDialog.vue"
+import PercentRolloverDialog from "../components/PercentRolloverDialog.vue"
+import ClinicalImportDialog from "../components/ClinicalImportDialog.vue"
 import type { TermDto, AvailableTermDto } from "../types"
 import type { QTableColumn } from "quasar"
 
@@ -332,6 +425,16 @@ const isLoading = ref(false)
 const harvestDialogOpen = ref(false)
 const harvestTermCode = ref<number | null>(null)
 const harvestTermName = ref("")
+
+// Percent Rollover dialog state
+const rolloverDialogOpen = ref(false)
+const rolloverTermCode = ref<number | null>(null)
+const rolloverTermName = ref("")
+
+// Clinical Import dialog state
+const clinicalDialogOpen = ref(false)
+const clinicalTermCode = ref<number | null>(null)
+const clinicalTermName = ref("")
 
 const columns: QTableColumn[] = [
     { name: "termName", label: "Term", field: "termName", align: "left" },
@@ -445,5 +548,31 @@ function onHarvested() {
     loadTerms({ background: true })
 }
 
+function openRolloverDialog(term: TermDto) {
+    rolloverTermCode.value = term.termCode
+    rolloverTermName.value = term.termName
+    rolloverDialogOpen.value = true
+}
+
+function onRolloverCompleted() {
+    loadTerms()
+}
+
+function openClinicalDialog(term: TermDto) {
+    clinicalTermCode.value = term.termCode
+    clinicalTermName.value = term.termName
+    clinicalDialogOpen.value = true
+}
+
+function onClinicalCompleted() {
+    loadTerms()
+}
+
 onMounted(loadTerms)
 </script>
+
+<style scoped>
+.term-action-btn {
+    min-width: 130px;
+}
+</style>

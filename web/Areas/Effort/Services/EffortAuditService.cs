@@ -520,6 +520,67 @@ public class EffortAuditService : IEffortAuditService
             .ToListAsync(ct);
     }
 
+    /// <inheritdoc />
+    public async Task<HashSet<(int PersonId, int PercentAssignTypeId)>> GetPostHarvestPercentChangesAsync(
+        DateTime sinceDate, CancellationToken ct = default)
+    {
+        var result = new HashSet<(int PersonId, int PercentAssignTypeId)>();
+
+        // Query audit entries for UpdatePercent or DeletePercent after sinceDate
+        var auditEntries = await _context.Audits
+            .AsNoTracking()
+            .Where(a => a.TableName == EffortAuditTables.Percentages)
+            .Where(a => a.Action == EffortAuditActions.UpdatePercent
+                     || a.Action == EffortAuditActions.DeletePercent)
+            .Where(a => a.ChangedDate >= sinceDate)
+            .Select(a => new { a.RecordId, a.Changes })
+            .ToListAsync(ct);
+
+        if (auditEntries.Count == 0)
+        {
+            return result;
+        }
+
+        // Get PersonId and PercentAssignTypeId for existing percentages (handles updates)
+        var auditRecordIds = auditEntries.Select(a => a.RecordId).Distinct().ToList();
+        var existingPercentages = await _context.Percentages
+            .AsNoTracking()
+            .Where(p => auditRecordIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.PersonId, p.PercentAssignTypeId })
+            .ToDictionaryAsync(p => p.Id, ct);
+
+        foreach (var audit in auditEntries)
+        {
+            // First try to get from existing percentage record
+            if (existingPercentages.TryGetValue(audit.RecordId, out var percentage))
+            {
+                result.Add((percentage.PersonId, percentage.PercentAssignTypeId));
+            }
+            // If not found (deleted), try to extract from Changes JSON
+            else if (!string.IsNullOrEmpty(audit.Changes))
+            {
+                try
+                {
+                    var changes = JsonSerializer.Deserialize<Dictionary<string, ChangeDetail>>(audit.Changes);
+                    if (changes != null
+                        && changes.TryGetValue("PersonId", out var personIdChange)
+                        && changes.TryGetValue("PercentAssignTypeId", out var typeIdChange)
+                        && int.TryParse(personIdChange.OldValue, out var personId)
+                        && int.TryParse(typeIdChange.OldValue, out var typeId))
+                    {
+                        result.Add((personId, typeId));
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogDebug(ex, "Unable to parse Changes JSON for audit RecordId={RecordId}", audit.RecordId);
+                }
+            }
+        }
+
+        return result;
+    }
+
     private IQueryable<EffortCourse> BuildAuditCourseQuery(int? termCode, bool excludeImports = false, List<string>? departmentCodes = null)
     {
         var auditQuery = _context.Audits

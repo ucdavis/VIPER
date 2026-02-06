@@ -13,12 +13,6 @@ public static class EffortConstants
     public static readonly string[] AcademicDepartments = ["APC", "PHR", "PMI", "VMB", "VME", "VSR"];
 
     /// <summary>
-    /// Guest account MothraIDs for department-level guest accounts.
-    /// PersonIds are looked up from users.Person at runtime.
-    /// </summary>
-    public static readonly string[] GuestAccountIds = ["APCGUEST", "PHRGUEST", "PMIGUEST", "VMBGUEST", "VMEGUEST", "VSRGUEST"];
-
-    /// <summary>
     /// Department overrides by MothraID. These instructors are assigned to a specific
     /// department regardless of their job data in AAUD.
     /// Key: MothraID, Value: Department code
@@ -60,12 +54,6 @@ public static class EffortConstants
     /// Role ID for Instructor (non-primary instructor role).
     /// </summary>
     public const int InstructorRoleId = 2;
-
-    /// <summary>
-    /// First name used for guest instructor placeholders.
-    /// Guest instructors are department placeholders for unattributed teaching.
-    /// </summary>
-    public const string GuestInstructorFirstName = "GUEST";
 
     /// <summary>
     /// Role ID for Clinical Instructor (legacy alias for InstructorRoleId).
@@ -135,11 +123,6 @@ public static class EffortConstants
     /// Source identifier for clinical scheduler data.
     /// </summary>
     public const string SourceClinical = "Clinical";
-
-    /// <summary>
-    /// Source identifier for guest accounts.
-    /// </summary>
-    public const string SourceGuest = "Guest";
 
     /// <summary>
     /// Source identifier for existing data (shown in removed items list).

@@ -793,4 +793,254 @@ public sealed class InstructorServiceTests : IDisposable
     }
 
     #endregion
+
+    #region BatchResolveDepartmentsAsync Tests
+
+    [Fact]
+    public async Task BatchResolveDepartmentsAsync_ReturnsEmptyDictionary_WhenNoMothraIds()
+    {
+        // Act
+        var result = await _instructorService.BatchResolveDepartmentsAsync([], 202410);
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task BatchResolveDepartmentsAsync_ReturnsOverrideDept_WhenMothraIdHasOverride()
+    {
+        // Arrange
+        var deptOverrides = Areas.Effort.Constants.EffortConstants.DepartmentOverrides;
+        var overrideMothraId = deptOverrides.Keys.First();
+        var expectedDept = deptOverrides[overrideMothraId];
+
+        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        {
+            IdsPKey = "OVERRIDE001",
+            IdsTermCode = "202410",
+            IdsMothraid = overrideMothraId,
+            IdsClientid = overrideMothraId
+        });
+        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        {
+            EmpPKey = "OVERRIDE001",
+            EmpTermCode = "202410",
+            EmpClientid = overrideMothraId,
+            EmpHomeDept = "072000",
+            EmpAltDeptCode = "",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "99",
+            EmpStatus = "A"
+        });
+        await _aaudContext.SaveChangesAsync();
+
+        // Act
+        var result = await _instructorService.BatchResolveDepartmentsAsync([overrideMothraId], 202410);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal(expectedDept, result[overrideMothraId]);
+    }
+
+    [Fact]
+    public async Task BatchResolveDepartmentsAsync_ReturnsAcademicDeptFromJobs_WhenAvailable()
+    {
+        // Arrange
+        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        {
+            IdsPKey = "BATCH001",
+            IdsTermCode = "202410",
+            IdsMothraid = "11111111",
+            IdsClientid = "11111111"
+        });
+        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        {
+            EmpPKey = "BATCH001",
+            EmpTermCode = "202410",
+            EmpClientid = "11111111",
+            EmpHomeDept = "072000",
+            EmpAltDeptCode = "",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "99",
+            EmpStatus = "A"
+        });
+        _aaudContext.Jobs.Add(new Viper.Models.AAUD.Job
+        {
+            JobPKey = "BATCH001",
+            JobSeqNum = 1,
+            JobTermCode = "202410",
+            JobClientid = "11111111",
+            JobDepartmentCode = "VME",
+            JobPercentFulltime = 100,
+            JobTitleCode = "1234",
+            JobBargainingUnit = "99",
+            JobSchoolDivision = "VM"
+        });
+        await _aaudContext.SaveChangesAsync();
+
+        // Act
+        var result = await _instructorService.BatchResolveDepartmentsAsync(["11111111"], 202410);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal("VME", result["11111111"]);
+    }
+
+    [Fact]
+    public async Task BatchResolveDepartmentsAsync_FallsBackToEmployeeFields_WhenNoAcademicJobDept()
+    {
+        // Arrange
+        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        {
+            IdsPKey = "BATCH002",
+            IdsTermCode = "202410",
+            IdsMothraid = "22222222",
+            IdsClientid = "22222222"
+        });
+        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        {
+            EmpPKey = "BATCH002",
+            EmpTermCode = "202410",
+            EmpClientid = "22222222",
+            EmpEffortHomeDept = "APC",
+            EmpHomeDept = "072000",
+            EmpAltDeptCode = "",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "99",
+            EmpStatus = "A"
+        });
+        await _aaudContext.SaveChangesAsync();
+
+        // Act
+        var result = await _instructorService.BatchResolveDepartmentsAsync(["22222222"], 202410);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal("APC", result["22222222"]);
+    }
+
+    [Fact]
+    public async Task BatchResolveDepartmentsAsync_ReturnsUNK_WhenNoAaudData()
+    {
+        // Act - no AAUD data seeded for this MothraId
+        var result = await _instructorService.BatchResolveDepartmentsAsync(["99999999"], 202410);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal("UNK", result["99999999"]);
+    }
+
+    [Fact]
+    public async Task BatchResolveDepartmentsAsync_ResolvesMultipleInstructorsCorrectly()
+    {
+        // Arrange - instructor 1: academic job dept
+        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        {
+            IdsPKey = "MULTI001",
+            IdsTermCode = "202410",
+            IdsMothraid = "AAA11111",
+            IdsClientid = "AAA11111"
+        });
+        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        {
+            EmpPKey = "MULTI001",
+            EmpTermCode = "202410",
+            EmpClientid = "AAA11111",
+            EmpHomeDept = "072000",
+            EmpAltDeptCode = "",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "99",
+            EmpStatus = "A"
+        });
+        _aaudContext.Jobs.Add(new Viper.Models.AAUD.Job
+        {
+            JobPKey = "MULTI001",
+            JobSeqNum = 1,
+            JobTermCode = "202410",
+            JobClientid = "AAA11111",
+            JobDepartmentCode = "PMI",
+            JobPercentFulltime = 100,
+            JobTitleCode = "1234",
+            JobBargainingUnit = "99",
+            JobSchoolDivision = "VM"
+        });
+
+        // Arrange - instructor 2: employee fallback
+        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        {
+            IdsPKey = "MULTI002",
+            IdsTermCode = "202410",
+            IdsMothraid = "BBB22222",
+            IdsClientid = "BBB22222"
+        });
+        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        {
+            EmpPKey = "MULTI002",
+            EmpTermCode = "202410",
+            EmpClientid = "BBB22222",
+            EmpEffortHomeDept = "VSR",
+            EmpHomeDept = "072000",
+            EmpAltDeptCode = "",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "99",
+            EmpStatus = "A"
+        });
+
+        await _aaudContext.SaveChangesAsync();
+
+        // Act
+        var result = await _instructorService.BatchResolveDepartmentsAsync(
+            ["AAA11111", "BBB22222", "CCC33333"], 202410);
+
+        // Assert
+        Assert.Equal(3, result.Count);
+        Assert.Equal("PMI", result["AAA11111"]);
+        Assert.Equal("VSR", result["BBB22222"]);
+        Assert.Equal("UNK", result["CCC33333"]); // No AAUD data
+    }
+
+    [Fact]
+    public async Task BatchResolveDepartmentsAsync_SkipsNullAndEmptyMothraIds()
+    {
+        // Act
+        var result = await _instructorService.BatchResolveDepartmentsAsync(["", null!], 202410);
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task BatchResolveDepartmentsAsync_IsCaseInsensitive()
+    {
+        // Arrange
+        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        {
+            IdsPKey = "CASE001",
+            IdsTermCode = "202410",
+            IdsMothraid = "CASE1234",
+            IdsClientid = "CASE1234"
+        });
+        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        {
+            EmpPKey = "CASE001",
+            EmpTermCode = "202410",
+            EmpClientid = "CASE1234",
+            EmpEffortHomeDept = "PHR",
+            EmpHomeDept = "072000",
+            EmpAltDeptCode = "",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "99",
+            EmpStatus = "A"
+        });
+        await _aaudContext.SaveChangesAsync();
+
+        // Act - query with different case
+        var result = await _instructorService.BatchResolveDepartmentsAsync(["case1234"], 202410);
+
+        // Assert
+        Assert.Single(result);
+        Assert.True(result.ContainsKey("case1234"));
+    }
+
+    #endregion
 }

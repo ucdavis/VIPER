@@ -209,6 +209,17 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
             {
                 var courseId = await ImportCourseAsync(course, context, ct);
                 context.CourseIdLookup[key] = courseId;
+
+                // Also add course code key for clinical effort records that don't have CRNs
+                // This is needed because clinical effort records have empty CRN but courses may have CRN from Banner
+                if (!string.IsNullOrWhiteSpace(course.Crn))
+                {
+                    var codeKey = $"{course.SubjCode}{course.CrseNumb}-{course.Units}";
+                    if (!context.CourseIdLookup.ContainsKey(codeKey))
+                    {
+                        context.CourseIdLookup[codeKey] = courseId;
+                    }
+                }
             }
         }
 
@@ -221,7 +232,6 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
         // Get all instructors from all phases for lookup
         var allInstructors = context.Preview.CrestInstructors
             .Concat(context.Preview.NonCrestInstructors)
-            .Concat(context.Preview.GuestAccounts)
             .DistinctBy(p => p.MothraId)
             .ToList();
 
@@ -230,9 +240,28 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
             // Look up instructor - first check existing preview lists
             var instructorPreview = allInstructors.FirstOrDefault(i => i.MothraId == effort.MothraId);
 
-            // If not found, look up directly from VIPER (clinical-only instructor)
+            // If not found in CREST/NonCrest, look up from ClinicalInstructors preview
+            // (which has AAUD data from BuildClinicalInstructorPreviewsAsync)
             if (instructorPreview == null)
             {
+                var clinicalPreview = context.Preview.ClinicalInstructors
+                    .FirstOrDefault(i => i.MothraId == effort.MothraId);
+
+                // Must have AAUD record with valid title code
+                if (clinicalPreview == null ||
+                    string.IsNullOrEmpty(clinicalPreview.TitleCode) ||
+                    !(context.TitleLookup?.ContainsKey(clinicalPreview.TitleCode) ?? false))
+                {
+                    context.Warnings.Add(new HarvestWarning
+                    {
+                        Phase = EffortConstants.PhaseClinical,
+                        Message = $"Skipping clinical instructor {effort.MothraId}: no AAUD record or invalid title code",
+                        Details = effort.CourseCode
+                    });
+                    continue;
+                }
+
+                // Get VIPER person record for PersonId
                 var person = await context.ViperContext.People
                     .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.MothraId == effort.MothraId, ct);
@@ -248,18 +277,16 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
                     continue;
                 }
 
-                // Create preview record for this clinical-only instructor
-                var dept = await ResolveDepartmentAsync(person.PersonId, context, ct);
                 instructorPreview = new HarvestPersonPreview
                 {
                     MothraId = person.MothraId ?? "",
                     PersonId = person.PersonId,
-                    FullName = $"{person.LastName}, {person.FirstName}",
+                    FullName = clinicalPreview.FullName,
                     FirstName = person.FirstName ?? "",
                     LastName = person.LastName ?? "",
-                    Department = dept,
-                    TitleCode = "",
-                    TitleDescription = "",
+                    Department = clinicalPreview.Department,
+                    TitleCode = clinicalPreview.TitleCode,
+                    TitleDescription = clinicalPreview.TitleDescription,
                     Source = EffortConstants.SourceClinical
                 };
             }
@@ -300,8 +327,7 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
                 (ids, emp) => new
                 {
                     MothraId = ids.IdsMothraid,
-                    emp.EmpEffortTitleCode,
-                    emp.EmpEffortHomeDept
+                    emp.EmpEffortTitleCode
                 })
             .ToListAsync(ct);
 
@@ -310,11 +336,11 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
             .GroupBy(x => x.MothraId!)
             .ToDictionary(g => g.Key, g => g.First());
 
-        // Get title and department lookups
+        // Get title lookup and batch-resolve departments using full resolution chain
         context.TitleLookup ??= (await context.InstructorService.GetTitleCodesAsync(ct))
             .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
 
-        context.DeptSimpleNameLookup ??= await context.InstructorService.GetDepartmentSimpleNameLookupAsync(ct);
+        var batchDepts = await context.InstructorService.BatchResolveDepartmentsAsync(clinicalMothraIds, context.TermCode, ct);
 
         // Get existing instructor MothraIds for IsNew determination
         var existingMothraIds = context.Preview.CrestInstructors
@@ -338,18 +364,14 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
                 ? desc
                 : titleCode;
 
-            var effortDept = aaudInfo?.EmpEffortHomeDept?.Trim() ?? "";
-            var deptName = context.DeptSimpleNameLookup != null &&
-                           !string.IsNullOrEmpty(effortDept) &&
-                           context.DeptSimpleNameLookup.TryGetValue(effortDept, out var dn)
-                ? dn
-                : effortDept;
+            // Department already fully resolved by BatchResolveDepartmentsAsync
+            var dept = batchDepts.GetValueOrDefault(mothraId, "UNK");
 
             context.Preview.ClinicalInstructors.Add(new HarvestPersonPreview
             {
                 MothraId = mothraId,
                 FullName = personName,
-                Department = deptName,
+                Department = dept,
                 TitleCode = titleCode,
                 TitleDescription = titleDesc,
                 Source = EffortConstants.SourceClinical,
