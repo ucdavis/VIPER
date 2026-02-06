@@ -309,8 +309,8 @@ public sealed class ClinicalImportServiceTests : IDisposable
                 {
                     WeekId = weekId,
                     TermCode = TermCode,
-                    DateStart = new DateTime(2024, 9, 1).AddDays(i * 7),
-                    DateEnd = new DateTime(2024, 9, 7).AddDays(i * 7)
+                    DateStart = new DateTime(2024, 9, 1).AddDays(i * 7.0),
+                    DateEnd = new DateTime(2024, 9, 7).AddDays(i * 7.0)
                 });
             }
             weekIds.Add(weekId);

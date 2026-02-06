@@ -1,4 +1,5 @@
 using Viper.Classes;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Controllers;
 
@@ -66,7 +67,7 @@ public abstract class BaseEffortController : ApiController
 
             _logger.LogWarning(
                 "Cross-origin request blocked: Origin={Origin}, RequestHost={RequestHost}",
-                origin, requestHost);
+                origin, LogSanitizer.SanitizeString(requestHost.ToString()));
         }
 
         return false;
