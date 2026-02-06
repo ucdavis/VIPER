@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
@@ -21,6 +22,7 @@ public sealed class EffortRecordServiceTests : IDisposable
     private readonly RAPSContext _rapsContext;
     private readonly Mock<IEffortAuditService> _auditServiceMock;
     private readonly Mock<IInstructorService> _instructorServiceMock;
+    private readonly Mock<IRCourseService> _rCourseServiceMock;
     private readonly Mock<IUserHelper> _userHelperMock;
     private readonly Mock<ILogger<EffortRecordService>> _loggerMock;
     private readonly EffortRecordService _service;
@@ -53,16 +55,21 @@ public sealed class EffortRecordServiceTests : IDisposable
             .Returns(Task.CompletedTask);
 
         _instructorServiceMock = new Mock<IInstructorService>();
+        _rCourseServiceMock = new Mock<IRCourseService>();
         _loggerMock = new Mock<ILogger<EffortRecordService>>();
 
         var testUser = new AaudUser { AaudUserId = TestUserId, MothraId = "testuser" };
         _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(testUser);
+
+        var courseClassificationService = new CourseClassificationService();
 
         _service = new EffortRecordService(
             _context,
             _rapsContext,
             _auditServiceMock.Object,
             _instructorServiceMock.Object,
+            courseClassificationService,
+            _rCourseServiceMock.Object,
             _userHelperMock.Object,
             _loggerMock.Object);
 
@@ -75,6 +82,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         _context.Terms.Add(new EffortTerm { TermCode = TestTermCode, OpenedDate = DateTime.Now });
 
         _context.EffortTypes.AddRange(
+            new EffortType { Id = "ADM", Description = "Admin", IsActive = true, UsesWeeks = false, AllowedOnRCourses = true },
             new EffortType { Id = "LEC", Description = "Lecture", IsActive = true, UsesWeeks = false },
             new EffortType { Id = "LAB", Description = "Laboratory", IsActive = true, UsesWeeks = false },
             new EffortType { Id = "CLI", Description = "Clinical", IsActive = true, UsesWeeks = true },
@@ -91,10 +99,10 @@ public sealed class EffortRecordServiceTests : IDisposable
         );
 
         _context.Courses.AddRange(
-            new EffortCourse { Id = TestCourseId, TermCode = TestTermCode, Crn = "12345", SubjCode = "VET", CrseNumb = "410", SeqNumb = "01", Enrollment = 20, Units = 4, CustDept = "VME" },
+            new EffortCourse { Id = TestCourseId, TermCode = TestTermCode, Crn = "12345", SubjCode = "APC", CrseNumb = "410", SeqNumb = "01", Enrollment = 20, Units = 4, CustDept = "APC" },
             new EffortCourse { Id = 2, TermCode = TestTermCode, Crn = "12346", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "01", Enrollment = 15, Units = 4, CustDept = "DVM" },
-            new EffortCourse { Id = 3, TermCode = TestTermCode, Crn = "12347", SubjCode = "VET", CrseNumb = "199", SeqNumb = "01", Enrollment = 5, Units = 1, CustDept = "VME" },
-            new EffortCourse { Id = 4, TermCode = TestTermCode, Crn = "12348", SubjCode = "VET", CrseNumb = "290R", SeqNumb = "01", Enrollment = 8, Units = 2, CustDept = "VME" }
+            new EffortCourse { Id = 3, TermCode = TestTermCode, Crn = "12347", SubjCode = "DVM", CrseNumb = "199", SeqNumb = "01", Enrollment = 5, Units = 1, CustDept = "DVM" },
+            new EffortCourse { Id = 4, TermCode = TestTermCode, Crn = "12348", SubjCode = "DVM", CrseNumb = "290R", SeqNumb = "01", Enrollment = 8, Units = 2, CustDept = "DVM" }
         );
 
         _context.Persons.Add(new EffortPerson
@@ -152,6 +160,87 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Assert
         Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetEffortRecordAsync_PopulatesDvmFlag_ForDvmCourse()
+    {
+        // Arrange: Course 2 is a DVM course (SubjCode = "DVM")
+        var record = new EffortRecord
+        {
+            Id = 1,
+            CourseId = 2,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 40
+        };
+        _context.Records.Add(record);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetEffortRecordAsync(1);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.Course.IsDvm);
+        Assert.False(result.Course.Is199299);
+        Assert.False(result.Course.IsRCourse);
+    }
+
+    [Fact]
+    public async Task GetEffortRecordAsync_Populates199299Flag_For199Course()
+    {
+        // Arrange: Course 3 is DVM 199 (SubjCode="DVM", CrseNumb="199")
+        var record = new EffortRecord
+        {
+            Id = 1,
+            CourseId = 3,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 40
+        };
+        _context.Records.Add(record);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetEffortRecordAsync(1);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.Course.IsDvm);
+        Assert.True(result.Course.Is199299);
+        Assert.False(result.Course.IsRCourse);
+    }
+
+    [Fact]
+    public async Task GetEffortRecordAsync_PopulatesRCourseFlag_ForRCourse()
+    {
+        // Arrange: Course 4 is DVM 290R (SubjCode="DVM", CrseNumb="290R")
+        var record = new EffortRecord
+        {
+            Id = 1,
+            CourseId = 4,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 40
+        };
+        _context.Records.Add(record);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetEffortRecordAsync(1);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.Course.IsDvm);
+        Assert.False(result.Course.Is199299);
+        Assert.True(result.Course.IsRCourse);
     }
 
     #endregion
@@ -368,6 +457,38 @@ public sealed class EffortRecordServiceTests : IDisposable
         // Assert
         var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
         Assert.Null(updatedPerson.EffortVerified);
+    }
+
+    [Fact]
+    public async Task CreateEffortRecordAsync_PreservesEffortVerified_OnSelfEdit()
+    {
+        // Arrange: Set up a verified instructor
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var originalVerificationDate = DateTime.Now.AddDays(-1);
+        person.EffortVerified = originalVerificationDate;
+        await _context.SaveChangesAsync();
+
+        // Mock the current user as the instructor themselves (self-edit)
+        var selfUser = new AaudUser { AaudUserId = TestPersonId, MothraId = "selfinstructor" };
+        _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(selfUser);
+
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            CourseId = TestCourseId,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 40
+        };
+
+        // Act
+        await _service.CreateEffortRecordAsync(request);
+
+        // Assert: Verification should be preserved for self-edit
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        Assert.NotNull(updatedPerson.EffortVerified);
+        Assert.Equal(originalVerificationDate, updatedPerson.EffortVerified);
     }
 
     [Fact]
@@ -688,6 +809,82 @@ public sealed class EffortRecordServiceTests : IDisposable
         Assert.Contains("not allowed on DVM courses", ex.Message);
     }
 
+    [Fact]
+    public async Task UpdateEffortRecordAsync_ClearsEffortVerified_OnPerson()
+    {
+        // Arrange: Set up a verified instructor with an existing record
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        person.EffortVerified = DateTime.Now;
+        await _context.SaveChangesAsync();
+
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20
+        });
+        await _context.SaveChangesAsync();
+
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 30  // Change hours from 20 to 30
+        };
+
+        // Act
+        await _service.UpdateEffortRecordAsync(1, request);
+
+        // Assert
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        Assert.Null(updatedPerson.EffortVerified);
+    }
+
+    [Fact]
+    public async Task UpdateEffortRecordAsync_PreservesEffortVerified_OnSelfEdit()
+    {
+        // Arrange: Set up a verified instructor with an existing record
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var originalVerificationDate = DateTime.Now.AddDays(-1);
+        person.EffortVerified = originalVerificationDate;
+        await _context.SaveChangesAsync();
+
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20
+        });
+        await _context.SaveChangesAsync();
+
+        // Mock the current user as the instructor themselves (self-edit)
+        var selfUser = new AaudUser { AaudUserId = TestPersonId, MothraId = "selfinstructor" };
+        _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(selfUser);
+
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 30  // Change hours from 20 to 30
+        };
+
+        // Act
+        await _service.UpdateEffortRecordAsync(1, request);
+
+        // Assert: Verification should be preserved for self-edit
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        Assert.NotNull(updatedPerson.EffortVerified);
+        Assert.Equal(originalVerificationDate, updatedPerson.EffortVerified);
+    }
+
     #endregion
 
     #region DeleteEffortRecordAsync Tests
@@ -708,8 +905,8 @@ public sealed class EffortRecordServiceTests : IDisposable
         });
         await _context.SaveChangesAsync();
 
-        // Act
-        var result = await _service.DeleteEffortRecordAsync(1);
+        // Act - pass null for originalModifiedDate (legacy record)
+        var result = await _service.DeleteEffortRecordAsync(1, null);
 
         // Assert
         Assert.True(result);
@@ -726,7 +923,7 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task DeleteEffortRecordAsync_ReturnsFalse_WhenNotFound()
     {
         // Act
-        var result = await _service.DeleteEffortRecordAsync(999);
+        var result = await _service.DeleteEffortRecordAsync(999, null);
 
         // Assert
         Assert.False(result);
@@ -752,12 +949,237 @@ public sealed class EffortRecordServiceTests : IDisposable
         });
         await _context.SaveChangesAsync();
 
-        // Act
-        await _service.DeleteEffortRecordAsync(1);
+        // Act - pass null for originalModifiedDate (legacy record)
+        await _service.DeleteEffortRecordAsync(1, null);
 
         // Assert
         var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
         Assert.Null(updatedPerson.EffortVerified);
+    }
+
+    [Fact]
+    public async Task DeleteEffortRecordAsync_PreservesEffortVerified_OnSelfEdit()
+    {
+        // Arrange: Set up a verified instructor with an existing record
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var originalVerificationDate = DateTime.Now.AddDays(-1);
+        person.EffortVerified = originalVerificationDate;
+        await _context.SaveChangesAsync();
+
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20
+        });
+        await _context.SaveChangesAsync();
+
+        // Mock the current user as the instructor themselves (self-edit)
+        var selfUser = new AaudUser { AaudUserId = TestPersonId, MothraId = "selfinstructor" };
+        _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(selfUser);
+
+        // Act - pass null for originalModifiedDate (legacy record)
+        await _service.DeleteEffortRecordAsync(1, null);
+
+        // Assert: Verification should be preserved for self-edit
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        Assert.NotNull(updatedPerson.EffortVerified);
+        Assert.Equal(originalVerificationDate, updatedPerson.EffortVerified);
+    }
+
+    #endregion
+
+    #region Concurrency Conflict Tests
+
+    [Fact]
+    public async Task UpdateEffortRecordAsync_ThrowsConcurrencyConflict_WhenModifiedDateMismatch()
+    {
+        // Arrange: Create record with a ModifiedDate
+        var originalDate = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Local);
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20,
+            ModifiedDate = originalDate
+        });
+        await _context.SaveChangesAsync();
+
+        // Request with a DIFFERENT ModifiedDate (simulating stale data)
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LAB",
+            RoleId = 2,
+            EffortValue = 30,
+            OriginalModifiedDate = new DateTime(2024, 1, 14, 10, 30, 0, DateTimeKind.Local) // One day earlier
+        };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ConcurrencyConflictException>(
+            () => _service.UpdateEffortRecordAsync(1, request));
+        Assert.Contains("modified by another user", ex.Message);
+    }
+
+    [Fact]
+    public async Task UpdateEffortRecordAsync_Succeeds_WhenModifiedDateMatches()
+    {
+        // Arrange: Create record with a ModifiedDate
+        var originalDate = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Local);
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20,
+            ModifiedDate = originalDate
+        });
+        await _context.SaveChangesAsync();
+
+        // Request with the SAME ModifiedDate
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LAB",
+            RoleId = 2,
+            EffortValue = 30,
+            OriginalModifiedDate = originalDate
+        };
+
+        // Act
+        var (result, _) = await _service.UpdateEffortRecordAsync(1, request);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("LAB", result.EffortType);
+    }
+
+    [Fact]
+    public async Task UpdateEffortRecordAsync_Succeeds_WhenBothModifiedDatesAreNull()
+    {
+        // Arrange: Create legacy record with NULL ModifiedDate
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20,
+            ModifiedDate = null // Legacy record
+        });
+        await _context.SaveChangesAsync();
+
+        // Request with NULL OriginalModifiedDate
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LAB",
+            RoleId = 2,
+            EffortValue = 30,
+            OriginalModifiedDate = null
+        };
+
+        // Act
+        var (result, _) = await _service.UpdateEffortRecordAsync(1, request);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("LAB", result.EffortType);
+    }
+
+    [Fact]
+    public async Task UpdateEffortRecordAsync_ThrowsConcurrencyConflict_WhenLegacyRecordWasUpdated()
+    {
+        // Arrange: Create record that WAS legacy but has since been updated
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20,
+            ModifiedDate = DateTime.Now // Record was updated after loading
+        });
+        await _context.SaveChangesAsync();
+
+        // Request still has NULL (thinks record is legacy)
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LAB",
+            RoleId = 2,
+            EffortValue = 30,
+            OriginalModifiedDate = null
+        };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ConcurrencyConflictException>(
+            () => _service.UpdateEffortRecordAsync(1, request));
+        Assert.Contains("modified by another user", ex.Message);
+    }
+
+    [Fact]
+    public async Task DeleteEffortRecordAsync_ThrowsConcurrencyConflict_WhenModifiedDateMismatch()
+    {
+        // Arrange: Create record with a ModifiedDate
+        var originalDate = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Local);
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20,
+            ModifiedDate = originalDate
+        });
+        await _context.SaveChangesAsync();
+
+        // Act & Assert: Try to delete with stale date
+        var ex = await Assert.ThrowsAsync<ConcurrencyConflictException>(
+            () => _service.DeleteEffortRecordAsync(1, new DateTime(2024, 1, 14, 10, 30, 0, DateTimeKind.Local)));
+        Assert.Contains("modified by another user", ex.Message);
+
+        // Verify record was NOT deleted
+        Assert.NotNull(await _context.Records.FindAsync(1));
+    }
+
+    [Fact]
+    public async Task DeleteEffortRecordAsync_Succeeds_WhenModifiedDateMatches()
+    {
+        // Arrange: Create record with a ModifiedDate
+        var originalDate = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Local);
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 20,
+            ModifiedDate = originalDate
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.DeleteEffortRecordAsync(1, originalDate);
+
+        // Assert
+        Assert.True(result);
+        Assert.Null(await _context.Records.FindAsync(1));
     }
 
     #endregion
@@ -807,6 +1229,37 @@ public sealed class EffortRecordServiceTests : IDisposable
         Assert.DoesNotContain(result.AllCourses, c => c.Id == 2);
     }
 
+    [Fact]
+    public async Task GetAvailableCoursesAsync_PopulatesClassificationFlags()
+    {
+        // Act
+        var result = await _service.GetAvailableCoursesAsync(TestPersonId, TestTermCode);
+
+        // Assert: Course 1 (APC 410) - IsDvm=false (non-DVM subject code)
+        var apcCourse = result.AllCourses.First(c => c.Id == TestCourseId);
+        Assert.False(apcCourse.IsDvm);
+        Assert.False(apcCourse.Is199299);
+        Assert.False(apcCourse.IsRCourse);
+
+        // Assert: Course 2 (DVM 443) - IsDvm=true
+        var dvmCourse = result.AllCourses.First(c => c.Id == 2);
+        Assert.True(dvmCourse.IsDvm);
+        Assert.False(dvmCourse.Is199299);
+        Assert.False(dvmCourse.IsRCourse);
+
+        // Assert: Course 3 (DVM 199) - IsDvm=true, Is199299=true
+        var course199 = result.AllCourses.First(c => c.Id == 3);
+        Assert.True(course199.IsDvm);
+        Assert.True(course199.Is199299);
+        Assert.False(course199.IsRCourse);
+
+        // Assert: Course 4 (DVM 290R) - IsDvm=true, IsRCourse=true
+        var rCourse = result.AllCourses.First(c => c.Id == 4);
+        Assert.True(rCourse.IsDvm);
+        Assert.False(rCourse.Is199299);
+        Assert.True(rCourse.IsRCourse);
+    }
+
     #endregion
 
     #region GetEffortTypeOptionsAsync Tests
@@ -817,8 +1270,8 @@ public sealed class EffortRecordServiceTests : IDisposable
         // Act
         var result = await _service.GetEffortTypeOptionsAsync();
 
-        // Assert: 7 seeded, 1 inactive (OLD) = 6 active
-        Assert.Equal(6, result.Count);
+        // Assert: 8 seeded, 1 inactive (OLD) = 7 active
+        Assert.Equal(7, result.Count);
         Assert.All(result, et => Assert.NotEqual("OLD", et.Id));
     }
 
@@ -939,6 +1392,203 @@ public sealed class EffortRecordServiceTests : IDisposable
         // Act & Assert
         Assert.True(_service.UsesWeeks("CLI", 201604));
         Assert.True(_service.UsesWeeks("CLI", 202410));
+    }
+
+    #endregion
+
+    #region R-Course Auto-Creation Tests
+
+    [Fact]
+    public async Task CreateEffortRecordAsync_CallsRCourseService_WhenFirstNonRCourseAdded()
+    {
+        // Arrange - create a new instructor with no existing effort records
+        var newPersonId = 200;
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            FirstName = "New",
+            LastName = "Instructor",
+            EffortDept = "VME"
+        });
+
+        await _context.SaveChangesAsync();
+
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            CourseId = TestCourseId, // VET 410 - not an R-course
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 40
+        };
+
+        // Act - create the first non-R-course effort record
+        var (result, _) = await _service.CreateEffortRecordAsync(request);
+
+        // Assert - verify the effort record was created
+        Assert.NotNull(result);
+        Assert.Equal(newPersonId, result.PersonId);
+        Assert.Equal("LEC", result.EffortType);
+
+        // Verify RCourseService was called to create R-course (first non-R-course triggers creation)
+        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
+            newPersonId,
+            TestTermCode,
+            TestUserId,
+            RCourseCreationContext.OnDemand,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateEffortRecordAsync_DoesNotCallRCourseService_WhenSecondNonRCourseAdded()
+    {
+        // Arrange - create an instructor with one existing non-R-course record
+        var existingPersonId = 201;
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = existingPersonId,
+            TermCode = TestTermCode,
+            FirstName = "Existing",
+            LastName = "Instructor",
+            EffortDept = "VME"
+        });
+
+        // Add first effort record
+        _context.Records.Add(new EffortRecord
+        {
+            PersonId = existingPersonId,
+            TermCode = TestTermCode,
+            CourseId = TestCourseId, // VET 410 - not an R-course
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 40,
+            Crn = "12345"
+        });
+
+        await _context.SaveChangesAsync();
+
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = existingPersonId,
+            TermCode = TestTermCode,
+            CourseId = 2, // DVM 443 - also not an R-course
+            EffortTypeId = "LAB",
+            RoleId = 1,
+            EffortValue = 20
+        };
+
+        // Act - add a second non-R-course effort record
+        var (result, _) = await _service.CreateEffortRecordAsync(request);
+
+        // Assert - verify the effort record was created
+        Assert.NotNull(result);
+        Assert.Equal(existingPersonId, result.PersonId);
+
+        // Verify RCourseService was NOT called (not the first non-R-course)
+        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<RCourseCreationContext>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateEffortRecordAsync_DoesNotCallRCourseService_WhenAddingRCourseItself()
+    {
+        // Arrange - create a new instructor with no existing effort records
+        var newPersonId = 202;
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            FirstName = "Another",
+            LastName = "Instructor",
+            EffortDept = "VME"
+        });
+
+        await _context.SaveChangesAsync();
+
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            CourseId = 4, // VET 290R - this IS an R-course
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 10
+        };
+
+        // Act - add an R-course as the first effort record
+        var (result, _) = await _service.CreateEffortRecordAsync(request);
+
+        // Assert - verify the effort record was created
+        Assert.NotNull(result);
+
+        // Verify RCourseService was NOT called (adding R-course doesn't trigger auto-creation)
+        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<RCourseCreationContext>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateEffortRecordAsync_DoesNotCallRCourseService_WhenAddingGenericRCourse()
+    {
+        // Arrange - create a new instructor and the generic R-course
+        var newPersonId = 203;
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            FirstName = "Generic",
+            LastName = "RCourse",
+            EffortDept = "VME"
+        });
+
+        // Create the generic R-course (RESID)
+        var genericRCourse = new EffortCourse
+        {
+            Id = 100,
+            TermCode = TestTermCode,
+            Crn = "RESID",
+            SubjCode = "RES",
+            CrseNumb = "000R",
+            SeqNumb = "001",
+            Units = 0,
+            Enrollment = 0,
+            CustDept = "UNK"
+        };
+        _context.Courses.Add(genericRCourse);
+        await _context.SaveChangesAsync();
+
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            CourseId = 100, // RESID - the generic R-course
+            EffortTypeId = "ADM",
+            RoleId = 1,
+            EffortValue = 10
+        };
+
+        // Act - add the generic R-course as the first effort record
+        var (result, _) = await _service.CreateEffortRecordAsync(request);
+
+        // Assert - verify the effort record was created
+        Assert.NotNull(result);
+
+        // Verify RCourseService was NOT called (adding generic R-course doesn't trigger auto-creation)
+        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<int>(),
+            It.IsAny<RCourseCreationContext>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     #endregion

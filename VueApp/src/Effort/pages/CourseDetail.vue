@@ -214,7 +214,7 @@ import { ref, computed, onMounted, watch } from "vue"
 import { useRoute } from "vue-router"
 import { useQuasar } from "quasar"
 import type { QTableColumn } from "quasar"
-import { effortService } from "../services/effort-service"
+import { courseService } from "../services/course-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import type { CourseDto, CourseRelationshipDto } from "../types"
 import CourseEditDialog from "../components/CourseEditDialog.vue"
@@ -307,9 +307,9 @@ async function loadCourse() {
 
     try {
         const [courseResult, deptsResult, relationshipsResult] = await Promise.all([
-            effortService.getCourse(requestedCourseId),
-            effortService.getDepartments(),
-            effortService.getCourseRelationships(requestedCourseId),
+            courseService.getCourse(requestedCourseId),
+            courseService.getDepartments(),
+            courseService.getCourseRelationships(requestedCourseId),
         ])
 
         // Abort if a newer request has been initiated
@@ -337,7 +337,7 @@ async function loadCourse() {
 async function loadRelationships() {
     if (!course.value) return
 
-    const relationshipsResult = await effortService.getCourseRelationships(course.value.id)
+    const relationshipsResult = await courseService.getCourseRelationships(course.value.id)
     parentRelationship.value = relationshipsResult.parentRelationship
     childRelationships.value = relationshipsResult.childRelationships
 }
@@ -360,7 +360,7 @@ async function deleteRelationship(relationship: CourseRelationshipDto) {
     deletingId.value = relationship.id
 
     try {
-        const success = await effortService.deleteCourseRelationship(course.value.id, relationship.id)
+        const success = await courseService.deleteCourseRelationship(course.value.id, relationship.id)
 
         if (success) {
             $q.notify({ type: "positive", message: "Link removed successfully" })

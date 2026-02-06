@@ -165,7 +165,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
-import { effortService } from "../services/effort-service"
+import { instructorService } from "../services/instructor-service"
 import type { PersonDto, DepartmentDto, ReportUnitDto, TitleCodeDto, JobGroupDto } from "../types"
 
 const props = defineProps<{
@@ -273,10 +273,10 @@ function filterTitleCodes(val: string, update: (fn: () => void) => void) {
 // Load lookup data
 onMounted(async () => {
     const [depts, units, titles, groups] = await Promise.all([
-        effortService.getInstructorDepartments(),
-        effortService.getReportUnits(),
-        effortService.getTitleCodes(),
-        effortService.getJobGroups(),
+        instructorService.getInstructorDepartments(),
+        instructorService.getReportUnits(),
+        instructorService.getTitleCodes(),
+        instructorService.getJobGroups(),
     ])
     departments.value = depts
     reportUnits.value = units
@@ -313,7 +313,7 @@ async function updateInstructor() {
     errorMessage.value = ""
 
     try {
-        const result = await effortService.updateInstructor(props.instructor.personId, props.termCode, {
+        const result = await instructorService.updateInstructor(props.instructor.personId, props.termCode, {
             effortDept: form.value.effortDept,
             effortTitleCode: form.value.effortTitleCode,
             jobGroupId: form.value.jobGroupId || null,

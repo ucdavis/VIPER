@@ -466,4 +466,89 @@ public class CourseService : ICourseService
             ParentCourseId = parentCourseId
         };
     }
+
+    /// <inheritdoc />
+    public async Task<ImportCourseForSelfResult> ImportCourseForSelfAsync(int termCode, string crn, decimal? units = null, CancellationToken ct = default)
+    {
+        var crnTrimmed = crn.Trim();
+
+        // First, check if course already exists in Effort (idempotent check)
+        var existingCourse = await _context.Courses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.TermCode == termCode && c.Crn.Trim() == crnTrimmed, ct);
+
+        if (existingCourse != null)
+        {
+            // Course already imported - if units specified and doesn't match, check for variable-unit match
+            if (units.HasValue && existingCourse.Units != units.Value)
+            {
+                var requestedUnits = units.Value;
+                existingCourse = await _context.Courses
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.TermCode == termCode
+                                           && c.Crn.Trim() == crnTrimmed
+                                           && c.Units == requestedUnits, ct);
+
+                if (existingCourse == null)
+                {
+                    // For variable-unit courses, we could create a new record with different units
+                    // But for self-import, we'll just use the existing course
+                    existingCourse = await _context.Courses
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(c => c.TermCode == termCode && c.Crn.Trim() == crnTrimmed, ct);
+                }
+            }
+
+            if (existingCourse != null)
+            {
+                _logger.LogDebug("Course {Crn} already exists for term {TermCode}", LogSanitizer.SanitizeId(crnTrimmed), termCode);
+                return ImportCourseForSelfResult.SuccessExisting(ToDto(existingCourse));
+            }
+        }
+
+        // Fetch course from Banner
+        var bannerCourse = await GetBannerCourseAsync(termCode, crnTrimmed, ct);
+        if (bannerCourse == null)
+        {
+            return ImportCourseForSelfResult.Failure($"Course with CRN {crnTrimmed} not found in Banner for term {termCode}");
+        }
+
+        // Determine units - require units for variable-unit courses
+        var isVariable = bannerCourse.UnitType == "V";
+        if (isVariable && !units.HasValue)
+        {
+            return ImportCourseForSelfResult.Failure("Units are required for variable-unit courses");
+        }
+        var finalUnits = isVariable ? units!.Value : bannerCourse.UnitLow;
+
+        // Validate units for variable-unit courses
+        if (isVariable && (finalUnits < bannerCourse.UnitLow || finalUnits > bannerCourse.UnitHigh))
+        {
+            return ImportCourseForSelfResult.Failure(
+                $"Units {finalUnits} must be between {bannerCourse.UnitLow} and {bannerCourse.UnitHigh}");
+        }
+
+        // Check if course with these units already exists (for variable-unit courses)
+        if (await CourseExistsAsync(termCode, crnTrimmed, finalUnits, ct))
+        {
+            var existingWithUnits = await _context.Courses
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.TermCode == termCode
+                                       && c.Crn.Trim() == crnTrimmed
+                                       && c.Units == finalUnits, ct);
+            if (existingWithUnits != null)
+            {
+                return ImportCourseForSelfResult.SuccessExisting(ToDto(existingWithUnits));
+            }
+        }
+
+        // Import the course
+        var importRequest = new ImportCourseRequest { TermCode = termCode, Crn = crnTrimmed, Units = finalUnits };
+        var importedCourse = await ImportCourseFromBannerAsync(importRequest, bannerCourse, ct);
+
+        _logger.LogInformation("Self-imported course {Crn} for term {TermCode}",
+            LogSanitizer.SanitizeId(crnTrimmed), termCode);
+
+        return ImportCourseForSelfResult.SuccessNew(importedCourse);
+    }
 }

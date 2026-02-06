@@ -112,33 +112,37 @@ public interface IEffortAuditService
     /// Get distinct action types from audit entries.
     /// </summary>
     /// <param name="excludeImports">If true, excludes import-related actions.</param>
+    /// <param name="departmentCodes">Optional department codes to filter by (for ViewDeptAudit users).</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of distinct action strings.</returns>
-    Task<List<string>> GetDistinctActionsAsync(bool excludeImports, CancellationToken ct = default);
+    Task<List<string>> GetDistinctActionsAsync(bool excludeImports, List<string>? departmentCodes = null, CancellationToken ct = default);
 
     /// <summary>
     /// Get users who have made audit entries (for modifier filter).
     /// </summary>
     /// <param name="excludeImports">If true, excludes modifiers who only appear in import actions.</param>
+    /// <param name="departmentCodes">Optional department codes to filter by (for ViewDeptAudit users).</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of modifier info.</returns>
-    Task<List<ModifierInfo>> GetDistinctModifiersAsync(bool excludeImports = false, CancellationToken ct = default);
+    Task<List<ModifierInfo>> GetDistinctModifiersAsync(bool excludeImports = false, List<string>? departmentCodes = null, CancellationToken ct = default);
 
     /// <summary>
     /// Get terms that have audit entries (for term filter).
     /// </summary>
     /// <param name="excludeImports">If true, excludes terms that only appear in import actions.</param>
+    /// <param name="departmentCodes">Optional department codes to filter by (for ViewDeptAudit users).</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of term codes with audit entries.</returns>
-    Task<List<int>> GetAuditTermCodesAsync(bool excludeImports = false, CancellationToken ct = default);
+    Task<List<int>> GetAuditTermCodesAsync(bool excludeImports = false, List<string>? departmentCodes = null, CancellationToken ct = default);
 
     /// <summary>
     /// Get instructors who have audit entries (for instructor filter).
     /// </summary>
     /// <param name="excludeImports">If true, excludes instructors who only appear in import actions.</param>
+    /// <param name="departmentCodes">Optional department codes to filter by (for ViewDeptAudit users).</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of instructor info.</returns>
-    Task<List<ModifierInfo>> GetDistinctInstructorsAsync(bool excludeImports = false, CancellationToken ct = default);
+    Task<List<ModifierInfo>> GetDistinctInstructorsAsync(bool excludeImports = false, List<string>? departmentCodes = null, CancellationToken ct = default);
 
     /// <summary>
     /// Get distinct subject codes from courses.
@@ -146,9 +150,10 @@ public interface IEffortAuditService
     /// <param name="termCode">Optional term code to filter by.</param>
     /// <param name="courseNumber">Optional course number to filter by.</param>
     /// <param name="excludeImports">If true, excludes subject codes that only appear in import actions.</param>
+    /// <param name="departmentCodes">Optional department codes to filter by (for ViewDeptAudit users).</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of distinct subject codes.</returns>
-    Task<List<string>> GetDistinctSubjectCodesAsync(int? termCode = null, string? courseNumber = null, bool excludeImports = false, CancellationToken ct = default);
+    Task<List<string>> GetDistinctSubjectCodesAsync(int? termCode = null, string? courseNumber = null, bool excludeImports = false, List<string>? departmentCodes = null, CancellationToken ct = default);
 
     /// <summary>
     /// Get distinct course numbers from courses.
@@ -156,7 +161,8 @@ public interface IEffortAuditService
     /// <param name="termCode">Optional term code to filter by.</param>
     /// <param name="subjectCode">Optional subject code to filter by.</param>
     /// <param name="excludeImports">If true, excludes course numbers that only appear in import actions.</param>
+    /// <param name="departmentCodes">Optional department codes to filter by (for ViewDeptAudit users).</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of distinct course numbers.</returns>
-    Task<List<string>> GetDistinctCourseNumbersAsync(int? termCode = null, string? subjectCode = null, bool excludeImports = false, CancellationToken ct = default);
+    Task<List<string>> GetDistinctCourseNumbersAsync(int? termCode = null, string? subjectCode = null, bool excludeImports = false, List<string>? departmentCodes = null, CancellationToken ct = default);
 }

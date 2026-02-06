@@ -47,10 +47,61 @@
         <!-- Content when loaded -->
         <template v-else-if="myEffort">
             <!-- Header -->
-            <div class="q-mb-md">
-                <h2 class="q-my-none q-mb-sm">
+            <div class="q-mb-md row items-center justify-between">
+                <h2 class="q-my-none header-title">
                     My Effort<template v-if="myEffort.termName"> for {{ myEffort.termName }}</template>
+                    <a
+                        href="https://ucdsvm.knowledgeowl.com/help/how-do-i-update-and-verify-my-teaching-effort"
+                        target="_blank"
+                        rel="noopener"
+                        class="help-link text-primary lt-sm"
+                        aria-label="Need help? View documentation"
+                    >
+                        <q-icon
+                            name="help_outline"
+                            size="xs"
+                        />
+                    </a>
                 </h2>
+                <a
+                    href="https://ucdsvm.knowledgeowl.com/help/how-do-i-update-and-verify-my-teaching-effort"
+                    target="_blank"
+                    rel="noopener"
+                    class="help-link text-primary gt-xs"
+                    aria-label="Need help? View documentation"
+                >
+                    Need Help
+                    <q-icon
+                        name="help_outline"
+                        size="xs"
+                    />
+                </a>
+            </div>
+
+            <!-- Add Effort and Import Course Buttons -->
+            <div
+                v-if="myEffort.canEdit"
+                class="row q-mb-md q-gutter-sm"
+            >
+                <q-btn
+                    color="primary"
+                    icon="add"
+                    label="Add Effort"
+                    dense
+                    aria-label="Add effort record"
+                    @click="openAddDialog"
+                />
+                <q-btn
+                    color="secondary"
+                    icon="cloud_download"
+                    dense
+                    outline
+                    aria-label="Import course from Banner"
+                    @click="openImportDialog"
+                >
+                    <span class="lt-sm q-ml-xs">Import Course</span>
+                    <span class="gt-xs q-ml-xs">Import Course from Banner</span>
+                </q-btn>
             </div>
 
             <!-- Already verified banner -->
@@ -78,9 +129,9 @@
                     />
                 </template>
                 <div>
-                    <strong>You have courses with ZERO effort.</strong>
+                    <strong>You have effort items with ZERO effort.</strong>
                     You will not be able to verify your effort until these items have been updated to document
-                    hours/weeks or are removed. Please work with your departmental Effort admin to resolve these issues.
+                    hours/weeks or are removed.
                 </div>
             </q-banner>
 
@@ -120,132 +171,18 @@
                 <div>No effort records for this term.</div>
             </div>
 
-            <!-- Mobile Card View -->
-            <div
+            <!-- Effort Records Display -->
+            <EffortRecordsDisplay
                 v-if="myEffort.effortRecords.length > 0"
-                class="lt-sm q-mb-lg"
-            >
-                <q-card
-                    v-for="record in myEffort.effortRecords"
-                    :key="record.id"
-                    flat
-                    bordered
-                    class="q-mb-sm"
-                    :class="{ 'zero-effort-card': isZeroEffortRecord(record.id) }"
-                >
-                    <q-card-section class="q-py-sm">
-                        <div class="row items-center justify-between q-mb-xs">
-                            <span class="text-primary text-weight-bold">
-                                {{ record.course.subjCode }}
-                                {{ record.course.crseNumb.trim() }}-{{ record.course.seqNumb }}
-                            </span>
-                            <div>
-                                <q-btn
-                                    v-if="myEffort.canEdit"
-                                    flat
-                                    dense
-                                    round
-                                    icon="edit"
-                                    color="primary"
-                                    size="sm"
-                                    aria-label="Edit effort record"
-                                    @click="openEditDialog(record)"
-                                />
-                                <q-btn
-                                    v-if="myEffort.canEdit"
-                                    flat
-                                    dense
-                                    round
-                                    icon="delete"
-                                    color="negative"
-                                    size="sm"
-                                    aria-label="Delete effort record"
-                                    @click="confirmDelete(record)"
-                                />
-                            </div>
-                        </div>
-                        <div class="text-body2 q-mb-xs">
-                            {{ record.roleDescription }} &bull; {{ record.effortType }}
-                        </div>
-                        <div class="row q-gutter-md text-caption text-grey-7">
-                            <span>{{ record.course.units }} units</span>
-                            <span>Enroll: {{ record.course.enrollment }}</span>
-                            <span :class="{ 'text-warning text-weight-bold': isZeroEffortRecord(record.id) }">
-                                {{ record.effortValue ?? 0 }}
-                                {{ record.effortLabel === "weeks" ? "Weeks" : "Hours" }}
-                                <template v-if="isZeroEffortRecord(record.id)"> *** ZERO EFFORT *** </template>
-                            </span>
-                        </div>
-                    </q-card-section>
-                </q-card>
-            </div>
-
-            <!-- Effort Records Table (desktop) -->
-            <q-table
-                v-if="myEffort.effortRecords.length > 0"
-                :rows="myEffort.effortRecords"
-                :columns="columns"
-                row-key="id"
-                dense
-                flat
-                bordered
-                hide-pagination
-                wrap-cells
-                :rows-per-page-options="[0]"
-                class="effort-table q-mb-lg gt-xs"
-            >
-                <template #body-cell-course="props">
-                    <q-td :props="props">
-                        {{ props.row.course.subjCode }}
-                        {{ props.row.course.crseNumb.trim() }}-{{ props.row.course.seqNumb }}
-                    </q-td>
-                </template>
-                <template #body-cell-effort="props">
-                    <q-td
-                        :props="props"
-                        :class="{ 'zero-effort': isZeroEffortRecord(props.row.id) }"
-                    >
-                        {{ props.row.effortValue ?? 0 }}
-                        {{ props.row.effortLabel === "weeks" ? "Weeks" : "Hours" }}
-                        <span
-                            v-if="isZeroEffortRecord(props.row.id)"
-                            class="text-weight-bold"
-                        >
-                            *** ZERO ***
-                        </span>
-                    </q-td>
-                </template>
-                <template #body-cell-actions="props">
-                    <q-td :props="props">
-                        <q-btn
-                            v-if="myEffort?.canEdit"
-                            flat
-                            dense
-                            round
-                            icon="edit"
-                            color="primary"
-                            size="sm"
-                            aria-label="Edit effort record"
-                            @click="openEditDialog(props.row)"
-                        >
-                            <q-tooltip>Edit</q-tooltip>
-                        </q-btn>
-                        <q-btn
-                            v-if="myEffort?.canEdit"
-                            flat
-                            dense
-                            round
-                            icon="delete"
-                            color="negative"
-                            size="sm"
-                            aria-label="Delete effort record"
-                            @click="confirmDelete(props.row)"
-                        >
-                            <q-tooltip>Delete</q-tooltip>
-                        </q-btn>
-                    </q-td>
-                </template>
-            </q-table>
+                :records="myEffort.effortRecords"
+                :term-code="termCode"
+                :can-edit="myEffort.canEdit"
+                :can-delete="myEffort.canEdit"
+                :zero-effort-record-ids="myEffort.zeroEffortRecordIds"
+                no-data-message="No effort records for this term"
+                @edit="openEditDialog"
+                @delete="confirmDelete"
+            />
 
             <!-- Cross-Listed / Sectioned Courses Section -->
             <div
@@ -298,11 +235,7 @@
                     />
                     <div class="q-mt-md">
                         <q-btn
-                            :label="
-                                myEffort.effortRecords.length === 0
-                                    ? 'Submit No-Effort Verification'
-                                    : 'Submit Verification'
-                            "
+                            label="Submit Verification"
                             color="primary"
                             :disable="!verifyConfirmed"
                             :loading="isVerifying"
@@ -325,12 +258,31 @@
             </div>
         </template>
 
+        <!-- Add Effort Dialog -->
+        <EffortRecordAddDialog
+            v-model="showAddDialog"
+            :person-id="myEffort?.instructor?.personId ?? 0"
+            :term-code="termCodeNum"
+            :is-verified="myEffort?.instructor?.isVerified ?? false"
+            :pre-selected-course-id="preSelectedCourseId"
+            :existing-records="myEffort?.effortRecords ?? []"
+            @created="onRecordCreated"
+        />
+
         <!-- Edit Effort Dialog -->
         <EffortRecordEditDialog
             v-model="showEditDialog"
             :record="selectedRecord"
             :term-code="termCodeNum"
             @updated="onRecordUpdated"
+        />
+
+        <!-- Import Course Dialog -->
+        <CourseImportForSelfDialog
+            v-model="showImportDialog"
+            :term-code="termCodeNum"
+            :term-name="myEffort?.termName ?? ''"
+            @imported="onCourseImported"
         />
     </div>
 </template>
@@ -340,10 +292,13 @@ import { ref, computed, onMounted } from "vue"
 import { useRoute } from "vue-router"
 import { useQuasar, type QTableColumn } from "quasar"
 import { verificationService } from "../services/verification-service"
-import { effortService } from "../services/effort-service"
-import type { MyEffortDto, InstructorEffortRecordDto, ChildCourseDto } from "../types"
+import { recordService } from "../services/record-service"
+import type { MyEffortDto, InstructorEffortRecordDto, ChildCourseDto, EffortTypeOptionDto } from "../types"
 import { VerificationErrorCodes } from "../types"
+import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
 import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
+import CourseImportForSelfDialog from "../components/CourseImportForSelfDialog.vue"
+import EffortRecordsDisplay from "../components/EffortRecordsDisplay.vue"
 
 const route = useRoute()
 const $q = useQuasar()
@@ -354,72 +309,22 @@ const termCodeNum = computed(() => parseInt(termCode.value, 10))
 
 // State
 const myEffort = ref<MyEffortDto | null>(null)
+const effortTypes = ref<EffortTypeOptionDto[]>([])
 const isLoading = ref(true)
 const loadError = ref<string | null>(null)
 const verifyConfirmed = ref(false)
 const isVerifying = ref(false)
 
 // Dialog state
+const showAddDialog = ref(false)
 const showEditDialog = ref(false)
+const showImportDialog = ref(false)
 const selectedRecord = ref<InstructorEffortRecordDto | null>(null)
+const preSelectedCourseId = ref<number | null>(null)
 
 // Computed
 const hasClinicalEffort = computed(() => {
     return myEffort.value?.effortRecords.some((r) => r.effortType === "CLI") ?? false
-})
-
-const columns = computed<QTableColumn[]>(() => {
-    const cols: QTableColumn[] = [
-        {
-            name: "course",
-            label: "Course",
-            field: (row: InstructorEffortRecordDto) =>
-                `${row.course.subjCode} ${row.course.crseNumb.trim()}-${row.course.seqNumb}`,
-            align: "left",
-        },
-        {
-            name: "units",
-            label: "Units",
-            field: (row: InstructorEffortRecordDto) => row.course.units,
-            align: "left",
-        },
-        {
-            name: "enrollment",
-            label: "Enroll",
-            field: (row: InstructorEffortRecordDto) => row.course.enrollment,
-            align: "left",
-        },
-        {
-            name: "role",
-            label: "Role",
-            field: "roleDescription",
-            align: "left",
-        },
-        {
-            name: "effortType",
-            label: "Effort Type",
-            field: "effortType",
-            align: "left",
-        },
-        {
-            name: "effort",
-            label: "Effort",
-            field: "effortValue",
-            align: "left",
-        },
-    ]
-
-    // Add actions column if user can edit
-    if (myEffort.value?.canEdit) {
-        cols.push({
-            name: "actions",
-            label: "Actions",
-            field: "id",
-            align: "center",
-        })
-    }
-
-    return cols
 })
 
 const childColumns: QTableColumn[] = [
@@ -450,10 +355,6 @@ const childColumns: QTableColumn[] = [
 ]
 
 // Methods
-function isZeroEffortRecord(recordId: number): boolean {
-    return myEffort.value?.zeroEffortRecordIds.includes(recordId) ?? false
-}
-
 function formatDate(dateString: string | null): string {
     if (!dateString) return ""
     const date = new Date(dateString)
@@ -466,26 +367,71 @@ function formatDate(dateString: string | null): string {
     })
 }
 
+function openAddDialog() {
+    showAddDialog.value = true
+}
+
 function openEditDialog(record: InstructorEffortRecordDto) {
     selectedRecord.value = record
     showEditDialog.value = true
 }
 
+function openImportDialog() {
+    showImportDialog.value = true
+}
+
+function onCourseImported(courseId: number) {
+    // After importing a course, open the Add Effort dialog with the course pre-selected
+    preSelectedCourseId.value = courseId
+    showAddDialog.value = true
+}
+
+/**
+ * Checks if the effort type is restricted for the given course classification.
+ * A restricted type is one that cannot be re-added after deletion because it's
+ * not allowed on the course's category (DVM, 199/299, or R-course).
+ * Uses AND logic: check ALL applicable classifications.
+ */
+function isRestrictedEffortType(record: InstructorEffortRecordDto): boolean {
+    const effortType = effortTypes.value.find((et) => et.id === record.effortType)
+    if (!effortType) return false
+
+    const course = record.course
+    // Check each classification - if course has it AND type is not allowed, it's restricted
+    if (course.isDvm && !effortType.allowedOnDvm) return true
+    if (course.is199299 && !effortType.allowedOn199299) return true
+    if (course.isRCourse && !effortType.allowedOnRCourses) return true
+    return false
+}
+
 function confirmDelete(record: InstructorEffortRecordDto) {
+    const isRestricted = isRestrictedEffortType(record)
+    const effortType = effortTypes.value.find((et) => et.id === record.effortType)
+    const effortTypeDesc = effortType?.description ?? record.effortType
+
+    let message = `Are you sure you want to delete the effort record for ${record.course.subjCode} ${record.course.crseNumb.trim()} (${effortTypeDesc})?`
+
+    if (isRestricted) {
+        message =
+            `Warning: This record uses effort type "${effortTypeDesc}" which is restricted for this course type. ` +
+            `If you delete it, you will not be able to add it back with the same effort type. ` +
+            `Are you sure you want to delete this effort record?`
+    }
+
     $q.dialog({
-        title: "Delete Effort Record",
-        message: `Are you sure you want to delete the effort record for ${record.course.subjCode} ${record.course.crseNumb.trim()} (${record.effortType})?`,
+        title: isRestricted ? "Delete Restricted Effort Record" : "Delete Effort Record",
+        message,
         cancel: true,
         persistent: true,
     }).onOk(async () => {
-        await deleteRecord(record.id)
+        await deleteRecord(record.id, record.modifiedDate)
     })
 }
 
-async function deleteRecord(recordId: number) {
+async function deleteRecord(recordId: number, originalModifiedDate: string | null) {
     try {
-        const success = await effortService.deleteEffortRecord(recordId)
-        if (success) {
+        const result = await recordService.deleteEffortRecord(recordId, originalModifiedDate)
+        if (result.success) {
             $q.notify({
                 type: "positive",
                 message: "Effort record deleted successfully",
@@ -494,8 +440,12 @@ async function deleteRecord(recordId: number) {
         } else {
             $q.notify({
                 type: "negative",
-                message: "Failed to delete effort record",
+                message: result.error ?? "Failed to delete effort record",
             })
+            // Reload data if it was a concurrency conflict
+            if (result.isConflict) {
+                await loadData()
+            }
         }
     } catch {
         $q.notify({
@@ -503,6 +453,16 @@ async function deleteRecord(recordId: number) {
             message: "An error occurred while deleting the record",
         })
     }
+}
+
+async function onRecordCreated() {
+    $q.notify({
+        type: "positive",
+        message: "Effort record created successfully",
+    })
+    // Reset pre-selected course after creation
+    preSelectedCourseId.value = null
+    await loadData()
 }
 
 async function onRecordUpdated() {
@@ -562,12 +522,16 @@ async function loadData() {
     loadError.value = null
 
     try {
-        const result = await verificationService.getMyEffort(termCodeNum.value)
-        if (!result) {
+        const [effortResult, typesResult] = await Promise.all([
+            verificationService.getMyEffort(termCodeNum.value),
+            recordService.getEffortTypeOptions(),
+        ])
+        if (!effortResult) {
             loadError.value = "Failed to load your effort data. Please try again."
             return
         }
-        myEffort.value = result
+        myEffort.value = effortResult
+        effortTypes.value = typesResult
     } catch {
         loadError.value = "Failed to load your effort data. Please try again."
     } finally {
@@ -579,16 +543,25 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.effort-table {
-    width: 100%;
+.header-title {
+    display: inline-flex;
+    align-items: center;
 }
 
-.effort-table :deep(.zero-effort) {
-    background-color: #fff3cd;
-    color: #856404;
+.help-link {
+    margin-left: 8px;
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: normal;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
 }
 
-.zero-effort-card {
-    background-color: #fff3cd;
+.help-link:hover {
+    background-color: rgba(0, 95, 153, 0.1);
 }
 </style>

@@ -22,6 +22,7 @@ public class InstructorService : IInstructorService
     private readonly AAUDContext _aaudContext;
     private readonly DictionaryContext _dictionaryContext;
     private readonly IEffortAuditService _auditService;
+    private readonly ICourseClassificationService _classificationService;
     private readonly IMapper _mapper;
     private readonly ILogger<InstructorService> _logger;
     private readonly IMemoryCache _cache;
@@ -66,6 +67,7 @@ public class InstructorService : IInstructorService
         AAUDContext aaudContext,
         DictionaryContext dictionaryContext,
         IEffortAuditService auditService,
+        ICourseClassificationService classificationService,
         IMapper mapper,
         ILogger<InstructorService> logger,
         IMemoryCache cache)
@@ -75,6 +77,7 @@ public class InstructorService : IInstructorService
         _aaudContext = aaudContext;
         _dictionaryContext = dictionaryContext;
         _auditService = auditService;
+        _classificationService = classificationService;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
@@ -223,27 +226,42 @@ public class InstructorService : IInstructorService
             .Take(50) // Limit results for performance
             .ToListAsync(ct);
 
-        // Get employee info from AAUD for department/title lookup
-        // Need to go through the Ids table to map MothraId -> pKey -> Employee
-        var mothraIds = people.Select(p => p.MothraId).ToList();
+        // Filter logic: Find people who have an AAUD person record for the requested term
+        // and have an associated employee record (via pKey). The term filter applies only to
+        // the person table - the ids and employees tables are joined by pKey without term filtering.
+        // This ensures we find instructors who are active employees with a current-term person record.
+        var mothraIds = people.Select(p => p.MothraId).Where(m => !string.IsNullOrEmpty(m)).ToList();
         var termCodeStr = termCode.ToString();
 
-        // Look up pKeys from Ids table using MothraId
-        var idsRecords = await _aaudContext.Ids
+        if (mothraIds.Count == 0)
+        {
+            return [];
+        }
+
+        // Get AAUD person records for the term, joined to ids for MothraId mapping.
+        // Only the person table is filtered by term; ids is joined by pKey only.
+        var personWithIds = await _aaudContext.People
             .AsNoTracking()
-            .Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && mothraIds.Contains(i.IdsMothraid))
+            .Where(p => p.PersonTermCode == termCodeStr)
+            .Join(
+                _aaudContext.Ids.Where(i => i.IdsMothraid != null && mothraIds.Contains(i.IdsMothraid)),
+                person => person.PersonPKey,
+                ids => ids.IdsPKey,
+                (person, ids) => new { person.PersonPKey, ids.IdsMothraid })
             .ToListAsync(ct);
 
-        // Build MothraId -> pKey mapping
-        var mothraIdToPKey = idsRecords
-            .Where(i => i.IdsMothraid != null)
-            .ToDictionary(i => i.IdsMothraid!, i => i.IdsPKey, StringComparer.OrdinalIgnoreCase);
+        // Build MothraId -> pKey mapping from people who have a person record for the term
+        var mothraIdToPKey = personWithIds
+            .Where(x => x.IdsMothraid != null)
+            .GroupBy(x => x.IdsMothraid!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.PersonPKey).First().PersonPKey, StringComparer.OrdinalIgnoreCase);
 
-        // Get employees using pKeys
-        var pKeys = mothraIdToPKey.Values.ToList();
+        var pKeys = mothraIdToPKey.Values.Distinct().ToList();
+
+        // Get employees by pKey (not filtered by term - confirms they have an employee record)
         var employees = await _aaudContext.Employees
             .AsNoTracking()
-            .Where(e => e.EmpTermCode == termCodeStr && pKeys.Contains(e.EmpPKey))
+            .Where(e => pKeys.Contains(e.EmpPKey))
             .ToListAsync(ct);
 
         var employeeDict = employees.ToDictionary(e => e.EmpPKey, StringComparer.OrdinalIgnoreCase);
@@ -257,7 +275,7 @@ public class InstructorService : IInstructorService
         // Build simple department code -> display name lookup (e.g., "VME" -> "Medicine & Epidemiology")
         var deptDisplayNameLookup = Departments.ToDictionary(d => d.Code, d => d.Name, StringComparer.OrdinalIgnoreCase);
 
-        // Batch-fetch job departments for all people (matches legacy jobs query)
+        // Batch-fetch job departments for all people
         var validMothraIds = mothraIds.Where(m => !string.IsNullOrEmpty(m)).ToList();
         var jobDeptsByMothraId = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
@@ -282,44 +300,47 @@ public class InstructorService : IInstructorService
                     StringComparer.OrdinalIgnoreCase);
         }
 
-        return people.Select(p =>
-        {
-            Viper.Models.AAUD.Employee? emp = null;
-            if (mothraIdToPKey.TryGetValue(p.MothraId, out var pKey))
+        // Only include people who have: (1) an AAUD.person record for the term,
+        // and (2) an AAUD.employees record (confirming they are an employee).
+        return people
+            .Where(p => mothraIdToPKey.TryGetValue(p.MothraId, out var pKey) &&
+                        employeeDict.ContainsKey(pKey))
+            .Select(p =>
             {
-                employeeDict.TryGetValue(pKey, out emp);
-            }
+                var pKey = mothraIdToPKey[p.MothraId];
+                var emp = employeeDict[pKey];
 
-            var deptCode = DetermineDepartmentFromJobs(p.MothraId, emp, jobDeptsByMothraId, deptSimpleNameLookup);
-            var titleCode = emp?.EmpEffortTitleCode?.Trim() ?? emp?.EmpTeachingTitleCode?.Trim();
+                var deptCode = DetermineDepartmentFromJobs(p.MothraId, emp, jobDeptsByMothraId, deptSimpleNameLookup);
+                var titleCode = emp.EmpEffortTitleCode?.Trim() ?? emp.EmpTeachingTitleCode?.Trim();
 
-            // Look up human-readable names
-            string? deptName = null;
-            if (deptCode != null && deptDisplayNameLookup.TryGetValue(deptCode, out var name))
-            {
-                deptName = name;
-            }
+                // Look up human-readable names
+                string? deptName = null;
+                if (deptCode != null && deptDisplayNameLookup.TryGetValue(deptCode, out var name))
+                {
+                    deptName = name;
+                }
 
-            string? title = null;
-            if (titleCode != null && titleLookup != null)
-            {
-                var paddedCode = titleCode.PadLeft(6, '0');
-                titleLookup.TryGetValue(paddedCode, out title);
-            }
+                string? title = null;
+                if (titleCode != null && titleLookup != null)
+                {
+                    var paddedCode = titleCode.PadLeft(6, '0');
+                    titleLookup.TryGetValue(paddedCode, out title);
+                }
 
-            return new AaudPersonDto
-            {
-                PersonId = p.PersonId,
-                FirstName = p.FirstName,
-                LastName = p.LastName,
-                MiddleInitial = p.MiddleName?.Length > 0 ? p.MiddleName.Substring(0, 1) : null,
-                EffortDept = deptCode,
-                DeptName = deptName,
-                TitleCode = titleCode,
-                Title = title,
-                JobGroupId = null // Job group would need additional lookup if required
-            };
-        }).ToList();
+                return new AaudPersonDto
+                {
+                    PersonId = p.PersonId,
+                    FirstName = p.FirstName,
+                    LastName = p.LastName,
+                    MiddleInitial = p.MiddleName?.Length > 0 ? p.MiddleName.Substring(0, 1) : null,
+                    EffortDept = deptCode,
+                    DeptName = deptName,
+                    TitleCode = titleCode,
+                    Title = title,
+                    JobGroupId = null // Job group would need additional lookup if required
+                };
+            })
+            .ToList();
     }
 
     public async Task<PersonDto> CreateInstructorAsync(CreateInstructorRequest request, CancellationToken ct = default)
@@ -584,15 +605,10 @@ public class InstructorService : IInstructorService
     }
 
     /// <summary>
-    /// Determine the effort department from AAUD data.
-    /// Priority: 1) Special overrides, 2) First academic dept from jobs, 3) Employee fields, 4) Fallback.
+    /// Determines the effort department from AAUD data.
+    /// Priority: 1) Special overrides for known cases, 2) First academic dept from jobs,
+    /// 3) Employee-level fields (effort/home/alt dept), 4) Non-academic fallback.
     /// </summary>
-    /// <remarks>
-    /// Matches legacy Instructor.cfc logic (lines 61-104):
-    /// - First queries AAUD jobs table for academic departments
-    /// - Then falls back to employee-level fields (effort/home/alt dept)
-    /// - Includes hardcoded overrides for special cases
-    /// </remarks>
     private async Task<string?> DetermineDepartmentAsync(
         string? mothraId,
         int termCode,
@@ -628,7 +644,7 @@ public class InstructorService : IInstructorService
             return null;
         }
 
-        // Step 1: Check AAUD jobs for first academic department (matches legacy qInstructorJobs query)
+        // Step 1: Check AAUD jobs for first academic department
         if (!string.IsNullOrEmpty(mothraId))
         {
             var termCodeStr = termCode.ToString();
@@ -652,7 +668,7 @@ public class InstructorService : IInstructorService
             }
         }
 
-        // Step 2: Fall back to employee fields (matches legacy qDetails checks)
+        // Step 2: Fall back to employee fields
         if (employee == null)
         {
             return null;
@@ -679,7 +695,7 @@ public class InstructorService : IInstructorService
             return altDeptSimple.ToUpperInvariant();
         }
 
-        // No academic dept found - fall back to effort dept even if non-academic (matches legacy line 97)
+        // No academic dept found - fall back to effort dept even if non-academic
         if (effortDeptSimple != null)
         {
             return effortDeptSimple.ToUpperInvariant();
@@ -775,6 +791,7 @@ public class InstructorService : IInstructorService
     /// Used for UI display and visual indicators; instructors with zero records
     /// can still receive verification emails to confirm "no effort" status.
     /// Also detects records with 0 hours/weeks which prevent verification.
+    /// Generic R-courses (CRN="RESID") are excluded from zero-hour detection.
     /// </summary>
     private async Task EnrichWithRecordCountsAsync(List<PersonDto> instructors, int termCode, CancellationToken ct)
     {
@@ -784,13 +801,14 @@ public class InstructorService : IInstructorService
 
         var recordStats = await _context.Records
             .AsNoTracking()
+            .Include(r => r.Course)
             .Where(r => r.TermCode == termCode && personIds.Contains(r.PersonId))
             .GroupBy(r => r.PersonId)
             .Select(g => new
             {
                 PersonId = g.Key,
                 Count = g.Count(),
-                HasZeroHours = g.Any(r => (r.Hours ?? 0) == 0 && (r.Weeks ?? 0) == 0)
+                HasZeroHours = g.Any(r => r.Course.Crn != "RESID" && (r.Hours ?? 0) == 0 && (r.Weeks ?? 0) == 0)
             })
             .ToDictionaryAsync(x => x.PersonId, ct);
 
@@ -1092,6 +1110,7 @@ public class InstructorService : IInstructorService
             .AsNoTracking()
             .Include(r => r.Course)
             .Include(r => r.RoleNavigation)
+            .Include(r => r.EffortTypeNavigation)
             .Where(r => r.PersonId == personId && r.TermCode == termCode)
             .OrderBy(r => r.RoleNavigation.SortOrder)
             .ThenBy(r => r.Course.SubjCode)
@@ -1121,6 +1140,7 @@ public class InstructorService : IInstructorService
             PersonId = r.PersonId,
             TermCode = r.TermCode,
             EffortType = r.EffortTypeId,
+            EffortTypeDescription = r.EffortTypeNavigation?.Description ?? string.Empty,
             Role = r.RoleId,
             RoleDescription = r.RoleNavigation?.Description ?? string.Empty,
             Hours = r.Hours,
@@ -1137,7 +1157,10 @@ public class InstructorService : IInstructorService
                 SeqNumb = r.Course.SeqNumb,
                 Enrollment = r.Course.Enrollment,
                 Units = r.Course.Units,
-                CustDept = r.Course.CustDept
+                CustDept = r.Course.CustDept,
+                IsDvm = _classificationService.IsDvmCourse(r.Course.SubjCode),
+                Is199299 = _classificationService.Is199299Course(r.Course.CrseNumb),
+                IsRCourse = _classificationService.IsRCourse(r.Course.CrseNumb)
             },
             ChildCourses = childrenByParent.TryGetValue(r.CourseId, out var children)
                 ? children

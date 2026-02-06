@@ -54,13 +54,30 @@ public static class EffortAuditActions
     public const string UpdateEffortType = "UpdateEffortType";
     public const string DeleteEffortType = "DeleteEffortType";
 
-    // Import Actions (hidden from chairs)
+    // System-generated actions (hidden from chairs)
     public const string ImportEffort = "ImportEffort";
+    public const string RCourseAutoCreated = "RCourseAutoCreated";
+    public const string RCourseAutoDeleted = "RCourseAutoDeleted";
+
+    // Harvest-specific actions for audit entries created during data import
+    public const string HarvestCreatePerson = "HarvestCreatePerson";
+    public const string HarvestCreateCourse = "HarvestCreateCourse";
+    public const string HarvestCreateEffort = "HarvestCreateEffort";
 
     /// <summary>
-    /// Actions that should be hidden from department-level users (chairs).
+    /// Actions hidden from department-level users (chairs).
+    /// Includes harvest/import operations and system-generated automatic entries.
     /// </summary>
-    public static readonly string[] ImportActions = { ImportEffort };
+    public static readonly string[] HiddenFromChairsActions =
+    {
+        ImportEffort,
+        HarvestTerm,
+        RCourseAutoCreated,
+        RCourseAutoDeleted,
+        HarvestCreatePerson,
+        HarvestCreateCourse,
+        HarvestCreateEffort
+    };
 }
 
 /// <summary>

@@ -94,153 +94,17 @@
                 Enter clinical effort as weeks. Enter all other effort as hours.
             </p>
 
-            <!-- Mobile Card View -->
-            <div class="lt-sm q-mb-lg">
-                <div
-                    v-if="effortRecords.length === 0"
-                    class="text-center text-grey q-py-lg"
-                >
-                    <q-icon
-                        name="school"
-                        size="2em"
-                        class="q-mb-sm"
-                    />
-                    <div>No effort records for this instructor</div>
-                </div>
-                <q-card
-                    v-for="record in effortRecords"
-                    :key="record.id"
-                    flat
-                    bordered
-                    class="q-mb-sm"
-                    :class="{ 'zero-effort-card': record.effortValue === 0 }"
-                >
-                    <q-card-section class="q-py-sm">
-                        <div class="row items-center justify-between q-mb-xs">
-                            <router-link
-                                :to="{
-                                    name: 'CourseDetail',
-                                    params: { termCode, courseId: record.course.id },
-                                }"
-                                class="text-primary text-weight-bold"
-                            >
-                                {{ record.course.subjCode }}
-                                {{ record.course.crseNumb.trim() }}-{{ record.course.seqNumb }}
-                            </router-link>
-                            <div>
-                                <q-btn
-                                    v-if="canEdit"
-                                    flat
-                                    dense
-                                    round
-                                    icon="edit"
-                                    color="primary"
-                                    size="sm"
-                                    aria-label="Edit effort record"
-                                    @click="openEditDialog(record)"
-                                />
-                                <q-btn
-                                    v-if="canDelete"
-                                    flat
-                                    dense
-                                    round
-                                    icon="delete"
-                                    color="negative"
-                                    size="sm"
-                                    aria-label="Delete effort record"
-                                    @click="confirmDelete(record)"
-                                />
-                            </div>
-                        </div>
-                        <div class="text-body2 q-mb-xs">
-                            {{ record.roleDescription }} &bull; {{ record.effortType }}
-                        </div>
-                        <div class="row q-gutter-md text-caption text-grey-7">
-                            <span>{{ record.course.units }} units</span>
-                            <span>Enroll: {{ record.course.enrollment }}</span>
-                            <span :class="{ 'text-warning': record.effortValue === 0 }">
-                                {{ record.effortValue ?? 0 }}
-                                {{ record.effortLabel === "weeks" ? "Weeks" : "Hours" }}
-                            </span>
-                        </div>
-                    </q-card-section>
-                </q-card>
-            </div>
-
-            <!-- Effort Records Table (hidden on mobile) -->
-            <q-table
-                :rows="effortRecords"
-                :columns="columns"
-                row-key="id"
-                dense
-                flat
-                bordered
-                hide-pagination
-                wrap-cells
-                :rows-per-page-options="[0]"
-                class="effort-table q-mb-lg gt-xs"
-            >
-                <template #body-cell-course="props">
-                    <q-td :props="props">
-                        <router-link
-                            :to="{
-                                name: 'CourseDetail',
-                                params: { termCode, courseId: props.row.course.id },
-                            }"
-                            class="text-primary"
-                        >
-                            {{ props.row.course.subjCode }}
-                            {{ props.row.course.crseNumb.trim() }}-{{ props.row.course.seqNumb }}
-                        </router-link>
-                    </q-td>
-                </template>
-                <template #body-cell-effort="props">
-                    <q-td
-                        :props="props"
-                        :class="{ 'zero-effort': props.row.effortValue === 0 }"
-                    >
-                        {{ props.row.effortValue ?? 0 }}
-                        {{ props.row.effortLabel === "weeks" ? "Weeks" : "Hours" }}
-                    </q-td>
-                </template>
-                <template #body-cell-actions="props">
-                    <q-td :props="props">
-                        <q-btn
-                            v-if="canEdit"
-                            flat
-                            dense
-                            round
-                            icon="edit"
-                            color="primary"
-                            size="sm"
-                            @click="openEditDialog(props.row)"
-                        >
-                            <q-tooltip>Edit</q-tooltip>
-                        </q-btn>
-                        <q-btn
-                            v-if="canDelete"
-                            flat
-                            dense
-                            round
-                            icon="delete"
-                            color="negative"
-                            size="sm"
-                            @click="confirmDelete(props.row)"
-                        >
-                            <q-tooltip>Delete</q-tooltip>
-                        </q-btn>
-                    </q-td>
-                </template>
-                <template #no-data>
-                    <div class="full-width row flex-center text-grey q-gutter-sm q-py-lg">
-                        <q-icon
-                            name="school"
-                            size="2em"
-                        />
-                        <span>No effort records for this instructor</span>
-                    </div>
-                </template>
-            </q-table>
+            <!-- Effort Records Display -->
+            <EffortRecordsDisplay
+                :records="effortRecords"
+                :term-code="termCode"
+                :can-edit="canEdit"
+                :can-delete="canDelete"
+                show-course-links
+                no-data-message="No effort records for this instructor"
+                @edit="openEditDialog"
+                @delete="confirmDelete"
+            />
 
             <!-- Cross-Listed / Sectioned Courses Section -->
             <div
@@ -306,6 +170,7 @@
             :term-code="termCodeNum"
             :is-verified="instructor?.isVerified"
             :pre-selected-course-id="preSelectedCourseId"
+            :existing-records="effortRecords"
             @created="onRecordCreated"
         />
 
@@ -332,12 +197,14 @@
 import { ref, computed, onMounted } from "vue"
 import { useRoute } from "vue-router"
 import { useQuasar, type QTableColumn } from "quasar"
-import { effortService } from "../services/effort-service"
+import { instructorService } from "../services/instructor-service"
+import { recordService } from "../services/record-service"
 import { termService } from "../services/term-service"
 import type { PersonDto, TermDto, InstructorEffortRecordDto } from "../types"
 import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
 import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
 import CourseImportDialog from "../components/CourseImportDialog.vue"
+import EffortRecordsDisplay from "../components/EffortRecordsDisplay.vue"
 
 const route = useRoute()
 const $q = useQuasar()
@@ -375,6 +242,8 @@ const hasClinicalEffort = computed(() => {
 
 const hasZeroEffort = computed(() => {
     return effortRecords.value.some((r) => {
+        // Exclude auto-generated R-course (RESID) from zero effort warning
+        if (r.course.crn === "RESID") return false
         if (r.effortType === "CLI") {
             return !r.weeks || r.weeks <= 0
         }
@@ -455,61 +324,6 @@ const childColumns: QTableColumn[] = [
 const canEdit = computed(() => canEditTerm.value)
 const canDelete = computed(() => canEditTerm.value)
 
-const columns = computed<QTableColumn[]>(() => {
-    const cols: QTableColumn[] = [
-        {
-            name: "course",
-            label: "Course",
-            field: (row: InstructorEffortRecordDto) =>
-                `${row.course.subjCode} ${row.course.crseNumb.trim()}-${row.course.seqNumb}`,
-            align: "left",
-            sortable: true,
-        },
-        {
-            name: "units",
-            label: "Units",
-            field: (row: InstructorEffortRecordDto) => row.course.units,
-            align: "left",
-        },
-        {
-            name: "enrollment",
-            label: "Enroll",
-            field: (row: InstructorEffortRecordDto) => row.course.enrollment,
-            align: "left",
-        },
-        {
-            name: "role",
-            label: "Role",
-            field: "roleDescription",
-            align: "left",
-        },
-        {
-            name: "effortType",
-            label: "Effort Type",
-            field: "effortType",
-            align: "left",
-        },
-        {
-            name: "effort",
-            label: "Effort",
-            field: "effortValue",
-            align: "left",
-        },
-    ]
-
-    // Add actions column if user can edit or delete
-    if (canEdit.value || canDelete.value) {
-        cols.push({
-            name: "actions",
-            label: "Actions",
-            field: "id",
-            align: "center",
-        })
-    }
-
-    return cols
-})
-
 // Methods
 function formatDate(dateString: string | null): string {
     if (!dateString) return ""
@@ -544,14 +358,14 @@ function confirmDelete(record: InstructorEffortRecordDto) {
         cancel: true,
         persistent: true,
     }).onOk(async () => {
-        await deleteRecord(record.id)
+        await deleteRecord(record.id, record.modifiedDate)
     })
 }
 
-async function deleteRecord(recordId: number) {
+async function deleteRecord(recordId: number, originalModifiedDate: string | null) {
     try {
-        const success = await effortService.deleteEffortRecord(recordId)
-        if (success) {
+        const result = await recordService.deleteEffortRecord(recordId, originalModifiedDate)
+        if (result.success) {
             $q.notify({
                 type: "positive",
                 message: "Effort record deleted successfully",
@@ -561,8 +375,12 @@ async function deleteRecord(recordId: number) {
         } else {
             $q.notify({
                 type: "negative",
-                message: "Failed to delete effort record",
+                message: result.error ?? "Failed to delete effort record",
             })
+            // Reload data if it was a concurrency conflict
+            if (result.isConflict) {
+                await Promise.all([loadEffortRecords(), loadInstructor()])
+            }
         }
     } catch {
         $q.notify({
@@ -602,11 +420,11 @@ async function onCourseImported(courseId: number) {
 }
 
 async function loadEffortRecords() {
-    effortRecords.value = await effortService.getInstructorEffortRecords(personId.value, termCodeNum.value)
+    effortRecords.value = await instructorService.getInstructorEffortRecords(personId.value, termCodeNum.value)
 }
 
 async function loadInstructor() {
-    instructor.value = await effortService.getInstructor(personId.value, termCodeNum.value)
+    instructor.value = await instructorService.getInstructor(personId.value, termCodeNum.value)
 }
 
 async function loadData() {
@@ -615,10 +433,10 @@ async function loadData() {
 
     try {
         const [instructorResult, recordsResult, termsResult, canEditResult] = await Promise.all([
-            effortService.getInstructor(personId.value, termCodeNum.value),
-            effortService.getInstructorEffortRecords(personId.value, termCodeNum.value),
+            instructorService.getInstructor(personId.value, termCodeNum.value),
+            instructorService.getInstructorEffortRecords(personId.value, termCodeNum.value),
             termService.getTerms(),
-            effortService.canEditTerm(termCodeNum.value),
+            recordService.canEditTerm(termCodeNum.value),
         ])
 
         if (!instructorResult) {
@@ -641,19 +459,6 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.effort-table {
-    width: 100%;
-}
-
-.effort-table :deep(.zero-effort) {
-    background-color: #fff3cd;
-    color: #856404;
-}
-
-.zero-effort-card {
-    background-color: #fff3cd;
-}
-
 .crosslist-card {
     border-left: 3px solid #21ba45;
 }

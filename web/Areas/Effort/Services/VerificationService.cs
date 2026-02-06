@@ -25,6 +25,7 @@ public class VerificationService : IVerificationService
     private readonly IEffortPermissionService _permissionService;
     private readonly ITermService _termService;
     private readonly IEmailService _emailService;
+    private readonly ICourseClassificationService _classificationService;
     private readonly IMapper _mapper;
     private readonly ILogger<VerificationService> _logger;
     private readonly EffortSettings _settings;
@@ -38,6 +39,7 @@ public class VerificationService : IVerificationService
         IEffortPermissionService permissionService,
         ITermService termService,
         IEmailService emailService,
+        ICourseClassificationService classificationService,
         IMapper mapper,
         ILogger<VerificationService> logger,
         IOptions<EffortSettings> settings,
@@ -50,6 +52,7 @@ public class VerificationService : IVerificationService
         _permissionService = permissionService;
         _termService = termService;
         _emailService = emailService;
+        _classificationService = classificationService;
         _mapper = mapper;
         _logger = logger;
         _settings = settings.Value;
@@ -88,6 +91,14 @@ public class VerificationService : IVerificationService
             .ToListAsync(ct);
 
         var recordDtos = _mapper.Map<List<InstructorEffortRecordDto>>(records);
+
+        // Enrich course DTOs with classification flags (not available from entity mapping)
+        foreach (var course in recordDtos.Select(record => record.Course))
+        {
+            course.IsDvm = _classificationService.IsDvmCourse(course.SubjCode);
+            course.Is199299 = _classificationService.Is199299Course(course.CrseNumb);
+            course.IsRCourse = _classificationService.IsRCourse(course.CrseNumb);
+        }
 
         // Get child courses for all parent courses
         var courseIds = records.Select(r => r.CourseId).Distinct().ToList();
@@ -187,6 +198,38 @@ public class VerificationService : IVerificationService
                 ErrorMessage = "You have courses with zero effort that must be resolved before verifying.",
                 ZeroEffortCourses = canVerify.ZeroEffortCourses
             };
+        }
+
+        // Delete generic R-course records with 0 effort before verification
+        var genericRCourseRecords = await _context.Records
+            .Include(r => r.Course)
+            .Where(r => r.PersonId == currentPersonId
+                     && r.TermCode == termCode
+                     && r.Course.Crn == "RESID"
+                     && (r.Hours ?? 0) == 0
+                     && (r.Weeks ?? 0) == 0)
+            .ToListAsync(ct);
+
+        foreach (var record in genericRCourseRecords)
+        {
+            var courseCode = $"{record.Course.SubjCode.Trim()} {record.Course.CrseNumb.Trim()}-{record.Course.SeqNumb.Trim()}";
+
+            _context.Records.Remove(record);
+
+            await _auditService.LogRecordChangeAsync(
+                record.Id,
+                termCode,
+                EffortAuditActions.RCourseAutoDeleted,
+                new
+                {
+                    record.CourseId,
+                    Course = courseCode,
+                    record.EffortTypeId,
+                    record.Hours,
+                    record.Weeks
+                },
+                null,
+                ct);
         }
 
         // Set verification timestamp
@@ -291,6 +334,12 @@ public class VerificationService : IVerificationService
         if (instructor == null)
         {
             return new EmailSendResult { Success = false, Error = "Instructor not found" };
+        }
+
+        // Guest instructors are placeholders and should not receive emails
+        if (string.Equals(instructor.FirstName, EffortConstants.GuestInstructorFirstName, StringComparison.OrdinalIgnoreCase))
+        {
+            return new EmailSendResult { Success = false, Error = "Guest instructors cannot receive verification emails" };
         }
 
         // Get email address from VIPER Person table
@@ -491,6 +540,7 @@ public class VerificationService : IVerificationService
             .Where(p => p.TermCode == termCode
                 && p.EffortDept == departmentCode
                 && p.EffortVerified == null
+                && p.FirstName.ToUpper() != EffortConstants.GuestInstructorFirstName // Exclude guest instructor placeholders
                 && (cutoffDate == null || p.LastEmailed == null || p.LastEmailed < cutoffDate))
             .ToListAsync(ct);
 
@@ -668,9 +718,16 @@ public class VerificationService : IVerificationService
     /// <summary>
     /// Determines if an effort record has zero effort value.
     /// Clinical (CLI) effort uses weeks starting from ClinicalAsWeeksStartTermCode.
+    /// Generic R-courses (CRN="RESID") are excluded as they are auto-deleted during verification.
     /// </summary>
     private static bool IsZeroEffort(EffortRecord record, bool useWeeksForClinical)
     {
+        // Generic R-courses are not considered zero-effort (they will be auto-deleted during verification)
+        if (record.Course?.Crn == "RESID")
+        {
+            return false;
+        }
+
         if (useWeeksForClinical && record.EffortTypeId == EffortConstants.ClinicalEffortType)
         {
             return (record.Weeks ?? 0) == 0;

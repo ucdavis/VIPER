@@ -62,6 +62,7 @@ type InstructorEffortRecordDto = {
     personId: number
     termCode: number
     effortType: string
+    effortTypeDescription: string
     role: number
     roleDescription: string
     hours: number | null
@@ -155,6 +156,8 @@ type UpdateEffortRecordRequest = {
     effortTypeId: string
     roleId: number
     effortValue: number
+    /** ModifiedDate from when record was loaded - for optimistic concurrency */
+    originalModifiedDate?: string | null
 }
 
 type EffortRecordResult = {

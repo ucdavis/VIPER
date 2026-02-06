@@ -11,6 +11,7 @@ public class InstructorEffortRecordDto
     public int PersonId { get; set; }
     public int TermCode { get; set; }
     public string EffortType { get; set; } = string.Empty;
+    public string EffortTypeDescription { get; set; } = string.Empty;
     public int Role { get; set; }
     public string RoleDescription { get; set; } = string.Empty;
     public int? Hours { get; set; }

@@ -27,6 +27,7 @@ public sealed class VerificationServiceTests : IDisposable
     private readonly Mock<IEffortPermissionService> _permissionServiceMock;
     private readonly Mock<ITermService> _termServiceMock;
     private readonly Mock<IEmailService> _emailServiceMock;
+    private readonly Mock<ICourseClassificationService> _classificationServiceMock;
     private readonly Mock<IMapper> _mapperMock;
     private readonly Mock<ILogger<VerificationService>> _loggerMock;
     private readonly EffortSettings _settings;
@@ -55,6 +56,7 @@ public sealed class VerificationServiceTests : IDisposable
         _permissionServiceMock = new Mock<IEffortPermissionService>();
         _termServiceMock = new Mock<ITermService>();
         _emailServiceMock = new Mock<IEmailService>();
+        _classificationServiceMock = new Mock<ICourseClassificationService>();
         _mapperMock = new Mock<IMapper>();
         _loggerMock = new Mock<ILogger<VerificationService>>();
 
@@ -85,6 +87,12 @@ public sealed class VerificationServiceTests : IDisposable
                 It.IsAny<object?>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
+        _auditServiceMock
+            .Setup(s => s.LogRecordChangeAsync(
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
+                It.IsAny<object?>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         _service = new VerificationService(
             _context,
             _viperContext,
@@ -92,6 +100,7 @@ public sealed class VerificationServiceTests : IDisposable
             _permissionServiceMock.Object,
             _termServiceMock.Object,
             _emailServiceMock.Object,
+            _classificationServiceMock.Object,
             _mapperMock.Object,
             _loggerMock.Object,
             settingsOptions,
@@ -245,7 +254,17 @@ public sealed class VerificationServiceTests : IDisposable
         _mapperMock.Setup(m => m.Map<PersonDto>(It.IsAny<EffortPerson>()))
             .Returns(new PersonDto { PersonId = TestPersonId });
         _mapperMock.Setup(m => m.Map<List<InstructorEffortRecordDto>>(It.IsAny<List<EffortRecord>>()))
-            .Returns(new List<InstructorEffortRecordDto> { new() { Id = 1, CourseId = TestCourseId } });
+            .Returns(new List<InstructorEffortRecordDto>
+            {
+                new()
+                {
+                    Id = 1,
+                    CourseId = TestCourseId,
+                    Hours = 0,
+                    EffortType = "LEC",
+                    Course = new CourseDto { SubjCode = "VET", CrseNumb = "410" }
+                }
+            });
 
         // Act
         var result = await _service.GetMyEffortAsync(TestTermCode);
@@ -394,6 +413,104 @@ public sealed class VerificationServiceTests : IDisposable
             Times.Once);
     }
 
+    [Fact]
+    public async Task VerifyEffortAsync_DeletesGenericRCourseWithZeroEffort()
+    {
+        // Arrange: Create a generic R-course
+        var genericRCourse = new EffortCourse
+        {
+            Id = 998,
+            TermCode = TestTermCode,
+            Crn = "RESID",
+            SubjCode = "RES",
+            CrseNumb = "000R",
+            SeqNumb = "01",
+            Enrollment = 0,
+            Units = 0,
+            CustDept = "VME"
+        };
+        _context.Courses.Add(genericRCourse);
+
+        await _context.SaveChangesAsync();
+
+        // Add generic R-course effort record with 0 hours and 0 weeks
+        var genericRRecord = new EffortRecord
+        {
+            Id = 100,
+            CourseId = 998,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 0,
+            Weeks = 0,
+            Course = genericRCourse
+        };
+        _context.Records.Add(genericRRecord);
+
+        // Add regular course with non-zero effort (so verification can proceed)
+        var regularRecord = new EffortRecord
+        {
+            Id = 101,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 40
+        };
+        _context.Records.Add(regularRecord);
+
+        await _context.SaveChangesAsync();
+
+        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(TestPersonId);
+
+        // Verify initial state - generic R-course record exists
+        var recordCountBefore = await _context.Records
+            .CountAsync(r => r.PersonId == TestPersonId && r.TermCode == TestTermCode);
+        Assert.Equal(2, recordCountBefore);
+
+        // Act
+        var result = await _service.VerifyEffortAsync(TestTermCode);
+
+        // Assert: Verification succeeds
+        Assert.True(result.Success);
+        Assert.NotNull(result.VerifiedDate);
+
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        Assert.NotNull(person.EffortVerified);
+
+        // Assert: Generic R-course record is deleted
+        var recordCountAfter = await _context.Records
+            .CountAsync(r => r.PersonId == TestPersonId && r.TermCode == TestTermCode);
+        Assert.Equal(1, recordCountAfter);
+
+        var remainingRecord = await _context.Records
+            .Include(r => r.Course)
+            .Where(r => r.PersonId == TestPersonId && r.TermCode == TestTermCode)
+            .ToListAsync();
+        Assert.Single(remainingRecord);
+        Assert.Equal(TestCourseId, remainingRecord[0].CourseId);
+
+        // Assert: Audit entry for RCourseAutoDeleted is created
+        _auditServiceMock.Verify(
+            a => a.LogRecordChangeAsync(
+                100,
+                TestTermCode,
+                EffortAuditActions.RCourseAutoDeleted,
+                It.IsAny<object?>(),
+                It.IsAny<object?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        // Assert: Audit entry for VerifiedEffort is also created
+        _auditServiceMock.Verify(
+            a => a.LogPersonChangeAsync(
+                TestPersonId, TestTermCode, EffortAuditActions.VerifiedEffort,
+                It.IsAny<object?>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
     #endregion
 
     #region CanVerifyAsync Tests
@@ -484,6 +601,49 @@ public sealed class VerificationServiceTests : IDisposable
         Assert.Equal(1, result.ZeroEffortCount);
     }
 
+    [Fact]
+    public async Task CanVerifyAsync_ExcludesGenericRCourse_FromZeroEffortCheck()
+    {
+        // Arrange: Add generic R-course with zero hours
+        var genericRCourse = new EffortCourse
+        {
+            Id = 999,
+            TermCode = TestTermCode,
+            Crn = "RESID",
+            SubjCode = "VME",
+            CrseNumb = "299",
+            SeqNumb = "01",
+            Enrollment = 0,
+            Units = 0,
+            CustDept = "VME"
+        };
+        _context.Courses.Add(genericRCourse);
+        await _context.SaveChangesAsync();
+
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = 999,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 0
+        });
+        await _context.SaveChangesAsync();
+
+        // Clear the change tracker so Include() must resolve from the database
+        _context.ChangeTracker.Clear();
+
+        // Act
+        var result = await _service.CanVerifyAsync(TestPersonId, TestTermCode);
+
+        // Assert: Generic R-course with zero hours should NOT prevent verification
+        Assert.True(result.CanVerify);
+        Assert.Equal(0, result.ZeroEffortCount);
+        Assert.Empty(result.ZeroEffortRecordIds);
+    }
+
     #endregion
 
     #region SendVerificationEmailAsync Tests
@@ -561,6 +721,7 @@ public sealed class VerificationServiceTests : IDisposable
             _permissionServiceMock.Object,
             _termServiceMock.Object,
             _emailServiceMock.Object,
+            _classificationServiceMock.Object,
             _mapperMock.Object,
             _loggerMock.Object,
             Options.Create(badSettings),

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
@@ -13,7 +14,7 @@ namespace Viper.Areas.Effort.Controllers;
 /// API controller for effort record CRUD operations.
 /// </summary>
 [Route("/api/effort/records")]
-[Permission(Allow = $"{EffortPermissions.ViewDept},{EffortPermissions.ViewAllDepartments}")]
+[Permission(Allow = $"{EffortPermissions.ViewDept},{EffortPermissions.ViewAllDepartments},{EffortPermissions.VerifyEffort}")]
 public class EffortRecordsController : BaseEffortController
 {
     private readonly IEffortRecordService _recordService;
@@ -55,26 +56,19 @@ public class EffortRecordsController : BaseEffortController
     /// Create a new effort record.
     /// </summary>
     [HttpPost]
-    [Permission(Allow = EffortPermissions.CreateEffort)]
+    [Permission(Allow = $"{EffortPermissions.VerifyEffort},{EffortPermissions.CreateEffort}")]
     public async Task<ActionResult<object>> CreateRecord([FromBody] CreateEffortRecordRequest request, CancellationToken ct = default)
     {
         SetExceptionContext("personId", request.PersonId);
         SetExceptionContext("termCode", request.TermCode);
         SetExceptionContext("courseId", request.CourseId);
 
-        // Verify authorization for person
+        // Verify authorization for person (includes term editability check)
         if (!await _permissionService.CanEditPersonEffortAsync(request.PersonId, request.TermCode, ct))
         {
             _logger.LogWarning("User not authorized to edit effort for person {PersonId} in term {TermCode}",
                 request.PersonId, request.TermCode);
             return NotFound($"Person {request.PersonId} not found for term {request.TermCode}");
-        }
-
-        // Verify term is editable
-        if (!await _recordService.CanEditTermAsync(request.TermCode, ct))
-        {
-            _logger.LogWarning("Term {TermCode} is not open for editing", request.TermCode);
-            return BadRequest("This term is not open for editing");
         }
 
         try
@@ -107,7 +101,7 @@ public class EffortRecordsController : BaseEffortController
     /// Update an existing effort record.
     /// </summary>
     [HttpPut("{recordId:int}")]
-    [Permission(Allow = EffortPermissions.EditEffort)]
+    [Permission(Allow = $"{EffortPermissions.VerifyEffort},{EffortPermissions.EditEffort}")]
     public async Task<ActionResult<object>> UpdateRecord(int recordId, [FromBody] UpdateEffortRecordRequest request, CancellationToken ct = default)
     {
         SetExceptionContext("recordId", recordId);
@@ -119,19 +113,12 @@ public class EffortRecordsController : BaseEffortController
             return NotFound($"Record {recordId} not found");
         }
 
-        // Verify authorization for person
+        // Verify authorization for person (includes term editability check)
         if (!await _permissionService.CanEditPersonEffortAsync(existingRecord.PersonId, existingRecord.TermCode, ct))
         {
             _logger.LogWarning("User not authorized to edit effort for person {PersonId} in term {TermCode}",
                 existingRecord.PersonId, existingRecord.TermCode);
             return NotFound($"Record {recordId} not found");
-        }
-
-        // Verify term is editable
-        if (!await _recordService.CanEditTermAsync(existingRecord.TermCode, ct))
-        {
-            _logger.LogWarning("Term {TermCode} is not open for editing", existingRecord.TermCode);
-            return BadRequest("This term is not open for editing");
         }
 
         try
@@ -150,6 +137,12 @@ public class EffortRecordsController : BaseEffortController
                 warning
             });
         }
+        catch (ConcurrencyConflictException ex)
+        {
+            _logger.LogWarning(ex, "Concurrency conflict updating effort record {RecordId}: {Message}",
+                recordId, LogSanitizer.SanitizeString(ex.Message));
+            return Conflict(new { errorMessage = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(ex, "Failed to update effort record: {Message}", LogSanitizer.SanitizeString(ex.Message));
@@ -166,9 +159,15 @@ public class EffortRecordsController : BaseEffortController
     /// <summary>
     /// Delete an effort record.
     /// </summary>
+    /// <param name="recordId">The record ID to delete.</param>
+    /// <param name="originalModifiedDate">The ModifiedDate from when record was loaded (for concurrency check).</param>
+    /// <param name="ct">Cancellation token.</param>
     [HttpDelete("{recordId:int}")]
-    [Permission(Allow = EffortPermissions.DeleteEffort)]
-    public async Task<ActionResult> DeleteRecord(int recordId, CancellationToken ct = default)
+    [Permission(Allow = $"{EffortPermissions.VerifyEffort},{EffortPermissions.DeleteEffort}")]
+    public async Task<ActionResult> DeleteRecord(
+        int recordId,
+        [FromQuery] DateTime? originalModifiedDate,
+        CancellationToken ct = default)
     {
         SetExceptionContext("recordId", recordId);
 
@@ -179,7 +178,7 @@ public class EffortRecordsController : BaseEffortController
             return NotFound($"Record {recordId} not found");
         }
 
-        // Verify authorization for person
+        // Verify authorization for person (includes term editability check)
         if (!await _permissionService.CanEditPersonEffortAsync(existingRecord.PersonId, existingRecord.TermCode, ct))
         {
             _logger.LogWarning("User not authorized to delete effort for person {PersonId} in term {TermCode}",
@@ -187,21 +186,23 @@ public class EffortRecordsController : BaseEffortController
             return NotFound($"Record {recordId} not found");
         }
 
-        // Verify term is editable
-        if (!await _recordService.CanEditTermAsync(existingRecord.TermCode, ct))
+        try
         {
-            _logger.LogWarning("Term {TermCode} is not open for editing", existingRecord.TermCode);
-            return BadRequest("This term is not open for editing");
-        }
+            var deleted = await _recordService.DeleteEffortRecordAsync(recordId, originalModifiedDate, ct);
+            if (!deleted)
+            {
+                return NotFound($"Record {recordId} not found");
+            }
 
-        var deleted = await _recordService.DeleteEffortRecordAsync(recordId, ct);
-        if (!deleted)
+            _logger.LogInformation("Effort record deleted: {RecordId}", recordId);
+            return NoContent();
+        }
+        catch (ConcurrencyConflictException ex)
         {
-            return NotFound($"Record {recordId} not found");
+            _logger.LogWarning(ex, "Concurrency conflict deleting effort record {RecordId}: {Message}",
+                recordId, LogSanitizer.SanitizeString(ex.Message));
+            return Conflict(new { errorMessage = ex.Message });
         }
-
-        _logger.LogInformation("Effort record deleted: {RecordId}", recordId);
-        return NoContent();
     }
 
     /// <summary>

@@ -23,6 +23,7 @@ public sealed class InstructorServiceTests : IDisposable
     private readonly AAUDContext _aaudContext;
     private readonly DictionaryContext _dictionaryContext;
     private readonly Mock<IEffortAuditService> _auditServiceMock;
+    private readonly Mock<ICourseClassificationService> _classificationServiceMock;
     private readonly Mock<ILogger<InstructorService>> _loggerMock;
     private readonly IMemoryCache _cache;
     private readonly IMapper _mapper;
@@ -55,6 +56,7 @@ public sealed class InstructorServiceTests : IDisposable
         _aaudContext = new AAUDContext(aaudOptions);
         _dictionaryContext = new DictionaryContext(dictionaryOptions);
         _auditServiceMock = new Mock<IEffortAuditService>();
+        _classificationServiceMock = new Mock<ICourseClassificationService>();
         _loggerMock = new Mock<ILogger<InstructorService>>();
         _cache = new MemoryCache(new MemoryCacheOptions());
 
@@ -75,6 +77,7 @@ public sealed class InstructorServiceTests : IDisposable
             _aaudContext,
             _dictionaryContext,
             _auditServiceMock.Object,
+            _classificationServiceMock.Object,
             _mapper,
             _loggerMock.Object,
             _cache);

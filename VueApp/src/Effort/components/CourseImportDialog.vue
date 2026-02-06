@@ -313,7 +313,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { useQuasar } from "quasar"
-import { effortService } from "../services/effort-service"
+import { courseService } from "../services/course-service"
 import type { BannerCourseDto } from "../types"
 import type { QTableColumn } from "quasar"
 
@@ -412,7 +412,7 @@ async function searchCourses() {
     hasSearched.value = true
 
     try {
-        searchResults.value = await effortService.searchBannerCourses(props.termCode, {
+        searchResults.value = await courseService.searchBannerCourses(props.termCode, {
             subjCode: searchSubjCode.value.trim() || undefined,
             crseNumb: searchCrseNumb.value.trim() || undefined,
             seqNumb: searchSeqNumb.value.trim() || undefined,
@@ -447,7 +447,7 @@ async function doImport() {
             units: selectedBannerCourse.value.isVariableUnits ? importUnits.value : undefined,
         }
 
-        const result = await effortService.importCourse(request)
+        const result = await courseService.importCourse(request)
 
         if (result.success && result.course) {
             showImportOptionsDialog.value = false

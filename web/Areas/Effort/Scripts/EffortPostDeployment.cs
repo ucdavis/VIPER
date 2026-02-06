@@ -15,6 +15,9 @@
 // 8. AddLastEmailedColumns - Add LastEmailed/LastEmailedBy columns to Persons table (performance optimization)
 // 9. SimplifyTermStatus - Remove redundant columns from TermStatus table
 // 10. FixPercentageConstraint - Update CK_Percentages_Percentage constraint from 0-100 to 0-1
+// 11. AddViewDeptAuditPermission - Add SVMSecure.Effort.ViewDeptAudit permission for department chairs to view audit trail
+// 12. FixEffortTypeDescriptions - Fix incorrect EffortType descriptions to match legacy CREST tbl_sessiontype
+// 13. BackfillHarvestAuditActions - Update audit entries from harvest to use new Harvest* action types
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -25,6 +28,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 
@@ -224,6 +228,57 @@ namespace Viper.Areas.Effort.Scripts
 
                 var (success, message) = RunFixPercentageConstraintTask(viperConnectionString, executeMode);
                 taskResults["FixPercentageConstraint"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 11: Add ViewDeptAudit permission for department chairs
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 11: Add ViewDeptAudit Permission to RAPS");
+                Console.WriteLine("----------------------------------------");
+
+                string rapsConnectionString = EffortScriptHelper.GetConnectionString(configuration, "RAPS", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(rapsConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunAddViewDeptAuditPermissionTask(rapsConnectionString, executeMode);
+                taskResults["ViewDeptAuditPermission"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 12: Fix EffortType descriptions to match legacy CREST tbl_sessiontype
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 12: Fix EffortType Descriptions");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunFixEffortTypeDescriptionsTask(viperConnectionString, executeMode);
+                taskResults["FixEffortTypeDescriptions"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 13: Backfill harvest audit action types
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 13: Backfill Harvest Audit Actions");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunBackfillHarvestAuditActionsTask(viperConnectionString, executeMode);
+                taskResults["BackfillHarvestAuditActions"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
@@ -2190,6 +2245,721 @@ namespace Viper.Areas.Effort.Scripts
                   AND cc.name = 'CK_Percentages_Percentage'",
                 connection);
             return cmd.ExecuteScalar() as string;
+        }
+
+        #endregion
+
+        #region Task 11: Add ViewDeptAudit Permission
+
+        /// <summary>
+        /// Creates SVMSecure.Effort.ViewDeptAudit permission and assigns it to Chairperson and Vice-Chairperson roles.
+        /// This permission allows department chairs to view the audit trail for their own department only.
+        /// </summary>
+        private static (bool Success, string Message) RunAddViewDeptAuditPermissionTask(string connectionString, bool executeMode)
+        {
+            const string ViewDeptAuditPermission = "SVMSecure.Effort.ViewDeptAudit";
+            const string ViewDeptAuditDescription = "View audit trail for own department only (department chairs)";
+
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                Console.WriteLine($"Target Permission: {ViewDeptAuditPermission}");
+                Console.WriteLine();
+
+                // Find Chairpersons and Vice-Chairpersons roles
+                var chairRoleId = GetRoleIdByName(connection, "Chairpersons");
+                var viceChairRoleId = GetRoleIdByName(connection, "Chairpersons(Vice)");
+
+                if (chairRoleId == null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Warning: 'Chairpersons' role not found in RAPS");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.WriteLine($"  Found 'Chairpersons' role (RoleID = {chairRoleId})");
+                }
+
+                if (viceChairRoleId == null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  ⚠ Warning: 'Chairpersons(Vice)' role not found in RAPS");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.WriteLine($"  Found 'Chairpersons(Vice)' role (RoleID = {viceChairRoleId})");
+                }
+
+                if (chairRoleId == null && viceChairRoleId == null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("  ERROR: Neither chair role found. Cannot proceed.");
+                    Console.ResetColor();
+                    return (false, "Required roles not found");
+                }
+
+                Console.WriteLine();
+
+                // Check if target permission already exists
+                int? existingPermissionId = GetPermissionId(connection, ViewDeptAuditPermission);
+                if (existingPermissionId != null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"  Permission already exists (PermissionID = {existingPermissionId}).");
+                    Console.ResetColor();
+                    Console.WriteLine();
+                    Console.WriteLine("Current role mappings:");
+                    ShowCurrentMappings(connection, existingPermissionId.Value);
+
+                    // Check if any roles are missing the permission (before starting transaction)
+                    Console.WriteLine();
+                    Console.WriteLine("Checking for missing role assignments...");
+
+                    bool chairNeedsPermission = chairRoleId != null && !RoleHasPermission(connection, chairRoleId.Value, existingPermissionId.Value);
+                    bool viceChairNeedsPermission = viceChairRoleId != null && !RoleHasPermission(connection, viceChairRoleId.Value, existingPermissionId.Value);
+
+                    if (chairRoleId != null && !chairNeedsPermission)
+                    {
+                        Console.WriteLine($"  ✓ 'Chairpersons' role already has permission");
+                    }
+                    if (viceChairRoleId != null && !viceChairNeedsPermission)
+                    {
+                        Console.WriteLine($"  ✓ 'Chairpersons(Vice)' role already has permission");
+                    }
+
+                    if (!chairNeedsPermission && !viceChairNeedsPermission)
+                    {
+                        Console.WriteLine("  No roles need updating.");
+                        return (true, "All roles already have permission");
+                    }
+
+                    // Add missing permissions in a transaction
+                    using var updateTransaction = connection.BeginTransaction();
+                    try
+                    {
+                        int addedRoles = 0;
+
+                        if (chairNeedsPermission)
+                        {
+                            if (executeMode)
+                            {
+                                AssignPermissionToRole(connection, updateTransaction, chairRoleId!.Value, existingPermissionId.Value, "Chairpersons");
+                            }
+                            Console.WriteLine($"  + Adding permission to 'Chairpersons' role");
+                            addedRoles++;
+                        }
+
+                        if (viceChairNeedsPermission)
+                        {
+                            if (executeMode)
+                            {
+                                AssignPermissionToRole(connection, updateTransaction, viceChairRoleId!.Value, existingPermissionId.Value, "Chairpersons(Vice)");
+                            }
+                            Console.WriteLine($"  + Adding permission to 'Chairpersons(Vice)' role");
+                            addedRoles++;
+                        }
+
+                        if (executeMode)
+                        {
+                            updateTransaction.Commit();
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine($"  ✓ Added permission to {addedRoles} role(s)");
+                            Console.ResetColor();
+                            return (true, $"Added permission to {addedRoles} role(s)");
+                        }
+                        else
+                        {
+                            updateTransaction.Rollback();
+                            Console.ForegroundColor = ConsoleColor.Cyan;
+                            Console.WriteLine($"  ↶ Would add permission to {addedRoles} role(s) (dry-run)");
+                            Console.ResetColor();
+                            return (true, $"Would add permission to {addedRoles} role(s) (dry-run)");
+                        }
+                    }
+                    catch (SqlException ex)
+                    {
+                        updateTransaction.Rollback();
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                        Console.ResetColor();
+                        return (false, $"Database error: {ex.Message}");
+                    }
+                }
+
+                Console.WriteLine($"  Permission does not exist yet.");
+
+                Console.WriteLine();
+
+                // Create the permission and assign to roles in a transaction
+                using var transaction = connection.BeginTransaction();
+                try
+                {
+                    // Create the new permission
+                    int newPermissionId = CreatePermission(connection, transaction, ViewDeptAuditPermission, ViewDeptAuditDescription);
+                    Console.WriteLine($"Created permission '{ViewDeptAuditPermission}' with PermissionID = {newPermissionId}");
+
+                    int assignedRoles = 0;
+
+                    // Assign to Chairpersons role
+                    if (chairRoleId != null)
+                    {
+                        AssignPermissionToRole(connection, transaction, chairRoleId.Value, newPermissionId, "Chairpersons");
+                        assignedRoles++;
+                        Console.WriteLine($"Assigned permission to 'Chairpersons' role");
+                    }
+
+                    // Assign to Chairpersons(Vice) role
+                    if (viceChairRoleId != null)
+                    {
+                        AssignPermissionToRole(connection, transaction, viceChairRoleId.Value, newPermissionId, "Chairpersons(Vice)");
+                        assignedRoles++;
+                        Console.WriteLine($"Assigned permission to 'Chairpersons(Vice)' role");
+                    }
+
+                    // Commit or rollback based on execute mode
+                    if (executeMode)
+                    {
+                        transaction.Commit();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("  ✓ Transaction committed - changes are permanent");
+                        Console.ResetColor();
+                        return (true, $"Created permission (ID={newPermissionId}) and assigned to {assignedRoles} role(s)");
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  ↶ Transaction rolled back - no permanent changes");
+                        Console.ResetColor();
+                        return (true, $"Verified permission creation with {assignedRoles} role assignment(s) (rolled back)");
+                    }
+                }
+                catch (SqlException ex)
+                {
+                    transaction.Rollback();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                    Console.WriteLine("  ↶ Transaction rolled back");
+                    Console.ResetColor();
+                    return (false, $"Database error: {ex.Message}");
+                }
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Get a role ID by role name.
+        /// </summary>
+        private static int? GetRoleIdByName(SqlConnection connection, string roleName)
+        {
+            using var cmd = new SqlCommand(
+                "SELECT RoleID FROM tblRoles WHERE Role = @RoleName",
+                connection);
+            cmd.Parameters.AddWithValue("@RoleName", roleName);
+            var result = cmd.ExecuteScalar();
+            return result == null ? null : Convert.ToInt32(result);
+        }
+
+        /// <summary>
+        /// Check if a role already has a specific permission.
+        /// </summary>
+        private static bool RoleHasPermission(SqlConnection connection, int roleId, int permissionId)
+        {
+            using var cmd = new SqlCommand(
+                "SELECT COUNT(*) FROM tblRolePermissions WHERE RoleID = @RoleId AND PermissionID = @PermissionId",
+                connection);
+            cmd.Parameters.AddWithValue("@RoleId", roleId);
+            cmd.Parameters.AddWithValue("@PermissionId", permissionId);
+            var count = Convert.ToInt32(cmd.ExecuteScalar());
+            return count > 0;
+        }
+
+        /// <summary>
+        /// Assign a permission to a role.
+        /// </summary>
+        private static void AssignPermissionToRole(SqlConnection connection, SqlTransaction transaction, int roleId, int permissionId, string roleName)
+        {
+            // Insert role permission with Allow access (1)
+            using var cmd = new SqlCommand(@"
+                INSERT INTO tblRolePermissions (RoleID, PermissionID, Access, ModBy, ModTime)
+                VALUES (@RoleID, @PermissionID, 1, @ModBy, GETDATE())",
+                connection, transaction);
+            cmd.Parameters.AddWithValue("@RoleID", roleId);
+            cmd.Parameters.AddWithValue("@PermissionID", permissionId);
+            cmd.Parameters.AddWithValue("@ModBy", ScriptModBy);
+            cmd.ExecuteNonQuery();
+
+            // Create audit entry
+            using var auditCmd = new SqlCommand(@"
+                INSERT INTO tblLog (RoleID, PermissionID, Audit, Detail, ModTime, ModBy)
+                VALUES (@RoleID, @PermissionID, 'UpdateRolePermission', '1', GETDATE(), @ModBy)",
+                connection, transaction);
+            auditCmd.Parameters.AddWithValue("@RoleID", roleId);
+            auditCmd.Parameters.AddWithValue("@PermissionID", permissionId);
+            auditCmd.Parameters.AddWithValue("@ModBy", ScriptModBy);
+            auditCmd.ExecuteNonQuery();
+        }
+
+        #endregion
+
+        #region Task 12: Fix EffortType Descriptions
+
+        /// <summary>
+        /// Correct descriptions from CREST tbl_sessiontype for the 36 used session types
+        /// </summary>
+        private static readonly Dictionary<string, string> CorrectEffortTypeDescriptions = new()
+        {
+            { "ACT", "Activity" },
+            { "AUT", "Autotutorial" },
+            { "CBL", "Case Based Learning" },
+            { "CLI", "Clinical Activity" },
+            { "CON", "Conference" },
+            { "D/L", "Discussion/Laboratory" },
+            { "DIS", "Discussion" },
+            { "DSL", "Directed Self Learning" },
+            { "EXM", "Examination" },
+            { "FAS", "Formative Assessment" },
+            { "FWK", "Fieldwork" },
+            { "IND", "Independent Study" },
+            { "INT", "Internship" },
+            { "JLC", "Journal Club" },
+            { "L/D", "Laboratory/Discussion" },
+            { "LAB", "Laboratory" },
+            { "LEC", "Lecture" },
+            { "LED", "Lecture/Discussion" },
+            { "LIS", "Listening" },
+            { "LLA", "Lecture/Laboratory" },
+            { "PBL", "Problem Based Learning" },
+            { "PER", "Performance Instruction" },
+            { "PRA", "Practice" },
+            { "PRB", "Extensive Problem Solving" },
+            { "PRJ", "Project" },
+            { "PRS", "Presentation" },
+            { "SEM", "Seminar" },
+            { "STD", "Studio" },
+            { "T-D", "Term Paper or Discussion" },
+            { "TBL", "Team Based Learning" },
+            { "TMP", "Term Paper" },
+            { "TUT", "Tutorial" },
+            { "VAR", "Variable" },
+            { "WED", "Web Electronic Discussion" },
+            { "WRK", "Workshop" },
+            { "WVL", "Web Virtual Lecture" }
+        };
+
+        private static (bool Success, string Message) RunFixEffortTypeDescriptionsTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Check if EffortTypes table exists (it should after Task 3 rename)
+                using var checkCmd = new SqlCommand(
+                    "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'EffortTypes'",
+                    connection);
+                int tableExists = (int)checkCmd.ExecuteScalar();
+
+                if (tableExists == 0)
+                {
+                    Console.WriteLine("  ⚠ EffortTypes table does not exist - skipping");
+                    return (true, "Skipped - EffortTypes table does not exist");
+                }
+
+                // Find which descriptions need updating
+                var typesToUpdate = new List<(string Id, string CurrentDesc, string CorrectDesc)>();
+
+                using (var selectCmd = new SqlCommand(
+                    "SELECT Id, Description FROM [effort].[EffortTypes]", connection))
+                using (var reader = selectCmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string id = reader.GetString(0).Trim();
+                        string currentDesc = reader.GetString(1);
+
+                        if (CorrectEffortTypeDescriptions.TryGetValue(id, out string? correctDesc)
+                            && !string.Equals(currentDesc, correctDesc, StringComparison.Ordinal))
+                        {
+                            typesToUpdate.Add((id, currentDesc, correctDesc));
+                        }
+                    }
+                }
+
+                if (typesToUpdate.Count == 0)
+                {
+                    Console.WriteLine("  ✓ All EffortType descriptions are already correct");
+                    return (true, "No changes needed - all descriptions correct");
+                }
+
+                Console.WriteLine($"  Found {typesToUpdate.Count} EffortType(s) with incorrect descriptions:");
+                foreach (var (id, currentDesc, correctDesc) in typesToUpdate)
+                {
+                    Console.WriteLine($"    {id}: \"{currentDesc}\" → \"{correctDesc}\"");
+                }
+                Console.WriteLine();
+
+                // Execute the updates within a transaction (rollback in dry-run mode)
+                int updatedCount = 0;
+                using var transaction = connection.BeginTransaction();
+
+                try
+                {
+                    foreach (var (id, _, correctDesc) in typesToUpdate)
+                    {
+                        using var updateCmd = new SqlCommand(
+                            "UPDATE [effort].[EffortTypes] SET Description = @Description WHERE Id = @Id",
+                            connection, transaction);
+                        updateCmd.Parameters.AddWithValue("@Description", correctDesc);
+                        updateCmd.Parameters.AddWithValue("@Id", id);
+
+                        int rowsAffected = updateCmd.ExecuteNonQuery();
+                        if (rowsAffected > 0)
+                        {
+                            updatedCount++;
+                        }
+                    }
+
+                    // Commit or rollback based on execute mode
+                    if (executeMode)
+                    {
+                        transaction.Commit();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"  ✓ Updated {updatedCount} EffortType description(s)");
+                        Console.ResetColor();
+                        return (true, $"Updated {updatedCount} description(s)");
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine($"  ✓ Verified {updatedCount} update(s) would succeed");
+                        Console.WriteLine("  ↶ Transaction rolled back - no permanent changes");
+                        Console.ResetColor();
+                        return (true, $"Verified {updatedCount} update(s) (rolled back)");
+                    }
+                }
+                catch (SqlException ex)
+                {
+                    transaction.Rollback();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"  ✗ Database error: {ex.Message}");
+                    Console.WriteLine("  ↶ Transaction rolled back");
+                    Console.ResetColor();
+                    return (false, $"Database error: {ex.Message}");
+                }
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Task 13: Backfill Harvest Audit Actions
+
+        /// <summary>
+        /// Maps old action names to new harvest-specific action names.
+        /// These actions are created during the harvest process and should be
+        /// hidden from department-level users (chairs) who view the audit trail.
+        /// </summary>
+        private static readonly Dictionary<string, string> HarvestActionMappings = new()
+        {
+            { "CreatePerson", "HarvestCreatePerson" },
+            { "CreateCourse", "HarvestCreateCourse" },
+            { "CreateEffort", "HarvestCreateEffort" }
+        };
+
+        /// <summary>
+        /// Backfills historical audit entries with harvest-specific action names.
+        ///
+        /// This task identifies Create* entries that were logged during harvest sessions
+        /// and renames them to Harvest* variants so they can be filtered from chairs.
+        ///
+        /// IMPORTANT: We filter by ChangedBy (the user who ran the harvest) to preserve
+        /// legitimate manual data entry. Analysis of early terms (2008) revealed that
+        /// some Create* entries were from staff manually entering effort data over extended
+        /// periods (e.g., Jan Ilkiw: 10,000+ entries over 2 years). These should remain
+        /// visible to chairs as CreatePerson/CreateCourse/CreateEffort.
+        ///
+        /// The sanity check warnings about "entries from different users" are expected
+        /// for these early terms - they indicate legitimate manual work being preserved.
+        /// </summary>
+        private static (bool Success, string Message) RunBackfillHarvestAuditActionsTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                // Check if Audits table exists
+                using var checkCmd = new SqlCommand(
+                    "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('effort') AND name = 'Audits'",
+                    connection);
+                int tableExists = (int)checkCmd.ExecuteScalar();
+
+                if (tableExists == 0)
+                {
+                    Console.WriteLine("  ⚠ Audits table does not exist - skipping");
+                    return (true, "Skipped - Audits table does not exist");
+                }
+
+                // Check if any entries already use the new action names (migration already done)
+                using var alreadyMigratedCmd = new SqlCommand(
+                    "SELECT COUNT(*) FROM [effort].[Audits] WHERE Action IN ('HarvestCreatePerson', 'HarvestCreateCourse', 'HarvestCreateEffort')",
+                    connection);
+                int alreadyMigrated = (int)alreadyMigratedCmd.ExecuteScalar();
+
+                if (alreadyMigrated > 0)
+                {
+                    Console.WriteLine($"  ✓ Found {alreadyMigrated} entries already using new Harvest* action names");
+                    Console.WriteLine("    Migration appears to have been run previously");
+                }
+
+                // Find all ImportEffort entries to identify harvest sessions
+                // ImportEffort is logged at the END of harvest with a summary, making it the reliable marker
+                // Since harvest deletes all records for a term, ALL Create* entries before ImportEffort are from that harvest
+                // We also track ChangedBy as a defensive filter - all entries should match the harvest initiator
+                var harvestSessions = new List<(int TermCode, DateTime ImportEffortDate, int ChangedBy)>();
+
+                using (var harvestCmd = new SqlCommand(@"
+                    SELECT TermCode, ChangedDate, ChangedBy
+                    FROM [effort].[Audits]
+                    WHERE Action = 'ImportEffort'
+                      AND TermCode IS NOT NULL
+                    ORDER BY TermCode, ChangedDate",
+                    connection))
+                using (var reader = harvestCmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        harvestSessions.Add((
+                            reader.GetInt32(0),
+                            reader.GetDateTime(1),
+                            reader.GetInt32(2)
+                        ));
+                    }
+                }
+
+                if (harvestSessions.Count == 0)
+                {
+                    Console.WriteLine("  ⚠ No ImportEffort entries found - nothing to backfill");
+                    return (true, "No ImportEffort entries found");
+                }
+
+                Console.WriteLine($"  Found {harvestSessions.Count} harvest session(s)");
+
+                // Count entries that would be updated for each action type
+                var updateCounts = new Dictionary<string, int>();
+                foreach (var (oldAction, _) in HarvestActionMappings)
+                {
+                    updateCounts[oldAction] = 0;
+                }
+
+                // For each harvest session, find and count Create* entries
+                // Harvest deletes all previous records for a term before re-importing,
+                // so ALL Create* entries before ImportEffort for that term are from the harvest.
+                // We filter by ChangedBy as a defensive measure and run sanity checks.
+                foreach (var (termCode, importEffortDate, changedBy) in harvestSessions)
+                {
+                    // Sanity check 1: count entries older than 1 hour before ImportEffort
+                    var sanityWindow = importEffortDate.AddHours(-1);
+                    using var timeCheckCmd = new SqlCommand(@"
+                        SELECT COUNT(*)
+                        FROM [effort].[Audits]
+                        WHERE TermCode = @TermCode
+                          AND ChangedBy = @ChangedBy
+                          AND ChangedDate < @SanityWindow
+                          AND Action IN ('CreatePerson', 'CreateCourse', 'CreateEffort')",
+                        connection);
+                    timeCheckCmd.Parameters.AddWithValue("@TermCode", termCode);
+                    timeCheckCmd.Parameters.AddWithValue("@ChangedBy", changedBy);
+                    timeCheckCmd.Parameters.AddWithValue("@SanityWindow", sanityWindow);
+                    int oldEntries = (int)timeCheckCmd.ExecuteScalar();
+                    if (oldEntries > 0)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine($"  ⚠ Term {termCode}: {oldEntries} entries are >1 hour before ImportEffort");
+                        Console.ResetColor();
+                    }
+
+                    // Sanity check 2: compare count with and without ChangedBy filter
+                    // If different, there are entries from other users - likely manual data entry
+                    // that should remain visible to chairs (expected for early 2008 terms)
+                    using var totalCountCmd = new SqlCommand(@"
+                        SELECT COUNT(*)
+                        FROM [effort].[Audits]
+                        WHERE TermCode = @TermCode
+                          AND ChangedDate <= @ImportEffortDate
+                          AND Action IN ('CreatePerson', 'CreateCourse', 'CreateEffort')",
+                        connection);
+                    totalCountCmd.Parameters.AddWithValue("@TermCode", termCode);
+                    totalCountCmd.Parameters.AddWithValue("@ImportEffortDate", importEffortDate);
+                    int totalWithoutUserFilter = (int)totalCountCmd.ExecuteScalar();
+
+                    using var userCountCmd = new SqlCommand(@"
+                        SELECT COUNT(*)
+                        FROM [effort].[Audits]
+                        WHERE TermCode = @TermCode
+                          AND ChangedBy = @ChangedBy
+                          AND ChangedDate <= @ImportEffortDate
+                          AND Action IN ('CreatePerson', 'CreateCourse', 'CreateEffort')",
+                        connection);
+                    userCountCmd.Parameters.AddWithValue("@TermCode", termCode);
+                    userCountCmd.Parameters.AddWithValue("@ChangedBy", changedBy);
+                    userCountCmd.Parameters.AddWithValue("@ImportEffortDate", importEffortDate);
+                    int totalWithUserFilter = (int)userCountCmd.ExecuteScalar();
+
+                    if (totalWithoutUserFilter != totalWithUserFilter)
+                    {
+                        int diff = totalWithoutUserFilter - totalWithUserFilter;
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine($"  ⚠ Term {termCode}: {diff} manual entries from other users preserved (not converted to Harvest*)");
+                        Console.ResetColor();
+                    }
+
+                    // Count Create* entries matching this harvest session (with ChangedBy filter)
+                    using var countCmd = new SqlCommand(@"
+                        SELECT Action, COUNT(*) as Count
+                        FROM [effort].[Audits]
+                        WHERE TermCode = @TermCode
+                          AND ChangedBy = @ChangedBy
+                          AND ChangedDate <= @ImportEffortDate
+                          AND Action IN ('CreatePerson', 'CreateCourse', 'CreateEffort')
+                        GROUP BY Action",
+                        connection);
+                    countCmd.Parameters.AddWithValue("@TermCode", termCode);
+                    countCmd.Parameters.AddWithValue("@ChangedBy", changedBy);
+                    countCmd.Parameters.AddWithValue("@ImportEffortDate", importEffortDate);
+
+                    using var reader = countCmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        string action = reader.GetString(0);
+                        int count = reader.GetInt32(1);
+                        updateCounts[action] += count;
+                    }
+                }
+
+                int totalToUpdate = updateCounts.Values.Sum();
+                if (totalToUpdate == 0)
+                {
+                    Console.WriteLine("  ✓ No entries need to be updated");
+                    return (true, "No entries to update");
+                }
+
+                Console.WriteLine($"  Found {totalToUpdate} audit entries to update:");
+                foreach (var (action, count) in updateCounts.Where(kv => kv.Value > 0))
+                {
+                    Console.WriteLine($"    {action} → {HarvestActionMappings[action]}: {count} entries");
+                }
+                Console.WriteLine();
+
+                // Execute the updates within a transaction (rollback in dry-run mode)
+                int updatedCount = 0;
+                using var transaction = connection.BeginTransaction();
+
+                try
+                {
+                    foreach (var (termCode, importEffortDate, changedBy) in harvestSessions)
+                    {
+                        foreach (var (oldAction, newAction) in HarvestActionMappings)
+                        {
+                            using var updateCmd = new SqlCommand(@"
+                                UPDATE [effort].[Audits]
+                                SET Action = @NewAction
+                                WHERE TermCode = @TermCode
+                                  AND ChangedBy = @ChangedBy
+                                  AND ChangedDate <= @ImportEffortDate
+                                  AND Action = @OldAction",
+                                connection, transaction);
+                            updateCmd.Parameters.AddWithValue("@NewAction", newAction);
+                            updateCmd.Parameters.AddWithValue("@TermCode", termCode);
+                            updateCmd.Parameters.AddWithValue("@ChangedBy", changedBy);
+                            updateCmd.Parameters.AddWithValue("@ImportEffortDate", importEffortDate);
+                            updateCmd.Parameters.AddWithValue("@OldAction", oldAction);
+
+                            updatedCount += updateCmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Commit or rollback based on execute mode
+                    if (executeMode)
+                    {
+                        transaction.Commit();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"  ✓ Updated {updatedCount} audit entries");
+                        Console.ResetColor();
+                        return (true, $"Updated {updatedCount} entries");
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine($"  ✓ Verified {updatedCount} update(s) would succeed");
+                        Console.WriteLine("  ↶ Transaction rolled back - no permanent changes");
+                        Console.ResetColor();
+                        return (true, $"Verified {updatedCount} update(s) (rolled back)");
+                    }
+                }
+                catch (SqlException ex)
+                {
+                    transaction.Rollback();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"  ✗ Database error: {ex.Message}");
+                    Console.WriteLine("  ↶ Transaction rolled back");
+                    Console.ResetColor();
+                    return (false, $"Database error: {ex.Message}");
+                }
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"Database error: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException
+                                       or ArgumentException
+                                       or FormatException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"UNEXPECTED ERROR: {ex}");
+                Console.ResetColor();
+                return (false, $"Unexpected error: {ex.Message}");
+            }
         }
 
         #endregion

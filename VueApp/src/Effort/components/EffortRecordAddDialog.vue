@@ -40,15 +40,18 @@
                 <!-- Course Selection -->
                 <q-select
                     v-model="selectedCourse"
-                    :options="courseOptions"
+                    :options="filteredCourseOptions"
                     label="Course *"
                     dense
                     options-dense
                     outlined
                     emit-value
                     map-options
+                    use-input
+                    input-debounce="0"
                     :loading="isLoadingCourses"
                     class="q-mb-md"
+                    @filter="filterCourses"
                 >
                     <template #option="scope">
                         <q-item-label
@@ -72,20 +75,48 @@
                 <!-- Effort Type Selection -->
                 <q-select
                     v-model="selectedEffortType"
-                    :options="filteredEffortTypes"
+                    :options="effortTypeOptionsWithHeaders"
                     label="Effort Type *"
                     dense
                     options-dense
                     outlined
                     option-value="id"
-                    option-label="description"
+                    :option-label="formatEffortTypeLabel"
+                    option-disable="disable"
                     emit-value
                     map-options
                     :loading="isLoadingOptions"
                     :disable="!selectedCourse"
                     :hint="!selectedCourse ? 'Select a course first' : undefined"
                     class="q-mb-md"
-                />
+                >
+                    <template #option="scope">
+                        <q-item-label
+                            v-if="scope.opt.isHeader"
+                            header
+                            class="text-weight-bold text-primary q-py-xs"
+                        >
+                            {{ scope.opt.label }}
+                        </q-item-label>
+                        <q-item
+                            v-else
+                            v-bind="scope.itemProps"
+                            :class="{ 'text-grey-5': scope.opt.alreadyUsed }"
+                        >
+                            <q-item-section>
+                                <q-item-label class="row items-center">
+                                    <span>{{ scope.opt.description }} ({{ scope.opt.id }})</span>
+                                    <span
+                                        v-if="scope.opt.alreadyUsed"
+                                        class="text-grey-6 text-caption q-ml-sm"
+                                    >
+                                        — Already used in this course
+                                    </span>
+                                </q-item-label>
+                            </q-item-section>
+                        </q-item>
+                    </template>
+                </q-select>
 
                 <!-- Role Selection -->
                 <q-select
@@ -111,6 +142,8 @@
                     dense
                     outlined
                     min="0"
+                    :rules="effortValueRules"
+                    lazy-rules
                     class="q-mb-md"
                 />
 
@@ -166,8 +199,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
-import { effortService } from "../services/effort-service"
-import type { CourseOptionDto, EffortTypeOptionDto, RoleOptionDto } from "../types"
+import { recordService } from "../services/record-service"
+import type { CourseOptionDto, EffortTypeOptionDto, RoleOptionDto, InstructorEffortRecordDto } from "../types"
+import { effortValueRules } from "../validation"
 
 const props = defineProps<{
     modelValue: boolean
@@ -175,6 +209,7 @@ const props = defineProps<{
     termCode: number
     isVerified?: boolean
     preSelectedCourseId?: number | null
+    existingRecords?: InstructorEffortRecordDto[]
 }>()
 
 const emit = defineEmits<{
@@ -263,6 +298,32 @@ const courseOptions = computed<CourseOption[]>(() => {
     return options
 })
 
+// Filtered course options for type-ahead search
+const filteredCourseOptions = ref<CourseOption[]>([])
+
+// Filter function for course dropdown
+function filterCourses(val: string, update: (fn: () => void) => void) {
+    update(() => {
+        if (!val) {
+            filteredCourseOptions.value = courseOptions.value
+        } else {
+            const needle = val.toLowerCase()
+            filteredCourseOptions.value = courseOptions.value
+                .filter((opt) => {
+                    // Always keep headers visible if they have matching items below them
+                    if (opt.isHeader) return true
+                    return opt.label.toLowerCase().includes(needle)
+                })
+                .filter((opt, index, arr) => {
+                    // Remove headers that have no items following them
+                    if (!opt.isHeader) return true
+                    const nextItem = arr[index + 1]
+                    return nextItem && !nextItem.isHeader
+                })
+        }
+    })
+}
+
 // Computed: Get selected course object from options (includes flags for filtering)
 const selectedCourseObj = computed(() => {
     if (!selectedCourse.value) return null
@@ -276,21 +337,80 @@ const selectedCourseObj = computed(() => {
     }
 })
 
-// Computed: Filter effort types based on selected course category
-const filteredEffortTypes = computed(() => {
+// Computed: Get set of effort types the instructor already has records for (any course)
+const existingEffortTypes = computed(() => {
+    if (!props.existingRecords) return new Set<string>()
+    return new Set(props.existingRecords.map((r) => r.effortType))
+})
+
+// Computed: Get set of effort types already used on the selected course
+const usedEffortTypesOnCourse = computed(() => {
+    if (!selectedCourse.value || !props.existingRecords) return new Set<string>()
+    return new Set(props.existingRecords.filter((r) => r.courseId === selectedCourse.value).map((r) => r.effortType))
+})
+
+// Extended type for effort type options with sorting/disable info
+type EffortTypeOption = EffortTypeOptionDto & {
+    disable?: boolean
+    alreadyUsed?: boolean
+    isHeader?: boolean
+    label?: string
+}
+
+// Computed: Filter and sort effort types based on selected course category
+const filteredEffortTypes = computed<EffortTypeOption[]>(() => {
     // Require course selection before showing effort types
     if (!selectedCourseObj.value) {
         return []
     }
 
     const course = selectedCourseObj.value
-    return effortTypes.value.filter((et) => {
-        if (course.isDvm && !et.allowedOnDvm) return false
-        if (course.is199299 && !et.allowedOn199299) return false
-        if (course.isRCourse && !et.allowedOnRCourses) return false
-        return true
-    })
+    const filtered = effortTypes.value
+        .filter((et) => {
+            if (course.isDvm && !et.allowedOnDvm) return false
+            if (course.is199299 && !et.allowedOn199299) return false
+            if (course.isRCourse && !et.allowedOnRCourses) return false
+            return true
+        })
+        .map((et) => ({
+            ...et,
+            disable: usedEffortTypesOnCourse.value.has(et.id),
+            alreadyUsed: usedEffortTypesOnCourse.value.has(et.id),
+        }))
+
+    // Sort alphabetically within each group
+    return filtered.sort((a, b) => a.id.localeCompare(b.id))
 })
+
+// Computed: Effort type options with section headers
+const effortTypeOptionsWithHeaders = computed<EffortTypeOption[]>(() => {
+    const filtered = filteredEffortTypes.value
+    if (filtered.length === 0) return []
+
+    // Split into recently used and other
+    const recentlyUsed = filtered.filter((et) => existingEffortTypes.value.has(et.id))
+    const other = filtered.filter((et) => !existingEffortTypes.value.has(et.id))
+
+    const options: EffortTypeOption[] = []
+
+    if (recentlyUsed.length > 0) {
+        options.push({ label: "Recently Used", isHeader: true, disable: true } as EffortTypeOption)
+        options.push(...recentlyUsed)
+    }
+
+    if (other.length > 0) {
+        options.push({ label: "Other Effort Types", isHeader: true, disable: true } as EffortTypeOption)
+        options.push(...other)
+    }
+
+    return options
+})
+
+// Format effort type label for display (used for selected value display)
+function formatEffortTypeLabel(opt: EffortTypeOption): string {
+    if (opt.isHeader) return opt.label ?? ""
+    return `${opt.description} (${opt.id})`
+}
 
 // Computed: Effort label (Hours vs Weeks) with required asterisk
 const effortLabel = computed(() => {
@@ -304,12 +424,18 @@ const effortLabel = computed(() => {
 
 // Computed: Form validation
 const isFormValid = computed(() => {
+    // Ensure effortValue is a valid positive integer
+    const isValidEffortValue =
+        effortValue.value !== null &&
+        Number.isFinite(effortValue.value) &&
+        Number.isInteger(effortValue.value) &&
+        effortValue.value > 0
+
     return (
         selectedCourse.value !== null &&
         selectedEffortType.value !== null &&
         selectedRole.value !== null &&
-        effortValue.value !== null &&
-        effortValue.value >= 0
+        isValidEffortValue
     )
 })
 
@@ -364,15 +490,18 @@ async function loadOptions() {
 
     try {
         const [coursesResult, effortTypesResult, rolesResult] = await Promise.all([
-            effortService.getAvailableCourses(props.personId, props.termCode),
-            effortService.getEffortTypeOptions(),
-            effortService.getRoleOptions(),
+            recordService.getAvailableCourses(props.personId, props.termCode),
+            recordService.getEffortTypeOptions(),
+            recordService.getRoleOptions(),
         ])
 
         existingCourses.value = coursesResult.existingCourses
         allCourses.value = coursesResult.allCourses
         effortTypes.value = effortTypesResult
         roles.value = rolesResult
+
+        // Initialize filtered options with all courses
+        filteredCourseOptions.value = courseOptions.value
 
         // Default role to "Instructor" (ID 2) if available
         const instructorRole = rolesResult.find((r) => r.id === 2)
@@ -404,7 +533,7 @@ async function createRecord() {
     warningMessage.value = ""
 
     try {
-        const result = await effortService.createEffortRecord({
+        const result = await recordService.createEffortRecord({
             personId: props.personId,
             termCode: props.termCode,
             courseId: selectedCourse.value!,

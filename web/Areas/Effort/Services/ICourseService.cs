@@ -138,4 +138,15 @@ public interface ICourseService
     /// <param name="bannerDeptCode">The Banner department code.</param>
     /// <returns>The mapped custodial department code.</returns>
     string GetCustodialDepartmentForBannerCode(string bannerDeptCode);
+
+    /// <summary>
+    /// Import a course from Banner for self-service (instructors importing their own courses).
+    /// This is idempotent - if the course already exists, it returns the existing course.
+    /// </summary>
+    /// <param name="termCode">The term code.</param>
+    /// <param name="crn">The course reference number.</param>
+    /// <param name="units">Optional units for variable-unit courses.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Import result with the course (new or existing) and status.</returns>
+    Task<ImportCourseForSelfResult> ImportCourseForSelfAsync(int termCode, string crn, decimal? units = null, CancellationToken ct = default);
 }

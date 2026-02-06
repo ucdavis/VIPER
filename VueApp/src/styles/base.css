@@ -138,7 +138,19 @@ div.breadcrumbs {
 
 #leftNavMenu .leftNavLink {
     padding-left: 0.5rem;
-    /*background-color: #CDD6E0;*/
+}
+
+/* Active state for left nav menu items */
+#leftNavMenu .q-item.q-router-link--active,
+#leftNavMenu .q-item.q-router-link--exact-active {
+    background-color: var(--ucdavis-blue-10);
+    color: var(--q-primary);
+    font-weight: 500;
+}
+
+#leftNavMenu .q-item.q-router-link--active .q-item__label,
+#leftNavMenu .q-item.q-router-link--exact-active .q-item__label {
+    color: var(--q-primary);
 }
 
 /*Footer styles*/
