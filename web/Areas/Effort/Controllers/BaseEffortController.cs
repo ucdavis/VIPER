@@ -67,7 +67,7 @@ public abstract class BaseEffortController : ApiController
 
             _logger.LogWarning(
                 "Cross-origin request blocked: Origin={Origin}, RequestHost={RequestHost}",
-                origin, LogSanitizer.SanitizeString(requestHost.ToString()));
+                LogSanitizer.SanitizeString(origin), LogSanitizer.SanitizeString(requestHost.ToString()));
         }
 
         return false;
