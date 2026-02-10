@@ -19,177 +19,184 @@
             </q-card-section>
 
             <q-card-section>
-                <!-- Verification Warning -->
-                <q-banner
-                    v-if="props.isVerified"
-                    class="bg-orange-2 q-mb-md"
-                    rounded
+                <q-form
+                    ref="formRef"
+                    class="effort-form"
+                    greedy
                 >
-                    <template #avatar>
-                        <q-icon
-                            name="info"
-                            color="orange-9"
-                        />
-                    </template>
-                    <span class="text-orange-9">
-                        This instructor's effort has been verified. Adding a new record will clear the verification
-                        status and require re-verification.
-                    </span>
-                </q-banner>
+                    <!-- Verification Warning -->
+                    <q-banner
+                        v-if="props.isVerified"
+                        class="bg-orange-2"
+                        rounded
+                    >
+                        <template #avatar>
+                            <q-icon
+                                name="info"
+                                color="orange-9"
+                            />
+                        </template>
+                        <span class="text-orange-9">
+                            This instructor's effort has been verified. Adding a new record will clear the verification
+                            status and require re-verification.
+                        </span>
+                    </q-banner>
 
-                <!-- Course Selection -->
-                <q-select
-                    v-model="selectedCourse"
-                    :options="filteredCourseOptions"
-                    label="Course *"
-                    dense
-                    options-dense
-                    outlined
-                    emit-value
-                    map-options
-                    use-input
-                    input-debounce="0"
-                    :loading="isLoadingCourses"
-                    class="q-mb-md"
-                    @filter="filterCourses"
-                >
-                    <template #option="scope">
-                        <q-item-label
-                            v-if="scope.opt.isHeader"
-                            header
-                            class="text-weight-bold text-primary q-py-xs"
-                        >
-                            {{ scope.opt.label }}
-                        </q-item-label>
-                        <q-item
-                            v-else
-                            v-bind="scope.itemProps"
-                        >
-                            <q-item-section>
-                                <q-item-label>{{ scope.opt.label }}</q-item-label>
-                            </q-item-section>
-                        </q-item>
-                    </template>
-                </q-select>
+                    <!-- Course Selection -->
+                    <q-select
+                        v-model="selectedCourse"
+                        :options="filteredCourseOptions"
+                        label="Course *"
+                        dense
+                        options-dense
+                        outlined
+                        emit-value
+                        map-options
+                        use-input
+                        input-debounce="0"
+                        :loading="isLoadingCourses"
+                        :rules="[requiredRule('Course')]"
+                        lazy-rules="ondemand"
+                        @filter="filterCourses"
+                    >
+                        <template #option="scope">
+                            <q-item-label
+                                v-if="scope.opt.isHeader"
+                                header
+                                class="text-weight-bold text-primary q-py-xs"
+                            >
+                                {{ scope.opt.label }}
+                            </q-item-label>
+                            <q-item
+                                v-else
+                                v-bind="scope.itemProps"
+                            >
+                                <q-item-section>
+                                    <q-item-label>{{ scope.opt.label }}</q-item-label>
+                                </q-item-section>
+                            </q-item>
+                        </template>
+                    </q-select>
 
-                <!-- Effort Type Selection -->
-                <q-select
-                    v-model="selectedEffortType"
-                    :options="effortTypeOptionsWithHeaders"
-                    label="Effort Type *"
-                    dense
-                    options-dense
-                    outlined
-                    option-value="id"
-                    :option-label="formatEffortTypeLabel"
-                    option-disable="disable"
-                    emit-value
-                    map-options
-                    :loading="isLoadingOptions"
-                    :disable="!selectedCourse"
-                    :hint="!selectedCourse ? 'Select a course first' : undefined"
-                    class="q-mb-md"
-                >
-                    <template #option="scope">
-                        <q-item-label
-                            v-if="scope.opt.isHeader"
-                            header
-                            class="text-weight-bold text-primary q-py-xs"
-                        >
-                            {{ scope.opt.label }}
-                        </q-item-label>
-                        <q-item
-                            v-else
-                            v-bind="scope.itemProps"
-                            :class="{ 'text-grey-5': scope.opt.alreadyUsed }"
-                        >
-                            <q-item-section>
-                                <q-item-label class="row items-center">
-                                    <span>{{ scope.opt.description }} ({{ scope.opt.id }})</span>
-                                    <span
-                                        v-if="scope.opt.alreadyUsed"
-                                        class="text-grey-6 text-caption q-ml-sm"
-                                    >
-                                        — Already used in this course
-                                    </span>
-                                </q-item-label>
-                            </q-item-section>
-                        </q-item>
-                    </template>
-                </q-select>
+                    <!-- Effort Type Selection -->
+                    <q-select
+                        v-model="selectedEffortType"
+                        :options="effortTypeOptionsWithHeaders"
+                        label="Effort Type *"
+                        dense
+                        options-dense
+                        outlined
+                        option-value="id"
+                        :option-label="formatEffortTypeLabel"
+                        option-disable="disable"
+                        emit-value
+                        map-options
+                        :loading="isLoadingOptions"
+                        :disable="!selectedCourse"
+                        :hint="!selectedCourse ? 'Select a course first' : undefined"
+                        :rules="[requiredRule('Effort type')]"
+                        lazy-rules="ondemand"
+                    >
+                        <template #option="scope">
+                            <q-item-label
+                                v-if="scope.opt.isHeader"
+                                header
+                                class="text-weight-bold text-primary q-py-xs"
+                            >
+                                {{ scope.opt.label }}
+                            </q-item-label>
+                            <q-item
+                                v-else
+                                v-bind="scope.itemProps"
+                                :class="{ 'text-grey-5': scope.opt.alreadyUsed }"
+                            >
+                                <q-item-section>
+                                    <q-item-label class="row items-center">
+                                        <span>{{ scope.opt.description }} ({{ scope.opt.id }})</span>
+                                        <span
+                                            v-if="scope.opt.alreadyUsed"
+                                            class="text-grey-6 text-caption q-ml-sm"
+                                        >
+                                            — Already used in this course
+                                        </span>
+                                    </q-item-label>
+                                </q-item-section>
+                            </q-item>
+                        </template>
+                    </q-select>
 
-                <!-- Role Selection -->
-                <q-select
-                    v-model="selectedRole"
-                    :options="roles"
-                    label="Role *"
-                    dense
-                    options-dense
-                    outlined
-                    option-value="id"
-                    option-label="description"
-                    emit-value
-                    map-options
-                    :loading="isLoadingOptions"
-                    class="q-mb-md"
-                />
+                    <!-- Role Selection -->
+                    <q-select
+                        v-model="selectedRole"
+                        :options="roles"
+                        label="Role *"
+                        dense
+                        options-dense
+                        outlined
+                        option-value="id"
+                        option-label="description"
+                        emit-value
+                        map-options
+                        :loading="isLoadingOptions"
+                        :rules="[requiredRule('Role')]"
+                        lazy-rules="ondemand"
+                    />
 
-                <!-- Effort Value -->
-                <q-input
-                    v-model.number="effortValue"
-                    :label="effortLabel"
-                    type="number"
-                    dense
-                    outlined
-                    min="0"
-                    :rules="effortValueRules"
-                    lazy-rules
-                />
+                    <!-- Effort Value -->
+                    <q-input
+                        v-model.number="effortValue"
+                        :label="effortLabel"
+                        type="number"
+                        dense
+                        outlined
+                        min="0"
+                        :rules="effortValueRules"
+                        lazy-rules="ondemand"
+                    />
 
-                <!-- Notes -->
-                <q-input
-                    v-model="notes"
-                    label="Notes"
-                    type="textarea"
-                    dense
-                    outlined
-                    maxlength="500"
-                    counter
-                    rows="2"
-                    :rules="notesRules"
-                    reactive-rules
-                    class="q-mb-md"
-                />
+                    <!-- Notes -->
+                    <q-input
+                        v-model="notes"
+                        label="Notes"
+                        type="textarea"
+                        dense
+                        outlined
+                        maxlength="500"
+                        counter
+                        autogrow
+                        :hint="notesHint"
+                    />
 
-                <!-- Warning Message -->
-                <q-banner
-                    v-if="warningMessage"
-                    class="bg-warning q-mb-md"
-                    rounded
-                >
-                    <template #avatar>
-                        <q-icon
-                            name="warning"
-                            color="dark"
-                        />
-                    </template>
-                    {{ warningMessage }}
-                </q-banner>
+                    <!-- Warning Message -->
+                    <q-banner
+                        v-if="warningMessage"
+                        class="bg-warning"
+                        rounded
+                    >
+                        <template #avatar>
+                            <q-icon
+                                name="warning"
+                                color="dark"
+                            />
+                        </template>
+                        {{ warningMessage }}
+                    </q-banner>
 
-                <!-- Error Message -->
-                <q-banner
-                    v-if="errorMessage"
-                    class="bg-negative text-white q-mb-md"
-                    rounded
-                >
-                    <template #avatar>
-                        <q-icon
-                            name="error"
-                            color="white"
-                        />
-                    </template>
-                    {{ errorMessage }}
-                </q-banner>
+                    <!-- Error Message -->
+                    <q-banner
+                        v-if="errorMessage"
+                        class="bg-negative text-white"
+                        rounded
+                    >
+                        <template #avatar>
+                            <q-icon
+                                name="error"
+                                color="white"
+                            />
+                        </template>
+                        {{ errorMessage }}
+                    </q-banner>
+                </q-form>
             </q-card-section>
 
             <q-card-actions align="right">
@@ -202,7 +209,6 @@
                     color="primary"
                     label="Add Effort"
                     :loading="isSaving"
-                    :disable="!isFormValid"
                     @click="createRecord"
                 />
             </q-card-actions>
@@ -212,10 +218,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
+import { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { recordService } from "../services/record-service"
 import type { CourseOptionDto, EffortTypeOptionDto, RoleOptionDto, InstructorEffortRecordDto } from "../types"
-import { effortValueRules, notesRules } from "../validation"
+import { effortValueRules, requiredRule, notesMaxHint } from "../validation"
+import "../effort-forms.css"
 
 const props = defineProps<{
     modelValue: boolean
@@ -231,12 +239,15 @@ const emit = defineEmits<{
     created: []
 }>()
 
+const formRef = ref<QForm | null>(null)
+
 // Form state
 const selectedCourse = ref<number | null>(null)
 const selectedEffortType = ref<string | null>(null)
 const selectedRole = ref<number | null>(null)
 const effortValue = ref<number | null>(null)
 const notes = ref<string | null>(null)
+const notesHint = computed(() => notesMaxHint(notes.value))
 
 // Form data for unsaved changes tracking
 const formData = ref({
@@ -438,23 +449,6 @@ const effortLabel = computed(() => {
     return "Hours *"
 })
 
-// Computed: Form validation
-const isFormValid = computed(() => {
-    // Ensure effortValue is a valid positive integer
-    const isValidEffortValue =
-        effortValue.value !== null &&
-        Number.isFinite(effortValue.value) &&
-        Number.isInteger(effortValue.value) &&
-        effortValue.value > 0
-
-    return (
-        selectedCourse.value !== null &&
-        selectedEffortType.value !== null &&
-        selectedRole.value !== null &&
-        isValidEffortValue
-    )
-})
-
 // Reset form when dialog opens
 watch(
     () => props.modelValue,
@@ -486,6 +480,7 @@ function resetForm() {
     warningMessage.value = ""
     syncFormData()
     setInitialState()
+    formRef.value?.resetValidation()
 }
 
 // Sync individual refs to formData for unsaved changes tracking
@@ -544,7 +539,8 @@ async function loadOptions() {
 }
 
 async function createRecord() {
-    if (!isFormValid.value) return
+    const valid = await formRef.value?.validate(true)
+    if (!valid) return
 
     isSaving.value = true
     errorMessage.value = ""

@@ -27,7 +27,8 @@
 
                 <q-form
                     ref="formRef"
-                    class="q-gutter-sm"
+                    class="effort-form"
+                    greedy
                 >
                     <q-input
                         v-model.number="formData.enrollment"
@@ -91,6 +92,7 @@ import { useQuasar, QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { courseService } from "../services/course-service"
 import type { CourseDto } from "../types"
+import "../effort-forms.css"
 
 const props = defineProps<{
     modelValue: boolean

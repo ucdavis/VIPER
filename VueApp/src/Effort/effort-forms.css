@@ -1,0 +1,56 @@
+.effort-form > .q-field,
+.effort-form > .q-checkbox,
+.effort-form > .row,
+.effort-form > .q-banner {
+    margin-bottom: 0.5rem;
+}
+
+/* Override Quasar's reserved hint/error space so fields sit compactly */
+.effort-form .q-field.q-field--with-bottom {
+    padding-bottom: 0;
+}
+
+/* Collapse when empty, expand naturally for counters/errors.
+   transform: none prevents Quasar's animated shift that caused overlap. */
+.effort-form .q-field .q-field__bottom {
+    position: relative;
+    min-height: 0;
+    padding-top: 0;
+    transform: none;
+}
+
+/* Add spacing above counters so they don't sit flush */
+.effort-form .q-field .q-field__counter {
+    padding-top: 0.25rem;
+}
+
+/* Style validation errors as chip-like labels */
+.effort-form .q-field--error .q-field__bottom {
+    padding-top: 0.25rem;
+}
+
+.effort-form .q-field--error .q-field__messages {
+    display: inline-flex;
+    align-items: center;
+    background: var(--q-negative);
+    color: white !important;
+    flex: none;
+    width: fit-content;
+    padding: 0.125rem 0.5rem 0.125rem 0.25rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    gap: 0.125rem;
+}
+
+.effort-form .q-field--error .q-field__messages::before {
+    content: "error";
+    font-family: "Material Icons";
+    font-size: 1rem;
+    line-height: 1;
+}
+
+/* Standalone message chip — matches error chip sizing */
+.effort-form .form-message-chip {
+    margin-top: -0.25rem;
+    font-size: 0.75rem;
+}

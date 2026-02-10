@@ -80,125 +80,137 @@
             >
                 <div class="text-subtitle1 q-mb-sm">Instructor Details</div>
 
-                <q-select
-                    v-model="form.effortDept"
-                    :options="groupedDepartments"
-                    label="Department *"
-                    dense
-                    options-dense
-                    outlined
-                    emit-value
-                    map-options
-                    class="q-mb-sm"
+                <q-form
+                    ref="formRef"
+                    class="effort-form"
+                    greedy
                 >
-                    <template #option="scope">
-                        <q-item v-bind="scope.itemProps">
-                            <q-item-section>
-                                <q-item-label>{{ scope.opt.label }}</q-item-label>
-                            </q-item-section>
-                        </q-item>
-                    </template>
-                </q-select>
+                    <q-select
+                        v-model="form.effortDept"
+                        :options="groupedDepartments"
+                        label="Department *"
+                        dense
+                        options-dense
+                        outlined
+                        emit-value
+                        map-options
+                        :rules="[requiredRule('Department')]"
+                        lazy-rules="ondemand"
+                    >
+                        <template #option="scope">
+                            <q-item v-bind="scope.itemProps">
+                                <q-item-section>
+                                    <q-item-label>{{ scope.opt.label }}</q-item-label>
+                                </q-item-section>
+                            </q-item>
+                        </template>
+                    </q-select>
 
-                <q-select
-                    v-model="form.effortTitleCode"
-                    :options="filteredTitleCodes"
-                    label="Title Code"
-                    option-value="value"
-                    option-label="label"
-                    emit-value
-                    map-options
-                    use-input
-                    input-debounce="0"
-                    dense
-                    options-dense
-                    outlined
-                    clearable
-                    class="q-mb-sm"
-                    @filter="filterTitleCodes"
-                >
-                    <template #before-options>
-                        <q-banner
-                            v-if="isOrphanedTitleCode"
-                            class="bg-warning text-white q-mb-sm"
-                            dense
-                        >
-                            Current value "{{ form.effortTitleCode }}" is not in the standard list
-                        </q-banner>
-                    </template>
-                    <template #no-option>
-                        <q-item>
-                            <q-item-section class="text-grey"> No results found </q-item-section>
-                        </q-item>
-                    </template>
-                </q-select>
+                    <q-chip
+                        v-if="isUnknownDept"
+                        color="warning"
+                        text-color="dark"
+                        icon="info"
+                        dense
+                        class="q-mb-sm form-message-chip"
+                    >
+                        Please provide a valid department if known
+                    </q-chip>
 
-                <q-select
-                    v-model="form.jobGroupId"
-                    :options="jobGroupOptions"
-                    label="Job Group"
-                    option-value="value"
-                    option-label="label"
-                    emit-value
-                    map-options
-                    dense
-                    options-dense
-                    outlined
-                    clearable
-                    class="q-mb-sm"
-                >
-                    <template #before-options>
-                        <q-banner
-                            v-if="isOrphanedJobGroup"
-                            class="bg-warning text-white q-mb-sm"
-                            dense
-                        >
-                            Current value "{{ form.jobGroupId }}" is not in the standard list
-                        </q-banner>
-                    </template>
-                </q-select>
+                    <q-select
+                        v-model="form.effortTitleCode"
+                        :options="filteredTitleCodes"
+                        label="Title Code"
+                        option-value="value"
+                        option-label="label"
+                        emit-value
+                        map-options
+                        use-input
+                        input-debounce="0"
+                        dense
+                        options-dense
+                        outlined
+                        clearable
+                        @filter="filterTitleCodes"
+                    >
+                        <template #before-options>
+                            <q-banner
+                                v-if="isOrphanedTitleCode"
+                                class="bg-warning text-white q-mb-sm"
+                                dense
+                            >
+                                Current value "{{ form.effortTitleCode }}" is not in the standard list
+                            </q-banner>
+                        </template>
+                        <template #no-option>
+                            <q-item>
+                                <q-item-section class="text-grey"> No results found </q-item-section>
+                            </q-item>
+                        </template>
+                    </q-select>
 
-                <q-select
-                    v-model="form.reportUnits"
-                    :options="reportUnitOptions"
-                    label="Report Units"
-                    dense
-                    options-dense
-                    outlined
-                    multiple
-                    use-chips
-                    emit-value
-                    map-options
-                    option-label="label"
-                    option-value="value"
-                    class="q-mb-sm"
-                />
+                    <q-select
+                        v-model="form.jobGroupId"
+                        :options="jobGroupOptions"
+                        label="Job Group"
+                        option-value="value"
+                        option-label="label"
+                        emit-value
+                        map-options
+                        dense
+                        options-dense
+                        outlined
+                        clearable
+                    >
+                        <template #before-options>
+                            <q-banner
+                                v-if="isOrphanedJobGroup"
+                                class="bg-warning text-white q-mb-sm"
+                                dense
+                            >
+                                Current value "{{ form.jobGroupId }}" is not in the standard list
+                            </q-banner>
+                        </template>
+                    </q-select>
 
-                <q-checkbox
-                    v-model="form.volunteerWos"
-                    class="q-mb-sm"
-                >
-                    Volunteer / WOS
-                    <span class="text-caption text-grey-7">
-                        - This will prevent the instructor from showing up in the M&amp;P reports.
-                    </span>
-                </q-checkbox>
+                    <q-select
+                        v-model="form.reportUnits"
+                        :options="reportUnitOptions"
+                        label="Report Units"
+                        dense
+                        options-dense
+                        outlined
+                        multiple
+                        use-chips
+                        emit-value
+                        map-options
+                        option-label="label"
+                        option-value="value"
+                    />
 
-                <q-banner
-                    v-if="settingsErrorMessage"
-                    class="bg-negative text-white q-mb-md"
-                    rounded
-                >
-                    <template #avatar>
-                        <q-icon
-                            name="error"
-                            color="white"
-                        />
-                    </template>
-                    {{ settingsErrorMessage }}
-                </q-banner>
+                    <q-checkbox v-model="form.volunteerWos">
+                        Volunteer / WOS
+                        <span class="text-caption text-grey-7">
+                            - This will prevent the instructor from showing up in the M&amp;P reports.
+                        </span>
+                    </q-checkbox>
 
-                <div class="row justify-end">
+                    <q-banner
+                        v-if="settingsErrorMessage"
+                        class="bg-negative text-white"
+                        rounded
+                    >
+                        <template #avatar>
+                            <q-icon
+                                name="error"
+                                color="white"
+                            />
+                        </template>
+                        {{ settingsErrorMessage }}
+                    </q-banner>
+                </q-form>
+
+                <div class="row justify-end q-mt-sm">
                     <q-btn
                         color="primary"
                         label="Update Instructor"
@@ -273,7 +285,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
-import { useQuasar } from "quasar"
+import { QForm, useQuasar } from "quasar"
+import { requiredRule } from "../validation"
+import "../effort-forms.css"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { instructorService } from "../services/instructor-service"
 import { recordService } from "../services/record-service"
@@ -310,6 +324,8 @@ const loadError = ref<string | null>(null)
 // Instructor data
 const instructor = ref<PersonDto | null>(null)
 const canEditTerm = ref(false)
+
+const formRef = ref<QForm | null>(null)
 
 // Instructor settings form state
 const form = ref({
@@ -372,8 +388,6 @@ const groupedDepartments = computed(() => {
     }
 
     const result: { label: string; value: string; disable?: boolean }[] = []
-    // Add "No Department Selected" option at the beginning
-    result.push({ label: "No Department Selected", value: "" })
     for (const [groupName, items] of Object.entries(groups)) {
         result.push({ label: groupName, value: "", disable: true })
         result.push(...items)
@@ -403,6 +417,8 @@ const jobGroupOptions = computed(() => {
     }))
 })
 
+const isUnknownDept = computed(() => form.value.effortDept === "UNK")
+
 const isOrphanedTitleCode = computed(() => {
     if (!form.value.effortTitleCode) return false
     return !titleCodes.value.some((t) => t.code === form.value.effortTitleCode)
@@ -428,7 +444,7 @@ function populateForm() {
     if (!instructor.value) return
 
     form.value = {
-        effortDept: instructor.value.effortDept || "",
+        effortDept: instructor.value.effortDept || "UNK",
         effortTitleCode: instructor.value.effortTitleCode || "",
         jobGroupId: instructor.value.jobGroupId || "",
         reportUnits: instructor.value.reportUnit ? instructor.value.reportUnit.split(",").map((s) => s.trim()) : [],
@@ -436,6 +452,7 @@ function populateForm() {
     }
     settingsErrorMessage.value = ""
     setInitialState()
+    formRef.value?.resetValidation()
 }
 
 // Load percentages for the instructor
@@ -507,6 +524,9 @@ async function loadData() {
 // Instructor settings update
 async function updateInstructor() {
     if (!instructor.value) return
+
+    const valid = await formRef.value?.validate(true)
+    if (!valid) return
 
     isSavingSettings.value = true
     settingsErrorMessage.value = ""
