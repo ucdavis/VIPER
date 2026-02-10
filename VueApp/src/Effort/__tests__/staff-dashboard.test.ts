@@ -478,7 +478,7 @@ describe("StaffDashboard - Stats Calculations", () => {
 
 // Helper functions extracted from StaffDashboard.vue for testing
 function getDeptDisplayName(dept: DepartmentVerificationDto): string {
-    return dept.departmentCode === "UNK" ? "No Department" : dept.departmentName
+    return dept.departmentCode === "UNK" ? "Unknown Department" : dept.departmentName
 }
 
 function isNoDept(dept: DepartmentVerificationDto): boolean {
@@ -497,8 +497,8 @@ describe("StaffDashboard - Department Display Name", () => {
         status: "NeedsFollowup",
     })
 
-    it("should return 'No Department' for UNK code", () => {
-        expect(getDeptDisplayName(makeDept("UNK", "Unknown"))).toBe("No Department")
+    it("should return 'Unknown Department' for UNK code", () => {
+        expect(getDeptDisplayName(makeDept("UNK", "Unknown"))).toBe("Unknown Department")
     })
 
     it("should return department name for normal codes", () => {
