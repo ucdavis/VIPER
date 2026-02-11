@@ -6,11 +6,19 @@ namespace Viper.Areas.Effort.Services.Harvest;
 
 /// <summary>
 /// Phase 3: Clinical Scheduler import.
-/// Imports clinical rotation data from the Clinical Scheduler system.
+/// Preview generation builds harvest-specific DTOs; execution delegates to
+/// ClinicalImportService (single code path for clinical record creation).
 /// Only executes for semester terms (not quarter terms).
 /// </summary>
 public sealed class ClinicalHarvestPhase : HarvestPhaseBase
 {
+    private readonly IClinicalImportService _clinicalImportService;
+
+    public ClinicalHarvestPhase(IClinicalImportService clinicalImportService)
+    {
+        _clinicalImportService = clinicalImportService;
+    }
+
     /// <inheritdoc />
     public override string PhaseName => EffortConstants.PhaseClinical;
 
@@ -19,34 +27,6 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
 
     /// <inheritdoc />
     public override bool ShouldExecute(int termCode) => IsSemesterTerm(termCode);
-
-    /// <summary>
-    /// Clinical course priority lookup. Lower values = higher priority.
-    /// When an instructor is assigned to multiple rotations in the same week,
-    /// only the highest priority course is credited.
-    /// </summary>
-    private static readonly Dictionary<string, int> ClinicalCoursePriority = new()
-    {
-        ["DVM 453"] = -100, // Comm surgery - highest priority
-        ["DVM 491"] = 10,   // SA emergency over ICU
-        ["DVM 492"] = 11,
-        ["DVM 476"] = 20,   // LA anest over SA anest
-        ["DVM 490"] = 21,
-        ["DVM 477"] = 30,   // LA radio over SA radio
-        ["DVM 494"] = 31,
-        ["DVM 482"] = 40,   // Med onc over rad onc
-        ["DVM 487"] = 41,
-        ["DVM 493"] = 50,   // Internal med: Med A first
-        ["DVM 466"] = 51,
-        ["DVM 443"] = 52,
-        ["DVM 451"] = 60,   // Clin path over anat path
-        ["DVM 485"] = 61,
-        ["DVM 457"] = 70,   // Equine emergency over S&L
-        ["DVM 462"] = 71,
-        ["DVM 459"] = 80,   // Equine field over in-house
-        ["DVM 460"] = 81,
-        ["DVM 447"] = 100,  // EduLead - lowest priority
-    };
 
     /// <inheritdoc />
     public override async Task GeneratePreviewAsync(HarvestContext context, CancellationToken ct = default)
@@ -111,18 +91,32 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
             }
         }
 
-        // Build effort records with priority resolution
+        // Validate which instructors have valid AAUD data for import
+        // (shared validation with ClinicalImportService — single source of truth)
+        var uniqueMothraIds = personWeekCourses.Keys.ToList();
+        var validation = await _clinicalImportService.ValidateImportableInstructorsAsync(
+            uniqueMothraIds, context.TermCode, ct);
+
+        var importableMothraIds = validation.ImportableMothraIds;
+        var aaudTitleLookup = validation.TitleCodeByMothraId;
+
+        // Populate title lookup on context for BuildClinicalInstructorPreviewsAsync
+        context.TitleLookup ??= (await context.InstructorService.GetTitleCodesAsync(ct))
+            .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
+
+        // Build effort records with priority resolution (uses shared priority from ClinicalImportService)
         var effortByPersonCourse = new Dictionary<string, HarvestRecordPreview>();
 
         foreach (var schedule in clinicalData.Where(s =>
-            !string.IsNullOrEmpty(s.MothraId) && !string.IsNullOrEmpty(s.SubjCode)))
+            !string.IsNullOrEmpty(s.MothraId) && !string.IsNullOrEmpty(s.SubjCode)
+            && importableMothraIds.Contains(s.MothraId)))
         {
             var courseKey = $"{schedule.SubjCode} {schedule.CrseNumb}";
             var effortKey = $"{schedule.MothraId}-{courseKey}";
 
             // Check if this course is the priority for this person/week
             var weekCourses = personWeekCourses[schedule.MothraId][schedule.WeekId];
-            var priorityCourse = GetPriorityCourse(weekCourses);
+            var priorityCourse = ClinicalImportService.GetPriorityCourse(weekCourses);
 
             if (courseKey != priorityCourse) continue;
 
@@ -184,8 +178,10 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
             });
         }
 
-        // Build clinical instructor previews
-        await BuildClinicalInstructorPreviewsAsync(context, clinicalData.Select(c => ((string?)c.MothraId, (string?)c.PersonName)).ToList(), ct);
+        // Build clinical instructor previews (only for importable instructors, reuse AAUD data)
+        await BuildClinicalInstructorPreviewsAsync(context,
+            clinicalData.Select(c => ((string?)c.MothraId, (string?)c.PersonName)).ToList(),
+            importableMothraIds, aaudTitleLookup, ct);
     }
 
     /// <inheritdoc />
@@ -196,150 +192,49 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
             return;
         }
 
-        // Import clinical courses
+        // Single code path: delegate to ClinicalImportService for all clinical record creation
+        // (persons, courses, and effort records are created as needed)
         context.Logger.LogInformation(
-            "Importing {Count} clinical courses for term {TermCode}",
-            context.Preview.ClinicalCourses.Count,
+            "Importing clinical effort for term {TermCode} via ClinicalImportService",
             context.TermCode);
 
-        foreach (var course in context.Preview.ClinicalCourses)
+        var result = await _clinicalImportService.ExecuteImportAsync(
+            context.TermCode, ClinicalImportMode.AddNewOnly, context.ModifiedBy, ct);
+
+        context.RecordsImported += result.RecordsAdded;
+        await context.ForceReportProgressAsync(PhaseName);
+
+        if (result.RecordsSkipped > 0)
         {
-            var key = BuildCourseLookupKey(course);
-            if (!context.CourseIdLookup.ContainsKey(key))
+            var details = result.SkippedInstructors.Count > 0
+                ? $"Skipped MothraIds: {string.Join(", ", result.SkippedInstructors)}"
+                : "Check instructor AAUD data for the term.";
+
+            context.Warnings.Add(new HarvestWarning
             {
-                var courseId = await ImportCourseAsync(course, context, ct);
-                context.CourseIdLookup[key] = courseId;
-
-                // Also add course code key for clinical effort records that don't have CRNs
-                // This is needed because clinical effort records have empty CRN but courses may have CRN from Banner
-                if (!string.IsNullOrWhiteSpace(course.Crn))
-                {
-                    var codeKey = $"{course.SubjCode}{course.CrseNumb}-{course.Units}";
-                    if (!context.CourseIdLookup.ContainsKey(codeKey))
-                    {
-                        context.CourseIdLookup[codeKey] = courseId;
-                    }
-                }
-            }
-        }
-
-        // Import clinical effort records
-        context.Logger.LogInformation(
-            "Importing {Count} clinical effort records for term {TermCode}",
-            context.Preview.ClinicalEffort.Count,
-            context.TermCode);
-
-        // Get all instructors from all phases for lookup
-        var allInstructors = context.Preview.CrestInstructors
-            .Concat(context.Preview.NonCrestInstructors)
-            .DistinctBy(p => p.MothraId)
-            .ToList();
-
-        foreach (var effort in context.Preview.ClinicalEffort)
-        {
-            // Look up instructor - first check existing preview lists
-            var instructorPreview = allInstructors.FirstOrDefault(i => i.MothraId == effort.MothraId);
-
-            // If not found in CREST/NonCrest, look up from ClinicalInstructors preview
-            // (which has AAUD data from BuildClinicalInstructorPreviewsAsync)
-            if (instructorPreview == null)
-            {
-                var clinicalPreview = context.Preview.ClinicalInstructors
-                    .FirstOrDefault(i => i.MothraId == effort.MothraId);
-
-                // Must have AAUD record with valid title code
-                if (clinicalPreview == null ||
-                    string.IsNullOrEmpty(clinicalPreview.TitleCode) ||
-                    !(context.TitleLookup?.ContainsKey(clinicalPreview.TitleCode) ?? false))
-                {
-                    context.Warnings.Add(new HarvestWarning
-                    {
-                        Phase = EffortConstants.PhaseClinical,
-                        Message = $"Skipping clinical instructor {effort.MothraId}: no AAUD record or invalid title code",
-                        Details = effort.CourseCode
-                    });
-                    continue;
-                }
-
-                // Get VIPER person record for PersonId
-                var person = await context.ViperContext.People
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.MothraId == effort.MothraId, ct);
-
-                if (person == null)
-                {
-                    context.Warnings.Add(new HarvestWarning
-                    {
-                        Phase = EffortConstants.PhaseClinical,
-                        Message = $"Instructor {effort.MothraId} not found in VIPER",
-                        Details = effort.CourseCode
-                    });
-                    continue;
-                }
-
-                instructorPreview = new HarvestPersonPreview
-                {
-                    MothraId = person.MothraId ?? "",
-                    PersonId = person.PersonId,
-                    FullName = clinicalPreview.FullName,
-                    FirstName = person.FirstName ?? "",
-                    LastName = person.LastName ?? "",
-                    Department = clinicalPreview.Department,
-                    TitleCode = clinicalPreview.TitleCode,
-                    TitleDescription = clinicalPreview.TitleDescription,
-                    Source = EffortConstants.SourceClinical
-                };
-            }
-
-            // Import instructor if not already imported
-            await ImportPersonAsync(instructorPreview, context, ct);
-
-            var result = await ImportEffortRecordAsync(effort, context, ct);
-            if (result.Record != null && result.Preview != null)
-            {
-                context.CreatedRecords.Add((result.Record, result.Preview));
-            }
+                Phase = EffortConstants.PhaseClinical,
+                Message = $"{result.RecordsSkipped} clinical records skipped (no AAUD record or invalid title)",
+                Details = details
+            });
         }
     }
 
     private async Task BuildClinicalInstructorPreviewsAsync(
         HarvestContext context,
         List<(string? MothraId, string? PersonName)> clinicalPersonData,
+        HashSet<string> importableMothraIds,
+        Dictionary<string, string> aaudTitleLookup,
         CancellationToken ct)
     {
-        var termCodeStr = context.TermCode.ToString();
-
-        // Get unique clinical instructor MothraIds
+        // Only build previews for importable instructors (those with valid AAUD data + title code)
         var clinicalMothraIds = clinicalPersonData
-            .Where(c => !string.IsNullOrEmpty(c.MothraId))
+            .Where(c => !string.IsNullOrEmpty(c.MothraId) && importableMothraIds.Contains(c.MothraId!))
             .Select(c => c.MothraId!)
             .Distinct()
             .ToList();
 
-        // Look up AAUD info for clinical instructors
-        var clinicalAaudInfo = await context.AaudContext.Ids
-            .AsNoTracking()
-            .Where(ids => ids.IdsMothraid != null && clinicalMothraIds.Contains(ids.IdsMothraid))
-            .Where(ids => ids.IdsTermCode == termCodeStr)
-            .Join(context.AaudContext.Employees.Where(e => e.EmpTermCode == termCodeStr),
-                ids => ids.IdsPKey,
-                emp => emp.EmpPKey,
-                (ids, emp) => new
-                {
-                    MothraId = ids.IdsMothraid,
-                    emp.EmpEffortTitleCode
-                })
-            .ToListAsync(ct);
-
-        var clinicalAaudLookup = clinicalAaudInfo
-            .Where(x => !string.IsNullOrEmpty(x.MothraId))
-            .GroupBy(x => x.MothraId!)
-            .ToDictionary(g => g.Key, g => g.First());
-
-        // Get title lookup and batch-resolve departments using full resolution chain
-        context.TitleLookup ??= (await context.InstructorService.GetTitleCodesAsync(ct))
-            .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
-
+        // Title lookup already populated by GeneratePreviewAsync
+        // Batch-resolve departments only for importable instructors
         var batchDepts = await context.InstructorService.BatchResolveDepartmentsAsync(clinicalMothraIds, context.TermCode, ct);
 
         // Get existing instructor MothraIds for IsNew determination
@@ -354,17 +249,16 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
             .GroupBy(c => c.MothraId!)
             .ToDictionary(g => g.Key, g => g.First().PersonName ?? "");
 
+        var titleLookup = context.TitleLookup!;
         foreach (var mothraId in clinicalMothraIds)
         {
             var personName = clinicalInstructorNames.GetValueOrDefault(mothraId, "");
-            var aaudInfo = clinicalAaudLookup.GetValueOrDefault(mothraId);
 
-            var titleCode = aaudInfo?.EmpEffortTitleCode?.Trim() ?? "";
-            var titleDesc = !string.IsNullOrEmpty(titleCode) && context.TitleLookup.TryGetValue(titleCode, out var desc)
+            var titleCode = aaudTitleLookup.GetValueOrDefault(mothraId, "");
+            var titleDesc = !string.IsNullOrEmpty(titleCode) && titleLookup.TryGetValue(titleCode, out var desc)
                 ? desc
                 : titleCode;
 
-            // Department already fully resolved by BatchResolveDepartmentsAsync
             var dept = batchDepts.GetValueOrDefault(mothraId, "UNK");
 
             context.Preview.ClinicalInstructors.Add(new HarvestPersonPreview
@@ -383,15 +277,5 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
         context.Preview.ClinicalInstructors = context.Preview.ClinicalInstructors
             .OrderBy(i => i.FullName, StringComparer.OrdinalIgnoreCase)
             .ToList();
-    }
-
-    private static string GetPriorityCourse(List<string> courses)
-    {
-        if (courses.Count == 1)
-        {
-            return courses[0];
-        }
-
-        return courses.MinBy(c => ClinicalCoursePriority.GetValueOrDefault(c, 0)) ?? courses[0];
     }
 }

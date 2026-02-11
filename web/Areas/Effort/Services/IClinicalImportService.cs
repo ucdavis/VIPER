@@ -10,6 +10,20 @@ namespace Viper.Areas.Effort.Services;
 public interface IClinicalImportService
 {
     /// <summary>
+    /// Validate which MothraIds have valid AAUD data (ids + employees + valid effort title code)
+    /// for the given term. Used by both harvest and standalone import previews to filter
+    /// records that would be skipped during execution.
+    /// </summary>
+    Task<ImportValidationResult> ValidateImportableInstructorsAsync(
+        IEnumerable<string> mothraIds, int termCode, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the set of existing clinical record keys for a term, using normalized
+    /// MothraId:CourseKey matching. Shared with HarvestService for preview comparison (DRY).
+    /// </summary>
+    Task<HashSet<string>> GetExistingClinicalRecordKeysAsync(int termCode, CancellationToken ct = default);
+
+    /// <summary>
     /// Generate a preview of clinical import data without modifying the database.
     /// </summary>
     /// <param name="termCode">The term code to import for.</param>

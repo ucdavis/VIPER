@@ -130,7 +130,6 @@ type HarvestPreviewDto = {
     summary: HarvestSummary
     warnings: HarvestWarning[]
     errors: HarvestError[]
-    percentRollover: PercentRolloverPreviewDto | null
 }
 
 type HarvestResultDto = {

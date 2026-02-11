@@ -147,16 +147,6 @@ public abstract class HarvestPhaseBase : IHarvestPhase
             return (null, null);
         }
 
-        // Skip effort records with neither Hours nor Weeks
-        if (effort.Hours.GetValueOrDefault() == 0 && effort.Weeks.GetValueOrDefault() == 0)
-        {
-            ctx.Logger.LogDebug(
-                "Skipping effort record with no hours or weeks: {MothraId} {CourseCode}",
-                LogSanitizer.SanitizeId(effort.MothraId),
-                LogSanitizer.SanitizeId(effort.CourseCode));
-            return (null, null);
-        }
-
         // Find the course ID
         int courseId;
         if (!string.IsNullOrWhiteSpace(effort.Crn) && ctx.CourseIdLookup.TryGetValue($"CRN:{effort.Crn}", out courseId))

@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.Effort.Constants;
-using Viper.Areas.Effort.Helpers;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
 using Web.Authorization;
@@ -11,58 +10,43 @@ namespace Viper.Areas.Effort.Controllers;
 
 /// <summary>
 /// API controller for standalone percent assignment rollover.
+/// The year parameter is the boundary year (e.g., 2025 = AY 2024-2025 → 2025-2026).
 /// </summary>
-[Route("/api/effort/terms/{termCode:int}/rollover")]
+[Route("/api/effort/rollover/{year:int}")]
 [Permission(Allow = EffortPermissions.ManageTerms)]
 public class PercentRolloverController : BaseEffortController
 {
     private readonly IPercentRolloverService _rolloverService;
-    private readonly ITermService _termService;
     private readonly IEffortPermissionService _permissionService;
 
     public PercentRolloverController(
         IPercentRolloverService rolloverService,
-        ITermService termService,
         IEffortPermissionService permissionService,
         ILogger<PercentRolloverController> logger) : base(logger)
     {
         _rolloverService = rolloverService;
-        _termService = termService;
         _permissionService = permissionService;
     }
 
     /// <summary>
     /// Generate a preview of percent assignment rollover data without saving.
     /// </summary>
-    /// <param name="termCode">The term code to preview rollover for.</param>
+    /// <param name="year">The boundary year to preview rollover for.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Preview of assignments that would be rolled over.</returns>
     [HttpGet("preview")]
-    public async Task<ActionResult<PercentRolloverPreviewDto>> GetPreview(int termCode, CancellationToken ct)
+    public async Task<ActionResult<PercentRolloverPreviewDto>> GetPreview(int year, CancellationToken ct)
     {
-        SetExceptionContext("termCode", termCode);
+        SetExceptionContext("year", year);
 
-        var term = await _termService.GetTermAsync(termCode, ct);
-        if (term == null)
+        if (year < 2020 || year > DateTime.Now.Year)
         {
-            _logger.LogWarning("Term not found for rollover preview: {TermCode}", termCode);
-            return NotFound($"Term {termCode} not found");
+            _logger.LogWarning("Invalid year for rollover preview: {Year}", year);
+            return BadRequest($"Year must be between 2020 and {DateTime.Now.Year}");
         }
 
-        // Validate term eligibility (Fall term + status)
-        if (!TermValidationHelper.CanRolloverPercent(term.Status, termCode))
-        {
-            if (!TermValidationHelper.IsFallTermByCode(termCode))
-            {
-                _logger.LogWarning("Invalid term for rollover: {TermCode} is not a Fall term", termCode);
-                return BadRequest("Percent rollover is only available for Fall terms");
-            }
-            _logger.LogWarning("Invalid term status for rollover: {TermCode} (status: {Status})", termCode, term.Status);
-            return BadRequest($"Percent rollover is not available for terms with status '{term.Status}'");
-        }
-
-        _logger.LogInformation("Generating rollover preview for term {TermCode}", termCode);
-        var preview = await _rolloverService.GetRolloverPreviewAsync(termCode, ct);
+        _logger.LogInformation("Generating rollover preview for year {Year}", year);
+        var preview = await _rolloverService.GetRolloverPreviewAsync(year, ct);
 
         return Ok(preview);
     }
@@ -70,12 +54,12 @@ public class PercentRolloverController : BaseEffortController
     /// <summary>
     /// Execute percent assignment rollover with real-time progress updates via Server-Sent Events (SSE).
     /// </summary>
-    /// <param name="termCode">The term code to rollover for.</param>
+    /// <param name="year">The boundary year to rollover for.</param>
     /// <param name="ct">Cancellation token.</param>
     [HttpGet("stream")]
-    public async Task StreamRollover(int termCode, CancellationToken ct)
+    public async Task StreamRollover(int year, CancellationToken ct)
     {
-        SetExceptionContext("termCode", termCode);
+        SetExceptionContext("year", year);
 
         // CSRF protection: validate same-origin request
         if (!ValidateSameOrigin())
@@ -84,26 +68,9 @@ public class PercentRolloverController : BaseEffortController
             return;
         }
 
-        // Validate term before starting stream
-        var term = await _termService.GetTermAsync(termCode, ct);
-        if (term == null)
+        if (year < 2020 || year > DateTime.Now.Year)
         {
-            _logger.LogWarning("Term not found for rollover stream: {TermCode}", termCode);
-            Response.StatusCode = 404;
-            return;
-        }
-
-        // Validate term eligibility (Fall term + status)
-        if (!TermValidationHelper.CanRolloverPercent(term.Status, termCode))
-        {
-            if (!TermValidationHelper.IsFallTermByCode(termCode))
-            {
-                _logger.LogWarning("Invalid term for rollover: {TermCode} is not a Fall term", termCode);
-            }
-            else
-            {
-                _logger.LogWarning("Invalid term status for rollover: {TermCode} (status: {Status})", termCode, term.Status);
-            }
+            _logger.LogWarning("Invalid year for rollover stream: {Year}", year);
             Response.StatusCode = 400;
             return;
         }
@@ -115,7 +82,7 @@ public class PercentRolloverController : BaseEffortController
         Response.Headers.Append("Cache-Control", "no-cache");
         Response.Headers.Append("Connection", "keep-alive");
 
-        _logger.LogInformation("Starting SSE rollover stream for term {TermCode} by user {ModifiedBy}", termCode, modifiedBy);
+        _logger.LogInformation("Starting SSE rollover stream for year {Year} by user {ModifiedBy}", year, modifiedBy);
 
         var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -127,22 +94,22 @@ public class PercentRolloverController : BaseEffortController
         {
             try
             {
-                await _rolloverService.ExecuteRolloverWithProgressAsync(termCode, modifiedBy, channel.Writer, ct);
+                await _rolloverService.ExecuteRolloverWithProgressAsync(year, modifiedBy, channel.Writer, ct);
             }
             catch (OperationCanceledException ex)
             {
-                _logger.LogInformation(ex, "Rollover cancelled for term {TermCode}", termCode);
+                _logger.LogInformation(ex, "Rollover cancelled for year {Year}", year);
                 channel.Writer.Complete();
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Invalid operation during rollover for term {TermCode}", termCode);
+                _logger.LogError(ex, "Invalid operation during rollover for year {Year}", year);
                 await channel.Writer.WriteAsync(RolloverProgressEvent.Failed("An invalid operation occurred during rollover."), ct);
                 channel.Writer.Complete();
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
             {
-                _logger.LogError(ex, "Database error during rollover for term {TermCode}", termCode);
+                _logger.LogError(ex, "Database error during rollover for year {Year}", year);
                 await channel.Writer.WriteAsync(RolloverProgressEvent.Failed("A database error occurred during rollover."), ct);
                 channel.Writer.Complete();
             }
@@ -165,7 +132,7 @@ public class PercentRolloverController : BaseEffortController
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogInformation(ex, "Rollover stream cancelled for term {TermCode}", termCode);
+            _logger.LogInformation(ex, "Rollover stream cancelled for year {Year}", year);
         }
 
         await rolloverTask;

@@ -92,12 +92,6 @@ public class TermDto
     public bool CanHarvest => !OpenedDate.HasValue && !ClosedDate.HasValue;
 
     /// <summary>
-    /// Whether percent assignments can be rolled over for this term (Fall terms only).
-    /// This value is populated by the service when fetching terms for management.
-    /// </summary>
-    public bool CanRolloverPercent { get; set; }
-
-    /// <summary>
     /// Whether clinical data can be imported for this term (semester terms with Created/Harvested/Open status).
     /// This value is populated by the service when fetching terms for management.
     /// </summary>

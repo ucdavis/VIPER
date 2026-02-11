@@ -9,7 +9,9 @@ using Viper.Models.VIPER;
 namespace Viper.Areas.Effort.Services;
 
 /// <summary>
-/// Service for rolling over percent assignments to a new academic year during harvest.
+/// Service for rolling over percent assignments to a new academic year.
+/// The boundary year determines the rollover: assignments ending June 30 of that year
+/// are copied to July 1 of that year through June 30 of the next year.
 /// </summary>
 public class PercentRolloverService : IPercentRolloverService
 {
@@ -30,30 +32,21 @@ public class PercentRolloverService : IPercentRolloverService
         _logger = logger;
     }
 
-    public bool ShouldRollover(int termCode)
-    {
-        var termType = termCode % 100;
-        // Fall Semester (9) or Fall Quarter (10) only
-        return termType == 9 || termType == 10;
-    }
-
-    public async Task<PercentRolloverPreviewDto> GetRolloverPreviewAsync(int termCode, CancellationToken ct = default)
+    public async Task<PercentRolloverPreviewDto> GetRolloverPreviewAsync(int year, CancellationToken ct = default)
     {
         var result = new PercentRolloverPreviewDto();
 
-        // Fall 2025 (term 202509) -> source AY ending 2025, target AY ending 2026
-        var termYear = termCode / 100;
-        result.SourceAcademicYear = termYear;
-        result.TargetAcademicYear = termYear + 1;
-        result.SourceAcademicYearDisplay = $"{termYear - 1}-{termYear}";
-        result.TargetAcademicYearDisplay = $"{termYear}-{termYear + 1}";
+        result.SourceAcademicYear = year;
+        result.TargetAcademicYear = year + 1;
+        result.SourceAcademicYearDisplay = $"{year - 1}-{year}";
+        result.TargetAcademicYearDisplay = $"{year}-{year + 1}";
 
         // Boundary dates (use date range to avoid .Date client evaluation issues)
-        var june30Start = new DateTime(termYear, 6, 30, 0, 0, 0, DateTimeKind.Local);
-        var july1Start = new DateTime(termYear, 7, 1, 0, 0, 0, DateTimeKind.Local);
+        var june30Start = new DateTime(year, 6, 30, 0, 0, 0, DateTimeKind.Local);
+        var july1Start = new DateTime(year, 7, 1, 0, 0, 0, DateTimeKind.Local);
         result.OldEndDate = june30Start;
         result.NewStartDate = july1Start;
-        result.NewEndDate = new DateTime(termYear + 1, 6, 30, 0, 0, 0, DateTimeKind.Local);
+        result.NewEndDate = new DateTime(year + 1, 6, 30, 0, 0, 0, DateTimeKind.Local);
 
         // Find assignments ending on June 30 of source year (any time on that day)
         var assignments = await _context.Percentages
@@ -88,10 +81,13 @@ public class PercentRolloverService : IPercentRolloverService
             .Where(a => existingKeys.Contains((a.PersonId, a.PercentAssignTypeId, a.UnitId, a.Modifier, a.Compensated, a.PercentageValue, a.Comment)))
             .ToList();
 
-        // Get (PersonId, PercentAssignTypeId) combinations that were manually edited/deleted after harvest
-        // If the term has been harvested, exclude assignments where someone made manual changes
+        // Get (PersonId, PercentAssignTypeId) combinations that were manually edited/deleted after harvest.
+        // Look up the Fall term for this boundary year to find its HarvestedDate.
         var excludedByAudit = new List<Percentage>();
-        var term = await _context.Terms.AsNoTracking().FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
+        var term = await _context.Terms.AsNoTracking()
+            .Where(t => t.TermCode == year * 100 + 9 || t.TermCode == year * 100 + 10)
+            .OrderByDescending(t => t.HarvestedDate)
+            .FirstOrDefaultAsync(ct);
         if (term?.HarvestedDate != null)
         {
             var excludedCombinations = await _auditService.GetPostHarvestPercentChangesAsync(term.HarvestedDate.Value, ct);
@@ -149,20 +145,13 @@ public class PercentRolloverService : IPercentRolloverService
         };
     }
 
-    public async Task<int> ExecuteRolloverAsync(int termCode, int modifiedBy, CancellationToken ct = default)
+    public async Task<int> ExecuteRolloverAsync(int year, int modifiedBy, CancellationToken ct = default)
     {
-        // Guard: Only Fall terms should have rollover
-        if (!ShouldRollover(termCode))
-        {
-            _logger.LogInformation("Skipping percent rollover for non-Fall term {TermCode}", termCode);
-            return 0;
-        }
-
         // Get fresh preview (includes idempotency check)
-        var preview = await GetRolloverPreviewAsync(termCode, ct);
+        var preview = await GetRolloverPreviewAsync(year, ct);
         if (!preview.IsRolloverApplicable)
         {
-            _logger.LogInformation("No percent assignments to rollover for term {TermCode}", termCode);
+            _logger.LogInformation("No percent assignments to rollover for year {Year}", year);
             return 0;
         }
 
@@ -189,48 +178,30 @@ public class PercentRolloverService : IPercentRolloverService
         _context.Percentages.AddRange(newRecords);
         var created = newRecords.Count;
 
-        // NOTE: SaveChangesAsync is called by HarvestService after this method returns
-        // This keeps rollover within the same transaction as the rest of harvest
-
-        // Audit
-        _auditService.AddImportAudit(termCode, EffortAuditActions.RolloverPercentAssignments,
+        _auditService.AddImportAudit(EffortAuditActions.RolloverPercentAssignments,
             $"Rolled over {created} percent assignments from {preview.SourceAcademicYearDisplay} to {preview.TargetAcademicYearDisplay}");
 
-        _logger.LogInformation("Rolled over {Count} percent assignments for term {TermCode}: {Source} -> {Target}",
-            created, termCode, preview.SourceAcademicYearDisplay, preview.TargetAcademicYearDisplay);
+        await _context.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Rolled over {Count} percent assignments for year {Year}: {Source} -> {Target}",
+            created, year, preview.SourceAcademicYearDisplay, preview.TargetAcademicYearDisplay);
 
         return created;
     }
 
     public async Task<int> ExecuteRolloverWithProgressAsync(
-        int termCode,
+        int year,
         int modifiedBy,
         ChannelWriter<RolloverProgressEvent> progressChannel,
         CancellationToken ct = default)
     {
-        // Guard: Only Fall terms should have rollover
-        if (!ShouldRollover(termCode))
-        {
-            _logger.LogInformation("Skipping percent rollover for non-Fall term {TermCode}", termCode);
-            var noOpResult = new RolloverResultDto
-            {
-                Success = true,
-                AssignmentsCreated = 0,
-                SourceAcademicYear = "",
-                TargetAcademicYear = ""
-            };
-            await progressChannel.WriteAsync(RolloverProgressEvent.Complete(noOpResult), ct);
-            progressChannel.Complete();
-            return 0;
-        }
-
         await progressChannel.WriteAsync(RolloverProgressEvent.Preparing(), ct);
 
         // Get fresh preview (includes idempotency check)
-        var preview = await GetRolloverPreviewAsync(termCode, ct);
+        var preview = await GetRolloverPreviewAsync(year, ct);
         if (!preview.IsRolloverApplicable)
         {
-            _logger.LogInformation("No percent assignments to rollover for term {TermCode}", termCode);
+            _logger.LogInformation("No percent assignments to rollover for year {Year}", year);
             var noRolloverResult = new RolloverResultDto
             {
                 Success = true,
@@ -277,15 +248,13 @@ public class PercentRolloverService : IPercentRolloverService
 
         await progressChannel.WriteAsync(RolloverProgressEvent.Finalizing(), ct);
 
-        // Audit (add before SaveChanges to persist with rollover changes)
-        _auditService.AddImportAudit(termCode, EffortAuditActions.RolloverPercentAssignments,
+        _auditService.AddImportAudit(EffortAuditActions.RolloverPercentAssignments,
             $"Rolled over {created} percent assignments from {preview.SourceAcademicYearDisplay} to {preview.TargetAcademicYearDisplay}");
 
-        // Save changes (standalone operation, not part of harvest transaction)
         await _context.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Rolled over {Count} percent assignments for term {TermCode}: {Source} -> {Target}",
-            created, termCode, preview.SourceAcademicYearDisplay, preview.TargetAcademicYearDisplay);
+        _logger.LogInformation("Rolled over {Count} percent assignments for year {Year}: {Source} -> {Target}",
+            created, year, preview.SourceAcademicYearDisplay, preview.TargetAcademicYearDisplay);
 
         var result = new RolloverResultDto
         {

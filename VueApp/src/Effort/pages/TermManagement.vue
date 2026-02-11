@@ -10,33 +10,125 @@
         </div>
 
         <template v-else>
-            <!-- Add Future Term Section -->
-            <div
-                v-if="availableTerms.length > 0"
-                class="q-mb-lg"
-            >
-                <div class="text-subtitle1 q-mb-sm">Add Future Term</div>
-                <div class="row items-center q-gutter-sm">
-                    <q-select
-                        v-model="selectedNewTerm"
-                        :options="availableTerms"
-                        option-label="termName"
-                        option-value="termCode"
-                        label="Select a term to add"
-                        dense
-                        options-dense
-                        outlined
-                        style="min-width: 250px"
-                    />
-                    <q-btn
-                        label="Add Term"
-                        color="primary"
-                        dense
-                        :disable="!selectedNewTerm"
-                        @click="confirmAddTerm"
-                    />
-                </div>
+            <!-- Action Buttons -->
+            <div class="row q-gutter-sm q-mb-md">
+                <q-btn
+                    v-if="availableTerms.length > 0"
+                    icon="add"
+                    label="Add Future Term"
+                    color="primary"
+                    dense
+                    no-caps
+                    :outline="showAddTermForm"
+                    @click="toggleAddTermForm"
+                    @keyup.enter="toggleAddTermForm"
+                    @keyup.space="toggleAddTermForm"
+                />
+                <q-btn
+                    icon="event_repeat"
+                    label="Percent Rollover"
+                    color="cyan-8"
+                    :text-color="showRolloverForm ? undefined : 'white'"
+                    dense
+                    no-caps
+                    :outline="showRolloverForm"
+                    @click="toggleRolloverForm"
+                    @keyup.enter="toggleRolloverForm"
+                    @keyup.space="toggleRolloverForm"
+                />
             </div>
+
+            <!-- Percent Assignment Rollover (inline expand) -->
+            <q-slide-transition>
+                <div
+                    v-show="showRolloverForm"
+                    class="q-mb-md q-pa-sm bg-grey-1 rounded-borders"
+                >
+                    <div class="row items-center q-gutter-sm">
+                        <template v-if="!rolloverYearOverride">
+                            <span class="text-body2"
+                                >Year: <strong>{{ rolloverYear }}</strong></span
+                            >
+                            <q-btn
+                                label="Change"
+                                flat
+                                dense
+                                no-caps
+                                size="sm"
+                                color="grey-7"
+                                @click="rolloverYearOverride = true"
+                            />
+                        </template>
+                        <template v-else>
+                            <q-input
+                                v-model.number="rolloverYear"
+                                type="number"
+                                label="Boundary Year"
+                                dense
+                                outlined
+                                style="max-width: 150px"
+                                :rules="[yearRule]"
+                            />
+                            <q-btn
+                                label="Reset"
+                                flat
+                                dense
+                                no-caps
+                                size="sm"
+                                color="grey-7"
+                                @click="resetRolloverYear"
+                            />
+                        </template>
+                        <q-btn
+                            icon="event_repeat"
+                            label="Preview Rollover"
+                            color="cyan-8"
+                            text-color="white"
+                            dense
+                            no-caps
+                            :disable="!rolloverYear || rolloverYear < 2020 || rolloverYear > currentYear"
+                            @click="openRolloverDialog"
+                            @keyup.enter="openRolloverDialog"
+                            @keyup.space="openRolloverDialog"
+                        />
+                    </div>
+                    <div
+                        v-if="rolloverYearOverride"
+                        class="text-caption text-orange-9 q-mt-xs"
+                    >
+                        Changing the year from the default is unusual. Only do this if you need to run a past rollover.
+                    </div>
+                </div>
+            </q-slide-transition>
+
+            <!-- Add Future Term (inline expand) -->
+            <q-slide-transition>
+                <div
+                    v-show="showAddTermForm && availableTerms.length > 0"
+                    class="q-mb-md q-pa-sm bg-grey-1 rounded-borders"
+                >
+                    <div class="row items-center q-gutter-sm">
+                        <q-select
+                            v-model="selectedNewTerm"
+                            :options="availableTerms"
+                            option-label="termName"
+                            option-value="termCode"
+                            label="Select a term to add"
+                            dense
+                            options-dense
+                            outlined
+                            style="min-width: 250px"
+                        />
+                        <q-btn
+                            label="Add Term"
+                            color="primary"
+                            dense
+                            :disable="!selectedNewTerm"
+                            @click="confirmAddTerm"
+                        />
+                    </div>
+                </div>
+            </q-slide-transition>
             <!-- Desktop: Table view -->
             <q-table
                 :rows="terms"
@@ -99,23 +191,6 @@
                                     <q-tooltip
                                         >Import instructors and courses from CREST and Clinical Scheduler</q-tooltip
                                     >
-                                </q-btn>
-                                <q-btn
-                                    v-if="props.row.canRolloverPercent"
-                                    icon="event_repeat"
-                                    label="Percent Rollover"
-                                    color="cyan-8"
-                                    text-color="white"
-                                    dense
-                                    no-caps
-                                    size="sm"
-                                    padding="2px sm"
-                                    class="term-action-btn"
-                                    @click="openRolloverDialog(props.row)"
-                                    @keyup.enter="openRolloverDialog(props.row)"
-                                    @keyup.space="openRolloverDialog(props.row)"
-                                >
-                                    <q-tooltip>Roll forward percent assignments to the new academic year</q-tooltip>
                                 </q-btn>
                                 <q-btn
                                     v-if="props.row.canImportClinical"
@@ -266,21 +341,6 @@
                                 @keyup.space="openHarvestDialog(term)"
                             />
                             <q-btn
-                                v-if="term.canRolloverPercent"
-                                icon="event_repeat"
-                                label="Percent Rollover"
-                                color="cyan-8"
-                                text-color="white"
-                                dense
-                                no-caps
-                                size="sm"
-                                padding="2px sm"
-                                class="term-action-btn"
-                                @click="openRolloverDialog(term)"
-                                @keyup.enter="openRolloverDialog(term)"
-                                @keyup.space="openRolloverDialog(term)"
-                            />
-                            <q-btn
                                 v-if="term.canImportClinical"
                                 icon="medical_services"
                                 label="Import Clinical"
@@ -387,8 +447,7 @@
         <!-- Percent Rollover Dialog -->
         <PercentRolloverDialog
             v-model="rolloverDialogOpen"
-            :term-code="rolloverTermCode"
-            :term-name="rolloverTermName"
+            :year="rolloverYear"
             @completed="onRolloverCompleted"
         />
 
@@ -406,6 +465,7 @@
 import { ref, onMounted } from "vue"
 import { useQuasar } from "quasar"
 import { termService } from "../services/term-service"
+import { rolloverService } from "../services/rollover-service"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import HarvestDialog from "../components/HarvestDialog.vue"
 import PercentRolloverDialog from "../components/PercentRolloverDialog.vue"
@@ -420,16 +480,40 @@ const terms = ref<TermDto[]>([])
 const availableTerms = ref<AvailableTermDto[]>([])
 const selectedNewTerm = ref<AvailableTermDto | null>(null)
 const isLoading = ref(false)
+const showRolloverForm = ref(false)
+const showAddTermForm = ref(false)
 
 // Harvest dialog state
 const harvestDialogOpen = ref(false)
 const harvestTermCode = ref<number | null>(null)
 const harvestTermName = ref("")
 
-// Percent Rollover dialog state
+// Percent Rollover state
 const rolloverDialogOpen = ref(false)
-const rolloverTermCode = ref<number | null>(null)
-const rolloverTermName = ref("")
+const currentYear = new Date().getFullYear()
+const rolloverYear = ref(rolloverService.getDefaultYear())
+const rolloverYearOverride = ref(false)
+
+function yearRule(val: number) {
+    if (!val || val < 2020) return "Year must be 2020 or later"
+    if (val > currentYear) return `Year cannot be in the future (max: ${currentYear})`
+    return true
+}
+
+function resetRolloverYear() {
+    rolloverYear.value = rolloverService.getDefaultYear()
+    rolloverYearOverride.value = false
+}
+
+function toggleRolloverForm() {
+    showRolloverForm.value = !showRolloverForm.value
+    showAddTermForm.value = false
+}
+
+function toggleAddTermForm() {
+    showAddTermForm.value = !showAddTermForm.value
+    showRolloverForm.value = false
+}
 
 // Clinical Import dialog state
 const clinicalDialogOpen = ref(false)
@@ -548,9 +632,7 @@ function onHarvested() {
     loadTerms({ background: true })
 }
 
-function openRolloverDialog(term: TermDto) {
-    rolloverTermCode.value = term.termCode
-    rolloverTermName.value = term.termName
+function openRolloverDialog() {
     rolloverDialogOpen.value = true
 }
 

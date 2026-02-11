@@ -78,6 +78,17 @@ public class ClinicalImportProgressEvent
     };
 }
 
+/// <summary>
+/// Result of validating which clinical instructors can be imported (have valid AAUD data + title code).
+/// Shared by both harvest preview and standalone import preview for consistent filtering.
+/// </summary>
+public class ImportValidationResult
+{
+    public HashSet<string> ImportableMothraIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, string> TitleCodeByMothraId { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public List<string> SkippedMothraIds { get; set; } = [];
+}
+
 public class ClinicalImportResultDto
 {
     public bool Success { get; set; }
@@ -86,4 +97,9 @@ public class ClinicalImportResultDto
     public int RecordsDeleted { get; set; }
     public int RecordsSkipped { get; set; }
     public string? ErrorMessage { get; set; }
+
+    /// <summary>
+    /// MothraIds of instructors skipped during import (no AAUD record or invalid title code).
+    /// </summary>
+    public List<string> SkippedInstructors { get; set; } = [];
 }

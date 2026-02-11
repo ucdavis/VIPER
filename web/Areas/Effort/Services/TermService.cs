@@ -62,8 +62,6 @@ public class TermService : ITermService
             var dto = _mapper.Map<TermDto>(t);
             dto.TermName = GetTermName(t.TermCode);
             dto.CanDelete = !termsWithData.Contains(t.TermCode);
-            // Use term status and term code for rollover eligibility (Fall terms, not Closed)
-            dto.CanRolloverPercent = TermValidationHelper.CanRolloverPercent(dto.Status, t.TermCode);
             // Use term status and term code for clinical import eligibility
             dto.CanImportClinical = TermValidationHelper.CanImportClinical(dto.Status, t.TermCode);
             return dto;
@@ -79,8 +77,6 @@ public class TermService : ITermService
         if (term == null) return null;
         var dto = _mapper.Map<TermDto>(term);
         dto.TermName = GetTermName(termCode);
-        // Use term status and term code for rollover eligibility (Fall terms, not Closed)
-        dto.CanRolloverPercent = TermValidationHelper.CanRolloverPercent(dto.Status, termCode);
         // Use term status and term code for clinical import eligibility
         dto.CanImportClinical = TermValidationHelper.CanImportClinical(dto.Status, termCode);
         return dto;
