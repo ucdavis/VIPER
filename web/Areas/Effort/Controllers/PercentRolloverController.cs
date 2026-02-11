@@ -90,7 +90,8 @@ public class PercentRolloverController : BaseEffortController
         // Create a channel for progress events
         var channel = Channel.CreateUnbounded<RolloverProgressEvent>();
 
-        // Start the rollover in a background task
+        // Start the rollover in a background task.
+        // Don't pass ct to Task.Run — cancellation is handled cooperatively inside the lambda.
         var rolloverTask = Task.Run(async () =>
         {
             try
@@ -105,20 +106,20 @@ public class PercentRolloverController : BaseEffortController
             catch (InvalidOperationException ex)
             {
                 _logger.LogError(ex, "Invalid operation during rollover for year {Year}", LogSanitizer.SanitizeYear(year));
-                await channel.Writer.WriteAsync(RolloverProgressEvent.Failed("An invalid operation occurred during rollover."), ct);
+                await channel.Writer.WriteAsync(RolloverProgressEvent.Failed("An invalid operation occurred during rollover."), CancellationToken.None);
                 channel.Writer.Complete();
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
             {
                 _logger.LogError(ex, "Database error during rollover for year {Year}", LogSanitizer.SanitizeYear(year));
-                await channel.Writer.WriteAsync(RolloverProgressEvent.Failed("A database error occurred during rollover."), ct);
+                await channel.Writer.WriteAsync(RolloverProgressEvent.Failed("A database error occurred during rollover."), CancellationToken.None);
                 channel.Writer.Complete();
             }
             finally
             {
                 channel.Writer.TryComplete();
             }
-        }, ct);
+        });
 
         try
         {
@@ -136,6 +137,13 @@ public class PercentRolloverController : BaseEffortController
             _logger.LogInformation(ex, "Rollover stream cancelled for year {Year}", LogSanitizer.SanitizeYear(year));
         }
 
-        await rolloverTask;
+        try
+        {
+            await rolloverTask;
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when client disconnects — not an error
+        }
     }
 }
