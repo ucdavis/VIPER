@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
+using Viper.Classes.Utilities;
 using Web.Authorization;
 
 namespace Viper.Areas.Effort.Controllers;
@@ -41,11 +42,11 @@ public class PercentRolloverController : BaseEffortController
 
         if (year < 2020 || year > DateTime.Now.Year)
         {
-            _logger.LogWarning("Invalid year for rollover preview: {Year}", year);
+            _logger.LogWarning("Invalid year for rollover preview: {Year}", LogSanitizer.SanitizeYear(year));
             return BadRequest($"Year must be between 2020 and {DateTime.Now.Year}");
         }
 
-        _logger.LogInformation("Generating rollover preview for year {Year}", year);
+        _logger.LogInformation("Generating rollover preview for year {Year}", LogSanitizer.SanitizeYear(year));
         var preview = await _rolloverService.GetRolloverPreviewAsync(year, ct);
 
         return Ok(preview);
@@ -70,7 +71,7 @@ public class PercentRolloverController : BaseEffortController
 
         if (year < 2020 || year > DateTime.Now.Year)
         {
-            _logger.LogWarning("Invalid year for rollover stream: {Year}", year);
+            _logger.LogWarning("Invalid year for rollover stream: {Year}", LogSanitizer.SanitizeYear(year));
             Response.StatusCode = 400;
             return;
         }
@@ -82,7 +83,7 @@ public class PercentRolloverController : BaseEffortController
         Response.Headers.Append("Cache-Control", "no-cache");
         Response.Headers.Append("Connection", "keep-alive");
 
-        _logger.LogInformation("Starting SSE rollover stream for year {Year} by user {ModifiedBy}", year, modifiedBy);
+        _logger.LogInformation("Starting SSE rollover stream for year {Year} by user {ModifiedBy}", LogSanitizer.SanitizeYear(year), modifiedBy);
 
         var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -98,18 +99,18 @@ public class PercentRolloverController : BaseEffortController
             }
             catch (OperationCanceledException ex)
             {
-                _logger.LogInformation(ex, "Rollover cancelled for year {Year}", year);
+                _logger.LogInformation(ex, "Rollover cancelled for year {Year}", LogSanitizer.SanitizeYear(year));
                 channel.Writer.Complete();
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Invalid operation during rollover for year {Year}", year);
+                _logger.LogError(ex, "Invalid operation during rollover for year {Year}", LogSanitizer.SanitizeYear(year));
                 await channel.Writer.WriteAsync(RolloverProgressEvent.Failed("An invalid operation occurred during rollover."), ct);
                 channel.Writer.Complete();
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
             {
-                _logger.LogError(ex, "Database error during rollover for year {Year}", year);
+                _logger.LogError(ex, "Database error during rollover for year {Year}", LogSanitizer.SanitizeYear(year));
                 await channel.Writer.WriteAsync(RolloverProgressEvent.Failed("A database error occurred during rollover."), ct);
                 channel.Writer.Complete();
             }
@@ -132,7 +133,7 @@ public class PercentRolloverController : BaseEffortController
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogInformation(ex, "Rollover stream cancelled for year {Year}", year);
+            _logger.LogInformation(ex, "Rollover stream cancelled for year {Year}", LogSanitizer.SanitizeYear(year));
         }
 
         await rolloverTask;

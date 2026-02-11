@@ -220,12 +220,13 @@ public class PercentRolloverService : IPercentRolloverService
             .ToListAsync(ct);
 
         var total = sourceRecords.Count;
-        var created = 0;
-        foreach (var source in sourceRecords)
+        var newRecords = new List<Percentage>(total);
+        for (var i = 0; i < sourceRecords.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
+            var source = sourceRecords[i];
 
-            var newRecord = new Percentage
+            newRecords.Add(new Percentage
             {
                 PersonId = source.PersonId,
                 AcademicYear = preview.TargetAcademicYearDisplay,
@@ -239,12 +240,12 @@ public class PercentRolloverService : IPercentRolloverService
                 Compensated = source.Compensated,
                 ModifiedDate = DateTime.Now,
                 ModifiedBy = modifiedBy
-            };
-            _context.Percentages.Add(newRecord);
-            created++;
+            });
 
-            await progressChannel.WriteAsync(RolloverProgressEvent.Rolling(created, total), ct);
+            await progressChannel.WriteAsync(RolloverProgressEvent.Rolling(i + 1, total), ct);
         }
+        _context.Percentages.AddRange(newRecords);
+        var created = newRecords.Count;
 
         await progressChannel.WriteAsync(RolloverProgressEvent.Finalizing(), ct);
 

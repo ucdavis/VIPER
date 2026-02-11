@@ -107,7 +107,7 @@ type RolloverProgressEvent = {
  */
 type RolloverResult = {
     success: boolean
-    count: number
+    assignmentsCreated: number
     errorMessage?: string
     sourceAcademicYear: string
     targetAcademicYear: string
