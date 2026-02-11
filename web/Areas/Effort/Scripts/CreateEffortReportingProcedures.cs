@@ -4,7 +4,7 @@
 // Author: VIPER2 Development Team
 // Date: 2025-11-14
 // ============================================
-// This script creates 23 complex reporting stored procedures for the Effort database.
+// This script creates 23 reporting stored procedures and 1 shared function for the Effort database.
 // These SPs are optimized for performance on large datasets and complex aggregations.
 // CRUD operations are handled by Entity Framework repositories instead.
 // ============================================
@@ -143,9 +143,11 @@ namespace Viper.Areas.Effort.Scripts
             return true;
         }
 
-        // List of all managed stored procedures (23 total)
+        // List of all managed stored procedures and functions
         static readonly HashSet<string> ManagedProcedures = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
+            // Shared Functions (1 function)
+            "fn_qualified_job_groups",
             // Merit & Promotion Reports (11 procedures)
             "sp_merit_summary_report",
             "sp_merit_summary",
@@ -193,6 +195,9 @@ namespace Viper.Areas.Effort.Scripts
 
             try
             {
+                // Shared Functions (must be created before procedures that reference them)
+                CreateProcedure(connection, transaction, "fn_qualified_job_groups", GetQualifiedJobGroupsFunctionSql(), ref successCount, ref failureCount, failedProcedures);
+
                 // Merit & Promotion Reports (11 procedures)
                 CreateProcedure(connection, transaction, "sp_merit_summary_report", GetMeritSummaryReportSql(), ref successCount, ref failureCount, failedProcedures);
                 CreateProcedure(connection, transaction, "sp_merit_summary", GetMeritSummarySql(), ref successCount, ref failureCount, failedProcedures);
@@ -303,92 +308,127 @@ namespace Viper.Areas.Effort.Scripts
         {
             Console.WriteLine("Checking for orphaned procedures...");
 
-            // Query all procedures in [effort] schema
+            // Query all procedures and functions in [effort] schema
             string queryExistingProcs = @"
-                SELECT ROUTINE_NAME
+                SELECT ROUTINE_NAME, ROUTINE_TYPE
                 FROM INFORMATION_SCHEMA.ROUTINES
                 WHERE ROUTINE_SCHEMA = 'effort'
-                    AND ROUTINE_TYPE = 'PROCEDURE'
+                    AND ROUTINE_TYPE IN ('PROCEDURE', 'FUNCTION')
                 ORDER BY ROUTINE_NAME";
 
-            var existingProcedures = new List<string>();
+            var existingRoutines = new List<(string Name, string Type)>();
             using (var cmd = new SqlCommand(queryExistingProcs, connection, transaction))
             using (var reader = cmd.ExecuteReader())
             {
                 while (reader.Read())
                 {
-                    existingProcedures.Add(reader.GetString(0));
+                    existingRoutines.Add((reader.GetString(0), reader.GetString(1)));
                 }
             }
 
-            // Find orphaned procedures (exist in DB but not in managed list)
-            // SAFETY: Only consider procedures with sp_* prefix as potential orphans
-            // to avoid accidentally deleting procedures that this tool doesn't manage
-            var orphanedProcedures = existingProcedures
-                .Where(proc => proc.StartsWith("sp_", StringComparison.OrdinalIgnoreCase)
-                               && !ManagedProcedures.Contains(proc))
+            // Find orphaned routines (exist in DB but not in managed list)
+            // SAFETY: Only consider sp_* and fn_* prefixes as potential orphans
+            // to avoid accidentally deleting routines that this tool doesn't manage
+            var orphanedRoutines = existingRoutines
+                .Where(r => (r.Name.StartsWith("sp_", StringComparison.OrdinalIgnoreCase)
+                             || r.Name.StartsWith("fn_", StringComparison.OrdinalIgnoreCase))
+                            && !ManagedProcedures.Contains(r.Name))
                 .ToList();
 
-            Console.WriteLine($"  Found {existingProcedures.Count} total procedures in [effort] schema");
-            Console.WriteLine($"  Managed: {ManagedProcedures.Count} procedures");
-            Console.WriteLine($"  Orphaned: {orphanedProcedures.Count} procedures");
+            Console.WriteLine($"  Found {existingRoutines.Count} total routines in [effort] schema");
+            Console.WriteLine($"  Managed: {ManagedProcedures.Count} routines");
+            Console.WriteLine($"  Orphaned: {orphanedRoutines.Count} routines");
 
-            if (orphanedProcedures.Count > 0)
+            if (orphanedRoutines.Count > 0)
             {
                 Console.WriteLine();
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("Orphaned procedures (not in managed list):");
-                foreach (var procName in orphanedProcedures)
+                Console.WriteLine("Orphaned routines (not in managed list):");
+                foreach (var (name, type) in orphanedRoutines)
                 {
-                    Console.WriteLine($"  ⚠ {procName}");
+                    Console.WriteLine($"  ⚠ {name} ({type})");
                 }
                 Console.ResetColor();
 
                 if (executeMode)
                 {
                     Console.WriteLine();
-                    Console.WriteLine("Deleting orphaned procedures...");
+                    Console.WriteLine("Deleting orphaned routines...");
                     int deletedCount = 0;
 
-                    foreach (var procName in orphanedProcedures)
+                    foreach (var (name, type) in orphanedRoutines)
                     {
                         try
                         {
-                            string dropSql = $"DROP PROCEDURE [effort].[{procName}]";
+                            string dropSql = type == "FUNCTION"
+                                ? $"DROP FUNCTION [effort].[{name}]"
+                                : $"DROP PROCEDURE [effort].[{name}]";
                             using var cmd = new SqlCommand(dropSql, connection, transaction);
                             cmd.ExecuteNonQuery();
 
                             Console.ForegroundColor = ConsoleColor.Green;
-                            Console.WriteLine($"  ✓ Deleted: [effort].[{procName}]");
+                            Console.WriteLine($"  ✓ Deleted: [effort].[{name}]");
                             Console.ResetColor();
                             deletedCount++;
                         }
                         catch (SqlException ex)
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine($"  ✗ Failed to delete [effort].[{procName}]: {ex.Message}");
+                            Console.WriteLine($"  ✗ Failed to delete [effort].[{name}]: {ex.Message}");
                             Console.ResetColor();
                         }
                     }
 
                     Console.WriteLine();
-                    Console.WriteLine($"Deleted {deletedCount} of {orphanedProcedures.Count} orphaned procedures");
+                    Console.WriteLine($"Deleted {deletedCount} of {orphanedRoutines.Count} orphaned routines");
                 }
                 else
                 {
                     Console.WriteLine();
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("⊘ Dry-run mode - no procedures deleted");
-                    Console.WriteLine("Run with --apply --clean to delete orphaned procedures");
+                    Console.WriteLine("⊘ Dry-run mode - no routines deleted");
+                    Console.WriteLine("Run with --apply --clean to delete orphaned routines");
                     Console.ResetColor();
                 }
             }
             else
             {
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("  ✓ No orphaned procedures found");
+                Console.WriteLine("  ✓ No orphaned routines found");
                 Console.ResetColor();
             }
+        }
+
+        // ============================================
+        // Shared Functions
+        // ============================================
+
+        /// <summary>
+        /// Inline table-valued function that returns the set of job groups qualifying
+        /// for effort reports. Replaces the legacy scalar UDF fn_checkJobGroupAndEffortCode.
+        /// Using an iTVF instead of a scalar UDF allows SQL Server to inline the function
+        /// into the query plan, avoiding the row-by-row execution penalty of scalar UDFs.
+        /// </summary>
+        static string GetQualifiedJobGroupsFunctionSql()
+        {
+            return @"
+CREATE OR ALTER FUNCTION [effort].[fn_qualified_job_groups]()
+RETURNS TABLE
+AS RETURN (
+    SELECT JobGroupId, EffortTitleCode
+    FROM (VALUES
+        ('010', NULL),      -- I&R Professor
+        ('011', NULL),      -- I&R Professor
+        ('114', NULL),      -- Acting Professor, Senate
+        ('311', NULL),      -- Professor in Residence
+        ('317', NULL),      -- Clin X
+        ('335', NULL),      -- Adjunct Professors
+        ('341', NULL),      -- HS Clinical Professor
+        ('124', '001898'),  -- Acting Professor, Non-Senate
+        ('S56', '001067')   -- Academic Administrator
+    ) AS v(JobGroupId, EffortTitleCode)
+);
+";
         }
 
         // ============================================
@@ -911,14 +951,11 @@ BEGIN
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
     INNER JOIN [effort].[TermStatus] ts ON r.TermCode = ts.TermCode
     WHERE ts.TermCode / 100 = @AcademicYear  -- All terms in academic year
-        -- Job group filtering matching legacy fn_checkJobGroupAndEffortCode:
-        -- Include job groups: 010, 011, 114, 311, 317, 335, 341
-        -- Include 124 with effort title code 1898 (acting prof)
-        -- Include S56 with effort title code 001067 (academic administrators)
-        AND (
-            p.JobGroupId IN ('010', '011', '114', '311', '317', '335', '341')
-            OR (p.JobGroupId = '124' AND RIGHT('00' + p.EffortTitleCode, 6) = '001898')
-            OR (p.JobGroupId = 'S56' AND RIGHT('00' + p.EffortTitleCode, 6) = '001067')
+        -- Job group qualification (see effort.fn_qualified_job_groups)
+        AND EXISTS (
+            SELECT 1 FROM effort.fn_qualified_job_groups() q
+            WHERE q.JobGroupId = p.JobGroupId
+            AND (q.EffortTitleCode IS NULL OR RIGHT('00' + p.EffortTitleCode, 6) = q.EffortTitleCode)
         )
         -- Filter to instructors with clinical percentage that applies during this academic year
         AND p.PersonId IN (
@@ -1112,11 +1149,11 @@ BEGIN
     END
 
     -- Calculate term range based on academic year setting
-    -- Academic year: Fall (YearStart*100+10) through Spring (YearEnd*100+03)
+    -- Academic year: Summer (YearStart*100+04) through Spring (YearEnd*100+03)
     -- Calendar year: All terms in the year range
     IF @UseAcademicYear = 1
     BEGIN
-        SET @StartTerm = @YearStart * 100 + 10;  -- Fall term (e.g., 202410)
+        SET @StartTerm = @YearStart * 100 + 04;  -- Summer term (e.g., 202404)
         SET @EndTerm = @YearEnd * 100 + 03;      -- Spring term (e.g., 202503)
     END
     ELSE
@@ -1257,11 +1294,11 @@ BEGIN
         AND (@MothraId IS NULL OR people_MothraID = @MothraId)
         AND quant_mailID IS NOT NULL
         AND quest_overall = 1
-        -- Job group validation (equivalent to fn_checkJobGroupAndEffortCode)
-        AND (
-            p.JobGroupId IN ('010', '011', '114', '311', '317', '335', '341')
-            OR (p.JobGroupId = '124' AND RIGHT('00' + p.EffortTitleCode, 6) = '001898')
-            OR (p.JobGroupId = 'S56' AND RIGHT('00' + p.EffortTitleCode, 6) = '001067')
+        -- Job group qualification (see effort.fn_qualified_job_groups)
+        AND EXISTS (
+            SELECT 1 FROM effort.fn_qualified_job_groups() q
+            WHERE q.JobGroupId = p.JobGroupId
+            AND (q.EffortTitleCode IS NULL OR RIGHT('00' + p.EffortTitleCode, 6) = q.EffortTitleCode)
         )
         AND p.EffortDept <> 'OTH'
         AND p.VolunteerWos = 0
@@ -1607,7 +1644,7 @@ BEGIN
     -- Calculate term range based on academic year setting
     IF @UseAcademicYear = 1
     BEGIN
-        SET @StartTerm = @YearStart * 100 + 10;  -- Fall term (e.g., 202410)
+        SET @StartTerm = @YearStart * 100 + 04;  -- Summer term (e.g., 202404)
         SET @EndTerm = @YearEnd * 100 + 03;      -- Spring term (e.g., 202503)
     END
     ELSE
@@ -1699,11 +1736,11 @@ BEGIN
         AND r.TermCode <= @EndTerm
         AND r.TermCode NOT IN (SELECT TermCode FROM @ExcludeTable)
         AND r.EffortTypeId = @Activity
-        -- Job group validation (equivalent to fn_checkJobGroupAndEffortCode)
-        AND (
-            p.JobGroupId IN ('010', '011', '114', '311', '317', '335', '341')
-            OR (p.JobGroupId = '124' AND RIGHT('00' + p.EffortTitleCode, 6) = '001898')
-            OR (p.JobGroupId = 'S56' AND RIGHT('00' + p.EffortTitleCode, 6) = '001067')
+        -- Job group qualification (see effort.fn_qualified_job_groups)
+        AND EXISTS (
+            SELECT 1 FROM effort.fn_qualified_job_groups() q
+            WHERE q.JobGroupId = p.JobGroupId
+            AND (q.EffortTitleCode IS NULL OR RIGHT('00' + p.EffortTitleCode, 6) = q.EffortTitleCode)
         )
         AND p.EffortDept <> 'OTH'
         AND p.VolunteerWos = 0
@@ -1793,7 +1830,7 @@ BEGIN
     BEGIN
         -- Academic year format: '2024-2025'
         DECLARE @AcadYear INT = CAST(LEFT(@Year, 4) AS INT);
-        SET @StartTerm = @AcadYear * 100 + 10;
+        SET @StartTerm = @AcadYear * 100 + 04;
         SET @EndTerm = (@AcadYear + 1) * 100 + 03;
     END
     ELSE
@@ -1804,6 +1841,12 @@ BEGIN
         SET @EndTerm = (@CalYear + 1) * 100 - 1;
     END
 
+    -- Legacy fn_getEffortTitle maps job groups to descriptions:
+    --   335 -> 'ADJUNCT PROFESSOR'
+    --   341 -> 'CLINICAL PROFESSOR'
+    --   317 -> 'PROF OF CLIN ______'
+    --   All others -> 'PROFESSOR/IR' (010, 011, 114, 311, 124, S56)
+
     SELECT COUNT(DISTINCT p.PersonId) AS myCount
     FROM [effort].[Persons] p
     WHERE p.EffortDept = @Dept
@@ -1811,12 +1854,25 @@ BEGIN
         AND p.TermCode <= @EndTerm
         AND p.TermCode NOT IN (SELECT TermCode FROM @ExcludeTable)
         AND p.VolunteerWos = 0
+        -- Only qualified job groups (legacy fn_checkJobGroupAndEffortCode)
+        AND EXISTS (
+            SELECT 1 FROM effort.fn_qualified_job_groups() q
+            WHERE q.JobGroupId = p.JobGroupId
+            AND (q.EffortTitleCode IS NULL OR RIGHT('00' + p.EffortTitleCode, 6) = q.EffortTitleCode)
+        )
+        -- Job group description filter (legacy fn_getEffortTitle + WHERE JgdDesc = @jgd_desc)
         AND (
-            -- Job group matching based on description
-            (@JobGroupDesc = 'PROFESSOR/IR' AND p.JobGroupId IN ('010', '011', '114', '311', '124'))
-            OR (@JobGroupDesc = 'LECTURER' AND p.JobGroupId IN ('210', '211', '212', '216', '221', '223', '225', '357', '928'))
-            OR (@JobGroupDesc LIKE '%CLINICAL%' AND p.JobGroupId IN ('317', '335', '341'))
-            OR p.Title LIKE '%' + @JobGroupDesc + '%'
+            (@JobGroupDesc = 'ADJUNCT PROFESSOR' AND p.JobGroupId = '335')
+            OR (@JobGroupDesc = 'CLINICAL PROFESSOR' AND p.JobGroupId = '341')
+            OR (@JobGroupDesc = 'PROF OF CLIN ______' AND p.JobGroupId = '317')
+            OR (@JobGroupDesc = 'PROFESSOR/IR' AND p.JobGroupId NOT IN ('335', '341', '317'))
+        )
+        -- Must have actual effort records (legacy HAVING SUM > 0)
+        AND EXISTS (
+            SELECT 1 FROM [effort].[Records] r
+            WHERE r.PersonId = p.PersonId
+                AND r.TermCode = p.TermCode
+                AND COALESCE(r.Hours, r.Weeks, 0) > 0
         )
         AND (
             @FilterOutNoCLIAssigned = 0
@@ -1886,11 +1942,11 @@ BEGIN
         AND course_TermCode NOT IN (SELECT TermCode FROM @ExcludeTable)
         AND quant_mailID IS NOT NULL
         AND quest_overall = 1
-        -- Job group validation (equivalent to fn_checkJobGroupAndEffortCode)
-        AND (
-            p.JobGroupId IN ('010', '011', '114', '311', '317', '335', '341')
-            OR (p.JobGroupId = '124' AND RIGHT('00' + p.EffortTitleCode, 6) = '001898')
-            OR (p.JobGroupId = 'S56' AND RIGHT('00' + p.EffortTitleCode, 6) = '001067')
+        -- Job group qualification (see effort.fn_qualified_job_groups)
+        AND EXISTS (
+            SELECT 1 FROM effort.fn_qualified_job_groups() q
+            WHERE q.JobGroupId = p.JobGroupId
+            AND (q.EffortTitleCode IS NULL OR RIGHT('00' + p.EffortTitleCode, 6) = q.EffortTitleCode)
         )
         AND p.EffortDept <> 'OTH'
         AND p.VolunteerWos = 0
