@@ -693,9 +693,7 @@ public class EffortRecordService : IEffortRecordService
                   r => r.CourseId,
                   c => c.Id,
                   (r, c) => c.CrseNumb)
-#pragma warning disable S6610 // "EndsWith" overloads that take a "char" should be used
-            .CountAsync(crseNumb => crseNumb == null || !crseNumb.EndsWith("R"), ct); // TODO(VPR-41): EF Core 10 supports char overload, remove pragma
-#pragma warning restore S6610
+            .CountAsync(crseNumb => crseNumb == null || !crseNumb.EndsWith('R'), ct);
 
         // Only proceed if this is the instructor's first non-R-course record (count = 1, the one we just created)
         if (nonRCourseCount != 1)
