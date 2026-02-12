@@ -10,12 +10,6 @@
     <GenericError />
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 import GenericError from "@/components/GenericError.vue"
-export default {
-    name: "EffortApplication",
-    components: {
-        GenericError,
-    },
-}
 </script>

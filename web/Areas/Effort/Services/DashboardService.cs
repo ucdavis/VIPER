@@ -198,14 +198,11 @@ public class DashboardService : IDashboardService
             coursesQuery = coursesQuery.Where(c => departmentCodes!.Contains(c.CustDept));
         }
 
-        // S6610: EF Core LINQ-to-SQL doesn't support EndsWith(char), only EndsWith(string)
-#pragma warning disable S6610
         var coursesNoInstructors = await coursesQuery
             .Where(c => !_context.Records.Any(r => r.CourseId == c.Id))
-            .Where(c => !c.CrseNumb.Trim().EndsWith("R")) // TODO(VPR-41): EF Core 10 supports char overload, remove pragma
+            .Where(c => !c.CrseNumb.Trim().EndsWith('R'))
             .Select(c => new { c.Id, c.SubjCode, c.CrseNumb, c.SeqNumb, c.CustDept })
             .ToListAsync(ct);
-#pragma warning restore S6610
 
         foreach (var course in coursesNoInstructors)
         {
