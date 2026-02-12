@@ -105,3 +105,13 @@ export type {
     CourseInstructorOptionDto,
     CourseInstructorOptionsDto,
 } from "./course-effort-types"
+
+export type {
+    EvalCourseInfoDto,
+    CourseEvalEntryDto,
+    InstructorEvalStatusDto,
+    CourseEvaluationStatusDto,
+    CreateAdHocEvalRequest,
+    UpdateAdHocEvalRequest,
+    AdHocEvalResultDto,
+} from "./evaluation-types"
