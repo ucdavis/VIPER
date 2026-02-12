@@ -500,7 +500,7 @@
                             v-else
                             class="alert-sections"
                         >
-                            <!-- No Department Assigned (High Priority) -->
+                            <!-- Unknown Department (High Priority) -->
                             <q-expansion-item
                                 v-if="noDeptAlerts.length > 0"
                                 v-model="expandedSections.noDept"
@@ -515,7 +515,7 @@
                                         />
                                     </q-item-section>
                                     <q-item-section>
-                                        No Department Assigned ({{ noDeptAlerts.length }})
+                                        Unknown Department ({{ noDeptAlerts.length }})
                                     </q-item-section>
                                 </template>
                                 <q-list
@@ -1085,7 +1085,7 @@ function formatChangeAction(action: string): string {
 }
 
 function getDeptDisplayName(dept: DepartmentVerificationDto): string {
-    return dept.departmentCode === "UNK" ? "No Department" : dept.departmentName
+    return dept.departmentCode === "UNK" ? "Unknown Department" : dept.departmentName
 }
 
 function isNoDept(dept: DepartmentVerificationDto): boolean {

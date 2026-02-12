@@ -98,6 +98,7 @@ public class VerificationService : IVerificationService
             course.IsDvm = _classificationService.IsDvmCourse(course.SubjCode);
             course.Is199299 = _classificationService.Is199299Course(course.CrseNumb);
             course.IsRCourse = _classificationService.IsRCourse(course.CrseNumb);
+            course.IsGenericRCourse = _classificationService.IsGenericRCourse(course.Crn);
         }
 
         // Get child courses for all parent courses

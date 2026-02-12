@@ -16,6 +16,8 @@ type CourseDto = {
     /** Parent course ID if this course is linked as a child. Null/undefined if not a child. */
     parentCourseId?: number | null
     // Course classification flags for effort type filtering
+    /** True if this is the generic auto-generated R-course (CRN = "RESID"). */
+    isGenericRCourse: boolean
     /** True if this is a DVM course (SubjCode is "DVM"). */
     isDvm: boolean
     /** True if this is a 199/299 course (course number starts with 199 or 299). */

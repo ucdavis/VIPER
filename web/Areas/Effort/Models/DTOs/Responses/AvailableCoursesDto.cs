@@ -61,4 +61,5 @@ public class CourseOptionDto : ICourseClassificationFlags
     public bool IsDvm { get; set; }
     public bool Is199299 { get; set; }
     public bool IsRCourse { get; set; }
+    public bool IsGenericRCourse { get; set; }
 }

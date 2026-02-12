@@ -43,4 +43,10 @@ public class CreateEffortRecordRequest
     /// </summary>
     [Range(1, int.MaxValue, ErrorMessage = "Effort value is required")]
     public int EffortValue { get; set; }
+
+    /// <summary>
+    /// Optional notes for the effort record.
+    /// </summary>
+    [StringLength(500)]
+    public string? Notes { get; set; }
 }

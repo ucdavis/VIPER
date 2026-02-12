@@ -40,21 +40,10 @@
                     Effort for {{ instructor.firstName }} {{ instructor.lastName }} - {{ currentTermName }}
                 </h2>
                 <div class="row items-center q-gutter-sm">
-                    <q-btn
+                    <EffortActionButtons
                         v-if="canEdit"
-                        color="secondary"
-                        label="Import Course"
-                        icon="cloud_download"
-                        dense
-                        @click="showImportDialog = true"
-                    />
-                    <q-btn
-                        v-if="canEdit"
-                        color="primary"
-                        label="Add Effort"
-                        icon="add"
-                        dense
-                        @click="openAddDialog"
+                        @import="openImportDialog"
+                        @add="openAddDialog"
                     />
                     <q-space class="gt-xs" />
                     <div
@@ -65,26 +54,16 @@
                             name="check_circle"
                             size="sm"
                         />
-                        Verified on {{ formatDate(instructor.effortVerified) }}
+                        Verified on {{ formatEffortDate(instructor.effortVerified) }}
                     </div>
                 </div>
             </div>
 
             <!-- Zero Effort Warning -->
-            <q-banner
-                v-if="hasZeroEffort"
-                class="bg-warning q-mb-md"
-                rounded
-            >
-                <template #avatar>
-                    <q-icon
-                        name="warning"
-                        color="dark"
-                    />
-                </template>
-                NOTE: This instructor has one or more effort items documented as ZERO effort. Effort cannot be verified
-                until these items have been updated or removed.
-            </q-banner>
+            <ZeroEffortBanner
+                :show="hasZeroEffort"
+                mode="staff"
+            />
 
             <!-- Clinical Effort Note -->
             <p
@@ -107,60 +86,10 @@
             />
 
             <!-- Cross-Listed / Sectioned Courses Section -->
-            <div
-                v-if="allChildCourses.length > 0"
-                class="q-mb-lg"
-            >
-                <h4 class="q-mt-none q-mb-sm">Cross-Listed / Sectioned Courses</h4>
-                <!-- Mobile card view for child courses -->
-                <div class="lt-sm">
-                    <q-card
-                        v-for="child in allChildCourses"
-                        :key="`${child.parentCourseId}-${child.id}`"
-                        flat
-                        bordered
-                        class="q-mb-sm"
-                        :class="child.relationshipType === 'CrossList' ? 'crosslist-card' : 'section-card'"
-                    >
-                        <q-card-section class="q-py-sm">
-                            <div class="row items-center justify-between q-mb-xs">
-                                <span class="text-weight-bold">
-                                    {{ child.subjCode }} {{ child.crseNumb.trim() }}-{{ child.seqNumb }}
-                                </span>
-                                <q-badge
-                                    :color="child.relationshipType === 'CrossList' ? 'positive' : 'info'"
-                                    :label="child.relationshipType === 'CrossList' ? 'Cross List' : 'Section'"
-                                />
-                            </div>
-                            <div class="text-caption text-grey-7">
-                                Parent: {{ child.parentCourseCode }} &bull; {{ child.units }} units &bull; Enroll:
-                                {{ child.enrollment }}
-                            </div>
-                        </q-card-section>
-                    </q-card>
-                </div>
-                <!-- Table view for child courses (desktop) -->
-                <q-table
-                    :rows="allChildCourses"
-                    :columns="childColumns"
-                    row-key="id"
-                    dense
-                    flat
-                    bordered
-                    hide-pagination
-                    :rows-per-page-options="[0]"
-                    class="gt-xs"
-                >
-                    <template #body-cell-relationshipType="slotProps">
-                        <q-td :props="slotProps">
-                            <q-badge
-                                :color="slotProps.row.relationshipType === 'CrossList' ? 'positive' : 'info'"
-                                :label="slotProps.row.relationshipType === 'CrossList' ? 'Cross List' : 'Section'"
-                            />
-                        </q-td>
-                    </template>
-                </q-table>
-            </div>
+            <CrossListedCoursesSection
+                :courses="allChildCourses"
+                :show-parent-course="true"
+            />
         </template>
 
         <!-- Add Effort Dialog -->
@@ -188,7 +117,7 @@
             v-model="showImportDialog"
             :term-code="termCodeNum"
             :term-name="currentTermName"
-            @imported="onCourseImported"
+            @imported="onCourseImportedWithNotify"
         />
     </div>
 </template>
@@ -196,16 +125,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue"
 import { useRoute } from "vue-router"
-import { useQuasar, type QTableColumn } from "quasar"
+import { useQuasar } from "quasar"
 import { instructorService } from "../services/instructor-service"
 import { recordService } from "../services/record-service"
 import { termService } from "../services/term-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
+import { useEffortRecordManagement, formatEffortDate } from "../composables/use-effort-record-management"
 import type { PersonDto, TermDto, InstructorEffortRecordDto } from "../types"
 import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
 import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
 import CourseImportDialog from "../components/CourseImportDialog.vue"
 import EffortRecordsDisplay from "../components/EffortRecordsDisplay.vue"
+import EffortActionButtons from "../components/EffortActionButtons.vue"
+import ZeroEffortBanner from "../components/ZeroEffortBanner.vue"
+import CrossListedCoursesSection from "../components/CrossListedCoursesSection.vue"
 
 const route = useRoute()
 const $q = useQuasar()
@@ -224,12 +157,21 @@ const isLoading = ref(true)
 const loadError = ref<string | null>(null)
 const canEditTerm = ref(false)
 
-// Dialog state
-const showAddDialog = ref(false)
-const showEditDialog = ref(false)
-const showImportDialog = ref(false)
-const selectedRecord = ref<InstructorEffortRecordDto | null>(null)
-const preSelectedCourseId = ref<number | null>(null)
+// Composable
+const {
+    showAddDialog,
+    showEditDialog,
+    showImportDialog,
+    selectedRecord,
+    preSelectedCourseId,
+    openAddDialog,
+    openEditDialog,
+    openImportDialog,
+    onRecordCreated,
+    onRecordUpdated,
+    onCourseImported,
+    deleteRecord,
+} = useEffortRecordManagement(reloadData)
 
 // Computed
 const currentTermName = computed(() => {
@@ -253,7 +195,6 @@ const hasZeroEffort = computed(() => {
     })
 })
 
-// Flatten all child courses from effort records with parent course info
 type ChildCourseWithParent = {
     id: number
     parentCourseId: number
@@ -273,7 +214,6 @@ const allChildCourses = computed<ChildCourseWithParent[]>(() => {
     for (const record of effortRecords.value) {
         if (record.childCourses && record.childCourses.length > 0) {
             for (const child of record.childCourses) {
-                // Avoid duplicates if same course appears in multiple effort records
                 if (!seenIds.has(child.id)) {
                     seenIds.add(child.id)
                     children.push({
@@ -289,66 +229,11 @@ const allChildCourses = computed<ChildCourseWithParent[]>(() => {
     return children
 })
 
-const childColumns: QTableColumn[] = [
-    {
-        name: "course",
-        label: "Course",
-        field: (row: ChildCourseWithParent) => `${row.subjCode} ${row.crseNumb.trim()}-${row.seqNumb}`,
-        align: "left",
-    },
-    {
-        name: "units",
-        label: "Units",
-        field: "units",
-        align: "left",
-    },
-    {
-        name: "enrollment",
-        label: "Enroll",
-        field: "enrollment",
-        align: "left",
-    },
-    {
-        name: "parentCourse",
-        label: "Parent Course",
-        field: "parentCourseCode",
-        align: "left",
-    },
-    {
-        name: "relationshipType",
-        label: "Type",
-        field: "relationshipType",
-        align: "center",
-    },
-]
-
-// Permission checks - term must be editable AND user must have EditEffort (or be admin)
+// Permission checks
 const canEdit = computed(() => canEditTerm.value && (hasEditEffort.value || isAdmin.value))
 const canDelete = computed(() => canEditTerm.value && (hasEditEffort.value || isAdmin.value))
 
 // Methods
-function formatDate(dateString: string | null): string {
-    if (!dateString) return ""
-    const date = new Date(dateString)
-    return date.toLocaleDateString("en-US", {
-        month: "numeric",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-    })
-}
-
-function openAddDialog() {
-    preSelectedCourseId.value = null
-    showAddDialog.value = true
-}
-
-function openEditDialog(record: InstructorEffortRecordDto) {
-    selectedRecord.value = record
-    showEditDialog.value = true
-}
-
 function confirmDelete(record: InstructorEffortRecordDto) {
     const verificationWarning = instructor.value?.isVerified
         ? "\n\nNote: This instructor's effort has been verified. Deleting this record will clear the verification status and require re-verification."
@@ -364,61 +249,12 @@ function confirmDelete(record: InstructorEffortRecordDto) {
     })
 }
 
-async function deleteRecord(recordId: number, originalModifiedDate: string | null) {
-    try {
-        const result = await recordService.deleteEffortRecord(recordId, originalModifiedDate)
-        if (result.success) {
-            $q.notify({
-                type: "positive",
-                message: "Effort record deleted successfully",
-            })
-            // Reload both effort records and instructor data since deletes clear verification status
-            await Promise.all([loadEffortRecords(), loadInstructor()])
-        } else {
-            $q.notify({
-                type: "negative",
-                message: result.error ?? "Failed to delete effort record",
-            })
-            // Reload data if it was a concurrency conflict
-            if (result.isConflict) {
-                await Promise.all([loadEffortRecords(), loadInstructor()])
-            }
-        }
-    } catch {
-        $q.notify({
-            type: "negative",
-            message: "An error occurred while deleting the record",
-        })
-    }
-}
-
-async function onRecordCreated() {
-    preSelectedCourseId.value = null
-    $q.notify({
-        type: "positive",
-        message: "Effort record created successfully",
-    })
-    // Reload both effort records and instructor data since creates clear verification status
-    await Promise.all([loadEffortRecords(), loadInstructor()])
-}
-
-async function onRecordUpdated() {
-    $q.notify({
-        type: "positive",
-        message: "Effort record updated successfully",
-    })
-    // Reload both effort records and instructor data since updates clear verification status
-    await Promise.all([loadEffortRecords(), loadInstructor()])
-}
-
-async function onCourseImported(courseId: number) {
+function onCourseImportedWithNotify(courseId: number) {
     $q.notify({
         type: "positive",
         message: "Course imported successfully. Now add effort for this course.",
     })
-    // Open the Add Effort dialog with the imported course pre-selected
-    preSelectedCourseId.value = courseId
-    showAddDialog.value = true
+    onCourseImported(courseId)
 }
 
 async function loadEffortRecords() {
@@ -427,6 +263,10 @@ async function loadEffortRecords() {
 
 async function loadInstructor() {
     instructor.value = await instructorService.getInstructor(personId.value, termCodeNum.value)
+}
+
+async function reloadData() {
+    await Promise.all([loadEffortRecords(), loadInstructor()])
 }
 
 async function loadData() {
@@ -459,13 +299,3 @@ async function loadData() {
 
 onMounted(loadData)
 </script>
-
-<style scoped>
-.crosslist-card {
-    border-left: 3px solid #21ba45;
-}
-
-.section-card {
-    border-left: 3px solid #2196f3;
-}
-</style>

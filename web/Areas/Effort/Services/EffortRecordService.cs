@@ -201,6 +201,7 @@ public class EffortRecordService : IEffortRecordService
             Hours = useWeeks ? null : request.EffortValue,
             Weeks = useWeeks ? request.EffortValue : null,
             Crn = course.Crn,
+            Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
             ModifiedDate = DateTime.Now,
             ModifiedBy = GetCurrentPersonId()
         };
@@ -224,6 +225,7 @@ public class EffortRecordService : IEffortRecordService
                 Role = role.Description,
                 Hours = record.Hours,
                 Weeks = record.Weeks,
+                Notes = record.Notes,
                 RolesCoerced = coercedFromRoleId != null
                     ? $"{existingRecordsForCourse.Count} record(s) changed from '{coercedFromRoleDescription}' to '{role.Description}'"
                     : null
@@ -322,7 +324,8 @@ public class EffortRecordService : IEffortRecordService
             EffortType = record.EffortTypeId,
             Role = record.RoleNavigation?.Description,
             record.Hours,
-            record.Weeks
+            record.Weeks,
+            record.Notes
         };
 
         // Check role consistency - coerce if needed
@@ -356,6 +359,7 @@ public class EffortRecordService : IEffortRecordService
         record.RoleId = request.RoleId;
         record.Hours = useWeeks ? null : request.EffortValue;
         record.Weeks = useWeeks ? request.EffortValue : null;
+        record.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
         record.ModifiedDate = DateTime.Now;
         record.ModifiedBy = GetCurrentPersonId();
 
@@ -375,6 +379,7 @@ public class EffortRecordService : IEffortRecordService
                 Role = role.Description,
                 Hours = record.Hours,
                 Weeks = record.Weeks,
+                Notes = record.Notes,
                 RolesCoerced = coercedFromRoleDescription != null
                     ? $"{existingRecordsForCourse.Count} record(s) changed from '{coercedFromRoleDescription}' to '{role.Description}'"
                     : null
@@ -422,7 +427,8 @@ public class EffortRecordService : IEffortRecordService
             EffortType = record.EffortTypeId,
             Role = record.RoleNavigation?.Description,
             record.Hours,
-            record.Weeks
+            record.Weeks,
+            record.Notes
         };
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
@@ -607,6 +613,7 @@ public class EffortRecordService : IEffortRecordService
             Hours = record.Hours,
             Weeks = record.Weeks,
             Crn = record.Crn,
+            Notes = record.Notes,
             ModifiedDate = record.ModifiedDate,
             Course = new CourseDto
             {

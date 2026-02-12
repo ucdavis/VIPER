@@ -67,6 +67,13 @@
                             {{ record.effortLabel === "weeks" ? "Weeks" : "Hours" }}
                         </span>
                     </div>
+                    <div
+                        v-if="record.notes"
+                        class="text-caption text-grey-8 q-mt-xs"
+                        style="white-space: pre-line"
+                    >
+                        {{ record.notes }}
+                    </div>
                 </q-card-section>
             </q-card>
         </div>
@@ -171,6 +178,13 @@
                                 {{ record.effortValue ?? 0 }}
                                 {{ record.effortLabel === "weeks" ? "Weeks" : "Hours" }}
                             </span>
+                        </div>
+                        <div
+                            v-if="record.notes"
+                            class="text-caption text-grey-8 q-mt-xs"
+                            style="white-space: pre-line"
+                        >
+                            {{ record.notes }}
                         </div>
                     </q-card-section>
                 </q-card>

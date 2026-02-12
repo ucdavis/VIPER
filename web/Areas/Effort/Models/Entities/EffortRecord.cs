@@ -16,6 +16,7 @@ public class EffortRecord
     public int? Hours { get; set; }
     public int? Weeks { get; set; }
     public string Crn { get; set; } = string.Empty;
+    public string? Notes { get; set; }
     public DateTime? ModifiedDate { get; set; }
     public int? ModifiedBy { get; set; }
 

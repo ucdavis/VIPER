@@ -18,201 +18,209 @@
                 />
             </q-card-section>
 
-            <q-card-section class="q-py-sm percent-form">
-                <!-- Type Selection (grouped by class) -->
-                <q-select
-                    v-model="form.percentAssignTypeId"
-                    :options="groupedTypeOptions"
-                    label="Type *"
-                    dense
-                    options-dense
-                    outlined
-                    emit-value
-                    map-options
-                    :error="!!errors.type"
-                    :error-message="errors.type"
+            <q-card-section class="q-py-sm">
+                <q-form
+                    ref="formRef"
+                    class="effort-form"
+                    greedy
                 >
-                    <template #option="scope">
-                        <q-item-label
-                            v-if="scope.opt.isHeader"
-                            header
-                            class="text-weight-bold text-primary q-py-xs"
-                        >
-                            {{ scope.opt.label }}
-                        </q-item-label>
-                        <q-item
-                            v-else
-                            v-bind="scope.itemProps"
-                        >
-                            <q-item-section>
-                                <q-item-label>{{ scope.opt.label }}</q-item-label>
-                            </q-item-section>
-                        </q-item>
-                    </template>
-                </q-select>
+                    <!-- Type Selection (grouped by class) -->
+                    <q-select
+                        v-model="form.percentAssignTypeId"
+                        :options="groupedTypeOptions"
+                        label="Type *"
+                        dense
+                        options-dense
+                        outlined
+                        emit-value
+                        map-options
+                        :rules="[requiredRule('Type')]"
+                        lazy-rules="ondemand"
+                    >
+                        <template #option="scope">
+                            <q-item-label
+                                v-if="scope.opt.isHeader"
+                                header
+                                class="text-weight-bold text-primary q-py-xs"
+                            >
+                                {{ scope.opt.label }}
+                            </q-item-label>
+                            <q-item
+                                v-else
+                                v-bind="scope.itemProps"
+                            >
+                                <q-item-section>
+                                    <q-item-label>{{ scope.opt.label }}</q-item-label>
+                                </q-item-section>
+                            </q-item>
+                        </template>
+                    </q-select>
 
-                <!-- Modifier Selection -->
-                <q-select
-                    v-model="form.modifier"
-                    :options="modifierOptions"
-                    label="Modifier"
-                    dense
-                    options-dense
-                    outlined
-                    emit-value
-                    map-options
-                    clearable
-                />
+                    <!-- Modifier Selection -->
+                    <q-select
+                        v-model="form.modifier"
+                        :options="modifierOptions"
+                        label="Modifier"
+                        dense
+                        options-dense
+                        outlined
+                        emit-value
+                        map-options
+                        clearable
+                    />
 
-                <!-- Unit Selection -->
-                <q-select
-                    v-model="form.unitId"
-                    :options="unitOptions"
-                    label="Unit *"
-                    dense
-                    options-dense
-                    outlined
-                    emit-value
-                    map-options
-                    clearable
-                    :error="!!errors.unit"
-                    :error-message="errors.unit"
-                />
+                    <!-- Unit Selection -->
+                    <q-select
+                        v-model="form.unitId"
+                        :options="unitOptions"
+                        label="Unit *"
+                        dense
+                        options-dense
+                        outlined
+                        emit-value
+                        map-options
+                        clearable
+                        :rules="[requiredRule('Unit')]"
+                        lazy-rules="ondemand"
+                    />
 
-                <!-- Start Date (Month/Year) -->
-                <div class="row q-col-gutter-sm">
-                    <div class="col">
-                        <q-select
-                            v-model="form.startMonth"
-                            :options="monthOptions"
-                            label="Start Month *"
-                            dense
-                            options-dense
-                            outlined
-                            emit-value
-                            map-options
-                            :error="!!errors.startDate"
-                        />
+                    <!-- Start Date (Month/Year) -->
+                    <div class="row q-col-gutter-sm">
+                        <div class="col">
+                            <q-select
+                                v-model="form.startMonth"
+                                :options="monthOptions"
+                                label="Start Month *"
+                                dense
+                                options-dense
+                                outlined
+                                emit-value
+                                map-options
+                                :rules="[requiredRule('Start month')]"
+                                lazy-rules="ondemand"
+                            />
+                        </div>
+                        <div class="col">
+                            <q-select
+                                v-model="form.startYear"
+                                :options="yearOptions"
+                                label="Start Year *"
+                                dense
+                                options-dense
+                                outlined
+                                emit-value
+                                map-options
+                                :rules="[requiredRule('Start year')]"
+                                lazy-rules="ondemand"
+                            />
+                        </div>
                     </div>
-                    <div class="col">
-                        <q-select
-                            v-model="form.startYear"
-                            :options="yearOptions"
-                            label="Start Year *"
-                            dense
-                            options-dense
-                            outlined
-                            emit-value
-                            map-options
-                            :error="!!errors.startDate"
-                            :error-message="errors.startDate"
-                        />
+
+                    <!-- End Date (Month/Year) - Optional -->
+                    <div class="row q-col-gutter-sm">
+                        <div class="col">
+                            <q-select
+                                v-model="form.endMonth"
+                                :options="monthOptions"
+                                label="End Month"
+                                dense
+                                options-dense
+                                outlined
+                                emit-value
+                                map-options
+                                clearable
+                                :rules="endMonthRules"
+                                lazy-rules="ondemand"
+                            />
+                        </div>
+                        <div class="col">
+                            <q-select
+                                v-model="form.endYear"
+                                :options="yearOptions"
+                                label="End Year"
+                                dense
+                                options-dense
+                                outlined
+                                emit-value
+                                map-options
+                                clearable
+                                :rules="endYearRules"
+                                lazy-rules="ondemand"
+                            />
+                        </div>
                     </div>
-                </div>
 
-                <!-- End Date (Month/Year) - Optional -->
-                <div class="row q-col-gutter-sm">
-                    <div class="col">
-                        <q-select
-                            v-model="form.endMonth"
-                            :options="monthOptions"
-                            label="End Month"
-                            dense
-                            options-dense
-                            outlined
-                            emit-value
-                            map-options
-                            clearable
-                            :error="!!errors.endDate"
-                        />
-                    </div>
-                    <div class="col">
-                        <q-select
-                            v-model="form.endYear"
-                            :options="yearOptions"
-                            label="End Year"
-                            dense
-                            options-dense
-                            outlined
-                            emit-value
-                            map-options
-                            clearable
-                            :error="!!errors.endDate"
-                            :error-message="errors.endDate"
-                        />
-                    </div>
-                </div>
+                    <!-- Percent Input -->
+                    <q-input
+                        v-model.number="form.percentageValue"
+                        label="Percent *"
+                        type="number"
+                        dense
+                        outlined
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        :rules="[percentRule]"
+                        lazy-rules="ondemand"
+                    />
 
-                <!-- Percent Input -->
-                <q-input
-                    v-model.number="form.percentageValue"
-                    label="Percent *"
-                    type="number"
-                    dense
-                    outlined
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    :error="!!errors.percent"
-                    :error-message="errors.percent"
-                />
+                    <!-- Comment Input -->
+                    <q-input
+                        v-model="form.comment"
+                        label="Comment"
+                        type="textarea"
+                        dense
+                        outlined
+                        maxlength="100"
+                        counter
+                        autogrow
+                    />
 
-                <!-- Comment Input -->
-                <q-input
-                    v-model="form.comment"
-                    label="Comment"
-                    type="textarea"
-                    dense
-                    outlined
-                    maxlength="100"
-                    counter
-                    rows="2"
-                />
+                    <!-- Compensated Checkbox -->
+                    <q-checkbox
+                        v-model="form.compensated"
+                        label="Compensated"
+                        dense
+                    />
 
-                <!-- Compensated Checkbox -->
-                <q-checkbox
-                    v-model="form.compensated"
-                    label="Compensated"
-                    dense
-                />
+                    <!-- Post-save Warning Banner -->
+                    <q-banner
+                        v-if="warningMessage"
+                        class="bg-warning q-mb-md"
+                        rounded
+                    >
+                        <template #avatar>
+                            <q-icon
+                                name="info"
+                                color="dark"
+                            />
+                        </template>
+                        <div><strong>Saved with notice:</strong> {{ warningMessage }}</div>
+                        <template #action>
+                            <q-btn
+                                flat
+                                dense
+                                label="OK"
+                                @click="acknowledgeWarning"
+                            />
+                        </template>
+                    </q-banner>
 
-                <!-- Post-save Warning Banner -->
-                <q-banner
-                    v-if="warningMessage"
-                    class="bg-warning q-mb-md"
-                    rounded
-                >
-                    <template #avatar>
-                        <q-icon
-                            name="info"
-                            color="dark"
-                        />
-                    </template>
-                    <div><strong>Saved with notice:</strong> {{ warningMessage }}</div>
-                    <template #action>
-                        <q-btn
-                            flat
-                            dense
-                            label="OK"
-                            @click="acknowledgeWarning"
-                        />
-                    </template>
-                </q-banner>
-
-                <!-- Error Banner -->
-                <q-banner
-                    v-if="errorMessage"
-                    class="bg-negative text-white q-mb-md"
-                    rounded
-                >
-                    <template #avatar>
-                        <q-icon
-                            name="error"
-                            color="white"
-                        />
-                    </template>
-                    {{ errorMessage }}
-                </q-banner>
+                    <!-- Error Banner -->
+                    <q-banner
+                        v-if="errorMessage"
+                        class="bg-negative text-white q-mb-md"
+                        rounded
+                    >
+                        <template #avatar>
+                            <q-icon
+                                name="error"
+                                color="white"
+                            />
+                        </template>
+                        {{ errorMessage }}
+                    </q-banner>
+                </q-form>
             </q-card-section>
 
             <q-card-actions align="right">
@@ -225,7 +233,6 @@
                     color="primary"
                     label="Save"
                     :loading="isSaving"
-                    :disable="!isFormValid"
                     @click="savePercentage"
                 />
             </q-card-actions>
@@ -235,9 +242,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
+import { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { percentageService } from "../services/percentage-service"
 import { usePercentageForm } from "../composables/use-percentage-form"
+import { requiredRule, percentRule } from "../validation"
+import "../effort-forms.css"
 import type { PercentageDto, PercentAssignTypeDto, UnitDto, UpdatePercentageRequest } from "../types"
 
 const props = defineProps<{
@@ -258,18 +268,18 @@ const unitsRef = computed(() => props.units)
 
 const {
     form,
-    errors,
     groupedTypeOptions,
     unitOptions,
     modifierOptions,
     monthOptions,
     yearOptions,
-    isFormValid,
-    validateForm,
+    endMonthRules,
+    endYearRules,
     formatToIsoDate,
     parseDateToMonthYear,
-    resetErrors,
 } = usePercentageForm(percentAssignTypesRef, unitsRef)
+
+const formRef = ref<QForm | null>(null)
 
 // Unsaved changes tracking
 const { setInitialState, confirmClose } = useUnsavedChanges(form)
@@ -299,6 +309,7 @@ watch(
             pendingWarningConfirm.value = false
             savedResult.value = null
         }
+        formRef.value?.resetValidation()
     },
 )
 
@@ -321,12 +332,14 @@ function populateForm() {
         compensated: props.percentage.compensated,
     }
 
-    resetErrors()
+    formRef.value?.resetValidation()
     setInitialState()
 }
 
 async function savePercentage() {
-    if (!validateForm() || !props.percentage) return
+    if (!props.percentage) return
+    const valid = await formRef.value?.validate(true)
+    if (!valid) return
 
     isSaving.value = true
     errorMessage.value = ""
@@ -375,19 +388,3 @@ function acknowledgeWarning() {
     }
 }
 </script>
-
-<style scoped>
-/* Reset Quasar field margins and apply consistent spacing */
-.percent-form :deep(.q-field) {
-    margin-bottom: 0;
-    padding-bottom: 0;
-}
-
-.percent-form :deep(.q-field--outlined .q-field__control) {
-    padding-bottom: 0;
-}
-
-.percent-form > *:not(:last-child) {
-    margin-bottom: 1rem;
-}
-</style>
