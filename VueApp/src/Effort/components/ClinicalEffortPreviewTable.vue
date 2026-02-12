@@ -94,7 +94,7 @@ function getCourseCode(row: ClinicalEffortRow): string {
 function rowKey(row: ClinicalEffortRow): string {
     const mothraId = row.mothraId
     const course = getCourseCode(row)
-    const status = "status" in row ? row.status : ""
+    const status = getStatus(row)
     return `${mothraId}-${course}-${status}`
 }
 

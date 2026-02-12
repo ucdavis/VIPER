@@ -118,7 +118,7 @@ public class PercentRolloverService : IPercentRolloverService
             MothraId = a.ViperPerson?.MothraId ?? "",
             TypeName = a.PercentAssignType.Name,
             TypeClass = a.PercentAssignType.Class,
-            PercentageValue = a.PercentageValue,
+            PercentageValue = EffortConstants.ToDisplayPercent(a.PercentageValue),
             UnitName = a.Unit?.Name,
             Modifier = a.Modifier,
             Compensated = a.Compensated,
