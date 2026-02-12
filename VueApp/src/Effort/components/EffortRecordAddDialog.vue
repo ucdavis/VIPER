@@ -154,8 +154,9 @@
                         lazy-rules="ondemand"
                     />
 
-                    <!-- Notes -->
+                    <!-- Notes (generic R-Course only) -->
                     <q-input
+                        v-if="selectedCourseObj?.isGenericRCourse"
                         v-model="notes"
                         label="Notes"
                         type="textarea"
@@ -287,6 +288,7 @@ type CourseOption = {
     value?: number
     isHeader?: boolean
     disable?: boolean
+    isGenericRCourse?: boolean
     isDvm?: boolean
     is199299?: boolean
     isRCourse?: boolean
@@ -302,6 +304,7 @@ const courseOptions = computed<CourseOption[]>(() => {
             options.push({
                 label: course.label,
                 value: course.id,
+                isGenericRCourse: course.isGenericRCourse,
                 isDvm: course.isDvm,
                 is199299: course.is199299,
                 isRCourse: course.isRCourse,
@@ -315,6 +318,7 @@ const courseOptions = computed<CourseOption[]>(() => {
             options.push({
                 label: course.label,
                 value: course.id,
+                isGenericRCourse: course.isGenericRCourse,
                 isDvm: course.isDvm,
                 is199299: course.is199299,
                 isRCourse: course.isRCourse,
@@ -358,6 +362,7 @@ const selectedCourseObj = computed(() => {
     if (!option) return null
     return {
         id: option.value!,
+        isGenericRCourse: option.isGenericRCourse ?? false,
         isDvm: option.isDvm ?? false,
         is199299: option.is199299 ?? false,
         isRCourse: option.isRCourse ?? false,
@@ -460,13 +465,16 @@ watch(
     },
 )
 
-// Clear effort type if it becomes invalid for the selected course
+// Clear effort type if it becomes invalid for the selected course, and clear notes for non-R-Courses
 watch(selectedCourseObj, () => {
     if (selectedEffortType.value) {
         const stillValid = filteredEffortTypes.value.some((et) => et.id === selectedEffortType.value)
         if (!stillValid) {
             selectedEffortType.value = null
         }
+    }
+    if (!selectedCourseObj.value?.isGenericRCourse) {
+        notes.value = null
     }
 })
 

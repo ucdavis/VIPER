@@ -21,6 +21,11 @@ public interface ICourseClassificationFlags
     /// True if this is an R-course (course number ends with "R").
     /// </summary>
     bool IsRCourse { get; set; }
+
+    /// <summary>
+    /// True if this is the generic auto-generated R-course (CRN = "RESID").
+    /// </summary>
+    bool IsGenericRCourse { get; set; }
 }
 
 /// <summary>
@@ -37,6 +42,7 @@ public static class CourseClassificationFlagsExtensions
         dto.IsDvm = classification.IsDvmCourse;
         dto.Is199299 = classification.Is199299Course;
         dto.IsRCourse = classification.IsRCourse;
+        dto.IsGenericRCourse = classification.IsGenericRCourse;
         return dto;
     }
 }
