@@ -165,7 +165,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
         Assert.True(result.IsRolloverApplicable);
         Assert.Single(result.Assignments);
         Assert.Equal(100, result.Assignments[0].PersonId);
-        Assert.Equal(0.5, result.Assignments[0].PercentageValue);
+        Assert.Equal(50, result.Assignments[0].PercentageValue);
     }
 
     [Fact]
