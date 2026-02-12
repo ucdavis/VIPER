@@ -146,6 +146,12 @@ public static class EffortPermissions
     public const string ViewDeptAudit = "SVMSecure.Effort.ViewDeptAudit";
 
     /// <summary>
+    /// Permission to view instructor/course evaluation results from EvalHarvest.
+    /// This is an Eval-system permission, not an Effort permission.
+    /// </summary>
+    public const string ViewEvalResults = "SVMSecure.Eval.ViewAllDepts";
+
+    /// <summary>
     /// Any of the three view-level access permissions (ViewAllDepartments, ViewDept, VerifyEffort).
     /// Use for controller-level [Permission] attributes to require basic Effort access.
     /// </summary>

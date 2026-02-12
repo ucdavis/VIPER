@@ -36,7 +36,9 @@
         <template v-else-if="course">
             <!-- Course Header -->
             <div class="q-mb-md">
-                <h2 class="q-my-none q-mb-sm">Effort for {{ course.courseCode }}-{{ course.seqNumb }} - {{ currentTermName }}</h2>
+                <h2 class="q-my-none q-mb-sm">
+                    Effort for {{ course.courseCode }}-{{ course.seqNumb }} - {{ currentTermName }}
+                </h2>
                 <div class="row items-center q-gutter-sm q-pl-sm">
                     <q-btn
                         v-if="canEditCourse && !isResidentCourse"
@@ -193,30 +195,100 @@
                 This course has no linked courses.
             </div>
 
-            <!-- Instructor Effort Section -->
-            <q-separator class="q-my-md" />
-            <div class="q-mb-sm">
-                <h3 class="q-my-none q-mb-sm">Instructor Effort</h3>
-                <div class="row items-center q-gutter-sm q-pl-sm">
-                    <q-btn
-                        v-if="canEditEffort"
-                        icon="add"
-                        label="Add Effort"
-                        color="primary"
-                        dense
-                        aria-label="Add instructor effort"
-                        @click="showAddEffortDialog = true"
+            <!-- Tabbed view when evaluation data is available -->
+            <template v-if="hasViewEvalResults">
+                <q-separator class="q-my-md" />
+                <q-tabs
+                    v-model="activeTab"
+                    dense
+                    align="left"
+                    active-color="primary"
+                    indicator-color="primary"
+                    no-caps
+                    class="text-grey-7"
+                >
+                    <q-tab
+                        name="effort"
+                        :label="effortTabLabel"
                     />
+                    <q-tab
+                        name="evaluation"
+                        :label="evaluationTabLabel"
+                    />
+                </q-tabs>
+                <q-separator />
+                <q-tab-panels
+                    v-model="activeTab"
+                    animated
+                >
+                    <q-tab-panel
+                        name="effort"
+                        class="q-px-none"
+                    >
+                        <div class="row items-center q-gutter-sm q-mb-sm">
+                            <q-btn
+                                v-if="canEditEffort"
+                                icon="add"
+                                label="Add Effort"
+                                color="primary"
+                                dense
+                                aria-label="Add instructor effort"
+                                @click="showAddEffortDialog = true"
+                            />
+                        </div>
+                        <CourseEffortTable
+                            :records="effortRecords"
+                            :term-code="termCode"
+                            :is-loading="isLoadingEffort"
+                            :load-error="effortLoadError"
+                            @edit="openEditEffortDialog"
+                            @delete="confirmDeleteEffort"
+                        />
+                    </q-tab-panel>
+                    <q-tab-panel
+                        name="evaluation"
+                        class="q-px-none"
+                    >
+                        <EvaluationStatusMatrix
+                            :evaluation-data="evaluationData"
+                            :can-edit-ad-hoc="hasEditAdHocEval && evaluationData.canEditAdHoc"
+                            :is-loading="isLoadingEval"
+                            :load-error="evalLoadError"
+                            :term-code="termCode"
+                            @add="openAddEvalDialog"
+                            @edit="openEditEvalDialog"
+                            @delete="confirmDeleteEval"
+                        />
+                    </q-tab-panel>
+                </q-tab-panels>
+            </template>
+
+            <!-- Simple effort section when no eval access -->
+            <template v-else>
+                <q-separator class="q-my-md" />
+                <div class="q-mb-sm">
+                    <h3 class="q-my-none q-mb-sm">Effort</h3>
+                    <div class="row items-center q-gutter-sm q-pl-sm">
+                        <q-btn
+                            v-if="canEditEffort"
+                            icon="add"
+                            label="Add Effort"
+                            color="primary"
+                            dense
+                            aria-label="Add instructor effort"
+                            @click="showAddEffortDialog = true"
+                        />
+                    </div>
                 </div>
-            </div>
-            <CourseEffortTable
-                :records="effortRecords"
-                :term-code="termCode"
-                :is-loading="isLoadingEffort"
-                :load-error="effortLoadError"
-                @edit="openEditEffortDialog"
-                @delete="confirmDeleteEffort"
-            />
+                <CourseEffortTable
+                    :records="effortRecords"
+                    :term-code="termCode"
+                    :is-loading="isLoadingEffort"
+                    :load-error="effortLoadError"
+                    @edit="openEditEffortDialog"
+                    @delete="confirmDeleteEffort"
+                />
+            </template>
         </template>
 
         <!-- Edit Dialog -->
@@ -250,6 +322,20 @@
             :term-code="termCodeNum"
             @updated="onEffortUpdated"
         />
+
+        <!-- Edit Evaluation Dialog -->
+        <EditEvaluationDialog
+            v-if="evalDialogProps"
+            v-model="showEvalDialog"
+            :course-id="evalDialogProps.courseId"
+            :instructor-name="evalDialogProps.instructorName"
+            :course-name="evalDialogProps.courseName"
+            :crn="evalDialogProps.crn"
+            :mothra-id="evalDialogProps.mothraId"
+            :existing-data="evalDialogProps.existingData"
+            @created="onEvalCreated"
+            @updated="onEvalUpdated"
+        />
     </div>
 </template>
 
@@ -262,16 +348,35 @@ import { courseService } from "../services/course-service"
 import { recordService } from "../services/record-service"
 import { termService } from "../services/term-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
-import type { CourseDto, CourseRelationshipDto, CourseEffortRecordDto, InstructorEffortRecordDto, TermDto } from "../types"
+import type {
+    CourseDto,
+    CourseRelationshipDto,
+    CourseEffortRecordDto,
+    InstructorEffortRecordDto,
+    TermDto,
+    CourseEvaluationStatusDto,
+    CourseEvalEntryDto,
+} from "../types"
 import CourseEditDialog from "../components/CourseEditDialog.vue"
 import CourseLinkDialog from "../components/CourseLinkDialog.vue"
 import CourseEffortTable from "../components/CourseEffortTable.vue"
 import AddCourseEffortDialog from "../components/AddCourseEffortDialog.vue"
 import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
+import EvaluationStatusMatrix from "../components/EvaluationStatusMatrix.vue"
+import EditEvaluationDialog from "../components/EditEvaluationDialog.vue"
 
 const route = useRoute()
 const $q = useQuasar()
-const { hasEditCourse, hasCreateEffort, hasVerifyEffort, hasManageRCourseEnrollment, hasLinkCourses, isAdmin } = useEffortPermissions()
+const {
+    hasEditCourse,
+    hasCreateEffort,
+    hasVerifyEffort,
+    hasManageRCourseEnrollment,
+    hasLinkCourses,
+    hasEditAdHocEval,
+    hasViewEvalResults,
+    isAdmin,
+} = useEffortPermissions()
 
 // Route params
 const termCode = computed(() => route.params.termCode as string)
@@ -294,6 +399,26 @@ const isLoadingEffort = ref(false)
 const effortLoadError = ref<string | null>(null)
 const selectedEffortRecord = ref<InstructorEffortRecordDto | null>(null)
 const canAddEffortForCourse = ref(false)
+
+// Evaluation state
+const evaluationData = ref<CourseEvaluationStatusDto>({ canEditAdHoc: false, instructors: [], courses: [] })
+const isLoadingEval = ref(false)
+const evalLoadError = ref<string | null>(null)
+
+// Evaluation dialog state
+type EvalDialogProps = {
+    courseId: number
+    instructorName: string
+    courseName: string
+    crn: string
+    mothraId: string
+    existingData: CourseEvalEntryDto | null
+}
+const showEvalDialog = ref(false)
+const evalDialogProps = ref<EvalDialogProps | null>(null)
+
+// Tab state
+const activeTab = ref("effort")
 
 // Dialogs
 const showEditDialog = ref(false)
@@ -322,7 +447,24 @@ const currentTermName = computed(() => {
     return term?.termName ?? ""
 })
 
-const canEditEffort = computed(() => canAddEffortForCourse.value && (hasCreateEffort.value || hasVerifyEffort.value || isAdmin.value))
+const canEditEffort = computed(
+    () => canAddEffortForCourse.value && (hasCreateEffort.value || hasVerifyEffort.value || isAdmin.value),
+)
+
+// Count of actual eval entries (CERE or AdHoc, not "None")
+const evalEntryCount = computed(() =>
+    evaluationData.value.instructors.reduce(
+        (count, instructor) => count + instructor.evaluations.filter((e) => e.status !== "None").length,
+        0,
+    ),
+)
+
+const effortTabLabel = computed(() =>
+    effortRecords.value.length > 0 ? `Effort (${effortRecords.value.length})` : "Effort",
+)
+const evaluationTabLabel = computed(() =>
+    evalEntryCount.value > 0 ? `Evaluations (${evalEntryCount.value})` : "Evaluations",
+)
 
 const childColumns = computed<QTableColumn[]>(() => [
     {
@@ -397,8 +539,9 @@ async function loadCourse() {
         parentRelationship.value = relationshipsResult.parentRelationship
         childRelationships.value = relationshipsResult.childRelationships
 
-        // Load effort records after course data is available (non-blocking)
+        // Load effort records and evaluation data after course data is available (non-blocking)
         loadEffortRecords()
+        loadEvaluationData()
     } catch {
         if (token !== loadToken) return
         loadError.value = "Failed to load course. Please try again."
@@ -516,6 +659,95 @@ function confirmDeleteEffort(record: CourseEffortRecordDto) {
             $q.notify({ type: "negative", message: "An error occurred while deleting the record" })
         }
     })
+}
+
+async function loadEvaluationData() {
+    if (!course.value || !hasViewEvalResults.value) return
+    const requestedId = course.value.id
+
+    isLoadingEval.value = true
+    evalLoadError.value = null
+
+    try {
+        const result = await courseService.getCourseEvaluations(requestedId)
+        if (courseId.value !== requestedId) return
+        evaluationData.value = result
+    } catch {
+        if (courseId.value !== requestedId) return
+        evalLoadError.value = "Failed to load evaluation data."
+    } finally {
+        if (courseId.value === requestedId) {
+            isLoadingEval.value = false
+        }
+    }
+}
+
+function openAddEvalDialog(entry: {
+    courseId: number
+    crn: string
+    mothraId: string
+    instructorName: string
+    courseName: string
+}) {
+    evalDialogProps.value = {
+        courseId: entry.courseId,
+        instructorName: entry.instructorName,
+        courseName: entry.courseName,
+        crn: entry.crn,
+        mothraId: entry.mothraId,
+        existingData: null,
+    }
+    showEvalDialog.value = true
+}
+
+function openEditEvalDialog(entry: {
+    courseId: number
+    crn: string
+    mothraId: string
+    instructorName: string
+    courseName: string
+    data: CourseEvalEntryDto
+}) {
+    evalDialogProps.value = {
+        courseId: entry.courseId,
+        instructorName: entry.instructorName,
+        courseName: entry.courseName,
+        crn: entry.crn,
+        mothraId: entry.mothraId,
+        existingData: entry.data,
+    }
+    showEvalDialog.value = true
+}
+
+function confirmDeleteEval(entry: { courseId: number; quantId: number; instructorName: string; courseName: string }) {
+    $q.dialog({
+        title: "Delete Evaluation",
+        message: `Are you sure you want to delete the ad-hoc evaluation for ${entry.instructorName} on ${entry.courseName}?`,
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        try {
+            const success = await courseService.deleteEvaluation(entry.courseId, entry.quantId)
+            if (success) {
+                $q.notify({ type: "positive", message: "Evaluation deleted successfully" })
+                await loadEvaluationData()
+            } else {
+                $q.notify({ type: "negative", message: "Failed to delete evaluation" })
+            }
+        } catch {
+            $q.notify({ type: "negative", message: "An error occurred while deleting the evaluation" })
+        }
+    })
+}
+
+async function onEvalCreated() {
+    $q.notify({ type: "positive", message: "Evaluation created successfully" })
+    await loadEvaluationData()
+}
+
+async function onEvalUpdated() {
+    $q.notify({ type: "positive", message: "Evaluation updated successfully" })
+    await loadEvaluationData()
 }
 
 async function onEffortCreated() {

@@ -18,14 +18,17 @@ public class CoursesController : BaseEffortController
 {
     private readonly ICourseService _courseService;
     private readonly IEffortPermissionService _permissionService;
+    private readonly IEvalHarvestService _evalHarvestService;
 
     public CoursesController(
         ICourseService courseService,
         IEffortPermissionService permissionService,
+        IEvalHarvestService evalHarvestService,
         ILogger<CoursesController> logger) : base(logger)
     {
         _courseService = courseService;
         _permissionService = permissionService;
+        _evalHarvestService = evalHarvestService;
     }
 
     /// <summary>
@@ -480,6 +483,104 @@ public class CoursesController : BaseEffortController
 
         var result = await _courseService.GetPossibleInstructorsForCourseAsync(id, ct);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Get evaluation status for all instructors on a course and its children.
+    /// </summary>
+    [HttpGet("{id:int}/evaluations")]
+    [Permission(Allow = EffortPermissions.ViewEvalResults)]
+    public async Task<ActionResult<CourseEvaluationStatusDto>> GetCourseEvaluations(int id, CancellationToken ct = default)
+    {
+        SetExceptionContext("courseId", id);
+
+        var (_, errorResult) = await GetAuthorizedCourseAsync(id, ct);
+        if (errorResult != null) return errorResult;
+
+        var status = await _evalHarvestService.GetCourseEvaluationStatusAsync(id, ct);
+        return Ok(status);
+    }
+
+    /// <summary>
+    /// Create an ad-hoc evaluation record for an instructor on a course.
+    /// </summary>
+    [HttpPost("{id:int}/evaluations")]
+    [Permission(Allow = EffortPermissions.EditAdHocEval)]
+    public async Task<ActionResult<AdHocEvalResultDto>> CreateEvaluation(
+        int id, [FromBody] CreateAdHocEvalRequest request, CancellationToken ct = default)
+    {
+        SetExceptionContext("courseId", id);
+
+        var (course, errorResult) = await GetAuthorizedCourseAsync(id, ct);
+        if (errorResult != null) return errorResult;
+
+        // Verify term is editable
+        if (!await _permissionService.IsTermEditableAsync(course!.TermCode, ct))
+        {
+            return BadRequest("Term is not open for editing");
+        }
+
+        request.CourseId = id;
+        var result = await _evalHarvestService.CreateAdHocEvaluationAsync(request, ct);
+        if (!result.Success)
+        {
+            return BadRequest(result.Error);
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Update an ad-hoc evaluation record.
+    /// </summary>
+    [HttpPut("{id:int}/evaluations/{quantId:int}")]
+    [Permission(Allow = EffortPermissions.EditAdHocEval)]
+    public async Task<ActionResult<AdHocEvalResultDto>> UpdateEvaluation(
+        int id, int quantId, [FromBody] UpdateAdHocEvalRequest request, CancellationToken ct = default)
+    {
+        SetExceptionContext("courseId", id);
+
+        var (course, errorResult) = await GetAuthorizedCourseAsync(id, ct);
+        if (errorResult != null) return errorResult;
+
+        if (!await _permissionService.IsTermEditableAsync(course!.TermCode, ct))
+        {
+            return BadRequest("Term is not open for editing");
+        }
+
+        var result = await _evalHarvestService.UpdateAdHocEvaluationAsync(id, quantId, request, ct);
+        if (!result.Success)
+        {
+            return BadRequest(result.Error);
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Delete an ad-hoc evaluation record.
+    /// </summary>
+    [HttpDelete("{id:int}/evaluations/{quantId:int}")]
+    [Permission(Allow = EffortPermissions.EditAdHocEval)]
+    public async Task<ActionResult> DeleteEvaluation(int id, int quantId, CancellationToken ct = default)
+    {
+        SetExceptionContext("courseId", id);
+
+        var (course, errorResult) = await GetAuthorizedCourseAsync(id, ct);
+        if (errorResult != null) return errorResult;
+
+        if (!await _permissionService.IsTermEditableAsync(course!.TermCode, ct))
+        {
+            return BadRequest("Term is not open for editing");
+        }
+
+        var deleted = await _evalHarvestService.DeleteAdHocEvaluationAsync(id, quantId, ct);
+        if (!deleted)
+        {
+            return NotFound("Evaluation record not found or cannot be deleted");
+        }
+
+        return NoContent();
     }
 
 }
