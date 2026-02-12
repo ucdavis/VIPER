@@ -18,13 +18,7 @@
             />
             <q-card-section class="q-pb-none q-pr-xl">
                 <div class="text-h6">Import Course from Banner ({{ termName }})</div>
-                <div class="text-caption text-grey-7">
-                    <template v-if="isSelfMode">
-                        Search for courses you are listed as an instructor for in Banner. DVM/VET courses are excluded
-                        and must be imported by department staff.
-                    </template>
-                    <template v-else>Enter one or more fields to search</template>
-                </div>
+                <div class="text-caption text-grey-7">Enter one or more fields to search</div>
             </q-card-section>
 
             <q-card-section>

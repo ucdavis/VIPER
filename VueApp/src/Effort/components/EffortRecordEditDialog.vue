@@ -98,8 +98,9 @@
                         lazy-rules="ondemand"
                     />
 
-                    <!-- Notes -->
+                    <!-- Notes (generic R-Course only) -->
                     <q-input
+                        v-if="props.record?.course.isGenericRCourse"
                         v-model="notes"
                         label="Notes"
                         type="textarea"

@@ -120,6 +120,7 @@ type CourseOptionDto = {
     units: number
     label: string
     crn: string
+    isGenericRCourse: boolean
     isDvm: boolean
     is199299: boolean
     isRCourse: boolean
