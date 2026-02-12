@@ -146,49 +146,34 @@ public class InstructorService : IInstructorService
     }
 
     /// <summary>
-    /// Executes instructor query with left joins to resolve LastEmailedBy sender names and MailId.
+    /// Executes instructor query with navigation properties to resolve LastEmailedBy sender names and MailId.
     /// </summary>
     private async Task<List<PersonDto>> QueryInstructorsWithSenderNamesAsync(
         IQueryable<EffortPerson> baseQuery,
         CancellationToken ct,
         bool applyOrdering = true)
     {
-        var query = from p in baseQuery
-                    join sender in _context.ViperPersons.AsNoTracking()
-                        on p.LastEmailedBy equals sender.PersonId into senders
-                    from sender in senders.DefaultIfEmpty()
-                    join person in _context.ViperPersons.AsNoTracking()
-                        on p.PersonId equals person.PersonId into persons
-                    from person in persons.DefaultIfEmpty()
-                    select new
-                    {
-                        Person = p,
-                        SenderName = sender != null ? sender.FirstName + " " + sender.LastName : null,
-                        MailId = person != null ? person.MailId : null
-                    };
+        IQueryable<EffortPerson> query = baseQuery
+            .Include(p => p.ViperPerson)
+            .Include(p => p.LastEmailedByPerson);
 
         if (applyOrdering)
         {
-            query = query.OrderBy(x => x.Person.LastName).ThenBy(x => x.Person.FirstName);
+            query = query.OrderBy(p => p.LastName).ThenBy(p => p.FirstName);
         }
 
-        var results = await query.ToListAsync(ct);
-        var instructors = results.Select(r => r.Person).ToList();
-        var senderNames = results.ToDictionary(r => r.Person.PersonId, r => r.SenderName);
-        var mailIds = results.ToDictionary(r => r.Person.PersonId, r => r.MailId);
-
+        var instructors = await query.ToListAsync(ct);
         var dtos = _mapper.Map<List<PersonDto>>(instructors);
 
-        foreach (var dto in dtos)
+        for (int i = 0; i < dtos.Count; i++)
         {
-            if (senderNames.TryGetValue(dto.PersonId, out var name) && name != null)
+            var person = instructors[i];
+            var dto = dtos[i];
+            if (person.LastEmailedByPerson != null)
             {
-                dto.LastEmailedBy = name;
+                dto.LastEmailedBy = person.LastEmailedByPerson.FirstName + " " + person.LastEmailedByPerson.LastName;
             }
-            if (mailIds.TryGetValue(dto.PersonId, out var mailId))
-            {
-                dto.MailId = mailId;
-            }
+            dto.MailId = person.ViperPerson?.MailId;
         }
 
         return dtos;
@@ -997,8 +982,7 @@ public class InstructorService : IInstructorService
 
         foreach (var a in assignments.OrderByDescending(p => p.PercentageValue))
         {
-            // Convert stored decimal (0-1) to percentage (0-100)
-            var percent = Math.Round(a.PercentageValue * 100, 0);
+            var percent = EffortConstants.ToDisplayPercent(a.PercentageValue);
             var lines = new List<string>();
 
             // Line 1: Percent and type display

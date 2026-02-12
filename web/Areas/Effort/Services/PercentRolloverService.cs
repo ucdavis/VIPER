@@ -3,8 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
-using Viper.Classes.SQLContext;
-using Viper.Models.VIPER;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -16,18 +15,15 @@ namespace Viper.Areas.Effort.Services;
 public class PercentRolloverService : IPercentRolloverService
 {
     private readonly EffortDbContext _context;
-    private readonly VIPERContext _viperContext;
     private readonly IEffortAuditService _auditService;
     private readonly ILogger<PercentRolloverService> _logger;
 
     public PercentRolloverService(
         EffortDbContext context,
-        VIPERContext viperContext,
         IEffortAuditService auditService,
         ILogger<PercentRolloverService> logger)
     {
         _context = context;
-        _viperContext = viperContext;
         _auditService = auditService;
         _logger = logger;
     }
@@ -53,6 +49,7 @@ public class PercentRolloverService : IPercentRolloverService
             .AsNoTracking()
             .Include(p => p.PercentAssignType)
             .Include(p => p.Unit)
+            .Include(p => p.ViperPerson)
             .Where(p => p.EndDate.HasValue
                 && p.EndDate.Value >= june30Start
                 && p.EndDate.Value < july1Start)
@@ -101,20 +98,9 @@ public class PercentRolloverService : IPercentRolloverService
             }
         }
 
-        // Get person names for all lists
-        var personIds = assignmentsToRollover.Select(a => a.PersonId)
-            .Union(alreadyRolledAssignments.Select(a => a.PersonId))
-            .Union(excludedByAudit.Select(a => a.PersonId))
-            .Distinct()
-            .ToList();
-        var persons = await _viperContext.People
-            .AsNoTracking()
-            .Where(p => personIds.Contains(p.PersonId))
-            .ToDictionaryAsync(p => p.PersonId, ct);
-
-        result.Assignments = assignmentsToRollover.Select(a => MapToPreviewItem(a, persons, result)).ToList();
-        result.ExistingAssignments = alreadyRolledAssignments.Select(a => MapToPreviewItem(a, persons, result)).ToList();
-        result.ExcludedByAudit = excludedByAudit.Select(a => MapToPreviewItem(a, persons, result)).ToList();
+        result.Assignments = assignmentsToRollover.Select(a => MapToPreviewItem(a, result)).ToList();
+        result.ExistingAssignments = alreadyRolledAssignments.Select(a => MapToPreviewItem(a, result)).ToList();
+        result.ExcludedByAudit = excludedByAudit.Select(a => MapToPreviewItem(a, result)).ToList();
 
         result.IsRolloverApplicable = result.Assignments.Count > 0;
         return result;
@@ -122,16 +108,14 @@ public class PercentRolloverService : IPercentRolloverService
 
     private static PercentRolloverItemPreview MapToPreviewItem(
         Percentage a,
-        Dictionary<int, Person> persons,
         PercentRolloverPreviewDto result)
     {
-        var person = persons.GetValueOrDefault(a.PersonId);
         return new PercentRolloverItemPreview
         {
             SourcePercentageId = a.Id,
             PersonId = a.PersonId,
-            PersonName = person != null ? $"{person.LastName}, {person.FirstName}" : "Unknown",
-            MothraId = person?.MothraId ?? "",
+            PersonName = a.ViperPerson != null ? $"{a.ViperPerson.LastName}, {a.ViperPerson.FirstName}" : "Unknown",
+            MothraId = a.ViperPerson?.MothraId ?? "",
             TypeName = a.PercentAssignType.Name,
             TypeClass = a.PercentAssignType.Class,
             PercentageValue = a.PercentageValue,
@@ -150,7 +134,7 @@ public class PercentRolloverService : IPercentRolloverService
         var preview = await GetRolloverPreviewAsync(year, ct);
         if (!preview.IsRolloverApplicable)
         {
-            _logger.LogInformation("No percent assignments to rollover for year {Year}", year);
+            _logger.LogInformation("No percent assignments to rollover for year {Year}", LogSanitizer.SanitizeYear(year));
             return 0;
         }
 
@@ -183,7 +167,7 @@ public class PercentRolloverService : IPercentRolloverService
         await _context.SaveChangesAsync(ct);
 
         _logger.LogInformation("Rolled over {Count} percent assignments for year {Year}: {Source} -> {Target}",
-            created, year, preview.SourceAcademicYearDisplay, preview.TargetAcademicYearDisplay);
+            created, LogSanitizer.SanitizeYear(year), preview.SourceAcademicYearDisplay, preview.TargetAcademicYearDisplay);
 
         return created;
     }
@@ -200,7 +184,7 @@ public class PercentRolloverService : IPercentRolloverService
         var preview = await GetRolloverPreviewAsync(year, ct);
         if (!preview.IsRolloverApplicable)
         {
-            _logger.LogInformation("No percent assignments to rollover for year {Year}", year);
+            _logger.LogInformation("No percent assignments to rollover for year {Year}", LogSanitizer.SanitizeYear(year));
             var noRolloverResult = new RolloverResultDto
             {
                 Success = true,
@@ -254,7 +238,7 @@ public class PercentRolloverService : IPercentRolloverService
         await _context.SaveChangesAsync(ct);
 
         _logger.LogInformation("Rolled over {Count} percent assignments for year {Year}: {Source} -> {Target}",
-            created, year, preview.SourceAcademicYearDisplay, preview.TargetAcademicYearDisplay);
+            created, LogSanitizer.SanitizeYear(year), preview.SourceAcademicYearDisplay, preview.TargetAcademicYearDisplay);
 
         var result = new RolloverResultDto
         {

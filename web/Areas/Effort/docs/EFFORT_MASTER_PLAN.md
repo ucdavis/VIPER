@@ -699,45 +699,83 @@ Each 2-week sprint delivers a complete, testable feature with database, API, and
 
 ## Post-Deployment Cleanup
 
-After the legacy ColdFusion Effort system is fully decommissioned and all features are migrated to the new VueJS/.NET application, the following cleanup steps should be performed:
+After the legacy ColdFusion Effort system is fully decommissioned and all features are migrated to the new VueJS/.NET application, the following cleanup steps should be performed.
 
-### Database Cleanup
+### Pre-Cleanup Verification
 
-1. **Drop Legacy Preservation Columns from `effort.Audits`**:
-   ```sql
-   ALTER TABLE [effort].[Audits] DROP COLUMN LegacyAction;
-   ALTER TABLE [effort].[Audits] DROP COLUMN LegacyCRN;
-   ALTER TABLE [effort].[Audits] DROP COLUMN LegacyMothraID;
-   -- Note: TermCode is retained as it provides term context for audit records
-   ```
-
-2. **Drop `[EffortShadow]` Schema** (views, triggers, wrapper stored procedures):
-   ```sql
-   -- Drop all views, triggers, and stored procedures in EffortShadow schema
-   DROP SCHEMA [EffortShadow];
-   ```
-
-3. **Update ColdFusion Datasource Configuration**:
-   - Remove the `EffortShadow` datasource from ColdFusion (if still configured)
-   - Ensure no remaining references to the legacy Efforts database
-
-4. **Archive/Drop Legacy Efforts Database**:
-   - Take a final backup of the legacy `Efforts` database for historical reference
-   - Drop the legacy database after confirming all data is safely migrated
-
-### Code Cleanup
-
-1. Remove any shadow view verification scripts that are no longer needed
-2. Update documentation to remove references to the legacy compatibility layer
-3. Remove any feature flags or conditional logic for legacy support
-
-### Verification
-
-Before performing cleanup:
+Before performing any cleanup:
 - [ ] Confirm all ColdFusion Effort pages are disabled/retired
 - [ ] Verify all users are using the new VueJS interface
 - [ ] Run final data integrity checks between legacy and modern tables
-- [ ] Take complete database backups
+- [ ] Take complete database backups (VIPER and legacy Efforts databases)
+
+### 1. Drop `[EffortShadow]` Schema (views, triggers, stored procedures)
+
+```sql
+-- Drop all objects in EffortShadow schema, then drop the schema
+-- See CreateEffortShadow.cs for the full object list
+DROP SCHEMA [EffortShadow];
+```
+
+### 2. Remove Unused Columns from `effort` Tables
+
+These columns exist only for ColdFusion compatibility or legacy verification:
+
+```sql
+-- Legacy audit preservation columns (only populated by ColdFusion writes)
+ALTER TABLE [effort].[Audits] DROP COLUMN LegacyAction;
+ALTER TABLE [effort].[Audits] DROP COLUMN LegacyCRN;
+ALTER TABLE [effort].[Audits] DROP COLUMN LegacyMothraID;
+-- Note: TermCode is RETAINED (provides term context for audit records)
+
+-- IncludeClinSchedule: migrated from legacy tblJobCode.include_clinschedule
+-- Not used by any .NET service/controller — only exposed via shadow view tblJobCode
+ALTER TABLE [effort].[JobCodes] DROP COLUMN IncludeClinSchedule;
+```
+
+### 3. Archive/Drop Legacy Efforts Database
+
+- Take a final backup of the legacy `Efforts` database for historical reference
+- Drop the legacy database after confirming all data is safely migrated
+
+### 4. Remove ColdFusion Datasource Configuration
+
+- Remove the `EffortShadow` datasource from ColdFusion admin (if still configured)
+- Remove any remaining ColdFusion references to the legacy Efforts database
+
+### 5. Delete Shadow Schema Scripts and Artifacts
+
+**Scripts (can be deleted entirely):**
+
+- `Scripts/CreateEffortDatabase.cs` — one-time effort schema/table creation (already run)
+- `Scripts/CreateEffortShadow.cs` (~103 KB) — creates all shadow schema objects
+- `Scripts/VerifyShadowProcedures.cs` — compares shadow vs legacy procedures
+- `Scripts/RunCreateShadow.bat` — launcher for shadow creation
+- `Scripts/RunVerifyShadow.bat` — launcher for shadow verification
+
+**Analysis/remediation output files:**
+
+- `Scripts/AnalysisOutput/` directory — shadow verification logs, analysis output files
+- `Scripts/RemediationOutput/Backups/` directory — migration backup `.sql` files
+
+**Migration scripts (archive, then delete):**
+
+- `Scripts/MigrateEffortData.cs` — one-time legacy data migration (already run)
+- `Scripts/RunMigrateData.bat` — launcher for migration
+
+### 6. Update Documentation
+
+- Archive or remove `docs/Shadow_Database_Guide.md` (explains EffortShadow setup)
+- Remove ColdFusion migration references from `docs/MIGRATION_GUIDE.md`
+- Update `docs/QUICK_START.md` to remove shadow schema creation steps
+- Remove legacy comments from service files (e.g., "matches legacy behavior" references in `EffortAuditService.cs`, `EffortRecordService.cs`, `VerificationService.cs`)
+
+### 7. Simplify Legacy-Compat Code
+
+Review and simplify any .NET code that handles legacy edge cases:
+
+- `EffortRecordService.cs`: Auto-create instructor logic matching legacy EffortAction.cfm behavior
+- `EffortRecordService.cs`: NULL ModifiedDate handling for legacy records
 
 ---
 

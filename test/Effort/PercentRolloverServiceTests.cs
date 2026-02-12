@@ -45,7 +45,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             .Verifiable();
 
         _rolloverService = new PercentRolloverService(
-            _effortContext, _viperContext, _auditServiceMock.Object, _loggerMock.Object);
+            _effortContext, _auditServiceMock.Object, _loggerMock.Object);
     }
 
     public void Dispose()
@@ -92,6 +92,17 @@ public sealed class PercentRolloverServiceTests : IDisposable
         };
         _viperContext.People.Add(person);
         await _viperContext.SaveChangesAsync();
+
+        // Also seed ViperPerson in EffortDbContext so navigation properties work
+        _effortContext.ViperPersons.Add(new ViperPerson
+        {
+            PersonId = personId,
+            FirstName = firstName,
+            LastName = lastName,
+            MothraId = mothraId
+        });
+        await _effortContext.SaveChangesAsync();
+
         return person;
     }
 
@@ -494,6 +505,38 @@ public sealed class PercentRolloverServiceTests : IDisposable
         Assert.Equal("Teaching", assignment.TypeName);
         Assert.Equal("Other", assignment.TypeClass);
         Assert.Equal("Surgery", assignment.UnitName);
+    }
+
+    [Fact]
+    public async Task GetRolloverPreviewAsync_ReturnsUnknown_WhenViperPersonMissing()
+    {
+        // Arrange - Create assignment for a person that has no ViperPerson record
+        var type = await CreatePercentAssignTypeAsync("Teaching", "Other");
+        var unit = await CreateUnitAsync("Surgery");
+
+        // Directly create a Percentage without calling CreatePersonAsync (no ViperPerson seeded)
+        var percentage = new Percentage
+        {
+            PersonId = 200,
+            PercentAssignTypeId = type.Id,
+            PercentageValue = 0.5,
+            StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
+            EndDate = new DateTime(2025, 6, 30, 0, 0, 0, DateTimeKind.Local),
+            AcademicYear = "2024-2025",
+            UnitId = unit.Id,
+            ModifiedDate = DateTime.Now,
+            ModifiedBy = TestUserId
+        };
+        _effortContext.Percentages.Add(percentage);
+        await _effortContext.SaveChangesAsync();
+
+        // Act
+        var result = await _rolloverService.GetRolloverPreviewAsync(2025);
+
+        // Assert - ViperPerson nav property is null, so PersonName falls back to "Unknown"
+        var assignment = Assert.Single(result.Assignments);
+        Assert.Equal("Unknown", assignment.PersonName);
+        Assert.Equal("", assignment.MothraId);
     }
 
     [Fact]

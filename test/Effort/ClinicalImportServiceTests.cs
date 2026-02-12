@@ -195,6 +195,71 @@ public sealed class ClinicalImportServiceTests : IDisposable
         Assert.Equal(5, deleteAssignment.Weeks);
     }
 
+    [Fact]
+    public async Task GetPreviewAsync_SyncMode_HandlesNullViperPerson_WithEmptyMothraId()
+    {
+        // Arrange — existing clinical record where ViperPerson has empty MothraId.
+        // GetExistingClinicalRecordsAsync resolves MothraId via:
+        //   r.ViperPerson != null ? r.ViperPerson.MothraId : ""
+        // When MothraId is empty (either from null ViperPerson or empty string), the
+        // existing record can't match any source data, causing it to appear as "Delete"
+        // while the source data appears as "New".
+        //
+        // Note: We seed a ViperPerson with empty MothraId rather than omitting it
+        // entirely because EF Core InMemory doesn't resolve Include+Select projections
+        // for records with truly null optional navigations. In production (SQL Server),
+        // the null ViperPerson case also produces MothraId="" via the ternary fallback.
+        await SeedTermAndCourseAsync();
+
+        // Seed ViperPerson with empty MothraId — simulates the null ViperPerson fallback
+        _context.ViperPersons.Add(new ViperPerson
+        {
+            PersonId = 50,
+            FirstName = "Null",
+            LastName = "Viper",
+            MothraId = ""
+        });
+
+        // Seed EffortPerson directly
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 50,
+            TermCode = TermCode,
+            FirstName = "Null",
+            LastName = "Viper",
+            EffortDept = "VME",
+            EffortTitleCode = "1234"
+        });
+
+        // Seed EffortRecord linked to PersonId=50 and courseId=1
+        _context.Records.Add(new EffortRecord
+        {
+            CourseId = 1,
+            PersonId = 50,
+            TermCode = TermCode,
+            EffortTypeId = ClinicalEffortTypes.Clinical,
+            RoleId = 1,
+            Weeks = 4,
+            Crn = "CRN001"
+        });
+        await _context.SaveChangesAsync();
+
+        // Seed source data that would match by MothraId if ViperPerson had one
+        await SeedSourceDataAsync("INST0050", "DVM", "453", weekCount: 4);
+
+        // Act
+        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync);
+
+        // Assert — existing record's MothraId resolved to "" so it doesn't match source
+        // data keyed by "INST0050". The source appears as New and the existing as Delete.
+        var newAssignment = Assert.Single(result.Assignments, a => a.Status == "New");
+        Assert.Equal("INST0050", newAssignment.MothraId);
+        Assert.Equal(4, newAssignment.Weeks);
+
+        var deleteAssignment = Assert.Single(result.Assignments, a => a.Status == "Delete");
+        Assert.Equal(4, deleteAssignment.Weeks);
+    }
+
     #endregion
 
     #region GetPreviewAsync AddNewOnly Mode Tests

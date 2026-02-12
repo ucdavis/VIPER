@@ -275,6 +275,7 @@ import { ref, computed, watch } from "vue"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { useQuasar } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
+import { useEffortPermissions } from "../composables/use-effort-permissions"
 import { instructorService } from "../services/instructor-service"
 import { recordService } from "../services/record-service"
 import { percentageService } from "../services/percentage-service"
@@ -297,6 +298,7 @@ import PercentAssignmentEditDialog from "../components/PercentAssignmentEditDial
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
+const { hasEditInstructor } = useEffortPermissions()
 
 // Route params
 const termCode = computed(() => route.params.termCode as string)
@@ -350,8 +352,8 @@ const selectedPercentage = ref<PercentageDto | null>(null)
 const showDeletePercentConfirm = ref(false)
 
 // Computed - permissions
-const canEdit = computed(() => canEditTerm.value)
-const canEditInstructor = computed(() => canEditTerm.value)
+const canEdit = computed(() => canEditTerm.value && hasEditInstructor.value)
+const canEditInstructor = computed(() => canEditTerm.value && hasEditInstructor.value)
 
 // Computed - photo URL for instructor profile picture
 const photoUrl = computed(() => {
@@ -475,28 +477,30 @@ async function loadData() {
         // Populate form before loading lookups
         populateForm()
 
-        // Load all metadata and percentages in parallel
-        const [depts, unitsData, titles, groups, types, percentUnits] = await Promise.all([
-            instructorService.getInstructorDepartments(),
-            instructorService.getReportUnits(),
-            instructorService.getTitleCodes(),
-            instructorService.getJobGroups(),
-            percentAssignTypeService.getPercentAssignTypes(true),
-            unitService.getUnits(true),
-        ])
-
-        departments.value = depts
-        reportUnits.value = unitsData
-        titleCodes.value = titles
-        jobGroups.value = groups
-        percentAssignTypes.value = types
-        units.value = percentUnits
-
-        // Initialize filtered title codes
-        filteredTitleCodes.value = titleCodeOptions.value
-
-        // Load percentages
+        // Load percentages (needed for all users including view-only)
         await loadPercentages()
+
+        // Only load edit-specific metadata if the user has edit permission
+        if (canEditInstructor.value) {
+            const [depts, unitsData, titles, groups, types, percentUnits] = await Promise.all([
+                instructorService.getInstructorDepartments(),
+                instructorService.getReportUnits(),
+                instructorService.getTitleCodes(),
+                instructorService.getJobGroups(),
+                percentAssignTypeService.getPercentAssignTypes(true),
+                unitService.getUnits(true),
+            ])
+
+            departments.value = depts
+            reportUnits.value = unitsData
+            titleCodes.value = titles
+            jobGroups.value = groups
+            percentAssignTypes.value = types
+            units.value = percentUnits
+
+            // Initialize filtered title codes
+            filteredTitleCodes.value = titleCodeOptions.value
+        }
     } catch {
         loadError.value = "Failed to load instructor. Please try again."
     } finally {

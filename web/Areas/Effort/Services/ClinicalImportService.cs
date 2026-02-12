@@ -457,16 +457,14 @@ public class ClinicalImportService : IClinicalImportService
             .AsNoTracking()
             .Include(r => r.Course)
             .Include(r => r.Person)
+            .Include(r => r.ViperPerson)
             .Where(r => r.TermCode == termCode)
             .Where(r => r.EffortTypeId == ClinicalEffortTypes.Clinical)
             .Select(r => new ExistingClinicalRecord
             {
                 Id = r.Id,
                 PersonId = r.PersonId,
-                MothraId = _context.ViperPersons
-                    .Where(p => p.PersonId == r.PersonId)
-                    .Select(p => p.MothraId)
-                    .FirstOrDefault() ?? "",
+                MothraId = r.ViperPerson != null ? r.ViperPerson.MothraId : "",
                 CourseId = r.CourseId,
                 SubjCode = r.Course.SubjCode,
                 CrseNumb = r.Course.CrseNumb,
