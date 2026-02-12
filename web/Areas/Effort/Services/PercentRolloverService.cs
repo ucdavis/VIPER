@@ -78,12 +78,11 @@ public class PercentRolloverService : IPercentRolloverService
             .ToList();
 
         // Get (PersonId, PercentAssignTypeId) combinations that were manually edited/deleted after harvest.
-        // Look up the Fall term for this boundary year to find its HarvestedDate.
+        // Look up the Fall Semester term for this boundary year to find its HarvestedDate.
         var excludedByAudit = new List<Percentage>();
+        var fallSemesterTermCode = year * 100 + 9;
         var term = await _context.Terms.AsNoTracking()
-            .Where(t => t.TermCode == year * 100 + 9 || t.TermCode == year * 100 + 10)
-            .OrderByDescending(t => t.HarvestedDate)
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(t => t.TermCode == fallSemesterTermCode, ct);
         if (term?.HarvestedDate != null)
         {
             var excludedCombinations = await _auditService.GetPostHarvestPercentChangesAsync(term.HarvestedDate.Value, ct);
