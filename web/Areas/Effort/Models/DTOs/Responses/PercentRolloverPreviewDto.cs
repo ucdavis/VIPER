@@ -39,7 +39,7 @@ public class PercentRolloverItemPreview
     public string MothraId { get; set; } = string.Empty;
     public string TypeName { get; set; } = string.Empty;
     public string TypeClass { get; set; } = string.Empty;  // Admin, Clinical, Other
-    public double PercentageValue { get; set; }            // As decimal (e.g., 0.50)
+    public double PercentageValue { get; set; }            // Display scale (e.g., 12.5 = 12.5%)
     public string? UnitName { get; set; }
     public string? Modifier { get; set; }
     public bool Compensated { get; set; }

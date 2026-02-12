@@ -97,7 +97,7 @@ const columns: QTableColumn[] = [
         label: "%",
         field: "percentageValue",
         align: "right",
-        format: (val: number) => `${Math.round(val * 100)}%`,
+        format: (val: number) => `${val}%`,
         sortable: true,
     },
     { name: "unitName", label: "Unit", field: "unitName", align: "left" },
