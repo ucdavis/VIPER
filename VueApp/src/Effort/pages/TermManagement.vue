@@ -10,33 +10,125 @@
         </div>
 
         <template v-else>
-            <!-- Add Future Term Section -->
-            <div
-                v-if="availableTerms.length > 0"
-                class="q-mb-lg"
-            >
-                <div class="text-subtitle1 q-mb-sm">Add Future Term</div>
-                <div class="row items-center q-gutter-sm">
-                    <q-select
-                        v-model="selectedNewTerm"
-                        :options="availableTerms"
-                        option-label="termName"
-                        option-value="termCode"
-                        label="Select a term to add"
-                        dense
-                        options-dense
-                        outlined
-                        style="min-width: 250px"
-                    />
-                    <q-btn
-                        label="Add Term"
-                        color="primary"
-                        dense
-                        :disable="!selectedNewTerm"
-                        @click="confirmAddTerm"
-                    />
-                </div>
+            <!-- Action Buttons -->
+            <div class="row q-gutter-sm q-mb-md">
+                <q-btn
+                    v-if="availableTerms.length > 0"
+                    icon="add"
+                    label="Add Future Term"
+                    color="primary"
+                    dense
+                    no-caps
+                    :outline="showAddTermForm"
+                    @click="toggleAddTermForm"
+                    @keyup.enter="toggleAddTermForm"
+                    @keyup.space="toggleAddTermForm"
+                />
+                <q-btn
+                    icon="event_repeat"
+                    label="Percent Rollover"
+                    color="cyan-8"
+                    :text-color="showRolloverForm ? undefined : 'white'"
+                    dense
+                    no-caps
+                    :outline="showRolloverForm"
+                    @click="toggleRolloverForm"
+                    @keyup.enter="toggleRolloverForm"
+                    @keyup.space="toggleRolloverForm"
+                />
             </div>
+
+            <!-- Percent Assignment Rollover (inline expand) -->
+            <q-slide-transition>
+                <div
+                    v-show="showRolloverForm"
+                    class="q-mb-md q-pa-sm bg-grey-1 rounded-borders"
+                >
+                    <div class="row items-center q-gutter-sm">
+                        <template v-if="!rolloverYearOverride">
+                            <span class="text-body2"
+                                >Year: <strong>{{ rolloverYear }}</strong></span
+                            >
+                            <q-btn
+                                label="Change"
+                                flat
+                                dense
+                                no-caps
+                                size="sm"
+                                color="grey-7"
+                                @click="rolloverYearOverride = true"
+                            />
+                        </template>
+                        <template v-else>
+                            <q-input
+                                v-model.number="rolloverYear"
+                                type="number"
+                                label="Boundary Year"
+                                dense
+                                outlined
+                                style="max-width: 150px"
+                                :rules="[yearRule]"
+                            />
+                            <q-btn
+                                label="Reset"
+                                flat
+                                dense
+                                no-caps
+                                size="sm"
+                                color="grey-7"
+                                @click="resetRolloverYear"
+                            />
+                        </template>
+                        <q-btn
+                            icon="event_repeat"
+                            label="Preview Rollover"
+                            color="cyan-8"
+                            text-color="white"
+                            dense
+                            no-caps
+                            :disable="!rolloverYear || rolloverYear < 2020 || rolloverYear > currentYear"
+                            @click="openRolloverDialog"
+                            @keyup.enter="openRolloverDialog"
+                            @keyup.space="openRolloverDialog"
+                        />
+                    </div>
+                    <div
+                        v-if="rolloverYearOverride"
+                        class="text-caption text-orange-9 q-mt-xs"
+                    >
+                        Changing the year from the default is unusual. Only do this if you need to run a past rollover.
+                    </div>
+                </div>
+            </q-slide-transition>
+
+            <!-- Add Future Term (inline expand) -->
+            <q-slide-transition>
+                <div
+                    v-show="showAddTermForm && availableTerms.length > 0"
+                    class="q-mb-md q-pa-sm bg-grey-1 rounded-borders"
+                >
+                    <div class="row items-center q-gutter-sm">
+                        <q-select
+                            v-model="selectedNewTerm"
+                            :options="availableTerms"
+                            option-label="termName"
+                            option-value="termCode"
+                            label="Select a term to add"
+                            dense
+                            options-dense
+                            outlined
+                            style="min-width: 250px"
+                        />
+                        <q-btn
+                            label="Add Term"
+                            color="primary"
+                            dense
+                            :disable="!selectedNewTerm"
+                            @click="confirmAddTerm"
+                        />
+                    </div>
+                </div>
+            </q-slide-transition>
             <!-- Desktop: Table view -->
             <q-table
                 :rows="terms"
@@ -78,33 +170,54 @@
                 </template>
                 <template #body-cell-harvestedDate="props">
                     <q-td :props="props">
-                        <div class="row items-center no-wrap">
-                            <span>{{ formatDate(props.row.harvestedDate) }}</span>
-                            <q-btn
-                                v-if="props.row.canHarvest"
-                                icon="cloud_download"
-                                :label="props.row.harvestedDate ? 'Re-Harvest' : 'Harvest'"
-                                color="info"
-                                text-color="white"
-                                dense
-                                no-caps
-                                size="sm"
-                                padding="2px sm"
-                                class="q-ml-sm"
-                                @click="openHarvestDialog(props.row)"
-                                @keyup.enter="openHarvestDialog(props.row)"
-                                @keyup.space="openHarvestDialog(props.row)"
-                            >
-                                <q-tooltip>Import instructors and courses from CREST and Clinical Scheduler</q-tooltip>
-                            </q-btn>
+                        <div class="row items-center">
+                            <span class="q-mr-sm">{{ formatDate(props.row.harvestedDate) }}</span>
+                            <div class="row q-gutter-xs wrap">
+                                <q-btn
+                                    v-if="props.row.canHarvest"
+                                    icon="cloud_download"
+                                    :label="props.row.harvestedDate ? 'Re-Harvest' : 'Harvest'"
+                                    color="info"
+                                    text-color="white"
+                                    dense
+                                    no-caps
+                                    size="sm"
+                                    padding="2px sm"
+                                    class="term-action-btn"
+                                    @click="openHarvestDialog(props.row)"
+                                    @keyup.enter="openHarvestDialog(props.row)"
+                                    @keyup.space="openHarvestDialog(props.row)"
+                                >
+                                    <q-tooltip
+                                        >Import instructors and courses from CREST and Clinical Scheduler</q-tooltip
+                                    >
+                                </q-btn>
+                                <q-btn
+                                    v-if="props.row.canImportClinical"
+                                    icon="medical_services"
+                                    label="Import Clinical"
+                                    color="teal-8"
+                                    text-color="white"
+                                    dense
+                                    no-caps
+                                    size="sm"
+                                    padding="2px sm"
+                                    class="term-action-btn"
+                                    @click="openClinicalDialog(props.row)"
+                                    @keyup.enter="openClinicalDialog(props.row)"
+                                    @keyup.space="openClinicalDialog(props.row)"
+                                >
+                                    <q-tooltip>Import clinical rotation assignments from Clinical Scheduler</q-tooltip>
+                                </q-btn>
+                            </div>
                         </div>
                     </q-td>
                 </template>
                 <template #body-cell-openedDate="props">
                     <q-td :props="props">
-                        <div class="row items-center no-wrap">
-                            <span>{{ formatDate(props.row.openedDate) }}</span>
-                            <div class="q-ml-sm">
+                        <div class="row items-center">
+                            <span class="q-mr-sm">{{ formatDate(props.row.openedDate) }}</span>
+                            <div class="row q-gutter-xs wrap">
                                 <q-btn
                                     v-if="props.row.canOpen"
                                     icon="add_circle"
@@ -115,6 +228,7 @@
                                     no-caps
                                     size="sm"
                                     padding="2px sm"
+                                    class="term-action-btn"
                                     @click="confirmOpenTerm(props.row)"
                                     @keyup.enter="confirmOpenTerm(props.row)"
                                     @keyup.space="confirmOpenTerm(props.row)"
@@ -129,6 +243,7 @@
                                     no-caps
                                     size="sm"
                                     padding="2px sm"
+                                    class="term-action-btn"
                                     @click="confirmUnopenTerm(props.row)"
                                     @keyup.enter="confirmUnopenTerm(props.row)"
                                     @keyup.space="confirmUnopenTerm(props.row)"
@@ -139,9 +254,9 @@
                 </template>
                 <template #body-cell-closedDate="props">
                     <q-td :props="props">
-                        <div class="row items-center no-wrap">
-                            <span>{{ formatDate(props.row.closedDate) }}</span>
-                            <div class="q-ml-sm">
+                        <div class="row items-center">
+                            <span class="q-mr-sm">{{ formatDate(props.row.closedDate) }}</span>
+                            <div class="row q-gutter-xs wrap">
                                 <q-btn
                                     v-if="props.row.canClose"
                                     icon="lock"
@@ -152,6 +267,7 @@
                                     no-caps
                                     size="sm"
                                     padding="2px sm"
+                                    class="term-action-btn"
                                     @click="confirmCloseTerm(props.row)"
                                     @keyup.enter="confirmCloseTerm(props.row)"
                                     @keyup.space="confirmCloseTerm(props.row)"
@@ -166,6 +282,7 @@
                                     no-caps
                                     size="sm"
                                     padding="2px sm"
+                                    class="term-action-btn"
                                     @click="confirmReopenTerm(props.row)"
                                     @keyup.enter="confirmReopenTerm(props.row)"
                                     @keyup.space="confirmReopenTerm(props.row)"
@@ -207,96 +324,114 @@
                                 >Closed: {{ formatDate(term.closedDate) }}</span
                             >
                         </div>
+                        <div class="row q-gutter-xs q-mt-sm wrap">
+                            <q-btn
+                                v-if="term.canHarvest"
+                                icon="cloud_download"
+                                :label="term.harvestedDate ? 'Re-Harvest' : 'Harvest'"
+                                color="info"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="openHarvestDialog(term)"
+                                @keyup.enter="openHarvestDialog(term)"
+                                @keyup.space="openHarvestDialog(term)"
+                            />
+                            <q-btn
+                                v-if="term.canImportClinical"
+                                icon="medical_services"
+                                label="Import Clinical"
+                                color="teal-8"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="openClinicalDialog(term)"
+                                @keyup.enter="openClinicalDialog(term)"
+                                @keyup.space="openClinicalDialog(term)"
+                            />
+                            <q-btn
+                                v-if="term.canOpen"
+                                icon="add_circle"
+                                label="Open"
+                                color="positive"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="confirmOpenTerm(term)"
+                                @keyup.enter="confirmOpenTerm(term)"
+                                @keyup.space="confirmOpenTerm(term)"
+                            />
+                            <q-btn
+                                v-if="term.canUnopen"
+                                icon="history"
+                                label="Unopen"
+                                color="warning"
+                                text-color="dark"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="confirmUnopenTerm(term)"
+                                @keyup.enter="confirmUnopenTerm(term)"
+                                @keyup.space="confirmUnopenTerm(term)"
+                            />
+                            <q-btn
+                                v-if="term.canClose"
+                                icon="lock"
+                                label="Close"
+                                color="negative"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="confirmCloseTerm(term)"
+                                @keyup.enter="confirmCloseTerm(term)"
+                                @keyup.space="confirmCloseTerm(term)"
+                            />
+                            <q-btn
+                                v-if="term.canReopen"
+                                icon="lock_open"
+                                label="Reopen"
+                                color="secondary"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="confirmReopenTerm(term)"
+                                @keyup.enter="confirmReopenTerm(term)"
+                                @keyup.space="confirmReopenTerm(term)"
+                            />
+                            <q-btn
+                                v-if="term.canDelete"
+                                icon="delete"
+                                label="Delete"
+                                color="negative"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="confirmDeleteTerm(term)"
+                                @keyup.enter="confirmDeleteTerm(term)"
+                                @keyup.space="confirmDeleteTerm(term)"
+                            />
+                        </div>
                     </q-card-section>
-                    <q-card-actions
-                        align="left"
-                        class="q-pt-none"
-                    >
-                        <q-btn
-                            v-if="term.canHarvest"
-                            icon="cloud_download"
-                            :label="term.harvestedDate ? 'Re-Harvest' : 'Harvest'"
-                            color="info"
-                            text-color="white"
-                            dense
-                            no-caps
-                            size="sm"
-                            padding="2px sm"
-                            @click="openHarvestDialog(term)"
-                            @keyup.enter="openHarvestDialog(term)"
-                            @keyup.space="openHarvestDialog(term)"
-                        />
-                        <q-btn
-                            v-if="term.canOpen"
-                            icon="add_circle"
-                            label="Open"
-                            color="positive"
-                            text-color="white"
-                            dense
-                            no-caps
-                            size="sm"
-                            padding="2px sm"
-                            @click="confirmOpenTerm(term)"
-                            @keyup.enter="confirmOpenTerm(term)"
-                            @keyup.space="confirmOpenTerm(term)"
-                        />
-                        <q-btn
-                            v-if="term.canUnopen"
-                            icon="history"
-                            label="Unopen"
-                            color="warning"
-                            text-color="dark"
-                            dense
-                            no-caps
-                            size="sm"
-                            padding="2px sm"
-                            @click="confirmUnopenTerm(term)"
-                            @keyup.enter="confirmUnopenTerm(term)"
-                            @keyup.space="confirmUnopenTerm(term)"
-                        />
-                        <q-btn
-                            v-if="term.canClose"
-                            icon="lock"
-                            label="Close"
-                            color="negative"
-                            text-color="white"
-                            dense
-                            no-caps
-                            size="sm"
-                            padding="2px sm"
-                            @click="confirmCloseTerm(term)"
-                            @keyup.enter="confirmCloseTerm(term)"
-                            @keyup.space="confirmCloseTerm(term)"
-                        />
-                        <q-btn
-                            v-if="term.canReopen"
-                            icon="lock_open"
-                            label="Reopen"
-                            color="secondary"
-                            text-color="white"
-                            dense
-                            no-caps
-                            size="sm"
-                            padding="2px sm"
-                            @click="confirmReopenTerm(term)"
-                            @keyup.enter="confirmReopenTerm(term)"
-                            @keyup.space="confirmReopenTerm(term)"
-                        />
-                        <q-btn
-                            v-if="term.canDelete"
-                            icon="delete"
-                            label="Delete"
-                            color="negative"
-                            text-color="white"
-                            dense
-                            no-caps
-                            size="sm"
-                            padding="2px sm"
-                            @click="confirmDeleteTerm(term)"
-                            @keyup.enter="confirmDeleteTerm(term)"
-                            @keyup.space="confirmDeleteTerm(term)"
-                        />
-                    </q-card-actions>
                 </q-card>
             </div>
         </template>
@@ -308,6 +443,21 @@
             :term-name="harvestTermName"
             @harvested="onHarvested"
         />
+
+        <!-- Percent Rollover Dialog -->
+        <PercentRolloverDialog
+            v-model="rolloverDialogOpen"
+            :year="rolloverYear"
+            @completed="onRolloverCompleted"
+        />
+
+        <!-- Clinical Import Dialog -->
+        <ClinicalImportDialog
+            v-model="clinicalDialogOpen"
+            :term-code="clinicalTermCode"
+            :term-name="clinicalTermName"
+            @completed="onClinicalCompleted"
+        />
     </div>
 </template>
 
@@ -315,8 +465,11 @@
 import { ref, onMounted } from "vue"
 import { useQuasar } from "quasar"
 import { termService } from "../services/term-service"
+import { rolloverService } from "../services/rollover-service"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import HarvestDialog from "../components/HarvestDialog.vue"
+import PercentRolloverDialog from "../components/PercentRolloverDialog.vue"
+import ClinicalImportDialog from "../components/ClinicalImportDialog.vue"
 import type { TermDto, AvailableTermDto } from "../types"
 import type { QTableColumn } from "quasar"
 
@@ -327,11 +480,45 @@ const terms = ref<TermDto[]>([])
 const availableTerms = ref<AvailableTermDto[]>([])
 const selectedNewTerm = ref<AvailableTermDto | null>(null)
 const isLoading = ref(false)
+const showRolloverForm = ref(false)
+const showAddTermForm = ref(false)
 
 // Harvest dialog state
 const harvestDialogOpen = ref(false)
 const harvestTermCode = ref<number | null>(null)
 const harvestTermName = ref("")
+
+// Percent Rollover state
+const rolloverDialogOpen = ref(false)
+const currentYear = new Date().getFullYear()
+const rolloverYear = ref(rolloverService.getDefaultYear())
+const rolloverYearOverride = ref(false)
+
+function yearRule(val: number) {
+    if (!val || val < 2020) return "Year must be 2020 or later"
+    if (val > currentYear) return `Year cannot be in the future (max: ${currentYear})`
+    return true
+}
+
+function resetRolloverYear() {
+    rolloverYear.value = rolloverService.getDefaultYear()
+    rolloverYearOverride.value = false
+}
+
+function toggleRolloverForm() {
+    showRolloverForm.value = !showRolloverForm.value
+    showAddTermForm.value = false
+}
+
+function toggleAddTermForm() {
+    showAddTermForm.value = !showAddTermForm.value
+    showRolloverForm.value = false
+}
+
+// Clinical Import dialog state
+const clinicalDialogOpen = ref(false)
+const clinicalTermCode = ref<number | null>(null)
+const clinicalTermName = ref("")
 
 const columns: QTableColumn[] = [
     { name: "termName", label: "Term", field: "termName", align: "left" },
@@ -445,5 +632,29 @@ function onHarvested() {
     loadTerms({ background: true })
 }
 
+function openRolloverDialog() {
+    rolloverDialogOpen.value = true
+}
+
+function onRolloverCompleted() {
+    loadTerms()
+}
+
+function openClinicalDialog(term: TermDto) {
+    clinicalTermCode.value = term.termCode
+    clinicalTermName.value = term.termName
+    clinicalDialogOpen.value = true
+}
+
+function onClinicalCompleted() {
+    loadTerms()
+}
+
 onMounted(loadTerms)
 </script>
+
+<style scoped>
+.term-action-btn {
+    min-width: 130px;
+}
+</style>

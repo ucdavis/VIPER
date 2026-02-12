@@ -766,45 +766,6 @@ public sealed class PercentageServiceTests : IDisposable
 
     #endregion
 
-    #region GetPercentagesForPersonByDateRangeAsync Tests
-
-    [Fact]
-    public async Task GetPercentagesForPersonByDateRangeAsync_ReturnsOverlappingRecords()
-    {
-        // Arrange
-        var type = await CreatePercentAssignTypeAsync();
-        await CreatePercentageAsync(100, type.Id, 50, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Local), new DateTime(2024, 6, 30, 0, 0, 0, DateTimeKind.Local));
-        await CreatePercentageAsync(100, type.Id, 60, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local), new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Local));
-        await CreatePercentageAsync(100, type.Id, 70, new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Local), new DateTime(2023, 12, 31, 0, 0, 0, DateTimeKind.Local));
-
-        // Act
-        var results = await _percentageService.GetPercentagesForPersonByDateRangeAsync(
-            100, new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Local), new DateTime(2024, 9, 30, 0, 0, 0, DateTimeKind.Local));
-
-        // Assert
-        Assert.Equal(2, results.Count);
-        Assert.Contains(results, r => r.PercentageValue == 50);
-        Assert.Contains(results, r => r.PercentageValue == 60);
-    }
-
-    [Fact]
-    public async Task GetPercentagesForPersonByDateRangeAsync_IncludesOpenEndedRecords()
-    {
-        // Arrange
-        var type = await CreatePercentAssignTypeAsync();
-        await CreatePercentageAsync(100, type.Id, 50, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Local));
-
-        // Act
-        var results = await _percentageService.GetPercentagesForPersonByDateRangeAsync(
-            100, new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Local), new DateTime(2025, 12, 31, 0, 0, 0, DateTimeKind.Local));
-
-        // Assert
-        var dto = Assert.Single(results);
-        Assert.Equal(50, dto.PercentageValue);
-    }
-
-    #endregion
-
     #region IsActive Calculation Tests
 
     [Fact]

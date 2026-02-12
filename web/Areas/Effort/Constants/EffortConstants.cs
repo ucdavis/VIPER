@@ -13,12 +13,6 @@ public static class EffortConstants
     public static readonly string[] AcademicDepartments = ["APC", "PHR", "PMI", "VMB", "VME", "VSR"];
 
     /// <summary>
-    /// Guest account MothraIDs for department-level guest accounts.
-    /// PersonIds are looked up from users.Person at runtime.
-    /// </summary>
-    public static readonly string[] GuestAccountIds = ["APCGUEST", "PHRGUEST", "PMIGUEST", "VMBGUEST", "VMEGUEST", "VSRGUEST"];
-
-    /// <summary>
     /// Department overrides by MothraID. These instructors are assigned to a specific
     /// department regardless of their job data in AAUD.
     /// Key: MothraID, Value: Department code
@@ -40,6 +34,30 @@ public static class EffortConstants
         return DepartmentOverrides.TryGetValue(mothraId, out var dept) ? dept : null;
     }
 
+    #region Percentage Display
+
+    /// <summary>
+    /// Number of decimal places for percentage display (0-100 scale).
+    /// Stored values use 0-1 scale with up to 3 decimal places (e.g., 0.125 = 12.5%).
+    /// </summary>
+    public const int PercentDisplayDecimals = 1;
+
+    /// <summary>
+    /// Converts a stored percentage value (0-1 scale) to display scale (0-100),
+    /// rounded to <see cref="PercentDisplayDecimals"/>.
+    /// </summary>
+    public static double ToDisplayPercent(double storedValue)
+        => Math.Round(storedValue * 100, PercentDisplayDecimals);
+
+    /// <summary>
+    /// Converts a user-entered percentage (0-100 scale) to storage scale (0-1),
+    /// rounding to <see cref="PercentDisplayDecimals"/> before conversion.
+    /// </summary>
+    public static double ToStoredPercent(decimal displayValue)
+        => (double)Math.Round(displayValue, PercentDisplayDecimals) / 100.0;
+
+    #endregion
+
     #region Term-Gated Business Rules
 
     /// <summary>
@@ -60,12 +78,6 @@ public static class EffortConstants
     /// Role ID for Instructor (non-primary instructor role).
     /// </summary>
     public const int InstructorRoleId = 2;
-
-    /// <summary>
-    /// First name used for guest instructor placeholders.
-    /// Guest instructors are department placeholders for unattributed teaching.
-    /// </summary>
-    public const string GuestInstructorFirstName = "GUEST";
 
     /// <summary>
     /// Role ID for Clinical Instructor (legacy alias for InstructorRoleId).
@@ -135,11 +147,6 @@ public static class EffortConstants
     /// Source identifier for clinical scheduler data.
     /// </summary>
     public const string SourceClinical = "Clinical";
-
-    /// <summary>
-    /// Source identifier for guest accounts.
-    /// </summary>
-    public const string SourceGuest = "Guest";
 
     /// <summary>
     /// Source identifier for existing data (shown in removed items list).

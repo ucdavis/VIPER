@@ -22,4 +22,6 @@ public class AlertState
 
     // Navigation properties
     public virtual EffortTerm? Term { get; set; }
+    public virtual ViperPerson? IgnoredByPerson { get; set; }
+    public virtual ViperPerson? ModifiedByPerson { get; set; }
 }

@@ -12,4 +12,8 @@ public class Sabbatical
     public string? ExcludeDidacticTerms { get; set; }
     public DateTime? ModifiedDate { get; set; }
     public int? ModifiedBy { get; set; }
+
+    // Navigation properties
+    public virtual ViperPerson? ViperPerson { get; set; }
+    public virtual ViperPerson? ModifiedByPerson { get; set; }
 }

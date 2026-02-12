@@ -128,10 +128,8 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
             }
 
             var titleDesc = context.TitleLookup.TryGetValue(instructor.TitleCode, out var desc) ? desc : instructor.TitleCode;
-            var dept = context.DeptSimpleNameLookup != null && context.DeptSimpleNameLookup.TryGetValue(instructor.HomeDept, out var deptName)
-                ? deptName
-                : instructor.HomeDept;
-            if (string.IsNullOrEmpty(dept)) dept = "UNK";
+            // HomeDept is already fully resolved by BatchResolveDepartmentsAsync
+            var dept = instructor.HomeDept;
 
             context.Preview.CrestInstructors.Add(new HarvestPersonPreview
             {
@@ -280,7 +278,8 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
 
         var validTitleCodesSet = validTitleCodes.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        context.DeptSimpleNameLookup ??= await context.InstructorService.GetDepartmentSimpleNameLookupAsync(ct);
+        // Batch-resolve departments using full resolution chain (jobs → employee fields → fallback)
+        var batchDepts = await context.InstructorService.BatchResolveDepartmentsAsync(candidateMothraIds, context.TermCode, ct);
 
         // Build lookups
         var pKeyToEmployee = employees.ToDictionary(e => e.EmpPKey ?? "", e => e, StringComparer.OrdinalIgnoreCase);
@@ -317,14 +316,14 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
                     continue;
                 }
 
-                var homeDept = ResolveDeptSimpleName(emp.EmpHomeDept, context.DeptSimpleNameLookup) ?? "";
+                var dept = batchDepts.GetValueOrDefault(mothraId, "UNK");
 
                 detailsForMothraId.Add(new CrestInstructorDto(
                     MothraId: mothraId,
                     FirstName: (person.PersonFirstName ?? "").ToUpperInvariant(),
                     LastName: (person.PersonLastName ?? "").ToUpperInvariant(),
                     TitleCode: titleCode,
-                    HomeDept: homeDept));
+                    HomeDept: dept));
             }
 
             // Only include if single record (legacy HAVING COUNT(*) = 1)
@@ -387,25 +386,6 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
             .GroupBy(i => i.IdsPidm!)
             .ToDictionary(g => g.Key, g => g.First().IdsMothraid ?? "");
 
-        // Build MothraId -> PersonName lookup
-        var allMothraIds = pidmToMothraId.Values.Distinct().ToList();
-        var personNames = await context.AaudContext.Ids
-            .AsNoTracking()
-            .Where(i => i.IdsMothraid != null && allMothraIds.Contains(i.IdsMothraid) && i.IdsTermCode == termCodeStr)
-            .Join(context.AaudContext.People,
-                ids => ids.IdsPKey,
-                person => person.PersonPKey,
-                (ids, person) => new { ids.IdsMothraid, person.PersonFirstName, person.PersonLastName })
-            .Distinct()
-            .ToListAsync(ct);
-
-        var mothraIdToName = personNames
-            .Where(p => !string.IsNullOrEmpty(p.IdsMothraid))
-            .GroupBy(p => p.IdsMothraid!)
-            .ToDictionary(
-                g => g.Key,
-                g => $"{g.First().PersonLastName?.ToUpper()}, {g.First().PersonFirstName?.ToUpper()}");
-
         // Log time data availability
         var offeringsWithTime = courseOfferings.Count(o => !string.IsNullOrEmpty(o.FromTime) && !string.IsNullOrEmpty(o.ThruTime));
         var offeringsWithDate = courseOfferings.Count(o => o.FromDate.HasValue && o.ThruDate.HasValue);
@@ -433,9 +413,12 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
                 continue;
             }
 
+            // Only create effort records for persons who are in CrestInstructors
+            // (those with valid AAUD data, title code, and VIPER person record)
             var instructor = context.Preview.CrestInstructors.FirstOrDefault(i => i.MothraId == mothraId);
-            var personName = instructor?.FullName ??
-                (mothraIdToName.TryGetValue(mothraId, out var name) ? name : mothraId);
+            if (instructor == null) continue;
+
+            var personName = instructor.FullName;
 
             var minutes = HarvestTimeParser.CalculateSessionMinutes(
                 offering.FromDate, offering.FromTime,

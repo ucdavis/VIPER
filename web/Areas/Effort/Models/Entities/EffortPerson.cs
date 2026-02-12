@@ -28,4 +28,6 @@ public class EffortPerson
     // Navigation properties
     public virtual EffortTerm Term { get; set; } = null!;
     public virtual ICollection<EffortRecord> Records { get; set; } = new List<EffortRecord>();
+    public virtual ViperPerson? ViperPerson { get; set; }
+    public virtual ViperPerson? LastEmailedByPerson { get; set; }
 }

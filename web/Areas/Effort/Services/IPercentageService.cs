@@ -50,17 +50,6 @@ public interface IPercentageService
     Task<bool> DeletePercentageAsync(int id, CancellationToken ct = default);
 
     /// <summary>
-    /// Get percentage assignments for a person within a date range.
-    /// </summary>
-    /// <param name="personId">The person ID.</param>
-    /// <param name="start">Start date (inclusive).</param>
-    /// <param name="end">End date (inclusive).</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>List of percentage assignments that overlap with the date range.</returns>
-    Task<List<PercentageDto>> GetPercentagesForPersonByDateRangeAsync(
-        int personId, DateTime start, DateTime end, CancellationToken ct = default);
-
-    /// <summary>
     /// Validate a percentage assignment before saving.
     /// </summary>
     /// <param name="request">The create request to validate.</param>

@@ -21,8 +21,6 @@ const logger = createLogger("Build Verify")
 // Clear cache if --clear-cache flag is passed
 clearCacheIfRequested()
 
-// Configuration
-const TIMEOUT_MS = 60_000 // 1 minute timeout for builds
 const { env } = process
 
 // Helper function to run commands with color output preserved
@@ -34,16 +32,7 @@ function runCommand(command, args, options = {}) {
             ...options,
         })
 
-        let timeout = null
-        if (TIMEOUT_MS) {
-            timeout = setTimeout(() => {
-                child.kill("SIGTERM")
-                reject(new Error(`Command timed out after ${TIMEOUT_MS}ms`))
-            }, TIMEOUT_MS)
-        }
-
         child.on("exit", (code) => {
-            clearTimeout(timeout)
             if (code === 0) {
                 resolve()
             } else {
@@ -52,7 +41,6 @@ function runCommand(command, args, options = {}) {
         })
 
         child.on("error", (error) => {
-            clearTimeout(timeout)
             reject(error)
         })
     })
@@ -86,18 +74,7 @@ function runCommandWithOutput(command, args, options = {}) {
             process.stderr.write(data)
         })
 
-        let timeout = null
-        if (TIMEOUT_MS) {
-            timeout = setTimeout(() => {
-                child.kill("SIGTERM")
-                reject(createErrorWithOutput(`Command timed out after ${TIMEOUT_MS}ms`, stdout + stderr))
-            }, TIMEOUT_MS)
-        }
-
         child.on("exit", (code) => {
-            if (timeout) {
-                clearTimeout(timeout)
-            }
             const output = stdout + stderr
             if (code === 0) {
                 resolve(output)
@@ -107,9 +84,6 @@ function runCommandWithOutput(command, args, options = {}) {
         })
 
         child.on("error", (err) => {
-            if (timeout) {
-                clearTimeout(timeout)
-            }
             reject(createErrorWithOutput(err.message, stdout + stderr))
         })
     })

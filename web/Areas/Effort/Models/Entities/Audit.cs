@@ -24,4 +24,7 @@ public class Audit
 
     // Term context for audit record
     public int? TermCode { get; set; }
+
+    // Navigation properties
+    public virtual ViperPerson? ChangedByPerson { get; set; }
 }

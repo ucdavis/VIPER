@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.Effort;
+using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
 using Viper.Areas.Effort.Services.Harvest;
@@ -28,6 +29,7 @@ public sealed class HarvestServiceTests : IDisposable
     private readonly Mock<ITermService> _termServiceMock;
     private readonly Mock<IInstructorService> _instructorServiceMock;
     private readonly Mock<IRCourseService> _rCourseServiceMock;
+    private readonly Mock<IClinicalImportService> _clinicalImportServiceMock;
     private readonly Mock<ILogger<HarvestService>> _loggerMock;
     private readonly HarvestService _harvestService;
 
@@ -101,13 +103,20 @@ public sealed class HarvestServiceTests : IDisposable
             .Setup(s => s.ClearAuditForTermAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        // Create harvest phases
+        // Create harvest phases (ClinicalHarvestPhase needs IClinicalImportService for delegation)
+        _clinicalImportServiceMock = new Mock<IClinicalImportService>();
+        _clinicalImportServiceMock
+            .Setup(s => s.ExecuteImportAsync(It.IsAny<int>(), It.IsAny<ClinicalImportMode>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClinicalImportResultDto { Success = true });
+        _clinicalImportServiceMock
+            .Setup(s => s.GetExistingClinicalRecordKeysAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<string>());
+
         var phases = new List<IHarvestPhase>
         {
             new CrestHarvestPhase(),
             new NonCrestHarvestPhase(),
-            new ClinicalHarvestPhase(),
-            new GuestAccountPhase()
+            new ClinicalHarvestPhase(_clinicalImportServiceMock.Object)
         };
 
         _harvestService = new HarvestService(
@@ -122,6 +131,7 @@ public sealed class HarvestServiceTests : IDisposable
             _termServiceMock.Object,
             _instructorServiceMock.Object,
             _rCourseServiceMock.Object,
+            _clinicalImportServiceMock.Object,
             _loggerMock.Object);
     }
 
@@ -335,176 +345,6 @@ public sealed class HarvestServiceTests : IDisposable
 
     #endregion
 
-    #region Guest Account Tests
-
-    [Fact]
-    public async Task GeneratePreviewAsync_IncludesGuestAccounts_WhenFoundInViperPeople()
-    {
-        // Arrange - Add guest account to VIPER People
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
-        {
-            PersonId = 1001,
-            ClientId = "APCGUEST",
-            MothraId = "APCGUEST",
-            FirstName = "GUEST",
-            LastName = "APC",
-            FullName = "APC, GUEST"
-        });
-        await _viperContext.SaveChangesAsync();
-
-        // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
-
-        // Assert
-        Assert.Single(result.GuestAccounts);
-        Assert.Equal("APCGUEST", result.GuestAccounts[0].MothraId);
-        Assert.Equal(1001, result.GuestAccounts[0].PersonId);
-        Assert.Equal("Guest", result.GuestAccounts[0].Source);
-    }
-
-    [Fact]
-    public async Task GeneratePreviewAsync_SkipsMissingGuestAccounts()
-    {
-        // Arrange - No guest accounts in VIPER People
-
-        // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
-
-        // Assert
-        Assert.Empty(result.GuestAccounts);
-    }
-
-    #endregion
-
-    #region Summary Calculation Tests
-
-    [Fact]
-    public async Task GeneratePreviewAsync_CalculatesSummary_WithGuestAccountsOnly()
-    {
-        // Arrange - Add guest account
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
-        {
-            PersonId = 1001,
-            ClientId = "APCGUEST",
-            MothraId = "APCGUEST",
-            FirstName = "GUEST",
-            LastName = "APC",
-            FullName = "APC, GUEST"
-        });
-        await _viperContext.SaveChangesAsync();
-
-        // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
-
-        // Assert
-        Assert.NotNull(result.Summary);
-        Assert.Equal(1, result.Summary.GuestAccounts);
-        Assert.Equal(1, result.Summary.TotalInstructors); // Guest counts as instructor
-    }
-
-    [Fact]
-    public async Task GeneratePreviewAsync_MultipleGuestAccounts_CountsCorrectly()
-    {
-        // Arrange - Add 3 guest accounts
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
-        {
-            PersonId = 1001,
-            ClientId = "APCGUEST",
-            MothraId = "APCGUEST",
-            FirstName = "GUEST",
-            LastName = "APC",
-            FullName = "APC, GUEST"
-        });
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
-        {
-            PersonId = 1002,
-            ClientId = "VMEGUEST",
-            MothraId = "VMEGUEST",
-            FirstName = "GUEST",
-            LastName = "VME",
-            FullName = "VME, GUEST"
-        });
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
-        {
-            PersonId = 1003,
-            ClientId = "VSRGUEST",
-            MothraId = "VSRGUEST",
-            FirstName = "GUEST",
-            LastName = "VSR",
-            FullName = "VSR, GUEST"
-        });
-        await _viperContext.SaveChangesAsync();
-
-        // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
-
-        // Assert
-        Assert.Equal(3, result.GuestAccounts.Count);
-        Assert.Equal(3, result.Summary.GuestAccounts);
-        Assert.Equal(3, result.Summary.TotalInstructors);
-    }
-
-    #endregion
-
-    #region IsNew Flag Tests
-
-    [Fact]
-    public async Task GeneratePreviewAsync_NewGuestAccount_SetsIsNewTrue()
-    {
-        // Arrange - Add guest account to VIPER but NOT to EffortPerson
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
-        {
-            PersonId = 1001,
-            ClientId = "APCGUEST",
-            MothraId = "APCGUEST",
-            FirstName = "GUEST",
-            LastName = "APC",
-            FullName = "APC, GUEST"
-        });
-        await _viperContext.SaveChangesAsync();
-
-        // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
-
-        // Assert
-        Assert.Single(result.GuestAccounts);
-        Assert.True(result.GuestAccounts[0].IsNew);
-    }
-
-    [Fact]
-    public async Task GeneratePreviewAsync_ExistingGuestAccount_SetsIsNewFalse()
-    {
-        // Arrange - Add guest account to both VIPER and EffortPerson
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
-        {
-            PersonId = 1001,
-            ClientId = "APCGUEST",
-            MothraId = "APCGUEST",
-            FirstName = "GUEST",
-            LastName = "APC",
-            FullName = "APC, GUEST"
-        });
-        await _viperContext.SaveChangesAsync();
-
-        _context.Persons.Add(new EffortPerson
-        {
-            PersonId = 1001,
-            TermCode = TestTermCode,
-            FirstName = "GUEST",
-            LastName = "APC"
-        });
-        await _context.SaveChangesAsync();
-
-        // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
-
-        // Assert
-        Assert.Single(result.GuestAccounts);
-        Assert.False(result.GuestAccounts[0].IsNew);
-    }
-
-    #endregion
-
     #region Removed Items Detection Tests
 
     [Fact]
@@ -573,6 +413,200 @@ public sealed class HarvestServiceTests : IDisposable
         // Assert
         Assert.Empty(result.RemovedInstructors);
         Assert.Empty(result.RemovedCourses);
+    }
+
+    #endregion
+
+    #region IsNew Flag Tests
+
+    [Fact]
+    public async Task GeneratePreviewAsync_ExistingEffortRecord_SetsIsNewFalse()
+    {
+        // Arrange - Seed existing effort data that matches what the preview will generate
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 1,
+            TermCode = TestTermCode,
+            FirstName = "JANE",
+            LastName = "DOE"
+        });
+        var course = new EffortCourse
+        {
+            TermCode = TestTermCode,
+            Crn = "12345",
+            SubjCode = "VET",
+            CrseNumb = "410",
+            SeqNumb = "01"
+        };
+        _context.Courses.Add(course);
+        await _context.SaveChangesAsync();
+
+        _context.Records.Add(new EffortRecord
+        {
+            PersonId = 1,
+            TermCode = TestTermCode,
+            CourseId = course.Id,
+            EffortTypeId = "VAR",
+            RoleId = 1,
+            Hours = 40,
+            Crn = "12345"
+        });
+        await _context.SaveChangesAsync();
+
+        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        {
+            PersonId = 1,
+            ClientId = "JDOE001",
+            MothraId = "JDOE001",
+            FirstName = "JANE",
+            LastName = "DOE",
+            FullName = "DOE, JANE"
+        });
+        await _viperContext.SaveChangesAsync();
+
+        // Use a custom phase that adds a preview record matching the existing data
+        var service = CreateServiceWithPhase(new TestPreviewHarvestPhase("JDOE001", "DOE, JANE", "12345", "VAR"));
+
+        // Act
+        var result = await service.GeneratePreviewAsync(TestTermCode);
+
+        // Assert
+        var effortRecord = Assert.Single(result.CrestEffort);
+        Assert.False(effortRecord.IsNew);
+    }
+
+    [Fact]
+    public async Task GeneratePreviewAsync_NewEffortRecord_SetsIsNewTrue()
+    {
+        // Arrange - No existing records in the database
+        var service = CreateServiceWithPhase(new TestPreviewHarvestPhase("JDOE001", "DOE, JANE", "12345", "VAR"));
+
+        // Act
+        var result = await service.GeneratePreviewAsync(TestTermCode);
+
+        // Assert
+        var effortRecord = Assert.Single(result.CrestEffort);
+        Assert.True(effortRecord.IsNew);
+    }
+
+    [Fact]
+    public async Task GeneratePreviewAsync_MixedNewAndExisting_SetsIsNewCorrectly()
+    {
+        // Arrange - One existing record, preview will have two
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 1,
+            TermCode = TestTermCode,
+            FirstName = "JANE",
+            LastName = "DOE"
+        });
+        var course = new EffortCourse
+        {
+            TermCode = TestTermCode,
+            Crn = "12345",
+            SubjCode = "VET",
+            CrseNumb = "410",
+            SeqNumb = "01"
+        };
+        _context.Courses.Add(course);
+        await _context.SaveChangesAsync();
+
+        _context.Records.Add(new EffortRecord
+        {
+            PersonId = 1,
+            TermCode = TestTermCode,
+            CourseId = course.Id,
+            EffortTypeId = "VAR",
+            RoleId = 1,
+            Hours = 40,
+            Crn = "12345"
+        });
+        await _context.SaveChangesAsync();
+
+        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        {
+            PersonId = 1,
+            ClientId = "JDOE001",
+            MothraId = "JDOE001",
+            FirstName = "JANE",
+            LastName = "DOE",
+            FullName = "DOE, JANE"
+        });
+        await _viperContext.SaveChangesAsync();
+
+        // Phase adds two records: one matching existing (VAR) and one new (LEC)
+        var phase = new TestPreviewHarvestPhase(
+            new[]
+            {
+                ("JDOE001", "DOE, JANE", "12345", "VAR"),
+                ("JDOE001", "DOE, JANE", "12345", "LEC"),
+            });
+        var service = CreateServiceWithPhase(phase);
+
+        // Act
+        var result = await service.GeneratePreviewAsync(TestTermCode);
+
+        // Assert
+        Assert.Equal(2, result.CrestEffort.Count);
+        var existingRecord = result.CrestEffort.Single(r => r.EffortType == "VAR");
+        var newRecord = result.CrestEffort.Single(r => r.EffortType == "LEC");
+        Assert.False(existingRecord.IsNew);
+        Assert.True(newRecord.IsNew);
+    }
+
+    #endregion
+
+    #region RESID Course Exclusion Tests
+
+    [Fact]
+    public async Task GeneratePreviewAsync_ResidCourse_ExcludedFromRemovedList()
+    {
+        // Arrange - Add a RESID course (auto-generated R-course placeholder, recreated post-harvest)
+        _context.Courses.Add(new EffortCourse
+        {
+            TermCode = TestTermCode,
+            Crn = "RESID",
+            SubjCode = "VET",
+            CrseNumb = "499R",
+            SeqNumb = "001"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
+
+        // Assert - RESID should NOT appear in removed courses
+        Assert.Empty(result.RemovedCourses);
+    }
+
+    [Fact]
+    public async Task GeneratePreviewAsync_ResidCourseWithOtherCourses_OnlyNonResidRemoved()
+    {
+        // Arrange - RESID + a regular course, both not in harvest sources
+        _context.Courses.Add(new EffortCourse
+        {
+            TermCode = TestTermCode,
+            Crn = "RESID",
+            SubjCode = "VET",
+            CrseNumb = "499R",
+            SeqNumb = "001"
+        });
+        _context.Courses.Add(new EffortCourse
+        {
+            TermCode = TestTermCode,
+            Crn = "99999",
+            SubjCode = "OLD",
+            CrseNumb = "100",
+            SeqNumb = "001"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
+
+        // Assert - Only the non-RESID course should be in the removed list
+        Assert.Single(result.RemovedCourses);
+        Assert.Equal("99999", result.RemovedCourses[0].Crn);
     }
 
     #endregion
@@ -723,6 +757,7 @@ public sealed class HarvestServiceTests : IDisposable
             _termServiceMock.Object,
             _instructorServiceMock.Object,
             _rCourseServiceMock.Object,
+            _clinicalImportServiceMock.Object,
             _loggerMock.Object);
 
         // Act - Run harvest (R-course detection uses inline EndsWith("R") logic)
@@ -738,6 +773,70 @@ public sealed class HarvestServiceTests : IDisposable
             123,
             RCourseCreationContext.Harvest,
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Creates a HarvestService that uses a single custom phase for testing.
+    /// </summary>
+    private HarvestService CreateServiceWithPhase(IHarvestPhase phase)
+    {
+        return new HarvestService(
+            new List<IHarvestPhase> { phase },
+            _context,
+            _viperContext,
+            _coursesContext,
+            _crestContext,
+            _aaudContext,
+            _dictionaryContext,
+            _auditServiceMock.Object,
+            _termServiceMock.Object,
+            _instructorServiceMock.Object,
+            _rCourseServiceMock.Object,
+            _clinicalImportServiceMock.Object,
+            _loggerMock.Object);
+    }
+
+    /// <summary>
+    /// Test helper phase that adds preview effort records for testing CompareWithExistingData behavior.
+    /// </summary>
+    private class TestPreviewHarvestPhase : IHarvestPhase
+    {
+        private readonly (string MothraId, string PersonName, string Crn, string EffortType)[] _records;
+
+        public TestPreviewHarvestPhase(string mothraId, string personName, string crn, string effortType)
+            : this(new[] { (mothraId, personName, crn, effortType) }) { }
+
+        public TestPreviewHarvestPhase((string MothraId, string PersonName, string Crn, string EffortType)[] records)
+        {
+            _records = records;
+        }
+
+        public int Order => 1;
+        public string PhaseName => "TestPreview";
+        public bool ShouldExecute(int termCode) => true;
+
+        public Task GeneratePreviewAsync(HarvestContext context, CancellationToken ct = default)
+        {
+            foreach (var (mothraId, personName, crn, effortType) in _records)
+            {
+                context.Preview.CrestEffort.Add(new Viper.Areas.Effort.Models.DTOs.Responses.HarvestRecordPreview
+                {
+                    MothraId = mothraId,
+                    PersonName = personName,
+                    Crn = crn,
+                    CourseCode = $"VET 410",
+                    EffortType = effortType,
+                    Hours = 40,
+                    RoleId = 1,
+                    RoleName = "Instructor",
+                    Source = "CREST"
+                });
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task ExecuteAsync(HarvestContext context, CancellationToken ct = default)
+            => Task.CompletedTask;
     }
 
     /// <summary>

@@ -73,7 +73,7 @@ public class PercentageService : IPercentageService
             UnitId = request.UnitId,
             Modifier = request.Modifier?.Trim(),
             Comment = request.Comment?.Trim(),
-            PercentageValue = (double)request.PercentageValue / 100.0,
+            PercentageValue = EffortConstants.ToStoredPercent(request.PercentageValue),
             StartDate = request.StartDate,
             EndDate = request.EndDate,
             Compensated = request.Compensated,
@@ -141,10 +141,12 @@ public class PercentageService : IPercentageService
 
         var oldValues = new
         {
+            percentage.PersonId,
+            percentage.PercentAssignTypeId,
             TypeName = percentage.PercentAssignType.Name,
             TypeClass = percentage.PercentAssignType.Class,
             UnitName = percentage.Unit?.Name,
-            PercentageValue = percentage.PercentageValue * 100,
+            PercentageValue = EffortConstants.ToDisplayPercent(percentage.PercentageValue),
             percentage.StartDate,
             percentage.EndDate,
             percentage.Compensated
@@ -154,7 +156,7 @@ public class PercentageService : IPercentageService
         percentage.UnitId = request.UnitId;
         percentage.Modifier = request.Modifier?.Trim();
         percentage.Comment = request.Comment?.Trim();
-        percentage.PercentageValue = (double)request.PercentageValue / 100.0;
+        percentage.PercentageValue = EffortConstants.ToStoredPercent(request.PercentageValue);
         percentage.StartDate = request.StartDate;
         percentage.EndDate = request.EndDate;
         percentage.Compensated = request.Compensated;
@@ -207,10 +209,11 @@ public class PercentageService : IPercentageService
         var oldValues = new
         {
             percentage.PersonId,
+            percentage.PercentAssignTypeId,
             TypeName = percentage.PercentAssignType.Name,
             TypeClass = percentage.PercentAssignType.Class,
             UnitName = percentage.Unit?.Name,
-            PercentageValue = percentage.PercentageValue * 100,
+            PercentageValue = EffortConstants.ToDisplayPercent(percentage.PercentageValue),
             percentage.StartDate,
             percentage.EndDate,
             percentage.Compensated
@@ -227,23 +230,6 @@ public class PercentageService : IPercentageService
         await transaction.CommitAsync(ct);
 
         return true;
-    }
-
-    /// <inheritdoc />
-    public async Task<List<PercentageDto>> GetPercentagesForPersonByDateRangeAsync(
-        int personId, DateTime start, DateTime end, CancellationToken ct = default)
-    {
-        var percentages = await _context.Percentages
-            .AsNoTracking()
-            .Include(p => p.PercentAssignType)
-            .Include(p => p.Unit)
-            .Where(p => p.PersonId == personId)
-            .Where(p => start <= (p.EndDate ?? DateTime.MaxValue) && end >= p.StartDate)
-            .OrderByDescending(p => p.StartDate)
-            .ThenBy(p => p.PercentAssignType.Name)
-            .ToListAsync(ct);
-
-        return percentages.Select(EnrichDto).ToList();
     }
 
     /// <inheritdoc />
@@ -321,14 +307,14 @@ public class PercentageService : IPercentageService
         var activeNonLeaveTotal = existingPercentages
             .Where(p => IsActive(p.EndDate))
             .Where(p => !string.Equals(p.PercentAssignType.Class, LeaveTypeClass, StringComparison.OrdinalIgnoreCase))
-            .Sum(p => (decimal)Math.Round(p.PercentageValue * 100, 2));
+            .Sum(p => (decimal)EffortConstants.ToDisplayPercent(p.PercentageValue));
 
         if (isNewActive && type != null && !string.Equals(type.Class, LeaveTypeClass, StringComparison.OrdinalIgnoreCase))
         {
-            var newTotal = activeNonLeaveTotal + Math.Round(request.PercentageValue, 2);
+            var newTotal = activeNonLeaveTotal + Math.Round(request.PercentageValue, EffortConstants.PercentDisplayDecimals);
             if (newTotal > 100)
             {
-                result.Warnings.Add($"Total active percentage ({newTotal:F0}%) exceeds 100%.");
+                result.Warnings.Add($"Total active percentage ({newTotal:F1}%) exceeds 100%.");
             }
         }
 
@@ -338,7 +324,7 @@ public class PercentageService : IPercentageService
     private PercentageDto EnrichDto(Percentage entity)
     {
         var dto = _mapper.Map<PercentageDto>(entity);
-        dto.PercentageValue = (decimal)(entity.PercentageValue * 100);
+        dto.PercentageValue = (decimal)EffortConstants.ToDisplayPercent(entity.PercentageValue);
         dto.TypeName = entity.PercentAssignType.Name;
         dto.TypeClass = entity.PercentAssignType.Class;
         dto.UnitName = entity.Unit?.Name;
