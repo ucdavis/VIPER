@@ -174,40 +174,6 @@
                         </ul>
                     </q-banner>
 
-                    <!-- Percent Assignment Rollover Banner -->
-                    <q-banner
-                        v-if="preview?.percentRollover"
-                        class="bg-cyan-1 q-mb-md cursor-pointer"
-                        rounded
-                        @click="activeTab = 'rollover'"
-                        @keyup.enter="activeTab = 'rollover'"
-                        @keyup.space="activeTab = 'rollover'"
-                        tabindex="0"
-                        role="button"
-                        aria-label="View Percent Rollover details"
-                    >
-                        <div class="row items-center q-mb-xs">
-                            <q-icon
-                                name="event_repeat"
-                                color="cyan-8"
-                                size="sm"
-                                class="q-mr-sm"
-                            />
-                            <span class="text-weight-medium">Percent Assignment Rollover</span>
-                        </div>
-                        <div class="text-caption text-grey-7">
-                            {{ preview.percentRollover.assignments.length }} assignment(s) will roll forward to
-                            {{ preview.percentRollover.targetAcademicYearDisplay }}.
-                            <span
-                                v-if="preview.percentRollover.excludedByAudit?.length > 0"
-                                class="text-orange"
-                            >
-                                {{ preview.percentRollover.excludedByAudit.length }} excluded due to manual changes.
-                            </span>
-                            <span class="text-primary">Click to view details.</span>
-                        </div>
-                    </q-banner>
-
                     <!-- Removed Items Warning -->
                     <q-banner
                         v-if="hasRemovedItems"
@@ -280,11 +246,6 @@
                         <q-tab
                             name="clinical"
                             label="Clinical"
-                        />
-                        <q-tab
-                            v-if="preview?.percentRollover"
-                            name="rollover"
-                            label="Percent Rollover"
                         />
                     </q-tabs>
 
@@ -399,7 +360,7 @@
                             <q-table
                                 :rows="preview.crestEffort"
                                 :columns="effortColumns"
-                                :row-key="(row) => `${row.mothraId}-${row.courseCode}`"
+                                :row-key="(row) => `${row.mothraId}-${row.crn}-${row.effortType}`"
                                 :filter="crestEffortFilter"
                                 dense
                                 flat
@@ -521,7 +482,7 @@
                             <q-table
                                 :rows="preview.nonCrestEffort"
                                 :columns="effortColumns"
-                                :row-key="(row) => `${row.mothraId}-${row.courseCode}`"
+                                :row-key="(row) => `${row.mothraId}-${row.crn}-${row.effortType}`"
                                 :filter="nonCrestEffortFilter"
                                 dense
                                 flat
@@ -629,99 +590,6 @@
                                 :pagination="{ rowsPerPage: 5 }"
                             />
                         </q-tab-panel>
-
-                        <!-- Percent Rollover Tab -->
-                        <q-tab-panel
-                            v-if="preview?.percentRollover"
-                            name="rollover"
-                            class="q-pa-none q-pt-md"
-                        >
-                            <!-- Summary Banner -->
-                            <q-banner
-                                class="bg-cyan-1 q-mb-md"
-                                rounded
-                            >
-                                <div class="text-caption text-grey-8 q-mb-sm">
-                                    Rolling assignments ending {{ formatDate(preview.percentRollover.oldEndDate) }} to
-                                    {{ preview.percentRollover.targetAcademicYearDisplay }}
-                                </div>
-                                <div class="row q-col-gutter-md">
-                                    <div class="col-4 text-center">
-                                        <div class="text-h5">{{ preview.percentRollover.assignments.length }}</div>
-                                        <div class="text-caption">To Roll Forward</div>
-                                    </div>
-                                    <div class="col-4 text-center">
-                                        <div class="text-h5">
-                                            {{ preview.percentRollover.existingAssignments.length }}
-                                        </div>
-                                        <div class="text-caption">Already Rolled</div>
-                                    </div>
-                                    <div class="col-4 text-center">
-                                        <div class="text-h5">
-                                            {{ preview.percentRollover.excludedByAudit?.length ?? 0 }}
-                                        </div>
-                                        <div class="text-caption">Excluded</div>
-                                    </div>
-                                </div>
-                            </q-banner>
-
-                            <!-- Assignments to roll forward -->
-                            <div class="text-subtitle2 q-mb-sm">
-                                Will Roll Forward ({{ preview.percentRollover.assignments.length }})
-                            </div>
-                            <RolloverAssignmentTable
-                                :rows="preview.percentRollover.assignments"
-                                :rows-per-page="5"
-                                class="q-mb-md"
-                            />
-
-                            <!-- Already rolled (collapsed by default) -->
-                            <q-expansion-item
-                                v-if="preview.percentRollover.existingAssignments.length > 0"
-                                :label="`Already Rolled (${preview.percentRollover.existingAssignments.length})`"
-                                class="q-mb-md bg-grey-1"
-                                header-class="text-grey-8"
-                                dense
-                            >
-                                <RolloverAssignmentTable
-                                    :rows="preview.percentRollover.existingAssignments"
-                                    :rows-per-page="5"
-                                />
-                            </q-expansion-item>
-
-                            <!-- Excluded by audit (collapsed by default, with explanation) -->
-                            <q-expansion-item
-                                v-if="preview.percentRollover.excludedByAudit?.length > 0"
-                                :label="`Excluded - Post-Harvest Changes (${preview.percentRollover.excludedByAudit.length})`"
-                                class="q-mb-md bg-orange-1"
-                                header-class="text-orange-9"
-                                dense
-                            >
-                                <q-banner
-                                    class="bg-orange-2 q-mb-sm"
-                                    rounded
-                                    dense
-                                >
-                                    <div class="row items-start">
-                                        <q-icon
-                                            name="info"
-                                            color="orange"
-                                            size="sm"
-                                            class="q-mr-sm q-mt-xs"
-                                        />
-                                        <span>
-                                            These assignments will not be rolled forward because someone manually edited
-                                            or deleted a percent assignment of the same type for this instructor after
-                                            the term was harvested.
-                                        </span>
-                                    </div>
-                                </q-banner>
-                                <RolloverAssignmentTable
-                                    :rows="preview.percentRollover.excludedByAudit"
-                                    :rows-per-page="5"
-                                />
-                            </q-expansion-item>
-                        </q-tab-panel>
                     </q-tab-panels>
                 </q-card-section>
 
@@ -755,7 +623,6 @@ import type { HarvestPreviewDto } from "../types"
 import type { QTableColumn } from "quasar"
 import { inflect } from "inflection"
 import ClinicalEffortPreviewTable from "./ClinicalEffortPreviewTable.vue"
-import RolloverAssignmentTable from "./RolloverAssignmentTable.vue"
 
 const props = defineProps<{
     modelValue: boolean
@@ -867,12 +734,6 @@ function getStatusColor(status: string): string {
         default:
             return "grey"
     }
-}
-
-function formatDate(dateStr: string | undefined): string {
-    if (!dateStr) return ""
-    const date = new Date(dateStr)
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
 
 // Load preview when dialog opens

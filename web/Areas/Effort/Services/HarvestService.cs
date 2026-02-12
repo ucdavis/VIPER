@@ -23,7 +23,7 @@ public class HarvestService : IHarvestService
     private readonly ITermService _termService;
     private readonly IInstructorService _instructorService;
     private readonly IRCourseService _rCourseService;
-    private readonly IPercentRolloverService _percentRolloverService;
+    private readonly IClinicalImportService _clinicalImportService;
     private readonly ILogger<HarvestService> _logger;
 
     public HarvestService(
@@ -38,7 +38,7 @@ public class HarvestService : IHarvestService
         ITermService termService,
         IInstructorService instructorService,
         IRCourseService rCourseService,
-        IPercentRolloverService percentRolloverService,
+        IClinicalImportService clinicalImportService,
         ILogger<HarvestService> logger)
     {
         _phases = phases;
@@ -52,7 +52,7 @@ public class HarvestService : IHarvestService
         _termService = termService;
         _instructorService = instructorService;
         _rCourseService = rCourseService;
-        _percentRolloverService = percentRolloverService;
+        _clinicalImportService = clinicalImportService;
         _logger = logger;
     }
 
@@ -74,13 +74,6 @@ public class HarvestService : IHarvestService
 
         // Detect existing and removed items
         await DetectExistingAndRemovedItemsAsync(harvestContext, ct);
-
-        // Generate percent assignment rollover preview (Fall terms only)
-        if (_percentRolloverService.ShouldRollover(termCode))
-        {
-            harvestContext.Preview.PercentRollover =
-                await _percentRolloverService.GetRolloverPreviewAsync(termCode, ct);
-        }
 
         return harvestContext.Preview;
     }
@@ -143,12 +136,6 @@ public class HarvestService : IHarvestService
             // Phase 7: Generate R-courses for eligible instructors (post-harvest step)
             _logger.LogInformation("Generating R-courses for eligible instructors in term {TermCode}", termCode);
             await GenerateRCoursesForEligibleInstructorsAsync(termCode, modifiedBy, ct);
-
-            // Execute percent assignment rollover (Fall terms only)
-            if (_percentRolloverService.ShouldRollover(termCode))
-            {
-                await _percentRolloverService.ExecuteRolloverAsync(termCode, modifiedBy, ct);
-            }
 
             // Update term status
             await UpdateTermStatusAsync(termCode, ct);
@@ -301,12 +288,6 @@ public class HarvestService : IHarvestService
             }, ct);
             _logger.LogInformation("Generating R-courses for eligible instructors in term {TermCode}", termCode);
             await GenerateRCoursesForEligibleInstructorsAsync(termCode, modifiedBy, ct);
-
-            // Execute percent assignment rollover (Fall terms only)
-            if (_percentRolloverService.ShouldRollover(termCode))
-            {
-                await _percentRolloverService.ExecuteRolloverAsync(termCode, modifiedBy, ct);
-            }
 
             // Finalize (95% to 100%)
             await progressChannel.WriteAsync(HarvestProgressEvent.Finalizing(), ct);
@@ -624,16 +605,24 @@ public class HarvestService : IHarvestService
             .Select(r => new { r.PersonId, r.Crn, r.EffortTypeId })
             .ToListAsync(ct);
 
+        // CREST + Non-CREST: match by MothraId:Crn:EffortTypeId (CRN-based)
         var existingRecordKeys = existingRecords
             .Select(r => $"{personIdToMothraId.GetValueOrDefault(r.PersonId, "")}:{r.Crn}:{r.EffortTypeId}")
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var record in context.Preview.CrestEffort
-            .Concat(context.Preview.NonCrestEffort)
-            .Concat(context.Preview.ClinicalEffort))
+        foreach (var record in context.Preview.CrestEffort.Concat(context.Preview.NonCrestEffort))
         {
             var recordKey = $"{record.MothraId}:{record.Crn}:{record.EffortType}";
             record.IsNew = !existingRecordKeys.Contains(recordKey);
+        }
+
+        // Clinical: match by MothraId:CourseKey — same logic as ClinicalImportService (DRY)
+        var existingClinicalKeys = await _clinicalImportService.GetExistingClinicalRecordKeysAsync(termCode, ct);
+
+        foreach (var record in context.Preview.ClinicalEffort)
+        {
+            var clinicalKey = $"{record.MothraId.ToUpperInvariant()}:{record.CourseCode?.Trim().ToUpperInvariant()}";
+            record.IsNew = !existingClinicalKeys.Contains(clinicalKey);
         }
 
         // Check for existing data warning

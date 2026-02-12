@@ -97,6 +97,11 @@ public class EffortAuditService : IEffortAuditService
         AddAuditEntry(EffortAuditTables.Terms, termCode, termCode, action, details);
     }
 
+    public void AddImportAudit(string action, string details)
+    {
+        AddAuditEntry(EffortAuditTables.Terms, 0, null, action, details);
+    }
+
     public void AddPersonChangeAudit(int personId, int termCode, string action, object? oldValues, object? newValues)
     {
         AddAuditEntry(EffortAuditTables.Persons, personId, termCode, action, SerializeChanges(oldValues, newValues));
@@ -406,6 +411,7 @@ public class EffortAuditService : IEffortAuditService
 
         var termTerms = await baseQuery
             .Where(a => a.TableName == EffortAuditTables.Terms)
+            .Where(a => a.RecordId > 0)
             .Select(a => a.RecordId)
             .Distinct()
             .ToListAsync(ct);
@@ -976,7 +982,7 @@ public class EffortAuditService : IEffortAuditService
 
     private static void EnrichTermRows(List<(EffortAuditRow row, Audit audit)> items)
     {
-        foreach (var (row, audit) in items)
+        foreach (var (row, audit) in items.Where(i => i.audit.RecordId > 0))
         {
             row.TermCode = audit.RecordId;
             row.TermName = GetTermName(audit.RecordId);

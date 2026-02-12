@@ -710,6 +710,32 @@ public sealed class InstructorServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetInstructorAsync_MapsPercentFields()
+    {
+        // Arrange - PercentAdmin and PercentClinical are double to match SQL float
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 1,
+            TermCode = 202410,
+            FirstName = "Jane",
+            LastName = "Test",
+            EffortDept = "VME",
+            EffortTitleCode = "1234",
+            PercentAdmin = 12.5,
+            PercentClinical = 33.33
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var dto = await _instructorService.GetInstructorAsync(1, 202410);
+
+        // Assert
+        Assert.NotNull(dto);
+        Assert.Equal(12.5, dto.PercentAdmin);
+        Assert.Equal(33.33, dto.PercentClinical);
+    }
+
+    [Fact]
     public async Task GetInstructorAsync_MapsLastEmailedFieldsCorrectly()
     {
         // Arrange - LastEmailed maps to LastEmailedDate, LastEmailedBy resolved to sender name
@@ -740,6 +766,21 @@ public sealed class InstructorServiceTests : IDisposable
         });
         await _context.SaveChangesAsync();
 
+        // Add instructor's ViperPerson (for MailId resolution via .Include(p => p.ViperPerson))
+        _context.ViperPersons.Add(new ViperPerson
+        {
+            PersonId = 1,
+            FirstName = "John",
+            LastName = "Doe",
+            MailId = "jdoe"
+        });
+        // Instructor 2 has a ViperPerson but no MailId set
+        _context.ViperPersons.Add(new ViperPerson
+        {
+            PersonId = 2,
+            FirstName = "Jane",
+            LastName = "Smith"
+        });
         // Add sender to ViperPersons (cross-schema reference in EffortDbContext) for name lookup
         _context.ViperPersons.Add(new ViperPerson
         {
@@ -753,15 +794,17 @@ public sealed class InstructorServiceTests : IDisposable
         var instructor1 = await _instructorService.GetInstructorAsync(1, 202410);
         var instructor2 = await _instructorService.GetInstructorAsync(2, 202410);
 
-        // Assert - instructor with email history
+        // Assert - instructor with email history and ViperPerson (MailId resolved)
         Assert.NotNull(instructor1);
         Assert.Equal(emailedDate, instructor1.LastEmailedDate);
         Assert.Equal("Admin User", instructor1.LastEmailedBy);
+        Assert.Equal("jdoe", instructor1.MailId);
 
-        // Assert - instructor without email history
+        // Assert - instructor without email history and no ViperPerson (MailId null)
         Assert.NotNull(instructor2);
         Assert.Null(instructor2.LastEmailedDate);
         Assert.Null(instructor2.LastEmailedBy);
+        Assert.Null(instructor2.MailId);
     }
 
     #endregion

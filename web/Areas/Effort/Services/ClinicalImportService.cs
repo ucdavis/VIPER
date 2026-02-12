@@ -10,12 +10,16 @@ namespace Viper.Areas.Effort.Services;
 
 /// <summary>
 /// Service for importing clinical effort data from the Clinical Scheduler system.
-/// Extracts clinical rotation data and creates/updates effort records.
+/// Single source of truth for clinical record creation — used by both standalone
+/// import and the harvest clinical phase.
 /// </summary>
 public class ClinicalImportService : IClinicalImportService
 {
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
+    private readonly AAUDContext _aaudContext;
+    private readonly CoursesContext _coursesContext;
+    private readonly IInstructorService _instructorService;
     private readonly IEffortAuditService _auditService;
     private readonly ILogger<ClinicalImportService> _logger;
 
@@ -23,8 +27,9 @@ public class ClinicalImportService : IClinicalImportService
     /// Clinical course priority lookup. Lower values = higher priority.
     /// When an instructor is assigned to multiple rotations in the same week,
     /// only the highest priority course is credited.
+    /// Shared with ClinicalHarvestPhase for preview generation.
     /// </summary>
-    private static readonly Dictionary<string, int> ClinicalCoursePriority = new()
+    internal static readonly Dictionary<string, int> ClinicalCoursePriority = new()
     {
         ["DVM 453"] = -100, // Comm surgery - highest priority
         ["DVM 491"] = 10,   // SA emergency over ICU
@@ -47,16 +52,82 @@ public class ClinicalImportService : IClinicalImportService
         ["DVM 447"] = 100,  // EduLead - lowest priority
     };
 
+    /// <summary>
+    /// Tracks MothraIds that have already been processed for EffortPerson creation
+    /// within this service instance (scoped per request).
+    /// Value is true if person was created/exists, false if skipped (no AAUD data).
+    /// </summary>
+    private readonly Dictionary<string, bool> _processedMothraIds = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Lazily loaded title code lookup for validating AAUD title codes.
+    /// </summary>
+    private Dictionary<string, string>? _titleLookup;
+
     public ClinicalImportService(
         EffortDbContext context,
         VIPERContext viperContext,
+        AAUDContext aaudContext,
+        CoursesContext coursesContext,
+        IInstructorService instructorService,
         IEffortAuditService auditService,
         ILogger<ClinicalImportService> logger)
     {
         _context = context;
         _viperContext = viperContext;
+        _aaudContext = aaudContext;
+        _coursesContext = coursesContext;
+        _instructorService = instructorService;
         _auditService = auditService;
         _logger = logger;
+    }
+
+    /// <inheritdoc />
+    public async Task<ImportValidationResult> ValidateImportableInstructorsAsync(
+        IEnumerable<string> mothraIds, int termCode, CancellationToken ct = default)
+    {
+        var mothraIdList = mothraIds.ToList();
+        var termCodeStr = termCode.ToString();
+
+        // Query AAUD ids + employees for the term (same JOIN as EnsureEffortPersonAsync)
+        var aaudImportInfo = await _aaudContext.Ids
+            .AsNoTracking()
+            .Where(ids => ids.IdsMothraid != null && mothraIdList.Contains(ids.IdsMothraid))
+            .Where(ids => ids.IdsTermCode == termCodeStr)
+            .Join(_aaudContext.Employees.Where(e => e.EmpTermCode == termCodeStr),
+                ids => ids.IdsPKey,
+                emp => emp.EmpPKey,
+                (ids, emp) => new
+                {
+                    MothraId = ids.IdsMothraid!,
+                    TitleCode = emp.EmpEffortTitleCode
+                })
+            .ToListAsync(ct);
+
+        // Get valid effort title codes
+        _titleLookup ??= (await _instructorService.GetTitleCodesAsync(ct))
+            .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
+
+        // Build lookup of MothraId → titleCode for those with valid title codes
+        var titleCodeByMothraId = aaudImportInfo
+            .Where(a => !string.IsNullOrEmpty(a.TitleCode?.Trim())
+                && _titleLookup.ContainsKey(a.TitleCode!.Trim()))
+            .GroupBy(a => a.MothraId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().TitleCode!.Trim(), StringComparer.OrdinalIgnoreCase);
+
+        var importable = titleCodeByMothraId.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var skipped = mothraIdList
+            .Where(id => !importable.Contains(id))
+            .OrderBy(id => id)
+            .ToList();
+
+        return new ImportValidationResult
+        {
+            ImportableMothraIds = importable,
+            TitleCodeByMothraId = titleCodeByMothraId,
+            SkippedMothraIds = skipped
+        };
     }
 
     public async Task<ClinicalImportPreviewDto> GetPreviewAsync(int termCode, ClinicalImportMode mode, CancellationToken ct = default)
@@ -97,11 +168,19 @@ public class ClinicalImportService : IClinicalImportService
             }
         }
 
+        // Filter source data to only importable instructors (same AAUD validation as execution)
+        var uniqueMothraIds = sourceData.Select(s => s.MothraId).Distinct().ToList();
+        var validation = await ValidateImportableInstructorsAsync(uniqueMothraIds, termCode, ct);
+
+        var filteredSourceData = sourceData
+            .Where(s => validation.ImportableMothraIds.Contains(s.MothraId))
+            .ToList();
+
         // Get existing clinical records for comparison
         var existingRecords = await GetExistingClinicalRecordsAsync(termCode, ct);
 
         // Build preview based on mode
-        result.Assignments = BuildPreviewAssignments(sourceData, existingRecords, mode);
+        result.Assignments = BuildPreviewAssignments(filteredSourceData, existingRecords, mode);
 
         // Calculate counts
         result.AddCount = result.Assignments.Count(a => a.Status == "New");
@@ -140,24 +219,37 @@ public class ClinicalImportService : IClinicalImportService
         var sourceData = await GetSourceDataAsync(termCode, ct);
         var existingRecords = await GetExistingClinicalRecordsAsync(termCode, ct);
 
-        // ClearReplace needs a transaction: the intermediate SaveChangesAsync (to flush deletes
-        // before inserts) must not commit until everything succeeds.
-        await using var transaction = mode == ClinicalImportMode.ClearReplace
+        // Start a transaction only when not already inside one (e.g., harvest wraps
+        // all phases in an outer transaction). Intermediate SaveChangesAsync calls in
+        // EnsureEffortPerson/Course flush DB-generated IDs without committing.
+        var ownsTransaction = _context.Database.CurrentTransaction == null;
+        await using var transaction = ownsTransaction
             ? await _context.Database.BeginTransactionAsync(ct)
             : null;
 
         // Execute import based on mode
         var result = await ExecuteImportInternalAsync(sourceData, existingRecords, termCode, mode, modifiedBy, ct);
 
-        // Write audit entry
-        _auditService.AddImportAudit(termCode, EffortAuditActions.ImportClinical,
-            $"Clinical import ({mode}): {result.RecordsAdded} added, {result.RecordsUpdated} updated, {result.RecordsDeleted} deleted, {result.RecordsSkipped} skipped");
+        // Collect skipped instructors from the processing cache
+        result.SkippedInstructors = _processedMothraIds
+            .Where(kvp => !kvp.Value)
+            .Select(kvp => kvp.Key)
+            .OrderBy(id => id)
+            .ToList();
+
+        // Write audit entry with skipped instructor details
+        var auditDetails = $"Clinical import ({mode}): {result.RecordsAdded} added, {result.RecordsUpdated} updated, {result.RecordsDeleted} deleted, {result.RecordsSkipped} skipped";
+        if (result.SkippedInstructors.Count > 0)
+        {
+            auditDetails += $". Skipped instructors (no AAUD record or invalid title): {string.Join(", ", result.SkippedInstructors)}";
+        }
+        _auditService.AddImportAudit(termCode, EffortAuditActions.ImportClinical, auditDetails);
 
         await _context.SaveChangesAsync(ct);
 
-        if (transaction != null)
+        if (ownsTransaction)
         {
-            await transaction.CommitAsync(ct);
+            await transaction!.CommitAsync(ct);
         }
 
         return result;
@@ -200,9 +292,11 @@ public class ClinicalImportService : IClinicalImportService
             var sourceData = await GetSourceDataAsync(termCode, ct);
             var existingRecords = await GetExistingClinicalRecordsAsync(termCode, ct);
 
-            // ClearReplace needs a transaction: the intermediate SaveChangesAsync (to flush deletes
-            // before inserts) must not commit until everything succeeds.
-            await using var transaction = mode == ClinicalImportMode.ClearReplace
+            // Start a transaction only when not already inside one (e.g., harvest wraps
+            // all phases in an outer transaction). Intermediate SaveChangesAsync calls in
+            // EnsureEffortPerson/Course flush DB-generated IDs without committing.
+            var ownsTransaction = _context.Database.CurrentTransaction == null;
+            await using var transaction = ownsTransaction
                 ? await _context.Database.BeginTransactionAsync(ct)
                 : null;
 
@@ -212,15 +306,26 @@ public class ClinicalImportService : IClinicalImportService
 
             await progressChannel.WriteAsync(ClinicalImportProgressEvent.Finalizing(), ct);
 
-            // Write audit entry
-            _auditService.AddImportAudit(termCode, EffortAuditActions.ImportClinical,
-                $"Clinical import ({mode}): {result.RecordsAdded} added, {result.RecordsUpdated} updated, {result.RecordsDeleted} deleted, {result.RecordsSkipped} skipped");
+            // Collect skipped instructors from the processing cache
+            result.SkippedInstructors = _processedMothraIds
+                .Where(kvp => !kvp.Value)
+                .Select(kvp => kvp.Key)
+                .OrderBy(id => id)
+                .ToList();
+
+            // Write audit entry with skipped instructor details
+            var auditDetails = $"Clinical import ({mode}): {result.RecordsAdded} added, {result.RecordsUpdated} updated, {result.RecordsDeleted} deleted, {result.RecordsSkipped} skipped";
+            if (result.SkippedInstructors.Count > 0)
+            {
+                auditDetails += $". Skipped instructors (no AAUD record or invalid title): {string.Join(", ", result.SkippedInstructors)}";
+            }
+            _auditService.AddImportAudit(termCode, EffortAuditActions.ImportClinical, auditDetails);
 
             await _context.SaveChangesAsync(ct);
 
-            if (transaction != null)
+            if (ownsTransaction)
             {
-                await transaction.CommitAsync(ct);
+                await transaction!.CommitAsync(ct);
             }
 
             _logger.LogInformation(
@@ -352,16 +457,14 @@ public class ClinicalImportService : IClinicalImportService
             .AsNoTracking()
             .Include(r => r.Course)
             .Include(r => r.Person)
+            .Include(r => r.ViperPerson)
             .Where(r => r.TermCode == termCode)
             .Where(r => r.EffortTypeId == ClinicalEffortTypes.Clinical)
             .Select(r => new ExistingClinicalRecord
             {
                 Id = r.Id,
                 PersonId = r.PersonId,
-                MothraId = _context.ViperPersons
-                    .Where(p => p.PersonId == r.PersonId)
-                    .Select(p => p.MothraId)
-                    .FirstOrDefault() ?? "",
+                MothraId = r.ViperPerson != null ? r.ViperPerson.MothraId : "",
                 CourseId = r.CourseId,
                 SubjCode = r.Course.SubjCode,
                 CrseNumb = r.Course.CrseNumb,
@@ -380,6 +483,15 @@ public class ClinicalImportService : IClinicalImportService
             .Where(r => r.TermCode == termCode)
             .Where(r => r.EffortTypeId == ClinicalEffortTypes.Clinical)
             .CountAsync(ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<HashSet<string>> GetExistingClinicalRecordKeysAsync(int termCode, CancellationToken ct = default)
+    {
+        var existingRecords = await GetExistingClinicalRecordsAsync(termCode, ct);
+        return existingRecords
+            .Select(r => $"{r.MothraId.ToUpperInvariant()}:{BuildNormalizedCourseKey(r.SubjCode, r.CrseNumb)}")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -854,6 +966,7 @@ public class ClinicalImportService : IClinicalImportService
 
     /// <summary>
     /// Create a clinical effort record for the given instructor and course.
+    /// Creates EffortPerson and EffortCourse on the fly if they don't exist.
     /// </summary>
     private async Task<bool> CreateClinicalRecordAsync(
         string mothraId,
@@ -875,25 +988,16 @@ public class ClinicalImportService : IClinicalImportService
             return false;
         }
 
-        // Check if person exists in effort system for this term
-        var effortPerson = await _context.Persons
-            .FirstOrDefaultAsync(p => p.PersonId == person.PersonId && p.TermCode == termCode, ct);
-
-        if (effortPerson == null)
+        // Ensure person exists in effort system for this term (create if missing)
+        if (!await EnsureEffortPersonAsync(mothraId, person.PersonId, termCode, ct))
         {
-            _logger.LogWarning("Effort person not found for PersonId {PersonId}, term {TermCode} during clinical import",
-                person.PersonId, termCode);
             return false;
         }
 
-        // Look up course
-        var course = await _context.Courses
-            .FirstOrDefaultAsync(c => c.TermCode == termCode && c.SubjCode == subjCode && c.CrseNumb == crseNumb, ct);
-
+        // Ensure course exists in effort system for this term (create if missing)
+        var course = await EnsureEffortCourseAsync(subjCode, crseNumb, termCode, ct);
         if (course == null)
         {
-            _logger.LogWarning("Course not found for {SubjCode} {CrseNumb}, term {TermCode} during clinical import",
-                subjCode, crseNumb, termCode);
             return false;
         }
 
@@ -931,7 +1035,146 @@ public class ClinicalImportService : IClinicalImportService
         return true;
     }
 
-    private static string GetPriorityCourse(List<string> courses)
+    /// <summary>
+    /// Ensure an EffortPerson record exists for this instructor and term.
+    /// If missing, looks up AAUD data, validates title code, resolves department, and creates the record.
+    /// </summary>
+    private async Task<bool> EnsureEffortPersonAsync(
+        string mothraId,
+        int personId,
+        int termCode,
+        CancellationToken ct)
+    {
+        // Skip if already processed this request (return cached result: true=exists, false=skipped)
+        if (_processedMothraIds.TryGetValue(mothraId, out var cachedResult))
+        {
+            return cachedResult;
+        }
+
+        // Check if EffortPerson already exists
+        var exists = await _context.Persons
+            .AsNoTracking()
+            .AnyAsync(p => p.PersonId == personId && p.TermCode == termCode, ct);
+
+        if (exists)
+        {
+            _processedMothraIds[mothraId] = true;
+            return true;
+        }
+
+        // Look up AAUD employee data for title code
+        var termCodeStr = termCode.ToString();
+        var aaudInfo = await _aaudContext.Ids
+            .AsNoTracking()
+            .Where(ids => ids.IdsMothraid == mothraId && ids.IdsTermCode == termCodeStr)
+            .Join(_aaudContext.Employees.Where(e => e.EmpTermCode == termCodeStr),
+                ids => ids.IdsPKey,
+                emp => emp.EmpPKey,
+                (ids, emp) => new { emp.EmpEffortTitleCode })
+            .FirstOrDefaultAsync(ct);
+
+        var titleCode = aaudInfo?.EmpEffortTitleCode?.Trim() ?? "";
+
+        // Validate title code
+        _titleLookup ??= (await _instructorService.GetTitleCodesAsync(ct))
+            .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
+
+        if (string.IsNullOrEmpty(titleCode) || !_titleLookup.ContainsKey(titleCode))
+        {
+            _logger.LogWarning(
+                "Skipping clinical instructor {MothraId}: no AAUD record or invalid title code '{TitleCode}'",
+                mothraId, titleCode);
+            _processedMothraIds[mothraId] = false;
+            return false;
+        }
+
+        // Resolve department using full resolution chain
+        var deptLookup = await _instructorService.BatchResolveDepartmentsAsync([mothraId], termCode, ct);
+        var dept = deptLookup.GetValueOrDefault(mothraId, "UNK");
+
+        // Get person name from VIPER
+        var viperPerson = await _viperContext.People
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.PersonId == personId, ct);
+
+        var firstName = viperPerson?.FirstName ?? "";
+        var lastName = viperPerson?.LastName ?? "";
+
+        var effortPerson = new EffortPerson
+        {
+            PersonId = personId,
+            TermCode = termCode,
+            FirstName = firstName.ToUpperInvariant(),
+            LastName = lastName.ToUpperInvariant(),
+            MiddleInitial = null,
+            EffortTitleCode = titleCode,
+            EffortDept = dept,
+            PercentAdmin = 0,
+            JobGroupId = null,
+            Title = null,
+            AdminUnit = null
+        };
+
+        _context.Persons.Add(effortPerson);
+        await _context.SaveChangesAsync(ct);
+        _processedMothraIds[mothraId] = true;
+
+        _auditService.AddHarvestPersonAudit(personId, termCode, firstName, lastName, dept);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Ensure an EffortCourse record exists for this clinical course and term.
+    /// If missing, looks up the Banner CRN and creates the course with clinical defaults.
+    /// </summary>
+    private async Task<EffortCourse?> EnsureEffortCourseAsync(
+        string subjCode,
+        string crseNumb,
+        int termCode,
+        CancellationToken ct)
+    {
+        // Check if course already exists
+        var course = await _context.Courses
+            .FirstOrDefaultAsync(c => c.TermCode == termCode && c.SubjCode == subjCode && c.CrseNumb == crseNumb, ct);
+
+        if (course != null)
+        {
+            return course;
+        }
+
+        // Look up Banner CRN for this course
+        var termCodeStr = termCode.ToString();
+        var bannerCrn = await _coursesContext.Baseinfos
+            .AsNoTracking()
+            .Where(b => b.BaseinfoTermCode == termCodeStr
+                     && b.BaseinfoSubjCode == subjCode
+                     && b.BaseinfoCrseNumb == crseNumb
+                     && b.BaseinfoSeqNumb == "001")
+            .Select(b => b.BaseinfoCrn)
+            .FirstOrDefaultAsync(ct) ?? "";
+
+        course = new EffortCourse
+        {
+            Crn = bannerCrn,
+            TermCode = termCode,
+            SubjCode = subjCode,
+            CrseNumb = crseNumb,
+            SeqNumb = "001",
+            Enrollment = EffortConstants.DefaultClinicalEnrollment,
+            Units = EffortConstants.DefaultClinicalUnits,
+            CustDept = EffortConstants.ClinicalCustodialDept
+        };
+
+        _context.Courses.Add(course);
+        await _context.SaveChangesAsync(ct);
+
+        _auditService.AddHarvestCourseAudit(course.Id, termCode, subjCode, crseNumb, bannerCrn);
+
+        return course;
+    }
+
+    internal static string GetPriorityCourse(List<string> courses)
     {
         if (courses.Count == 1)
         {

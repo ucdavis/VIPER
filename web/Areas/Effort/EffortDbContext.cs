@@ -78,7 +78,7 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.FirstName).HasColumnName("FirstName").HasMaxLength(50);
             entity.Property(e => e.LastName).HasColumnName("LastName").HasMaxLength(50);
             entity.Property(e => e.MiddleInitial).HasColumnName("MiddleInitial").HasMaxLength(1);
-            entity.Property(e => e.EffortTitleCode).HasColumnName("EffortTitleCode").HasMaxLength(6);
+            entity.Property(e => e.EffortTitleCode).HasColumnName("EffortTitleCode").HasMaxLength(6).IsFixedLength();
             entity.Property(e => e.EffortDept).HasColumnName("EffortDept").HasMaxLength(6);
             entity.Property(e => e.PercentAdmin).HasColumnName("PercentAdmin");
             entity.Property(e => e.JobGroupId).HasColumnName("JobGroupId").HasMaxLength(3).IsFixedLength();
@@ -94,6 +94,18 @@ public class EffortDbContext : DbContext
             entity.HasOne(e => e.Term)
                 .WithMany(t => t.Persons)
                 .HasForeignKey(e => e.TermCode);
+
+            // Cross-schema FK to users.Person
+            entity.HasOne(e => e.ViperPerson)
+                .WithMany()
+                .HasForeignKey(e => e.PersonId)
+                .HasPrincipalKey(e => e.PersonId)
+                .IsRequired(false);
+
+            entity.HasOne(e => e.LastEmailedByPerson)
+                .WithMany()
+                .HasForeignKey(e => e.LastEmailedBy)
+                .HasPrincipalKey(e => e.PersonId);
         });
 
         // EffortCourse (effort.Courses)
@@ -110,7 +122,7 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.SeqNumb).HasColumnName("SeqNumb").HasMaxLength(3).IsFixedLength();
             entity.Property(e => e.Enrollment).HasColumnName("Enrollment");
             entity.Property(e => e.Units).HasColumnName("Units").HasColumnType("decimal(4,2)");
-            entity.Property(e => e.CustDept).HasColumnName("CustDept").HasMaxLength(6);
+            entity.Property(e => e.CustDept).HasColumnName("CustDept").HasMaxLength(6).IsFixedLength();
 
             entity.HasOne(e => e.Term)
                 .WithMany(t => t.Courses)
@@ -159,6 +171,18 @@ public class EffortDbContext : DbContext
             entity.HasOne(e => e.EffortTypeNavigation)
                 .WithMany(s => s.Records)
                 .HasForeignKey(e => e.EffortTypeId);
+
+            // Cross-schema FK to users.Person
+            entity.HasOne(e => e.ViperPerson)
+                .WithMany()
+                .HasForeignKey(e => e.PersonId)
+                .HasPrincipalKey(e => e.PersonId)
+                .IsRequired(false);
+
+            entity.HasOne(e => e.ModifiedByPerson)
+                .WithMany()
+                .HasForeignKey(e => e.ModifiedBy)
+                .HasPrincipalKey(e => e.PersonId);
         });
 
         // EffortRole (effort.Roles)
@@ -270,6 +294,19 @@ public class EffortDbContext : DbContext
             entity.HasOne(e => e.Unit)
                 .WithMany()
                 .HasForeignKey(e => e.UnitId);
+
+            // Cross-schema FK to users.Person
+            entity.HasOne(e => e.ViperPerson)
+                .WithMany()
+                .HasForeignKey(e => e.PersonId)
+                .HasPrincipalKey(e => e.PersonId)
+                .IsRequired(false);
+
+            entity.HasOne(e => e.ModifiedByPerson)
+                .WithMany()
+                .HasForeignKey(e => e.ModifiedBy)
+                .HasPrincipalKey(e => e.PersonId)
+                .IsRequired(false);
         });
 
         // Sabbatical (effort.Sabbaticals)
@@ -284,6 +321,18 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.ExcludeDidacticTerms).HasColumnName("ExcludeDidacticTerms").HasMaxLength(2000);
             entity.Property(e => e.ModifiedDate).HasColumnName("ModifiedDate");
             entity.Property(e => e.ModifiedBy).HasColumnName("ModifiedBy");
+
+            // Cross-schema FK to users.Person
+            entity.HasOne(e => e.ViperPerson)
+                .WithMany()
+                .HasForeignKey(e => e.PersonId)
+                .HasPrincipalKey(e => e.PersonId)
+                .IsRequired(false);
+
+            entity.HasOne(e => e.ModifiedByPerson)
+                .WithMany()
+                .HasForeignKey(e => e.ModifiedBy)
+                .HasPrincipalKey(e => e.PersonId);
         });
 
         // UserAccess (effort.UserAccess)
@@ -294,10 +343,22 @@ public class EffortDbContext : DbContext
 
             entity.Property(e => e.Id).HasColumnName("Id");
             entity.Property(e => e.PersonId).HasColumnName("PersonId");
-            entity.Property(e => e.DepartmentCode).HasColumnName("DepartmentCode").HasMaxLength(6);
+            entity.Property(e => e.DepartmentCode).HasColumnName("DepartmentCode").HasMaxLength(6).IsFixedLength();
             entity.Property(e => e.ModifiedDate).HasColumnName("ModifiedDate");
             entity.Property(e => e.ModifiedBy).HasColumnName("ModifiedBy");
             entity.Property(e => e.IsActive).HasColumnName("IsActive");
+
+            // Cross-schema FK to users.Person
+            entity.HasOne(e => e.ViperPerson)
+                .WithMany()
+                .HasForeignKey(e => e.PersonId)
+                .HasPrincipalKey(e => e.PersonId)
+                .IsRequired(false);
+
+            entity.HasOne(e => e.ModifiedByPerson)
+                .WithMany()
+                .HasForeignKey(e => e.ModifiedBy)
+                .HasPrincipalKey(e => e.PersonId);
         });
 
         // AlternateTitle (effort.AlternateTitles)
@@ -314,6 +375,18 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.ModifiedDate).HasColumnName("ModifiedDate");
             entity.Property(e => e.ModifiedBy).HasColumnName("ModifiedBy");
             entity.Property(e => e.IsActive).HasColumnName("IsActive");
+
+            // Cross-schema FK to users.Person
+            entity.HasOne(e => e.ViperPerson)
+                .WithMany()
+                .HasForeignKey(e => e.PersonId)
+                .HasPrincipalKey(e => e.PersonId)
+                .IsRequired(false);
+
+            entity.HasOne(e => e.ModifiedByPerson)
+                .WithMany()
+                .HasForeignKey(e => e.ModifiedBy)
+                .HasPrincipalKey(e => e.PersonId);
         });
 
         // CourseRelationship (effort.CourseRelationships)
@@ -351,7 +424,7 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.RecordId).HasColumnName("RecordId");
             entity.Property(e => e.Action).HasColumnName("Action").HasMaxLength(50);
             entity.Property(e => e.ChangedBy).HasColumnName("ChangedBy");
-            entity.Property(e => e.ChangedDate).HasColumnName("ChangedDate");
+            entity.Property(e => e.ChangedDate).HasColumnName("ChangedDate").HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.Changes).HasColumnName("Changes");
             entity.Property(e => e.MigratedDate).HasColumnName("MigratedDate");
             entity.Property(e => e.UserAgent).HasColumnName("UserAgent").HasMaxLength(500);
@@ -360,6 +433,13 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.LegacyCRN).HasColumnName("LegacyCRN").HasMaxLength(20);
             entity.Property(e => e.LegacyMothraID).HasColumnName("LegacyMothraID").HasMaxLength(20);
             entity.Property(e => e.TermCode).HasColumnName("TermCode");
+
+            // Cross-schema FK to users.Person
+            entity.HasOne(e => e.ChangedByPerson)
+                .WithMany()
+                .HasForeignKey(e => e.ChangedBy)
+                .HasPrincipalKey(e => e.PersonId)
+                .IsRequired(false);
         });
 
         // AlertState (effort.AlertStates)
@@ -380,12 +460,22 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.IgnoredBy).HasColumnName("IgnoredBy");
             entity.Property(e => e.IgnoredDate).HasColumnName("IgnoredDate");
             entity.Property(e => e.ResolvedDate).HasColumnName("ResolvedDate");
-            entity.Property(e => e.ModifiedDate).HasColumnName("ModifiedDate");
+            entity.Property(e => e.ModifiedDate).HasColumnName("ModifiedDate").HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.ModifiedBy).HasColumnName("ModifiedBy");
 
             entity.HasOne(e => e.Term)
                 .WithMany()
                 .HasForeignKey(e => e.TermCode);
+
+            entity.HasOne(e => e.IgnoredByPerson)
+                .WithMany()
+                .HasForeignKey(e => e.IgnoredBy)
+                .HasPrincipalKey(e => e.PersonId);
+
+            entity.HasOne(e => e.ModifiedByPerson)
+                .WithMany()
+                .HasForeignKey(e => e.ModifiedBy)
+                .HasPrincipalKey(e => e.PersonId);
         });
 
         // ViperPerson (users.Person) - read-only cross-schema reference

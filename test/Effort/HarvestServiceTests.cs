@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Viper.Areas.Effort;
+using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
 using Viper.Areas.Effort.Services.Harvest;
@@ -28,7 +29,7 @@ public sealed class HarvestServiceTests : IDisposable
     private readonly Mock<ITermService> _termServiceMock;
     private readonly Mock<IInstructorService> _instructorServiceMock;
     private readonly Mock<IRCourseService> _rCourseServiceMock;
-    private readonly Mock<IPercentRolloverService> _percentRolloverServiceMock;
+    private readonly Mock<IClinicalImportService> _clinicalImportServiceMock;
     private readonly Mock<ILogger<HarvestService>> _loggerMock;
     private readonly HarvestService _harvestService;
 
@@ -77,7 +78,6 @@ public sealed class HarvestServiceTests : IDisposable
         _termServiceMock = new Mock<ITermService>();
         _instructorServiceMock = new Mock<IInstructorService>();
         _rCourseServiceMock = new Mock<IRCourseService>();
-        _percentRolloverServiceMock = new Mock<IPercentRolloverService>();
         _loggerMock = new Mock<ILogger<HarvestService>>();
 
         // Setup default term service behavior
@@ -103,12 +103,20 @@ public sealed class HarvestServiceTests : IDisposable
             .Setup(s => s.ClearAuditForTermAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        // Create harvest phases
+        // Create harvest phases (ClinicalHarvestPhase needs IClinicalImportService for delegation)
+        _clinicalImportServiceMock = new Mock<IClinicalImportService>();
+        _clinicalImportServiceMock
+            .Setup(s => s.ExecuteImportAsync(It.IsAny<int>(), It.IsAny<ClinicalImportMode>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClinicalImportResultDto { Success = true });
+        _clinicalImportServiceMock
+            .Setup(s => s.GetExistingClinicalRecordKeysAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<string>());
+
         var phases = new List<IHarvestPhase>
         {
             new CrestHarvestPhase(),
             new NonCrestHarvestPhase(),
-            new ClinicalHarvestPhase()
+            new ClinicalHarvestPhase(_clinicalImportServiceMock.Object)
         };
 
         _harvestService = new HarvestService(
@@ -123,7 +131,7 @@ public sealed class HarvestServiceTests : IDisposable
             _termServiceMock.Object,
             _instructorServiceMock.Object,
             _rCourseServiceMock.Object,
-            _percentRolloverServiceMock.Object,
+            _clinicalImportServiceMock.Object,
             _loggerMock.Object);
     }
 
@@ -749,7 +757,7 @@ public sealed class HarvestServiceTests : IDisposable
             _termServiceMock.Object,
             _instructorServiceMock.Object,
             _rCourseServiceMock.Object,
-            _percentRolloverServiceMock.Object,
+            _clinicalImportServiceMock.Object,
             _loggerMock.Object);
 
         // Act - Run harvest (R-course detection uses inline EndsWith("R") logic)
@@ -784,7 +792,7 @@ public sealed class HarvestServiceTests : IDisposable
             _termServiceMock.Object,
             _instructorServiceMock.Object,
             _rCourseServiceMock.Object,
-            _percentRolloverServiceMock.Object,
+            _clinicalImportServiceMock.Object,
             _loggerMock.Object);
     }
 

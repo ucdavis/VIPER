@@ -18,7 +18,6 @@ type TermDto = {
     canUnopen: boolean
     canDelete: boolean
     canHarvest: boolean
-    canRolloverPercent: boolean
     canImportClinical: boolean
 }
 

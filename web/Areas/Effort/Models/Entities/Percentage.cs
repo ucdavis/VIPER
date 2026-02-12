@@ -23,4 +23,6 @@ public class Percentage
     // Navigation properties
     public virtual PercentAssignType PercentAssignType { get; set; } = null!;
     public virtual Unit? Unit { get; set; }
+    public virtual ViperPerson? ViperPerson { get; set; }
+    public virtual ViperPerson? ModifiedByPerson { get; set; }
 }

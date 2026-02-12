@@ -34,6 +34,30 @@ public static class EffortConstants
         return DepartmentOverrides.TryGetValue(mothraId, out var dept) ? dept : null;
     }
 
+    #region Percentage Display
+
+    /// <summary>
+    /// Number of decimal places for percentage display (0-100 scale).
+    /// Stored values use 0-1 scale with up to 3 decimal places (e.g., 0.125 = 12.5%).
+    /// </summary>
+    public const int PercentDisplayDecimals = 1;
+
+    /// <summary>
+    /// Converts a stored percentage value (0-1 scale) to display scale (0-100),
+    /// rounded to <see cref="PercentDisplayDecimals"/>.
+    /// </summary>
+    public static double ToDisplayPercent(double storedValue)
+        => Math.Round(storedValue * 100, PercentDisplayDecimals);
+
+    /// <summary>
+    /// Converts a user-entered percentage (0-100 scale) to storage scale (0-1),
+    /// rounding to <see cref="PercentDisplayDecimals"/> before conversion.
+    /// </summary>
+    public static double ToStoredPercent(decimal displayValue)
+        => (double)Math.Round(displayValue, PercentDisplayDecimals) / 100.0;
+
+    #endregion
+
     #region Term-Gated Business Rules
 
     /// <summary>

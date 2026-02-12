@@ -27,25 +27,6 @@ public static class TermValidationHelper
     public static bool CanHarvest(string? status) => status is "Created" or "Harvested";
 
     /// <summary>
-    /// Check if percent assignments can be rolled over for this term (Fall terms only).
-    /// Uses TermType string matching - prefer CanRolloverPercentByCode when term code is available.
-    /// </summary>
-    public static bool CanRolloverPercent(string? termType) => IsFallTerm(termType);
-
-    /// <summary>
-    /// Check if percent assignments can be rolled over for this term.
-    /// Requires: Fall term AND status is Created, Harvested, or Opened.
-    /// </summary>
-    public static bool CanRolloverPercent(string? status, int termCode) =>
-        (status is "Created" or "Harvested" or "Opened") && IsFallTermByCode(termCode);
-
-    /// <summary>
-    /// Check if percent assignments can be rolled over for this term (Fall terms only, ignores status).
-    /// Use CanRolloverPercent(status, termCode) when status is available.
-    /// </summary>
-    public static bool CanRolloverPercentByCode(int termCode) => IsFallTermByCode(termCode);
-
-    /// <summary>
     /// Check if term is a semester term (not quarter).
     /// Semester term codes end in: 02 (Spring), 04 (Summer), 09 (Fall)
     /// Quarter term codes end in: 01, 03, 10 - clinical data not available

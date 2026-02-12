@@ -8,6 +8,8 @@ using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
 using Viper.Classes.SQLContext;
+using Viper.Models.AAUD;
+using Viper.Models.Courses;
 using Viper.Models.CTS;
 
 namespace Viper.test.Effort;
@@ -22,6 +24,9 @@ public sealed class ClinicalImportServiceTests : IDisposable
 
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
+    private readonly AAUDContext _aaudContext;
+    private readonly CoursesContext _coursesContext;
+    private readonly Mock<IInstructorService> _instructorServiceMock;
     private readonly Mock<IEffortAuditService> _auditServiceMock;
     private readonly Mock<ILogger<ClinicalImportService>> _loggerMock;
     private readonly ClinicalImportService _service;
@@ -38,14 +43,43 @@ public sealed class ClinicalImportServiceTests : IDisposable
             .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
 
+        var aaudOptions = new DbContextOptionsBuilder<AAUDContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+            .Options;
+
+        var coursesOptions = new DbContextOptionsBuilder<CoursesContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+            .Options;
+
         _context = new EffortDbContext(effortOptions);
         _viperContext = new VIPERContext(viperOptions);
+        _aaudContext = new AAUDContext(aaudOptions);
+        _coursesContext = new CoursesContext(coursesOptions);
+        _instructorServiceMock = new Mock<IInstructorService>();
         _auditServiceMock = new Mock<IEffortAuditService>();
         _loggerMock = new Mock<ILogger<ClinicalImportService>>();
+
+        // Default instructor service behavior
+        _instructorServiceMock
+            .Setup(s => s.GetTitleCodesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<TitleCodeDto>
+            {
+                new() { Code = "1234", Name = "Test Title" }
+            });
+
+        _instructorServiceMock
+            .Setup(s => s.BatchResolveDepartmentsAsync(It.IsAny<List<string>>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((List<string> ids, int _, CancellationToken _) =>
+                ids.ToDictionary(id => id, _ => "VME"));
 
         _service = new ClinicalImportService(
             _context,
             _viperContext,
+            _aaudContext,
+            _coursesContext,
+            _instructorServiceMock.Object,
             _auditServiceMock.Object,
             _loggerMock.Object);
     }
@@ -54,6 +88,8 @@ public sealed class ClinicalImportServiceTests : IDisposable
     {
         _context.Dispose();
         _viperContext.Dispose();
+        _aaudContext.Dispose();
+        _coursesContext.Dispose();
     }
 
     #region GetPreviewAsync Validation Tests
@@ -159,6 +195,71 @@ public sealed class ClinicalImportServiceTests : IDisposable
         Assert.Equal(5, deleteAssignment.Weeks);
     }
 
+    [Fact]
+    public async Task GetPreviewAsync_SyncMode_HandlesNullViperPerson_WithEmptyMothraId()
+    {
+        // Arrange — existing clinical record where ViperPerson has empty MothraId.
+        // GetExistingClinicalRecordsAsync resolves MothraId via:
+        //   r.ViperPerson != null ? r.ViperPerson.MothraId : ""
+        // When MothraId is empty (either from null ViperPerson or empty string), the
+        // existing record can't match any source data, causing it to appear as "Delete"
+        // while the source data appears as "New".
+        //
+        // Note: We seed a ViperPerson with empty MothraId rather than omitting it
+        // entirely because EF Core InMemory doesn't resolve Include+Select projections
+        // for records with truly null optional navigations. In production (SQL Server),
+        // the null ViperPerson case also produces MothraId="" via the ternary fallback.
+        await SeedTermAndCourseAsync();
+
+        // Seed ViperPerson with empty MothraId — simulates the null ViperPerson fallback
+        _context.ViperPersons.Add(new ViperPerson
+        {
+            PersonId = 50,
+            FirstName = "Null",
+            LastName = "Viper",
+            MothraId = ""
+        });
+
+        // Seed EffortPerson directly
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 50,
+            TermCode = TermCode,
+            FirstName = "Null",
+            LastName = "Viper",
+            EffortDept = "VME",
+            EffortTitleCode = "1234"
+        });
+
+        // Seed EffortRecord linked to PersonId=50 and courseId=1
+        _context.Records.Add(new EffortRecord
+        {
+            CourseId = 1,
+            PersonId = 50,
+            TermCode = TermCode,
+            EffortTypeId = ClinicalEffortTypes.Clinical,
+            RoleId = 1,
+            Weeks = 4,
+            Crn = "CRN001"
+        });
+        await _context.SaveChangesAsync();
+
+        // Seed source data that would match by MothraId if ViperPerson had one
+        await SeedSourceDataAsync("INST0050", "DVM", "453", weekCount: 4);
+
+        // Act
+        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync);
+
+        // Assert — existing record's MothraId resolved to "" so it doesn't match source
+        // data keyed by "INST0050". The source appears as New and the existing as Delete.
+        var newAssignment = Assert.Single(result.Assignments, a => a.Status == "New");
+        Assert.Equal("INST0050", newAssignment.MothraId);
+        Assert.Equal(4, newAssignment.Weeks);
+
+        var deleteAssignment = Assert.Single(result.Assignments, a => a.Status == "Delete");
+        Assert.Equal(4, deleteAssignment.Weeks);
+    }
+
     #endregion
 
     #region GetPreviewAsync AddNewOnly Mode Tests
@@ -192,8 +293,15 @@ public sealed class ClinicalImportServiceTests : IDisposable
         // Add a second course
         _context.Courses.Add(new EffortCourse
         {
-            Id = 2, TermCode = TermCode, SubjCode = "DVM", CrseNumb = "491",
-            SeqNumb = "001", Crn = "CRN002", Enrollment = 20, Units = 1, CustDept = "VME"
+            Id = 2,
+            TermCode = TermCode,
+            SubjCode = "DVM",
+            CrseNumb = "491",
+            SeqNumb = "001",
+            Crn = "CRN002",
+            Enrollment = 20,
+            Units = 1,
+            CustDept = "VME"
         });
         await _context.SaveChangesAsync();
 
@@ -214,6 +322,164 @@ public sealed class ClinicalImportServiceTests : IDisposable
         Assert.Equal(1, result.AddCount);
         Assert.Equal(1, result.UpdateCount);
         Assert.Equal(1, result.DeleteCount);
+    }
+
+    #endregion
+
+    #region ExecuteImportAsync - EnsureEffortPerson/Course Tests
+
+    [Fact]
+    public async Task ExecuteImportAsync_CreatesEffortPerson_WhenMissing()
+    {
+        // Arrange - term, source data, AAUD record, VIPER person — but NO EffortPerson
+        await SeedTermAndCourseAsync();
+        await SeedSourceDataAsync("INST0020", "DVM", "453", weekCount: 3);
+
+        // ViperPerson for CreateClinicalRecordAsync lookup
+        _context.ViperPersons.Add(new ViperPerson
+        {
+            PersonId = 20,
+            FirstName = "New",
+            LastName = "Clinical",
+            MothraId = "INST0020"
+        });
+        await _context.SaveChangesAsync();
+
+        // VIPER People for EnsureEffortPersonAsync name lookup
+        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        {
+            PersonId = 20,
+            ClientId = "C020",
+            FirstName = "New",
+            LastName = "Clinical",
+            FullName = "Clinical, New",
+            MothraId = "INST0020"
+        });
+        await _viperContext.SaveChangesAsync();
+
+        // AAUD data for title code
+        _aaudContext.Ids.Add(new Id
+        {
+            IdsPKey = "PK020",
+            IdsTermCode = TermCodeStr,
+            IdsClientid = "C020",
+            IdsMothraid = "INST0020"
+        });
+        _aaudContext.Employees.Add(new Employee
+        {
+            EmpPKey = "PK020",
+            EmpTermCode = TermCodeStr,
+            EmpEffortTitleCode = "1234",
+            EmpClientid = "C020",
+            EmpHomeDept = "069001",
+            EmpAltDeptCode = "069001",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "VETMED",
+            EmpStatus = "A"
+        });
+        await _aaudContext.SaveChangesAsync();
+
+        // Act
+        var result = await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1);
+
+        // Assert — EffortPerson should have been created
+        Assert.True(result.Success);
+        Assert.True(result.RecordsAdded > 0);
+        var effortPerson = await _context.Persons.FirstOrDefaultAsync(p => p.PersonId == 20 && p.TermCode == TermCode);
+        Assert.NotNull(effortPerson);
+        Assert.Equal("NEW", effortPerson.FirstName);
+        Assert.Equal("CLINICAL", effortPerson.LastName);
+        Assert.Equal("VME", effortPerson.EffortDept);
+        Assert.Equal("1234", effortPerson.EffortTitleCode);
+    }
+
+    [Fact]
+    public async Task ExecuteImportAsync_CreatesEffortCourse_WhenMissing()
+    {
+        // Arrange - term, source data, person — but NO EffortCourse for the source course
+        _context.Terms.Add(new EffortTerm { TermCode = TermCode });
+        await _context.SaveChangesAsync();
+
+        // No course seeded — EnsureEffortCourseAsync should create it
+
+        await SeedSourceDataAsync("INST0021", "DVM", "491", weekCount: 2);
+
+        _context.ViperPersons.Add(new ViperPerson
+        {
+            PersonId = 21,
+            FirstName = "Course",
+            LastName = "Test",
+            MothraId = "INST0021"
+        });
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 21,
+            TermCode = TermCode,
+            FirstName = "COURSE",
+            LastName = "TEST",
+            EffortDept = "VME",
+            EffortTitleCode = "1234"
+        });
+        await _context.SaveChangesAsync();
+
+        // Banner CRN lookup
+        _coursesContext.Baseinfos.Add(new Baseinfo
+        {
+            BaseinfoPkey = "BK001",
+            BaseinfoTermCode = TermCodeStr,
+            BaseinfoSubjCode = "DVM",
+            BaseinfoCrseNumb = "491",
+            BaseinfoSeqNumb = "001",
+            BaseinfoCrn = "CRN491",
+            BaseinfoTitle = "SA Emergency",
+            BaseinfoEnrollment = 20,
+            BaseinfoUnitType = "CR",
+            BaseinfoUnitLow = 1,
+            BaseinfoUnitHigh = 1,
+            BaseinfoCollCode = "VM",
+            BaseinfoDeptCode = "VME",
+            BaseinfoXlistFlag = "N",
+            BaseinfoXlistGroup = ""
+        });
+        await _coursesContext.SaveChangesAsync();
+
+        // Act
+        var result = await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1);
+
+        // Assert — EffortCourse should have been created with Banner CRN
+        Assert.True(result.Success);
+        Assert.True(result.RecordsAdded > 0);
+        var course = await _context.Courses.FirstOrDefaultAsync(c => c.TermCode == TermCode && c.SubjCode == "DVM" && c.CrseNumb == "491");
+        Assert.NotNull(course);
+        Assert.Equal("CRN491", course.Crn);
+        Assert.Equal(EffortConstants.DefaultClinicalEnrollment, course.Enrollment);
+    }
+
+    [Fact]
+    public async Task ExecuteImportAsync_SkipsRecord_WhenNoAaudTitleCode()
+    {
+        // Arrange - source data, VIPER person, but NO AAUD record → should skip
+        await SeedTermAndCourseAsync();
+        await SeedSourceDataAsync("INST0022", "DVM", "453", weekCount: 2, seedAaud: false);
+
+        _context.ViperPersons.Add(new ViperPerson
+        {
+            PersonId = 22,
+            FirstName = "No",
+            LastName = "Aaud",
+            MothraId = "INST0022"
+        });
+        await _context.SaveChangesAsync();
+
+        // No AAUD data seeded — EnsureEffortPersonAsync should return false
+
+        // Act
+        var result = await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1);
+
+        // Assert — record should be skipped, not added
+        Assert.True(result.Success);
+        Assert.Equal(0, result.RecordsAdded);
+        Assert.True(result.RecordsSkipped > 0);
     }
 
     #endregion
@@ -289,7 +555,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
     }
 
     private async Task SeedSourceDataAsync(
-        string mothraId, string subjCode, string crseNumb, int weekCount)
+        string mothraId, string subjCode, string crseNumb, int weekCount, bool seedAaud = true)
     {
         // Ensure weeks exist
         var existingWeekIds = await _viperContext.Weeks
@@ -309,8 +575,8 @@ public sealed class ClinicalImportServiceTests : IDisposable
                 {
                     WeekId = weekId,
                     TermCode = TermCode,
-                    DateStart = new DateTime(2024, 9, 1).AddDays(i * 7.0),
-                    DateEnd = new DateTime(2024, 9, 7).AddDays(i * 7.0)
+                    DateStart = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Local).AddDays(i * 7.0),
+                    DateEnd = new DateTime(2024, 9, 7, 0, 0, 0, DateTimeKind.Local).AddDays(i * 7.0)
                 });
             }
             weekIds.Add(weekId);
@@ -357,12 +623,41 @@ public sealed class ClinicalImportServiceTests : IDisposable
                 Abbreviation = "TR",
                 ServiceId = 1,
                 ServiceName = "Test Service",
-                DateStart = new DateTime(2024, 9, 1),
-                DateEnd = new DateTime(2024, 9, 7)
+                DateStart = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Local),
+                DateEnd = new DateTime(2024, 9, 7, 0, 0, 0, DateTimeKind.Local)
             });
         }
 
         await _viperContext.SaveChangesAsync();
+
+        // Seed AAUD data so ValidateImportableInstructorsAsync finds this instructor importable
+        if (seedAaud)
+        {
+            var pkey = $"PK-{mothraId}";
+            if (!await _aaudContext.Ids.AnyAsync(i => i.IdsPKey == pkey))
+            {
+                _aaudContext.Ids.Add(new Id
+                {
+                    IdsPKey = pkey,
+                    IdsTermCode = TermCodeStr,
+                    IdsClientid = "CLI",
+                    IdsMothraid = mothraId
+                });
+                _aaudContext.Employees.Add(new Employee
+                {
+                    EmpPKey = pkey,
+                    EmpTermCode = TermCodeStr,
+                    EmpClientid = "CLI",
+                    EmpHomeDept = "VME",
+                    EmpAltDeptCode = "",
+                    EmpSchoolDivision = "SVM",
+                    EmpCbuc = "",
+                    EmpStatus = "A",
+                    EmpEffortTitleCode = "1234"
+                });
+                await _aaudContext.SaveChangesAsync();
+            }
+        }
     }
 
     #endregion

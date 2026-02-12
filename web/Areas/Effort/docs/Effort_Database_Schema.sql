@@ -179,13 +179,13 @@ GO
 
 -- ----------------------------------------------------------------------------
 -- Table: JobCodes
--- Description: Employee job codes and classifications
+-- Description: Job code flags for effort tracking (clinical schedule inclusion)
+-- Legacy: tblJobCode (jobcode, include_clinschedule)
 -- ----------------------------------------------------------------------------
 CREATE TABLE [effort].[JobCodes] (
     Id int IDENTITY(1,1) NOT NULL,
-    Code varchar(10) NOT NULL,
-    Description varchar(100) NOT NULL,
-    Category varchar(50) NULL,
+    Code varchar(6) NOT NULL,                     -- Legacy: jobcode varchar(6)
+    IncludeClinSchedule bit NOT NULL DEFAULT 1,   -- Legacy: include_clinschedule
     IsActive bit NOT NULL DEFAULT 1,
     CONSTRAINT PK_JobCodes PRIMARY KEY CLUSTERED (Id),
     CONSTRAINT UQ_JobCodes_Code UNIQUE (Code)

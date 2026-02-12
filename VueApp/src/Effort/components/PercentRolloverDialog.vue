@@ -17,8 +17,31 @@
                 @click="handleClose"
             />
             <q-card-section class="q-pb-none q-pr-xl">
-                <div class="text-h6">Percent Assignment Rollover: {{ props.termName }}</div>
+                <div class="text-h6">Percent Assignment Rollover</div>
                 <div class="text-caption text-grey-7">Roll forward percent assignments to the new academic year</div>
+            </q-card-section>
+
+            <!-- June/July Warning -->
+            <q-card-section
+                v-if="isOutsideIdealMonths && !isLoading"
+                class="q-py-sm"
+            >
+                <q-banner
+                    class="bg-orange-1"
+                    rounded
+                >
+                    <template #avatar>
+                        <q-icon
+                            name="warning"
+                            color="orange"
+                        />
+                    </template>
+                    <div class="text-weight-medium text-orange-9">Unusual Timing</div>
+                    <div class="text-caption text-grey-8">
+                        Percent rollover is typically performed in June or July at the academic year boundary. The
+                        current month is {{ currentMonthName }}.
+                    </div>
+                </q-banner>
             </q-card-section>
 
             <!-- Loading State (Preview) -->
@@ -258,7 +281,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue"
+import { ref, computed, watch } from "vue"
 import { useQuasar } from "quasar"
 import { rolloverService } from "../services/rollover-service"
 import type { PercentRolloverPreviewDto } from "../types"
@@ -268,8 +291,7 @@ import RolloverAssignmentTable from "./RolloverAssignmentTable.vue"
 
 const props = defineProps<{
     modelValue: boolean
-    termCode: number | null
-    termName: string
+    year: number
 }>()
 
 const emit = defineEmits<{
@@ -286,6 +308,16 @@ function handleClose() {
     }
 }
 
+// June/July warning
+const isOutsideIdealMonths = computed(() => {
+    const month = new Date().getMonth() // 0-indexed
+    return month !== 5 && month !== 6 // Not June (5) or July (6)
+})
+
+const currentMonthName = computed(() => {
+    return new Date().toLocaleString("default", { month: "long" })
+})
+
 // Preview state
 const preview = ref<PercentRolloverPreviewDto | null>(null)
 const isLoading = ref(false)
@@ -301,7 +333,7 @@ const rolloverDetail = ref("")
 watch(
     () => props.modelValue,
     async (open) => {
-        if (open && props.termCode) {
+        if (open && props.year) {
             await loadPreview()
         } else if (!open) {
             // Reset state when dialog closes
@@ -312,13 +344,13 @@ watch(
 )
 
 async function loadPreview() {
-    if (!props.termCode) return
+    if (!props.year) return
 
     isLoading.value = true
     loadError.value = null
 
     try {
-        const result = await rolloverService.getPreview(props.termCode)
+        const result = await rolloverService.getPreview(props.year)
         if (result) {
             preview.value = result
         } else {
@@ -332,27 +364,47 @@ async function loadPreview() {
 }
 
 function confirmRollover() {
-    if (!props.termCode || !preview.value || preview.value.assignments.length === 0) return
+    if (!props.year || !preview.value || preview.value.assignments.length === 0) return
 
-    $q.dialog({
-        title: "Confirm Percent Rollover",
-        message: `This will create ${preview.value.assignments.length} new percent assignment(s) for ${preview.value.targetAcademicYearDisplay}. Are you sure you want to proceed?`,
-        persistent: true,
-        ok: {
-            label: "Yes, Roll Forward",
-            color: "primary",
-        },
-        cancel: {
-            label: "Cancel",
-            flat: true,
-        },
-    }).onOk(() => {
-        commitRollover()
-    })
+    const doRollover = () => {
+        $q.dialog({
+            title: "Confirm Percent Rollover",
+            message: `This will create ${preview.value!.assignments.length} new percent assignment(s) for ${preview.value!.targetAcademicYearDisplay}. Are you sure you want to proceed?`,
+            persistent: true,
+            ok: {
+                label: "Yes, Roll Forward",
+                color: "primary",
+            },
+            cancel: {
+                label: "Cancel",
+                flat: true,
+            },
+        }).onOk(() => {
+            commitRollover()
+        })
+    }
+
+    if (isOutsideIdealMonths.value) {
+        $q.dialog({
+            title: "Unusual Timing",
+            message: `It is currently ${currentMonthName.value}. Percent rollover is typically performed in June or July at the academic year boundary. Do you want to continue?`,
+            persistent: true,
+            ok: {
+                label: "Continue",
+                color: "warning",
+            },
+            cancel: {
+                label: "Cancel",
+                flat: true,
+            },
+        }).onOk(doRollover)
+    } else {
+        doRollover()
+    }
 }
 
 function commitRollover() {
-    if (!props.termCode || !preview.value) return
+    if (!props.year || !preview.value) return
 
     isCommitting.value = true
     rolloverProgress.value = 0
@@ -360,7 +412,7 @@ function commitRollover() {
     rolloverDetail.value = ""
 
     // Use SSE for real-time progress updates
-    const streamUrl = rolloverService.getStreamUrl(props.termCode)
+    const streamUrl = rolloverService.getStreamUrl(props.year)
     const eventSource = new EventSource(streamUrl, { withCredentials: true })
 
     eventSource.addEventListener("progress", (event) => {

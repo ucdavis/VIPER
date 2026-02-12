@@ -107,7 +107,7 @@ type RolloverProgressEvent = {
  */
 type RolloverResult = {
     success: boolean
-    count: number
+    assignmentsCreated: number
     errorMessage?: string
     sourceAcademicYear: string
     targetAcademicYear: string
@@ -130,7 +130,6 @@ type HarvestPreviewDto = {
     summary: HarvestSummary
     warnings: HarvestWarning[]
     errors: HarvestError[]
-    percentRollover: PercentRolloverPreviewDto | null
 }
 
 type HarvestResultDto = {

@@ -26,4 +26,6 @@ public class EffortRecord
     public virtual EffortTerm Term { get; set; } = null!;
     public virtual EffortRole RoleNavigation { get; set; } = null!;
     public virtual EffortType EffortTypeNavigation { get; set; } = null!;
+    public virtual ViperPerson? ViperPerson { get; set; }
+    public virtual ViperPerson? ModifiedByPerson { get; set; }
 }

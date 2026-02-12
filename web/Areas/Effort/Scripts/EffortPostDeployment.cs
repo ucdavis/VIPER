@@ -3236,6 +3236,7 @@ namespace Viper.Areas.Effort.Scripts
                 // Known guest placeholder departments - guest accounts were imported as "{dept}, GUEST"
                 var guestDepts = "'APC','PHR','PMI','VMB','VME','VSR'";
                 var guestPredicate = $"[FirstName] = 'GUEST' AND [LastName] IN ({guestDepts})";
+                var guestPredicateP = $"p.[FirstName] = 'GUEST' AND p.[LastName] IN ({guestDepts})";
 
                 Console.WriteLine("Analyzing guest placeholder accounts...");
                 Console.WriteLine("  Guest accounts have FirstName = 'GUEST' and LastName = department code.");
@@ -3251,7 +3252,7 @@ namespace Viper.Areas.Effort.Scripts
                     SELECT COUNT(*)
                     FROM [effort].[Records] r
                     INNER JOIN [effort].[Persons] p ON r.[PersonId] = p.[PersonId] AND r.[TermCode] = p.[TermCode]
-                    WHERE p.{guestPredicate}";
+                    WHERE {guestPredicateP}";
                 using var countRecordsCmd = new SqlCommand(countRecordsSql, connection);
                 var guestRecordCount = Convert.ToInt32(countRecordsCmd.ExecuteScalar() ?? 0);
 
@@ -3282,7 +3283,7 @@ namespace Viper.Areas.Effort.Scripts
                     DELETE r
                     FROM [effort].[Records] r
                     INNER JOIN [effort].[Persons] p ON r.[PersonId] = p.[PersonId] AND r.[TermCode] = p.[TermCode]
-                    WHERE p.{guestPredicate}";
+                    WHERE {guestPredicateP}";
                 using var deleteRecordsCmd = new SqlCommand(deleteRecordsSql, connection, tx);
                 var deletedRecords = deleteRecordsCmd.ExecuteNonQuery();
 

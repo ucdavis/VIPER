@@ -45,7 +45,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             .Verifiable();
 
         _rolloverService = new PercentRolloverService(
-            _effortContext, _viperContext, _auditServiceMock.Object, _loggerMock.Object);
+            _effortContext, _auditServiceMock.Object, _loggerMock.Object);
     }
 
     public void Dispose()
@@ -92,6 +92,17 @@ public sealed class PercentRolloverServiceTests : IDisposable
         };
         _viperContext.People.Add(person);
         await _viperContext.SaveChangesAsync();
+
+        // Also seed ViperPerson in EffortDbContext so navigation properties work
+        _effortContext.ViperPersons.Add(new ViperPerson
+        {
+            PersonId = personId,
+            FirstName = firstName,
+            LastName = lastName,
+            MothraId = mothraId
+        });
+        await _effortContext.SaveChangesAsync();
+
         return person;
     }
 
@@ -131,75 +142,6 @@ public sealed class PercentRolloverServiceTests : IDisposable
 
     #endregion
 
-    #region ShouldRollover Tests
-
-    [Fact]
-    public void ShouldRollover_ReturnsTrueForFallSemester_202509()
-    {
-        // Arrange - Fall Semester term code ending in 09
-        var termCode = 202509;
-
-        // Act
-        var result = _rolloverService.ShouldRollover(termCode);
-
-        // Assert
-        Assert.True(result);
-    }
-
-    [Fact]
-    public void ShouldRollover_ReturnsTrueForFallQuarter_202510()
-    {
-        // Arrange - Fall Quarter term code ending in 10
-        var termCode = 202510;
-
-        // Act
-        var result = _rolloverService.ShouldRollover(termCode);
-
-        // Assert
-        Assert.True(result);
-    }
-
-    [Fact]
-    public void ShouldRollover_ReturnsFalseForWinterTerm_202601()
-    {
-        // Arrange - Winter term code ending in 01
-        var termCode = 202601;
-
-        // Act
-        var result = _rolloverService.ShouldRollover(termCode);
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact]
-    public void ShouldRollover_ReturnsFalseForSpringTerm_202603()
-    {
-        // Arrange - Spring term code ending in 03
-        var termCode = 202603;
-
-        // Act
-        var result = _rolloverService.ShouldRollover(termCode);
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact]
-    public void ShouldRollover_ReturnsFalseForSummerTerm_202506()
-    {
-        // Arrange - Summer term code ending in 06
-        var termCode = 202506;
-
-        // Act
-        var result = _rolloverService.ShouldRollover(termCode);
-
-        // Assert
-        Assert.False(result);
-    }
-
-    #endregion
-
     #region GetRolloverPreviewAsync Tests
 
     [Fact]
@@ -217,7 +159,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit.Id);
 
         // Act
-        var result = await _rolloverService.GetRolloverPreviewAsync(202509);
+        var result = await _rolloverService.GetRolloverPreviewAsync(2025);
 
         // Assert
         Assert.True(result.IsRolloverApplicable);
@@ -253,7 +195,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit.Id);
 
         // Act
-        var result = await _rolloverService.GetRolloverPreviewAsync(202509);
+        var result = await _rolloverService.GetRolloverPreviewAsync(2025);
 
         // Assert
         Assert.False(result.IsRolloverApplicable);
@@ -263,7 +205,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
     [Fact]
     public async Task GetRolloverPreviewAsync_CalculatesCorrectDates()
     {
-        // Arrange - Fall 2025 (term 202509)
+        // Arrange - Year 2025 boundary (June 30 / July 1)
         var type = await CreatePercentAssignTypeAsync();
         var unit = await CreateUnitAsync();
         await CreatePersonAsync(100, "John", "Doe", "jdoe");
@@ -275,7 +217,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit.Id);
 
         // Act
-        var result = await _rolloverService.GetRolloverPreviewAsync(202509);
+        var result = await _rolloverService.GetRolloverPreviewAsync(2025);
 
         // Assert
         Assert.Equal(2025, result.SourceAcademicYear);
@@ -319,7 +261,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             compensated: true);
 
         // Act
-        var result = await _rolloverService.GetRolloverPreviewAsync(202509);
+        var result = await _rolloverService.GetRolloverPreviewAsync(2025);
 
         // Assert - Should exclude already-rolled assignment (idempotency)
         Assert.False(result.IsRolloverApplicable);
@@ -347,8 +289,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
         var initialCount = await _effortContext.Percentages.CountAsync();
 
         // Act
-        var created = await _rolloverService.ExecuteRolloverAsync(202509, TestUserId);
-        await _effortContext.SaveChangesAsync();
+        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
 
         // Assert
         Assert.Equal(1, created);
@@ -374,8 +315,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             comment: "Test comment");
 
         // Act
-        var created = await _rolloverService.ExecuteRolloverAsync(202509, TestUserId);
-        await _effortContext.SaveChangesAsync();
+        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
 
         // Assert
         Assert.Equal(1, created);
@@ -414,7 +354,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit.Id);
 
         // Act
-        var created = await _rolloverService.ExecuteRolloverAsync(202509, TestUserId);
+        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
 
         // Assert
         Assert.Equal(0, created);
@@ -437,12 +377,10 @@ public sealed class PercentRolloverServiceTests : IDisposable
             compensated: true);
 
         // Act - First rollover
-        var firstRun = await _rolloverService.ExecuteRolloverAsync(202509, TestUserId);
-        await _effortContext.SaveChangesAsync();
+        var firstRun = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
 
         // Act - Second rollover (should be idempotent)
-        var secondRun = await _rolloverService.ExecuteRolloverAsync(202509, TestUserId);
-        await _effortContext.SaveChangesAsync();
+        var secondRun = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
 
         // Assert
         Assert.Equal(1, firstRun);
@@ -452,35 +390,6 @@ public sealed class PercentRolloverServiceTests : IDisposable
             .Where(p => p.StartDate == new DateTime(2025, 7, 1, 0, 0, 0, DateTimeKind.Local))
             .CountAsync();
         Assert.Equal(1, targetYearCount);  // Only one record created, not two
-    }
-
-    [Fact]
-    public async Task ExecuteRolloverAsync_SkipsNonFallTerms()
-    {
-        // Arrange - Create assignment and try to rollover in Winter term
-        var type = await CreatePercentAssignTypeAsync();
-        var unit = await CreateUnitAsync();
-        await CreatePersonAsync(100, "John", "Doe", "jdoe");
-
-        await CreatePercentageAsync(
-            100, type.Id, 0.5,
-            new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
-            new DateTime(2025, 6, 30, 0, 0, 0, DateTimeKind.Local),
-            unit.Id);
-
-        // Act - Try Winter term (202601)
-        var created = await _rolloverService.ExecuteRolloverAsync(202601, TestUserId);
-
-        // Assert
-        Assert.Equal(0, created);
-        _loggerMock.Verify(
-            x => x.Log(
-                LogLevel.Information,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Skipping percent rollover for non-Fall term")),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
     }
 
     #endregion
@@ -516,8 +425,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit1.Id);
 
         // Act
-        var created = await _rolloverService.ExecuteRolloverAsync(202509, TestUserId);
-        await _effortContext.SaveChangesAsync();
+        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
 
         // Assert
         Assert.Equal(3, created);
@@ -555,8 +463,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             compensated: false);
 
         // Act
-        var created = await _rolloverService.ExecuteRolloverAsync(202509, TestUserId);
-        await _effortContext.SaveChangesAsync();
+        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
 
         // Assert
         Assert.Equal(2, created);
@@ -589,7 +496,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit.Id);
 
         // Act
-        var result = await _rolloverService.GetRolloverPreviewAsync(202509);
+        var result = await _rolloverService.GetRolloverPreviewAsync(2025);
 
         // Assert
         var assignment = Assert.Single(result.Assignments);
@@ -598,6 +505,38 @@ public sealed class PercentRolloverServiceTests : IDisposable
         Assert.Equal("Teaching", assignment.TypeName);
         Assert.Equal("Other", assignment.TypeClass);
         Assert.Equal("Surgery", assignment.UnitName);
+    }
+
+    [Fact]
+    public async Task GetRolloverPreviewAsync_ReturnsUnknown_WhenViperPersonMissing()
+    {
+        // Arrange - Create assignment for a person that has no ViperPerson record
+        var type = await CreatePercentAssignTypeAsync("Teaching", "Other");
+        var unit = await CreateUnitAsync("Surgery");
+
+        // Directly create a Percentage without calling CreatePersonAsync (no ViperPerson seeded)
+        var percentage = new Percentage
+        {
+            PersonId = 200,
+            PercentAssignTypeId = type.Id,
+            PercentageValue = 0.5,
+            StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
+            EndDate = new DateTime(2025, 6, 30, 0, 0, 0, DateTimeKind.Local),
+            AcademicYear = "2024-2025",
+            UnitId = unit.Id,
+            ModifiedDate = DateTime.Now,
+            ModifiedBy = TestUserId
+        };
+        _effortContext.Percentages.Add(percentage);
+        await _effortContext.SaveChangesAsync();
+
+        // Act
+        var result = await _rolloverService.GetRolloverPreviewAsync(2025);
+
+        // Assert - ViperPerson nav property is null, so PersonName falls back to "Unknown"
+        var assignment = Assert.Single(result.Assignments);
+        Assert.Equal("Unknown", assignment.PersonName);
+        Assert.Equal("", assignment.MothraId);
     }
 
     [Fact]
@@ -614,12 +553,11 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit.Id);
 
         // Act
-        await _rolloverService.ExecuteRolloverAsync(202509, TestUserId);
+        await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
 
-        // Assert
+        // Assert - rollover audit is not tied to a term
         _auditServiceMock.Verify(
             s => s.AddImportAudit(
-                202509,
                 It.Is<string>(a => a.Contains("RolloverPercentAssignments")),
                 It.Is<string>(m => m.Contains("Rolled over 1 percent assignments"))),
             Times.Once);

@@ -44,6 +44,11 @@ public interface IEffortAuditService
     void AddImportAudit(int termCode, string action, string details);
 
     /// <summary>
+    /// Add an import audit entry not tied to a specific term (e.g., year-based rollover).
+    /// </summary>
+    void AddImportAudit(string action, string details);
+
+    /// <summary>
     /// Clear audit records for a term (except ImportEffort actions).
     /// Used during harvest to reset audit trail before re-importing data.
     /// </summary>

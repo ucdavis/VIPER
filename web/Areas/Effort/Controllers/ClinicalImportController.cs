@@ -130,7 +130,8 @@ public class ClinicalImportController : BaseEffortController
         // Create a channel for progress events
         var channel = Channel.CreateUnbounded<ClinicalImportProgressEvent>();
 
-        // Start the import in a background task
+        // Start the import in a background task.
+        // Don't pass ct to Task.Run — cancellation is handled cooperatively inside the lambda.
         var importTask = Task.Run(async () =>
         {
             try
@@ -145,20 +146,20 @@ public class ClinicalImportController : BaseEffortController
             catch (InvalidOperationException ex)
             {
                 _logger.LogError(ex, "Invalid operation during clinical import for term {TermCode}", termCode);
-                await channel.Writer.WriteAsync(ClinicalImportProgressEvent.Failed("An invalid operation occurred during import."), ct);
+                await channel.Writer.WriteAsync(ClinicalImportProgressEvent.Failed("An invalid operation occurred during import."), CancellationToken.None);
                 channel.Writer.Complete();
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
             {
                 _logger.LogError(ex, "Database error during clinical import for term {TermCode}", termCode);
-                await channel.Writer.WriteAsync(ClinicalImportProgressEvent.Failed("A database error occurred during import."), ct);
+                await channel.Writer.WriteAsync(ClinicalImportProgressEvent.Failed("A database error occurred during import."), CancellationToken.None);
                 channel.Writer.Complete();
             }
             finally
             {
                 channel.Writer.TryComplete();
             }
-        }, ct);
+        });
 
         try
         {
@@ -176,6 +177,13 @@ public class ClinicalImportController : BaseEffortController
             _logger.LogInformation(ex, "Clinical import stream cancelled for term {TermCode}", termCode);
         }
 
-        await importTask;
+        try
+        {
+            await importTask;
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when client disconnects — not an error
+        }
     }
 }

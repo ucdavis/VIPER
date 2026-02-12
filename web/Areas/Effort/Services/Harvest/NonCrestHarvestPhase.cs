@@ -323,7 +323,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
                 RoleId = EffortConstants.DirectorRoleId,
                 RoleName = "Director",
                 Hours = 0,
-                Weeks = 0,
+                Weeks = null,
                 Source = EffortConstants.SourceNonCrest
             });
         }

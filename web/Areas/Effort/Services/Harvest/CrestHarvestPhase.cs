@@ -386,25 +386,6 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
             .GroupBy(i => i.IdsPidm!)
             .ToDictionary(g => g.Key, g => g.First().IdsMothraid ?? "");
 
-        // Build MothraId -> PersonName lookup
-        var allMothraIds = pidmToMothraId.Values.Distinct().ToList();
-        var personNames = await context.AaudContext.Ids
-            .AsNoTracking()
-            .Where(i => i.IdsMothraid != null && allMothraIds.Contains(i.IdsMothraid) && i.IdsTermCode == termCodeStr)
-            .Join(context.AaudContext.People,
-                ids => ids.IdsPKey,
-                person => person.PersonPKey,
-                (ids, person) => new { ids.IdsMothraid, person.PersonFirstName, person.PersonLastName })
-            .Distinct()
-            .ToListAsync(ct);
-
-        var mothraIdToName = personNames
-            .Where(p => !string.IsNullOrEmpty(p.IdsMothraid))
-            .GroupBy(p => p.IdsMothraid!)
-            .ToDictionary(
-                g => g.Key,
-                g => $"{g.First().PersonLastName?.ToUpper()}, {g.First().PersonFirstName?.ToUpper()}");
-
         // Log time data availability
         var offeringsWithTime = courseOfferings.Count(o => !string.IsNullOrEmpty(o.FromTime) && !string.IsNullOrEmpty(o.ThruTime));
         var offeringsWithDate = courseOfferings.Count(o => o.FromDate.HasValue && o.ThruDate.HasValue);
@@ -432,9 +413,12 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
                 continue;
             }
 
+            // Only create effort records for persons who are in CrestInstructors
+            // (those with valid AAUD data, title code, and VIPER person record)
             var instructor = context.Preview.CrestInstructors.FirstOrDefault(i => i.MothraId == mothraId);
-            var personName = instructor?.FullName ??
-                (mothraIdToName.TryGetValue(mothraId, out var name) ? name : mothraId);
+            if (instructor == null) continue;
+
+            var personName = instructor.FullName;
 
             var minutes = HarvestTimeParser.CalculateSessionMinutes(
                 offering.FromDate, offering.FromTime,
