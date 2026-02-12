@@ -50,6 +50,7 @@ function useEffortPermissions() {
 
     const hasViewAllDepartments = computed(() => hasPermission(EffortPermissions.ViewAllDepartments))
     const hasViewDept = computed(() => hasPermission(EffortPermissions.ViewDept))
+    const hasCreateEffort = computed(() => hasPermission(EffortPermissions.CreateEffort))
     const hasEditEffort = computed(() => hasPermission(EffortPermissions.EditEffort))
     const hasManageTerms = computed(() => hasPermission(EffortPermissions.ManageTerms))
     const hasVerifyEffort = computed(() => hasPermission(EffortPermissions.VerifyEffort))
@@ -72,6 +73,7 @@ function useEffortPermissions() {
         hasPermission,
         hasViewAllDepartments,
         hasViewDept,
+        hasCreateEffort,
         hasEditEffort,
         hasManageTerms,
         hasVerifyEffort,

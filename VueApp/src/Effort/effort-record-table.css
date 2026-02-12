@@ -1,0 +1,45 @@
+/* Shared styles for effort record tables (EffortRecordsTable + CourseEffortTable) */
+
+/* Zero-effort cell highlight */
+.effort-record-table .zero-effort {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+/* Zero-effort text for mobile cards */
+.zero-effort-text {
+    color: #856404;
+    font-weight: bold;
+}
+
+/* Disable QTable's td::before hover overlay — we handle hover via Vue for consistent highlighting */
+.effort-record-table tbody tr:hover td::before,
+.effort-record-table tbody tr:focus td::before {
+    opacity: 0 !important;
+}
+
+/* Single-record instructor row gets same background as group headers */
+.effort-record-table .single-record-row td {
+    background-color: #f5f5f5;
+}
+
+/* Linked hover via Vue mouseenter/mouseleave — target td so it overrides QTable's cell backgrounds */
+.effort-record-table .row-hover td {
+    background-color: #eee;
+}
+
+/* Effort type legend header */
+.effort-type-header-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.legend-item {
+    padding: 0.125rem 0;
+}
+
+/* Unscoped style for tooltip (injected into body) */
+.effort-type-legend-tooltip {
+    border: 1px solid #ccc;
+}
