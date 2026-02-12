@@ -331,7 +331,7 @@ public class PercentageService : IPercentageService
             var newTotal = activeNonLeaveTotal + Math.Round(request.PercentageValue, EffortConstants.PercentDisplayDecimals);
             if (newTotal > 100)
             {
-                result.Warnings.Add($"Total active percentage ({newTotal:F0}%) exceeds 100%.");
+                result.Warnings.Add($"Total active percentage ({newTotal:F1}%) exceeds 100%.");
             }
         }
 

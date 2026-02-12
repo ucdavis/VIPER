@@ -6,11 +6,9 @@ namespace Viper.Areas.Effort.Helpers;
 public static class TermValidationHelper
 {
     /// <summary>
-    /// Check if term is a Fall term (either semester or quarter).
-    /// Supports multiple formats:
-    /// - Full strings from TermCodeService: "Fall Semester", "Fall Quarter"
-    /// - Single-character codes from database: values may vary
-    /// - Null/empty values return false
+    /// Check if term is a Fall term using the TermType string from TermCodeService.
+    /// Matches "Fall Semester" or "Fall Quarter"; returns false for null/empty.
+    /// For raw term codes, use <see cref="IsFallTermByCode"/> instead.
     /// </summary>
     public static bool IsFallTerm(string? termType) => termType is "Fall Semester" or "Fall Quarter";
 
