@@ -35,42 +35,50 @@
         <!-- Course content -->
         <template v-else-if="course">
             <!-- Course Header -->
-            <div class="row items-center q-mb-md">
-                <h2 class="q-my-none">
-                    {{ course.courseCode }}-{{ course.seqNumb }}
-                    <span class="text-grey-7 text-subtitle1">(CRN: {{ course.crn }})</span>
-                </h2>
-                <q-space />
-                <div class="q-gutter-sm">
+            <div class="q-mb-md">
+                <h2 class="q-my-none q-mb-sm">Effort for {{ course.courseCode }}-{{ course.seqNumb }} - {{ currentTermName }}</h2>
+                <div class="row items-center q-gutter-sm q-pl-sm">
                     <q-btn
-                        v-if="canEditCourse"
+                        v-if="canEditCourse && !isResidentCourse"
                         icon="edit"
+                        label="Edit Course"
                         color="primary"
                         dense
-                        flat
-                        round
+                        outline
                         aria-label="Edit course"
                         @click="showEditDialog = true"
-                    >
-                        <q-tooltip>Edit course</q-tooltip>
-                    </q-btn>
+                    />
                     <q-btn
-                        v-if="hasLinkCourses && !parentRelationship"
+                        v-if="hasLinkCourses && !parentRelationship && !isResidentCourse"
                         icon="link"
+                        label="Link Courses"
                         color="secondary"
                         dense
-                        flat
-                        round
+                        outline
                         aria-label="Link courses"
                         @click="showLinkDialog = true"
-                    >
-                        <q-tooltip>Link courses</q-tooltip>
-                    </q-btn>
+                    />
                 </div>
             </div>
 
-            <!-- Course Info -->
-            <div class="row q-col-gutter-md q-mb-lg">
+            <!-- R-Course Notice -->
+            <q-banner
+                v-if="isResidentCourse"
+                class="bg-info text-white q-mb-md"
+                rounded
+            >
+                <template #avatar>
+                    <q-icon name="info" />
+                </template>
+                The Resident (R) course was added automatically to allow recording of resident teaching effort. If left
+                with 0 effort and verified, it will be automatically removed.
+            </q-banner>
+
+            <!-- Course Info (hidden for resident teaching course) -->
+            <div
+                v-if="!isResidentCourse"
+                class="row q-col-gutter-md q-mb-lg"
+            >
                 <div class="col-auto">
                     <div class="text-caption text-grey-7">Enrollment</div>
                     <div class="text-body1">{{ course.enrollment }}</div>
@@ -179,16 +187,36 @@
 
             <!-- No relationships message when course is neither parent nor child -->
             <div
-                v-if="!parentRelationship && childRelationships.length === 0"
+                v-if="!isResidentCourse && !parentRelationship && childRelationships.length === 0"
                 class="text-grey-6 q-mb-lg"
             >
                 This course has no linked courses.
-                <span v-if="hasLinkCourses">
-                    Click the
-                    <q-icon name="link" />
-                    button to link child courses.
-                </span>
             </div>
+
+            <!-- Instructor Effort Section -->
+            <q-separator class="q-my-md" />
+            <div class="q-mb-sm">
+                <h3 class="q-my-none q-mb-sm">Instructor Effort</h3>
+                <div class="row items-center q-gutter-sm q-pl-sm">
+                    <q-btn
+                        v-if="canEditEffort"
+                        icon="add"
+                        label="Add Effort"
+                        color="primary"
+                        dense
+                        aria-label="Add instructor effort"
+                        @click="showAddEffortDialog = true"
+                    />
+                </div>
+            </div>
+            <CourseEffortTable
+                :records="effortRecords"
+                :term-code="termCode"
+                :is-loading="isLoadingEffort"
+                :load-error="effortLoadError"
+                @edit="openEditEffortDialog"
+                @delete="confirmDeleteEffort"
+            />
         </template>
 
         <!-- Edit Dialog -->
@@ -206,6 +234,22 @@
             :course="course"
             @updated="onRelationshipsUpdated"
         />
+
+        <!-- Add Effort Dialog -->
+        <AddCourseEffortDialog
+            v-model="showAddEffortDialog"
+            :course-id="courseId"
+            :term-code="termCodeNum"
+            @created="onEffortCreated"
+        />
+
+        <!-- Edit Effort Dialog -->
+        <EffortRecordEditDialog
+            v-model="showEditEffortDialog"
+            :record="selectedEffortRecord"
+            :term-code="termCodeNum"
+            @updated="onEffortUpdated"
+        />
     </div>
 </template>
 
@@ -215,31 +259,47 @@ import { useRoute } from "vue-router"
 import { useQuasar } from "quasar"
 import type { QTableColumn } from "quasar"
 import { courseService } from "../services/course-service"
+import { recordService } from "../services/record-service"
+import { termService } from "../services/term-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
-import type { CourseDto, CourseRelationshipDto } from "../types"
+import type { CourseDto, CourseRelationshipDto, CourseEffortRecordDto, InstructorEffortRecordDto, TermDto } from "../types"
 import CourseEditDialog from "../components/CourseEditDialog.vue"
 import CourseLinkDialog from "../components/CourseLinkDialog.vue"
+import CourseEffortTable from "../components/CourseEffortTable.vue"
+import AddCourseEffortDialog from "../components/AddCourseEffortDialog.vue"
+import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
 
 const route = useRoute()
 const $q = useQuasar()
-const { hasEditCourse, hasManageRCourseEnrollment, hasLinkCourses, isAdmin } = useEffortPermissions()
+const { hasEditCourse, hasCreateEffort, hasVerifyEffort, hasManageRCourseEnrollment, hasLinkCourses, isAdmin } = useEffortPermissions()
 
 // Route params
 const termCode = computed(() => route.params.termCode as string)
 const courseId = computed(() => parseInt(route.params.courseId as string, 10))
+const termCodeNum = computed(() => parseInt(termCode.value, 10))
 
 // State
 const course = ref<CourseDto | null>(null)
 const departments = ref<string[]>([])
+const terms = ref<TermDto[]>([])
 const parentRelationship = ref<CourseRelationshipDto | null>(null)
 const childRelationships = ref<CourseRelationshipDto[]>([])
 const isLoading = ref(true)
 const loadError = ref<string | null>(null)
 const deletingId = ref<number | null>(null)
 
+// Effort state
+const effortRecords = ref<CourseEffortRecordDto[]>([])
+const isLoadingEffort = ref(false)
+const effortLoadError = ref<string | null>(null)
+const selectedEffortRecord = ref<InstructorEffortRecordDto | null>(null)
+const canAddEffortForCourse = ref(false)
+
 // Dialogs
 const showEditDialog = ref(false)
 const showLinkDialog = ref(false)
+const showAddEffortDialog = ref(false)
+const showEditEffortDialog = ref(false)
 
 // Computed
 const canEditCourse = computed(() => {
@@ -253,6 +313,16 @@ const canEditCourse = computed(() => {
 const editEnrollmentOnly = computed(() => {
     return !isAdmin.value && !hasEditCourse.value && hasManageRCourseEnrollment.value
 })
+
+const isResidentCourse = computed(() => course.value?.isRCourse === true && course.value?.crn === "RESID")
+
+const currentTermName = computed(() => {
+    const code = termCodeNum.value
+    const term = terms.value.find((t) => t.termCode === code)
+    return term?.termName ?? ""
+})
+
+const canEditEffort = computed(() => canAddEffortForCourse.value && (hasCreateEffort.value || hasVerifyEffort.value || isAdmin.value))
 
 const childColumns = computed<QTableColumn[]>(() => [
     {
@@ -306,10 +376,11 @@ async function loadCourse() {
     loadError.value = null
 
     try {
-        const [courseResult, deptsResult, relationshipsResult] = await Promise.all([
+        const [courseResult, deptsResult, relationshipsResult, termsResult] = await Promise.all([
             courseService.getCourse(requestedCourseId),
             courseService.getDepartments(),
             courseService.getCourseRelationships(requestedCourseId),
+            termService.getTerms(),
         ])
 
         // Abort if a newer request has been initiated
@@ -322,8 +393,12 @@ async function loadCourse() {
 
         course.value = courseResult
         departments.value = deptsResult
+        terms.value = termsResult
         parentRelationship.value = relationshipsResult.parentRelationship
         childRelationships.value = relationshipsResult.childRelationships
+
+        // Load effort records after course data is available (non-blocking)
+        loadEffortRecords()
     } catch {
         if (token !== loadToken) return
         loadError.value = "Failed to load course. Please try again."
@@ -371,6 +446,86 @@ async function deleteRelationship(relationship: CourseRelationshipDto) {
     } finally {
         deletingId.value = null
     }
+}
+
+async function loadEffortRecords() {
+    if (!course.value) return
+    const requestedId = course.value.id
+
+    isLoadingEffort.value = true
+    effortLoadError.value = null
+
+    try {
+        const effortResponse = await courseService.getCourseEffort(requestedId)
+        if (courseId.value !== requestedId) return
+        effortRecords.value = effortResponse.records
+        canAddEffortForCourse.value = effortResponse.canAddEffort
+    } catch {
+        if (courseId.value !== requestedId) return
+        effortLoadError.value = "Failed to load effort records."
+    } finally {
+        if (courseId.value === requestedId) {
+            isLoadingEffort.value = false
+        }
+    }
+}
+
+function openEditEffortDialog(record: CourseEffortRecordDto) {
+    // Map CourseEffortRecordDto to InstructorEffortRecordDto shape for the edit dialog
+    selectedEffortRecord.value = {
+        id: record.effortId,
+        courseId: 0,
+        personId: record.personId,
+        termCode: termCodeNum.value,
+        effortType: record.effortTypeId,
+        effortTypeDescription: record.effortTypeDescription,
+        role: record.roleId,
+        roleDescription: record.roleDescription,
+        hours: record.hours,
+        weeks: record.weeks,
+        crn: "",
+        notes: record.notes,
+        modifiedDate: record.modifiedDate,
+        effortValue: record.effortValue,
+        effortLabel: record.effortLabel,
+        course: course.value!,
+        childCourses: [],
+    }
+    showEditEffortDialog.value = true
+}
+
+function confirmDeleteEffort(record: CourseEffortRecordDto) {
+    $q.dialog({
+        title: "Delete Effort Record",
+        message: `Are you sure you want to delete the effort record for ${record.instructorName} (${record.effortTypeDescription})?`,
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        try {
+            const result = await recordService.deleteEffortRecord(record.effortId, record.modifiedDate)
+            if (result.success) {
+                $q.notify({ type: "positive", message: "Effort record deleted successfully" })
+                await loadEffortRecords()
+            } else {
+                $q.notify({ type: "negative", message: result.error ?? "Failed to delete effort record" })
+                if (result.isConflict) {
+                    await loadEffortRecords()
+                }
+            }
+        } catch {
+            $q.notify({ type: "negative", message: "An error occurred while deleting the record" })
+        }
+    })
+}
+
+async function onEffortCreated() {
+    $q.notify({ type: "positive", message: "Effort record created successfully" })
+    await loadEffortRecords()
+}
+
+async function onEffortUpdated() {
+    $q.notify({ type: "positive", message: "Effort record updated successfully" })
+    await loadEffortRecords()
 }
 
 async function onCourseUpdated() {

@@ -89,3 +89,10 @@ export type {
     EffortChangeAlertDto,
     RecentChangeDto,
 } from "./dashboard-types"
+
+export type {
+    CourseEffortRecordDto,
+    CourseEffortResponseDto,
+    CourseInstructorOptionDto,
+    CourseInstructorOptionsDto,
+} from "./course-effort-types"

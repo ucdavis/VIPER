@@ -682,6 +682,7 @@ import type { PersonDto, TermDto, BulkEmailResult } from "../types"
 import type { QTableColumn } from "quasar"
 import InstructorAddDialog from "../components/InstructorAddDialog.vue"
 import { inflect } from "inflection"
+import "../dept-table.css"
 
 const $q = useQuasar()
 const userStore = useUserStore()
@@ -1278,26 +1279,6 @@ onMounted(loadTerms)
     line-height: 1.3;
 }
 
-.dept-header {
-    background-color: #5f6a6a;
-    font-weight: bold;
-}
-
-.dept-header--collapsible {
-    cursor: pointer;
-    user-select: none;
-}
-
-.dept-header--collapsible:hover,
-.dept-header--collapsible:focus {
-    background-color: #4a5454;
-}
-
-.dept-header--collapsible:focus-visible {
-    outline: 2px solid #fff;
-    outline-offset: -2px;
-}
-
 .dept-header--no-dept {
     background-color: var(--q-negative);
 }
@@ -1307,27 +1288,9 @@ onMounted(loadTerms)
     background-color: #a83232;
 }
 
-.dept-table {
-    margin-bottom: 0;
-    border-radius: 0;
-}
-
-.dept-table :deep(.q-table__container) {
-    border-radius: 0;
-}
-
 .dept-table--no-dept {
     border: 2px solid var(--q-negative);
     border-top: none;
-}
-
-.dept-table :deep(.q-table__middle) {
-    overflow-x: hidden;
-}
-
-.dept-table :deep(table) {
-    table-layout: fixed;
-    width: 100%;
 }
 
 .dept-table :deep(.instructor-cell) {
