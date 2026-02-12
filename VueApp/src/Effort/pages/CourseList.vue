@@ -58,7 +58,7 @@
                             v-if="hasImportCourse"
                             v-close-popup
                             clickable
-                            @click="showImportDialog = true"
+                            @click="openImportDialog"
                         >
                             <q-item-section avatar>
                                 <q-icon name="cloud_download" />
@@ -69,7 +69,7 @@
                             v-if="hasEditCourse || isAdmin"
                             v-close-popup
                             clickable
-                            @click="showAddDialog = true"
+                            @click="openAddDialog"
                         >
                             <q-item-section avatar>
                                 <q-icon name="add" />
@@ -534,6 +534,16 @@ async function loadCourses() {
     }
 }
 
+function openImportDialog() {
+    showAddDialog.value = false
+    showImportDialog.value = true
+}
+
+function openAddDialog() {
+    showImportDialog.value = false
+    showAddDialog.value = true
+}
+
 function openEditDialog(course: CourseDto) {
     selectedCourse.value = course
     // Determine if this is enrollment-only edit (ManageRCourseEnrollment without EditCourse)
@@ -607,7 +617,6 @@ onMounted(loadTerms)
         width: 100%;
     }
 }
-
 
 .course-info {
     display: flex;

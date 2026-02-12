@@ -10,6 +10,10 @@ import type {
     CreateCourseRelationshipRequest,
     CourseEffortResponseDto,
     CourseInstructorOptionsDto,
+    CourseEvaluationStatusDto,
+    CreateAdHocEvalRequest,
+    UpdateAdHocEvalRequest,
+    AdHocEvalResultDto,
 } from "../types"
 
 const { get, post, put, del, patch } = useFetch()
@@ -295,6 +299,53 @@ class CourseService {
             error?: string
         }
         return result
+    }
+
+    // Evaluation Operations
+
+    /**
+     * Get evaluation status for all instructors on a course (and its children).
+     */
+    async getCourseEvaluations(courseId: number): Promise<CourseEvaluationStatusDto> {
+        const response = await get(`${this.baseUrl}/courses/${courseId}/evaluations`)
+        if (!response.success || !response.result) {
+            return { canEditAdHoc: false, instructors: [], courses: [] }
+        }
+        return response.result as CourseEvaluationStatusDto
+    }
+
+    /**
+     * Create an ad-hoc evaluation record.
+     */
+    async createEvaluation(courseId: number, request: CreateAdHocEvalRequest): Promise<AdHocEvalResultDto> {
+        const response = await post(`${this.baseUrl}/courses/${courseId}/evaluations`, request)
+        if (!response.success) {
+            return { success: false, error: response.errors?.[0] ?? "Failed to create evaluation" }
+        }
+        return response.result as AdHocEvalResultDto
+    }
+
+    /**
+     * Update an ad-hoc evaluation record.
+     */
+    async updateEvaluation(
+        courseId: number,
+        quantId: number,
+        request: UpdateAdHocEvalRequest,
+    ): Promise<AdHocEvalResultDto> {
+        const response = await put(`${this.baseUrl}/courses/${courseId}/evaluations/${quantId}`, request)
+        if (!response.success) {
+            return { success: false, error: response.errors?.[0] ?? "Failed to update evaluation" }
+        }
+        return response.result as AdHocEvalResultDto
+    }
+
+    /**
+     * Delete an ad-hoc evaluation record.
+     */
+    async deleteEvaluation(courseId: number, quantId: number): Promise<boolean> {
+        const response = await del(`${this.baseUrl}/courses/${courseId}/evaluations/${quantId}`)
+        return response.success
     }
 }
 

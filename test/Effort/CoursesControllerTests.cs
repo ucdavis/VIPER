@@ -18,6 +18,7 @@ public sealed class CoursesControllerTests
 {
     private readonly Mock<ICourseService> _courseServiceMock;
     private readonly Mock<IEffortPermissionService> _permissionServiceMock;
+    private readonly Mock<IEvalHarvestService> _evalHarvestServiceMock;
     private readonly Mock<ILogger<CoursesController>> _loggerMock;
     private readonly CoursesController _controller;
 
@@ -25,11 +26,13 @@ public sealed class CoursesControllerTests
     {
         _courseServiceMock = new Mock<ICourseService>();
         _permissionServiceMock = new Mock<IEffortPermissionService>();
+        _evalHarvestServiceMock = new Mock<IEvalHarvestService>();
         _loggerMock = new Mock<ILogger<CoursesController>>();
 
         _controller = new CoursesController(
             _courseServiceMock.Object,
             _permissionServiceMock.Object,
+            _evalHarvestServiceMock.Object,
             _loggerMock.Object);
 
         SetupControllerContext();
@@ -733,6 +736,298 @@ public sealed class CoursesControllerTests
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Contains("At least one search parameter", badRequestResult.Value?.ToString());
+    }
+
+    #endregion
+
+    #region Evaluation Tests
+
+    [Fact]
+    public async Task CreateEvaluation_ReturnsBadRequest_WhenDuplicateExists()
+    {
+        // Arrange
+        var course = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
+        var request = new CreateAdHocEvalRequest
+        {
+            CourseId = 1,
+            MothraId = "ABCDE1234",
+            Count1 = 0,
+            Count2 = 1,
+            Count3 = 2,
+            Count4 = 5,
+            Count5 = 10,
+            Mean = 4.2,
+            StandardDeviation = 0.9,
+            Respondents = 18
+        };
+
+        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
+        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(202410, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _evalHarvestServiceMock.Setup(s => s.CreateAdHocEvaluationAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdHocEvalResultDto { Success = false, Error = "An evaluation already exists for this instructor on this course" });
+
+        // Act
+        var result = await _controller.CreateEvaluation(1, request);
+
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.Contains("already exists", badRequestResult.Value?.ToString());
+    }
+
+    [Fact]
+    public async Task CreateEvaluation_ReturnsOk_OnSuccess()
+    {
+        // Arrange
+        var course = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
+        var request = new CreateAdHocEvalRequest
+        {
+            CourseId = 1,
+            MothraId = "ABCDE1234",
+            Count1 = 0,
+            Count2 = 1,
+            Count3 = 2,
+            Count4 = 5,
+            Count5 = 10,
+            Mean = 4.2,
+            StandardDeviation = 0.9,
+            Respondents = 18
+        };
+
+        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
+        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(202410, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _evalHarvestServiceMock.Setup(s => s.CreateAdHocEvaluationAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdHocEvalResultDto { Success = true, QuantId = 42 });
+
+        // Act
+        var result = await _controller.CreateEvaluation(1, request);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var resultDto = Assert.IsType<AdHocEvalResultDto>(okResult.Value);
+        Assert.True(resultDto.Success);
+        Assert.Equal(42, resultDto.QuantId);
+    }
+
+    [Fact]
+    public async Task CreateEvaluation_ReturnsBadRequest_WhenTermNotEditable()
+    {
+        // Arrange
+        var course = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
+        var request = new CreateAdHocEvalRequest
+        {
+            CourseId = 1,
+            MothraId = "ABCDE1234",
+            Count1 = 0,
+            Count2 = 1,
+            Count3 = 2,
+            Count4 = 5,
+            Count5 = 10,
+            Mean = 4.2,
+            StandardDeviation = 0.9,
+            Respondents = 18
+        };
+
+        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
+        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(202410, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        // Act
+        var result = await _controller.CreateEvaluation(1, request);
+
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.Contains("not open for editing", badRequestResult.Value?.ToString());
+    }
+
+    [Fact]
+    public async Task GetCourseEvaluations_ReturnsOk_WithStatus()
+    {
+        // Arrange
+        var course = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
+        var status = new CourseEvaluationStatusDto
+        {
+            CanEditAdHoc = true,
+            Instructors = new List<InstructorEvalStatusDto>(),
+            Courses = new List<EvalCourseInfoDto>()
+        };
+
+        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
+        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _evalHarvestServiceMock.Setup(s => s.GetCourseEvaluationStatusAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(status);
+
+        // Act
+        var result = await _controller.GetCourseEvaluations(1);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedStatus = Assert.IsType<CourseEvaluationStatusDto>(okResult.Value);
+        Assert.True(returnedStatus.CanEditAdHoc);
+    }
+
+    [Fact]
+    public async Task GetCourseEvaluations_ReturnsNotFound_WhenCourseNotFound()
+    {
+        // Arrange
+        _courseServiceMock.Setup(s => s.GetCourseAsync(999, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CourseDto?)null);
+
+        // Act
+        var result = await _controller.GetCourseEvaluations(999);
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task UpdateEvaluation_ReturnsOk_OnSuccess()
+    {
+        // Arrange
+        var course = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
+        var request = new UpdateAdHocEvalRequest
+        {
+            Count1 = 1,
+            Count2 = 2,
+            Count3 = 3,
+            Count4 = 6,
+            Count5 = 12,
+            Mean = 4.5,
+            StandardDeviation = 0.8,
+            Respondents = 24
+        };
+
+        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
+        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(202410, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _evalHarvestServiceMock.Setup(s => s.UpdateAdHocEvaluationAsync(1, 42, request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdHocEvalResultDto { Success = true, QuantId = 42 });
+
+        // Act
+        var result = await _controller.UpdateEvaluation(1, 42, request);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var resultDto = Assert.IsType<AdHocEvalResultDto>(okResult.Value);
+        Assert.True(resultDto.Success);
+    }
+
+    [Fact]
+    public async Task UpdateEvaluation_ReturnsBadRequest_WhenServiceRejectsUpdate()
+    {
+        // Arrange
+        var course = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
+        var request = new UpdateAdHocEvalRequest
+        {
+            Count1 = 1,
+            Count2 = 2,
+            Count3 = 3,
+            Count4 = 6,
+            Count5 = 12,
+            Mean = 4.5,
+            StandardDeviation = 0.8,
+            Respondents = 24
+        };
+
+        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
+        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(202410, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _evalHarvestServiceMock.Setup(s => s.UpdateAdHocEvaluationAsync(1, 42, request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdHocEvalResultDto { Success = false, Error = "Cannot update: this is not an ad-hoc evaluation" });
+
+        // Act
+        var result = await _controller.UpdateEvaluation(1, 42, request);
+
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.Contains("not an ad-hoc", badRequestResult.Value?.ToString());
+    }
+
+    [Fact]
+    public async Task UpdateEvaluation_ReturnsBadRequest_WhenTermNotEditable()
+    {
+        // Arrange
+        var course = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
+        var request = new UpdateAdHocEvalRequest
+        {
+            Count1 = 1,
+            Count2 = 2,
+            Count3 = 3,
+            Count4 = 6,
+            Count5 = 12,
+            Mean = 4.5,
+            StandardDeviation = 0.8,
+            Respondents = 24
+        };
+
+        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
+        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(202410, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        // Act
+        var result = await _controller.UpdateEvaluation(1, 42, request);
+
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.Contains("not open for editing", badRequestResult.Value?.ToString());
+    }
+
+    [Fact]
+    public async Task DeleteEvaluation_ReturnsNoContent_OnSuccess()
+    {
+        // Arrange
+        var course = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
+
+        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
+        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(202410, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _evalHarvestServiceMock.Setup(s => s.DeleteAdHocEvaluationAsync(1, 42, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        // Act
+        var result = await _controller.DeleteEvaluation(1, 42);
+
+        // Assert
+        Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteEvaluation_ReturnsNotFound_WhenServiceRejectsDelete()
+    {
+        // Arrange
+        var course = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
+
+        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
+        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(202410, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _evalHarvestServiceMock.Setup(s => s.DeleteAdHocEvaluationAsync(1, 42, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        // Act
+        var result = await _controller.DeleteEvaluation(1, 42);
+
+        // Assert
+        var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+        Assert.Contains("not found", notFoundResult.Value?.ToString());
+    }
+
+    [Fact]
+    public async Task DeleteEvaluation_ReturnsBadRequest_WhenTermNotEditable()
+    {
+        // Arrange
+        var course = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
+
+        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
+        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(202410, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        // Act
+        var result = await _controller.DeleteEvaluation(1, 42);
+
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("not open for editing", badRequestResult.Value?.ToString());
     }
 
     #endregion
