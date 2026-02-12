@@ -233,23 +233,6 @@ public class PercentageService : IPercentageService
     }
 
     /// <inheritdoc />
-    public async Task<List<PercentageDto>> GetPercentagesForPersonByDateRangeAsync(
-        int personId, DateTime start, DateTime end, CancellationToken ct = default)
-    {
-        var percentages = await _context.Percentages
-            .AsNoTracking()
-            .Include(p => p.PercentAssignType)
-            .Include(p => p.Unit)
-            .Where(p => p.PersonId == personId)
-            .Where(p => start <= (p.EndDate ?? DateTime.MaxValue) && end >= p.StartDate)
-            .OrderByDescending(p => p.StartDate)
-            .ThenBy(p => p.PercentAssignType.Name)
-            .ToListAsync(ct);
-
-        return percentages.Select(EnrichDto).ToList();
-    }
-
-    /// <inheritdoc />
     public async Task<PercentageValidationResult> ValidatePercentageAsync(
         CreatePercentageRequest request, int? excludeId = null, CancellationToken ct = default)
     {

@@ -8,47 +8,6 @@ namespace Viper.test.Effort;
 /// </summary>
 public sealed class TermValidationHelperTests
 {
-    #region IsFallTerm Tests
-
-    [Fact]
-    public void IsFallTerm_ReturnsTrue_ForFallSemester()
-    {
-        var result = TermValidationHelper.IsFallTerm("Fall Semester");
-        Assert.True(result);
-    }
-
-    [Fact]
-    public void IsFallTerm_ReturnsTrue_ForFallQuarter()
-    {
-        var result = TermValidationHelper.IsFallTerm("Fall Quarter");
-        Assert.True(result);
-    }
-
-    [Theory]
-    [InlineData("Winter Quarter")]
-    [InlineData("Spring Semester")]
-    [InlineData("Spring Quarter")]
-    [InlineData("Summer Session 1")]
-    [InlineData("Summer Session 2")]
-    [InlineData("Summer Semester")]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData("Unknown")]
-    public void IsFallTerm_ReturnsFalse_ForNonFallTermTypes(string termType)
-    {
-        var result = TermValidationHelper.IsFallTerm(termType);
-        Assert.False(result);
-    }
-
-    [Fact]
-    public void IsFallTerm_ReturnsFalse_WhenTermTypeNull()
-    {
-        var result = TermValidationHelper.IsFallTerm(null);
-        Assert.False(result);
-    }
-
-    #endregion
-
     #region CanHarvest Tests
 
     [Theory]
@@ -77,36 +36,6 @@ public sealed class TermValidationHelperTests
     public void CanHarvest_ReturnsFalse_ForNullOrEmpty(string? status)
     {
         var result = TermValidationHelper.CanHarvest(status);
-        Assert.False(result);
-    }
-
-    #endregion
-
-    #region IsFallTermByCode Tests
-
-    [Theory]
-    [InlineData(202509)] // Fall Semester (ends in 09)
-    [InlineData(202410)] // Fall Quarter (ends in 10)
-    [InlineData(201609)] // Older Fall Semester
-    [InlineData(201610)] // Older Fall Quarter
-    public void IsFallTermByCode_ReturnsTrue_ForFallTermCodes(int termCode)
-    {
-        var result = TermValidationHelper.IsFallTermByCode(termCode);
-        Assert.True(result);
-    }
-
-    [Theory]
-    [InlineData(202501)] // Winter Quarter
-    [InlineData(202502)] // Spring Semester
-    [InlineData(202503)] // Spring Quarter
-    [InlineData(202504)] // Summer Semester
-    [InlineData(202505)] // Summer Session 1
-    [InlineData(202506)] // Special Session
-    [InlineData(202507)] // Summer Session 2
-    [InlineData(202508)] // Summer Quarter
-    public void IsFallTermByCode_ReturnsFalse_ForNonFallTermCodes(int termCode)
-    {
-        var result = TermValidationHelper.IsFallTermByCode(termCode);
         Assert.False(result);
     }
 
