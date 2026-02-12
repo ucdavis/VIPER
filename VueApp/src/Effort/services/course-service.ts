@@ -8,6 +8,8 @@ import type {
     CourseRelationshipDto,
     CourseRelationshipsResult,
     CreateCourseRelationshipRequest,
+    CourseEffortResponseDto,
+    CourseInstructorOptionsDto,
 } from "../types"
 
 const { get, post, put, del, patch } = useFetch()
@@ -212,6 +214,31 @@ class CourseService {
     async deleteCourseRelationship(parentCourseId: number, relationshipId: number): Promise<boolean> {
         const response = await del(`${this.baseUrl}/courses/${parentCourseId}/relationships/${relationshipId}`)
         return response.success
+    }
+
+    // Course Effort Operations
+
+    /**
+     * Get all effort records for a course, including permission metadata.
+     */
+    async getCourseEffort(courseId: number): Promise<CourseEffortResponseDto> {
+        const response = await get(`${this.baseUrl}/courses/${courseId}/effort`)
+        if (!response.success || !response.result) {
+            return { courseId, termCode: 0, canAddEffort: false, isChildCourse: false, records: [] }
+        }
+        return response.result as CourseEffortResponseDto
+    }
+
+    /**
+     * Get possible instructors for adding effort to a course.
+     * Returns instructors grouped by those already on the course and all available.
+     */
+    async getPossibleInstructors(courseId: number): Promise<CourseInstructorOptionsDto> {
+        const response = await get(`${this.baseUrl}/courses/${courseId}/possible-instructors`)
+        if (!response.success || !response.result) {
+            return { existingInstructors: [], otherInstructors: [] }
+        }
+        return response.result as CourseInstructorOptionsDto
     }
 
     // Self-Service Course Import Operations

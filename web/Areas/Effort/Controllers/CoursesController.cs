@@ -417,4 +417,69 @@ public class CoursesController : BaseEffortController
         return Ok(filteredDepts);
     }
 
+    /// <summary>
+    /// Get all effort records for a course.
+    /// Returns instructor effort data with edit/delete permissions per record.
+    /// </summary>
+    [HttpGet("{id:int}/effort")]
+    public async Task<ActionResult<CourseEffortResponseDto>> GetCourseEffort(int id, CancellationToken ct = default)
+    {
+        SetExceptionContext("courseId", id);
+
+        var (course, errorResult) = await GetAuthorizedCourseAsync(id, ct);
+        if (errorResult != null) return errorResult;
+
+        var records = await _courseService.GetCourseEffortAsync(id, ct);
+
+        // Check if this is a child course
+        var isChild = course!.ParentCourseId.HasValue;
+
+        // Check if current user can add effort (requires edit permission on the term)
+        var canAdd = !isChild && await _permissionService.IsTermEditableAsync(course.TermCode, ct);
+
+        // Determine per-record edit/delete permissions
+        if (canAdd)
+        {
+            var personPermission = new Dictionary<int, bool>();
+            foreach (var personId in records.Select(r => r.PersonId).Distinct())
+            {
+                personPermission[personId] = await _permissionService.CanEditPersonEffortAsync(personId, course.TermCode, ct);
+            }
+
+            foreach (var record in records)
+            {
+                var canEditPerson = personPermission[record.PersonId];
+                record.CanEdit = canEditPerson;
+                record.CanDelete = canEditPerson;
+            }
+        }
+
+        return Ok(new CourseEffortResponseDto
+        {
+            CourseId = id,
+            TermCode = course.TermCode,
+            CanAddEffort = canAdd,
+            IsChildCourse = isChild,
+            Records = records
+        });
+    }
+
+    /// <summary>
+    /// Get possible instructors for adding effort to a course.
+    /// Returns instructors grouped by those already on the course and others available for the term.
+    /// Guest accounts are excluded.
+    /// </summary>
+    [HttpGet("{id:int}/possible-instructors")]
+    [Permission(Allow = $"{EffortPermissions.CreateEffort},{EffortPermissions.VerifyEffort}")]
+    public async Task<ActionResult<PossibleCourseInstructorsDto>> GetPossibleInstructors(int id, CancellationToken ct = default)
+    {
+        SetExceptionContext("courseId", id);
+
+        var (_, errorResult) = await GetAuthorizedCourseAsync(id, ct);
+        if (errorResult != null) return errorResult;
+
+        var result = await _courseService.GetPossibleInstructorsForCourseAsync(id, ct);
+        return Ok(result);
+    }
+
 }
