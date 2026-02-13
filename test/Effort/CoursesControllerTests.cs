@@ -755,10 +755,7 @@ public sealed class CoursesControllerTests
             Count2 = 1,
             Count3 = 2,
             Count4 = 5,
-            Count5 = 10,
-            Mean = 4.2,
-            StandardDeviation = 0.9,
-            Respondents = 18
+            Count5 = 10
         };
 
         _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
@@ -788,10 +785,7 @@ public sealed class CoursesControllerTests
             Count2 = 1,
             Count3 = 2,
             Count4 = 5,
-            Count5 = 10,
-            Mean = 4.2,
-            StandardDeviation = 0.9,
-            Respondents = 18
+            Count5 = 10
         };
 
         _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
@@ -823,10 +817,7 @@ public sealed class CoursesControllerTests
             Count2 = 1,
             Count3 = 2,
             Count4 = 5,
-            Count5 = 10,
-            Mean = 4.2,
-            StandardDeviation = 0.9,
-            Respondents = 18
+            Count5 = 10
         };
 
         _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
@@ -892,10 +883,7 @@ public sealed class CoursesControllerTests
             Count2 = 2,
             Count3 = 3,
             Count4 = 6,
-            Count5 = 12,
-            Mean = 4.5,
-            StandardDeviation = 0.8,
-            Respondents = 24
+            Count5 = 12
         };
 
         _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
@@ -924,10 +912,7 @@ public sealed class CoursesControllerTests
             Count2 = 2,
             Count3 = 3,
             Count4 = 6,
-            Count5 = 12,
-            Mean = 4.5,
-            StandardDeviation = 0.8,
-            Respondents = 24
+            Count5 = 12
         };
 
         _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
@@ -955,10 +940,7 @@ public sealed class CoursesControllerTests
             Count2 = 2,
             Count3 = 3,
             Count4 = 6,
-            Count5 = 12,
-            Mean = 4.5,
-            StandardDeviation = 0.8,
-            Respondents = 24
+            Count5 = 12
         };
 
         _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);

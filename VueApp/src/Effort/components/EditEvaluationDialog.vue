@@ -4,7 +4,7 @@
         persistent
         @keydown.escape="handleClose"
     >
-        <q-card class="dialog-card-sm">
+        <q-card class="dialog-card-md">
             <q-card-section class="row items-center q-pb-none">
                 <div>
                     <div class="text-h6">{{ isEditMode ? "Edit" : "Add" }} Evaluation Data</div>
@@ -29,97 +29,98 @@
                     class="effort-form"
                     greedy
                 >
-                    <div class="text-subtitle2 q-mb-sm">Rating Distribution</div>
+                    <div class="text-subtitle2">Overall Teaching Effectiveness</div>
+                    <div class="text-caption text-grey-7 q-mb-sm">Enter number of responses for each rating level</div>
 
-                    <q-input
-                        v-model.number="form.count5"
-                        label="Rating 5 (High) *"
-                        type="number"
-                        dense
-                        outlined
-                        :rules="countRules('Rating 5')"
-                        lazy-rules="ondemand"
-                    />
+                    <div class="eval-grid">
+                        <!-- Column headers -->
+                        <div />
+                        <div class="eval-header">5 = High</div>
+                        <div class="eval-header">4</div>
+                        <div class="eval-header">3</div>
+                        <div class="eval-header">2</div>
+                        <div class="eval-header">1 = Low</div>
 
-                    <q-input
-                        v-model.number="form.count4"
-                        label="Rating 4 *"
-                        type="number"
-                        dense
-                        outlined
-                        :rules="countRules('Rating 4')"
-                        lazy-rules="ondemand"
-                    />
-
-                    <q-input
-                        v-model.number="form.count3"
-                        label="Rating 3 *"
-                        type="number"
-                        dense
-                        outlined
-                        :rules="countRules('Rating 3')"
-                        lazy-rules="ondemand"
-                    />
-
-                    <q-input
-                        v-model.number="form.count2"
-                        label="Rating 2 *"
-                        type="number"
-                        dense
-                        outlined
-                        :rules="countRules('Rating 2')"
-                        lazy-rules="ondemand"
-                    />
-
-                    <q-input
-                        v-model.number="form.count1"
-                        label="Rating 1 (Low) *"
-                        type="number"
-                        dense
-                        outlined
-                        :rules="countRules('Rating 1')"
-                        lazy-rules="ondemand"
-                    />
+                        <!-- Input row -->
+                        <div class="eval-row-label">Number of<br />Responses</div>
+                        <div>
+                            <q-input
+                                v-model.number="form.count5"
+                                type="number"
+                                dense
+                                outlined
+                                no-error-icon
+                                :rules="countRules"
+                                lazy-rules="ondemand"
+                            />
+                        </div>
+                        <div>
+                            <q-input
+                                v-model.number="form.count4"
+                                type="number"
+                                dense
+                                outlined
+                                no-error-icon
+                                :rules="countRules"
+                                lazy-rules="ondemand"
+                            />
+                        </div>
+                        <div>
+                            <q-input
+                                v-model.number="form.count3"
+                                type="number"
+                                dense
+                                outlined
+                                no-error-icon
+                                :rules="countRules"
+                                lazy-rules="ondemand"
+                            />
+                        </div>
+                        <div>
+                            <q-input
+                                v-model.number="form.count2"
+                                type="number"
+                                dense
+                                outlined
+                                no-error-icon
+                                :rules="countRules"
+                                lazy-rules="ondemand"
+                            />
+                        </div>
+                        <div>
+                            <q-input
+                                v-model.number="form.count1"
+                                type="number"
+                                dense
+                                outlined
+                                no-error-icon
+                                :rules="countRules"
+                                lazy-rules="ondemand"
+                            />
+                        </div>
+                    </div>
 
                     <q-separator class="q-my-sm" />
-                    <div class="text-subtitle2 q-mb-sm">Summary Statistics</div>
-
-                    <q-input
-                        v-model.number="form.mean"
-                        label="Mean *"
-                        type="number"
-                        step="0.01"
-                        dense
-                        outlined
-                        :rules="meanRules"
-                        lazy-rules="ondemand"
-                    />
-
-                    <q-input
-                        v-model.number="form.standardDeviation"
-                        label="Standard Deviation *"
-                        type="number"
-                        step="0.01"
-                        dense
-                        outlined
-                        :rules="sdRules"
-                        lazy-rules="ondemand"
-                    />
-
-                    <q-input
-                        v-model.number="form.respondents"
-                        label="Total Respondents (N) *"
-                        type="number"
-                        dense
-                        outlined
-                        :rules="respondentsRules"
-                        lazy-rules="ondemand"
-                    />
+                    <div class="text-subtitle2 q-mb-xs">Computed Statistics</div>
+                    <div
+                        v-if="totalRespondents > 0"
+                        class="text-body2 text-grey-8"
+                    >
+                        Mean: <strong>{{ computedMean }}</strong> &nbsp;&middot;&nbsp; SD:
+                        <strong>{{ computedSd }}</strong> &nbsp;&middot;&nbsp; N:
+                        <strong>{{ totalRespondents }}</strong>
+                    </div>
+                    <div
+                        v-else
+                        class="text-body2 text-grey-5"
+                    >
+                        Enter rating counts to see computed statistics
+                    </div>
 
                     <!-- Error Message -->
                     <q-banner
                         v-if="errorMessage"
-                        class="bg-negative text-white"
+                        class="bg-negative text-white q-mt-sm"
                         rounded
                     >
                         <template #avatar>
@@ -158,7 +159,6 @@ import { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { courseService } from "../services/course-service"
 import type { CourseEvalEntryDto } from "../types"
-import { requiredRule } from "../validation"
 import "../effort-dialogs.css"
 import "../effort-forms.css"
 
@@ -182,16 +182,13 @@ const formRef = ref<QForm | null>(null)
 
 const isEditMode = computed(() => props.existingData !== null && props.existingData.status === "AdHoc")
 
-// Form state
+// Form state — only rating counts; mean, SD, respondents are auto-computed
 const form = ref({
     count1: null as number | null,
     count2: null as number | null,
     count3: null as number | null,
     count4: null as number | null,
     count5: null as number | null,
-    mean: null as number | null,
-    standardDeviation: null as number | null,
-    respondents: null as number | null,
 })
 
 // Unsaved changes tracking
@@ -202,27 +199,49 @@ const isSaving = ref(false)
 const errorMessage = ref("")
 
 // Validation rules
-const countRules = (label: string) => [
-    requiredRule(label),
-    (v: number | null) =>
-        v === null || (Number.isInteger(v) && v >= 0) || `${label} must be a non-negative whole number`,
+const countRules = [
+    (v: number | null) => (v !== null && v !== undefined) || "Required",
+    (v: number | null) => v === null || (Number.isInteger(v) && v >= 0) || "Must be 0 or more",
 ]
 
-const meanRules = [
-    requiredRule("Mean"),
-    (v: number | null) => v === null || (Number.isFinite(v) && v >= 1 && v <= 5) || "Mean must be between 1 and 5",
-]
+// Computed summary statistics derived from rating counts
+const totalRespondents = computed(() => {
+    const { count1, count2, count3, count4, count5 } = form.value
+    const c1 = count1 ?? 0
+    const c2 = count2 ?? 0
+    const c3 = count3 ?? 0
+    const c4 = count4 ?? 0
+    const c5 = count5 ?? 0
+    return c1 + c2 + c3 + c4 + c5
+})
 
-const sdRules = [
-    requiredRule("Standard Deviation"),
-    (v: number | null) =>
-        v === null || (Number.isFinite(v) && v >= 0 && v <= 5) || "Standard Deviation must be between 0 and 5",
-]
+const computedMean = computed(() => {
+    const n = totalRespondents.value
+    if (n === 0) return "—"
+    const { count1, count2, count3, count4, count5 } = form.value
+    const mean = (1 * (count1 ?? 0) + 2 * (count2 ?? 0) + 3 * (count3 ?? 0) + 4 * (count4 ?? 0) + 5 * (count5 ?? 0)) / n
+    return mean.toFixed(2)
+})
 
-const respondentsRules = [
-    requiredRule("Total Respondents"),
-    (v: number | null) => v === null || (Number.isInteger(v) && v >= 1) || "Total Respondents must be at least 1",
-]
+const computedSd = computed(() => {
+    const n = totalRespondents.value
+    if (n === 0) return "—"
+    const { count1, count2, count3, count4, count5 } = form.value
+    const c1 = count1 ?? 0
+    const c2 = count2 ?? 0
+    const c3 = count3 ?? 0
+    const c4 = count4 ?? 0
+    const c5 = count5 ?? 0
+    const mean = (1 * c1 + 2 * c2 + 3 * c3 + 4 * c4 + 5 * c5) / n
+    const variance =
+        ((1 - mean) ** 2 * c1 +
+            (2 - mean) ** 2 * c2 +
+            (3 - mean) ** 2 * c3 +
+            (4 - mean) ** 2 * c4 +
+            (5 - mean) ** 2 * c5) /
+        n
+    return Math.sqrt(variance).toFixed(2)
+})
 
 async function handleClose() {
     if (await confirmClose()) {
@@ -250,9 +269,6 @@ function resetForm() {
             count3: props.existingData.count3,
             count4: props.existingData.count4,
             count5: props.existingData.count5,
-            mean: props.existingData.mean,
-            standardDeviation: props.existingData.standardDeviation,
-            respondents: props.existingData.respondents,
         }
     } else {
         form.value = {
@@ -261,9 +277,6 @@ function resetForm() {
             count3: null,
             count4: null,
             count5: null,
-            mean: null,
-            standardDeviation: null,
-            respondents: null,
         }
     }
 
@@ -273,7 +286,15 @@ function resetForm() {
 
 async function onSave() {
     const valid = await formRef.value?.validate(true)
-    if (!valid) return
+    if (!valid) {
+        errorMessage.value = "All rating fields are required and must be non-negative whole numbers"
+        return
+    }
+
+    if (totalRespondents.value === 0) {
+        errorMessage.value = "At least one rating count must be greater than zero"
+        return
+    }
 
     isSaving.value = true
     errorMessage.value = ""
@@ -286,9 +307,6 @@ async function onSave() {
                 count3: form.value.count3!,
                 count4: form.value.count4!,
                 count5: form.value.count5!,
-                mean: form.value.mean!,
-                standardDeviation: form.value.standardDeviation!,
-                respondents: form.value.respondents!,
             })
 
             if (result.success) {
@@ -306,9 +324,6 @@ async function onSave() {
                 count3: form.value.count3!,
                 count4: form.value.count4!,
                 count5: form.value.count5!,
-                mean: form.value.mean!,
-                standardDeviation: form.value.standardDeviation!,
-                respondents: form.value.respondents!,
             })
 
             if (result.success) {
@@ -325,3 +340,32 @@ async function onSave() {
     }
 }
 </script>
+
+<style scoped>
+.eval-grid {
+    display: grid;
+    grid-template-columns: auto repeat(5, 1fr);
+    gap: 0 0.5rem;
+    align-items: center;
+}
+
+.eval-header {
+    font-weight: 500;
+    font-size: 0.875rem;
+    text-align: center;
+    padding-bottom: 0.25rem;
+}
+
+.eval-row-label {
+    font-weight: 500;
+    font-size: 0.875rem;
+    line-height: 1.3;
+    padding-right: 0.5rem;
+}
+
+/* Hide per-field error text; red borders remain as visual indicators.
+   A consolidated message is shown below the grid instead. */
+.eval-grid :deep(.q-field__bottom) {
+    display: none;
+}
+</style>

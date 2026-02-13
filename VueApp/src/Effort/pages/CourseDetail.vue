@@ -195,80 +195,36 @@
                 This course has no linked courses.
             </div>
 
-            <!-- Tabbed view when evaluation data is available -->
-            <template v-if="hasViewEvalResults">
-                <q-separator class="q-my-md" />
-                <q-tabs
-                    v-model="activeTab"
-                    dense
-                    align="left"
-                    active-color="primary"
-                    indicator-color="primary"
-                    no-caps
-                    class="text-grey-7"
+            <q-separator class="q-my-md" />
+            <q-tabs
+                v-model="activeTab"
+                dense
+                align="left"
+                active-color="primary"
+                indicator-color="primary"
+                no-caps
+                class="text-grey-7"
+            >
+                <q-tab
+                    name="effort"
+                    :label="effortTabLabel"
+                />
+                <q-tab
+                    v-if="hasViewEvalResults"
+                    name="evaluation"
+                    :label="evaluationTabLabel"
+                />
+            </q-tabs>
+            <q-separator />
+            <q-tab-panels
+                v-model="activeTab"
+                keep-alive
+            >
+                <q-tab-panel
+                    name="effort"
+                    class="q-px-none"
                 >
-                    <q-tab
-                        name="effort"
-                        :label="effortTabLabel"
-                    />
-                    <q-tab
-                        name="evaluation"
-                        :label="evaluationTabLabel"
-                    />
-                </q-tabs>
-                <q-separator />
-                <q-tab-panels
-                    v-model="activeTab"
-                    animated
-                >
-                    <q-tab-panel
-                        name="effort"
-                        class="q-px-none"
-                    >
-                        <div class="row items-center q-gutter-sm q-mb-sm">
-                            <q-btn
-                                v-if="canEditEffort"
-                                icon="add"
-                                label="Add Effort"
-                                color="primary"
-                                dense
-                                aria-label="Add instructor effort"
-                                @click="showAddEffortDialog = true"
-                            />
-                        </div>
-                        <CourseEffortTable
-                            :records="effortRecords"
-                            :term-code="termCode"
-                            :is-loading="isLoadingEffort"
-                            :load-error="effortLoadError"
-                            @edit="openEditEffortDialog"
-                            @delete="confirmDeleteEffort"
-                        />
-                    </q-tab-panel>
-                    <q-tab-panel
-                        name="evaluation"
-                        class="q-px-none"
-                    >
-                        <EvaluationStatusMatrix
-                            :evaluation-data="evaluationData"
-                            :can-edit-ad-hoc="hasEditAdHocEval && evaluationData.canEditAdHoc"
-                            :is-loading="isLoadingEval"
-                            :load-error="evalLoadError"
-                            :term-code="termCode"
-                            @add="openAddEvalDialog"
-                            @edit="openEditEvalDialog"
-                            @delete="confirmDeleteEval"
-                        />
-                    </q-tab-panel>
-                </q-tab-panels>
-            </template>
-
-            <!-- Simple effort section when no eval access -->
-            <template v-else>
-                <q-separator class="q-my-md" />
-                <div class="q-mb-sm">
-                    <h3 class="q-my-none q-mb-sm">Effort</h3>
-                    <div class="row items-center q-gutter-sm q-pl-sm">
+                    <div class="row items-center q-gutter-sm q-mb-sm">
                         <q-btn
                             v-if="canEditEffort"
                             icon="add"
@@ -279,16 +235,32 @@
                             @click="showAddEffortDialog = true"
                         />
                     </div>
-                </div>
-                <CourseEffortTable
-                    :records="effortRecords"
-                    :term-code="termCode"
-                    :is-loading="isLoadingEffort"
-                    :load-error="effortLoadError"
-                    @edit="openEditEffortDialog"
-                    @delete="confirmDeleteEffort"
-                />
-            </template>
+                    <CourseEffortTable
+                        :records="effortRecords"
+                        :term-code="termCode"
+                        :is-loading="isLoadingEffort"
+                        :load-error="effortLoadError"
+                        @edit="openEditEffortDialog"
+                        @delete="confirmDeleteEffort"
+                    />
+                </q-tab-panel>
+                <q-tab-panel
+                    v-if="hasViewEvalResults"
+                    name="evaluation"
+                    class="q-px-none"
+                >
+                    <EvaluationStatusMatrix
+                        :evaluation-data="evaluationData"
+                        :can-edit-ad-hoc="hasEditAdHocEval && evaluationData.canEditAdHoc"
+                        :is-loading="isLoadingEval"
+                        :load-error="evalLoadError"
+                        :term-code="termCode"
+                        @add="openAddEvalDialog"
+                        @edit="openEditEvalDialog"
+                        @delete="confirmDeleteEval"
+                    />
+                </q-tab-panel>
+            </q-tab-panels>
         </template>
 
         <!-- Edit Dialog -->
@@ -341,7 +313,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue"
-import { useRoute } from "vue-router"
+import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
 import type { QTableColumn } from "quasar"
 import { courseService } from "../services/course-service"
@@ -366,6 +338,7 @@ import EvaluationStatusMatrix from "../components/EvaluationStatusMatrix.vue"
 import EditEvaluationDialog from "../components/EditEvaluationDialog.vue"
 
 const route = useRoute()
+const router = useRouter()
 const $q = useQuasar()
 const {
     hasEditCourse,
@@ -417,8 +390,23 @@ type EvalDialogProps = {
 const showEvalDialog = ref(false)
 const evalDialogProps = ref<EvalDialogProps | null>(null)
 
-// Tab state
-const activeTab = ref("effort")
+// Tab state — synced with URL param, permission-aware
+const validTabs = ["effort", "evaluation"] as const
+const requestedTab = validTabs.includes(route.params.tab as (typeof validTabs)[number])
+    ? (route.params.tab as string)
+    : "effort"
+const initialTab = requestedTab === "evaluation" && !hasViewEvalResults.value ? "effort" : requestedTab
+const activeTab = ref(initialTab)
+
+// Coerce tab when route or permissions change (back/forward, deep links)
+watch(
+    () => [route.params.tab, hasViewEvalResults.value] as const,
+    ([tabParam, canView]) => {
+        const requested = tabParam === "evaluation" ? "evaluation" : "effort"
+        const allowed = requested === "evaluation" && !canView ? "effort" : requested
+        if (activeTab.value !== allowed) activeTab.value = allowed
+    },
+)
 
 // Dialogs
 const showEditDialog = ref(false)
@@ -451,20 +439,15 @@ const canEditEffort = computed(
     () => canAddEffortForCourse.value && (hasCreateEffort.value || hasVerifyEffort.value || isAdmin.value),
 )
 
-// Count of actual eval entries (CERE or AdHoc, not "None")
-const evalEntryCount = computed(() =>
-    evaluationData.value.instructors.reduce(
-        (count, instructor) => count + instructor.evaluations.filter((e) => e.status !== "None").length,
-        0,
-    ),
-)
-
 const effortTabLabel = computed(() =>
     effortRecords.value.length > 0 ? `Effort (${effortRecords.value.length})` : "Effort",
 )
-const evaluationTabLabel = computed(() =>
-    evalEntryCount.value > 0 ? `Evaluations (${evalEntryCount.value})` : "Evaluations",
-)
+const evaluationTabLabel = computed(() => {
+    const instructors = evaluationData.value.instructors
+    if (instructors.length === 0) return "Evaluations"
+    const withEvals = instructors.filter((i) => i.evaluations.some((e) => e.status !== "None")).length
+    return `Evaluations (${withEvals}/${instructors.length})`
+})
 
 const childColumns = computed<QTableColumn[]>(() => [
     {
@@ -773,4 +756,15 @@ onMounted(loadCourse)
 
 // Reload course data when navigating between courses (same component, different route params)
 watch(courseId, loadCourse)
+
+// Sync tab selection to URL
+watch(activeTab, (tab) => {
+    const tabParam = tab === "effort" ? undefined : tab
+    if (route.params.tab !== tabParam) {
+        router.replace({
+            name: "CourseDetail",
+            params: { ...route.params, tab: tabParam },
+        })
+    }
+})
 </script>

@@ -94,7 +94,7 @@ const routes = [
         name: "CourseList",
     },
     {
-        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/courses/:courseId(\\d+)`,
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/courses/:courseId(\\d+)/:tab(effort|evaluation)?`,
         meta: {
             layout: EffortLayout,
             permissions: [
