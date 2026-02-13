@@ -601,18 +601,18 @@ public class CourseService : ICourseService
         }
 
         // Get personIds who already have effort on this course
-        var existingPersonIds = await _context.Records
+        var existingPersonIds = (await _context.Records
             .AsNoTracking()
             .Where(r => r.CourseId == courseId)
             .Select(r => r.PersonId)
             .Distinct()
-            .ToListAsync(ct);
+            .ToListAsync(ct))
+            .ToHashSet();
 
-        // Get all instructors for the term, excluding guest accounts
+        // Get all instructors for the term
         var allInstructors = await _context.Persons
             .AsNoTracking()
-            .Where(p => p.TermCode == course.TermCode
-                        && p.FirstName != EffortConstants.GuestInstructorFirstName)
+            .Where(p => p.TermCode == course.TermCode)
             .OrderBy(p => p.LastName)
             .ThenBy(p => p.FirstName)
             .ToListAsync(ct);
