@@ -4,7 +4,7 @@
         persistent
         @keydown.escape="handleClose"
     >
-        <q-card style="width: 100%; max-width: 500px">
+        <q-card class="dialog-card-sm">
             <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">Add Instructor Effort</div>
                 <q-space />
@@ -125,6 +125,7 @@
                         v-if="warningMessage"
                         class="bg-warning"
                         rounded
+                        role="alert"
                     >
                         <template #avatar>
                             <q-icon
@@ -140,6 +141,7 @@
                         v-if="errorMessage"
                         class="bg-negative text-white"
                         rounded
+                        role="alert"
                     >
                         <template #avatar>
                             <q-icon
@@ -177,6 +179,7 @@ import { courseService } from "../services/course-service"
 import { recordService } from "../services/record-service"
 import type { CourseInstructorOptionDto, EffortTypeOptionDto, RoleOptionDto } from "../types"
 import { effortValueRules, requiredRule, notesMaxHint } from "../validation"
+import "../effort-dialogs.css"
 import "../effort-forms.css"
 
 const props = defineProps<{
