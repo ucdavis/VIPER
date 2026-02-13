@@ -4,6 +4,7 @@
         <div
             v-if="isLoading"
             class="text-grey q-my-md"
+            role="status"
         >
             Loading evaluation data...
         </div>
@@ -13,6 +14,7 @@
             v-else-if="loadError"
             class="bg-negative text-white q-mb-md"
             rounded
+            role="alert"
         >
             <template #avatar>
                 <q-icon
@@ -67,13 +69,6 @@
                         />
                     </q-td>
                 </template>
-                <template #body-cell-source="slotProps">
-                    <q-td :props="slotProps">
-                        <span class="text-caption text-grey-7">
-                            {{ getSourceLabel(getEvalEntry(slotProps.row, 0)) }}
-                        </span>
-                    </q-td>
-                </template>
             </q-table>
 
             <!-- Multi-course matrix view -->
@@ -116,7 +111,6 @@
                             :mothra-id="slotProps.row.mothraId"
                             :instructor-name="slotProps.row.instructorName"
                             :course-name="course.courseName"
-                            show-source
                             @add="onAdd"
                             @edit="onEdit"
                             @delete="onDelete"
@@ -191,13 +185,6 @@ function cellSlotName(courseIndex: number): string {
     return `body-cell-course_${courseIndex}`
 }
 
-function getSourceLabel(entry: CourseEvalEntryDto | null): string {
-    if (!entry || entry.status === "None") return "\u2014"
-    if (entry.status === "CERE") return "CERE"
-    if (entry.status === "AdHoc") return "Ad-Hoc"
-    return ""
-}
-
 // Single-course columns
 const singleCourseColumns = computed<QTableColumn[]>(() => [
     {
@@ -210,12 +197,6 @@ const singleCourseColumns = computed<QTableColumn[]>(() => [
     {
         name: "status",
         label: "Evaluation",
-        field: "personId",
-        align: "center",
-    },
-    {
-        name: "source",
-        label: "Source",
         field: "personId",
         align: "center",
     },

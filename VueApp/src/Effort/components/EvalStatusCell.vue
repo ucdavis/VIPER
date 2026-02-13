@@ -43,12 +43,6 @@
                 >
                     N={{ entry.respondents }}
                 </span>
-                <span
-                    v-if="showSource"
-                    class="text-caption text-grey-6"
-                >
-                    {{ entry.status === "CERE" ? "CERE" : "Ad-Hoc" }}
-                </span>
                 <q-btn
                     v-if="entry.status === 'AdHoc' && entry.canEdit && canEditAdHoc"
                     icon="edit"
@@ -98,7 +92,6 @@ const props = defineProps<{
     mothraId: string
     instructorName: string
     courseName: string
-    showSource?: boolean
 }>()
 
 const emit = defineEmits<{

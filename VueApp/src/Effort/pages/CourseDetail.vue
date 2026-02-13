@@ -13,6 +13,7 @@
         <div
             v-if="isLoading"
             class="text-grey q-my-md"
+            role="status"
         >
             Loading course...
         </div>
@@ -196,71 +197,120 @@
             </div>
 
             <q-separator class="q-my-md" />
-            <q-tabs
-                v-model="activeTab"
-                dense
-                align="left"
-                active-color="primary"
-                indicator-color="primary"
-                no-caps
-                class="text-grey-7"
+
+            <!-- CERE eval link — directs to Faculty Eval Viewer when harvest data exists -->
+            <div
+                v-if="showCereLink"
+                class="q-pa-sm q-mb-md bg-blue-1 rounded-borders"
             >
-                <q-tab
-                    name="effort"
-                    :label="effortTabLabel"
+                <q-icon
+                    name="assessment"
+                    class="q-mr-xs"
                 />
-                <q-tab
-                    v-if="hasViewEvalResults"
-                    name="evaluation"
-                    :label="evaluationTabLabel"
-                />
-            </q-tabs>
-            <q-separator />
-            <q-tab-panels
-                v-model="activeTab"
-                keep-alive
-            >
-                <q-tab-panel
-                    name="effort"
-                    class="q-px-none"
+                Evaluation data is available in the
+                <a
+                    :href="evalViewerUrl"
+                    target="_blank"
+                    rel="noopener"
+                    class="text-primary"
                 >
-                    <div class="row items-center q-gutter-sm q-mb-sm">
-                        <q-btn
-                            v-if="canEditEffort"
-                            icon="add"
-                            label="Add Effort"
-                            color="primary"
-                            dense
-                            aria-label="Add instructor effort"
-                            @click="showAddEffortDialog = true"
+                    Faculty Eval Viewer
+                    <q-icon
+                        name="open_in_new"
+                        size="xs"
+                    />
+                </a>
+            </div>
+
+            <!-- Tabbed layout: effort + eval (when ad-hoc eval is available) -->
+            <template v-if="showEvalTab">
+                <q-tabs
+                    v-model="activeTab"
+                    dense
+                    align="left"
+                    active-color="primary"
+                    indicator-color="primary"
+                    no-caps
+                    class="text-grey-7"
+                >
+                    <q-tab
+                        name="effort"
+                        :label="effortTabLabel"
+                    />
+                    <q-tab
+                        name="evaluation"
+                        :label="evaluationTabLabel"
+                    />
+                </q-tabs>
+                <q-separator />
+                <q-tab-panels
+                    v-model="activeTab"
+                    keep-alive
+                >
+                    <q-tab-panel
+                        name="effort"
+                        class="q-px-none"
+                    >
+                        <div class="row items-center q-gutter-sm q-mb-sm">
+                            <q-btn
+                                v-if="canEditEffort"
+                                icon="add"
+                                label="Add Effort"
+                                color="primary"
+                                dense
+                                aria-label="Add instructor effort"
+                                @click="showAddEffortDialog = true"
+                            />
+                        </div>
+                        <CourseEffortTable
+                            :records="effortRecords"
+                            :term-code="termCode"
+                            :is-loading="isLoadingEffort"
+                            :load-error="effortLoadError"
+                            @edit="openEditEffortDialog"
+                            @delete="confirmDeleteEffort"
                         />
-                    </div>
-                    <CourseEffortTable
-                        :records="effortRecords"
-                        :term-code="termCode"
-                        :is-loading="isLoadingEffort"
-                        :load-error="effortLoadError"
-                        @edit="openEditEffortDialog"
-                        @delete="confirmDeleteEffort"
+                    </q-tab-panel>
+                    <q-tab-panel
+                        name="evaluation"
+                        class="q-px-none"
+                    >
+                        <EvaluationStatusMatrix
+                            :evaluation-data="evaluationData"
+                            :can-edit-ad-hoc="hasEditAdHocEval && evaluationData.canEditAdHoc"
+                            :is-loading="isLoadingEval"
+                            :load-error="evalLoadError"
+                            :term-code="termCode"
+                            @add="openAddEvalDialog"
+                            @edit="openEditEvalDialog"
+                            @delete="confirmDeleteEval"
+                        />
+                    </q-tab-panel>
+                </q-tab-panels>
+            </template>
+
+            <!-- Direct effort section (no tabs) -->
+            <template v-else>
+                <div class="row items-center q-gutter-sm q-mb-sm">
+                    <q-btn
+                        v-if="canEditEffort"
+                        icon="add"
+                        label="Add Effort"
+                        color="primary"
+                        dense
+                        aria-label="Add instructor effort"
+                        @click="showAddEffortDialog = true"
                     />
-                </q-tab-panel>
-                <q-tab-panel
-                    v-if="hasViewEvalResults"
-                    name="evaluation"
-                    class="q-px-none"
-                >
-                    <EvaluationStatusMatrix
-                        :evaluation-data="evaluationData"
-                        :can-edit-ad-hoc="hasEditAdHocEval && evaluationData.canEditAdHoc"
-                        :is-loading="isLoadingEval"
-                        :load-error="evalLoadError"
-                        :term-code="termCode"
-                        @add="openAddEvalDialog"
-                        @edit="openEditEvalDialog"
-                        @delete="confirmDeleteEval"
-                    />
-                </q-tab-panel>
-            </q-tab-panels>
+                </div>
+                <CourseEffortTable
+                    :records="effortRecords"
+                    :term-code="termCode"
+                    :is-loading="isLoadingEffort"
+                    :load-error="effortLoadError"
+                    @edit="openEditEffortDialog"
+                    @delete="confirmDeleteEffort"
+                />
+            </template>
         </template>
 
         <!-- Edit Dialog -->
@@ -312,7 +362,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue"
+import { ref, computed, inject, onMounted, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
 import type { QTableColumn } from "quasar"
@@ -340,6 +390,7 @@ import EditEvaluationDialog from "../components/EditEvaluationDialog.vue"
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
+const viperOneUrl = inject<string>("viperOneUrl", "/")
 const {
     hasEditCourse,
     hasCreateEffort,
@@ -374,7 +425,7 @@ const selectedEffortRecord = ref<InstructorEffortRecordDto | null>(null)
 const canAddEffortForCourse = ref(false)
 
 // Evaluation state
-const evaluationData = ref<CourseEvaluationStatusDto>({ canEditAdHoc: false, instructors: [], courses: [] })
+const evaluationData = ref<CourseEvaluationStatusDto>({ canEditAdHoc: true, instructors: [], courses: [] })
 const isLoadingEval = ref(false)
 const evalLoadError = ref<string | null>(null)
 
@@ -447,6 +498,27 @@ const evaluationTabLabel = computed(() => {
     if (instructors.length === 0) return "Evaluations"
     const withEvals = instructors.filter((i) => i.evaluations.some((e) => e.status !== "None")).length
     return `Evaluations (${withEvals}/${instructors.length})`
+})
+
+// Show eval tab only when user has permission AND no CERE data (ad-hoc mode)
+const showEvalTab = computed(() => hasViewEvalResults.value && evaluationData.value.canEditAdHoc)
+
+// Show CERE deep link when eval harvest data exists
+const showCereLink = computed(
+    () => hasViewEvalResults.value && !isLoadingEval.value && !evaluationData.value.canEditAdHoc,
+)
+
+// Deep link to Faculty Eval Viewer for CERE data
+const evalViewerUrl = computed(
+    () =>
+        `${viperOneUrl}faculty/eval/default.cfm?Page=RptCourseWrapper&Hash=${termCode.value}${course.value?.crn ?? ""}`,
+)
+
+// Coerce to effort tab when eval tab disappears (CERE data detected)
+watch(showEvalTab, (canShow) => {
+    if (!canShow && activeTab.value === "evaluation") {
+        activeTab.value = "effort"
+    }
 })
 
 const childColumns = computed<QTableColumn[]>(() => [
