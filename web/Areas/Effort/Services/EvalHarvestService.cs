@@ -498,12 +498,12 @@ public class EvalHarvestService : IEvalHarvestService
                 && c.FacilitatorEvalId == 0, ct);
     }
 
-    private static bool HasAnyResponses(UpdateAdHocEvalRequest request)
+    internal static bool HasAnyResponses(UpdateAdHocEvalRequest request)
     {
         return request.Count1 + request.Count2 + request.Count3 + request.Count4 + request.Count5 > 0;
     }
 
-    private static bool IsCereBlocked(EhCourse? ehCourse)
+    internal static bool IsCereBlocked(EhCourse? ehCourse)
     {
         return ehCourse != null && ehCourse.IsAdHoc != true;
     }
@@ -513,7 +513,7 @@ public class EvalHarvestService : IEvalHarvestService
     /// on a quant record. Summary stats are computed from the counts so callers don't need to
     /// supply them separately.
     /// </summary>
-    private static void ApplyRatingCounts(EhQuant quant, int count1, int count2, int count3, int count4, int count5)
+    internal static void ApplyRatingCounts(EhQuant quant, int count1, int count2, int count3, int count4, int count5)
     {
         var total = count1 + count2 + count3 + count4 + count5;
         quant.Count1N = count1;
