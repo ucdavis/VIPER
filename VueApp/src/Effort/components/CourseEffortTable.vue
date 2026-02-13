@@ -4,6 +4,7 @@
         <div
             v-if="isLoading"
             class="text-grey q-my-md"
+            role="status"
         >
             Loading effort records...
         </div>
@@ -13,6 +14,7 @@
             v-else-if="loadError"
             class="bg-negative text-white q-mb-md"
             rounded
+            role="alert"
         >
             <template #avatar>
                 <q-icon
@@ -87,8 +89,7 @@
                             </div>
                             <div
                                 v-if="record.notes"
-                                class="text-caption text-grey-8 q-mt-xs"
-                                style="white-space: pre-line"
+                                class="text-caption text-grey-8 q-mt-xs notes-pre-line"
                             >
                                 {{ record.notes }}
                             </div>
@@ -386,7 +387,7 @@ const columns = computed<QTableColumn[]>(() => {
     const cols: QTableColumn[] = [
         {
             name: "instructor",
-            label: "",
+            label: "Instructor",
             field: "instructorName",
             align: "left",
         },
@@ -442,5 +443,9 @@ const columns = computed<QTableColumn[]>(() => {
 /* Highlight group header when hovering any row in the group */
 .course-effort-table :deep(.group-header-hover td) {
     background-color: #eee;
+}
+
+.notes-pre-line {
+    white-space: pre-line;
 }
 </style>

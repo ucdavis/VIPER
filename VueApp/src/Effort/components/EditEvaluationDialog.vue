@@ -50,6 +50,7 @@
                                 dense
                                 outlined
                                 no-error-icon
+                                aria-label="Rating 5 (High) response count"
                                 :rules="countRules"
                                 lazy-rules="ondemand"
                             />
@@ -61,6 +62,7 @@
                                 dense
                                 outlined
                                 no-error-icon
+                                aria-label="Rating 4 response count"
                                 :rules="countRules"
                                 lazy-rules="ondemand"
                             />
@@ -72,6 +74,7 @@
                                 dense
                                 outlined
                                 no-error-icon
+                                aria-label="Rating 3 response count"
                                 :rules="countRules"
                                 lazy-rules="ondemand"
                             />
@@ -83,6 +86,7 @@
                                 dense
                                 outlined
                                 no-error-icon
+                                aria-label="Rating 2 response count"
                                 :rules="countRules"
                                 lazy-rules="ondemand"
                             />
@@ -94,6 +98,7 @@
                                 dense
                                 outlined
                                 no-error-icon
+                                aria-label="Rating 1 (Low) response count"
                                 :rules="countRules"
                                 lazy-rules="ondemand"
                             />
@@ -105,6 +110,7 @@
                     <div
                         v-if="totalRespondents > 0"
                         class="text-body2 text-grey-8"
+                        aria-live="polite"
                     >
                         Mean: <strong>{{ computedMean }}</strong> &nbsp;&middot;&nbsp; SD:
                         <strong>{{ computedSd }}</strong> &nbsp;&middot;&nbsp; N:
@@ -122,6 +128,7 @@
                         v-if="errorMessage"
                         class="bg-negative text-white q-mt-sm"
                         rounded
+                        role="alert"
                     >
                         <template #avatar>
                             <q-icon
