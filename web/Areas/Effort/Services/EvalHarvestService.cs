@@ -124,12 +124,15 @@ public class EvalHarvestService : IEvalHarvestService
         // Determine if any course has CERE data (course_adhoc = false/null)
         var hasCereData = ehCourses.Any(c => c.IsAdHoc != true);
 
+        var viperPersonById = viperPersons.ToDictionary(p => p.PersonId);
+        var effortPersonById = effortPersons.ToDictionary(p => p.PersonId);
+
         // Build instructor eval status
         var instructors = new List<InstructorEvalStatusDto>();
         foreach (var personId in personIds)
         {
-            var viperPerson = viperPersons.FirstOrDefault(p => p.PersonId == personId);
-            var effortPerson = effortPersons.FirstOrDefault(p => p.PersonId == personId);
+            viperPersonById.TryGetValue(personId, out var viperPerson);
+            effortPersonById.TryGetValue(personId, out var effortPerson);
             if (viperPerson == null) continue;
 
             var mothraId = viperPerson.MothraId;
@@ -256,6 +259,24 @@ public class EvalHarvestService : IEvalHarvestService
             _logger.LogWarning("Person not found for MothraId {MothraId}",
                 LogSanitizer.SanitizeId(request.MothraId));
             return new AdHocEvalResultDto { Success = false, Error = "Instructor not found" };
+        }
+
+        var childCourseIds = await _effortContext.CourseRelationships
+            .AsNoTracking()
+            .Where(r => r.ParentCourseId == request.CourseId)
+            .Select(r => r.ChildCourseId)
+            .ToListAsync(ct);
+        var associatedCourseIds = new List<int> { request.CourseId };
+        associatedCourseIds.AddRange(childCourseIds);
+
+        var hasEffortRecord = await _effortContext.Records
+            .AsNoTracking()
+            .AnyAsync(r => associatedCourseIds.Contains(r.CourseId)
+                && r.PersonId == viperPerson.PersonId, ct);
+
+        if (!hasEffortRecord)
+        {
+            return new AdHocEvalResultDto { Success = false, Error = "Instructor is not associated with this course" };
         }
 
         var mailId = viperPerson.MailId;

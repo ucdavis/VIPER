@@ -19,13 +19,17 @@ router.beforeEach(async (to) => {
         return false
     }
 
-    // Also load Eval permissions (needed for evaluation data display)
-    const { get } = useFetch()
-    const apiUrl = import.meta.env.VITE_API_URL
-    const evalPerms = await get(`${apiUrl}loggedInUser/permissions?prefix=SVMSecure.Eval`)
-    if (evalPerms.success && Array.isArray(evalPerms.result)) {
-        const userStore = useUserStore()
-        userStore.setPermissions([...userStore.userInfo.permissions, ...evalPerms.result])
+    // Eval permissions are in a separate area, so they aren't loaded by requireLogin
+    const userStore = useUserStore()
+    const existingPermissions = userStore.userInfo?.permissions ?? []
+    const hasEvalPermissions = existingPermissions.some((p: string) => p.startsWith("SVMSecure.Eval"))
+    if (!hasEvalPermissions) {
+        const { get } = useFetch()
+        const apiUrl = import.meta.env.VITE_API_URL
+        const evalPerms = await get(`${apiUrl}loggedInUser/permissions?prefix=SVMSecure.Eval`)
+        if (evalPerms.success && Array.isArray(evalPerms.result)) {
+            userStore.setPermissions([...existingPermissions, ...evalPerms.result])
+        }
     }
 
     if (to.meta.permissions !== null && to.meta.permissions !== undefined) {
