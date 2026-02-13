@@ -10,5 +10,5 @@
         "./VueApp"
     ],
     "oxc.typeAware": true,
-    "oxc.unusedDisableDirectives": "warn",
+    "oxc.unusedDisableDirectives": "warn"
 }

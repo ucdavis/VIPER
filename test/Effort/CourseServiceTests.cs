@@ -19,6 +19,7 @@ public sealed class CourseServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
     private readonly Mock<IEffortAuditService> _auditServiceMock;
+    private readonly ICourseClassificationService _classificationService;
     private readonly Mock<ILogger<CourseService>> _loggerMock;
     private readonly CourseService _courseService;
 
@@ -31,13 +32,14 @@ public sealed class CourseServiceTests : IDisposable
 
         _context = new EffortDbContext(effortOptions);
         _auditServiceMock = new Mock<IEffortAuditService>();
+        _classificationService = new CourseClassificationService();
         _loggerMock = new Mock<ILogger<CourseService>>();
 
         // Setup synchronous audit methods used within transactions
         _auditServiceMock
             .Setup(s => s.AddCourseChangeAudit(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>()));
 
-        _courseService = new CourseService(_context, _auditServiceMock.Object, _loggerMock.Object);
+        _courseService = new CourseService(_context, _auditServiceMock.Object, _classificationService, _loggerMock.Object);
     }
 
     public void Dispose()
