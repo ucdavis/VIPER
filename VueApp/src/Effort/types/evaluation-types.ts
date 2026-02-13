@@ -61,9 +61,6 @@ type CreateAdHocEvalRequest = {
     count3: number
     count4: number
     count5: number
-    mean: number
-    standardDeviation: number
-    respondents: number
 }
 
 /**
@@ -75,9 +72,6 @@ type UpdateAdHocEvalRequest = {
     count3: number
     count4: number
     count5: number
-    mean: number
-    standardDeviation: number
-    respondents: number
 }
 
 /**
