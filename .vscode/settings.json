@@ -10,6 +10,5 @@
         "./VueApp"
     ],
     "oxc.typeAware": true,
-    "oxc.unusedDisableDirectives": "warn",
-    "chat.requestQueuing.enabled": true
+    "oxc.unusedDisableDirectives": "warn"
 }
