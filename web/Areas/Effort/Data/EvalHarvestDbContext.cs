@@ -38,8 +38,7 @@ public class EvalHarvestDbContext : DbContext
 
             entity.Property(e => e.Crn).HasColumnName("course_CRN");
             entity.Property(e => e.TermCode).HasColumnName("course_termCode");
-            entity.Property(e => e.FacilitatorEvalId).HasColumnName("course_facilitator_evalid")
-                .HasDefaultValue(0);
+            entity.Property(e => e.FacilitatorEvalId).HasColumnName("course_facilitator_evalid");
             entity.Property(e => e.SubjCode).HasColumnName("course_subj_code").HasMaxLength(3);
             entity.Property(e => e.CrseNumb).HasColumnName("course_crse_numb").HasMaxLength(5);
             entity.Property(e => e.Enrollment).HasColumnName("course_enrollment");

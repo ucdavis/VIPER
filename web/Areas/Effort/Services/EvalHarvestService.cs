@@ -210,6 +210,11 @@ public class EvalHarvestService : IEvalHarvestService
     public async Task<AdHocEvalResultDto> CreateAdHocEvaluationAsync(
         CreateAdHocEvalRequest request, CancellationToken ct = default)
     {
+        if (!HasAnyResponses(request))
+        {
+            return new AdHocEvalResultDto { Success = false, Error = "At least one rating count must be greater than zero" };
+        }
+
         // Get the effort course
         var course = await _effortContext.Courses
             .AsNoTracking()
@@ -354,10 +359,7 @@ public class EvalHarvestService : IEvalHarvestService
             MailId = mailId,
             NoOpN = 0,
             NoOpP = 0,
-            Mean = request.Mean,
-            Sd = request.StandardDeviation,
             Enrolled = course.Enrollment,
-            Respondents = request.Respondents,
             EvaluateeType = "I"
         };
         ApplyRatingCounts(quant, request.Count1, request.Count2, request.Count3, request.Count4, request.Count5);
@@ -375,6 +377,11 @@ public class EvalHarvestService : IEvalHarvestService
     public async Task<AdHocEvalResultDto> UpdateAdHocEvaluationAsync(
         int courseId, int quantId, UpdateAdHocEvalRequest request, CancellationToken ct = default)
     {
+        if (!HasAnyResponses(request))
+        {
+            return new AdHocEvalResultDto { Success = false, Error = "At least one rating count must be greater than zero" };
+        }
+
         var quant = await _evalContext.Quants
             .Include(q => q.Question)
             .FirstOrDefaultAsync(q => q.QuantId == quantId, ct);
@@ -402,11 +409,8 @@ public class EvalHarvestService : IEvalHarvestService
             };
         }
 
-        // Update quant values
+        // Update quant values — mean, SD, and respondents are derived from the counts
         ApplyRatingCounts(quant, request.Count1, request.Count2, request.Count3, request.Count4, request.Count5);
-        quant.Mean = request.Mean;
-        quant.Sd = request.StandardDeviation;
-        quant.Respondents = request.Respondents;
 
         await _evalContext.SaveChangesAsync(ct);
 
@@ -473,13 +477,20 @@ public class EvalHarvestService : IEvalHarvestService
                 && c.FacilitatorEvalId == 0, ct);
     }
 
+    private static bool HasAnyResponses(UpdateAdHocEvalRequest request)
+    {
+        return request.Count1 + request.Count2 + request.Count3 + request.Count4 + request.Count5 > 0;
+    }
+
     private static bool IsCereBlocked(EhCourse? ehCourse)
     {
         return ehCourse != null && ehCourse.IsAdHoc != true;
     }
 
     /// <summary>
-    /// Sets rating count fields (raw counts and percentages) on a quant record.
+    /// Sets rating counts, percentages, and derived summary statistics (mean, SD, respondents)
+    /// on a quant record. Summary stats are computed from the counts so callers don't need to
+    /// supply them separately.
     /// </summary>
     private static void ApplyRatingCounts(EhQuant quant, int count1, int count2, int count3, int count4, int count5)
     {
@@ -494,5 +505,25 @@ public class EvalHarvestService : IEvalHarvestService
         quant.Count3P = total > 0 ? (double)count3 / total * 100 : 0;
         quant.Count4P = total > 0 ? (double)count4 / total * 100 : 0;
         quant.Count5P = total > 0 ? (double)count5 / total * 100 : 0;
+
+        quant.Respondents = total;
+
+        if (total > 0)
+        {
+            var mean = (1.0 * count1 + 2.0 * count2 + 3.0 * count3 + 4.0 * count4 + 5.0 * count5) / total;
+            quant.Mean = Math.Round(mean, 2);
+
+            var variance = (Math.Pow(1 - mean, 2) * count1
+                          + Math.Pow(2 - mean, 2) * count2
+                          + Math.Pow(3 - mean, 2) * count3
+                          + Math.Pow(4 - mean, 2) * count4
+                          + Math.Pow(5 - mean, 2) * count5) / total;
+            quant.Sd = Math.Round(Math.Sqrt(variance), 2);
+        }
+        else
+        {
+            quant.Mean = 0;
+            quant.Sd = 0;
+        }
     }
 }
