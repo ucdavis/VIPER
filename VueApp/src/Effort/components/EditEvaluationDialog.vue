@@ -47,6 +47,7 @@
                             <q-input
                                 v-model.number="form.count5"
                                 type="number"
+                                :min="0"
                                 dense
                                 outlined
                                 no-error-icon
@@ -59,6 +60,7 @@
                             <q-input
                                 v-model.number="form.count4"
                                 type="number"
+                                :min="0"
                                 dense
                                 outlined
                                 no-error-icon
@@ -71,6 +73,7 @@
                             <q-input
                                 v-model.number="form.count3"
                                 type="number"
+                                :min="0"
                                 dense
                                 outlined
                                 no-error-icon
@@ -83,6 +86,7 @@
                             <q-input
                                 v-model.number="form.count2"
                                 type="number"
+                                :min="0"
                                 dense
                                 outlined
                                 no-error-icon
@@ -95,6 +99,7 @@
                             <q-input
                                 v-model.number="form.count1"
                                 type="number"
+                                :min="0"
                                 dense
                                 outlined
                                 no-error-icon
