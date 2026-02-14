@@ -3,6 +3,7 @@ namespace Viper.Areas.Effort.Models.DTOs.Responses;
 public class CourseEvaluationStatusDto
 {
     public bool CanEditAdHoc { get; set; }
+    public int MaxRatingCount { get; set; }
     public List<InstructorEvalStatusDto> Instructors { get; set; } = new();
     public List<EvalCourseInfoDto> Courses { get; set; } = new();
 }

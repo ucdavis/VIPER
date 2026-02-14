@@ -46,6 +46,7 @@ type InstructorEvalStatusDto = {
  */
 type CourseEvaluationStatusDto = {
     canEditAdHoc: boolean
+    maxRatingCount: number
     instructors: InstructorEvalStatusDto[]
     courses: EvalCourseInfoDto[]
 }

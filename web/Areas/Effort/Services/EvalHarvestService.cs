@@ -212,6 +212,7 @@ public class EvalHarvestService : IEvalHarvestService
         return new CourseEvaluationStatusDto
         {
             CanEditAdHoc = !hasCereData,
+            MaxRatingCount = UpdateAdHocEvalRequest.MaxRatingCount,
             Instructors = instructors,
             Courses = courseInfos
         };
