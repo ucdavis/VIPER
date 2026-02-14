@@ -4,15 +4,18 @@ namespace Viper.Areas.Effort.Models.DTOs.Requests;
 
 public class UpdateAdHocEvalRequest
 {
-    [Range(0, int.MaxValue)]
+    // Sanity cap to prevent obvious data-entry errors (max course enrollment ~291, max class year ~167)
+    private const int MaxRatingCount = 500;
+
+    [Range(0, MaxRatingCount)]
     public required int Count1 { get; set; }
-    [Range(0, int.MaxValue)]
+    [Range(0, MaxRatingCount)]
     public required int Count2 { get; set; }
-    [Range(0, int.MaxValue)]
+    [Range(0, MaxRatingCount)]
     public required int Count3 { get; set; }
-    [Range(0, int.MaxValue)]
+    [Range(0, MaxRatingCount)]
     public required int Count4 { get; set; }
-    [Range(0, int.MaxValue)]
+    [Range(0, MaxRatingCount)]
     public required int Count5 { get; set; }
 }
 
