@@ -96,13 +96,14 @@ public class EvalHarvestService : IEvalHarvestService
             .Where(c => crns.Contains(c.Crn) && c.TermCode == termCode && c.FacilitatorEvalId == 0)
             .ToListAsync(ct);
 
-        // Get overall eval data for all CRNs
+        // Get overall eval data for all CRNs (FacilitatorEvalId==0 = course evals only)
         var evalData = await _evalContext.Quants
             .AsNoTracking()
             .Include(q => q.Question)
             .Where(q => crns.Contains(q.Question.Crn)
                 && q.Question.TermCode == termCode
                 && q.Question.IsOverall
+                && q.Question.FacilitatorEvalId == 0
                 && q.MailId != null)
             .ToListAsync(ct);
 
@@ -127,6 +128,11 @@ public class EvalHarvestService : IEvalHarvestService
         var viperPersonById = viperPersons.ToDictionary(p => p.PersonId);
         var effortPersonById = effortPersons.ToDictionary(p => p.PersonId);
 
+        var ehCourseByCrn = ehCourses.ToDictionary(c => c.Crn);
+        var evalDataByCrnAndMailId = evalData
+            .Where(q => q.MailId != null)
+            .ToLookup(q => (q.Question.Crn, MailId: q.MailId!.ToUpperInvariant()));
+
         // Build instructor eval status
         var instructors = new List<InstructorEvalStatusDto>();
         foreach (var personId in personIds)
@@ -148,19 +154,20 @@ public class EvalHarvestService : IEvalHarvestService
                 instructorMailId = viperPerson.MailId;
             }
 
+            var mailIdKey = instructorMailId?.ToUpperInvariant();
+
             var evaluations = new List<CourseEvalEntryDto>();
             foreach (var effortCourse in allCourses)
             {
                 var crnStr = effortCourse.Crn.Trim();
                 if (!int.TryParse(crnStr, out var crnInt)) continue;
 
-                var ehCourse = ehCourses.FirstOrDefault(c => c.Crn == crnInt);
+                ehCourseByCrn.TryGetValue(crnInt, out var ehCourse);
 
                 // Find eval data for this instructor + CRN
-                var instructorEval = evalData.FirstOrDefault(q =>
-                    q.Question.Crn == crnInt
-                    && q.MailId != null
-                    && string.Equals(q.MailId, instructorMailId, StringComparison.OrdinalIgnoreCase));
+                var instructorEval = mailIdKey != null
+                    ? evalDataByCrnAndMailId[(crnInt, mailIdKey)].FirstOrDefault()
+                    : null;
 
                 string status;
                 bool canEdit;
