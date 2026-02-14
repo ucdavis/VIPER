@@ -149,4 +149,24 @@ public interface ICourseService
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Import result with the course (new or existing) and status.</returns>
     Task<ImportCourseForSelfResult> ImportCourseForSelfAsync(int termCode, string crn, decimal? units = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get all effort records for a course, including instructor names and effort details.
+    /// Used by the course detail page to display the effort table.
+    /// </summary>
+    /// <param name="courseId">The course ID.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>List of course effort records with instructor info.</returns>
+    Task<List<CourseEffortRecordDto>> GetCourseEffortAsync(int courseId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get possible instructors for adding effort to a course.
+    /// Returns instructors who already have effort on the course (priority),
+    /// then all instructors for the term who are not yet on the course.
+    /// Guest accounts are excluded.
+    /// </summary>
+    /// <param name="courseId">The course ID.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Grouped instructor options (existing on course + all for term).</returns>
+    Task<PossibleCourseInstructorsDto> GetPossibleInstructorsForCourseAsync(int courseId, CancellationToken ct = default);
 }

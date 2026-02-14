@@ -197,6 +197,7 @@ try
     builder.Services.AddDbContext<ClinicalSchedulerContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<SISContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<Viper.Areas.Effort.EffortDbContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<Viper.Areas.Effort.Data.EvalHarvestDbContext>(ConfigureDbContextOptions);
 
     // Clinical Scheduler services
     builder.Services.AddScoped<Viper.Areas.Curriculum.Services.TermCodeService>();
@@ -239,6 +240,7 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentageService, Viper.Areas.Effort.Services.PercentageService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IRCourseService, Viper.Areas.Effort.Services.RCourseService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IDashboardService, Viper.Areas.Effort.Services.DashboardService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEvalHarvestService, Viper.Areas.Effort.Services.EvalHarvestService>();
     builder.Services.Configure<Viper.Areas.Effort.EffortSettings>(builder.Configuration.GetSection("EffortSettings"));
 
     // In development, derive BaseUrl from ASPNETCORE_HTTPS_PORT if not explicitly configured
