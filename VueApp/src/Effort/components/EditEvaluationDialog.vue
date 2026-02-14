@@ -177,6 +177,7 @@ const props = defineProps<{
     crn: string
     mothraId: string
     existingData: CourseEvalEntryDto | null
+    maxRatingCount: number
 }>()
 
 const emit = defineEmits<{
@@ -205,11 +206,12 @@ const { setInitialState, confirmClose } = useUnsavedChanges(form)
 const isSaving = ref(false)
 const errorMessage = ref("")
 
-// Validation rules
-const countRules = [
+// Validation rules — maxRatingCount is sourced from the backend
+const countRules = computed(() => [
     (v: number | null) => (v !== null && v !== undefined) || "Required",
     (v: number | null) => v === null || (Number.isInteger(v) && v >= 0) || "Must be 0 or more",
-]
+    (v: number | null) => v === null || v <= props.maxRatingCount || `Must be ${props.maxRatingCount} or less`,
+])
 
 // Computed summary statistics derived from rating counts
 const totalRespondents = computed(() => {
