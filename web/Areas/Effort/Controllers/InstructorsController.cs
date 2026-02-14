@@ -357,12 +357,15 @@ public class InstructorsController : BaseEffortController
     }
 
     /// <summary>
-    /// Get all job groups currently in use for the dropdown.
+    /// Get job groups currently in use, optionally filtered by term and department.
     /// </summary>
     [HttpGet("job-groups")]
-    public async Task<ActionResult<IEnumerable<JobGroupDto>>> GetJobGroups(CancellationToken ct = default)
+    public async Task<ActionResult<IEnumerable<JobGroupDto>>> GetJobGroups(
+        [FromQuery] int? termCode = null,
+        [FromQuery] string? department = null,
+        CancellationToken ct = default)
     {
-        var jobGroups = await _instructorService.GetJobGroupsAsync(ct);
+        var jobGroups = await _instructorService.GetJobGroupsAsync(termCode, department, ct);
         return Ok(jobGroups);
     }
 }

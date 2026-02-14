@@ -234,7 +234,12 @@
                     label="Add"
                     :loading="isSaving"
                     @click="createPercentage"
-                />
+                >
+                    <template #loading>
+                        <q-spinner size="1em" class="q-mr-sm" />
+                        Add
+                    </template>
+                </q-btn>
             </q-card-actions>
         </q-card>
     </q-dialog>

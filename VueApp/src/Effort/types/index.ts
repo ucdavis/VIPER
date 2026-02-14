@@ -115,3 +115,13 @@ export type {
     UpdateAdHocEvalRequest,
     AdHocEvalResultDto,
 } from "./evaluation-types"
+
+export type {
+    EffortByType,
+    TeachingActivityCourseRow,
+    TeachingActivityInstructorGroup,
+    TeachingActivityDepartmentGroup,
+    TeachingActivityReport,
+    ReportFilterParams,
+    TermDropdownOption,
+} from "./report-types"

@@ -80,7 +80,12 @@
                     color="primary"
                     :loading="isSaving"
                     @click="save"
-                />
+                >
+                    <template #loading>
+                        <q-spinner size="1em" class="q-mr-sm" />
+                        Save
+                    </template>
+                </q-btn>
             </q-card-actions>
         </q-card>
     </q-dialog>
