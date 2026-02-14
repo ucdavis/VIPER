@@ -355,6 +355,7 @@
             :crn="evalDialogProps.crn"
             :mothra-id="evalDialogProps.mothraId"
             :existing-data="evalDialogProps.existingData"
+            :max-rating-count="evaluationData.maxRatingCount"
             @created="onEvalCreated"
             @updated="onEvalUpdated"
         />
@@ -425,7 +426,12 @@ const selectedEffortRecord = ref<InstructorEffortRecordDto | null>(null)
 const canAddEffortForCourse = ref(false)
 
 // Evaluation state
-const evaluationData = ref<CourseEvaluationStatusDto>({ canEditAdHoc: true, instructors: [], courses: [] })
+const evaluationData = ref<CourseEvaluationStatusDto>({
+    canEditAdHoc: true,
+    maxRatingCount: 500,
+    instructors: [],
+    courses: [],
+})
 const isLoadingEval = ref(false)
 const evalLoadError = ref<string | null>(null)
 

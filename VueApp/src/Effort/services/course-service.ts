@@ -309,7 +309,7 @@ class CourseService {
     async getCourseEvaluations(courseId: number): Promise<CourseEvaluationStatusDto> {
         const response = await get(`${this.baseUrl}/courses/${courseId}/evaluations`)
         if (!response.success || !response.result) {
-            return { canEditAdHoc: false, instructors: [], courses: [] }
+            return { canEditAdHoc: false, maxRatingCount: 500, instructors: [], courses: [] }
         }
         return response.result as CourseEvaluationStatusDto
     }

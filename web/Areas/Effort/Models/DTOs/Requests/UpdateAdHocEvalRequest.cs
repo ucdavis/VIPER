@@ -5,7 +5,7 @@ namespace Viper.Areas.Effort.Models.DTOs.Requests;
 public class UpdateAdHocEvalRequest
 {
     // Sanity cap to prevent obvious data-entry errors (max course enrollment ~291, max class year ~167)
-    private const int MaxRatingCount = 500;
+    public const int MaxRatingCount = 500;
 
     [Range(0, MaxRatingCount)]
     public required int Count1 { get; set; }
