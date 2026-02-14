@@ -52,9 +52,9 @@ type CourseInstructorOptionDto = {
 /**
  * Grouped instructor options for the add effort dialog dropdown.
  */
-type CourseInstructorOptionsDto = {
+type PossibleCourseInstructorsDto = {
     existingInstructors: CourseInstructorOptionDto[]
     otherInstructors: CourseInstructorOptionDto[]
 }
 
-export type { CourseEffortRecordDto, CourseEffortResponseDto, CourseInstructorOptionDto, CourseInstructorOptionsDto }
+export type { CourseEffortRecordDto, CourseEffortResponseDto, CourseInstructorOptionDto, PossibleCourseInstructorsDto }
