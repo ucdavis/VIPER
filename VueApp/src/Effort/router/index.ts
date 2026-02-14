@@ -23,6 +23,9 @@ async function loadEvalPermissions() {
     const evalPerms = await get(`${apiUrl}loggedInUser/permissions?prefix=SVMSecure.Eval`)
     if (evalPerms.success && Array.isArray(evalPerms.result)) {
         userStore.setPermissions([...existingPermissions, ...evalPerms.result])
+    } else {
+        // Reset latch so the next navigation retries the fetch
+        evalPermissionsPromise = null
     }
 }
 
