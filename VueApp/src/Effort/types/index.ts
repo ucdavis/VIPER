@@ -94,7 +94,7 @@ export type {
     CourseEffortRecordDto,
     CourseEffortResponseDto,
     CourseInstructorOptionDto,
-    CourseInstructorOptionsDto,
+    PossibleCourseInstructorsDto,
 } from "./course-effort-types"
 
 export type {

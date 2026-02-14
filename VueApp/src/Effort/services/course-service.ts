@@ -9,7 +9,7 @@ import type {
     CourseRelationshipsResult,
     CreateCourseRelationshipRequest,
     CourseEffortResponseDto,
-    CourseInstructorOptionsDto,
+    PossibleCourseInstructorsDto,
     CourseEvaluationStatusDto,
     CreateAdHocEvalRequest,
     UpdateAdHocEvalRequest,
@@ -237,12 +237,12 @@ class CourseService {
      * Get possible instructors for adding effort to a course.
      * Returns instructors grouped by those already on the course and all available.
      */
-    async getPossibleInstructors(courseId: number): Promise<CourseInstructorOptionsDto> {
+    async getPossibleInstructors(courseId: number): Promise<PossibleCourseInstructorsDto> {
         const response = await get(`${this.baseUrl}/courses/${courseId}/possible-instructors`)
         if (!response.success || !response.result) {
             return { existingInstructors: [], otherInstructors: [] }
         }
-        return response.result as CourseInstructorOptionsDto
+        return response.result as PossibleCourseInstructorsDto
     }
 
     // Self-Service Course Import Operations
