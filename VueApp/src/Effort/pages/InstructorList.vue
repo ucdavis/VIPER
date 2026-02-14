@@ -104,7 +104,12 @@
                         :disable="sendingEmailDepts.has(deptGroup.dept)"
                         :loading="sendingEmailDepts.has(deptGroup.dept)"
                         @click="confirmBulkEmail(deptGroup)"
-                    />
+                    >
+                        <template #loading>
+                            <q-spinner size="1em" class="q-mr-sm" />
+                            Email {{ getEmailableCount(deptGroup) }} Unverified {{ inflect('Instructor', getEmailableCount(deptGroup)) }}
+                        </template>
+                    </q-btn>
                 </div>
 
                 <!-- Mobile card view -->

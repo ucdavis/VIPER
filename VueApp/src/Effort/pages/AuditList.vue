@@ -774,8 +774,8 @@ async function onTermChange(newTermCode: number | null) {
     // The @update:model-value event fires with the new value, but v-model may not be updated yet
     // Set the filter value explicitly to ensure it's available for API calls
     filter.value.termCode = newTermCode
-    await refreshCourseDropdownsForTerm()
-    await applyFilters()
+    // Apply filters immediately so the table updates without waiting for dropdown refresh
+    await Promise.all([refreshCourseDropdownsForTerm(), applyFilters()])
 }
 
 // Watch for subject code changes

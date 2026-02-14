@@ -520,7 +520,7 @@ BEGIN
             ELSE 'PROFESSOR/IR'
         END as JobGroupDescription,
         c.Id as CourseId,
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
+        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
         CAST(c.Units AS VARCHAR(25)) as Units,
         c.Enrollment,
         r.RoleId
@@ -729,7 +729,7 @@ BEGIN
         RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) as Instructor,
         p.EffortDept as Department,
         c.Id as CourseId,
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
+        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
         c.Units,
         c.Enrollment,
         r.RoleId,
@@ -791,7 +791,7 @@ BEGIN
         RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) as Instructor,
         p.EffortDept as Department,
         c.Id as CourseId,
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
+        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
         c.Units,
         c.Enrollment,
         r.RoleId,
@@ -1103,7 +1103,7 @@ BEGIN
     -- Show teaching activity for specific instructor and term
 
     SELECT
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
+        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
         c.Crn,
         r.EffortTypeId,
         r.Hours,
@@ -1196,7 +1196,7 @@ BEGIN
     -- Returns course activity that can be joined with evaluation system data
 
     SELECT
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
+        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
         c.Crn,
         r.EffortTypeId,
         c.Enrollment,
@@ -1374,11 +1374,11 @@ BEGIN
         p.JobGroupId,
         p.EffortDept as Department,
         c.Id as CourseId,
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
+        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
         c.Crn,
         c.Units,
         c.Enrollment,
-        r.RoleId,
+        CAST(r.RoleId as varchar(50)) as Role,
         r.EffortTypeId,
         r.Hours,
         r.Weeks
@@ -1386,13 +1386,51 @@ BEGIN
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
     INNER JOIN [effort].[Courses] c ON r.CourseId = c.Id
+    LEFT JOIN [effort].[Roles] rl ON r.RoleId = rl.Id
     WHERE r.TermCode = @TermCode
         AND (@Department IS NULL OR p.EffortDept = @Department OR p.ReportUnit = @Department)
         AND (@PersonId IS NULL OR p.PersonId = @PersonId)
         AND (@Role IS NULL OR r.RoleId = @Role)
         AND (@JobGroupId IS NULL OR p.JobGroupId = @JobGroupId)
         AND c.Enrollment > 0
-    ORDER BY p.EffortDept, p.LastName, p.FirstName, c.SubjCode, c.CrseNumb, c.SeqNumb;
+
+    UNION ALL
+
+    -- Include shared/cross-listed child courses with 0 effort
+    SELECT
+        up.MothraId,
+        RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) as Instructor,
+        p.JobGroupId,
+        p.EffortDept as Department,
+        child.Id as CourseId,
+        RTRIM(child.SubjCode) + ' ' + RTRIM(child.CrseNumb) + '-' + RTRIM(child.SeqNumb) + '-(' + LEFT(cr.RelationshipType, 1) + ')' as Course,
+        child.Crn,
+        child.Units,
+        child.Enrollment,
+        CAST(r.RoleId as varchar(50)) as Role,
+        r.EffortTypeId,
+        0 as Hours,
+        0 as Weeks
+    FROM [effort].[Records] r
+    INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
+    INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
+    INNER JOIN [effort].[CourseRelationships] cr ON r.CourseId = cr.ParentCourseId
+    INNER JOIN [effort].[Courses] child ON cr.ChildCourseId = child.Id
+    WHERE r.TermCode = @TermCode
+        AND (@Department IS NULL OR p.EffortDept = @Department OR p.ReportUnit = @Department)
+        AND (@PersonId IS NULL OR p.PersonId = @PersonId)
+        AND (@Role IS NULL OR r.RoleId = @Role)
+        AND (@JobGroupId IS NULL OR p.JobGroupId = @JobGroupId)
+        AND child.Enrollment > 0
+        -- Anti-join: exclude child courses where instructor already has a direct effort record
+        AND NOT EXISTS (
+            SELECT 1 FROM [effort].[Records] r2
+            WHERE r2.PersonId = r.PersonId
+              AND r2.TermCode = r.TermCode
+              AND r2.CourseId = child.Id
+        )
+
+    ORDER BY Department, Instructor, Course;
 END;
 ";
         }

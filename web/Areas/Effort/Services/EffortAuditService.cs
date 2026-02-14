@@ -603,18 +603,32 @@ public class EffortAuditService : IEffortAuditService
             auditQuery = ApplyDepartmentFilter(auditQuery, departmentCodes);
         }
 
-        var recordAuditQuery = auditQuery.Join(_context.Records, a => a.RecordId, r => r.Id, (a, r) => r);
+        var auditRecordIds = auditQuery.Select(a => a.RecordId);
+
+        IQueryable<int> courseIds;
 
         if (termCode.HasValue)
         {
-            recordAuditQuery = recordAuditQuery.Where(r => r.TermCode == termCode.Value);
+            // When filtering by term, start from Records (very selective on TermCode)
+            // and use a semi-join for audit existence instead of a full Audits→Records join
+            courseIds = _context.Records
+                .AsNoTracking()
+                .Where(r => r.TermCode == termCode.Value)
+                .Where(r => auditRecordIds.Contains(r.Id))
+                .Select(r => r.CourseId)
+                .Distinct();
         }
-
-        var recordAuditCourseIds = recordAuditQuery.Select(r => r.CourseId).Distinct();
+        else
+        {
+            courseIds = auditQuery
+                .Join(_context.Records, a => a.RecordId, r => r.Id, (a, r) => r)
+                .Select(r => r.CourseId)
+                .Distinct();
+        }
 
         return _context.Courses
             .AsNoTracking()
-            .Where(c => recordAuditCourseIds.Contains(c.Id));
+            .Where(c => courseIds.Contains(c.Id));
     }
 
     // ==================== Helper Methods ====================

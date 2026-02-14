@@ -606,7 +606,7 @@ public sealed class InstructorsControllerTests
             new JobGroupDto { Code = "I15", Name = "STAFF VET" },
             new JobGroupDto { Code = "B24", Name = "" } // NULL name in legacy data shows code only
         };
-        _instructorServiceMock.Setup(s => s.GetJobGroupsAsync(It.IsAny<CancellationToken>()))
+        _instructorServiceMock.Setup(s => s.GetJobGroupsAsync(It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(jobGroups);
 
         // Act
@@ -622,7 +622,7 @@ public sealed class InstructorsControllerTests
     public async Task GetJobGroups_ReturnsOk_WithEmptyList_WhenNoJobGroups()
     {
         // Arrange
-        _instructorServiceMock.Setup(s => s.GetJobGroupsAsync(It.IsAny<CancellationToken>()))
+        _instructorServiceMock.Setup(s => s.GetJobGroupsAsync(It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<JobGroupDto>());
 
         // Act

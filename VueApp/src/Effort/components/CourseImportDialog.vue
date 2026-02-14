@@ -72,7 +72,12 @@
                             :disable="!canSearch"
                             class="full-width-xs"
                             @click="searchCourses"
-                        />
+                        >
+                            <template #loading>
+                                <q-spinner size="1em" class="q-mr-sm" />
+                                Search
+                            </template>
+                        </q-btn>
                     </div>
                 </div>
 
@@ -171,7 +176,12 @@
                                     size="sm"
                                     :loading="importingCrn === course.crn"
                                     @click="startImport(course)"
-                                />
+                                >
+                                    <template #loading>
+                                        <q-spinner size="1em" class="q-mr-sm" />
+                                        {{ isSelfMode && course.alreadyImported ? 'Use Course' : 'Import' }}
+                                    </template>
+                                </q-btn>
                             </div>
                         </q-card-section>
                     </q-card>
@@ -238,7 +248,12 @@
                                 size="sm"
                                 :loading="importingCrn === slotProps.row.crn"
                                 @click="startImport(slotProps.row)"
-                            />
+                            >
+                                <template #loading>
+                                    <q-spinner size="1em" class="q-mr-sm" />
+                                    {{ isSelfMode && slotProps.row.alreadyImported ? 'Use Course' : 'Import' }}
+                                </template>
+                            </q-btn>
                         </q-td>
                     </template>
                 </q-table>
@@ -326,7 +341,12 @@
                     :loading="isImporting"
                     :disable="!canImport"
                     @click="doImport"
-                />
+                >
+                    <template #loading>
+                        <q-spinner size="1em" class="q-mr-sm" />
+                        {{ isSelfMode && selectedBannerCourse?.alreadyImported ? 'Use Course' : 'Import' }}
+                    </template>
+                </q-btn>
             </q-card-actions>
         </q-card>
     </q-dialog>

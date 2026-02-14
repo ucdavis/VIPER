@@ -66,6 +66,8 @@ function useEffortPermissions() {
     const hasDeleteInstructor = computed(() => hasPermission(EffortPermissions.DeleteInstructor))
     const hasManageUnits = computed(() => hasPermission(EffortPermissions.ManageUnits))
     const hasManageEffortTypes = computed(() => hasPermission(EffortPermissions.ManageEffortTypes))
+    const hasReports = computed(() => hasPermission(EffortPermissions.Reports))
+    const hasSchoolSummary = computed(() => hasPermission(EffortPermissions.SchoolSummary))
     const isAdmin = computed(() => hasViewAllDepartments.value)
 
     return {
@@ -88,6 +90,8 @@ function useEffortPermissions() {
         hasDeleteInstructor,
         hasManageUnits,
         hasManageEffortTypes,
+        hasReports,
+        hasSchoolSummary,
         isAdmin,
         permissions: computed(() => userStore.userInfo.permissions),
     }

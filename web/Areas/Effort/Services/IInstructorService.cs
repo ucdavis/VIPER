@@ -149,10 +149,13 @@ public interface IInstructorService
 
     /// <summary>
     /// Get all job groups currently in use by instructors for the dropdown.
+    /// Optionally filtered by term and department to show only relevant job groups.
     /// </summary>
+    /// <param name="termCode">Optional term code to filter by.</param>
+    /// <param name="department">Optional department code to filter by.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of job groups with human-readable names.</returns>
-    Task<List<JobGroupDto>> GetJobGroupsAsync(CancellationToken ct = default);
+    Task<List<JobGroupDto>> GetJobGroupsAsync(int? termCode = null, string? department = null, CancellationToken ct = default);
 
     /// <summary>
     /// Get a cached lookup of raw department codes to simple names from the dictionary database.
