@@ -1193,6 +1193,7 @@ public class InstructorService : IInstructorService
             Hours = r.Hours,
             Weeks = r.Weeks,
             Crn = r.Crn,
+            Notes = r.Notes,
             ModifiedDate = r.ModifiedDate,
             Course = new CourseDto
             {
@@ -1207,7 +1208,8 @@ public class InstructorService : IInstructorService
                 CustDept = r.Course.CustDept,
                 IsDvm = _classificationService.IsDvmCourse(r.Course.SubjCode),
                 Is199299 = _classificationService.Is199299Course(r.Course.CrseNumb),
-                IsRCourse = _classificationService.IsRCourse(r.Course.CrseNumb)
+                IsRCourse = _classificationService.IsRCourse(r.Course.CrseNumb),
+                IsGenericRCourse = _classificationService.IsGenericRCourse(r.Course.Crn)
             },
             ChildCourses = childrenByParent.TryGetValue(r.CourseId, out var children)
                 ? children

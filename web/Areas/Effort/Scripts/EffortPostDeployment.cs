@@ -21,6 +21,7 @@
 // 14. AddAlertStatesTable - Create AlertStates table for persisting data hygiene alert states
 // 15. DuplicatePercentagesCleanup - Remove duplicate percentage assignments (prerequisite for rollover)
 // 16. DeleteGuestPersonsAndRecords - Purge legacy guest placeholder accounts and their effort records
+// 17. AddNotesToRecords - Add optional Notes column to Records table for instructor notes
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -333,6 +334,23 @@ namespace Viper.Areas.Effort.Scripts
 
                 var (success, message) = RunDeleteGuestPersonsAndRecordsTask(viperConnectionString, executeMode);
                 taskResults["DeleteGuestPersonsAndRecords"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 17: Add Notes column to Records table
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 17: Add Notes Column to Records");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunAddNotesToRecordsTask(viperConnectionString, executeMode);
+                taskResults["AddNotesToRecords"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
@@ -3300,6 +3318,70 @@ namespace Viper.Areas.Effort.Scripts
                 Console.WriteLine($"UNEXPECTED ERROR: {ex}");
                 Console.ResetColor();
                 return (false, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Task 17: Add Notes Column to Records
+
+        /// <summary>
+        /// Adds an optional Notes column to the Records table for capturing
+        /// instructor notes on effort records (especially R-courses).
+        /// </summary>
+        private static (bool Success, string Message) RunAddNotesToRecordsTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                Console.WriteLine("Checking Notes column on Records table...");
+                Console.WriteLine();
+
+                // Check if column already exists
+                using var checkCmd = connection.CreateCommand();
+                checkCmd.CommandText = @"
+                    SELECT COUNT(*) FROM sys.columns c
+                    INNER JOIN sys.tables t ON c.object_id = t.object_id
+                    INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+                    WHERE s.name = 'effort' AND t.name = 'Records' AND c.name = 'Notes'";
+                int exists = (int)checkCmd.ExecuteScalar();
+
+                if (exists > 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✓ Notes column already exists on Records table");
+                    Console.ResetColor();
+                    return (true, "Column already exists");
+                }
+
+                if (!executeMode)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("  ○ Notes column would be added to Records table");
+                    Console.ResetColor();
+                    return (true, "Would add Notes column to Records");
+                }
+
+                // Add the column
+                Console.WriteLine("  Adding Notes column to Records table...");
+                using var alterCmd = connection.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE [effort].[Records] ADD Notes varchar(500) NULL;";
+                alterCmd.ExecuteNonQuery();
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  ✓ Notes column added to Records table");
+                Console.ResetColor();
+
+                return (true, "Added Notes column to Records table");
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  ✗ SQL Error: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"SQL Error: {ex.Message}");
             }
         }
 

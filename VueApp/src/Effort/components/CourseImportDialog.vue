@@ -90,6 +90,27 @@
                     {{ searchError }}
                 </q-banner>
 
+                <!-- No results message (self mode - richer banner) -->
+                <q-banner
+                    v-if="isSelfMode && hasSearched && !isSearching && searchResults.length === 0"
+                    class="bg-info text-white q-mb-md"
+                    rounded
+                >
+                    <template #avatar>
+                        <q-icon
+                            name="info"
+                            color="white"
+                        />
+                    </template>
+                    <div>
+                        No courses found.
+                        <ul class="q-mt-sm q-mb-none">
+                            <li>Make sure you are searching for the correct term</li>
+                            <li>You may need to wait for Banner data to sync</li>
+                        </ul>
+                    </div>
+                </q-banner>
+
                 <!-- Search Results - Card view for mobile -->
                 <div
                     v-if="searchResults.length > 0"
@@ -140,11 +161,11 @@
                                 | Enrollment: {{ course.enrollment }}
                             </div>
                             <div
-                                v-if="!course.alreadyImported"
+                                v-if="isSelfMode || !course.alreadyImported"
                                 class="q-mt-sm"
                             >
                                 <q-btn
-                                    label="Import"
+                                    :label="isSelfMode && course.alreadyImported ? 'Use Course' : 'Import'"
                                     color="primary"
                                     dense
                                     size="sm"
@@ -210,8 +231,8 @@
                     <template #body-cell-actions="slotProps">
                         <q-td :props="slotProps">
                             <q-btn
-                                v-if="!slotProps.row.alreadyImported"
-                                label="Import"
+                                v-if="isSelfMode || !slotProps.row.alreadyImported"
+                                :label="isSelfMode && slotProps.row.alreadyImported ? 'Use Course' : 'Import'"
                                 color="primary"
                                 dense
                                 size="sm"
@@ -222,8 +243,9 @@
                     </template>
                 </q-table>
 
+                <!-- No results (staff mode - plain text) -->
                 <div
-                    v-else-if="hasSearched && !isSearching"
+                    v-if="!isSelfMode && hasSearched && !isSearching && searchResults.length === 0"
                     class="text-grey text-center q-py-lg"
                 >
                     No courses found matching your search criteria.
@@ -299,7 +321,7 @@
                     flat
                 />
                 <q-btn
-                    label="Import"
+                    :label="isSelfMode && selectedBannerCourse?.alreadyImported ? 'Use Course' : 'Import'"
                     color="primary"
                     :loading="isImporting"
                     :disable="!canImport"
@@ -317,11 +339,17 @@ import { courseService } from "../services/course-service"
 import type { BannerCourseDto } from "../types"
 import type { QTableColumn } from "quasar"
 
-const props = defineProps<{
-    modelValue: boolean
-    termCode: number | null
-    termName: string
-}>()
+const props = withDefaults(
+    defineProps<{
+        modelValue: boolean
+        termCode: number | null
+        termName: string
+        mode?: "self" | "staff"
+    }>(),
+    {
+        mode: "staff",
+    },
+)
 
 const emit = defineEmits<{
     "update:modelValue": [value: boolean]
@@ -330,7 +358,8 @@ const emit = defineEmits<{
 
 const $q = useQuasar()
 
-// Close handler for X button or Escape key
+const isSelfMode = computed(() => props.mode === "self")
+
 function handleClose() {
     emit("update:modelValue", false)
 }
@@ -365,7 +394,6 @@ const canSearch = computed(
 const canImport = computed(() => {
     if (!selectedBannerCourse.value) return false
 
-    // For variable-unit courses, validate units
     if (selectedBannerCourse.value.isVariableUnits) {
         if (
             importUnits.value < selectedBannerCourse.value.unitLow ||
@@ -412,12 +440,16 @@ async function searchCourses() {
     hasSearched.value = true
 
     try {
-        searchResults.value = await courseService.searchBannerCourses(props.termCode, {
+        const searchParams = {
             subjCode: searchSubjCode.value.trim() || undefined,
             crseNumb: searchCrseNumb.value.trim() || undefined,
             seqNumb: searchSeqNumb.value.trim() || undefined,
             crn: searchCrn.value.trim() || undefined,
-        })
+        }
+
+        searchResults.value = isSelfMode.value
+            ? await courseService.searchBannerCoursesForSelf(props.termCode, searchParams)
+            : await courseService.searchBannerCourses(props.termCode, searchParams)
     } catch (err) {
         searchError.value = err instanceof Error ? err.message : "Error searching for courses"
         searchResults.value = []
@@ -430,6 +462,13 @@ function startImport(course: BannerCourseDto) {
     selectedBannerCourse.value = course
     importUnits.value = course.unitLow
     importError.value = null
+
+    // Self mode: fixed-unit already-imported shortcut (bypass options dialog)
+    if (isSelfMode.value && course.alreadyImported && !course.isVariableUnits) {
+        doImport()
+        return
+    }
+
     showImportOptionsDialog.value = true
 }
 
@@ -447,15 +486,29 @@ async function doImport() {
             units: selectedBannerCourse.value.isVariableUnits ? importUnits.value : undefined,
         }
 
-        const result = await courseService.importCourse(request)
-
-        if (result.success && result.course) {
-            showImportOptionsDialog.value = false
-            emit("update:modelValue", false)
-            emit("imported", result.course.id)
+        if (isSelfMode.value) {
+            const result = await courseService.importCourseForSelf(request)
+            if (result.success && result.course) {
+                showImportOptionsDialog.value = false
+                emit("update:modelValue", false)
+                emit("imported", result.course.id)
+                if (result.wasExisting) {
+                    $q.notify({ type: "info", message: "Course was already imported" })
+                }
+            } else {
+                importError.value = result.error ?? "Failed to import course"
+                $q.notify({ type: "negative", message: importError.value })
+            }
         } else {
-            importError.value = result.error ?? "Failed to import course"
-            $q.notify({ type: "negative", message: importError.value })
+            const result = await courseService.importCourse(request)
+            if (result.success && result.course) {
+                showImportOptionsDialog.value = false
+                emit("update:modelValue", false)
+                emit("imported", result.course.id)
+            } else {
+                importError.value = result.error ?? "Failed to import course"
+                $q.notify({ type: "negative", message: importError.value })
+            }
         }
     } catch (err) {
         importError.value = err instanceof Error ? err.message : "Failed to import course"

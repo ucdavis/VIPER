@@ -27,6 +27,12 @@ public class UpdateEffortRecordRequest
     public int EffortValue { get; set; }
 
     /// <summary>
+    /// Optional notes for the effort record.
+    /// </summary>
+    [StringLength(500)]
+    public string? Notes { get; set; }
+
+    /// <summary>
     /// The ModifiedDate from when the record was loaded.
     /// Used for optimistic concurrency - update will fail if record was modified by another user.
     /// For legacy records with null ModifiedDate, send null (first-edit-wins).

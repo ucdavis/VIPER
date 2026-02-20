@@ -2,10 +2,6 @@ import type { Ref, ComputedRef } from "vue"
 import { ref, computed } from "vue"
 import type { PercentAssignTypeDto, UnitDto } from "../types"
 
-// Constants for validation
-const MIN_PERCENT = 0
-const MAX_PERCENT = 100
-
 // Year range for dropdown (1998 is oldest data in system)
 const MIN_YEAR = 1998
 const YEAR_RANGE_FUTURE = 1
@@ -65,19 +61,6 @@ function createDefaultFormState(): PercentageFormState {
 }
 
 /**
- * Create empty errors state
- */
-function createEmptyErrors(): PercentageFormErrors {
-    return {
-        type: "",
-        unit: "",
-        startDate: "",
-        endDate: "",
-        percent: "",
-    }
-}
-
-/**
  * Build grouped type options from percent assign types
  */
 function buildGroupedTypeOptions(types: PercentAssignTypeDto[]): TypeOption[] {
@@ -115,47 +98,6 @@ function buildGroupedTypeOptions(types: PercentAssignTypeDto[]): TypeOption[] {
 }
 
 /**
- * Validate the form and return errors
- */
-function validateFormState(formState: PercentageFormState): PercentageFormErrors {
-    const formErrors = createEmptyErrors()
-
-    if (formState.percentAssignTypeId === null) {
-        formErrors.type = "Type is required"
-    }
-
-    if (formState.unitId === null) {
-        formErrors.unit = "Unit is required"
-    }
-
-    if (formState.startMonth === null || formState.startYear === null) {
-        formErrors.startDate = "Start date is required"
-    }
-
-    if (formState.percentageValue < MIN_PERCENT || formState.percentageValue > MAX_PERCENT) {
-        formErrors.percent = "Percent must be between 0 and 100"
-    }
-
-    // Validate end date is after start date if provided
-    if (formState.endMonth !== null && formState.endYear !== null) {
-        if (formState.startYear !== null && formState.startMonth !== null) {
-            const startDate = new Date(formState.startYear, formState.startMonth - 1)
-            const endDate = new Date(formState.endYear, formState.endMonth - 1)
-            if (endDate < startDate) {
-                formErrors.endDate = "End date must be after start date"
-            }
-        }
-    } else if (
-        (formState.endMonth !== null && formState.endYear === null) ||
-        (formState.endMonth === null && formState.endYear !== null)
-    ) {
-        formErrors.endDate = "Both month and year are required for end date"
-    }
-
-    return formErrors
-}
-
-/**
  * Composable for shared percentage form logic between Add and Edit dialogs
  */
 function usePercentageForm(
@@ -163,7 +105,6 @@ function usePercentageForm(
     units: Ref<UnitDto[]> | ComputedRef<UnitDto[]>,
 ) {
     const form = ref<PercentageFormState>(createDefaultFormState())
-    const errors = ref<PercentageFormErrors>(createEmptyErrors())
 
     const groupedTypeOptions = computed<TypeOption[]>(() => buildGroupedTypeOptions(percentAssignTypes.value))
 
@@ -185,50 +126,49 @@ function usePercentageForm(
         return years
     })
 
-    function hasValidationErrors(): boolean {
-        return Object.values(errors.value).some((e) => e !== "")
-    }
+    // Cross-field validation rules for end date fields.
+    // Using computed so Quasar detects the rules array change when dependencies update.
+    const endMonthRules = computed(() => [
+        () => {
+            if (form.value.endYear && !form.value.endMonth) {
+                return "End month is required when end year is set"
+            }
+            return true
+        },
+    ])
 
-    const isFormValid = computed(
-        () =>
-            form.value.percentAssignTypeId !== null &&
-            form.value.unitId !== null &&
-            form.value.startMonth !== null &&
-            form.value.startYear !== null &&
-            form.value.percentageValue >= MIN_PERCENT &&
-            form.value.percentageValue <= MAX_PERCENT &&
-            !hasValidationErrors(),
-    )
-
-    function validateForm(): boolean {
-        errors.value = validateFormState(form.value)
-        return !hasValidationErrors()
-    }
+    const endYearRules = computed(() => [
+        () => {
+            if (form.value.endMonth && !form.value.endYear) {
+                return "End year is required when end month is set"
+            }
+            if (form.value.endMonth && form.value.endYear && form.value.startMonth && form.value.startYear) {
+                const start = new Date(form.value.startYear, form.value.startMonth - 1)
+                const end = new Date(form.value.endYear, form.value.endMonth - 1)
+                if (end < start) {
+                    return "End date must be after start date"
+                }
+            }
+            return true
+        },
+    ])
 
     function resetForm() {
         form.value = createDefaultFormState()
-        errors.value = createEmptyErrors()
-    }
-
-    function resetErrors() {
-        errors.value = createEmptyErrors()
     }
 
     return {
         form,
-        errors,
         groupedTypeOptions,
         unitOptions,
         modifierOptions,
         monthOptions,
         yearOptions,
-        isFormValid,
-        hasValidationErrors,
-        validateForm,
+        endMonthRules,
+        endYearRules,
         formatToIsoDate,
         parseDateToMonthYear,
         resetForm,
-        resetErrors,
     }
 }
 
@@ -253,13 +193,6 @@ type PercentageFormState = {
     compensated: boolean
 }
 
-type PercentageFormErrors = {
-    type: string
-    unit: string
-    startDate: string
-    endDate: string
-    percent: string
-}
 
 export { usePercentageForm, formatToIsoDate, parseDateToMonthYear }
-export type { TypeOption, PercentageFormState, PercentageFormErrors }
+export type { TypeOption, PercentageFormState }

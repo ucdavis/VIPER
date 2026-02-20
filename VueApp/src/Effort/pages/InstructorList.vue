@@ -75,7 +75,7 @@
                 <div
                     class="dept-header text-white q-pa-sm row items-center"
                     :class="{
-                        'dept-header--no-dept': deptGroup.dept === 'No Department',
+                        'dept-header--no-dept': deptGroup.dept === 'Unknown Department',
                         'dept-header--collapsible': hasMultipleDepts,
                     }"
                     :tabindex="hasMultipleDepts ? 0 : undefined"
@@ -318,7 +318,7 @@
                     hide-pagination
                     :rows-per-page-options="[0]"
                     class="dept-table"
-                    :class="{ 'dept-table--no-dept': deptGroup.dept === 'No Department' }"
+                    :class="{ 'dept-table--no-dept': deptGroup.dept === 'Unknown Department' }"
                 >
                     <template #header-cell-actions="props">
                         <q-th :props="props">
@@ -708,7 +708,7 @@ const currentTermName = computed(() => {
     return term?.termName ?? ""
 })
 
-// Helper to check if department should be treated as "No Department"
+// Helper to check if department should be treated as "Unknown Department"
 function isNoDept(effortDept: string | null | undefined): boolean {
     return !effortDept || effortDept === "UNK"
 }
@@ -718,9 +718,9 @@ const deptOptions = computed(() => {
     const uniqueDepts = [
         ...new Set(instructors.value.map((i) => i.effortDept).filter((d): d is string => !!d && d !== "UNK")),
     ].sort()
-    // Add "No Department" option if any instructors lack a department or have UNK
+    // Add "Unknown Department" option if any instructors lack a department or have UNK
     if (hasNoDept) {
-        uniqueDepts.unshift("No Department")
+        uniqueDepts.unshift("Unknown Department")
     }
     return ["", ...uniqueDepts]
 })
@@ -729,7 +729,7 @@ const filteredInstructors = computed(() => {
     let result = instructors.value
 
     if (selectedDept.value) {
-        if (selectedDept.value === "No Department") {
+        if (selectedDept.value === "Unknown Department") {
             result = result.filter((i) => isNoDept(i.effortDept))
         } else {
             result = result.filter((i) => i.effortDept === selectedDept.value)
@@ -754,16 +754,16 @@ const groupedInstructors = computed(() => {
     const groups: Record<string, PersonDto[]> = {}
 
     for (const instructor of filteredInstructors.value) {
-        const dept = isNoDept(instructor.effortDept) ? "No Department" : instructor.effortDept!
+        const dept = isNoDept(instructor.effortDept) ? "Unknown Department" : instructor.effortDept!
         const groupArray = groups[dept] ?? (groups[dept] = [])
         groupArray.push(instructor)
     }
 
-    // Sort departments, but put "No Department" first
+    // Sort departments, but put "Unknown Department" first
     return Object.keys(groups)
         .sort((a, b) => {
-            if (a === "No Department") return -1
-            if (b === "No Department") return 1
+            if (a === "Unknown Department") return -1
+            if (b === "Unknown Department") return 1
             return a.localeCompare(b)
         })
         .map((dept) => ({
@@ -895,11 +895,11 @@ async function loadInstructors() {
         instructors.value = result
 
         // Apply department filter from query param if present
-        // Map "UNK" from Staff Dashboard to "No Department" label used in dropdown
+        // Map "UNK" from Staff Dashboard to "Unknown Department" label used in dropdown
         const deptParam = route.query.dept as string | undefined
         if (deptParam) {
             if (deptParam === "UNK" && instructors.value.some((i) => isNoDept(i.effortDept))) {
-                selectedDept.value = "No Department"
+                selectedDept.value = "Unknown Department"
             } else if (instructors.value.some((i) => i.effortDept === deptParam)) {
                 selectedDept.value = deptParam
             }
