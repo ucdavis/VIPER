@@ -19,6 +19,7 @@ public sealed class CourseServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
     private readonly Mock<IEffortAuditService> _auditServiceMock;
+    private readonly ICourseClassificationService _classificationService;
     private readonly Mock<ILogger<CourseService>> _loggerMock;
     private readonly CourseService _courseService;
 
@@ -31,13 +32,14 @@ public sealed class CourseServiceTests : IDisposable
 
         _context = new EffortDbContext(effortOptions);
         _auditServiceMock = new Mock<IEffortAuditService>();
+        _classificationService = new CourseClassificationService();
         _loggerMock = new Mock<ILogger<CourseService>>();
 
         // Setup synchronous audit methods used within transactions
         _auditServiceMock
             .Setup(s => s.AddCourseChangeAudit(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>()));
 
-        _courseService = new CourseService(_context, _auditServiceMock.Object, _loggerMock.Object);
+        _courseService = new CourseService(_context, _auditServiceMock.Object, _classificationService, _loggerMock.Object);
     }
 
     public void Dispose()
@@ -700,6 +702,165 @@ public sealed class CourseServiceTests : IDisposable
 
         // Assert - should use UnitLow
         Assert.Equal(1, course.Units);
+    }
+
+    #endregion
+
+    #region GetCourseEffortAsync Tests
+
+    [Fact]
+    public async Task GetCourseEffortAsync_ReturnsRecords_WithCorrectDtoMapping()
+    {
+        // Arrange
+        var course = new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
+        _context.Courses.Add(course);
+
+        var role = new EffortRole { Id = 1, Description = "Instructor", SortOrder = 1 };
+        _context.Roles.Add(role);
+
+        var effortType = new EffortType { Id = "LEC", Description = "Lecture" };
+        _context.EffortTypes.Add(effortType);
+
+        var person = new EffortPerson { PersonId = 100, TermCode = 202410, FirstName = "Jane", LastName = "Smith", EffortTitleCode = "PROF", EffortDept = "VME" };
+        _context.Persons.Add(person);
+
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 1,
+            CourseId = 1,
+            PersonId = 100,
+            TermCode = 202410,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 10,
+            Notes = "Test note",
+            ModifiedDate = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Local)
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var records = await _courseService.GetCourseEffortAsync(1);
+
+        // Assert
+        Assert.Single(records);
+        var record = records[0];
+        Assert.Equal(1, record.EffortId);
+        Assert.Equal(100, record.PersonId);
+        Assert.Equal("Smith, Jane", record.InstructorName);
+        Assert.Equal("LEC", record.EffortTypeId);
+        Assert.Equal("Lecture", record.EffortTypeDescription);
+        Assert.Equal(1, record.RoleId);
+        Assert.Equal("Instructor", record.RoleDescription);
+        Assert.Equal(10, record.Hours);
+        Assert.Equal("Test note", record.Notes);
+    }
+
+    [Fact]
+    public async Task GetCourseEffortAsync_ReturnsEmpty_WhenNoRecordsExist()
+    {
+        // Arrange
+        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var records = await _courseService.GetCourseEffortAsync(1);
+
+        // Assert
+        Assert.Empty(records);
+    }
+
+    [Fact]
+    public async Task GetCourseEffortAsync_OrdersByLastNameThenFirstName()
+    {
+        // Arrange
+        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
+
+        var role = new EffortRole { Id = 1, Description = "Instructor", SortOrder = 1 };
+        _context.Roles.Add(role);
+        var effortType = new EffortType { Id = "LEC", Description = "Lecture" };
+        _context.EffortTypes.Add(effortType);
+
+        _context.Persons.AddRange(
+            new EffortPerson { PersonId = 100, TermCode = 202410, FirstName = "Zara", LastName = "Adams", EffortTitleCode = "PROF", EffortDept = "VME" },
+            new EffortPerson { PersonId = 101, TermCode = 202410, FirstName = "Alice", LastName = "Adams", EffortTitleCode = "PROF", EffortDept = "VME" },
+            new EffortPerson { PersonId = 102, TermCode = 202410, FirstName = "Bob", LastName = "Brown", EffortTitleCode = "PROF", EffortDept = "VME" }
+        );
+        _context.Records.AddRange(
+            new EffortRecord { Id = 1, CourseId = 1, PersonId = 100, TermCode = 202410, EffortTypeId = "LEC", RoleId = 1 },
+            new EffortRecord { Id = 2, CourseId = 1, PersonId = 101, TermCode = 202410, EffortTypeId = "LEC", RoleId = 1 },
+            new EffortRecord { Id = 3, CourseId = 1, PersonId = 102, TermCode = 202410, EffortTypeId = "LEC", RoleId = 1 }
+        );
+        await _context.SaveChangesAsync();
+
+        // Act
+        var records = await _courseService.GetCourseEffortAsync(1);
+
+        // Assert
+        Assert.Equal(3, records.Count);
+        Assert.Equal("Adams, Alice", records[0].InstructorName);
+        Assert.Equal("Adams, Zara", records[1].InstructorName);
+        Assert.Equal("Brown, Bob", records[2].InstructorName);
+    }
+
+    #endregion
+
+    #region GetPossibleInstructorsForCourseAsync Tests
+
+    [Fact]
+    public async Task GetPossibleInstructorsForCourseAsync_SplitsInstructorsIntoExistingAndOther()
+    {
+        // Arrange
+        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
+
+        _context.Persons.AddRange(
+            new EffortPerson { PersonId = 100, TermCode = 202410, FirstName = "Jane", LastName = "Smith", EffortTitleCode = "PROF", EffortDept = "VME" },
+            new EffortPerson { PersonId = 101, TermCode = 202410, FirstName = "Bob", LastName = "Brown", EffortTitleCode = "PROF", EffortDept = "DVM" }
+        );
+
+        // Only person 100 has effort on the course
+        _context.Records.Add(new EffortRecord { Id = 1, CourseId = 1, PersonId = 100, TermCode = 202410, EffortTypeId = "LEC", RoleId = 1 });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _courseService.GetPossibleInstructorsForCourseAsync(1);
+
+        // Assert
+        Assert.Single(result.ExistingInstructors);
+        Assert.Equal(100, result.ExistingInstructors[0].PersonId);
+        Assert.Single(result.OtherInstructors);
+        Assert.Equal(101, result.OtherInstructors[0].PersonId);
+    }
+
+    [Fact]
+    public async Task GetPossibleInstructorsForCourseAsync_ReturnsEmptyDto_WhenCourseNotFound()
+    {
+        // Act
+        var result = await _courseService.GetPossibleInstructorsForCourseAsync(999);
+
+        // Assert
+        Assert.Empty(result.ExistingInstructors);
+        Assert.Empty(result.OtherInstructors);
+    }
+
+    [Fact]
+    public async Task GetPossibleInstructorsForCourseAsync_OnlyIncludesInstructorsFromSameTerm()
+    {
+        // Arrange
+        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
+
+        _context.Persons.AddRange(
+            new EffortPerson { PersonId = 100, TermCode = 202410, FirstName = "Jane", LastName = "Smith", EffortTitleCode = "PROF", EffortDept = "VME" },
+            new EffortPerson { PersonId = 101, TermCode = 202310, FirstName = "Bob", LastName = "Brown", EffortTitleCode = "PROF", EffortDept = "DVM" }
+        );
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _courseService.GetPossibleInstructorsForCourseAsync(1);
+
+        // Assert — person 101 is from a different term, should not appear
+        Assert.Empty(result.ExistingInstructors);
+        Assert.Single(result.OtherInstructors);
+        Assert.Equal(100, result.OtherInstructors[0].PersonId);
     }
 
     #endregion

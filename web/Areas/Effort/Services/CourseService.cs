@@ -1,6 +1,7 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Models.DTOs;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -15,6 +16,7 @@ public class CourseService : ICourseService
 {
     private readonly EffortDbContext _context;
     private readonly IEffortAuditService _auditService;
+    private readonly ICourseClassificationService _classificationService;
     private readonly ILogger<CourseService> _logger;
 
     /// <summary>
@@ -43,10 +45,12 @@ public class CourseService : ICourseService
     public CourseService(
         EffortDbContext context,
         IEffortAuditService auditService,
+        ICourseClassificationService classificationService,
         ILogger<CourseService> logger)
     {
         _context = context;
         _auditService = auditService;
+        _classificationService = classificationService;
         _logger = logger;
     }
 
@@ -450,9 +454,9 @@ public class CourseService : ICourseService
         return "UNK";
     }
 
-    private static CourseDto ToDto(EffortCourse course, int? parentCourseId = null)
+    private CourseDto ToDto(EffortCourse course, int? parentCourseId = null)
     {
-        return new CourseDto
+        var dto = new CourseDto
         {
             Id = course.Id,
             Crn = course.Crn.Trim(),
@@ -465,6 +469,7 @@ public class CourseService : ICourseService
             CustDept = course.CustDept.Trim(),
             ParentCourseId = parentCourseId
         };
+        return dto.WithClassification(_classificationService.Classify(course));
     }
 
     /// <inheritdoc />
@@ -550,5 +555,93 @@ public class CourseService : ICourseService
             LogSanitizer.SanitizeId(crnTrimmed), termCode);
 
         return ImportCourseForSelfResult.SuccessNew(importedCourse);
+    }
+
+    /// <inheritdoc />
+    public async Task<List<CourseEffortRecordDto>> GetCourseEffortAsync(int courseId, CancellationToken ct = default)
+    {
+        var records = await _context.Records
+            .AsNoTracking()
+            .Include(r => r.Person)
+            .Include(r => r.RoleNavigation)
+            .Include(r => r.EffortTypeNavigation)
+            .Where(r => r.CourseId == courseId)
+            .OrderBy(r => r.Person.LastName)
+            .ThenBy(r => r.Person.FirstName)
+            .ThenBy(r => r.RoleNavigation.SortOrder)
+            .ThenBy(r => r.EffortTypeNavigation.Description)
+            .ToListAsync(ct);
+
+        return records.Select(r => new CourseEffortRecordDto
+        {
+            EffortId = r.Id,
+            PersonId = r.PersonId,
+            InstructorName = $"{r.Person.LastName}, {r.Person.FirstName}",
+            EffortTypeId = r.EffortTypeId,
+            EffortTypeDescription = r.EffortTypeNavigation?.Description ?? string.Empty,
+            RoleId = r.RoleId,
+            RoleDescription = r.RoleNavigation?.Description ?? string.Empty,
+            Hours = r.Hours,
+            Weeks = r.Weeks,
+            Notes = r.Notes,
+            ModifiedDate = r.ModifiedDate
+        }).ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<PossibleCourseInstructorsDto> GetPossibleInstructorsForCourseAsync(int courseId, CancellationToken ct = default)
+    {
+        var course = await _context.Courses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == courseId, ct);
+
+        if (course == null)
+        {
+            return new PossibleCourseInstructorsDto();
+        }
+
+        // Get personIds who already have effort on this course
+        var existingPersonIds = (await _context.Records
+            .AsNoTracking()
+            .Where(r => r.CourseId == courseId)
+            .Select(r => r.PersonId)
+            .Distinct()
+            .ToListAsync(ct))
+            .ToHashSet();
+
+        // Get all instructors for the term
+        var allInstructors = await _context.Persons
+            .AsNoTracking()
+            .Where(p => p.TermCode == course.TermCode)
+            .OrderBy(p => p.LastName)
+            .ThenBy(p => p.FirstName)
+            .ToListAsync(ct);
+
+        var existingInstructors = allInstructors
+            .Where(p => existingPersonIds.Contains(p.PersonId))
+            .Select(MapToInstructorOption)
+            .ToList();
+
+        var otherInstructors = allInstructors
+            .Where(p => !existingPersonIds.Contains(p.PersonId))
+            .Select(MapToInstructorOption)
+            .ToList();
+
+        return new PossibleCourseInstructorsDto
+        {
+            ExistingInstructors = existingInstructors,
+            OtherInstructors = otherInstructors
+        };
+    }
+
+    private static CourseInstructorOptionDto MapToInstructorOption(EffortPerson person)
+    {
+        return new CourseInstructorOptionDto
+        {
+            PersonId = person.PersonId,
+            FirstName = person.FirstName,
+            LastName = person.LastName,
+            EffortDept = person.EffortDept?.Trim() ?? string.Empty
+        };
     }
 }

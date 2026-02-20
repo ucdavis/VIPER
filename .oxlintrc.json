@@ -172,7 +172,8 @@
                 "VueApp/src/composables/ViperFetch.ts",
                 "VueApp/src/composables/RequireLogin.ts",
                 "VueApp/src/composables/QuasarConfig.ts",
-                "VueApp/src/composables/ErrorHandler.ts"
+                "VueApp/src/composables/ErrorHandler.ts",
+                "VueApp/src/store/UserStore.ts"
             ],
             "rules": {
                 "unicorn/filename-case": "off" // Legacy core files - keep PascalCase naming for backwards compatibility

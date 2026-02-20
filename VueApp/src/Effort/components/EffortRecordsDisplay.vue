@@ -39,7 +39,7 @@
                                 round
                                 icon="edit"
                                 color="primary"
-                                size="sm"
+                                size="0.75rem"
                                 aria-label="Edit effort record"
                                 @click="$emit('edit', record)"
                             />
@@ -50,7 +50,7 @@
                                 round
                                 icon="delete"
                                 color="negative"
-                                size="sm"
+                                size="0.75rem"
                                 aria-label="Delete effort record"
                                 @click="$emit('delete', record)"
                             />
@@ -62,7 +62,7 @@
                     <div class="row q-gutter-md text-caption text-grey-7">
                         <span>{{ record.course.units }} units</span>
                         <span>Enroll: {{ record.course.enrollment }}</span>
-                        <span :class="{ 'text-warning text-weight-bold': isZeroEffort(record) }">
+                        <span :class="{ 'zero-effort-text': isZeroEffort(record) }">
                             {{ record.effortValue ?? 0 }}
                             {{ record.effortLabel === "weeks" ? "Weeks" : "Hours" }}
                         </span>
@@ -89,7 +89,7 @@
             :show-course-links="showCourseLinks"
             :zero-effort-record-ids="zeroEffortRecordIds"
             :no-data-message="noDataMessage"
-            table-class="effort-table q-mb-lg gt-xs"
+            table-class="effort-record-table effort-table q-mb-lg gt-xs"
             @edit="(record) => $emit('edit', record)"
             @delete="(record) => $emit('delete', record)"
         />
@@ -151,7 +151,7 @@
                                     round
                                     icon="edit"
                                     color="primary"
-                                    size="sm"
+                                    size="0.75rem"
                                     aria-label="Edit effort record"
                                     @click="$emit('edit', record)"
                                 />
@@ -162,7 +162,7 @@
                                     round
                                     icon="delete"
                                     color="negative"
-                                    size="sm"
+                                    size="0.75rem"
                                     aria-label="Delete effort record"
                                     @click="$emit('delete', record)"
                                 />
@@ -174,7 +174,7 @@
                             }})
                         </div>
                         <div class="row q-gutter-md text-caption text-grey-7">
-                            <span :class="{ 'text-warning text-weight-bold': isZeroEffort(record) }">
+                            <span :class="{ 'zero-effort-text': isZeroEffort(record) }">
                                 {{ record.effortValue ?? 0 }}
                                 {{ record.effortLabel === "weeks" ? "Weeks" : "Hours" }}
                             </span>
@@ -199,7 +199,7 @@
                 :can-delete="canDelete"
                 :show-course-links="showCourseLinks"
                 :zero-effort-record-ids="zeroEffortRecordIds"
-                table-class="effort-table gt-xs"
+                table-class="effort-record-table effort-table gt-xs"
                 @edit="(record) => $emit('edit', record)"
                 @delete="(record) => $emit('delete', record)"
             />
@@ -225,6 +225,7 @@ import { computed } from "vue"
 import type { QTableColumn } from "quasar"
 import type { InstructorEffortRecordDto } from "../types"
 import EffortRecordsTable from "./EffortRecordsTable.vue"
+import "../effort-record-table.css"
 
 type CourseInfo = {
     subjCode: string
@@ -319,6 +320,8 @@ const regularColumns = computed<QTableColumn[]>(() => {
             label: "Effort",
             field: "effortValue",
             align: "left",
+            style: "width: 120px; min-width: 120px",
+            headerStyle: "width: 120px; min-width: 120px",
         },
     ]
 
@@ -359,6 +362,8 @@ const rCourseColumns = computed<QTableColumn[]>(() => {
             label: "Effort",
             field: "effortValue",
             align: "left",
+            style: "width: 120px; min-width: 120px",
+            headerStyle: "width: 120px; min-width: 120px",
         },
     ]
 

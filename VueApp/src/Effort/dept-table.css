@@ -1,0 +1,39 @@
+/* Shared department-grouped table styles for Effort list pages */
+
+.dept-header {
+    background-color: #5f6a6a;
+    font-weight: bold;
+}
+
+.dept-header--collapsible {
+    cursor: pointer;
+    user-select: none;
+}
+
+.dept-header--collapsible:hover,
+.dept-header--collapsible:focus {
+    background-color: #4a5454;
+}
+
+.dept-header--collapsible:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: -2px;
+}
+
+.dept-table {
+    margin-bottom: 0;
+    border-radius: 0;
+}
+
+.dept-table .q-table__container {
+    border-radius: 0;
+}
+
+.dept-table .q-table__middle {
+    overflow-x: hidden;
+}
+
+.dept-table table {
+    table-layout: fixed;
+    width: 100%;
+}

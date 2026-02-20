@@ -32,6 +32,8 @@ const EffortPermissions = {
     ViewAudit: "SVMSecure.Effort.ViewAudit",
     ViewDeptAudit: "SVMSecure.Effort.ViewDeptAudit",
     ViewDept: "SVMSecure.Effort.ViewDept",
+    // Eval-system permission for viewing evaluation results
+    ViewEvalResults: "SVMSecure.Eval.ViewAllDepts",
 } as const
 
 /**
@@ -50,6 +52,7 @@ function useEffortPermissions() {
 
     const hasViewAllDepartments = computed(() => hasPermission(EffortPermissions.ViewAllDepartments))
     const hasViewDept = computed(() => hasPermission(EffortPermissions.ViewDept))
+    const hasCreateEffort = computed(() => hasPermission(EffortPermissions.CreateEffort))
     const hasEditEffort = computed(() => hasPermission(EffortPermissions.EditEffort))
     const hasManageTerms = computed(() => hasPermission(EffortPermissions.ManageTerms))
     const hasVerifyEffort = computed(() => hasPermission(EffortPermissions.VerifyEffort))
@@ -66,12 +69,15 @@ function useEffortPermissions() {
     const hasDeleteInstructor = computed(() => hasPermission(EffortPermissions.DeleteInstructor))
     const hasManageUnits = computed(() => hasPermission(EffortPermissions.ManageUnits))
     const hasManageEffortTypes = computed(() => hasPermission(EffortPermissions.ManageEffortTypes))
+    const hasEditAdHocEval = computed(() => hasPermission(EffortPermissions.EditAdHocEval))
+    const hasViewEvalResults = computed(() => hasPermission(EffortPermissions.ViewEvalResults))
     const isAdmin = computed(() => hasViewAllDepartments.value)
 
     return {
         hasPermission,
         hasViewAllDepartments,
         hasViewDept,
+        hasCreateEffort,
         hasEditEffort,
         hasManageTerms,
         hasVerifyEffort,
@@ -88,6 +94,8 @@ function useEffortPermissions() {
         hasDeleteInstructor,
         hasManageUnits,
         hasManageEffortTypes,
+        hasEditAdHocEval,
+        hasViewEvalResults,
         isAdmin,
         permissions: computed(() => userStore.userInfo.permissions),
     }

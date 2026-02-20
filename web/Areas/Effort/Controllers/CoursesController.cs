@@ -18,14 +18,17 @@ public class CoursesController : BaseEffortController
 {
     private readonly ICourseService _courseService;
     private readonly IEffortPermissionService _permissionService;
+    private readonly IEvalHarvestService _evalHarvestService;
 
     public CoursesController(
         ICourseService courseService,
         IEffortPermissionService permissionService,
+        IEvalHarvestService evalHarvestService,
         ILogger<CoursesController> logger) : base(logger)
     {
         _courseService = courseService;
         _permissionService = permissionService;
+        _evalHarvestService = evalHarvestService;
     }
 
     /// <summary>
@@ -415,6 +418,169 @@ public class CoursesController : BaseEffortController
             .ToList();
 
         return Ok(filteredDepts);
+    }
+
+    /// <summary>
+    /// Get all effort records for a course.
+    /// Returns instructor effort data with edit/delete permissions per record.
+    /// </summary>
+    [HttpGet("{id:int}/effort")]
+    public async Task<ActionResult<CourseEffortResponseDto>> GetCourseEffort(int id, CancellationToken ct = default)
+    {
+        SetExceptionContext("courseId", id);
+
+        var (course, errorResult) = await GetAuthorizedCourseAsync(id, ct);
+        if (errorResult != null) return errorResult;
+
+        var records = await _courseService.GetCourseEffortAsync(id, ct);
+
+        // Check if this is a child course
+        var isChild = course!.ParentCourseId.HasValue;
+
+        // Check if current user can add effort (requires edit permission on the term)
+        var canAdd = !isChild && await _permissionService.IsTermEditableAsync(course.TermCode, ct);
+
+        // Determine per-record edit/delete permissions
+        if (canAdd)
+        {
+            var personPermission = new Dictionary<int, bool>();
+            foreach (var personId in records.Select(r => r.PersonId).Distinct())
+            {
+                personPermission[personId] = await _permissionService.CanEditPersonEffortAsync(personId, course.TermCode, ct);
+            }
+
+            foreach (var record in records)
+            {
+                var canEditPerson = personPermission[record.PersonId];
+                record.CanEdit = canEditPerson;
+                record.CanDelete = canEditPerson;
+            }
+        }
+
+        return Ok(new CourseEffortResponseDto
+        {
+            CourseId = id,
+            TermCode = course.TermCode,
+            CanAddEffort = canAdd,
+            IsChildCourse = isChild,
+            Records = records
+        });
+    }
+
+    /// <summary>
+    /// Get possible instructors for adding effort to a course.
+    /// Returns instructors grouped by those already on the course and others available for the term.
+    /// Guest accounts are excluded.
+    /// </summary>
+    [HttpGet("{id:int}/possible-instructors")]
+    [Permission(Allow = $"{EffortPermissions.CreateEffort},{EffortPermissions.VerifyEffort}")]
+    public async Task<ActionResult<PossibleCourseInstructorsDto>> GetPossibleInstructors(int id, CancellationToken ct = default)
+    {
+        SetExceptionContext("courseId", id);
+
+        var (_, errorResult) = await GetAuthorizedCourseAsync(id, ct);
+        if (errorResult != null) return errorResult;
+
+        var result = await _courseService.GetPossibleInstructorsForCourseAsync(id, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get evaluation status for all instructors on a course and its children.
+    /// </summary>
+    [HttpGet("{id:int}/evaluations")]
+    [Permission(Allow = EffortPermissions.ViewEvalResults)]
+    public async Task<ActionResult<CourseEvaluationStatusDto>> GetCourseEvaluations(int id, CancellationToken ct = default)
+    {
+        SetExceptionContext("courseId", id);
+
+        var (_, errorResult) = await GetAuthorizedCourseAsync(id, ct);
+        if (errorResult != null) return errorResult;
+
+        var status = await _evalHarvestService.GetCourseEvaluationStatusAsync(id, ct);
+        return Ok(status);
+    }
+
+    /// <summary>
+    /// Create an ad-hoc evaluation record for an instructor on a course.
+    /// </summary>
+    [HttpPost("{id:int}/evaluations")]
+    [Permission(Allow = EffortPermissions.EditAdHocEval)]
+    public async Task<ActionResult<AdHocEvalResultDto>> CreateEvaluation(
+        int id, [FromBody] CreateAdHocEvalRequest request, CancellationToken ct = default)
+    {
+        SetExceptionContext("courseId", id);
+
+        var (course, errorResult) = await GetAuthorizedCourseAsync(id, ct);
+        if (errorResult != null) return errorResult;
+
+        // Verify term is editable
+        if (!await _permissionService.IsTermEditableAsync(course!.TermCode, ct))
+        {
+            return BadRequest("Term is not open for editing");
+        }
+
+        request.CourseId = id;
+        var result = await _evalHarvestService.CreateAdHocEvaluationAsync(request, ct);
+        if (!result.Success)
+        {
+            return BadRequest(result.Error);
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Update an ad-hoc evaluation record.
+    /// </summary>
+    [HttpPut("{id:int}/evaluations/{quantId:int}")]
+    [Permission(Allow = EffortPermissions.EditAdHocEval)]
+    public async Task<ActionResult<AdHocEvalResultDto>> UpdateEvaluation(
+        int id, int quantId, [FromBody] UpdateAdHocEvalRequest request, CancellationToken ct = default)
+    {
+        SetExceptionContext("courseId", id);
+
+        var (course, errorResult) = await GetAuthorizedCourseAsync(id, ct);
+        if (errorResult != null) return errorResult;
+
+        if (!await _permissionService.IsTermEditableAsync(course!.TermCode, ct))
+        {
+            return BadRequest("Term is not open for editing");
+        }
+
+        var result = await _evalHarvestService.UpdateAdHocEvaluationAsync(id, quantId, request, ct);
+        if (!result.Success)
+        {
+            return BadRequest(result.Error);
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Delete an ad-hoc evaluation record.
+    /// </summary>
+    [HttpDelete("{id:int}/evaluations/{quantId:int}")]
+    [Permission(Allow = EffortPermissions.EditAdHocEval)]
+    public async Task<ActionResult> DeleteEvaluation(int id, int quantId, CancellationToken ct = default)
+    {
+        SetExceptionContext("courseId", id);
+
+        var (course, errorResult) = await GetAuthorizedCourseAsync(id, ct);
+        if (errorResult != null) return errorResult;
+
+        if (!await _permissionService.IsTermEditableAsync(course!.TermCode, ct))
+        {
+            return BadRequest("Term is not open for editing");
+        }
+
+        var deleted = await _evalHarvestService.DeleteAdHocEvaluationAsync(id, quantId, ct);
+        if (!deleted)
+        {
+            return NotFound("Evaluation record not found or cannot be deleted");
+        }
+
+        return NoContent();
     }
 
 }
