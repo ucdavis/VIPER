@@ -92,7 +92,7 @@
                             round
                             icon="edit"
                             color="primary"
-                            size="0.75rem"
+                            size="sm"
                             aria-label="Edit effort record"
                             @click="$emit('edit', slotProps.row)"
                         >
@@ -105,7 +105,7 @@
                             round
                             icon="delete"
                             color="negative"
-                            size="0.75rem"
+                            size="sm"
                             aria-label="Delete effort record"
                             @click="$emit('delete', slotProps.row)"
                         >
@@ -226,7 +226,39 @@ const uniqueEffortTypes = computed<EffortTypeLegendItem[]>(() => {
     width: 100%;
 }
 
+.effort-table :deep(.zero-effort) {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
 .effort-table :deep(.has-notes td) {
     border-bottom: none;
+}
+
+/* Disable QTable's td::before hover overlay — we handle hover via Vue for consistent paired-row highlighting */
+.effort-table :deep(tbody tr:hover td::before), .effort-table :deep(tbody tr:focus td::before) {
+    opacity: 0 !important;
+}
+
+/* Linked hover via Vue mouseenter/mouseleave — target td so it overrides QTable's cell backgrounds */
+.effort-table :deep(.row-hover td) {
+    background-color: #eeeeee;
+}
+
+.effort-type-header-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.legend-item {
+    padding: 0.125rem 0;
+}
+</style>
+
+<style>
+/* Unscoped style for tooltip (injected into body) */
+.effort-type-legend-tooltip {
+    border: 1px solid #ccc;
 }
 </style>

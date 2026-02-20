@@ -57,7 +57,7 @@ echo  13. Backfill Harvest Audit Actions - Update audit entries to use Harvest* 
 echo  14. Add AlertStates Table - Create table for persisting data hygiene alert states
 echo  15. Duplicate Percentages Cleanup - Remove duplicate percentage assignments
 echo  16. Delete Guest Persons/Records - Purge legacy guest placeholder accounts
-echo  17. Add Notes Column - Add optional Notes column to Records table for instructor notes
+echo  17. Add Notes Column - Add optional Notes column to Records table
 echo.
 echo Available options:
 echo   [no args]  DRY-RUN MODE - Shows what would change (default, safe)

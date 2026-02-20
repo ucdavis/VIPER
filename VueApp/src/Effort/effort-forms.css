@@ -19,8 +19,7 @@
     transform: none;
 }
 
-/* Add spacing above hints/counters so they don't sit flush */
-.effort-form .q-field:not(.q-field--error) .q-field__messages,
+/* Add spacing above counters so they don't sit flush */
 .effort-form .q-field .q-field__counter {
     padding-top: 0.25rem;
 }
