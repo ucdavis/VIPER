@@ -91,28 +91,18 @@
                         class="bg-blue-1 q-mb-md"
                         rounded
                     >
-                        <template #avatar>
-                            <q-icon
-                                name="info"
-                                color="primary"
-                            />
-                        </template>
                         <div class="row q-col-gutter-md">
-                            <div class="col-6 col-sm-3 text-center">
+                            <div class="col-6 col-sm-4 text-center">
                                 <div class="text-h5">{{ preview.summary.totalInstructors }}</div>
                                 <div class="text-caption">Instructors</div>
                             </div>
-                            <div class="col-6 col-sm-3 text-center">
+                            <div class="col-6 col-sm-4 text-center">
                                 <div class="text-h5">{{ preview.summary.totalCourses }}</div>
                                 <div class="text-caption">Courses</div>
                             </div>
-                            <div class="col-6 col-sm-3 text-center">
+                            <div class="col-6 col-sm-4 text-center">
                                 <div class="text-h5">{{ preview.summary.totalEffortRecords }}</div>
                                 <div class="text-caption">Effort Records</div>
-                            </div>
-                            <div class="col-6 col-sm-3 text-center">
-                                <div class="text-h5">{{ preview.summary.guestAccounts }}</div>
-                                <div class="text-caption">Guest Accounts</div>
                             </div>
                         </div>
                     </q-banner>
@@ -123,16 +113,18 @@
                         class="bg-orange-1 q-mb-md"
                         rounded
                     >
-                        <template #avatar>
+                        <div class="row items-center q-mb-xs">
                             <q-icon
                                 name="warning"
                                 color="orange"
+                                size="sm"
+                                class="q-mr-sm"
                             />
-                        </template>
-                        <div class="text-weight-medium">
-                            {{ preview.warnings.length }} {{ inflect("Warning", preview.warnings.length) }}
+                            <span class="text-weight-medium">
+                                {{ preview.warnings.length }} {{ inflect("Warning", preview.warnings.length) }}
+                            </span>
                         </div>
-                        <ul class="q-mb-none q-pl-md">
+                        <ul class="q-mb-none q-pl-lg">
                             <li
                                 v-for="(warning, idx) in preview.warnings.slice(0, 5)"
                                 :key="idx"
@@ -160,16 +152,19 @@
                         class="bg-red-1 q-mb-md"
                         rounded
                     >
-                        <template #avatar>
+                        <div class="row items-center q-mb-xs">
                             <q-icon
                                 name="error"
                                 color="negative"
+                                size="sm"
+                                class="q-mr-sm"
                             />
-                        </template>
-                        <div class="text-weight-medium text-negative">
-                            {{ preview.errors.length }} {{ inflect("Error", preview.errors.length) }} - Harvest may fail
+                            <span class="text-weight-medium text-negative">
+                                {{ preview.errors.length }} {{ inflect("Error", preview.errors.length) }} - Harvest may
+                                fail
+                            </span>
                         </div>
-                        <ul class="q-mb-none q-pl-md">
+                        <ul class="q-mb-none q-pl-lg">
                             <li
                                 v-for="(error, idx) in preview.errors"
                                 :key="idx"
@@ -185,13 +180,15 @@
                         class="bg-purple-1 q-mb-md"
                         rounded
                     >
-                        <template #avatar>
+                        <div class="row items-center q-mb-xs">
                             <q-icon
                                 name="person_remove"
                                 color="purple"
+                                size="sm"
+                                class="q-mr-sm"
                             />
-                        </template>
-                        <div class="text-weight-medium">Items that will be removed</div>
+                            <span class="text-weight-medium">Items that will be removed</span>
+                        </div>
                         <div class="text-caption text-grey-7">
                             The following items exist in the current term but are not in the harvest sources and will be
                             deleted:
@@ -221,7 +218,7 @@
                                 ({{
                                     preview.removedCourses
                                         .slice(0, 3)
-                                        .map((c) => c.subjCode + c.crseNumb)
+                                        .map((c) => `${c.subjCode.trim()} ${c.crseNumb.trim()}`)
                                         .join(", ")
                                 }}{{ preview.removedCourses.length > 3 ? "..." : "" }})
                             </span>
@@ -250,10 +247,6 @@
                             name="clinical"
                             label="Clinical"
                         />
-                        <q-tab
-                            name="guests"
-                            label="Guests"
-                        />
                     </q-tabs>
 
                     <q-separator />
@@ -268,42 +261,121 @@
                             name="crest"
                             class="q-pa-none q-pt-md"
                         >
-                            <div class="text-subtitle2 q-mb-sm">
-                                Instructors ({{ preview.crestInstructors.length }})
+                            <div class="row items-center justify-between q-mb-sm">
+                                <div class="text-subtitle2">Instructors ({{ preview.crestInstructors.length }})</div>
+                                <q-input
+                                    v-model="crestInstructorFilter"
+                                    placeholder="Search..."
+                                    dense
+                                    outlined
+                                    clearable
+                                    class="compact-search"
+                                >
+                                    <template #prepend>
+                                        <q-icon
+                                            name="search"
+                                            size="xs"
+                                        />
+                                    </template>
+                                </q-input>
                             </div>
                             <q-table
                                 :rows="preview.crestInstructors"
                                 :columns="instructorColumns"
                                 row-key="personId"
+                                :filter="crestInstructorFilter"
                                 dense
                                 flat
                                 bordered
                                 :pagination="tablePagination"
                                 class="q-mb-md"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
 
-                            <div class="text-subtitle2 q-mb-sm">Courses ({{ preview.crestCourses.length }})</div>
+                            <div class="row items-center justify-between q-mb-sm">
+                                <div class="text-subtitle2">Courses ({{ preview.crestCourses.length }})</div>
+                                <q-input
+                                    v-model="crestCourseFilter"
+                                    placeholder="Search..."
+                                    dense
+                                    outlined
+                                    clearable
+                                    class="compact-search"
+                                >
+                                    <template #prepend>
+                                        <q-icon
+                                            name="search"
+                                            size="xs"
+                                        />
+                                    </template>
+                                </q-input>
+                            </div>
                             <q-table
                                 :rows="preview.crestCourses"
                                 :columns="courseColumns"
                                 row-key="crn"
+                                :filter="crestCourseFilter"
                                 dense
                                 flat
                                 bordered
                                 :pagination="tablePagination"
                                 class="q-mb-md"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
 
-                            <div class="text-subtitle2 q-mb-sm">Effort Records ({{ preview.crestEffort.length }})</div>
+                            <div class="row items-center justify-between q-mb-sm">
+                                <div class="text-subtitle2">Effort Records ({{ preview.crestEffort.length }})</div>
+                                <q-input
+                                    v-model="crestEffortFilter"
+                                    placeholder="Search..."
+                                    dense
+                                    outlined
+                                    clearable
+                                    class="compact-search"
+                                >
+                                    <template #prepend>
+                                        <q-icon
+                                            name="search"
+                                            size="xs"
+                                        />
+                                    </template>
+                                </q-input>
+                            </div>
                             <q-table
                                 :rows="preview.crestEffort"
                                 :columns="effortColumns"
-                                :row-key="(row) => `${row.mothraId}-${row.courseCode}`"
+                                :row-key="(row) => `${row.mothraId}-${row.crn}-${row.effortType}`"
+                                :filter="crestEffortFilter"
                                 dense
                                 flat
                                 bordered
                                 :pagination="tablePagination"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
                         </q-tab-panel>
 
                         <!-- Non-CREST Tab -->
@@ -311,44 +383,121 @@
                             name="noncrest"
                             class="q-pa-none q-pt-md"
                         >
-                            <div class="text-subtitle2 q-mb-sm">
-                                Instructors ({{ preview.nonCrestInstructors.length }})
+                            <div class="row items-center justify-between q-mb-sm">
+                                <div class="text-subtitle2">Instructors ({{ preview.nonCrestInstructors.length }})</div>
+                                <q-input
+                                    v-model="nonCrestInstructorFilter"
+                                    placeholder="Search..."
+                                    dense
+                                    outlined
+                                    clearable
+                                    class="compact-search"
+                                >
+                                    <template #prepend>
+                                        <q-icon
+                                            name="search"
+                                            size="xs"
+                                        />
+                                    </template>
+                                </q-input>
                             </div>
                             <q-table
                                 :rows="preview.nonCrestInstructors"
                                 :columns="instructorColumns"
                                 row-key="personId"
+                                :filter="nonCrestInstructorFilter"
                                 dense
                                 flat
                                 bordered
                                 :pagination="tablePagination"
                                 class="q-mb-md"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
 
-                            <div class="text-subtitle2 q-mb-sm">Courses ({{ preview.nonCrestCourses.length }})</div>
+                            <div class="row items-center justify-between q-mb-sm">
+                                <div class="text-subtitle2">Courses ({{ preview.nonCrestCourses.length }})</div>
+                                <q-input
+                                    v-model="nonCrestCourseFilter"
+                                    placeholder="Search..."
+                                    dense
+                                    outlined
+                                    clearable
+                                    class="compact-search"
+                                >
+                                    <template #prepend>
+                                        <q-icon
+                                            name="search"
+                                            size="xs"
+                                        />
+                                    </template>
+                                </q-input>
+                            </div>
                             <q-table
                                 :rows="preview.nonCrestCourses"
                                 :columns="courseColumns"
                                 row-key="crn"
+                                :filter="nonCrestCourseFilter"
                                 dense
                                 flat
                                 bordered
                                 :pagination="tablePagination"
                                 class="q-mb-md"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
 
-                            <div class="text-subtitle2 q-mb-sm">
-                                Effort Records ({{ preview.nonCrestEffort.length }})
+                            <div class="row items-center justify-between q-mb-sm">
+                                <div class="text-subtitle2">Effort Records ({{ preview.nonCrestEffort.length }})</div>
+                                <q-input
+                                    v-model="nonCrestEffortFilter"
+                                    placeholder="Search..."
+                                    dense
+                                    outlined
+                                    clearable
+                                    class="compact-search"
+                                >
+                                    <template #prepend>
+                                        <q-icon
+                                            name="search"
+                                            size="xs"
+                                        />
+                                    </template>
+                                </q-input>
                             </div>
                             <q-table
                                 :rows="preview.nonCrestEffort"
                                 :columns="effortColumns"
-                                :row-key="(row) => `${row.mothraId}-${row.courseCode}`"
+                                :row-key="(row) => `${row.mothraId}-${row.crn}-${row.effortType}`"
+                                :filter="nonCrestEffortFilter"
                                 dense
                                 flat
                                 bordered
                                 :pagination="tablePagination"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
                         </q-tab-panel>
 
                         <!-- Clinical Tab -->
@@ -356,62 +505,89 @@
                             name="clinical"
                             class="q-pa-none q-pt-md"
                         >
-                            <div class="text-subtitle2 q-mb-sm">
-                                Instructors ({{ preview.clinicalInstructors.length }})
+                            <div class="row items-center justify-between q-mb-sm">
+                                <div class="text-subtitle2">Instructors ({{ preview.clinicalInstructors.length }})</div>
+                                <q-input
+                                    v-model="clinicalInstructorFilter"
+                                    placeholder="Search..."
+                                    dense
+                                    outlined
+                                    clearable
+                                    class="compact-search"
+                                >
+                                    <template #prepend>
+                                        <q-icon
+                                            name="search"
+                                            size="xs"
+                                        />
+                                    </template>
+                                </q-input>
                             </div>
                             <q-table
                                 :rows="preview.clinicalInstructors"
                                 :columns="instructorColumns"
                                 row-key="mothraId"
+                                :filter="clinicalInstructorFilter"
                                 dense
                                 flat
                                 bordered
                                 :pagination="tablePagination"
                                 class="q-mb-md"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
 
-                            <div class="text-subtitle2 q-mb-sm">Courses ({{ preview.clinicalCourses.length }})</div>
+                            <div class="row items-center justify-between q-mb-sm">
+                                <div class="text-subtitle2">Courses ({{ preview.clinicalCourses.length }})</div>
+                                <q-input
+                                    v-model="clinicalCourseFilter"
+                                    placeholder="Search..."
+                                    dense
+                                    outlined
+                                    clearable
+                                    class="compact-search"
+                                >
+                                    <template #prepend>
+                                        <q-icon
+                                            name="search"
+                                            size="xs"
+                                        />
+                                    </template>
+                                </q-input>
+                            </div>
                             <q-table
                                 :rows="preview.clinicalCourses"
                                 :columns="courseColumns"
                                 :row-key="(row) => `${row.subjCode}-${row.crseNumb}-${row.seqNumb}`"
+                                :filter="clinicalCourseFilter"
                                 dense
                                 flat
                                 bordered
                                 :pagination="tablePagination"
                                 class="q-mb-md"
-                            />
+                            >
+                                <template #body-cell-status="slotProps">
+                                    <q-td :props="slotProps">
+                                        <q-badge
+                                            :color="getStatusColor(slotProps.value)"
+                                            :label="slotProps.value"
+                                        />
+                                    </q-td>
+                                </template>
+                            </q-table>
 
-                            <div class="text-subtitle2 q-mb-sm">
-                                Effort Records ({{ preview.clinicalEffort.length }})
-                            </div>
-                            <q-table
+                            <ClinicalEffortPreviewTable
                                 :rows="preview.clinicalEffort"
-                                :columns="clinicalEffortColumns"
-                                :row-key="(row) => `${row.mothraId}-${row.courseCode}`"
-                                dense
-                                flat
-                                bordered
-                                :pagination="tablePagination"
-                            />
-                        </q-tab-panel>
-
-                        <!-- Guests Tab -->
-                        <q-tab-panel
-                            name="guests"
-                            class="q-pa-none q-pt-md"
-                        >
-                            <div class="text-subtitle2 q-mb-sm">
-                                Guest Accounts ({{ preview.guestAccounts.length }})
-                            </div>
-                            <q-table
-                                :rows="preview.guestAccounts"
-                                :columns="guestColumns"
-                                row-key="personId"
-                                dense
-                                flat
-                                bordered
-                                :pagination="tablePagination"
+                                title="Effort Records"
+                                show-status
+                                :pagination="{ rowsPerPage: 5 }"
                             />
                         </q-tab-panel>
                     </q-tab-panels>
@@ -446,6 +622,7 @@ import { harvestService } from "../services/harvest-service"
 import type { HarvestPreviewDto } from "../types"
 import type { QTableColumn } from "quasar"
 import { inflect } from "inflection"
+import ClinicalEffortPreviewTable from "./ClinicalEffortPreviewTable.vue"
 
 const props = defineProps<{
     modelValue: boolean
@@ -480,6 +657,16 @@ const harvestPhase = ref("")
 const harvestDetail = ref("")
 
 const tablePagination = { rowsPerPage: 5 }
+
+// Table filters
+const crestInstructorFilter = ref("")
+const crestCourseFilter = ref("")
+const crestEffortFilter = ref("")
+const nonCrestInstructorFilter = ref("")
+const nonCrestCourseFilter = ref("")
+const nonCrestEffortFilter = ref("")
+const clinicalInstructorFilter = ref("")
+const clinicalCourseFilter = ref("")
 
 // Computed for removed items warning
 const hasRemovedItems = computed(
@@ -527,21 +714,27 @@ const effortColumns: QTableColumn[] = [
     { name: "effortType", label: "Type", field: "effortType", align: "left" },
     { name: "hours", label: "Hours", field: "hours", align: "center" },
     { name: "roleName", label: "Role", field: "roleName", align: "left" },
+    {
+        name: "status",
+        label: "Status",
+        field: (row) => (row.isNew ? "New" : "Exists"),
+        align: "left",
+        sortable: true,
+    },
 ]
 
-const clinicalEffortColumns: QTableColumn[] = [
-    { name: "personName", label: "Instructor", field: "personName", align: "left", sortable: true },
-    { name: "courseCode", label: "Course", field: "courseCode", align: "left", sortable: true },
-    { name: "effortType", label: "Type", field: "effortType", align: "left" },
-    { name: "weeks", label: "Weeks", field: "weeks", align: "center" },
-    { name: "roleName", label: "Role", field: "roleName", align: "left" },
-]
-
-const guestColumns: QTableColumn[] = [
-    { name: "personId", label: "ID", field: "personId", align: "left" },
-    { name: "fullName", label: "Name", field: "fullName", align: "left" },
-    { name: "department", label: "Department", field: "department", align: "left" },
-]
+function getStatusColor(status: string): string {
+    switch (status) {
+        case "New":
+            return "positive"
+        case "Exists":
+            return "grey-6"
+        case "In CREST":
+            return "info"
+        default:
+            return "grey"
+    }
+}
 
 // Load preview when dialog opens
 watch(
@@ -687,3 +880,30 @@ function resetCommitState() {
     harvestDetail.value = ""
 }
 </script>
+
+<style scoped>
+.compact-search {
+    width: 10rem;
+}
+
+.compact-search :deep(.q-field__control) {
+    height: 1.75rem;
+    min-height: 1.75rem;
+}
+
+.compact-search :deep(.q-field__native) {
+    font-size: 0.75rem;
+    padding: 0;
+}
+
+.compact-search :deep(.q-field__prepend) {
+    height: 1.75rem;
+    padding-left: 0;
+    padding-right: 0.25rem;
+}
+
+.compact-search :deep(.q-field__append) {
+    height: 1.75rem;
+    padding: 0 0.25rem;
+}
+</style>

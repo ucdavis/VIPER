@@ -2,7 +2,7 @@ namespace Viper.Areas.Effort.Services.Harvest;
 
 /// <summary>
 /// Interface for harvest phase implementations.
-/// Each phase handles a specific data source (CREST, Non-CREST, Clinical, Guest).
+/// Each phase handles a specific data source (CREST, Non-CREST, Clinical).
 /// </summary>
 public interface IHarvestPhase
 {

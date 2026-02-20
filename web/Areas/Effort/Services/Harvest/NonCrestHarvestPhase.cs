@@ -252,7 +252,8 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
         context.TitleLookup ??= (await context.InstructorService.GetTitleCodesAsync(ct))
             .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
 
-        context.DeptSimpleNameLookup ??= await context.InstructorService.GetDepartmentSimpleNameLookupAsync(ct);
+        // Batch-resolve departments using full resolution chain (jobs → employee fields → fallback)
+        var batchDepts = await context.InstructorService.BatchResolveDepartmentsAsync(nonCrestMothraIds, context.TermCode, ct);
 
         // Build course lookup for effort records
         var courseLookup = allNonCrestCourses
@@ -278,11 +279,8 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             var lastName = aaudPerson.PersonLastName?.Trim() ?? "";
             var fullName = $"{lastName}, {firstName}";
 
-            var rawDeptCode = emp.EmpHomeDept?.Trim() ?? "";
-            var dept = context.DeptSimpleNameLookup != null && context.DeptSimpleNameLookup.TryGetValue(rawDeptCode, out var deptName)
-                ? deptName
-                : rawDeptCode;
-            if (string.IsNullOrEmpty(dept)) dept = "UNK";
+            // Department already fully resolved by BatchResolveDepartmentsAsync
+            var dept = batchDepts.GetValueOrDefault(mothraId, "UNK");
 
             var titleDesc = context.TitleLookup.TryGetValue(titleCode, out var desc) ? desc : titleCode;
 
@@ -325,7 +323,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
                 RoleId = EffortConstants.DirectorRoleId,
                 RoleName = "Director",
                 Hours = 0,
-                Weeks = 0,
+                Weeks = null,
                 Source = EffortConstants.SourceNonCrest
             });
         }

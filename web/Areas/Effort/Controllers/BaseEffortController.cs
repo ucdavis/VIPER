@@ -1,4 +1,5 @@
 using Viper.Classes;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Controllers;
 
@@ -33,5 +34,42 @@ public abstract class BaseEffortController : ApiController
     protected void SetExceptionContext(string key, object value)
     {
         SetExceptionContext(new Dictionary<string, object> { [key] = value });
+    }
+
+    /// <summary>
+    /// Validates that the request Origin header (if present) matches the request's host.
+    /// This prevents CSRF attacks on SSE endpoints that cannot use traditional anti-forgery tokens.
+    /// Returns true if the request is same-origin or if no Origin header is present (same-origin requests).
+    /// </summary>
+    protected bool ValidateSameOrigin()
+    {
+        var origin = Request.Headers.Origin.FirstOrDefault();
+
+        // No Origin header typically means same-origin navigation or non-browser request
+        if (string.IsNullOrEmpty(origin))
+        {
+            return true;
+        }
+
+        // Parse the Origin and compare full origin (scheme + host + port) to the request
+        if (Uri.TryCreate(origin, UriKind.Absolute, out var originUri))
+        {
+            var requestScheme = Request.Scheme;
+            var requestHost = Request.Host;
+            var expectedPort = requestHost.Port ?? (string.Equals(requestScheme, "https", StringComparison.OrdinalIgnoreCase) ? 443 : 80);
+
+            if (string.Equals(originUri.Scheme, requestScheme, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(originUri.Host, requestHost.Host, StringComparison.OrdinalIgnoreCase)
+                && originUri.Port == expectedPort)
+            {
+                return true;
+            }
+
+            _logger.LogWarning(
+                "Cross-origin request blocked: Origin={Origin}, RequestHost={RequestHost}",
+                LogSanitizer.SanitizeString(origin), LogSanitizer.SanitizeString(requestHost.ToString()));
+        }
+
+        return false;
     }
 }

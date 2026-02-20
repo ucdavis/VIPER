@@ -8,7 +8,7 @@ namespace Viper.Areas.Effort.Services;
 
 /// <summary>
 /// Orchestrator service for harvesting instructor and course data into the effort system.
-/// Coordinates execution of harvest phases (CREST, Non-CREST, Clinical, Guest).
+/// Coordinates execution of harvest phases (CREST, Non-CREST, Clinical).
 /// </summary>
 public class HarvestService : IHarvestService
 {
@@ -23,6 +23,7 @@ public class HarvestService : IHarvestService
     private readonly ITermService _termService;
     private readonly IInstructorService _instructorService;
     private readonly IRCourseService _rCourseService;
+    private readonly IClinicalImportService _clinicalImportService;
     private readonly ILogger<HarvestService> _logger;
 
     public HarvestService(
@@ -37,6 +38,7 @@ public class HarvestService : IHarvestService
         ITermService termService,
         IInstructorService instructorService,
         IRCourseService rCourseService,
+        IClinicalImportService clinicalImportService,
         ILogger<HarvestService> logger)
     {
         _phases = phases;
@@ -50,6 +52,7 @@ public class HarvestService : IHarvestService
         _termService = termService;
         _instructorService = instructorService;
         _rCourseService = rCourseService;
+        _clinicalImportService = clinicalImportService;
         _logger = logger;
     }
 
@@ -372,15 +375,13 @@ public class HarvestService : IHarvestService
     #region Private Helpers
 
     /// <summary>
-    /// Get all instructors from all sources (CREST, Non-CREST, Clinical, and optionally Guest Accounts).
+    /// Get all instructors from all sources (CREST, Non-CREST, Clinical).
     /// </summary>
-    private static IEnumerable<HarvestPersonPreview> GetAllInstructors(HarvestPreviewDto preview, bool includeGuests = true)
+    private static IEnumerable<HarvestPersonPreview> GetAllInstructors(HarvestPreviewDto preview)
     {
-        var instructors = preview.CrestInstructors
+        return preview.CrestInstructors
             .Concat(preview.NonCrestInstructors)
             .Concat(preview.ClinicalInstructors);
-
-        return includeGuests ? instructors.Concat(preview.GuestAccounts) : instructors;
     }
 
     private HarvestContext CreateHarvestContext(int termCode, int modifiedBy)
@@ -465,7 +466,7 @@ public class HarvestService : IHarvestService
 
     private static void CalculateSummary(HarvestContext context)
     {
-        var allInstructors = GetAllInstructors(context.Preview, includeGuests: false)
+        var allInstructors = GetAllInstructors(context.Preview)
             .DistinctBy(p => p.MothraId)
             .ToList();
 
@@ -479,12 +480,11 @@ public class HarvestService : IHarvestService
 
         context.Preview.Summary = new HarvestSummary
         {
-            TotalInstructors = allInstructors.Count + context.Preview.GuestAccounts.Count,
+            TotalInstructors = allInstructors.Count,
             TotalCourses = allCourses.Count,
             TotalEffortRecords = context.Preview.CrestEffort.Count +
                                  context.Preview.NonCrestEffort.Count +
-                                 context.Preview.ClinicalEffort.Count,
-            GuestAccounts = context.Preview.GuestAccounts.Count
+                                 context.Preview.ClinicalEffort.Count
         };
     }
 
@@ -580,9 +580,10 @@ public class HarvestService : IHarvestService
             });
         }
 
-        // Find removed courses
+        // Find removed courses (exclude the auto-generated generic R-course since it's recreated post-harvest)
         foreach (var existing in existingCourses.Where(c =>
-            !harvestCourseKeys.Contains(BuildExistingCourseKey(c.Crn, c.SubjCode, c.CrseNumb, c.SeqNumb, c.Units))))
+            !harvestCourseKeys.Contains(BuildExistingCourseKey(c.Crn, c.SubjCode, c.CrseNumb, c.SeqNumb, c.Units))
+            && !string.Equals(c.Crn, "RESID", StringComparison.OrdinalIgnoreCase)))
         {
             context.Preview.RemovedCourses.Add(new HarvestCoursePreview
             {
@@ -597,8 +598,35 @@ public class HarvestService : IHarvestService
             });
         }
 
+        // Set IsNew flag for effort records
+        var existingRecords = await _context.Records
+            .AsNoTracking()
+            .Where(r => r.TermCode == termCode)
+            .Select(r => new { r.PersonId, r.Crn, r.EffortTypeId })
+            .ToListAsync(ct);
+
+        // CREST + Non-CREST: match by MothraId:Crn:EffortTypeId (CRN-based)
+        var existingRecordKeys = existingRecords
+            .Select(r => $"{personIdToMothraId.GetValueOrDefault(r.PersonId, "")}:{r.Crn}:{r.EffortTypeId}")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var record in context.Preview.CrestEffort.Concat(context.Preview.NonCrestEffort))
+        {
+            var recordKey = $"{record.MothraId}:{record.Crn}:{record.EffortType}";
+            record.IsNew = !existingRecordKeys.Contains(recordKey);
+        }
+
+        // Clinical: match by MothraId:CourseKey — same logic as ClinicalImportService (DRY)
+        var existingClinicalKeys = await _clinicalImportService.GetExistingClinicalRecordKeysAsync(termCode, ct);
+
+        foreach (var record in context.Preview.ClinicalEffort)
+        {
+            var clinicalKey = $"{record.MothraId.ToUpperInvariant()}:{record.CourseCode?.Trim().ToUpperInvariant()}";
+            record.IsNew = !existingClinicalKeys.Contains(clinicalKey);
+        }
+
         // Check for existing data warning
-        var existingRecordCount = await _context.Records.CountAsync(r => r.TermCode == termCode, ct);
+        var existingRecordCount = existingRecords.Count;
 
         if (existingRecordCount > 0 || existingInstructors.Count != 0 || existingCourses.Count != 0)
         {

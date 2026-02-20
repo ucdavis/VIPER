@@ -178,72 +178,57 @@
                                 </div>
                                 <!-- Actions -->
                                 <div class="card-actions">
-                                    <!-- Email action: Guest instructor (cannot be emailed) -->
                                     <q-btn
-                                        v-if="instructor.isGuest"
-                                        icon="mail_off"
-                                        color="grey"
+                                        v-if="instructor.isVerified"
+                                        icon="mark_email_read"
+                                        color="positive"
+                                        flat
+                                        round
+                                        size="0.75rem"
+                                        disable
+                                    />
+                                    <q-btn
+                                        v-else-if="
+                                            sendingEmailPersonIds.has(instructor.personId) ||
+                                            sendingEmailDepts.has(instructor.effortDept)
+                                        "
                                         flat
                                         round
                                         size="0.75rem"
                                         disable
                                     >
-                                        <q-tooltip>Guest instructors cannot be emailed</q-tooltip>
+                                        <q-spinner
+                                            color="primary"
+                                            size="sm"
+                                        />
                                     </q-btn>
-                                    <!-- Email actions for non-guest instructors -->
-                                    <template v-else>
-                                        <q-btn
-                                            v-if="instructor.isVerified"
-                                            icon="mark_email_read"
-                                            color="positive"
-                                            flat
-                                            round
-                                            size="0.75rem"
-                                            disable
-                                        />
-                                        <q-btn
-                                            v-else-if="
-                                                sendingEmailPersonIds.has(instructor.personId) ||
-                                                sendingEmailDepts.has(instructor.effortDept)
-                                            "
-                                            flat
-                                            round
-                                            size="0.75rem"
-                                            disable
-                                        >
-                                            <q-spinner
-                                                color="primary"
-                                                size="sm"
-                                            />
-                                        </q-btn>
-                                        <q-btn
-                                            v-else-if="isEmailedPastDeadline(instructor)"
-                                            icon="mark_email_unread"
-                                            color="negative"
-                                            flat
-                                            round
-                                            size="0.75rem"
-                                            @click="confirmResendEmail(instructor)"
-                                        />
-                                        <q-btn
-                                            v-else-if="instructor.lastEmailedDate"
-                                            icon="mark_email_unread"
-                                            color="warning"
-                                            flat
-                                            round
-                                            size="0.75rem"
-                                            @click="confirmResendEmail(instructor)"
-                                        />
-                                        <q-btn
-                                            v-else
-                                            icon="mail"
-                                            :color="instructor.recordCount === 0 ? 'warning' : 'primary'"
-                                            flat
-                                            round
-                                            size="0.75rem"
-                                            @click="sendVerificationEmail(instructor)"
-                                        />
-                                    </template>
+                                    <q-btn
+                                        v-else-if="isEmailedPastDeadline(instructor)"
+                                        icon="mark_email_unread"
+                                        color="negative"
+                                        flat
+                                        round
+                                        size="0.75rem"
+                                        @click="confirmResendEmail(instructor)"
+                                    />
+                                    <q-btn
+                                        v-else-if="instructor.lastEmailedDate"
+                                        icon="mark_email_unread"
+                                        color="warning"
+                                        flat
+                                        round
+                                        size="0.75rem"
+                                        @click="confirmResendEmail(instructor)"
+                                    />
+                                    <q-btn
+                                        v-else
+                                        icon="mail"
+                                        :color="instructor.recordCount === 0 ? 'warning' : 'primary'"
+                                        flat
+                                        round
+                                        size="0.75rem"
+                                        @click="sendVerificationEmail(instructor)"
+                                    />
                                     <!-- View effort records -->
                                     <q-btn
                                         :icon="getEffortIcon(instructor)"
@@ -391,14 +376,6 @@
                                             />
                                             <span>Already verified</span>
                                         </div>
-                                        <div class="legend-item">
-                                            <q-icon
-                                                name="mail_off"
-                                                color="grey"
-                                                size="xs"
-                                            />
-                                            <span>Guest instructor (cannot email)</span>
-                                        </div>
                                         <div class="legend-section-title">Effort Records</div>
                                         <div class="legend-item">
                                             <q-icon
@@ -496,101 +473,85 @@
                     <template #body-cell-actions="props">
                         <q-td :props="props">
                             <div class="actions-cell">
-                                <!-- Email action: Guest instructor (cannot be emailed) -->
+                                <!-- Email action: Already verified -->
                                 <q-btn
-                                    v-if="props.row.isGuest"
-                                    icon="mail_off"
-                                    color="grey"
+                                    v-if="props.row.isVerified"
+                                    icon="mark_email_read"
+                                    color="positive"
                                     flat
                                     round
                                     size="0.75rem"
                                     disable
-                                    :aria-label="`${props.row.fullName} is a guest instructor`"
+                                    :aria-label="`${props.row.fullName} already verified`"
                                 >
-                                    <q-tooltip>Guest instructors cannot be emailed</q-tooltip>
+                                    <q-tooltip>Already verified</q-tooltip>
                                 </q-btn>
-                                <!-- Email actions for non-guest instructors -->
-                                <template v-else>
-                                    <!-- Email action: Already verified -->
-                                    <q-btn
-                                        v-if="props.row.isVerified"
-                                        icon="mark_email_read"
-                                        color="positive"
-                                        flat
-                                        round
+                                <!-- Email action: Loading spinner while sending -->
+                                <q-btn
+                                    v-else-if="
+                                        sendingEmailPersonIds.has(props.row.personId) ||
+                                        sendingEmailDepts.has(props.row.effortDept)
+                                    "
+                                    flat
+                                    round
+                                    size="0.75rem"
+                                    disable
+                                    :aria-label="`Sending email to ${props.row.fullName}`"
+                                >
+                                    <q-spinner
+                                        color="primary"
                                         size="0.75rem"
-                                        disable
-                                        :aria-label="`${props.row.fullName} already verified`"
-                                    >
-                                        <q-tooltip>Already verified</q-tooltip>
-                                    </q-btn>
-                                    <!-- Email action: Loading spinner while sending -->
-                                    <q-btn
-                                        v-else-if="
-                                            sendingEmailPersonIds.has(props.row.personId) ||
-                                            sendingEmailDepts.has(props.row.effortDept)
-                                        "
-                                        flat
-                                        round
-                                        size="0.75rem"
-                                        disable
-                                        :aria-label="`Sending email to ${props.row.fullName}`"
-                                    >
-                                        <q-spinner
-                                            color="primary"
-                                            size="0.75rem"
-                                        />
-                                    </q-btn>
-                                    <!-- Email action: Emailed past deadline, not verified -->
-                                    <q-btn
-                                        v-else-if="isEmailedPastDeadline(props.row)"
-                                        icon="mark_email_unread"
-                                        color="negative"
-                                        flat
-                                        round
-                                        size="0.75rem"
-                                        :aria-label="`Resend verification email to ${props.row.fullName} (past deadline)`"
-                                        @click="confirmResendEmail(props.row)"
-                                    >
-                                        <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
-                                    </q-btn>
-                                    <!-- Email action: Emailed within deadline, not verified -->
-                                    <q-btn
-                                        v-else-if="props.row.lastEmailedDate"
-                                        icon="mark_email_unread"
-                                        color="warning"
-                                        flat
-                                        round
-                                        size="0.75rem"
-                                        :aria-label="`Resend verification email to ${props.row.fullName}`"
-                                        @click="confirmResendEmail(props.row)"
-                                    >
-                                        <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
-                                    </q-btn>
-                                    <!-- Email action: Never emailed, not verified -->
-                                    <q-btn
-                                        v-else
-                                        icon="mail"
-                                        :color="props.row.recordCount === 0 ? 'warning' : 'primary'"
-                                        flat
-                                        round
-                                        size="0.75rem"
-                                        :aria-label="
+                                    />
+                                </q-btn>
+                                <!-- Email action: Emailed past deadline, not verified -->
+                                <q-btn
+                                    v-else-if="isEmailedPastDeadline(props.row)"
+                                    icon="mark_email_unread"
+                                    color="negative"
+                                    flat
+                                    round
+                                    size="0.75rem"
+                                    :aria-label="`Resend verification email to ${props.row.fullName} (past deadline)`"
+                                    @click="confirmResendEmail(props.row)"
+                                >
+                                    <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
+                                </q-btn>
+                                <!-- Email action: Emailed within deadline, not verified -->
+                                <q-btn
+                                    v-else-if="props.row.lastEmailedDate"
+                                    icon="mark_email_unread"
+                                    color="warning"
+                                    flat
+                                    round
+                                    size="0.75rem"
+                                    :aria-label="`Resend verification email to ${props.row.fullName}`"
+                                    @click="confirmResendEmail(props.row)"
+                                >
+                                    <q-tooltip>{{ getEmailTooltip(props.row) }}</q-tooltip>
+                                </q-btn>
+                                <!-- Email action: Never emailed, not verified -->
+                                <q-btn
+                                    v-else
+                                    icon="mail"
+                                    :color="props.row.recordCount === 0 ? 'warning' : 'primary'"
+                                    flat
+                                    round
+                                    size="0.75rem"
+                                    :aria-label="
+                                        props.row.recordCount === 0
+                                            ? `Send no-effort verification email to ${props.row.fullName}`
+                                            : `Send verification email to ${props.row.fullName}`
+                                    "
+                                    @click="sendVerificationEmail(props.row)"
+                                >
+                                    <q-tooltip>
+                                        {{
                                             props.row.recordCount === 0
-                                                ? `Send no-effort verification email to ${props.row.fullName}`
-                                                : `Send verification email to ${props.row.fullName}`
-                                        "
-                                        @click="sendVerificationEmail(props.row)"
-                                    >
-                                        <q-tooltip>
-                                            {{
-                                                props.row.recordCount === 0
-                                                    ? "Send no-effort verification email"
-                                                    : "Send verification email"
-                                            }}
-                                        </q-tooltip>
-                                    </q-btn>
-                                </template>
+                                                ? "Send no-effort verification email"
+                                                : "Send verification email"
+                                        }}
+                                    </q-tooltip>
+                                </q-btn>
                                 <!-- View effort records action -->
                                 <q-btn
                                     :icon="getEffortIcon(props.row)"

@@ -239,6 +239,8 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentageService, Viper.Areas.Effort.Services.PercentageService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IRCourseService, Viper.Areas.Effort.Services.RCourseService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IDashboardService, Viper.Areas.Effort.Services.DashboardService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentRolloverService, Viper.Areas.Effort.Services.PercentRolloverService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalImportService, Viper.Areas.Effort.Services.ClinicalImportService>();
     builder.Services.Configure<Viper.Areas.Effort.EffortSettings>(builder.Configuration.GetSection("EffortSettings"));
 
     // In development, derive BaseUrl from ASPNETCORE_HTTPS_PORT if not explicitly configured
@@ -261,7 +263,6 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.CrestHarvestPhase>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.NonCrestHarvestPhase>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.ClinicalHarvestPhase>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.GuestAccountPhase>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IHarvestService, Viper.Areas.Effort.Services.HarvestService>();
 
     // Add in a custom ClaimsTransformer that injects user ROLES

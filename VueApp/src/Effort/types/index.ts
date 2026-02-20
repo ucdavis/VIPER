@@ -55,8 +55,17 @@ export type {
     HarvestSummary,
     HarvestWarning,
     HarvestError,
+    PercentRolloverItemPreview,
+    PercentRolloverPreviewDto,
+    RolloverProgressEvent,
+    RolloverResult,
     HarvestPreviewDto,
     HarvestResultDto,
+    ClinicalImportMode,
+    ClinicalImportPreviewDto,
+    ClinicalAssignmentPreview,
+    ClinicalImportProgressEvent,
+    ClinicalImportResultDto,
 } from "./harvest-types"
 
 export type { ChangeDetail, EffortAuditRow, ModifierInfo } from "./audit-types"

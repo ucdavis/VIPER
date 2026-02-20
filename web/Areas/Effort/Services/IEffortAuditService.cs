@@ -44,6 +44,11 @@ public interface IEffortAuditService
     void AddImportAudit(int termCode, string action, string details);
 
     /// <summary>
+    /// Add an import audit entry not tied to a specific term (e.g., year-based rollover).
+    /// </summary>
+    void AddImportAudit(string action, string details);
+
+    /// <summary>
     /// Clear audit records for a term (except ImportEffort actions).
     /// Used during harvest to reset audit trail before re-importing data.
     /// </summary>
@@ -165,4 +170,14 @@ public interface IEffortAuditService
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of distinct course numbers.</returns>
     Task<List<string>> GetDistinctCourseNumbersAsync(int? termCode = null, string? subjectCode = null, bool excludeImports = false, List<string>? departmentCodes = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get (PersonId, PercentAssignTypeId) combinations that have been manually edited
+    /// or deleted after the specified date. Used to filter percent assignment rollovers.
+    /// </summary>
+    /// <param name="sinceDate">The date to check changes after (typically HarvestedDate).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Set of (PersonId, PercentAssignTypeId) tuples that should be excluded from rollover.</returns>
+    Task<HashSet<(int PersonId, int PercentAssignTypeId)>> GetPostHarvestPercentChangesAsync(
+        DateTime sinceDate, CancellationToken ct = default);
 }

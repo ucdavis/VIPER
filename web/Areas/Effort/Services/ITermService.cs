@@ -27,6 +27,11 @@ public interface ITermService
     /// </summary>
     string GetTermName(int termCode);
 
+    /// <summary>
+    /// Get the term type (e.g., "Fall Semester", "Fall Quarter") from the VIPER terms table.
+    /// </summary>
+    Task<string?> GetTermTypeAsync(int termCode, CancellationToken ct = default);
+
     // Term Management Operations (requires ManageTerms permission)
 
     /// <summary>

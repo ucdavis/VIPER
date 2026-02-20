@@ -90,4 +90,10 @@ public class TermDto
     /// Whether the term can be harvested (not yet opened and not closed).
     /// </summary>
     public bool CanHarvest => !OpenedDate.HasValue && !ClosedDate.HasValue;
+
+    /// <summary>
+    /// Whether clinical data can be imported for this term (semester terms with Created/Harvested/Open status).
+    /// This value is populated by the service when fetching terms for management.
+    /// </summary>
+    public bool CanImportClinical { get; set; }
 }
