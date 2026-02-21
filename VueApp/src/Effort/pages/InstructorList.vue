@@ -631,7 +631,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue"
+import { ref, computed, onMounted, watch } from "vue"
+import { useEventListener } from "@vueuse/core"
 import { useQuasar } from "quasar"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { instructorService } from "../services/instructor-service"
@@ -678,13 +679,7 @@ function handleBeforeUnload(e: BeforeUnloadEvent) {
     }
 }
 
-onMounted(() => {
-    window.addEventListener("beforeunload", handleBeforeUnload)
-})
-
-onUnmounted(() => {
-    window.removeEventListener("beforeunload", handleBeforeUnload)
-})
+useEventListener(window, "beforeunload", handleBeforeUnload)
 
 onBeforeRouteLeave((_to, _from, next) => {
     if (sendingEmailDepts.value.size > 0 || sendingEmailPersonIds.value.size > 0) {
