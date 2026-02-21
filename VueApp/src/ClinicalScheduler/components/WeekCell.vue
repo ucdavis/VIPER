@@ -150,6 +150,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
+import { useTimeoutFn } from "@vueuse/core"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import { ANIMATIONS } from "../constants/app-constants"
 
@@ -251,9 +252,12 @@ watch(
     { deep: true },
 )
 
-// Long press timer for mobile
-let longPressTimer: ReturnType<typeof setTimeout> | null = null
-const longPressDuration = 500 // milliseconds
+// Long press timer for mobile (auto-cleanup on unmount via useTimeoutFn)
+const { start: startLongPress, stop: stopLongPress, isPending: isLongPressing } = useTimeoutFn(
+    () => emit("click", props.week),
+    500,
+    { immediate: false },
+)
 
 // Methods
 function handleClick(event?: MouseEvent) {
@@ -285,18 +289,13 @@ function handleClick(event?: MouseEvent) {
 // Touch event handlers for mobile long-press
 function handleTouchStart() {
     if (props.selectable && !props.isPastYear) {
-        longPressTimer = setTimeout(() => {
-            // Long press triggers selection mode
-            emit("click", props.week)
-            longPressTimer = null
-        }, longPressDuration)
+        startLongPress()
     }
 }
 
 function handleTouchEnd() {
-    if (longPressTimer) {
-        clearTimeout(longPressTimer)
-        longPressTimer = null
+    if (isLongPressing.value) {
+        stopLongPress()
         // Short tap - handle as normal click
         handleClick()
     }
@@ -304,10 +303,7 @@ function handleTouchEnd() {
 
 function handleTouchMove() {
     // Cancel long press if user moves finger
-    if (longPressTimer) {
-        clearTimeout(longPressTimer)
-        longPressTimer = null
-    }
+    stopLongPress()
 }
 
 // Helper function to normalize additional classes
