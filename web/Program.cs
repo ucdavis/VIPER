@@ -254,7 +254,7 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.CrestHarvestPhase>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.NonCrestHarvestPhase>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.ClinicalHarvestPhase>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.GuestAccountPhase>();
+
 
     // Scrutor: auto-register services and validators by convention
     builder.Services.Scan(scan => scan

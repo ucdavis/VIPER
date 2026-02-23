@@ -1589,8 +1589,6 @@ watch(selectedStudentIndex, (newIndex) => {
     .q-page {
         margin: 0 !important;
         padding: 0 !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
         max-width: 100% !important;
         width: 100% !important;
         min-height: auto !important;
