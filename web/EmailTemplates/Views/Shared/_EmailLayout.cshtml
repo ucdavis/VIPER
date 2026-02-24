@@ -45,14 +45,14 @@
                         <td class="email-header" style="padding: 0; line-height: 0; font-size: 0;">
                             @if (!string.IsNullOrWhiteSpace((string?)ViewBag.BaseUrl))
                             {
-                                <img src="@(ViewBag.BaseUrl)/images/email/email-header-weill.jpg"
+                                <img src="@(((string)ViewBag.BaseUrl).TrimEnd('/'))/images/email/email-header-weill.jpg"
                                      alt="UC Davis Weill School of Veterinary Medicine"
                                      width="650"
                                      style="display: block; width: 100%; max-width: 650px; height: auto; border: 0;" />
                             }
                             else
                             {
-                                <h1 style="margin: 0; padding: 16px 20px; color: #022851; font-size: 22px;">@ViewBag.Title</h1>
+                                <h1 style="margin: 0; padding: 16px 20px; color: #022851; font-size: 22px; line-height: normal;">@ViewBag.Title</h1>
                             }
                         </td>
                     </tr>
