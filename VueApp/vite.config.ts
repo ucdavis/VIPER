@@ -103,7 +103,7 @@ export default defineConfig(({ mode }) => {
                     gzipSize: true,
                 }),
             codecovVitePlugin({
-                enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
+                enableBundleAnalysis: !!process.env.CODECOV_TOKEN,
                 bundleName: "viper-frontend",
                 uploadToken: process.env.CODECOV_TOKEN,
             }),
@@ -169,12 +169,12 @@ export default defineConfig(({ mode }) => {
             rollupOptions: {
                 input: {
                     main: resolve(__dirname, "index.html"),
-                    cts: resolve(__dirname, "src/cts/index.html"),
-                    computing: resolve(__dirname, "src/computing/index.html"),
-                    students: resolve(__dirname, "src/students/index.html"),
-                    cms: resolve(__dirname, "src/cms/index.html"),
-                    cahfs: resolve(__dirname, "src/cahfs/index.html"),
-                    clinicalscheduler: resolve(__dirname, "src/clinicalscheduler/index.html"),
+                    cts: resolve(__dirname, "src/CTS/index.html"),
+                    computing: resolve(__dirname, "src/Computing/index.html"),
+                    students: resolve(__dirname, "src/Students/index.html"),
+                    cms: resolve(__dirname, "src/CMS/index.html"),
+                    cahfs: resolve(__dirname, "src/CAHFS/index.html"),
+                    clinicalscheduler: resolve(__dirname, "src/ClinicalScheduler/index.html"),
                     effort: resolve(__dirname, "src/Effort/index.html"),
                 },
                 output: {
