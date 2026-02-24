@@ -3,12 +3,22 @@
 @{
     Layout = "/EmailTemplates/Views/Shared/_EmailLayout.cshtml";
     ViewBag.Title = "Effort Verification Request";
-    ViewBag.Subtitle = Model.TermDescription;
-    if (Model.TermStartDate.HasValue && Model.TermEndDate.HasValue)
-    {
-        ViewBag.SubtitleExtra = $"({Model.TermStartDate.Value:MMMM d, yyyy} to {Model.TermEndDate.Value:MMMM d, yyyy})";
-    }
+    ViewBag.BaseUrl = Model.BaseUrl;
 }
+
+@* Title and term date range *@
+<tr>
+    <td class="email-content" style="padding: 20px 20px 0 20px;">
+        <h1 style="margin: 0; padding: 0; color: #022851; font-size: 22px;">Effort Verification Request</h1>
+        <p style="margin: 8px 0 0 0; padding: 0; color: #666666; font-size: 14px;">
+            @Model.TermDescription
+            @if (Model.TermStartDate.HasValue && Model.TermEndDate.HasValue)
+            {
+                <span>(@Model.TermStartDate.Value.ToString("MMMM d, yyyy") to @Model.TermEndDate.Value.ToString("MMMM d, yyyy"))</span>
+            }
+        </p>
+    </td>
+</tr>
 
 @* No-effort messaging when instructor has no records *@
 @if (Model.HasNoRecords)
@@ -44,7 +54,9 @@ else
     </td>
 </tr>
 
-@* Effort Records Table *@
+@* Effort Records Table (non-R-courses) *@
+@if (Model.Courses.Any(c => !c.IsRCourse))
+{
 <tr>
     <td class="email-content" style="padding: 0 20px 20px 20px;">
         <table class="data-table section" cellpadding="0" cellspacing="0" border="1" bordercolor="#dee2e6" width="100%" style="border: 1px solid #dee2e6; border-collapse: collapse;">
@@ -54,7 +66,7 @@ else
                 <th align="left" style="padding: 10px; color: #ffffff; font-size: 13px;">Enrollment</th>
                 <th align="left" style="padding: 10px; color: #ffffff; font-size: 13px;">Role</th>
             </tr>
-            @foreach (var course in Model.Courses)
+            @foreach (var course in Model.Courses.Where(c => !c.IsRCourse))
             {
                 @* Course Header Row *@
                 <tr bgcolor="#f8f9fa" style="background-color: #f8f9fa;">
@@ -87,6 +99,60 @@ else
         </table>
     </td>
 </tr>
+}
+
+@* R-Course Section (Resident Teaching) *@
+@if (Model.Courses.Any(c => c.IsRCourse))
+{
+    <tr>
+        <td class="email-content" style="padding: 0 20px 10px 20px;">
+            <h3 style="margin: 0; padding: 0 0 10px 0; color: #022851; font-size: 16px;">Resident Teaching (R-Course)</h3>
+            @if (Model.HasGenericRCourseWithZeroEffort)
+            {
+                <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#d1ecf1" style="background-color: #d1ecf1; margin-bottom: 10px;">
+                    <tr>
+                        <td style="padding: 10px 15px; color: #0c5460; font-size: 13px;">
+                            The Resident (R) course was added automatically to allow recording of resident teaching effort. If left with 0 effort and verified, it will be automatically removed.
+                        </td>
+                    </tr>
+                </table>
+            }
+            <table class="data-table section" cellpadding="0" cellspacing="0" border="1" bordercolor="#dee2e6" width="100%" style="border: 1px solid #dee2e6; border-collapse: collapse;">
+                <tr bgcolor="#022851" style="background-color: #022851;">
+                    <th align="left" style="padding: 10px; color: #ffffff; font-size: 13px;">Course</th>
+                    <th align="left" style="padding: 10px; color: #ffffff; font-size: 13px;">Units</th>
+                    <th align="left" style="padding: 10px; color: #ffffff; font-size: 13px;">Enrollment</th>
+                    <th align="left" style="padding: 10px; color: #ffffff; font-size: 13px;">Role</th>
+                </tr>
+                @foreach (var course in Model.Courses.Where(c => c.IsRCourse))
+                {
+                    <tr bgcolor="#f8f9fa" style="background-color: #f8f9fa;">
+                        <td style="padding: 10px; border-bottom: 1px solid #dee2e6; font-weight: bold;">@course.CourseCode</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #dee2e6;">@course.Units units</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #dee2e6;">@course.Enrollment</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #dee2e6;">@course.Role</td>
+                    </tr>
+                    @foreach (var item in course.EffortItems)
+                    {
+                        <tr @(item.IsZero ? "bgcolor=\"#f8d7da\" style=\"background-color: #f8d7da;\"" : "")>
+                            <td colspan="4" style="padding: 8px 10px 8px 30px; border-bottom: 1px solid #dee2e6;@(item.IsZero ? " color: #721c24; font-weight: bold;" : "")">
+                                @item.EffortType = @item.Value
+                                @if (item.IsZero)
+                                {
+                                    <span style="color: #721c24;">*** ZERO @item.Unit ***</span>
+                                }
+                                else
+                                {
+                                    @item.Unit
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </table>
+        </td>
+    </tr>
+}
 
 @* Child Courses Section *@
 @if (Model.ChildCourses.Any())
