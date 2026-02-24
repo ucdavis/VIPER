@@ -195,6 +195,93 @@ const routes = [
         name: "MyEffort",
     },
     {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/reports/teaching/grouped`,
+        meta: {
+            layout: EffortLayout,
+            permissions: [
+                "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
+                "SVMSecure.Effort.Reports",
+            ],
+        },
+        component: () => import("@/Effort/pages/TeachingActivityGrouped.vue"),
+        name: "TeachingActivityGrouped",
+    },
+    {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/reports/teaching/individual`,
+        meta: {
+            layout: EffortLayout,
+            permissions: [
+                "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
+                "SVMSecure.Effort.Reports",
+            ],
+        },
+        component: () => import("@/Effort/pages/TeachingActivityIndividual.vue"),
+        name: "TeachingActivityIndividual",
+    },
+    {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/reports/teaching/dept-summary`,
+        meta: {
+            layout: EffortLayout,
+            permissions: [
+                "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
+                "SVMSecure.Effort.Reports",
+            ],
+        },
+        component: () => import("@/Effort/pages/DeptSummary.vue"),
+        name: "DeptSummary",
+    },
+    {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/reports/teaching/school-summary`,
+        meta: {
+            layout: EffortLayout,
+            permissions: ["SVMSecure.Effort.ViewAllDepartments", "SVMSecure.Effort.SchoolSummary"],
+        },
+        component: () => import("@/Effort/pages/SchoolSummary.vue"),
+        name: "SchoolSummary",
+    },
+    {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/reports/merit/detail`,
+        meta: {
+            layout: EffortLayout,
+            permissions: [
+                "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
+                "SVMSecure.Effort.Reports",
+            ],
+        },
+        component: () => import("@/Effort/pages/MeritDetail.vue"),
+        name: "MeritDetail",
+    },
+    {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/reports/merit/average`,
+        meta: {
+            layout: EffortLayout,
+            permissions: [
+                "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
+                "SVMSecure.Effort.Reports",
+            ],
+        },
+        component: () => import("@/Effort/pages/MeritAverage.vue"),
+        name: "MeritAverage",
+    },
+    {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/reports/zero-effort`,
+        meta: {
+            layout: EffortLayout,
+            permissions: [
+                "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
+                "SVMSecure.Effort.Reports",
+            ],
+        },
+        component: () => import("@/Effort/pages/ZeroEffort.vue"),
+        name: "ZeroEffort",
+    },
+    {
         path: `/Effort/:termCode(${TERM_CODE_PATTERN})`,
         meta: { layout: EffortLayout, permissions: VIEW_ACCESS_PERMISSIONS },
         component: () => import("@/Effort/pages/EffortHome.vue"),

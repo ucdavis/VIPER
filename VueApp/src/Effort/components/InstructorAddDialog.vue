@@ -124,7 +124,12 @@
                     :loading="isSaving"
                     :disable="!selectedPerson"
                     @click="addInstructor"
-                />
+                >
+                    <template #loading>
+                        <q-spinner size="1em" class="q-mr-sm" />
+                        Add Instructor
+                    </template>
+                </q-btn>
             </q-card-actions>
         </q-card>
     </q-dialog>

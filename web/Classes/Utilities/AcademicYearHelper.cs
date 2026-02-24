@@ -12,10 +12,41 @@ public readonly record struct AcademicYearDateRange(DateTime StartDate, DateTime
 }
 
 /// <summary>
-/// Provides academic year date calculations.
+/// Provides academic year calculations from dates and term codes.
 /// </summary>
 public static class AcademicYearHelper
 {
+    // ── Term-code-based methods ──────────────────────────────────────
+
+    /// <summary>
+    /// Converts a 6-digit term code to academic year string (YYYY-YYYY).
+    /// Winter (01), Spring Semester (02), Spring Quarter (03) belong to the AY that started the previous calendar year.
+    /// Summer (04-08) and Fall (09-10) belong to the AY starting in the current calendar year.
+    /// E.g., 202501 → "2024-2025", 202410 → "2024-2025", 202504 → "2025-2026".
+    /// </summary>
+    public static string GetAcademicYearFromTermCode(int termCode)
+    {
+        int year = termCode / 100;
+        int term = termCode % 100;
+        int startYear = (term >= 1 && term <= 3) ? year - 1 : year;
+        return $"{startYear}-{startYear + 1}";
+    }
+
+    /// <summary>
+    /// Filters a collection of term codes to those belonging to the given academic year,
+    /// ordered descending (newest first).
+    /// </summary>
+    public static List<int> GetTermCodesForAcademicYear(IEnumerable<int> allTermCodes, int startYear)
+    {
+        var expectedYear = $"{startYear}-{startYear + 1}";
+        return allTermCodes
+            .Where(tc => GetAcademicYearFromTermCode(tc) == expectedYear)
+            .OrderByDescending(tc => tc)
+            .ToList();
+    }
+
+    // ── Date-based methods ───────────────────────────────────────────
+
     /// <summary>
     /// Gets the start date (July 1) of the academic year containing the given date.
     /// </summary>
