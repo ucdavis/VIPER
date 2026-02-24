@@ -134,9 +134,17 @@ else
                     </tr>
                     @foreach (var item in course.EffortItems)
                     {
-                        <tr>
-                            <td colspan="4" style="padding: 8px 10px 8px 30px; border-bottom: 1px solid #dee2e6;">
-                                @item.EffortType = @item.Value @item.Unit
+                        <tr @(item.IsZero ? "bgcolor=\"#f8d7da\" style=\"background-color: #f8d7da;\"" : "")>
+                            <td colspan="4" style="padding: 8px 10px 8px 30px; border-bottom: 1px solid #dee2e6;@(item.IsZero ? " color: #721c24; font-weight: bold;" : "")">
+                                @item.EffortType = @item.Value
+                                @if (item.IsZero)
+                                {
+                                    <span style="color: #721c24;">*** ZERO @item.Unit ***</span>
+                                }
+                                else
+                                {
+                                    @item.Unit
+                                }
                             </td>
                         </tr>
                     }

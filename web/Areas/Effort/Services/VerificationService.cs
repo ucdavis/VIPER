@@ -752,11 +752,11 @@ public class VerificationService : IVerificationService
         int? currentCourseId = null;
         EffortCourseGroup? currentGroup = null;
 
-        foreach (var record in records.OrderBy(r => r.Course.SubjCode)
+        foreach (var record in records.Where(r => r.Course != null)
+            .OrderBy(r => r.Course.SubjCode)
             .ThenBy(r => r.Course.CrseNumb)
             .ThenBy(r => r.Course.SeqNumb))
         {
-            if (record.Course == null) continue;
 
             var (effortValue, effortUnit) = GetEffortValueAndType(record, useWeeksForClinical);
             var isGenericRCourse = _classificationService.IsGenericRCourse(record.Course.Crn);

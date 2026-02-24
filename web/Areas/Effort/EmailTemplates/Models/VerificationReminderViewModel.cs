@@ -38,7 +38,7 @@ public class VerificationReminderViewModel : EmailViewModelBase
     public string VerificationUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// Whether any non-R-course effort records have zero effort.
+    /// Whether any effort records (excluding generic R-courses) have zero effort.
     /// </summary>
     public bool HasZeroEffort { get; set; }
 
@@ -117,12 +117,12 @@ public class EffortLineItem
 
     /// <summary>
     /// Whether this is a generic R-course (RES 000R) record.
-    /// Zero effort on R-courses is informational, not an error.
+    /// For the generic R-course only, zero effort is treated as informational, not an error.
     /// </summary>
     public bool IsGenericRCourse { get; set; }
 
     /// <summary>
-    /// Whether this record has zero effort (excludes generic R-courses).
+    /// Whether this record has zero effort (excluding the generic R-course, which is informational-only when zero).
     /// </summary>
     public bool IsZero => Value == 0 && !IsGenericRCourse;
 }
