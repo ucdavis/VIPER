@@ -1,11 +1,13 @@
 <template>
     <div class="q-pa-md">
-        <h2>Teaching Activity Report - Grouped by Department</h2>
+        <h2>Merit &amp; Promotion Report - Detail</h2>
 
         <ReportFilterForm
             :term-code="termCode"
             :loading="loading"
             :initial-filters="initialFilters"
+            :visible-fields="['department', 'faculty', 'role']"
+            :merit-only="true"
             @generate="generateReport"
         >
             <template #actions>
@@ -86,8 +88,6 @@
                                             <th class="col-role">Role</th>
                                             <th class="col-instructor">Instructor</th>
                                             <th class="col-course">Course</th>
-                                            <th class="col-units">Units</th>
-                                            <th class="col-enroll">Enrl</th>
                                             <th
                                                 v-for="type in orderedEffortTypes"
                                                 :key="type"
@@ -118,8 +118,6 @@
                                                     {{ instructor.instructor }}
                                                 </td>
                                                 <td>{{ course.course }}</td>
-                                                <td>{{ formatDecimal(course.units) }}</td>
-                                                <td>{{ course.enrollment }}</td>
                                                 <td
                                                     v-for="type in orderedEffortTypes"
                                                     :key="type"
@@ -132,10 +130,10 @@
                                             <!-- Instructor totals row -->
                                             <tr class="totals-row bg-grey-1">
                                                 <th
-                                                    colspan="6"
+                                                    colspan="4"
                                                     class="subt"
                                                 >
-                                                    {{ instructor.instructor }} Totals:
+                                                    Instructor Totals:
                                                 </th>
                                                 <td
                                                     v-for="type in orderedEffortTypes"
@@ -150,7 +148,7 @@
 
                                         <!-- Re-display effort type headers before department totals -->
                                         <tr class="header-repeat">
-                                            <th colspan="6"></th>
+                                            <th colspan="4"></th>
                                             <th
                                                 v-for="type in orderedEffortTypes"
                                                 :key="type"
@@ -164,7 +162,7 @@
                                         <!-- Department totals row -->
                                         <tr class="dept-totals-row bg-grey-4">
                                             <th
-                                                colspan="6"
+                                                colspan="4"
                                                 class="subt"
                                             >
                                                 Department Totals:
@@ -203,7 +201,7 @@ import { reportService } from "../services/report-service"
 import { useReportPage } from "../composables/use-report-page"
 import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
-import type { TeachingActivityReport } from "../types"
+import type { MeritDetailReport } from "../types"
 
 const {
     termCode,
@@ -215,16 +213,11 @@ const {
     getTotalValue,
     generateReport,
     handlePrint,
-} = useReportPage<TeachingActivityReport>({
-    fetchReport: (params) => reportService.getTeachingActivityGrouped(params),
-    fetchPdf: (params) => reportService.openPdf("teaching/grouped/pdf", params),
+} = useReportPage<MeritDetailReport>({
+    fetchReport: (params) => reportService.getMeritDetail(params),
+    fetchPdf: (params) => reportService.openPdf("merit/detail/pdf", params),
     getEffortTypes: (r) => r.effortTypes,
 })
-
-/** Strip trailing zeros: 12.00 → "12", 10.50 → "10.5" */
-function formatDecimal(value: number): string {
-    return parseFloat(value.toString()).toString()
-}
 
 const activeDept = ref(0)
 
@@ -243,13 +236,5 @@ watch(
 <style scoped>
 .dept-section {
     margin-bottom: 2rem;
-}
-
-.report-table .col-units {
-    width: 3.5rem;
-}
-
-.report-table .col-enroll {
-    width: 3.5rem;
 }
 </style>

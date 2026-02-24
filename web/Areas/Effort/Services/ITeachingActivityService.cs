@@ -14,7 +14,7 @@ public interface ITeachingActivityService
     /// </summary>
     Task<TeachingActivityReport> GetTeachingActivityReportAsync(
         int termCode,
-        string? department = null,
+        IReadOnlyList<string>? departments = null,
         int? personId = null,
         string? role = null,
         string? jobGroupId = null,
@@ -26,14 +26,19 @@ public interface ITeachingActivityService
     /// </summary>
     Task<TeachingActivityReport> GetTeachingActivityReportByYearAsync(
         string academicYear,
-        string? department = null,
+        IReadOnlyList<string>? departments = null,
         int? personId = null,
         string? role = null,
         string? jobGroupId = null,
         CancellationToken ct = default);
 
     /// <summary>
-    /// Generate a PDF document from a teaching activity report.
+    /// Generate a PDF document from a teaching activity report (grouped layout, one page per department).
     /// </summary>
     Task<byte[]> GenerateReportPdfAsync(TeachingActivityReport report);
+
+    /// <summary>
+    /// Generate a PDF document from a teaching activity report in individual (per-instructor) layout.
+    /// </summary>
+    Task<byte[]> GenerateIndividualReportPdfAsync(TeachingActivityReport report);
 }

@@ -1,0 +1,72 @@
+/* Shared styles for effort report tables (DeptSummary, SchoolSummary, MeritAverage, MeritDetail, TeachingActivityGrouped/Individual) */
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.report-table th {
+    text-align: left;
+    text-decoration: underline;
+    font-size: 0.8em;
+    padding: 0.25rem 0.5rem;
+}
+
+.report-table td {
+    padding: 0.25rem 0.5rem;
+    vertical-align: top;
+}
+
+.report-table th.subt {
+    text-align: right;
+    text-decoration: none;
+    padding-right: 0.625rem;
+    font-style: italic;
+}
+
+.report-table td.total {
+    font-weight: bold;
+}
+
+.report-table .col-effort {
+    white-space: nowrap;
+}
+
+.report-table .col-spacer {
+    padding-right: 2.5rem;
+}
+
+.col-instructor {
+    width: 12rem;
+}
+
+.instructor-cell {
+    vertical-align: top;
+    font-weight: 500;
+}
+
+.col-qtr {
+    width: 4rem;
+}
+
+.col-role {
+    width: 3rem;
+}
+
+.header-repeat {
+    border-top: 2px solid var(--ucdavis-black-40);
+}
+
+.dept-totals-row {
+    border-top: 2px solid var(--ucdavis-black-60);
+}
+
+.totals-row {
+    border-top: 1px solid var(--ucdavis-black-20);
+}
+
+.counts-row {
+    font-size: 0.85em;
+    color: var(--ucdavis-black-60);
+}

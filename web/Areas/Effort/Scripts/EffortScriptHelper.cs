@@ -5,7 +5,6 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Amazon;
 using Amazon.Extensions.NETCore.Setup;
-
 namespace Viper.Areas.Effort.Scripts
 {
     /// <summary>
@@ -150,21 +149,15 @@ namespace Viper.Areas.Effort.Scripts
 
         /// <summary>
         /// Converts a term code to academic year format (YYYY-YYYY).
-        /// Academic year runs from Fall through Spring (e.g., 2024-2025 includes Fall 2024 and Spring 2025).
-        /// Winter (01), Spring Semester (02), and Spring Quarter (03) belong to the academic year that started in the previous calendar year.
-        /// All other terms (Summer, Fall) belong to the academic year starting in the current calendar year.
+        /// Winter (01), Spring Semester (02), Spring Quarter (03) → previous calendar year's AY.
+        /// All other terms (Summer, Fall) → current calendar year's AY.
+        /// NOTE: Duplicates AcademicYearHelper logic because EffortMigration is a standalone project.
         /// </summary>
-        /// <param name="termCode">Term code (e.g., 202502 returns "2024-2025", 202410 returns "2024-2025")</param>
-        /// <returns>Academic year string (e.g., "2024-2025")</returns>
         private static string GetAcademicYearFromTermCode(int termCode)
         {
             int year = termCode / 100;
             int term = termCode % 100;
-
-            // Winter Quarter (01), Spring Semester (02), and Spring Quarter (03) belong to academic year that started previous calendar year
-            // All other terms (Summer, Fall) start or belong to academic year in the current calendar year
             int startYear = (term >= 1 && term <= 3) ? year - 1 : year;
-
             return $"{startYear}-{startYear + 1}";
         }
 

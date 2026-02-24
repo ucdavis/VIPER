@@ -1,6 +1,3 @@
-using System.Data;
-using System.Text.RegularExpressions;
-using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -8,41 +5,35 @@ using Viper.Areas.Effort.Models.DTOs.Responses;
 
 namespace Viper.Areas.Effort.Services;
 
-public partial class TeachingActivityService : ITeachingActivityService
+public class TeachingActivityService : BaseReportService, ITeachingActivityService
 {
-    private readonly EffortDbContext _context;
     private readonly ITermService _termService;
-    private readonly ILogger<TeachingActivityService> _logger;
 
     public TeachingActivityService(
         EffortDbContext context,
-        ITermService termService,
-        ILogger<TeachingActivityService> logger)
+        ITermService termService)
+        : base(context)
     {
-        _context = context;
         _termService = termService;
-        _logger = logger;
     }
-
-    [GeneratedRegex(@"^(\d{4})-(\d{4})$")]
-    private static partial Regex AcademicYearRegex();
 
     public async Task<TeachingActivityReport> GetTeachingActivityReportAsync(
         int termCode,
-        string? department = null,
+        IReadOnlyList<string>? departments = null,
         int? personId = null,
         string? role = null,
         string? jobGroupId = null,
         CancellationToken ct = default)
     {
-        var rows = await ExecuteReportSpAsync(termCode, department, personId, role, jobGroupId, ct);
+        var rows = await ExecuteGeneralReportForDepartmentsAsync(termCode, departments, personId, role, jobGroupId, ct);
         var term = await _termService.GetTermAsync(termCode, ct);
+        var filterDept = departments is { Count: 1 } ? departments[0] : null;
 
         var report = new TeachingActivityReport
         {
             TermCode = termCode,
             TermName = term?.TermName ?? _termService.GetTermName(termCode),
-            FilterDepartment = department,
+            FilterDepartment = filterDept,
             FilterPerson = personId?.ToString(),
             FilterRole = role,
             FilterTitle = jobGroupId
@@ -53,19 +44,14 @@ public partial class TeachingActivityService : ITeachingActivityService
 
     public async Task<TeachingActivityReport> GetTeachingActivityReportByYearAsync(
         string academicYear,
-        string? department = null,
+        IReadOnlyList<string>? departments = null,
         int? personId = null,
         string? role = null,
         string? jobGroupId = null,
         CancellationToken ct = default)
     {
-        var match = AcademicYearRegex().Match(academicYear);
-        if (!match.Success)
-        {
-            throw new ArgumentException($"Invalid academic year format: {academicYear}. Expected format: YYYY-YYYY");
-        }
-
-        var startYear = int.Parse(match.Groups[1].Value);
+        var startYear = ParseAcademicYearStart(academicYear);
+        var filterDept = departments is { Count: 1 } ? departments[0] : null;
 
         // Resolve all term codes in this academic year from TermStatus
         var termCodes = await GetTermCodesForAcademicYearAsync(startYear, ct);
@@ -76,61 +62,33 @@ public partial class TeachingActivityService : ITeachingActivityService
             {
                 TermName = academicYear,
                 AcademicYear = academicYear,
-                FilterDepartment = department,
+                FilterDepartment = filterDept,
                 FilterPerson = personId?.ToString(),
                 FilterRole = role,
                 FilterTitle = jobGroupId
             };
         }
 
-        // Call SP for each term and merge all rows
+        // Call SP for each term (and each department) and merge all rows
         var allRows = new List<TeachingActivityRow>();
         foreach (var tc in termCodes)
         {
-            var rows = await ExecuteReportSpAsync(tc, department, personId, role, jobGroupId, ct);
+            var rows = await ExecuteGeneralReportForDepartmentsAsync(tc, departments, personId, role, jobGroupId, ct);
             allRows.AddRange(rows);
         }
 
         var report = new TeachingActivityReport
         {
-            TermCode = termCodes.First(),
+            TermCode = termCodes[0],
             TermName = academicYear,
             AcademicYear = academicYear,
-            FilterDepartment = department,
+            FilterDepartment = filterDept,
             FilterPerson = personId?.ToString(),
             FilterRole = role,
             FilterTitle = jobGroupId
         };
 
         return BuildReport(report, allRows);
-    }
-
-    /// <summary>
-    /// Get academic year string for a term code. Fall (month >= 9) starts a new academic year.
-    /// E.g., 202409 → "2024-2025", 202501 → "2024-2025".
-    /// </summary>
-    public static string GetAcademicYear(int termCode)
-    {
-        var year = termCode / 100;
-        var month = termCode % 100;
-        var startYear = month >= 9 ? year : year - 1;
-        return $"{startYear}-{startYear + 1}";
-    }
-
-    /// <summary>
-    /// Get all term codes from TermStatus that belong to the given academic year.
-    /// Academic year starts with Fall (month >= 9) of startYear through Summer (month &lt; 9) of startYear + 1.
-    /// </summary>
-    private async Task<List<int>> GetTermCodesForAcademicYearAsync(int startYear, CancellationToken ct)
-    {
-        var allTerms = await _context.Terms
-            .Select(t => t.TermCode)
-            .ToListAsync(ct);
-
-        return allTerms
-            .Where(tc => GetAcademicYear(tc) == $"{startYear}-{startYear + 1}")
-            .OrderByDescending(tc => tc)
-            .ToList();
     }
 
     private static TeachingActivityReport BuildReport(TeachingActivityReport report, List<TeachingActivityRow> rows)
@@ -208,7 +166,7 @@ public partial class TeachingActivityService : ITeachingActivityService
                     var typeId = row.EffortTypeId.Trim();
                     if (!string.IsNullOrWhiteSpace(typeId))
                     {
-                        effortByType[typeId] = effortByType.GetValueOrDefault(typeId) + row.Hours;
+                        effortByType[typeId] = effortByType.GetValueOrDefault(typeId) + row.EffortValue;
                     }
                 }
 
@@ -247,78 +205,27 @@ public partial class TeachingActivityService : ITeachingActivityService
         };
     }
 
-    private async Task<List<TeachingActivityRow>> ExecuteReportSpAsync(
-        int termCode,
-        string? department,
-        int? personId,
-        string? role,
-        string? jobGroupId,
-        CancellationToken ct)
-    {
-        var connectionString = _context.Database.GetConnectionString()
-            ?? throw new InvalidOperationException("Database connection string not configured");
-
-        var results = new List<TeachingActivityRow>();
-
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
-        await connection.OpenAsync(ct);
-
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_effort_general_report]", connection);
-        command.CommandType = CommandType.StoredProcedure;
-        command.Parameters.AddWithValue("@TermCode", termCode);
-        command.Parameters.AddWithValue("@Department", (object?)department ?? DBNull.Value);
-        command.Parameters.AddWithValue("@PersonId", personId.HasValue ? personId.Value : DBNull.Value);
-        command.Parameters.AddWithValue("@Role", (object?)role ?? DBNull.Value);
-        command.Parameters.AddWithValue("@JobGroupId", (object?)jobGroupId ?? DBNull.Value);
-
-        await using var reader = await command.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct))
-        {
-            results.Add(new TeachingActivityRow
-            {
-                TermCode = termCode,
-                MothraId = reader.GetString(0),
-                Instructor = reader.GetString(1),
-                JobGroupId = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                Department = reader.IsDBNull(3) ? "" : reader.GetString(3),
-                CourseId = reader.GetInt32(4),
-                Course = reader.GetString(5),
-                Crn = reader.IsDBNull(6) ? "" : reader.GetString(6),
-                Units = reader.IsDBNull(7) ? 0m : reader.GetDecimal(7),
-                Enrollment = reader.IsDBNull(8) ? 0 : reader.GetInt32(8),
-                RoleId = reader.IsDBNull(9) ? "" : reader.GetString(9),
-                EffortTypeId = reader.IsDBNull(10) ? "" : reader.GetString(10),
-                Hours = reader.IsDBNull(11) ? 0m : reader.GetInt32(11),
-                Weeks = reader.IsDBNull(12) ? 0m : reader.GetInt32(12)
-            });
-        }
-
-        _logger.LogDebug("Teaching activity report for term {TermCode}: {RowCount} rows returned", termCode, results.Count);
-        return results;
-    }
-
-    private static readonly string[] AlwaysShowEffortTypes = ["CLI", "VAR", "LEC", "LAB", "DIS", "PBL", "CBL", "TBL", "PRS", "JLC", "EXM"];
-    private static readonly HashSet<string> SpacerColumns = new() { "VAR", "EXM" };
-
     public Task<byte[]> GenerateReportPdfAsync(TeachingActivityReport report)
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 
-        // Adaptive layout: compact when many effort type columns (e.g., academic year reports)
-        var compact = orderedTypes.Count > 14;
+        // Compact when 12+ effort types: with 6 fixed columns (Qtr, Role, Instructor,
+        // Course, Units, Enroll), non-compact overflows the page at 12+ effort types
+        var compact = orderedTypes.Count > 11;
         var fontSize = compact ? 8.5f : 10f;
         var headerFontSize = compact ? 7.5f : 8.5f;
         var hMargin = compact ? 0.35f : 0.5f;
         var cellPadV = compact ? 1.5f : 2f;
         var qtrWidth = compact ? 36f : 48f;
-        var roleWidth = compact ? 18f : 24f;
+        var roleWidth = compact ? 22f : 32f;
         var instructorWidth = compact ? 90f : 130f;
+        var courseWidth = compact ? 70f : 100f;
         var unitsWidth = compact ? 22f : 30f;
-        var enrlWidth = compact ? 22f : 30f;
-        var effortWidth = compact ? 22f : 30f;
-        var spacerWidth = compact ? 28f : 40f;
+        var enrlWidth = compact ? 42f : 70f;
+        var effortWidth = compact ? 24f : 32f;
+        var spacerWidth = compact ? 42f : 70f;
 
         var document = Document.Create(container =>
         {
@@ -352,8 +259,8 @@ public partial class TeachingActivityService : ITeachingActivityService
                         {
                             columns.ConstantColumn(qtrWidth);
                             columns.ConstantColumn(roleWidth);
-                            columns.ConstantColumn(instructorWidth);
-                            columns.RelativeColumn();  // Course (fills remaining space)
+                            columns.RelativeColumn(instructorWidth);
+                            columns.RelativeColumn(courseWidth);
                             columns.ConstantColumn(unitsWidth);
                             columns.ConstantColumn(enrlWidth);
                             foreach (var type in orderedTypes)
@@ -434,12 +341,18 @@ public partial class TeachingActivityService : ITeachingActivityService
                         }
                     });
 
-                    page.Footer().AlignCenter().Text(x =>
+                    page.Footer().Column(col =>
                     {
-                        x.Span("Page ");
-                        x.CurrentPageNumber();
-                        x.Span(" of ");
-                        x.TotalPages();
+                        AddPdfFilterLine(col.Item(),
+                            ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
+                            ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
+                        col.Item().AlignCenter().Text(x =>
+                        {
+                            x.Span("Page ");
+                            x.CurrentPageNumber();
+                            x.Span(" of ");
+                            x.TotalPages();
+                        });
                     });
                 });
             }
@@ -448,19 +361,133 @@ public partial class TeachingActivityService : ITeachingActivityService
         return Task.FromResult(document.GeneratePdf());
     }
 
-    private static List<string> GetOrderedEffortTypes(List<string> effortTypes)
+    public Task<byte[]> GenerateIndividualReportPdfAsync(TeachingActivityReport report)
     {
-        var ordered = new List<string>(AlwaysShowEffortTypes);
-        var remaining = effortTypes
-            .Where(t => !AlwaysShowEffortTypes.Contains(t))
-            .OrderBy(t => t)
+        QuestPDF.Settings.License = LicenseType.Community;
+
+        var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
+
+        // Compact when 12+ effort types: with fixed columns, non-compact overflows the page
+        var compact = orderedTypes.Count > 11;
+        var fontSize = compact ? 8.5f : 10f;
+        var headerFontSize = compact ? 7.5f : 8.5f;
+        var hMargin = compact ? 0.35f : 0.5f;
+        var cellPadV = compact ? 1.5f : 2f;
+        var qtrWidth = compact ? 36f : 48f;
+        var roleWidth = compact ? 22f : 32f;
+        var courseWidth = compact ? 70f : 100f;
+        var unitsWidth = compact ? 22f : 30f;
+        var enrlWidth = compact ? 42f : 70f;
+        var effortWidth = compact ? 24f : 32f;
+        var spacerWidth = compact ? 42f : 70f;
+
+        // Flatten all instructors across departments for individual layout
+        var allInstructors = report.Departments
+            .SelectMany(d => d.Instructors.Select(i => (Dept: d.Department, Instructor: i)))
             .ToList();
-        ordered.AddRange(remaining);
-        return ordered;
+
+        var document = Document.Create(container =>
+        {
+            // One page per instructor (matching legacy behavior)
+            foreach (var (dept, instructor) in allInstructors)
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.Letter.Landscape());
+                    page.MarginHorizontal(hMargin, Unit.Inch);
+                    page.MarginVertical(0.25f, Unit.Inch);
+                    page.DefaultTextStyle(x => x.FontSize(fontSize));
+
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Row(row =>
+                        {
+                            row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
+                            row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
+                        });
+                        col.Item().PaddingVertical(6).Row(row =>
+                        {
+                            row.RelativeItem().Text("Teaching Activity Report (Individual)").SemiBold().FontSize(12);
+                            row.RelativeItem().AlignCenter().Text(dept).SemiBold().FontSize(12);
+                            row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
+                        });
+                        // Instructor name below the sub-header
+                        col.Item().PaddingBottom(4).Text(instructor.Instructor).Bold().FontSize(11);
+                    });
+
+                    page.Content().Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.ConstantColumn(qtrWidth);
+                            columns.ConstantColumn(roleWidth);
+                            columns.RelativeColumn(courseWidth);
+                            columns.ConstantColumn(unitsWidth);
+                            columns.ConstantColumn(enrlWidth);
+                            foreach (var type in orderedTypes)
+                            {
+                                columns.ConstantColumn(SpacerColumns.Contains(type) ? spacerWidth : effortWidth);
+                            }
+                        });
+
+                        var hdrStyle = TextStyle.Default.FontSize(headerFontSize).Bold().Underline();
+                        table.Header(header =>
+                        {
+                            header.Cell().PaddingVertical(cellPadV).Text("Qtr").Style(hdrStyle);
+                            header.Cell().PaddingVertical(cellPadV).Text("Role").Style(hdrStyle);
+                            header.Cell().PaddingVertical(cellPadV).Text("Course").Style(hdrStyle);
+                            header.Cell().PaddingVertical(cellPadV).Text("Units").Style(hdrStyle);
+                            header.Cell().PaddingVertical(cellPadV).Text("Enrl").Style(hdrStyle);
+                            foreach (var type in orderedTypes)
+                            {
+                                header.Cell().PaddingVertical(cellPadV).Text(type).Style(hdrStyle);
+                            }
+                        });
+
+                        foreach (var course in instructor.Courses)
+                        {
+                            table.Cell().PaddingVertical(cellPadV).Text(course.TermCode.ToString());
+                            table.Cell().PaddingVertical(cellPadV).PaddingLeft(4).Text(course.RoleId);
+                            table.Cell().PaddingVertical(cellPadV).Text(course.Course);
+                            table.Cell().PaddingVertical(cellPadV).Text(course.Units.ToString("G29"));
+                            table.Cell().PaddingVertical(cellPadV).Text(course.Enrollment.ToString());
+                            foreach (var type in orderedTypes)
+                            {
+                                var val = course.EffortByType.GetValueOrDefault(type, 0);
+                                table.Cell().PaddingVertical(cellPadV).Text(val > 0 ? val.ToString() : "0");
+                            }
+                        }
+
+                        // Instructor totals row
+                        table.Cell().ColumnSpan(5).Background("#F8F8F8").BorderTop(0.5f).BorderColor("#CCCCCC")
+                            .PaddingVertical(cellPadV).AlignRight().PaddingRight(8)
+                            .Text($"{instructor.Instructor} Totals:").Italic().Bold();
+                        foreach (var type in orderedTypes)
+                        {
+                            var val = instructor.InstructorTotals.GetValueOrDefault(type, 0);
+                            table.Cell().Background("#F8F8F8").BorderTop(0.5f).BorderColor("#CCCCCC")
+                                .PaddingVertical(cellPadV).Text(val > 0 ? val.ToString() : "0").Bold();
+                        }
+                    });
+
+                    page.Footer().Column(col =>
+                    {
+                        AddPdfFilterLine(col.Item(),
+                            ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
+                            ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
+                        col.Item().AlignCenter().Text(x =>
+                        {
+                            x.Span("Page ");
+                            x.CurrentPageNumber();
+                            x.Span(" of ");
+                            x.TotalPages();
+                        });
+                    });
+                });
+            }
+        });
+
+        return Task.FromResult(document.GeneratePdf());
     }
 
-    private static TextStyle HeaderStyle()
-    {
-        return TextStyle.Default.FontSize(7).Underline();
-    }
 }
