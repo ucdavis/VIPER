@@ -1,6 +1,6 @@
 @*
-    Base email layout with UC Davis branding.
-    All child templates should set ViewBag.Title and optionally ViewBag.Subtitle.
+    Base email layout with UC Davis Weill branding.
+    All child templates should set ViewBag.Title and ViewBag.BaseUrl.
 *@
 <!DOCTYPE html>
 <html>
@@ -21,7 +21,7 @@
                 padding: 15px !important;
             }
             .email-header {
-                padding: 20px 15px !important;
+                padding: 0 !important;
             }
             .data-table {
                 font-size: 12px !important;
@@ -40,17 +40,19 @@
             <td class="email-wrapper" style="padding: 20px;" align="center">
                 @* Use width attribute for Outlook, max-width for modern clients. Class for responsive override. *@
                 <table class="email-container" cellpadding="0" cellspacing="0" border="0" width="650" bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid #dee2e6; max-width: 650px; width: 100%;">
-                    @* UC Davis Header *@
+                    @* UC Davis Weill Header Image *@
                     <tr>
-                        <td class="email-header" bgcolor="#022851" style="background-color: #022851; padding: 25px;">
-                            <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 22px; font-weight: bold;">@ViewBag.Title</h1>
-                            @if (ViewBag.Subtitle != null)
+                        <td class="email-header" style="padding: 0; line-height: 0; font-size: 0;">
+                            @if (!string.IsNullOrWhiteSpace((string?)ViewBag.BaseUrl))
                             {
-                                <p style="margin: 8px 0 0 0; padding: 0; color: #b3c7e6; font-size: 14px;">@ViewBag.Subtitle</p>
+                                <img src="@(ViewBag.BaseUrl)/images/email/email-header-weill.jpg"
+                                     alt="UC Davis Weill School of Veterinary Medicine"
+                                     width="650"
+                                     style="display: block; width: 100%; max-width: 650px; height: auto; border: 0;" />
                             }
-                            @if (ViewBag.SubtitleExtra != null)
+                            else
                             {
-                                <p style="margin: 4px 0 0 0; padding: 0; color: #b3c7e6; font-size: 13px;">@ViewBag.SubtitleExtra</p>
+                                <h1 style="margin: 0; padding: 16px 20px; color: #022851; font-size: 22px;">@ViewBag.Title</h1>
                             }
                         </td>
                     </tr>

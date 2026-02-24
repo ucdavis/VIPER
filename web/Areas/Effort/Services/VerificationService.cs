@@ -748,6 +748,7 @@ public class VerificationService : IVerificationService
         // Group records by course
         var courseGroups = new List<EffortCourseGroup>();
         var hasZeroEffort = false;
+        var hasGenericRCourseWithZeroEffort = false;
         int? currentCourseId = null;
         EffortCourseGroup? currentGroup = null;
 
@@ -755,9 +756,16 @@ public class VerificationService : IVerificationService
             .ThenBy(r => r.Course.CrseNumb)
             .ThenBy(r => r.Course.SeqNumb))
         {
-            var (effortValue, effortUnit) = GetEffortValueAndType(record, useWeeksForClinical);
+            if (record.Course == null) continue;
 
-            if (effortValue == 0)
+            var (effortValue, effortUnit) = GetEffortValueAndType(record, useWeeksForClinical);
+            var isGenericRCourse = _classificationService.IsGenericRCourse(record.Course.Crn);
+
+            if (isGenericRCourse && effortValue == 0)
+            {
+                hasGenericRCourseWithZeroEffort = true;
+            }
+            else if (effortValue == 0)
             {
                 hasZeroEffort = true;
             }
@@ -771,6 +779,7 @@ public class VerificationService : IVerificationService
                     Units = record.Course.Units,
                     Enrollment = record.Course.Enrollment,
                     Role = record.RoleNavigation.Description,
+                    IsRCourse = _classificationService.IsRCourse(record.Course.CrseNumb),
                     EffortItems = new List<EffortLineItem>()
                 };
                 courseGroups.Add(currentGroup);
@@ -782,7 +791,8 @@ public class VerificationService : IVerificationService
             {
                 EffortType = record.EffortTypeId,
                 Value = effortValue,
-                Unit = effortUnit
+                Unit = effortUnit,
+                IsGenericRCourse = isGenericRCourse
             });
         }
 
@@ -811,6 +821,7 @@ public class VerificationService : IVerificationService
             ReplyByDate = replyByDate,
             VerificationUrl = verificationUrl,
             HasZeroEffort = hasZeroEffort,
+            HasGenericRCourseWithZeroEffort = hasGenericRCourseWithZeroEffort,
             HasNoRecords = records.Count == 0,
             Courses = courseGroups,
             ChildCourses = childCoursesList
