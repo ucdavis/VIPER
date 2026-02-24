@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Teaching Activity Report - Grouped by Department</h2>
+        <h2>Teaching Activity Report - Department Summary</h2>
 
         <ReportFilterForm
             :term-code="termCode"
@@ -82,12 +82,7 @@
                                 <table class="report-table">
                                     <thead>
                                         <tr>
-                                            <th class="col-qtr">Qtr</th>
-                                            <th class="col-role">Role</th>
                                             <th class="col-instructor">Instructor</th>
-                                            <th class="col-course">Course</th>
-                                            <th class="col-units">Units</th>
-                                            <th class="col-enroll">Enrl</th>
                                             <th
                                                 v-for="type in orderedEffortTypes"
                                                 :key="type"
@@ -99,58 +94,23 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <template
+                                        <tr
                                             v-for="instructor in dept.instructors"
                                             :key="instructor.mothraId"
                                         >
-                                            <!-- Course rows with instructor rowspan on first row -->
-                                            <tr
-                                                v-for="(course, courseIdx) in instructor.courses"
-                                                :key="`${course.termCode}_${course.courseId}_${course.roleId}`"
+                                            <td class="instructor-cell">{{ instructor.instructor }}</td>
+                                            <td
+                                                v-for="type in orderedEffortTypes"
+                                                :key="type"
+                                                :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
                                             >
-                                                <td>{{ course.termCode }}</td>
-                                                <td>{{ course.roleId }}</td>
-                                                <td
-                                                    v-if="courseIdx === 0"
-                                                    :rowspan="instructor.courses.length"
-                                                    class="instructor-cell"
-                                                >
-                                                    {{ instructor.instructor }}
-                                                </td>
-                                                <td>{{ course.course }}</td>
-                                                <td>{{ formatDecimal(course.units) }}</td>
-                                                <td>{{ course.enrollment }}</td>
-                                                <td
-                                                    v-for="type in orderedEffortTypes"
-                                                    :key="type"
-                                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
-                                                >
-                                                    {{ getTotalValue(course.effortByType ?? {}, type) }}
-                                                </td>
-                                            </tr>
-
-                                            <!-- Instructor totals row -->
-                                            <tr class="totals-row bg-grey-1">
-                                                <th
-                                                    colspan="6"
-                                                    class="subt"
-                                                >
-                                                    {{ instructor.instructor }} Totals:
-                                                </th>
-                                                <td
-                                                    v-for="type in orderedEffortTypes"
-                                                    :key="type"
-                                                    class="total"
-                                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
-                                                >
-                                                    {{ getTotalValue(instructor.instructorTotals, type) }}
-                                                </td>
-                                            </tr>
-                                        </template>
+                                                {{ getTotalValue(instructor.effortByType ?? {}, type) }}
+                                            </td>
+                                        </tr>
 
                                         <!-- Re-display effort type headers before department totals -->
                                         <tr class="header-repeat">
-                                            <th colspan="6"></th>
+                                            <th></th>
                                             <th
                                                 v-for="type in orderedEffortTypes"
                                                 :key="type"
@@ -163,12 +123,7 @@
 
                                         <!-- Department totals row -->
                                         <tr class="dept-totals-row bg-grey-4">
-                                            <th
-                                                colspan="6"
-                                                class="subt"
-                                            >
-                                                Department Totals:
-                                            </th>
+                                            <th class="subt">Department Totals:</th>
                                             <td
                                                 v-for="type in orderedEffortTypes"
                                                 :key="type"
@@ -176,6 +131,27 @@
                                                 :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
                                             >
                                                 {{ getTotalValue(dept.departmentTotals, type) }}
+                                            </td>
+                                        </tr>
+
+                                        <!-- Number Faculty row -->
+                                        <tr class="counts-row">
+                                            <td colspan="100%">Number Faculty: {{ dept.facultyCount }}</td>
+                                        </tr>
+
+                                        <!-- Faculty w/ CLI + averages row -->
+                                        <tr class="dept-averages-row bg-grey-3">
+                                            <th class="subt avg-label">
+                                                Faculty w/ CLI assigned: {{ dept.facultyWithCliCount }}
+                                                &emsp; Average
+                                            </th>
+                                            <td
+                                                v-for="type in orderedEffortTypes"
+                                                :key="type"
+                                                class="total"
+                                                :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                            >
+                                                {{ getAverageValue(dept.departmentAverages, type) }}
                                             </td>
                                         </tr>
                                     </tbody>
@@ -203,7 +179,7 @@ import { reportService } from "../services/report-service"
 import { useReportPage } from "../composables/use-report-page"
 import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
-import type { TeachingActivityReport } from "../types"
+import type { DeptSummaryReport } from "../types"
 
 const {
     termCode,
@@ -213,18 +189,14 @@ const {
     initialFilters,
     orderedEffortTypes,
     getTotalValue,
+    getAverageValue,
     generateReport,
     handlePrint,
-} = useReportPage<TeachingActivityReport>({
-    fetchReport: (params) => reportService.getTeachingActivityGrouped(params),
-    fetchPdf: (params) => reportService.openPdf("teaching/grouped/pdf", params),
+} = useReportPage<DeptSummaryReport>({
+    fetchReport: (params) => reportService.getDeptSummary(params),
+    fetchPdf: (params) => reportService.openPdf("teaching/dept-summary/pdf", params),
     getEffortTypes: (r) => r.effortTypes,
 })
-
-/** Strip trailing zeros: 12.00 → "12", 10.50 → "10.5" */
-function formatDecimal(value: number): string {
-    return parseFloat(value.toString()).toString()
-}
 
 const activeDept = ref(0)
 
@@ -243,13 +215,5 @@ watch(
 <style scoped>
 .dept-section {
     margin-bottom: 2rem;
-}
-
-.report-table .col-units {
-    width: 3.5rem;
-}
-
-.report-table .col-enroll {
-    width: 3.5rem;
 }
 </style>

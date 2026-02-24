@@ -13,9 +13,10 @@ public interface IInstructorService
     /// </summary>
     /// <param name="termCode">The term code.</param>
     /// <param name="department">Optional department filter.</param>
+    /// <param name="meritOnly">When true, restrict to merit-eligible job groups.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of instructors.</returns>
-    Task<List<PersonDto>> GetInstructorsAsync(int termCode, string? department = null, CancellationToken ct = default);
+    Task<List<PersonDto>> GetInstructorsAsync(int termCode, string? department = null, bool meritOnly = false, CancellationToken ct = default);
 
     /// <summary>
     /// Get all instructors for a term filtered by multiple departments.
@@ -23,9 +24,10 @@ public interface IInstructorService
     /// </summary>
     /// <param name="termCode">The term code.</param>
     /// <param name="departments">List of department codes to include.</param>
+    /// <param name="meritOnly">When true, restrict to merit-eligible job groups.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of instructors sorted by last name, first name.</returns>
-    Task<List<PersonDto>> GetInstructorsByDepartmentsAsync(int termCode, IReadOnlyList<string> departments, CancellationToken ct = default);
+    Task<List<PersonDto>> GetInstructorsByDepartmentsAsync(int termCode, IReadOnlyList<string> departments, bool meritOnly = false, CancellationToken ct = default);
 
     /// <summary>
     /// Get a single instructor by person ID and term code.

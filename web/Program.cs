@@ -242,6 +242,10 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentRolloverService, Viper.Areas.Effort.Services.PercentRolloverService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalImportService, Viper.Areas.Effort.Services.ClinicalImportService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.ITeachingActivityService, Viper.Areas.Effort.Services.TeachingActivityService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IDeptSummaryService, Viper.Areas.Effort.Services.DeptSummaryService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.ISchoolSummaryService, Viper.Areas.Effort.Services.SchoolSummaryService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritReportService, Viper.Areas.Effort.Services.MeritReportService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IZeroEffortService, Viper.Areas.Effort.Services.ZeroEffortService>();
     builder.Services.Configure<Viper.Areas.Effort.EffortSettings>(builder.Configuration.GetSection("EffortSettings"));
 
     // In development, derive BaseUrl from ASPNETCORE_HTTPS_PORT if not explicitly configured

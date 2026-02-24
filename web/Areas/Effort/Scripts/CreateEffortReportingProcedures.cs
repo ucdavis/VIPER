@@ -711,7 +711,7 @@ END;
         {
             return @"
 CREATE OR ALTER PROCEDURE [effort].[sp_merit_report]
-    @PersonId INT,
+    @PersonId INT = NULL,
     @StartTermCode INT,
     @EndTermCode INT,
     @Department CHAR(6) = NULL,
@@ -720,7 +720,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Detailed merit report for a specific person across date range
+    -- Detailed merit report across date range, optionally filtered to a specific person
     -- Returns effort breakdown by course and effort type
 
     SELECT
@@ -732,17 +732,17 @@ BEGIN
         RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
         c.Units,
         c.Enrollment,
-        r.RoleId,
+        CAST(r.RoleId as varchar(50)) as RoleId,
         r.EffortTypeId,
         COALESCE(r.Weeks, r.Hours, 0) as Effort
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
     INNER JOIN [effort].[Courses] c ON r.CourseId = c.Id
-    WHERE r.PersonId = @PersonId
+    WHERE (@PersonId IS NULL OR r.PersonId = @PersonId)
         AND r.TermCode BETWEEN @StartTermCode AND @EndTermCode
         AND (@Department IS NULL OR p.EffortDept = @Department)
-        AND (@Role IS NULL OR r.RoleId = @Role)
+        AND (@Role IS NULL OR CAST(r.RoleId as varchar(50)) = @Role)
     ORDER BY r.TermCode, c.SubjCode, c.CrseNumb, c.SeqNumb;
 END;
 ";
@@ -831,32 +831,52 @@ BEGIN
 
     -- Department-wide merit averages aggregated by effort type
     -- Returns instructor details with effort broken down by effort type
+    -- Groups by job group description: 335/341/317 use dictionary title, others = PROFESSOR/IR
 
     SELECT
         up.MothraId,
         RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) as Instructor,
         CASE
-            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124') THEN p.EffortDept
+            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124', 'S56') THEN p.EffortDept
             WHEN p.ReportUnit LIKE '%CAHFS%' THEN 'CAHFS'
             WHEN p.ReportUnit LIKE '%WHC%' THEN 'WHC'
             WHEN p.JobGroupId = '317' THEN 'VMTH'
             ELSE 'All'
         END as Department,
         p.JobGroupId,
-        p.Title as JobGroupDescription,
+        CASE
+            WHEN p.JobGroupId IN ('335', '341', '317') THEN t.dvtTitle_JobGroup_Abbrev
+            ELSE 'PROFESSOR/IR'
+        END as JobGroupDescription,
         p.PercentAdmin,
         r.EffortTypeId,
         SUM(COALESCE(r.Weeks, r.Hours, 0)) as TotalEffort
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
+    INNER JOIN [dictionary].[dbo].[dvtTitle] t
+        ON p.JobGroupId = t.dvtTitle_JobGroupID
+        AND RIGHT('00' + p.EffortTitleCode, 6) = RIGHT('00' + t.dvtTitle_code, 6)
     WHERE r.TermCode = @TermCode
-        AND (@Department IS NULL OR p.EffortDept = @Department OR p.ReportUnit LIKE '%' + @Department + '%')
+        AND (@Department IS NULL OR
+            CASE
+                WHEN p.JobGroupId IN ('010', '011', '114', '311', '124', 'S56') THEN p.EffortDept
+                WHEN p.ReportUnit LIKE '%CAHFS%' THEN 'CAHFS'
+                WHEN p.ReportUnit LIKE '%WHC%' THEN 'WHC'
+                WHEN p.JobGroupId = '317' THEN 'VMTH'
+                ELSE 'All'
+            END = @Department)
         AND (@PersonId IS NULL OR p.PersonId = @PersonId)
         AND (@Role IS NULL OR r.RoleId = @Role)
         AND p.EffortDept <> 'OTH'
         AND p.VolunteerWos = 0
         AND (COALESCE(r.Weeks, r.Hours, 0) > 0)
+        -- Job group qualification (see effort.fn_qualified_job_groups)
+        AND EXISTS (
+            SELECT 1 FROM effort.fn_qualified_job_groups() q
+            WHERE q.JobGroupId = p.JobGroupId
+            AND (q.EffortTitleCode IS NULL OR RIGHT('00' + p.EffortTitleCode, 6) = q.EffortTitleCode)
+        )
     GROUP BY
         up.MothraId,
         p.LastName,
@@ -864,10 +884,11 @@ BEGIN
         p.EffortDept,
         p.ReportUnit,
         p.JobGroupId,
-        p.Title,
+        t.dvtTitle_JobGroup_Abbrev,
         p.PercentAdmin,
         r.EffortTypeId
     ORDER BY
+        JobGroupDescription,
         Department,
         p.LastName,
         p.FirstName,

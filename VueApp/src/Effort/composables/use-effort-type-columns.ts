@@ -1,10 +1,11 @@
-import { computed, type Ref } from "vue"
+import { computed } from "vue"
+import type { Ref } from "vue"
 import type { QTableColumn } from "quasar"
 import type { EffortByType } from "../types"
 
-const ALWAYS_SHOW = ['CLI', 'VAR', 'LEC', 'LAB', 'DIS', 'PBL', 'CBL', 'TBL', 'PRS', 'JLC', 'EXM']
+const ALWAYS_SHOW = ["CLI", "VAR", "LEC", "LAB", "DIS", "PBL", "CBL", "TBL", "PRS", "JLC", "EXM"]
 
-const SPACING_COLUMNS = new Set(['VAR', 'EXM'])
+const SPACING_COLUMNS = new Set(["VAR", "EXM"])
 
 interface EffortColumnOptions {
     /** Show "0" instead of blank for zero values (grouped report = true, individual = false) */
@@ -22,7 +23,9 @@ function useEffortTypeColumns(effortTypes: Ref<string[]>, options?: EffortColumn
     const legacyColumnOrder = options?.legacyColumnOrder ?? false
 
     function formatValue(val: number): string {
-        if (val > 0) return val.toString()
+        if (val > 0) {
+            return val.toString()
+        }
         return showZero ? "0" : ""
     }
 
@@ -35,9 +38,7 @@ function useEffortTypeColumns(effortTypes: Ref<string[]>, options?: EffortColumn
             align: "right" as const,
             sortable: false,
             format: (val: number) => formatValue(val),
-            style: spacer
-                ? "width: 5rem; min-width: 5rem; padding-right: 20px"
-                : "width: 5rem; min-width: 5rem",
+            style: spacer ? "width: 5rem; min-width: 5rem; padding-right: 20px" : "width: 5rem; min-width: 5rem",
             headerStyle: "width: 5rem; min-width: 5rem",
         }
     }
@@ -52,16 +53,12 @@ function useEffortTypeColumns(effortTypes: Ref<string[]>, options?: EffortColumn
         const inputSet = new Set(effortTypes.value)
         const ordered: string[] = [...ALWAYS_SHOW]
 
-        const remaining = effortTypes.value
-            .filter((t) => !ALWAYS_SHOW.includes(t))
-            .sort()
+        const remaining = effortTypes.value.filter((t) => !ALWAYS_SHOW.includes(t)).slice().sort()
         ordered.push(...remaining)
 
         // For ALWAYS_SHOW types, include even if not in input effortTypes.
         // For remaining types, they are already from effortTypes.
-        return ordered
-            .filter((t) => ALWAYS_SHOW.includes(t) || inputSet.has(t))
-            .map(buildColumn)
+        return ordered.filter((t) => ALWAYS_SHOW.includes(t) || inputSet.has(t)).map((t) => buildColumn(t))
     })
 
     /**
@@ -72,9 +69,19 @@ function useEffortTypeColumns(effortTypes: Ref<string[]>, options?: EffortColumn
         return formatValue(val)
     }
 
+    /**
+     * Get the displayed value for an effort type in an averages row.
+     * Always formats to 1 decimal place to match legacy numberFormat('9.9').
+     */
+    function getAverageValue(averages: EffortByType, type: string): string {
+        const val = averages[type] ?? 0
+        return val.toFixed(1)
+    }
+
     return {
         effortColumns,
         getTotalValue,
+        getAverageValue,
     }
 }
 

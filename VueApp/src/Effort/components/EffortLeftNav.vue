@@ -231,6 +231,41 @@
                         <q-item-label class="text-weight-bold">Reports</q-item-label>
                     </q-item-section>
                 </q-item>
+                <!-- Merit & Promotion sub-header -->
+                <q-item
+                    v-if="canViewReports && currentTerm"
+                    class="leftNavLink q-pl-lg"
+                >
+                    <q-item-section>
+                        <q-item-label
+                            lines="1"
+                            class="text-weight-medium"
+                            >Merit &amp; Promotion</q-item-label
+                        >
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'MeritAverage', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink q-pl-xl"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Average</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'MeritDetail', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink q-pl-xl"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Detail</q-item-label>
+                    </q-item-section>
+                </q-item>
                 <!-- Teaching Activity sub-header -->
                 <q-item
                     v-if="canViewReports && currentTerm"
@@ -240,7 +275,8 @@
                         <q-item-label
                             lines="1"
                             class="text-weight-medium"
-                        >Teaching Activity</q-item-label>
+                            >Teaching Activity</q-item-label
+                        >
                     </q-item-section>
                 </q-item>
                 <q-item
@@ -263,6 +299,52 @@
                 >
                     <q-item-section>
                         <q-item-label lines="1">Individual</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'DeptSummary', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink q-pl-xl"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Dept Summary</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="(isAdmin || hasSchoolSummary) && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'SchoolSummary', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink q-pl-xl"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">School Summary</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <!-- Other sub-header -->
+                <q-item
+                    v-if="canViewReports && currentTerm"
+                    class="leftNavLink q-pl-lg"
+                >
+                    <q-item-section>
+                        <q-item-label
+                            lines="1"
+                            class="text-weight-medium"
+                            >Other</q-item-label
+                        >
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'ZeroEffort', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink q-pl-xl"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Zero Effort</q-item-label>
                     </q-item-section>
                 </q-item>
             </q-list>
@@ -289,6 +371,7 @@ const {
     hasManageEffortTypes,
     hasAnyAuditAccess,
     hasReports,
+    hasSchoolSummary,
     hasImportCourse,
     hasEditCourse,
     hasDeleteCourse,

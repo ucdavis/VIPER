@@ -73,6 +73,164 @@ type TermDropdownOption = {
     isYear: boolean
 }
 
+// Dept Summary types
+
+type DeptSummaryInstructorRow = {
+    mothraId: string
+    instructor: string
+    jobGroupId: string
+    effortByType: EffortByType
+}
+
+type DeptSummaryDepartmentGroup = {
+    department: string
+    instructors: DeptSummaryInstructorRow[]
+    departmentTotals: EffortByType
+    facultyCount: number
+    facultyWithCliCount: number
+    departmentAverages: EffortByType
+}
+
+type DeptSummaryReport = {
+    termCode: number
+    termName: string
+    academicYear: string | null
+    filterDepartment: string | null
+    filterPerson: string | null
+    filterRole: string | null
+    filterTitle: string | null
+    effortTypes: string[]
+    departments: DeptSummaryDepartmentGroup[]
+}
+
+// School Summary types
+
+type SchoolSummaryDepartmentRow = {
+    department: string
+    effortTotals: EffortByType
+    facultyCount: number
+    facultyWithCliCount: number
+    averages: EffortByType
+}
+
+type SchoolSummaryTotalsRow = {
+    effortTotals: EffortByType
+    facultyCount: number
+    facultyWithCliCount: number
+    averages: EffortByType
+}
+
+type SchoolSummaryReport = {
+    termCode: number
+    termName: string
+    academicYear: string | null
+    filterDepartment: string | null
+    filterPerson: string | null
+    filterRole: string | null
+    filterTitle: string | null
+    effortTypes: string[]
+    departments: SchoolSummaryDepartmentRow[]
+    grandTotals: SchoolSummaryTotalsRow
+}
+
+// Merit Detail types
+
+type MeritDetailCourseRow = {
+    termCode: number
+    courseId: number
+    course: string
+    units: number
+    enrollment: number
+    roleId: string
+    effortByType: EffortByType
+}
+
+type MeritDetailInstructorGroup = {
+    mothraId: string
+    instructor: string
+    jobGroupId: string
+    jobGroupDescription: string | null
+    courses: MeritDetailCourseRow[]
+    instructorTotals: EffortByType
+}
+
+type MeritDetailDepartmentGroup = {
+    department: string
+    instructors: MeritDetailInstructorGroup[]
+    departmentTotals: EffortByType
+}
+
+type MeritDetailReport = {
+    termCode: number
+    termName: string
+    academicYear: string | null
+    filterDepartment: string | null
+    filterPersonId: number | null
+    filterRole: string | null
+    effortTypes: string[]
+    departments: MeritDetailDepartmentGroup[]
+}
+
+// Merit Average types
+
+type MeritAverageTermRow = {
+    termCode: number
+    termName: string
+    effortByType: EffortByType
+}
+
+type MeritAverageInstructorRow = {
+    mothraId: string
+    instructor: string
+    jobGroupId: string
+    jobGroupDescription: string | null
+    percentAdmin: number
+    terms: MeritAverageTermRow[]
+    effortByType: EffortByType
+}
+
+type MeritAverageDepartmentGroup = {
+    department: string
+    instructors: MeritAverageInstructorRow[]
+    groupTotals: EffortByType
+    groupAverages: EffortByType
+    facultyCount: number
+    facultyWithCliCount: number
+}
+
+type MeritAverageJobGroup = {
+    jobGroupDescription: string
+    departments: MeritAverageDepartmentGroup[]
+}
+
+type MeritAverageReport = {
+    termCode: number
+    termName: string
+    academicYear: string | null
+    filterDepartment: string | null
+    filterPersonId: number | null
+    effortTypes: string[]
+    jobGroups: MeritAverageJobGroup[]
+}
+
+// Zero Effort types
+
+type ZeroEffortInstructorRow = {
+    mothraId: string
+    instructor: string
+    department: string
+    jobGroupId: string
+    verified: boolean
+}
+
+type ZeroEffortReport = {
+    termCode: number
+    termName: string
+    academicYear: string | null
+    filterDepartment: string | null
+    instructors: ZeroEffortInstructorRow[]
+}
+
 export type {
     EffortByType,
     TeachingActivityCourseRow,
@@ -81,4 +239,21 @@ export type {
     TeachingActivityReport,
     ReportFilterParams,
     TermDropdownOption,
+    DeptSummaryInstructorRow,
+    DeptSummaryDepartmentGroup,
+    DeptSummaryReport,
+    SchoolSummaryDepartmentRow,
+    SchoolSummaryTotalsRow,
+    SchoolSummaryReport,
+    MeritDetailCourseRow,
+    MeritDetailInstructorGroup,
+    MeritDetailDepartmentGroup,
+    MeritDetailReport,
+    MeritAverageTermRow,
+    MeritAverageInstructorRow,
+    MeritAverageDepartmentGroup,
+    MeritAverageJobGroup,
+    MeritAverageReport,
+    ZeroEffortInstructorRow,
+    ZeroEffortReport,
 }

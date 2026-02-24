@@ -15,8 +15,17 @@
                     dense
                     icon="print"
                     label="Print/PDF"
+                    :loading="printLoading"
                     @click="handlePrint"
-                />
+                >
+                    <template #loading>
+                        <q-spinner
+                            size="1em"
+                            class="q-mr-sm"
+                        />
+                        Print/PDF
+                    </template>
+                </q-btn>
             </template>
         </ReportFilterForm>
 
@@ -32,12 +41,6 @@
         <ReportLayout v-else-if="report">
             <template #header>
                 <div class="text-h6">{{ report.termName }} - Teaching Activity (Individual)</div>
-                <div
-                    v-if="activeFilters"
-                    class="text-caption text-grey-7"
-                >
-                    Filters: {{ activeFilters }}
-                </div>
             </template>
 
             <template v-if="allInstructors.length === 0">
@@ -53,50 +56,75 @@
                     class="q-mb-md instructor-card"
                 >
                     <!-- Instructor header -->
-                    <q-card-section class="q-pa-sm instructor-card-header">
+                    <q-card-section class="q-pa-sm instructor-card-header bg-grey-2">
                         <div class="text-weight-bold">{{ instructor.instructor }}</div>
                         <div
-                            v-if="instructor.department || instructor.jobGroupId"
+                            v-if="instructor.department"
                             class="text-caption text-grey-7"
                         >
-                            <span v-if="instructor.department">{{ instructor.department }}</span>
-                            <span v-if="instructor.department && instructor.jobGroupId"> - </span>
-                            <span v-if="instructor.jobGroupId">{{ instructor.jobGroupId }}</span>
+                            {{ instructor.department }}
                         </div>
                     </q-card-section>
 
                     <q-separator />
 
                     <!-- Course rows table -->
-                    <q-table
-                        :rows="instructor.courses"
-                        :columns="allColumns"
-                        :row-key="(row: TeachingActivityCourseRow) => `${row.termCode}_${row.courseId}_${row.roleId}`"
-                        dense
-                        flat
-                        hide-pagination
-                        :rows-per-page-options="[0]"
-                        class="report-table"
-                    >
-                        <!-- Instructor totals row -->
-                        <template #bottom-row>
-                            <q-tr class="totals-row">
-                                <q-td
-                                    colspan="6"
-                                    class="text-right text-weight-bold"
-                                >
-                                    Total
-                                </q-td>
-                                <q-td
-                                    v-for="type in report.effortTypes"
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th class="col-qtr">Qtr</th>
+                                <th class="col-role">Role</th>
+                                <th>Course</th>
+                                <th class="col-units">Units</th>
+                                <th class="col-enroll">Enrl</th>
+                                <th
+                                    v-for="type in orderedEffortTypes"
                                     :key="type"
-                                    class="text-right text-weight-bold"
+                                    class="col-effort"
+                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                >
+                                    {{ type }}
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="course in instructor.courses"
+                                :key="`${course.termCode}_${course.courseId}_${course.roleId}`"
+                            >
+                                <td>{{ course.termCode }}</td>
+                                <td>{{ course.roleId }}</td>
+                                <td>{{ course.course }}</td>
+                                <td>{{ formatDecimal(course.units) }}</td>
+                                <td>{{ course.enrollment }}</td>
+                                <td
+                                    v-for="type in orderedEffortTypes"
+                                    :key="type"
+                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                >
+                                    {{ getTotalValue(course.effortByType ?? {}, type) }}
+                                </td>
+                            </tr>
+
+                            <!-- Instructor totals row -->
+                            <tr class="totals-row bg-grey-1">
+                                <th
+                                    colspan="5"
+                                    class="subt"
+                                >
+                                    {{ instructor.instructor }} Totals:
+                                </th>
+                                <td
+                                    v-for="type in orderedEffortTypes"
+                                    :key="type"
+                                    class="total"
+                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
                                 >
                                     {{ getTotalValue(instructor.instructorTotals, type) }}
-                                </q-td>
-                            </q-tr>
-                        </template>
-                    </q-table>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </q-card>
             </template>
         </ReportLayout>
@@ -112,35 +140,36 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue"
-import { useRoute } from "vue-router"
+import { computed } from "vue"
 import { reportService } from "../services/report-service"
-import { useEffortTypeColumns } from "../composables/use-effort-type-columns"
-import { useReportUrlParams } from "../composables/use-report-url-params"
+import { useReportPage } from "../composables/use-report-page"
 import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
-import type { TeachingActivityReport, TeachingActivityInstructorGroup, TeachingActivityCourseRow, ReportFilterParams } from "../types"
-import type { QTableColumn } from "quasar"
+import type { TeachingActivityReport, TeachingActivityInstructorGroup } from "../types"
 
-const route = useRoute()
-const { initialFilters, updateUrlParams } = useReportUrlParams()
-
-const termCode = computed(() => {
-    const tc = route.params.termCode
-    return tc ? parseInt(tc as string, 10) : 0
+const {
+    termCode,
+    loading,
+    report,
+    printLoading,
+    initialFilters,
+    orderedEffortTypes,
+    getTotalValue,
+    generateReport,
+    handlePrint,
+} = useReportPage<TeachingActivityReport>({
+    fetchReport: (params) => reportService.getTeachingActivityIndividual(params),
+    fetchPdf: (params) => reportService.openPdf("teaching/individual/pdf", params),
+    getEffortTypes: (r) => r.effortTypes,
 })
 
-const loading = ref(false)
-const report = ref<TeachingActivityReport | null>(null)
-
-const effortTypes = computed(() => report.value?.effortTypes ?? [])
-const { effortColumns, getTotalValue } = useEffortTypeColumns(effortTypes)
+/** Strip trailing zeros: 12.00 -> "12", 10.50 -> "10.5" */
+function formatDecimal(value: number): string {
+    return parseFloat(value.toString()).toString()
+}
 
 type InstructorWithDept = TeachingActivityInstructorGroup & { department: string }
 
-/**
- * Flatten departments to get a flat list of instructors with their department name.
- */
 const allInstructors = computed<InstructorWithDept[]>(() => {
     if (!report.value) return []
     const result: InstructorWithDept[] = []
@@ -151,77 +180,18 @@ const allInstructors = computed<InstructorWithDept[]>(() => {
     }
     return result
 })
-
-const staticColumns: QTableColumn[] = [
-    { name: "termCode", label: "Qtr", field: "termCode", align: "left", sortable: false, style: "width: 4rem" },
-    { name: "course", label: "Course", field: "course", align: "left", sortable: false },
-    { name: "crn", label: "CRN", field: "crn", align: "left", sortable: false, style: "width: 4rem" },
-    { name: "units", label: "Units", field: "units", align: "right", sortable: false, style: "width: 3.5rem", format: (val: number) => parseFloat(val.toString()).toString() },
-    {
-        name: "enrollment",
-        label: "Enrl",
-        field: "enrollment",
-        align: "right",
-        sortable: false,
-        style: "width: 3.5rem",
-    },
-    { name: "roleId", label: "Role", field: "roleId", align: "left", sortable: false },
-]
-
-const allColumns = computed<QTableColumn[]>(() => [...staticColumns, ...effortColumns.value])
-
-const activeFilters = computed(() => {
-    if (!report.value) return ""
-    const parts: string[] = []
-    if (report.value.filterDepartment) parts.push(`Dept: ${report.value.filterDepartment}`)
-    if (report.value.filterPerson) parts.push(`Person: ${report.value.filterPerson}`)
-    if (report.value.filterRole) parts.push(`Role: ${report.value.filterRole}`)
-    if (report.value.filterTitle) parts.push(`Title: ${report.value.filterTitle}`)
-    return parts.join(", ")
-})
-
-function handlePrint() {
-    window.print()
-}
-
-async function generateReport(params: ReportFilterParams) {
-    updateUrlParams(params)
-    loading.value = true
-    try {
-        report.value = await reportService.getTeachingActivityIndividual(params)
-    } finally {
-        loading.value = false
-    }
-}
 </script>
 
+<style>
+@import "../report-tables.css";
+</style>
+
 <style scoped>
-.instructor-card-header {
-    background-color: #f5f5f5;
+.col-units {
+    width: 3.5rem;
 }
 
-.report-table {
-    border-radius: 0;
-}
-
-.report-table :deep(.q-table__container) {
-    border-radius: 0;
-}
-
-.totals-row {
-    background-color: #fafafa;
-    border-top: 2px solid #ddd;
-}
-
-@media print {
-    .instructor-card {
-        break-inside: avoid;
-    }
-
-    .instructor-card-header {
-        background-color: #f5f5f5;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
+.col-enroll {
+    width: 3.5rem;
 }
 </style>

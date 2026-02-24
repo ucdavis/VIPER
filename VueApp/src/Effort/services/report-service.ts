@@ -1,5 +1,13 @@
 import { useFetch, postForBlob } from "@/composables/ViperFetch"
-import type { TeachingActivityReport, ReportFilterParams } from "../types"
+import type {
+    TeachingActivityReport,
+    ReportFilterParams,
+    DeptSummaryReport,
+    SchoolSummaryReport,
+    MeritDetailReport,
+    MeritAverageReport,
+    ZeroEffortReport,
+} from "../types"
 
 const { get } = useFetch()
 
@@ -34,16 +42,75 @@ class ReportService {
     }
 
     /**
-     * Open the grouped teaching activity report as a PDF in a new tab.
+     * Get the department summary report.
      */
-    async openGroupedPdf(params: ReportFilterParams): Promise<boolean> {
-        const { blob } = await postForBlob(
-            `${this.baseUrl}/teaching/grouped/pdf`,
-            params
-        )
-        if (blob.size === 0) return false
+    async getDeptSummary(params: ReportFilterParams): Promise<DeptSummaryReport | null> {
+        const url = this.buildUrl("teaching/dept-summary", params)
+        const response = await get(url)
+        if (!response.success || !response.result) {
+            return null
+        }
+        return response.result as DeptSummaryReport
+    }
+
+    /**
+     * Get the school summary report.
+     */
+    async getSchoolSummary(params: ReportFilterParams): Promise<SchoolSummaryReport | null> {
+        const url = this.buildUrl("teaching/school-summary", params)
+        const response = await get(url)
+        if (!response.success || !response.result) {
+            return null
+        }
+        return response.result as SchoolSummaryReport
+    }
+
+    /**
+     * Get the merit detail report.
+     */
+    async getMeritDetail(params: ReportFilterParams): Promise<MeritDetailReport | null> {
+        const url = this.buildUrl("merit/detail", params)
+        const response = await get(url)
+        if (!response.success || !response.result) {
+            return null
+        }
+        return response.result as MeritDetailReport
+    }
+
+    /**
+     * Get the merit average report.
+     */
+    async getMeritAverage(params: ReportFilterParams): Promise<MeritAverageReport | null> {
+        const url = this.buildUrl("merit/average", params)
+        const response = await get(url)
+        if (!response.success || !response.result) {
+            return null
+        }
+        return response.result as MeritAverageReport
+    }
+
+    /**
+     * Get the zero effort report.
+     */
+    async getZeroEffort(params: ReportFilterParams): Promise<ZeroEffortReport | null> {
+        const url = this.buildUrl("zero-effort", params)
+        const response = await get(url)
+        if (!response.success || !response.result) {
+            return null
+        }
+        return response.result as ZeroEffortReport
+    }
+
+    /**
+     * Open a report PDF in a new tab. Returns false if the report has no data.
+     */
+    async openPdf(endpoint: string, params: ReportFilterParams): Promise<boolean> {
+        const { blob } = await postForBlob(`${this.baseUrl}/${endpoint}`, params)
+        if (blob.size === 0) {
+            return false
+        }
         const url = globalThis.URL.createObjectURL(blob)
-        globalThis.open(url, '_blank')
+        globalThis.open(url, "_blank")
         return true
     }
 
@@ -54,10 +121,18 @@ class ReportService {
         } else if (params.termCode) {
             searchParams.set("termCode", params.termCode.toString())
         }
-        if (params.department) searchParams.set("department", params.department)
-        if (params.personId) searchParams.set("personId", params.personId.toString())
-        if (params.role) searchParams.set("role", params.role)
-        if (params.title) searchParams.set("title", params.title)
+        if (params.department) {
+            searchParams.set("department", params.department)
+        }
+        if (params.personId) {
+            searchParams.set("personId", params.personId.toString())
+        }
+        if (params.role) {
+            searchParams.set("role", params.role)
+        }
+        if (params.title) {
+            searchParams.set("title", params.title)
+        }
         return `${this.baseUrl}/${endpoint}?${searchParams.toString()}`
     }
 }

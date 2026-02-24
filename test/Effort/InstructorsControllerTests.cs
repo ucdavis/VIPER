@@ -59,7 +59,7 @@ public sealed class InstructorsControllerTests
             new PersonDto { PersonId = 2, TermCode = 202410, FirstName = "Jane", LastName = "Smith", EffortDept = "VME" }
         };
         _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _instructorServiceMock.Setup(s => s.GetInstructorsAsync(202410, null, It.IsAny<CancellationToken>()))
+        _instructorServiceMock.Setup(s => s.GetInstructorsAsync(202410, null, false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(instructors);
 
         // Act
@@ -81,7 +81,7 @@ public sealed class InstructorsControllerTests
         };
         _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _instructorServiceMock.Setup(s => s.GetInstructorsAsync(202410, "VME", It.IsAny<CancellationToken>()))
+        _instructorServiceMock.Setup(s => s.GetInstructorsAsync(202410, "VME", false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(instructors);
 
         // Act

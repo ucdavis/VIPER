@@ -19,11 +19,15 @@ class InstructorService {
 
     /**
      * Get all instructors for a term, optionally filtered by department.
+     * When meritOnly is true, restricts to merit-eligible job groups.
      */
-    async getInstructors(termCode: number, dept?: string): Promise<PersonDto[]> {
+    async getInstructors(termCode: number, dept?: string, meritOnly?: boolean): Promise<PersonDto[]> {
         const params = new URLSearchParams({ termCode: termCode.toString() })
         if (dept) {
             params.append("dept", dept)
+        }
+        if (meritOnly) {
+            params.append("meritOnly", "true")
         }
         const response = await get(`${this.baseUrl}/instructors?${params.toString()}`)
         if (!response.success || !Array.isArray(response.result)) {
