@@ -38,9 +38,15 @@ public class VerificationReminderViewModel : EmailViewModelBase
     public string VerificationUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// Whether any effort records have zero effort.
+    /// Whether any non-R-course effort records have zero effort.
     /// </summary>
     public bool HasZeroEffort { get; set; }
+
+    /// <summary>
+    /// Whether the instructor has a generic R-course (RES 000R) with zero effort.
+    /// Displayed as an info notice rather than an error.
+    /// </summary>
+    public bool HasGenericRCourseWithZeroEffort { get; set; }
 
     /// <summary>
     /// Course groups with their effort records.
@@ -79,6 +85,11 @@ public class EffortCourseGroup
     public string Role { get; set; } = string.Empty;
 
     /// <summary>
+    /// Whether this is an R-course (course number ends with 'R').
+    /// </summary>
+    public bool IsRCourse { get; set; }
+
+    /// <summary>
     /// Individual effort line items for this course.
     /// </summary>
     public List<EffortLineItem> EffortItems { get; set; } = new();
@@ -105,9 +116,15 @@ public class EffortLineItem
     public string Unit { get; set; } = string.Empty;
 
     /// <summary>
-    /// Whether this record has zero effort.
+    /// Whether this is a generic R-course (RES 000R) record.
+    /// Zero effort on R-courses is informational, not an error.
     /// </summary>
-    public bool IsZero => Value == 0;
+    public bool IsGenericRCourse { get; set; }
+
+    /// <summary>
+    /// Whether this record has zero effort (excludes generic R-courses).
+    /// </summary>
+    public bool IsZero => Value == 0 && !IsGenericRCourse;
 }
 
 /// <summary>
