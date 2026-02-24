@@ -11,6 +11,7 @@ import child_process from "node:child_process"
 import { env } from "node:process"
 import { quasar } from "@quasar/vite-plugin"
 import { visualizer } from "rollup-plugin-visualizer"
+import { codecovVitePlugin } from "@codecov/vite-plugin"
 
 // Port constants
 const MAX_PORT = 65_535
@@ -101,6 +102,11 @@ export default defineConfig(({ mode }) => {
                     open: false,
                     gzipSize: true,
                 }),
+            codecovVitePlugin({
+                enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
+                bundleName: "viper-frontend",
+                uploadToken: process.env.CODECOV_TOKEN,
+            }),
         ].filter(Boolean),
         resolve: {
             alias: {
@@ -189,6 +195,11 @@ export default defineConfig(({ mode }) => {
         test: {
             environment: "happy-dom",
             globals: true,
+            coverage: {
+                provider: "v8",
+                reporter: ["text", "cobertura"],
+                reportsDirectory: "./coverage",
+            },
         },
     }
 })

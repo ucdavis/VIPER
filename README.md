@@ -1,5 +1,7 @@
 # VIPER
 
+[![codecov](https://codecov.io/github/ucdavis/VIPER/graph/badge.svg?token=4Q8KQ3HHUF)](https://codecov.io/github/ucdavis/VIPER)
+
 Clinical, curriculum, and student management application for UC Davis School of Veterinary Medicine.
 
 ## Prerequisites
