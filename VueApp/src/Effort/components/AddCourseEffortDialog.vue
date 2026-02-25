@@ -107,8 +107,9 @@
                         lazy-rules="ondemand"
                     />
 
-                    <!-- Notes -->
+                    <!-- Notes (only for resident courses) -->
                     <q-input
+                        v-if="isResidentCourse"
                         v-model="notes"
                         label="Notes"
                         type="textarea"
@@ -186,6 +187,7 @@ const props = defineProps<{
     modelValue: boolean
     courseId: number
     termCode: number
+    isResidentCourse?: boolean
 }>()
 
 const emit = defineEmits<{

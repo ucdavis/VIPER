@@ -22,7 +22,7 @@
             >
         </template>
 
-        <!-- CERE or Ad-hoc data -->
+        <!-- Harvested or ad-hoc data -->
         <template v-else>
             <span class="row no-wrap items-center justify-center q-gutter-xs">
                 <span
