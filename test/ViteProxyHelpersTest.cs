@@ -147,28 +147,13 @@ namespace Viper.test
         }
 
         [Theory]
-        [InlineData("http://evil.example.com/CTS", "https://localhost:5173/")]
-        [InlineData("https://evil.example.com/CTS", "https://localhost:5173/")]
-        public void BuildViteUrl_RejectsAbsoluteHttpPaths(string path, string expected)
+        [InlineData("http://evil.example.com/CTS")]
+        [InlineData("https://evil.example.com/CTS")]
+        public void BuildViteUrl_RejectsAbsoluteHttpPaths(string path)
         {
-            // Arrange
-            var original = Environment.GetEnvironmentVariable("VITE_SERVER_URL");
-            try
-            {
-                Environment.SetEnvironmentVariable("VITE_SERVER_URL", null);
-                var pathString = new PathString(path);
-                var query = new QueryString("");
-
-                // Act
-                var result = ViteProxyHelpers.BuildViteUrl(pathString, query, _vueAppNames);
-
-                // Assert — absolute HTTP(S) paths are treated as SSRF attempts and fall back to "/"
-                Assert.Equal(expected, result);
-            }
-            finally
-            {
-                Environment.SetEnvironmentVariable("VITE_SERVER_URL", original);
-            }
+            // PathString itself rejects values that don't start with '/',
+            // so absolute HTTP(S) URLs can never reach BuildViteUrl.
+            Assert.Throws<ArgumentException>(() => new PathString(path));
         }
 
         [Fact]
