@@ -6,7 +6,6 @@
         // Essential Linting & Formatting
         "dbaeumer.vscode-eslint",
         "oxc.oxc-vscode",
-        "esbenp.prettier-vscode",
         "stylelint.vscode-stylelint",
 
         // Essential .NET Development

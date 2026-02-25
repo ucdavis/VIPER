@@ -25,10 +25,10 @@ function hasFullAccess(perms?: UserPermissions["permissions"]): boolean {
 function hasAnyEditing(perms?: UserPermissions["permissions"], serviceCount = 0): boolean {
     return Boolean(
         perms?.hasAdminPermission ||
-            perms?.hasManagePermission ||
-            perms?.hasEditClnSchedulesPermission ||
-            perms?.hasEditOwnSchedulePermission ||
-            serviceCount > 0,
+        perms?.hasManagePermission ||
+        perms?.hasEditClnSchedulesPermission ||
+        perms?.hasEditOwnSchedulePermission ||
+        serviceCount > 0,
     )
 }
 
@@ -87,11 +87,8 @@ function hasClinicianViewReadOnly(perms?: UserPermissions["permissions"], servic
         return false
     }
 
-    // Users with full access permissions can see all clinicians
-    const hasFullAccess = perms.hasAdminPermission || perms.hasManagePermission || perms.hasEditClnSchedulesPermission
-
     // Users with EditOwnSchedule permission AND service-specific permissions should see read-only selector in clinician view
-    return !hasFullAccess && perms.hasEditOwnSchedulePermission && serviceCount > 0
+    return !hasFullAccess(perms) && perms.hasEditOwnSchedulePermission && serviceCount > 0
 }
 
 export { hasFullAccess, hasAnyEditing, hasOnlyServicePermissions, hasOnlyOwnPermission, hasClinicianViewReadOnly }
