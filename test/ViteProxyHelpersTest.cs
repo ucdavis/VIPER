@@ -149,7 +149,7 @@ namespace Viper.test
         [Theory]
         [InlineData("http://evil.example.com/CTS")]
         [InlineData("https://evil.example.com/CTS")]
-        public void BuildViteUrl_RejectsAbsoluteHttpPaths(string path)
+        public void PathString_RejectsAbsoluteHttpUrls(string path)
         {
             // PathString itself rejects values that don't start with '/',
             // so absolute HTTP(S) URLs can never reach BuildViteUrl.
