@@ -29,22 +29,29 @@ async function loadEvalPermissions() {
     }
 }
 
-router.beforeEach(async (to) => {
-    const { requireLogin } = useRequireLogin(to)
-    const loginResult = await requireLogin(true, "SVMSecure.Effort")
-    if (loginResult !== null && !loginResult) {
-        return false
-    }
-
-    // Eval permissions are in a separate area, so they aren't loaded by requireLogin
+router.beforeEach(async (to, from) => {
     const userStore = useUserStore()
-    const existingPermissions = userStore.userInfo?.permissions ?? []
-    const hasEvalPermissions = existingPermissions.some((p: string) => p.startsWith("SVMSecure.Eval"))
-    if (!hasEvalPermissions) {
-        if (!evalPermissionsPromise) {
-            evalPermissionsPromise = loadEvalPermissions()
+
+    // Skip re-authentication for in-app navigations (tab switches, course-to-course).
+    // The user is already logged in and permissions are loaded; re-calling requireLogin
+    // would overwrite the permission array and cause a visible flash.
+    const isInternalNavigation = from.matched.length > 0 && userStore.isLoggedIn
+    if (!isInternalNavigation) {
+        const { requireLogin } = useRequireLogin(to)
+        const loginResult = await requireLogin(true, "SVMSecure.Effort")
+        if (loginResult !== null && !loginResult) {
+            return false
         }
-        await evalPermissionsPromise
+
+        // Eval permissions are in a separate area, so they aren't loaded by requireLogin
+        const existingPermissions = userStore.userInfo?.permissions ?? []
+        const hasEvalPermissions = existingPermissions.some((p: string) => p.startsWith("SVMSecure.Eval"))
+        if (!hasEvalPermissions) {
+            if (!evalPermissionsPromise) {
+                evalPermissionsPromise = loadEvalPermissions()
+            }
+            await evalPermissionsPromise
+        }
     }
 
     if (to.meta.permissions !== null && to.meta.permissions !== undefined) {

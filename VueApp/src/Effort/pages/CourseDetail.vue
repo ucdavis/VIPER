@@ -198,7 +198,7 @@
 
             <q-separator class="q-my-md" />
 
-            <!-- CERE eval link — directs to Faculty Eval Viewer when harvest data exists -->
+            <!-- Harvested eval link — directs to Faculty Eval Viewer when harvest data exists -->
             <div
                 v-if="showCereLink"
                 class="q-pa-sm q-mb-md bg-blue-1 rounded-borders"
@@ -334,6 +334,7 @@
             v-model="showAddEffortDialog"
             :course-id="courseId"
             :term-code="termCodeNum"
+            :is-resident-course="isResidentCourse"
             @created="onEffortCreated"
         />
 
@@ -506,21 +507,21 @@ const evaluationTabLabel = computed(() => {
     return `Evaluations (${withEvals}/${instructors.length})`
 })
 
-// Show eval tab only when user has permission AND no CERE data (ad-hoc mode)
+// Show eval tab only when user has permission AND no harvested data (ad-hoc mode)
 const showEvalTab = computed(() => hasViewEvalResults.value && evaluationData.value.canEditAdHoc)
 
-// Show CERE deep link when eval harvest data exists
+// Show Harvested eval deep link when eval harvest data exists
 const showCereLink = computed(
     () => hasViewEvalResults.value && !isLoadingEval.value && !evaluationData.value.canEditAdHoc,
 )
 
-// Deep link to Faculty Eval Viewer for CERE data
+// Deep link to Faculty Eval Viewer for harvested eval data
 const evalViewerUrl = computed(
     () =>
         `${viperOneUrl}faculty/eval/default.cfm?Page=RptCourseWrapper&Hash=${termCode.value}${course.value?.crn ?? ""}`,
 )
 
-// Coerce to effort tab when eval tab disappears (CERE data detected)
+// Coerce to effort tab when eval tab disappears (harvested data detected)
 watch(showEvalTab, (canShow) => {
     if (!canShow && activeTab.value === "evaluation") {
         activeTab.value = "effort"

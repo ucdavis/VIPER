@@ -32,7 +32,7 @@ const EffortPermissions = {
     ViewAudit: "SVMSecure.Effort.ViewAudit",
     ViewDeptAudit: "SVMSecure.Effort.ViewDeptAudit",
     ViewDept: "SVMSecure.Effort.ViewDept",
-    // Eval-system permission for viewing evaluation results
+    // Cross-system: Eval permission for viewing harvested evaluation results.
     ViewEvalResults: "SVMSecure.Eval.ViewAllDepts",
 } as const
 
