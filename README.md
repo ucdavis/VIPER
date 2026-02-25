@@ -144,15 +144,11 @@ VIPER2 features a sophisticated development setup with hot reload for both front
 
 ## IDE Setup
 
-### Prettier Formatting (Automatic code formatting)
+### Oxfmt Formatting (Automatic code formatting)
 
 **VS Code:**
-1. Install "Prettier - Code formatter" extension
-2. Configuration is automatic (uses `.prettierrc.json` and `.editorconfig`)
-
-**Visual Studio:**
-1. Install "Prettier - Code formatter" extension
-2. Configuration is automatic (uses `.prettierrc.json` and `.editorconfig`)
+1. Install the "oxc" extension (recommended in `.vscode/extensions.json`)
+2. Configuration is automatic (uses `.oxfmtrc.json`)
 
 Files auto-format on save with consistent 4-space indentation and project style.
 

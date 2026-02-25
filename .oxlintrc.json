@@ -65,7 +65,17 @@
             {
                 "ignore": ["^(err|error)$"]
             }
-        ]
+        ],
+        "import/no-relative-parent-imports": "off", // Standard practice in Vue/TS - stores, services, composables all import from parent dirs
+        "no-use-before-define": [
+            "error",
+            {
+                "functions": false,
+                "classes": false
+            }
+        ], // Function/class hoisting is fine in JS/TS
+        "no-inline-comments": "off", // Inline comments are more readable next to the code they explain
+        "max-statements": "off" // Redundant with max-lines-per-function (100 lines)
     },
     "overrides": [
         {
@@ -75,6 +85,7 @@
                 "no-console": "off",
                 "no-void": "off",
                 "import/no-commonjs": "off",
+                "import/no-nodejs-modules": "off",
                 "import/unambiguous": "off",
                 "import/no-default-export": "off",
                 "unicorn/prefer-module": "off",
@@ -187,6 +198,14 @@
             }
         }
     ],
-    "ignore": ["node_modules/**", "bin/**", "obj/**", "dist/**", "wwwroot/**", "*.min.js", "*.bundle.js", "**/*.vue"],
-    "allowWarningErrors": false
+    "ignorePatterns": [
+        "node_modules/**",
+        "bin/**",
+        "obj/**",
+        "dist/**",
+        "wwwroot/**",
+        "*.min.js",
+        "*.bundle.js",
+        "**/*.vue"
+    ]
 }

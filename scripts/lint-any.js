@@ -181,86 +181,23 @@ function categorizeFiles(files) {
 }
 
 /**
- * Format a single file with Prettier (with optional second pass)
- * @param {string} file - File path
- * @param {string} projectRoot - Project root directory
- * @returns {boolean} - Whether formatting succeeded
- */
-function formatSingleFile(file, projectRoot) {
-    const normalizedFile = file.replaceAll("\\", "/")
-    const fullPath = path.join(projectRoot, file)
-
-    // Get file content before first pass to detect changes
-    let contentBefore = ""
-    try {
-        contentBefore = require("node:fs").readFileSync(fullPath, "utf8")
-    } catch (err) {
-        console.error(`❌ Failed to read ${normalizedFile}: ${err.message}`)
-        return false
-    }
-
-    // First pass
-    const firstResult = spawnSync("npx", ["prettier", "--write", normalizedFile], {
-        stdio: "inherit",
-        cwd: projectRoot,
-    })
-
-    if (firstResult.error || firstResult.status !== 0) {
-        console.error(
-            `❌ Failed to format ${normalizedFile} (first pass):`,
-            firstResult.error?.message || `Exit code ${firstResult.status}`,
-        )
-        return false
-    }
-
-    // Check if file was modified by first pass
-    let contentAfterFirst = ""
-    try {
-        contentAfterFirst = require("node:fs").readFileSync(fullPath, "utf8")
-    } catch (err) {
-        console.error(`❌ Failed to read ${normalizedFile} after formatting: ${err.message}`)
-        return false
-    }
-
-    // Only run second pass if first pass made changes
-    if (contentBefore !== contentAfterFirst) {
-        const secondResult = spawnSync("npx", ["prettier", "--write", normalizedFile], {
-            stdio: "inherit",
-            cwd: projectRoot,
-        })
-
-        if (secondResult.error || secondResult.status !== 0) {
-            console.error(
-                `❌ Failed to format ${normalizedFile} (second pass):`,
-                secondResult.error?.message || `Exit code ${secondResult.status}`,
-            )
-            return false
-        }
-    }
-
-    return true
-}
-
-/**
- * Run prettier check on a batch of files
+ * Run oxfmt check on a batch of files
  * @param {string[]} files - Array of file paths
  * @returns {{passed: boolean, failed: string[]}} - Result with pass status and failed files
  */
-function runPrettierCheckBatch(files) {
-    const prettierArgs = ["--check", ...files]
-    const result = spawnSync("npx", ["prettier", ...prettierArgs], {
+function runOxfmtCheckBatch(files) {
+    const result = spawnSync("npx", ["oxfmt", "--check", ...files], {
         stdio: "pipe",
         cwd: projectRoot,
         encoding: "utf8",
     })
 
     if (result.error) {
-        console.error("❌ Failed to run prettier:", result.error.message)
+        console.error("❌ Failed to run oxfmt:", result.error.message)
         return { passed: false, failed: files }
     }
 
     if (result.status !== 0) {
-        // Parse stderr/stdout to find which files failed
         const output = (result.stdout || "") + (result.stderr || "")
         const failedFiles = files.filter((f) => output.includes(f) || output.includes(f.replaceAll("/", "\\")))
         return { passed: false, failed: failedFiles.length > 0 ? failedFiles : files }
@@ -270,30 +207,19 @@ function runPrettierCheckBatch(files) {
 }
 
 /**
- * Run prettier check on files
+ * Run oxfmt check/fix on files
  * @param {string[]} files - Array of file paths
  * @param {boolean} fix - Whether to fix issues
- * @returns {boolean} - Whether prettier check passed
+ * @returns {boolean} - Whether oxfmt check passed
  */
-function runPrettierCheck(files, fix) {
+function runOxfmtCheck(files, fix) {
     if (files.length === 0) {
         return true
     }
 
-    console.log(`\n🎨 Prettier ${fix ? "fixing" : "checking"} formatting (${files.length} files)`)
+    console.log(`\n🎨 Oxfmt ${fix ? "fixing" : "checking"} formatting (${files.length} files)`)
 
-    if (fix) {
-        // For fixing, format each file with optional second pass
-        let allSucceeded = true
-        for (const file of files) {
-            if (!formatSingleFile(file, projectRoot)) {
-                allSucceeded = false
-            }
-        }
-        return allSucceeded
-    }
-
-    // For checking, batch files to avoid command line length limits on Windows
+    // Batch files to avoid command line length limits on Windows
     // Windows has ~8191 char limit; use conservative batch size
     const MAX_BATCH_SIZE = 50
     let allPassed = true
@@ -305,24 +231,33 @@ function runPrettierCheck(files, fix) {
         const totalBatches = Math.ceil(files.length / MAX_BATCH_SIZE)
 
         if (totalBatches > 1) {
-            process.stdout.write(`  Checking batch ${batchNum}/${totalBatches}...\r`)
+            process.stdout.write(`  ${fix ? "Fixing" : "Checking"} batch ${batchNum}/${totalBatches}...\r`)
         }
 
-        const { passed, failed } = runPrettierCheckBatch(batch)
-        if (!passed) {
-            allPassed = false
-            allFailedFiles.push(...failed)
+        if (fix) {
+            const result = spawnSync("npx", ["oxfmt", "--write", ...batch], {
+                stdio: "inherit",
+                cwd: projectRoot,
+            })
+            if (result.error || result.status !== 0) {
+                allPassed = false
+            }
+        } else {
+            const { passed, failed } = runOxfmtCheckBatch(batch)
+            if (!passed) {
+                allPassed = false
+                allFailedFiles.push(...failed)
+            }
         }
     }
 
     if (files.length > MAX_BATCH_SIZE) {
-        // Clear the batch progress line
         process.stdout.write("                                        \r")
     }
 
-    if (!allPassed) {
+    if (!allPassed && !fix) {
         console.log(`\n❌ ${allFailedFiles.length} file(s) have formatting issues`)
-        console.log("\n💡 Files need prettier formatting. Run with --fix to auto-format:")
+        console.log("\n💡 Files need formatting. Run with --fix to auto-format:")
         console.log("   npm run lint -- --fix <files>")
     }
 
@@ -405,7 +340,7 @@ try {
         console.log(`  🔷 .NET/SonarAnalyzer: ${categories.dotnet.length} files`)
     }
 
-    // Get all unique files for prettier check
+    // Get all unique files for formatting check
     const allUniqueFiles = [
         ...new Set([
             ...categories.css,
@@ -416,8 +351,8 @@ try {
         ]),
     ]
 
-    // Run prettier check first
-    const prettierPassed = runPrettierCheck(allUniqueFiles, shouldFix)
+    // Run oxfmt check first
+    const oxfmtPassed = runOxfmtCheck(allUniqueFiles, shouldFix)
 
     // Run each linter with its files
     runLinter(
@@ -447,7 +382,7 @@ try {
 
     console.log("\n✅ Smart linting complete!")
 
-    if (!prettierPassed && !shouldFix) {
+    if (!oxfmtPassed && !shouldFix) {
         console.log("\n💡 Some files have formatting issues. Use --fix to auto-format:")
         console.log("   npm run lint -- --fix <files>")
     }
