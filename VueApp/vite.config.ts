@@ -11,6 +11,7 @@ import child_process from "node:child_process"
 import { env } from "node:process"
 import { quasar } from "@quasar/vite-plugin"
 import { visualizer } from "rollup-plugin-visualizer"
+import { codecovVitePlugin } from "@codecov/vite-plugin"
 
 // Port constants
 const MAX_PORT = 65_535
@@ -101,6 +102,11 @@ export default defineConfig(({ mode }) => {
                     open: false,
                     gzipSize: true,
                 }),
+            codecovVitePlugin({
+                enableBundleAnalysis: !!process.env.CODECOV_TOKEN,
+                bundleName: "viper-frontend",
+                uploadToken: process.env.CODECOV_TOKEN,
+            }),
         ].filter(Boolean),
         resolve: {
             alias: {
@@ -163,12 +169,12 @@ export default defineConfig(({ mode }) => {
             rollupOptions: {
                 input: {
                     main: resolve(__dirname, "index.html"),
-                    cts: resolve(__dirname, "src/cts/index.html"),
-                    computing: resolve(__dirname, "src/computing/index.html"),
-                    students: resolve(__dirname, "src/students/index.html"),
-                    cms: resolve(__dirname, "src/cms/index.html"),
-                    cahfs: resolve(__dirname, "src/cahfs/index.html"),
-                    clinicalscheduler: resolve(__dirname, "src/clinicalscheduler/index.html"),
+                    cts: resolve(__dirname, "src/CTS/index.html"),
+                    computing: resolve(__dirname, "src/Computing/index.html"),
+                    students: resolve(__dirname, "src/Students/index.html"),
+                    cms: resolve(__dirname, "src/CMS/index.html"),
+                    cahfs: resolve(__dirname, "src/CAHFS/index.html"),
+                    clinicalscheduler: resolve(__dirname, "src/ClinicalScheduler/index.html"),
                     effort: resolve(__dirname, "src/Effort/index.html"),
                 },
                 output: {
@@ -189,6 +195,11 @@ export default defineConfig(({ mode }) => {
         test: {
             environment: "happy-dom",
             globals: true,
+            coverage: {
+                provider: "v8",
+                reporter: ["text", "cobertura"],
+                reportsDirectory: "./coverage",
+            },
         },
     }
 })

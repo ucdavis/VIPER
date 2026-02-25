@@ -147,11 +147,12 @@ internal static partial class ViteProxyHelpers
             viteBaseUri = new Uri("https://localhost:5173");
         }
 
-        // Ensure pathValue is not an absolute URL and normalize it to a relative path
+        // Uri.TryCreate with Absolute can match non-HTTP schemes (e.g. file://) — only reject http(s).
         var safePath = pathValue ?? string.Empty;
-        if (Uri.TryCreate(safePath, UriKind.Absolute, out var _))
+        if (Uri.TryCreate(safePath, UriKind.Absolute, out var parsedUri) &&
+            (parsedUri.Scheme == Uri.UriSchemeHttp || parsedUri.Scheme == Uri.UriSchemeHttps))
         {
-            // If an absolute URI was provided, treat as not allowed and fallback
+            // If an absolute HTTP(S) URI was provided, treat as not allowed and fallback
             safePath = "/";
         }
 

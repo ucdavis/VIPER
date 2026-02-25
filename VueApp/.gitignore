@@ -12,6 +12,8 @@ node_modules
 dist
 dist-ssr
 coverage
+*.junit.xml
+bundle-stats.html
 *.local
 
 /cypress/videos/

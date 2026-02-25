@@ -10,7 +10,7 @@ import { initializeQuasar } from "@/composables/QuasarConfig"
 import "@quasar/extras/material-icons/material-icons.css"
 import "quasar/dist/quasar.css"
 import "@/styles/index.css"
-import "@/cts/assets/cts.css"
+import "@/CTS/assets/cts.css"
 /* oxlint-enable import/no-unassigned-import */
 
 const pinia = createPinia()
