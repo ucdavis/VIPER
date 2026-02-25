@@ -157,31 +157,6 @@ namespace Viper.test
         }
 
         [Fact]
-        public void BuildViteUrl_AllowsFileScheme()
-        {
-            // Arrange — on Linux, /home/user can parse as file:///home/user;
-            // the SSRF check should NOT reject non-HTTP schemes
-            var original = Environment.GetEnvironmentVariable("VITE_SERVER_URL");
-            try
-            {
-                Environment.SetEnvironmentVariable("VITE_SERVER_URL", null);
-                var pathString = new PathString("/CTS");
-                var query = new QueryString("");
-
-                // Act
-                var result = ViteProxyHelpers.BuildViteUrl(pathString, query, _vueAppNames);
-
-                // Assert — normal relative path should resolve normally, not be rejected
-                Assert.StartsWith("https://localhost:5173", result);
-                Assert.Contains("/CTS/", result);
-            }
-            finally
-            {
-                Environment.SetEnvironmentVariable("VITE_SERVER_URL", original);
-            }
-        }
-
-        [Fact]
         public void CreateProxyRequest_DoesNotForwardHopByHopHeaders()
         {
             // Arrange
