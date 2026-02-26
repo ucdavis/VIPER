@@ -1,17 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { setActivePinia, createPinia } from "pinia"
 import { usePermissionsStore } from "../stores/permissions"
-import { permissionService, createMockUserPermissions } from "./test-utils"
+import { PermissionService, createMockUserPermissions } from "./test-utils"
 
 // Mock the permission service
 vi.mock("../services/permission-service", () => ({
-    permissionService: {
+    PermissionService: {
         getUserPermissions: vi.fn(),
         getPermissionSummary: vi.fn(),
         canEditService: vi.fn(),
         canEditRotation: vi.fn(),
         canEditOwnSchedule: vi.fn(),
     },
+    permissionService: {},
 }))
 
 describe("Permissions Store - Error Handling & Hierarchy", () => {
@@ -39,7 +39,7 @@ describe("Permissions Store - Error Handling & Hierarchy", () => {
             const store = usePermissionsStore()
             const mockPermissions = createMockUserPermissions()
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
 
             expect(store.canEditService(0)).toBeFalsy()
@@ -63,7 +63,7 @@ describe("Permissions Store - Error Handling & Hierarchy", () => {
             })
 
             // Mock the API call
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
 
             expect(store.permissionLevel).toBe("admin")
@@ -86,7 +86,7 @@ describe("Permissions Store - Error Handling & Hierarchy", () => {
                 },
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.permissionLevel).toBe("manage")
         })
@@ -104,7 +104,7 @@ describe("Permissions Store - Error Handling & Hierarchy", () => {
                 },
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.permissionLevel).toBe("edit_all")
         })
@@ -122,7 +122,7 @@ describe("Permissions Store - Error Handling & Hierarchy", () => {
                 },
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.permissionLevel).toBe("edit_own")
         })

@@ -1,17 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { setActivePinia, createPinia } from "pinia"
 import { usePermissionsStore } from "../stores/permissions"
-import { permissionService, createMockUserPermissions } from "./test-utils"
+import { PermissionService, createMockUserPermissions } from "./test-utils"
 
 // Mock the permission service
 vi.mock("../services/permission-service", () => ({
-    permissionService: {
+    PermissionService: {
         getUserPermissions: vi.fn(),
         getPermissionSummary: vi.fn(),
         canEditService: vi.fn(),
         canEditRotation: vi.fn(),
         canEditOwnSchedule: vi.fn(),
     },
+    permissionService: {},
 }))
 
 describe("Permissions Store - Utility Methods", () => {
@@ -40,7 +40,7 @@ describe("Permissions Store - Utility Methods", () => {
             })
 
             // Mock the API call
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
 
             expect(store.getEditableServiceNames()).toEqual(["Cardiology", "Internal Medicine"])
@@ -54,7 +54,7 @@ describe("Permissions Store - Utility Methods", () => {
                 editableServices: [],
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.getEditableServicesDisplay()).toBe("None")
         })
@@ -71,7 +71,7 @@ describe("Permissions Store - Utility Methods", () => {
                 ],
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.getEditableServicesDisplay()).toBe("Cardiology")
         })
@@ -98,7 +98,7 @@ describe("Permissions Store - Utility Methods", () => {
                 ],
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.getEditableServicesDisplay()).toBe("Cardiology, Internal Medicine, and Surgery")
         })
@@ -119,7 +119,7 @@ describe("Permissions Store - Utility Methods", () => {
             })
 
             // Mock the API call
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
 
             expect(store.canEditService(1)).toBeTruthy()

@@ -39,7 +39,7 @@ async function submitEpa() {
         description: epa.value.description,
         active: epa.value.active,
     }
-    let r = { success: false, result: null as Epa | null }
+    let r
     if (epa.value?.epaId) {
         r = await put(epaUrl + "/" + epa.value.epaId, epaObj)
     } else {

@@ -65,7 +65,7 @@ class PermissionService {
     /**
      * Get the current user's service-level edit permissions
      */
-    async getUserPermissions(): Promise<UserPermissions> {
+    static async getUserPermissions(): Promise<UserPermissions> {
         try {
             const response = await get(`${PermissionService.BASE_URL}/user`)
 
@@ -85,7 +85,7 @@ class PermissionService {
     /**
      * Check if current user can edit a specific service
      */
-    async canEditService(serviceId: number): Promise<ServicePermissionCheck> {
+    static async canEditService(serviceId: number): Promise<ServicePermissionCheck> {
         if (!serviceId || serviceId <= 0) {
             throw PermissionService.validationError("Valid service ID is required")
         }
@@ -109,7 +109,7 @@ class PermissionService {
     /**
      * Check if current user can edit a specific rotation
      */
-    async canEditRotation(rotationId: number): Promise<RotationPermissionCheck> {
+    static async canEditRotation(rotationId: number): Promise<RotationPermissionCheck> {
         if (!rotationId || rotationId <= 0) {
             throw PermissionService.validationError("Valid rotation ID is required")
         }
@@ -133,7 +133,7 @@ class PermissionService {
     /**
      * Check if current user can edit their own schedule for a specific instructor schedule entry
      */
-    async canEditOwnSchedule(instructorScheduleId: number): Promise<InstructorSchedulePermissionCheck> {
+    static async canEditOwnSchedule(instructorScheduleId: number): Promise<InstructorSchedulePermissionCheck> {
         if (!instructorScheduleId || instructorScheduleId <= 0) {
             throw PermissionService.validationError("Valid instructor schedule ID is required")
         }
@@ -161,9 +161,9 @@ class PermissionService {
     /**
      * Check multiple services for edit permissions in batch
      */
-    async checkMultipleServices(serviceIds: number[]): Promise<Record<number, boolean>> {
+    static async checkMultipleServices(serviceIds: number[]): Promise<Record<number, boolean>> {
         try {
-            const userPermissions = await this.getUserPermissions()
+            const userPermissions = await PermissionService.getUserPermissions()
             const resultMap = new Map<number, boolean>()
 
             // Validate input and create safe mapping
@@ -195,7 +195,7 @@ class PermissionService {
     /**
      * Check multiple rotations for edit permissions in batch
      */
-    async checkMultipleRotations(rotationIds: number[]): Promise<Record<number, boolean>> {
+    static async checkMultipleRotations(rotationIds: number[]): Promise<Record<number, boolean>> {
         try {
             // For now, check each rotation individually
             // This could be optimized with a batch endpoint if needed
@@ -204,7 +204,7 @@ class PermissionService {
 
             const checks = validRotationIds.map(async (rotationId) => {
                 try {
-                    const result = await this.canEditRotation(rotationId)
+                    const result = await PermissionService.canEditRotation(rotationId)
                     return { rotationId, canEdit: Boolean(result?.canEdit) }
                 } catch {
                     return { rotationId, canEdit: false }
@@ -233,9 +233,9 @@ class PermissionService {
     /**
      * Helper method to check if user has general manage permission
      */
-    async hasManagePermission(): Promise<boolean> {
+    static async hasManagePermission(): Promise<boolean> {
         try {
-            const userPermissions = await this.getUserPermissions()
+            const userPermissions = await PermissionService.getUserPermissions()
             return userPermissions.permissions.hasManagePermission
         } catch {
             return false
@@ -245,9 +245,9 @@ class PermissionService {
     /**
      * Helper method to get list of services user can edit
      */
-    async getEditableServices() {
+    static async getEditableServices() {
         try {
-            const userPermissions = await this.getUserPermissions()
+            const userPermissions = await PermissionService.getUserPermissions()
             return userPermissions.editableServices
         } catch {
             return []

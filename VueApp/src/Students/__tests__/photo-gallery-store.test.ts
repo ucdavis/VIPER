@@ -1,8 +1,8 @@
 /* eslint-disable max-lines -- Comprehensive test suite requires extensive test coverage */
-import { describe, it, expect, beforeEach, vi } from "vitest"
+
 import { setActivePinia, createPinia } from "pinia"
 import { usePhotoGalleryStore } from "../stores/photo-gallery-store"
-import { photoGalleryService } from "../services/photo-gallery-service"
+import { photoGalleryService, PhotoGalleryService } from "../services/photo-gallery-service"
 import type { PhotoGalleryViewModel, GalleryMenu, CourseInfo } from "../services/photo-gallery-service"
 
 // Mock the photo gallery service
@@ -15,6 +15,8 @@ vi.mock("../services/photo-gallery-service", () => ({
         getCourseGallery: vi.fn(),
         exportToWord: vi.fn(),
         exportToPDF: vi.fn(),
+    },
+    PhotoGalleryService: {
         downloadFile: vi.fn(),
     },
 }))
@@ -523,7 +525,7 @@ describe("photo-gallery-store", () => {
             })
 
             vi.mocked(photoGalleryService.exportToWord).mockResolvedValue({ blob: mockBlob, filename: null })
-            vi.mocked(photoGalleryService.downloadFile).mockImplementation(() => {
+            vi.mocked(PhotoGalleryService.downloadFile).mockImplementation(() => {
                 // Mock implementation - no action needed
             })
 
@@ -535,7 +537,7 @@ describe("photo-gallery-store", () => {
                     exportFormat: "word",
                 }),
             )
-            expect(photoGalleryService.downloadFile).toHaveBeenCalledWith(
+            expect(PhotoGalleryService.downloadFile).toHaveBeenCalledWith(
                 mockBlob,
                 expect.stringMatching(/^StudentPhotos_\d{4}-\d{2}-\d{2}\.docx$/),
             )
@@ -547,7 +549,7 @@ describe("photo-gallery-store", () => {
             const mockBlob = new Blob(["test"], { type: "application/pdf" })
 
             vi.mocked(photoGalleryService.exportToPDF).mockResolvedValue({ blob: mockBlob, filename: null })
-            vi.mocked(photoGalleryService.downloadFile).mockImplementation(() => {
+            vi.mocked(PhotoGalleryService.downloadFile).mockImplementation(() => {
                 // Mock implementation - no action needed
             })
 
@@ -559,7 +561,7 @@ describe("photo-gallery-store", () => {
                     exportFormat: "pdf",
                 }),
             )
-            expect(photoGalleryService.downloadFile).toHaveBeenCalledWith(
+            expect(PhotoGalleryService.downloadFile).toHaveBeenCalledWith(
                 mockBlob,
                 expect.stringMatching(/^StudentPhotos_\d{4}-\d{2}-\d{2}\.pdf$/),
             )
@@ -570,7 +572,7 @@ describe("photo-gallery-store", () => {
             const mockBlob = new Blob(["test"])
 
             vi.mocked(photoGalleryService.exportToWord).mockResolvedValue({ blob: mockBlob, filename: null })
-            vi.mocked(photoGalleryService.downloadFile).mockImplementation(() => {
+            vi.mocked(PhotoGalleryService.downloadFile).mockImplementation(() => {
                 // Mock implementation - no action needed
             })
 

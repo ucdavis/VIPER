@@ -8,7 +8,7 @@ export function safeDeepClone<T>(obj: T): T {
             return structuredClone(obj)
         }
     } catch {
-        // structuredClone failed, fall back to JSON method
+        // StructuredClone failed, fall back to JSON method
     }
 
     // Fallback to JSON parse/stringify - handles most Vue reactive objects

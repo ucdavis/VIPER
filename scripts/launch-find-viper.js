@@ -34,7 +34,7 @@ function findProcessByPort(port) {
             if (line.includes("LISTENING")) {
                 // Extract PID (last column)
                 const parts = line.trim().split(/\s+/)
-                const pid = parts[parts.length - 1]
+                const pid = parts.at(-1)
 
                 // Validate PID is numeric and verify it's a Viper process
                 if (/^\d+$/.test(pid) && isViperProcess(pid)) {

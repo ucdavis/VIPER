@@ -1,11 +1,10 @@
-import { vi } from "vitest"
 import { mount } from "@vue/test-utils"
 import { createPinia, setActivePinia } from "pinia"
 import { createRouter, createWebHistory } from "vue-router"
 import { Quasar } from "quasar"
 import { nextTick, computed } from "vue"
 import { usePermissionsStore } from "../stores/permissions"
-import { permissionService } from "../services/permission-service"
+import { permissionService, PermissionService } from "../services/permission-service"
 import ClinicalSchedulerHome from "../pages/ClinicalSchedulerHome.vue"
 import type { UserPermissions } from "../types"
 
@@ -75,7 +74,7 @@ const mockComponents = {
 
 // Note: Component mocks need to be done at the test file level, not in a function
 // Each test file should include these mocks at the top level:
-// vi.mock("../components/AccessDeniedCard.vue", () => ({ default: mockComponents.AccessDeniedCard }))
+// Vi.mock("../components/AccessDeniedCard.vue", () => ({ default: mockComponents.AccessDeniedCard }))
 
 // Generic wrapper factory
 interface WrapperOptions {
@@ -156,6 +155,7 @@ export {
     usePermissionsStore,
     // Services
     permissionService,
+    PermissionService,
     // Types
     type UserPermissions,
     // Test utilities

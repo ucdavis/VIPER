@@ -49,7 +49,7 @@ async function loadLevels() {
 
 async function submitLevel() {
     const { post, put } = useFetch()
-    let success = false
+    let success
     if (level.value.levelId) {
         const r = await put(levelUrl + "/" + level.value.levelId, level.value)
         success = r.success

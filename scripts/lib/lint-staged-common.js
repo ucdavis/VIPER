@@ -266,7 +266,7 @@ function runCommand(command, args, description, cwd) {
 
     // Windows .cmd files need to be run via cmd.exe
     // Use ComSpec directly instead of shell: true to avoid DEP0190 deprecation warning
-    // and ensure proper argument escaping
+    // And ensure proper argument escaping
     const useCmd = IS_WINDOWS && localBin.endsWith(".cmd")
     const execPath = useCmd ? env.ComSpec : localBin
     const finalArgs = useCmd ? ["/c", localBin, ...args] : args
@@ -428,7 +428,7 @@ function filterTypeScriptErrors(tscOutput, targetFiles, projectRoot) {
             }
         } else {
             // Keep non-error lines (like summary messages) if we have any relevant errors
-            // or if this might be a continuation of an error message
+            // Or if this might be a continuation of an error message
             const hasRelevantErrors = filteredLines.some((line) => line.includes("error TS"))
             if (hasRelevantErrors || line.trim() === "" || line.includes("Found ")) {
                 filteredLines.push(line)

@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { usePermissionsStore } from "../stores/permissions"
 import ClinicalSchedulerHome from "../pages/ClinicalSchedulerHome.vue"
 import { setupTest, createTestWrapper, spyOnRouterPush, createMockPermissionsStore } from "./test-utils"
@@ -178,7 +177,7 @@ describe("ClinicalSchedulerHome - Navigation", () => {
             await rotationCard.trigger("click")
 
             // Verify the call was made with correct parameters
-            expect(routerPush).toHaveBeenCalledTimes(1)
+            expect(routerPush).toHaveBeenCalledOnce()
             expect(routerPush).toHaveBeenCalledWith("/ClinicalScheduler/rotation")
         })
 

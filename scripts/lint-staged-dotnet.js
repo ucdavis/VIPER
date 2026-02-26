@@ -260,25 +260,67 @@ const applyFormatFixes = (projectPath, relativePaths) => {
     return fixesApplied
 }
 
+// Classify output text into { hasErrors, hasWarnings }
+function classifyOutput(output) {
+    return {
+        hasWarnings: Boolean(output && (output.includes("warning ") || output.includes(": warning"))),
+        hasErrors: Boolean(output && (output.includes("error ") || output.includes(": error"))),
+    }
+}
+
+// Try to return cached format results; returns null if cache miss
+function getCachedFormatResult(afterFix, absolutePaths, cacheKey) {
+    if (afterFix || forceFlag || needsFormatCheck(absolutePaths, cacheKey)) {
+        return null
+    }
+    const cachedOutput = getCachedFormatOutput(cacheKey)
+    const { hasWarnings, hasErrors } = classifyOutput(cachedOutput)
+    return { hasErrors, hasWarnings, output: cachedOutput || "" }
+}
+
+// Handle a successful dotnet format --verify-no-changes run
+function handleVerifySuccess(result, afterFix, absolutePaths, cacheKey, projectPath) {
+    if (!afterFix) {
+        markFormatChecked(absolutePaths, cacheKey, result || "")
+    }
+    if (afterFix) {
+        logger.success(`All issues have been fixed in ${projectPath}/ files`)
+    }
+    return { hasErrors: false, hasWarnings: false, output: result || "" }
+}
+
+// Handle a failed dotnet format --verify-no-changes run
+function handleVerifyFailure(error, afterFix, absolutePaths, cacheKey, projectPath) {
+    if (error.stdout || error.stderr) {
+        const output = (error.stdout || "") + (error.stderr || "")
+        const { hasWarnings, hasErrors } = classifyOutput(output)
+
+        if (!afterFix) {
+            markFormatChecked(absolutePaths, cacheKey, output)
+        }
+        if (afterFix) {
+            const remainingCount = (output.match(/warning|error/g) || []).length
+            logger.warning(`${remainingCount} issue(s) require manual attention in ${projectPath}/ project`)
+        }
+
+        return { hasErrors, hasWarnings, output }
+    }
+    return { hasErrors: true, hasWarnings: false, output: "" }
+}
+
 // Function to verify formatting for a project
 const verifyFormatting = (projectPath, relativePaths, afterFix = false) => {
     if (afterFix) {
         logger.info(`🔍 Checking for remaining issues in ${projectPath}/ project...`)
     }
 
-    // Generate cache key based on project and files
     const cacheKey = `${projectPath}-format`
-
-    // Convert relative paths to absolute for hashing
     const absolutePaths = relativePaths.map((p) => path.resolve(process.cwd(), p))
 
     // Check if format check is needed (unless forced or after fix)
-    if (!afterFix && !forceFlag && !needsFormatCheck(absolutePaths, cacheKey)) {
-        // Return cached format output
-        const cachedOutput = getCachedFormatOutput(cacheKey)
-        const hasWarnings = cachedOutput && (cachedOutput.includes("warning ") || cachedOutput.includes(": warning"))
-        const hasErrors = cachedOutput && (cachedOutput.includes("error ") || cachedOutput.includes(": error"))
-        return { hasErrors: hasErrors, hasWarnings: hasWarnings, output: cachedOutput || "" }
+    const cached = getCachedFormatResult(afterFix, absolutePaths, cacheKey)
+    if (cached) {
+        return cached
     }
 
     const verifyArgs = ["format", `${projectPath}/`, "--verify-no-changes", "--severity", "warn"]
@@ -292,35 +334,9 @@ const verifyFormatting = (projectPath, relativePaths, afterFix = false) => {
             timeout: 180_000,
             stdio: ["inherit", "pipe", "pipe"],
         })
-
-        // Cache successful format check
-        if (!afterFix) {
-            markFormatChecked(absolutePaths, cacheKey, result || "")
-        }
-
-        if (afterFix) {
-            logger.success(`All issues have been fixed in ${projectPath}/ files`)
-        }
-        return { hasErrors: false, hasWarnings: false, output: result || "" }
+        return handleVerifySuccess(result, afterFix, absolutePaths, cacheKey, projectPath)
     } catch (error) {
-        if (error.stdout || error.stderr) {
-            const output = (error.stdout || "") + (error.stderr || "")
-            const hasWarnings = output.includes("warning ") || output.includes(": warning")
-            const hasErrors = output.includes("error ") || output.includes(": error")
-
-            // Cache format check results even if there are issues
-            if (!afterFix) {
-                markFormatChecked(absolutePaths, cacheKey, output)
-            }
-
-            if (afterFix) {
-                const remainingCount = (output.match(/warning|error/g) || []).length
-                logger.warning(`${remainingCount} issue(s) require manual attention in ${projectPath}/ project`)
-            }
-
-            return { hasErrors: hasErrors, hasWarnings: hasWarnings, output }
-        }
-        return { hasErrors: true, hasWarnings: false, output: "" }
+        return handleVerifyFailure(error, afterFix, absolutePaths, cacheKey, projectPath)
     }
 }
 

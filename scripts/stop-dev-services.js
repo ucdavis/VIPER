@@ -9,6 +9,10 @@ const { killProcess, killProcessOnPort, getDevServerEnv, createLogger } = requir
 const logger = createLogger("Dev Stop")
 const { error: logError, success: logSuccess, info: logInfo } = logger
 
+// Centralize process.env access to a single top-level binding
+// oxlint-disable-next-line no-process-env -- single controlled access point
+const ENV = process.env
+
 // Stop Mailpit specifically (cross-platform)
 async function stopMailpit() {
     const stopped = await killProcess("mailpit")
@@ -78,7 +82,7 @@ async function stopDevServices() {
 
     // Check if .env.local was loaded
     const hasCustomValues = Object.entries(envVars).some(
-        ([key, value]) => process.env[key] && Number.parseInt(process.env[key], 10) !== value,
+        ([key, value]) => ENV[key] && Number.parseInt(ENV[key], 10) !== value,
     )
 
     if (hasCustomValues) {

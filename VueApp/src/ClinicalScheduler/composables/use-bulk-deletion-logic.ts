@@ -100,7 +100,7 @@ function buildConfirmationMessage<TItem extends BulkDeletableItem>(options: {
     getItemTypeName: () => string
 }): string {
     const { selectedItems, selectedWeekIds, schedulesToDelete, getItemDisplayName, getItemTypeName } = options
-    const itemNames = selectedItems.map(getItemDisplayName).join(" / ")
+    const itemNames = selectedItems.map((item) => getItemDisplayName(item)).join(" / ")
     const weekCount = selectedWeekIds.length
     const itemType = getItemTypeName()
 

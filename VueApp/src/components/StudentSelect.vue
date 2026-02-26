@@ -144,11 +144,6 @@ async function setupClassYears() {
 
 /* Get students by service, class level, or all */
 async function getStudents() {
-    let optionsType = studentOptionsType.value
-    if (optionsType?.startsWith("Class")) {
-        optionsType = "ByClass"
-    }
-
     switch (studentOptionsType.value) {
         case "Service":
             students.value = await getServiceStudents()

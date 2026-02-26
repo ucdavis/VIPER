@@ -1,8 +1,7 @@
-import { describe, it, expect } from "vitest"
 import { normalizeScheduleSemesters } from "../composables/use-schedule-normalization"
 import type { ScheduleSemester } from "../components/ScheduleView.vue"
 
-describe("normalizeScheduleSemesters", () => {
+describe(normalizeScheduleSemesters, () => {
     it("should return empty array when input is undefined", () => {
         const result = normalizeScheduleSemesters()
         expect(result).toEqual([])

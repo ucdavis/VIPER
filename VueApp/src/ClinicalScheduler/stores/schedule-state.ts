@@ -63,11 +63,11 @@ export function createScheduleState() {
         for (const semester of schedule.schedulesBySemester) {
             const week = semester.weeks.find((w) => w.weekId === weekId)
             if (week && week.instructorSchedules) {
-                return week.instructorSchedules.map((schedule) => ({
-                    id: schedule.instructorScheduleId,
-                    clinicianName: schedule.fullName,
-                    isPrimary: schedule.isPrimaryEvaluator,
-                    mothraId: schedule.mothraId,
+                return week.instructorSchedules.map((entry) => ({
+                    id: entry.instructorScheduleId,
+                    clinicianName: entry.fullName,
+                    isPrimary: entry.isPrimaryEvaluator,
+                    mothraId: entry.mothraId,
                 }))
             }
         }

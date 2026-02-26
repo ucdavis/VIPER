@@ -67,7 +67,7 @@ function isValidInternalPath(path: string): boolean {
     }
 
     // SECURITY NOTE: This approach mitigates open redirect attacks by restricting
-    // redirects to known internal paths.
+    // Redirects to known internal paths.
     // Ensure all valid internal routes used by your app are included in ALLOWED_INTERNAL_PREFIXES.
     // Update this array if new internal route prefixes are added to the application.
     return ALLOWED_INTERNAL_PREFIXES.some((prefix) => path.startsWith(prefix))
@@ -87,24 +87,24 @@ function useRequireLogin(to: RouteLocationNormalized) {
         const router = useRouter()
         const allowUnAuth = to.matched.some((record) => record.meta.allowUnAuth)
 
-        //get logged in user info
+        //Get logged in user info
         const { get } = useFetch()
         const r = await get(`${baseUrl}loggedInUser`)
 
-        //if unauth'd access allowed and no logged in user, return true
+        //If unauth'd access allowed and no logged in user, return true
         if (allowUnAuth && (!r.success || !r.result.userId)) {
             return true
         }
 
-        //show spinner after 250ms
+        //Show spinner after 250ms
         if ($q !== null) {
             $q.loading.show({
                 message: "Logging in",
-                delay: 250, // ms
+                delay: 250, // Ms
             })
         }
 
-        //if no logged in user, redirect to cas
+        //If no logged in user, redirect to cas
         if (!r.success || !r.result.userId) {
             // Hide loading spinner before redirect to prevent flash
             if ($q !== null) {
@@ -118,7 +118,7 @@ function useRequireLogin(to: RouteLocationNormalized) {
             globalThis.location.href = buildLoginUrl(fullReturnPath)
             return false
         }
-        //store the logged in user info
+        //Store the logged in user info
         userStore.loadUser(r.result)
         if (loadPermissions) {
             const permissionQueryParam = permissionPrefix === null ? "" : `?prefix=${permissionPrefix}`

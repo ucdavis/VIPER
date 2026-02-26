@@ -99,7 +99,7 @@ try {
 
     logger.info(`Running ESLint security and quality checks on ${files.length} files...`)
 
-    let allIssues = []
+    const allIssues = []
 
     // Separate Vue files from JS/TS files
     const vueFiles = files.filter((f) => f.endsWith(".vue"))

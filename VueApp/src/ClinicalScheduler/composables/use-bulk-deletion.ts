@@ -114,6 +114,7 @@ export function useBulkDeletion() {
 
             for (const item of itemsToDelete) {
                 options.removeScheduleWithRollback(scheduleData, item.scheduleId, {
+                    // oxlint-disable-next-line no-loop-func -- shared counters are intentional for bulk-operation tracking
                     onSuccess: (wasPrimary, instructorName) => {
                         totalSuccess += 1
                         if (wasPrimary && instructorName) {
@@ -125,6 +126,7 @@ export function useBulkDeletion() {
                         completedCount += 1
                         checkCompletion()
                     },
+                    // oxlint-disable-next-line no-loop-func -- shared counters are intentional for bulk-operation tracking
                     onError: () => {
                         totalErrors += 1
                         completedCount += 1

@@ -1,4 +1,4 @@
-//import './assets/main.css'
+//Import './assets/main.css'
 
 import { createApp } from "vue"
 import { createPinia } from "pinia"
@@ -11,7 +11,7 @@ import "@quasar/extras/material-icons/material-icons.css"
 import "quasar/dist/quasar.css"
 import { initializeQuasar } from "@/composables/QuasarConfig"
 
-//import our css
+//Import our css
 import "@/styles/index.css"
 
 const pinia = createPinia()

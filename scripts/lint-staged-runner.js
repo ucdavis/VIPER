@@ -54,6 +54,6 @@ try {
         env: { ...env, LINT_BLOCK_ON_WARNINGS: "true", DOTNET_USE_COMPILER_SERVER: "1" },
     })
 } catch (error) {
-    // lint-any.js will handle its own exit codes
+    // Lint-any.js will handle its own exit codes
     process.exit(error.status || 1)
 }

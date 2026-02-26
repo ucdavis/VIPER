@@ -321,9 +321,7 @@
                                                     element,
                                                     tag.linkCollectionTagCategoryId,
                                                 )"
-                                                :key="
-                                                    tag.linkCollectionTagCategoryId.toString() + ' ' + t.toString()
-                                                "
+                                                :key="tag.linkCollectionTagCategoryId.toString() + ' ' + t.toString()"
                                                 class="q-mr-xs q-mb-xs"
                                             >
                                                 {{ t }}

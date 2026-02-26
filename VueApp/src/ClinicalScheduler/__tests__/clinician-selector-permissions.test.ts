@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { setupTest, createWrapper } from "./clinician-selector-helpers"
 
 // Mock services
@@ -9,13 +8,14 @@ vi.mock("../services/clinician-service", () => ({
 }))
 
 vi.mock("../services/permission-service", () => ({
-    permissionService: {
+    PermissionService: {
         getUserPermissions: vi.fn(),
         getPermissionSummary: vi.fn(),
         canEditService: vi.fn(),
         canEditRotation: vi.fn(),
         canEditOwnSchedule: vi.fn(),
     },
+    permissionService: {},
 }))
 
 describe("ClinicianSelector - Permission Scenarios", () => {

@@ -654,7 +654,7 @@ const scheduleRotationToWeek = async (week: WeekItem) => {
                     selectedNewRotationId.value = null
                 },
                 onError: (error) => {
-                    let userMessage = "Failed to schedule rotation"
+                    let userMessage
                     if (error.includes("already scheduled") || error.includes("already exists")) {
                         userMessage = `${selectedRotation.value!.name} is already scheduled for this week`
                     } else if (error.includes("permission")) {

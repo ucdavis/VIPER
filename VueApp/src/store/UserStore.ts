@@ -27,7 +27,7 @@ export const useUserStore = defineStore("userStore", {
     getters: {
         isLoggedIn: (state) => state.userInfo.loginId !== "",
         isEmulating: (state) => state.userInfo.emulating,
-        //userPermissions: (state) => state.userInfo.permissions,
+        //UserPermissions: (state) => state.userInfo.permissions,
     },
     actions: {
         loadUser(payload: userObject) {

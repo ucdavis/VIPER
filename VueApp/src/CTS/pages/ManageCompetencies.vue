@@ -50,14 +50,9 @@ function createTreeNode(comp: Competency): QTreeNode {
 }
 
 async function submitComp() {
-    let success = false
-    if (selectedComp.value.competencyId) {
-        const r = await put(apiUrl + "cts/competencies/" + selectedComp.value.competencyId, selectedComp.value)
-        success = r.success
-    } else {
-        const r = await post(apiUrl + "cts/competencies", selectedComp.value)
-        success = r.success
-    }
+    const { success } = selectedComp.value.competencyId
+        ? await put(apiUrl + "cts/competencies/" + selectedComp.value.competencyId, selectedComp.value)
+        : await post(apiUrl + "cts/competencies", selectedComp.value)
 
     if (success) {
         await load()

@@ -170,7 +170,7 @@ class PhotoGalleryService {
         return response.result as ClassYear[]
     }
 
-    downloadFile = (blob: Blob, filename: string): void => {
+    static downloadFile(blob: Blob, filename: string): void {
         const url = globalThis.URL.createObjectURL(blob)
         const link = document.createElement("a")
         link.href = url
@@ -184,7 +184,7 @@ class PhotoGalleryService {
 
 const photoGalleryService = new PhotoGalleryService()
 
-export { photoGalleryService }
+export { photoGalleryService, PhotoGalleryService }
 export type {
     StudentPhoto,
     PhotoGalleryViewModel,

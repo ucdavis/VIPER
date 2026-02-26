@@ -37,7 +37,7 @@ const tasks = args.map((arg) => {
 })
 
 // ANSI color codes for task names
-const colors = ["\u001B[33m", "\u001B[34m", "\u001B[32m", "\u001B[35m", "\u001B[36m"] // yellow, blue, green, magenta, cyan
+const colors = ["\u001B[33m", "\u001B[34m", "\u001B[32m", "\u001B[35m", "\u001B[36m"] // Yellow, blue, green, magenta, cyan
 const reset = "\u001B[0m"
 const green = "\u001B[32m"
 const red = "\u001B[31m"

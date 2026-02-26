@@ -1,24 +1,24 @@
-//load createApp function from vue
+//Load createApp function from vue
 import { createApp } from "vue"
-//load pinia storage plugin
+//Load pinia storage plugin
 import { createPinia } from "pinia"
-//load the app router and application
+//Load the app router and application
 import { router } from "./router"
 import App from "./App.vue"
-//import quasar, icon libraries, css, and our default quasar config
+//Import quasar, icon libraries, css, and our default quasar config
 import "@quasar/extras/material-icons/material-icons.css"
 import "quasar/dist/quasar.css"
 import { initializeQuasar } from "@/composables/QuasarConfig"
-//import our css
+//Import our css
 import "@/styles/index.css"
 
 const pinia = createPinia()
 const app = createApp(App)
 
-//make the API url available to any page or component in this app
+//Make the API url available to any page or component in this app
 app.provide("apiURL", import.meta.env.VITE_API_URL)
 
-//load plugins
+//Load plugins
 app.use(pinia)
 app.use(router)
 
