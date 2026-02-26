@@ -26,7 +26,8 @@ const { env } = process
 // Helper function to run commands with color output preserved
 function runCommand(command, args, options = {}) {
     return new Promise((resolve, reject) => {
-        const child = spawn(command, args, {
+        const fullCommand = args.length > 0 ? `${command} ${args.join(" ")}` : command
+        const child = spawn(fullCommand, {
             stdio: ["ignore", "inherit", "inherit"], // Ignore stdin, inherit stdout/stderr for colors
             shell: true,
             ...options,
@@ -59,7 +60,8 @@ function runCommandWithOutput(command, args, options = {}) {
         let stdout = ""
         let stderr = ""
 
-        const child = spawn(command, args, {
+        const fullCommand = args.length > 0 ? `${command} ${args.join(" ")}` : command
+        const child = spawn(fullCommand, {
             shell: true,
             ...options,
         })
