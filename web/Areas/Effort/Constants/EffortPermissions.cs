@@ -44,7 +44,7 @@ public static class EffortPermissions
 
     /// <summary>
     /// Ability to manually add/edit/delete evaluation data from instructors
-    /// evaluated outside of CERE for their dept.
+    /// evaluated outside of the standard eval harvest for their dept.
     /// </summary>
     public const string EditAdHocEval = "SVMSecure.Effort.EditAdHocEval";
 
@@ -144,6 +144,12 @@ public static class EffortPermissions
     /// Department chairs use this permission to see audit entries for their department.
     /// </summary>
     public const string ViewDeptAudit = "SVMSecure.Effort.ViewDeptAudit";
+
+    /// <summary>
+    /// Permission to view instructor/course evaluation results from EvalHarvest.
+    /// This is an Eval-system permission, not an Effort permission.
+    /// </summary>
+    public const string ViewEvalResults = "SVMSecure.Eval.ViewAllDepts";
 
     /// <summary>
     /// Any of the three view-level access permissions (ViewAllDepartments, ViewDept, VerifyEffort).

@@ -98,3 +98,20 @@ export type {
     EffortChangeAlertDto,
     RecentChangeDto,
 } from "./dashboard-types"
+
+export type {
+    CourseEffortRecordDto,
+    CourseEffortResponseDto,
+    CourseInstructorOptionDto,
+    PossibleCourseInstructorsDto,
+} from "./course-effort-types"
+
+export type {
+    EvalCourseInfoDto,
+    CourseEvalEntryDto,
+    InstructorEvalStatusDto,
+    CourseEvaluationStatusDto,
+    CreateAdHocEvalRequest,
+    UpdateAdHocEvalRequest,
+    AdHocEvalResultDto,
+} from "./evaluation-types"

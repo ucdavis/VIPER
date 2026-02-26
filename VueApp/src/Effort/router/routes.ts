@@ -84,6 +84,7 @@ const routes = [
             layout: EffortLayout,
             permissions: [
                 "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
                 "SVMSecure.Effort.ImportCourse",
                 "SVMSecure.Effort.EditCourse",
                 "SVMSecure.Effort.DeleteCourse",
@@ -94,11 +95,12 @@ const routes = [
         name: "CourseList",
     },
     {
-        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/courses/:courseId(\\d+)`,
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/courses/:courseId(\\d+)/:tab(effort|evaluation)?`,
         meta: {
             layout: EffortLayout,
             permissions: [
                 "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
                 "SVMSecure.Effort.ImportCourse",
                 "SVMSecure.Effort.EditCourse",
                 "SVMSecure.Effort.DeleteCourse",
