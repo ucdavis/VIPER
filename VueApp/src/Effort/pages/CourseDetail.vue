@@ -200,7 +200,7 @@
 
             <!-- Harvested eval link — directs to Faculty Eval Viewer when harvest data exists -->
             <div
-                v-if="showCereLink"
+                v-if="showHarvestedEvalLink"
                 class="q-pa-sm q-mb-md bg-blue-1 rounded-borders"
             >
                 <q-icon
@@ -507,11 +507,11 @@ const evaluationTabLabel = computed(() => {
     return `Evaluations (${withEvals}/${instructors.length})`
 })
 
-// Show eval tab only when user has permission AND no harvested data (ad-hoc mode)
+// Show eval tab only when user has permission AND no harvested eval (ad-hoc mode)
 const showEvalTab = computed(() => hasViewEvalResults.value && evaluationData.value.canEditAdHoc)
 
 // Show Harvested eval deep link when eval harvest data exists
-const showCereLink = computed(
+const showHarvestedEvalLink = computed(
     () => hasViewEvalResults.value && !isLoadingEval.value && !evaluationData.value.canEditAdHoc,
 )
 
@@ -521,7 +521,7 @@ const evalViewerUrl = computed(
         `${viperOneUrl}faculty/eval/default.cfm?Page=RptCourseWrapper&Hash=${termCode.value}${course.value?.crn ?? ""}`,
 )
 
-// Coerce to effort tab when eval tab disappears (harvested data detected)
+// Coerce to effort tab when eval tab disappears (harvested eval detected)
 watch(showEvalTab, (canShow) => {
     if (!canShow && activeTab.value === "evaluation") {
         activeTab.value = "effort"

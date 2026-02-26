@@ -383,9 +383,10 @@ const {
     isAdmin,
 } = useEffortPermissions()
 
-// Users who can add/edit/delete courses or manage R-course enrollment should see the Courses link
+// Users who can view dept courses (read-only) or manage courses should see the Courses link
 const canViewCourses = computed(
     () =>
+        hasViewDept.value ||
         hasImportCourse.value ||
         hasEditCourse.value ||
         hasDeleteCourse.value ||

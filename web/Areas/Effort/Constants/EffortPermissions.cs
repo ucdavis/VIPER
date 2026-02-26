@@ -44,7 +44,7 @@ public static class EffortPermissions
 
     /// <summary>
     /// Ability to manually add/edit/delete evaluation data from instructors
-    /// evaluated outside of CERE for their dept.
+    /// evaluated outside of the standard eval harvest for their dept.
     /// </summary>
     public const string EditAdHocEval = "SVMSecure.Effort.EditAdHocEval";
 

@@ -1175,14 +1175,14 @@ public sealed class CoursesControllerTests
             Count5 = 5
         };
         _evalHarvestServiceMock.Setup(s => s.CreateAdHocEvaluationAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AdHocEvalResultDto { Success = false, Error = "CERE data exists for this course" });
+            .ReturnsAsync(new AdHocEvalResultDto { Success = false, Error = "harvested eval data exists for this course" });
 
         // Act
         var result = await _controller.CreateEvaluation(TestCourseId, request);
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
-        Assert.Equal("CERE data exists for this course", badRequest.Value);
+        Assert.Equal("harvested eval data exists for this course", badRequest.Value);
     }
 
     #endregion
