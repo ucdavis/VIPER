@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from "vue"
-import { ref, defineProps, watch } from "vue"
+import { ref, watch } from "vue"
 import type { ServiceSelect } from "@/CTS/types"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"

@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import type { Ref } from "vue"
-import { ref, defineProps, watch } from "vue"
+import { ref, watch } from "vue"
 import type { ContentBlock } from "@/CMS/types"
 import { useFetch } from "@/composables/ViperFetch"
 

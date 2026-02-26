@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest"
 import type { DepartmentVerificationDto, EffortChangeAlertDto } from "../types"
 
 // Helper functions extracted from StaffDashboard.vue for testing
@@ -56,12 +55,12 @@ function formatChangeAction(action: string): string {
         .replace(/^./, (str) => str.toUpperCase())
 }
 
-const termStatusColors: Record<string, string> = { Opened: "positive", Closed: "grey", Harvested: "info" }
-function getTermStatusColor(status: string | undefined): string {
-    return (status && termStatusColors[status]) || "grey"
+const TERM_STATUS_COLORS: Record<string, string> = { Opened: "positive", Closed: "grey", Harvested: "info" }
+function getTermStatusColor(status?: string): string {
+    return (status && TERM_STATUS_COLORS[status]) ?? "grey"
 }
 
-const alertIconMap: Record<string, string> = {
+const ALERT_ICONS: Record<string, string> = {
     NoRecords: "warning",
     NoInstructors: "school",
     NotVerified: "schedule",
@@ -69,12 +68,12 @@ const alertIconMap: Record<string, string> = {
     ZeroHours: "timer_off",
 }
 function getAlertIcon(alert: EffortChangeAlertDto): string {
-    return alertIconMap[alert.alertType] || "error"
+    return ALERT_ICONS[alert.alertType] ?? "error"
 }
 
-const alertColorMap: Record<string, string> = { High: "negative", Medium: "warning", Low: "info" }
+const ALERT_COLORS: Record<string, string> = { High: "negative", Medium: "warning", Low: "info" }
 function getAlertColor(alert: EffortChangeAlertDto): string {
-    return alertColorMap[alert.severity] || "grey"
+    return ALERT_COLORS[alert.severity] ?? "grey"
 }
 
 function getDeptDisplayName(dept: DepartmentVerificationDto): string {
@@ -328,7 +327,7 @@ describe("StaffDashboard - Department Filtering", () => {
     it("should filter departments that need follow-up", () => {
         const needsFollowup = departments.filter((d) => !d.meetsThreshold)
         expect(needsFollowup).toHaveLength(1)
-        expect(needsFollowup[0].departmentCode).toBe("APC")
+        expect(needsFollowup[0]!.departmentCode).toBe("APC")
     })
 
     it("should filter departments that are on track", () => {
@@ -395,16 +394,11 @@ describe("StaffDashboard - Alert Filtering", () => {
 
 describe("StaffDashboard - Stats Calculations", () => {
     it("should calculate verification percentage", () => {
-        const totalInstructors = 100
-        const verifiedInstructors = 80
-        const percent = Math.round((verifiedInstructors / totalInstructors) * 100)
-
-        expect(percent).toBe(80)
+        expect(Math.round((80 / 100) * 100)).toBe(80)
     })
 
     it("should handle zero instructors", () => {
-        const percent = 0
-        expect(percent).toBe(0)
+        expect(0).toBe(0)
     })
 
     it("should calculate pending instructors", () => {
@@ -435,6 +429,13 @@ describe("StaffDashboard - Department Display Name", () => {
     })
 })
 
+// Sort by verification % desc, then by instructor count desc
+function sortByVerification(a: DepartmentVerificationDto, b: DepartmentVerificationDto) {
+    return a.verificationPercent === b.verificationPercent
+        ? b.totalInstructors - a.totalInstructors
+        : b.verificationPercent - a.verificationPercent
+}
+
 describe("StaffDashboard - Department Sorting (Closed Terms)", () => {
     const departments: DepartmentVerificationDto[] = [
         makeDept("APC", "Anatomy"),
@@ -457,16 +458,16 @@ describe("StaffDashboard - Department Sorting (Closed Terms)", () => {
     ]
 
     it("should sort by verification percent descending", () => {
-        const sorted = departments.toSorted(sortByVerification)
-        expect(sorted[0].departmentCode).toBe("VME")
-        expect(sorted[2].departmentCode).toBe("APC")
+        const sorted = [...departments].toSorted(sortByVerification)
+        expect(sorted[0]!.departmentCode).toBe("VME")
+        expect(sorted[2]!.departmentCode).toBe("APC")
     })
 
     it("should break ties by instructor count descending", () => {
-        const sorted = departments.toSorted(sortByVerification)
+        const sorted = [...departments].toSorted(sortByVerification)
         // VME (100%, 20 instructors) before PMI (100%, 5 instructors)
-        expect(sorted[0].departmentCode).toBe("VME")
-        expect(sorted[1].departmentCode).toBe("PMI")
+        expect(sorted[0]!.departmentCode).toBe("VME")
+        expect(sorted[1]!.departmentCode).toBe("PMI")
     })
 })
 

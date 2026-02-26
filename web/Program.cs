@@ -201,7 +201,8 @@ try
     RegisterDbContext<VIPERContext>("VIPER");
     RegisterDbContext<ClinicalSchedulerContext>("ClinicalScheduler");
     RegisterDbContext<SISContext>("SIS");
-    RegisterDbContext<Viper.Areas.Effort.EffortDbContext>("Effort");
+    // Effort tables are in the VIPER database's [effort] schema.
+    RegisterDbContext<Viper.Areas.Effort.EffortDbContext>("VIPER");
     RegisterDbContext<Viper.Areas.Effort.Data.EvalHarvestDbContext>("EvalHarvest");
 
     // Register UserHelper service (must be before Scrutor to take precedence)

@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest"
 import type { InstructorEffortRecordDto, CourseDto } from "../types"
 
 /**
@@ -8,31 +7,37 @@ import type { InstructorEffortRecordDto, CourseDto } from "../types"
  * and record filtering logic used when displaying effort records.
  */
 
+// Default course values for mock records
+const DEFAULT_COURSE: CourseDto = {
+    id: 0,
+    crn: "CRN0",
+    termCode: 202_410,
+    subjCode: "VET",
+    crseNumb: "410",
+    seqNumb: "01",
+    courseCode: "VET 410",
+    enrollment: 20,
+    units: 4,
+    custDept: "VME",
+    isGenericRCourse: false,
+    isDvm: false,
+    is199299: false,
+    isRCourse: false,
+}
+
 // Helper to create a mock effort record
 function createMockRecord(
     id: number,
     courseOverrides: Partial<CourseDto> = {},
     recordOverrides: Partial<InstructorEffortRecordDto> = {},
 ): InstructorEffortRecordDto {
-    const course: CourseDto = {
-        id: courseOverrides.id ?? id,
-        crn: courseOverrides.crn ?? `CRN${id}`,
-        termCode: courseOverrides.termCode ?? 202_410,
-        subjCode: courseOverrides.subjCode ?? "VET",
-        crseNumb: courseOverrides.crseNumb ?? "410",
-        seqNumb: courseOverrides.seqNumb ?? "01",
-        enrollment: courseOverrides.enrollment ?? 20,
-        units: courseOverrides.units ?? 4,
-        custDept: courseOverrides.custDept ?? "VME",
-        isDvm: courseOverrides.isDvm ?? false,
-        is199299: courseOverrides.is199299 ?? false,
-        isRCourse: courseOverrides.isRCourse ?? false,
-    }
+    const course: CourseDto = { ...DEFAULT_COURSE, id, crn: `CRN${id}`, ...courseOverrides }
 
     // Use 'in' operator to check if property exists, allowing null values to pass through
     // (nullish coalescing ?? treats null as missing, which we don't want here)
-    const hours = "hours" in recordOverrides ? recordOverrides.hours : 40
-    const weeks = "weeks" in recordOverrides ? recordOverrides.weeks : null
+    const hours = "hours" in recordOverrides ? (recordOverrides.hours ?? null) : 40
+    const weeks = "weeks" in recordOverrides ? (recordOverrides.weeks ?? null) : null
+    const effortValue = "effortValue" in recordOverrides ? (recordOverrides.effortValue ?? null) : (hours ?? 40)
 
     return {
         id,
@@ -46,8 +51,9 @@ function createMockRecord(
         hours,
         weeks,
         crn: course.crn,
+        notes: recordOverrides.notes ?? null,
         modifiedDate: recordOverrides.modifiedDate ?? null,
-        effortValue: "effortValue" in recordOverrides ? recordOverrides.effortValue : (hours ?? 40),
+        effortValue,
         effortLabel: recordOverrides.effortLabel ?? "hours",
         course,
         childCourses: recordOverrides.childCourses ?? [],
@@ -232,7 +238,7 @@ describe("EffortRecordsDisplay - Zero Effort Detection", () => {
         it("handles null effortValue as zero", () => {
             const record = createMockRecord(1)
             record.effortValue = null
-            // null !== 0, so this would be false
+            // Null !== 0, so this would be false
             expect(isZeroEffort(record, [])).toBeFalsy()
         })
     })
@@ -291,10 +297,10 @@ describe("EffortRecordsDisplay - Integration Scenarios", () => {
 
         // Check zero effort detection with explicit list
         const zeroIds = [2, 3]
-        expect(isZeroEffort(records[0], zeroIds)).toBeFalsy() // id 1, has effort
-        expect(isZeroEffort(records[1], zeroIds)).toBeTruthy() // id 2, zero effort
-        expect(isZeroEffort(records[2], zeroIds)).toBeTruthy() // id 3, generic R-course
-        expect(isZeroEffort(records[3], zeroIds)).toBeFalsy() // id 4, has effort
+        expect(isZeroEffort(records[0]!, zeroIds)).toBeFalsy() // Id 1, has effort
+        expect(isZeroEffort(records[1]!, zeroIds)).toBeTruthy() // Id 2, zero effort
+        expect(isZeroEffort(records[2]!, zeroIds)).toBeTruthy() // Id 3, generic R-course
+        expect(isZeroEffort(records[3]!, zeroIds)).toBeFalsy() // Id 4, has effort
     })
 
     it("handles instructor with only R-course records", () => {

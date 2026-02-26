@@ -24,7 +24,7 @@ describe("ClinicalSchedulerHome - Quality Assurance", () => {
         const { router: testRouter, mockStore } = setupTest()
         router = testRouter
         mockPermissionsStore = mockStore
-        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore)
+        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore as any)
     })
 
     describe("Accessibility", () => {
@@ -114,8 +114,8 @@ describe("ClinicalSchedulerHome - Quality Assurance", () => {
                 isLoading: false,
                 editableServiceCount: 0,
                 getEditableServicesDisplay: vi.fn().mockReturnValue("None"),
-                initialize: vi.fn().mockResolvedValue(),
-            })
+                initialize: vi.fn().mockResolvedValue(undefined),
+            } as any)
 
             // Should not throw error
             expect(() =>

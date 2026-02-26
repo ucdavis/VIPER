@@ -24,7 +24,7 @@ describe("ClinicalSchedulerHome - Display Content", () => {
         const { router: testRouter, mockStore } = setupTest()
         router = testRouter
         mockPermissionsStore = mockStore
-        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore)
+        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore as any)
     })
 
     describe("Content Display", () => {

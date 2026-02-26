@@ -67,6 +67,12 @@ describe(usePhotoGalleryGroups, () => {
             ])
         })
     })
+})
+
+describe("usePhotoGalleryGroups - groupOptions", () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
+    })
 
     describe("groupOptions", () => {
         it("should return empty array when no group type selected", () => {
@@ -162,8 +168,8 @@ describe(usePhotoGalleryGroups, () => {
 
             const { groupOptions } = usePhotoGalleryGroups(selectedClassLevel, selectedGroupType)
 
-            expect(groupOptions.value[0].label).toBe("1A1 (0)")
-            expect(groupOptions.value[1].label).toBe("1A2 (0)")
+            expect(groupOptions.value[0]!.label).toBe("1A1 (0)")
+            expect(groupOptions.value[1]!.label).toBe("1A2 (0)")
         })
 
         it("should update when group type changes", () => {
@@ -183,8 +189,14 @@ describe(usePhotoGalleryGroups, () => {
             selectedGroupType.value = "twentieths"
 
             expect(groupOptions.value).toHaveLength(1) // Twentieths
-            expect(groupOptions.value[0].value).toBe("T1")
+            expect(groupOptions.value[0]!.value).toBe("T1")
         })
+    })
+})
+
+describe("usePhotoGalleryGroups - groupTypeLabel", () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
     })
 
     describe("groupTypeLabel", () => {

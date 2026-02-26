@@ -1,7 +1,7 @@
 <script setup lang="ts">
 //Imports from vue
 import type { Ref } from "vue"
-import { ref, inject, defineProps, watch } from "vue"
+import { ref, inject, watch } from "vue"
 //We'll use our fetch wrapper
 import { useFetch } from "@/composables/ViperFetch"
 

@@ -24,7 +24,7 @@ describe("ClinicalSchedulerHome - Navigation", () => {
         const { router: testRouter, mockStore } = setupTest()
         router = testRouter
         mockPermissionsStore = mockStore
-        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore)
+        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore as any)
     })
 
     describe("Click Navigation", () => {
@@ -62,7 +62,7 @@ describe("ClinicalSchedulerHome - Navigation", () => {
             // Find the clinician card (second view card)
             const viewCards = wrapper.findAll(".view-card-custom")
             const [, clinicianCard] = viewCards
-            await clinicianCard.trigger("click")
+            await clinicianCard!.trigger("click")
 
             expect(routerPush).toHaveBeenCalledWith("/ClinicalScheduler/clinician")
         })

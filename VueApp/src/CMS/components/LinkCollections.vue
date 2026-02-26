@@ -90,7 +90,7 @@
 
 <script setup lang="ts">
 import type { Ref } from "vue"
-import { ref, defineProps, watch } from "vue"
+import { ref, watch } from "vue"
 import type { Link, LinkCollection, LinkTag, LinkTagFilter } from "@/CMS/types"
 import { useFetch } from "@/composables/ViperFetch"
 import { default as LinkComponent } from "@/CMS/components/Link.vue"

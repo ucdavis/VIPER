@@ -23,7 +23,7 @@ describe("ClinicalSchedulerHome - Access Control", () => {
         const { router: testRouter, mockStore } = setupTest()
         router = testRouter
         mockPermissionsStore = mockStore
-        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore)
+        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore as any)
     })
 
     describe("Access Denied Scenarios", () => {

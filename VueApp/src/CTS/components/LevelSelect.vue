@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Ref } from "vue"
 import type { Level, MilestoneLevel } from "@/CTS/types"
-import { ref, defineProps, defineEmits, watch } from "vue"
+import { ref, watch } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
 
 const props = defineProps({
