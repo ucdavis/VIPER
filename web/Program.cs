@@ -247,6 +247,9 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IDeptSummaryService, Viper.Areas.Effort.Services.DeptSummaryService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.ISchoolSummaryService, Viper.Areas.Effort.Services.SchoolSummaryService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritReportService, Viper.Areas.Effort.Services.MeritReportService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritSummaryService, Viper.Areas.Effort.Services.MeritSummaryService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalEffortService, Viper.Areas.Effort.Services.ClinicalEffortService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalScheduleService, Viper.Areas.Effort.Services.ClinicalScheduleService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IZeroEffortService, Viper.Areas.Effort.Services.ZeroEffortService>();
     builder.Services.Configure<Viper.Areas.Effort.EffortSettings>(builder.Configuration.GetSection("EffortSettings"));
 

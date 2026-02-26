@@ -213,6 +213,78 @@ type MeritAverageReport = {
     jobGroups: MeritAverageJobGroup[]
 }
 
+// Merit Summary types
+
+type MeritSummaryDepartmentGroup = {
+    department: string
+    departmentTotals: EffortByType
+    departmentAverages: EffortByType
+    facultyCount: number
+    facultyWithCliCount: number
+}
+
+type MeritSummaryJobGroup = {
+    jobGroupDescription: string
+    departments: MeritSummaryDepartmentGroup[]
+}
+
+type MeritSummaryReport = {
+    termCode: number
+    termName: string
+    academicYear: string | null
+    filterDepartment: string | null
+    effortTypes: string[]
+    jobGroups: MeritSummaryJobGroup[]
+}
+
+// Clinical Effort types
+
+type ClinicalEffortInstructorRow = {
+    mothraId: string
+    instructor: string
+    clinicalPercent: number
+    effortByType: EffortByType
+    cliRatio: number | null
+}
+
+type ClinicalEffortJobGroup = {
+    jobGroupDescription: string
+    instructors: ClinicalEffortInstructorRow[]
+}
+
+type ClinicalEffortReport = {
+    termName: string
+    academicYear: string | null
+    clinicalType: number
+    clinicalTypeName: string
+    effortTypes: string[]
+    jobGroups: ClinicalEffortJobGroup[]
+}
+
+// Scheduled CLI Weeks types
+
+type ScheduledCliWeeksTermRow = {
+    termCode: number
+    termName: string
+    weeksByService: Record<string, number>
+    termTotal: number
+}
+
+type ScheduledCliWeeksInstructorRow = {
+    mothraId: string
+    instructor: string
+    terms: ScheduledCliWeeksTermRow[]
+    totalWeeks: number
+}
+
+type ScheduledCliWeeksReport = {
+    termName: string
+    academicYear: string | null
+    termNames: string[]
+    services: string[]
+    instructors: ScheduledCliWeeksInstructorRow[]
+}
+
 // Zero Effort types
 
 type ZeroEffortInstructorRow = {
@@ -254,6 +326,15 @@ export type {
     MeritAverageDepartmentGroup,
     MeritAverageJobGroup,
     MeritAverageReport,
+    MeritSummaryDepartmentGroup,
+    MeritSummaryJobGroup,
+    MeritSummaryReport,
+    ClinicalEffortInstructorRow,
+    ClinicalEffortJobGroup,
+    ClinicalEffortReport,
+    ScheduledCliWeeksTermRow,
+    ScheduledCliWeeksInstructorRow,
+    ScheduledCliWeeksReport,
     ZeroEffortInstructorRow,
     ZeroEffortReport,
 }

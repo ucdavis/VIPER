@@ -660,7 +660,7 @@ BEGIN
             ELSE 'All'
         END as Department,
         CASE
-            WHEN p.JobGroupId IN ('335', '341', '317') THEN p.Title
+            WHEN p.JobGroupId IN ('335', '341', '317') THEN t.dvtTitle_JobGroup_Abbrev
             ELSE 'PROFESSOR/IR'
         END as JobGroupDescription,
         p.PercentAdmin,
@@ -669,10 +669,18 @@ BEGIN
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
+    INNER JOIN [dictionary].[dbo].[dvtTitle] t
+        ON p.JobGroupId = t.dvtTitle_JobGroupID
+        AND RIGHT('00' + p.EffortTitleCode, 6) = RIGHT('00' + t.dvtTitle_code, 6)
     WHERE r.TermCode = @TermCode
         AND p.EffortDept <> 'OTH'
         AND p.VolunteerWos = 0
         AND (COALESCE(r.Weeks, r.Hours, 0) > 0)
+        AND EXISTS (
+            SELECT 1 FROM effort.fn_qualified_job_groups() q
+            WHERE q.JobGroupId = p.JobGroupId
+            AND (q.EffortTitleCode IS NULL OR RIGHT('00' + p.EffortTitleCode, 6) = q.EffortTitleCode)
+        )
     GROUP BY
         up.MothraId,
         p.LastName,
@@ -680,7 +688,7 @@ BEGIN
         p.EffortDept,
         p.ReportUnit,
         p.JobGroupId,
-        p.Title,
+        t.dvtTitle_JobGroup_Abbrev,
         p.PercentAdmin,
         r.EffortTypeId
     HAVING
@@ -926,10 +934,10 @@ BEGIN
         ELSE CAST(RIGHT(@TermCode, 4) AS INT)  -- Fallback for unexpected formats
     END;
 
-    -- Get end date of academic year (June 30 of the academic year)
-    SET @end = CAST(CAST(@AcademicYear AS VARCHAR(4)) + '-06-30' AS DATE);
-    -- Get start date of academic year (July 1 of previous year)
-    SET @start = DATEADD(YEAR, -1, DATEADD(DAY, 1, @end));
+    -- Get end date of academic year (June 30 of startYear+1, e.g. 2024 -> 2025-06-30)
+    SET @end = CAST(CAST(@AcademicYear + 1 AS VARCHAR(4)) + '-06-30' AS DATE);
+    -- Get start date of academic year (July 1 of startYear, e.g. 2024 -> 2024-07-01)
+    SET @start = CAST(CAST(@AcademicYear AS VARCHAR(4)) + '-07-01' AS DATE);
 
     -- Get distinct values of effort type to turn into columns via PIVOT
     -- ColumnNames will contain [CLI],[DIS],[L/D]...etc.
@@ -964,14 +972,20 @@ BEGIN
         p.PersonId,
         RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName),
         CASE
-            WHEN p.JobGroupId IN ('335', '341', '317') THEN p.Title
+            WHEN p.JobGroupId IN ('335', '341', '317') THEN t.dvtTitle_JobGroup_Abbrev
             ELSE 'PROFESSOR/IR'
         END
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
     INNER JOIN [effort].[TermStatus] ts ON r.TermCode = ts.TermCode
-    WHERE ts.TermCode / 100 = @AcademicYear  -- All terms in academic year
+    INNER JOIN [dictionary].[dbo].[dvtTitle] t
+        ON p.JobGroupId = t.dvtTitle_JobGroupID
+        AND RIGHT('00' + p.EffortTitleCode, 6) = RIGHT('00' + t.dvtTitle_code, 6)
+    WHERE CASE
+            WHEN ts.TermCode % 100 BETWEEN 1 AND 3 THEN ts.TermCode / 100 - 1
+            ELSE ts.TermCode / 100
+        END = @AcademicYear  -- All terms in academic year (matches GetAcademicYearFromTermCode)
         -- Job group qualification (see effort.fn_qualified_job_groups)
         AND EXISTS (
             SELECT 1 FROM effort.fn_qualified_job_groups() q
@@ -988,6 +1002,13 @@ BEGIN
                 AND (pct.EndDate IS NULL OR pct.EndDate >= @start)
         );
 
+    -- Deduplicate instructors with name changes across terms (keep one row per person)
+    ;WITH cte AS (
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY MothraID ORDER BY PersonId DESC) AS rn
+        FROM #Instructors
+    )
+    DELETE FROM cte WHERE rn > 1;
+
     -- Get all effort for the academic year for these instructors
     INSERT INTO #EffortReport (MothraID, Instructor, JGDDesc, EffortType, Effort)
     SELECT
@@ -999,7 +1020,10 @@ BEGIN
     FROM [effort].[Records] r
     INNER JOIN #Instructors I ON r.PersonId = I.PersonId
     INNER JOIN [effort].[TermStatus] ts ON r.TermCode = ts.TermCode
-    WHERE ts.TermCode / 100 = @AcademicYear;  -- All terms in academic year
+    WHERE CASE
+            WHEN ts.TermCode % 100 BETWEEN 1 AND 3 THEN ts.TermCode / 100 - 1
+            ELSE ts.TermCode / 100
+        END = @AcademicYear;  -- All terms in academic year (matches GetAcademicYearFromTermCode)
 
     -- Build dynamic pivot query matching legacy output format exactly
     SET @DynamicPivotQuery =

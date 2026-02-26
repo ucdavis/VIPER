@@ -135,16 +135,20 @@
                                         </tr>
 
                                         <!-- Number Faculty row -->
-                                        <tr class="counts-row">
-                                            <td colspan="100%">Number Faculty: {{ dept.facultyCount }}</td>
+                                        <tr class="faculty-row">
+                                            <td>
+                                                <span class="faculty-label">Number Faculty:</span>
+                                                <span class="faculty-count">{{ dept.facultyCount }}</span>
+                                            </td>
                                         </tr>
 
                                         <!-- Faculty w/ CLI + averages row -->
-                                        <tr class="dept-averages-row bg-grey-3">
-                                            <th class="subt avg-label">
-                                                Faculty w/ CLI assigned: {{ dept.facultyWithCliCount }}
-                                                &emsp; Average
-                                            </th>
+                                        <tr class="faculty-row bg-grey-3">
+                                            <td>
+                                                <span class="faculty-label">Faculty w/ CLI assigned:</span>
+                                                <span class="faculty-count">{{ dept.facultyWithCliCount }}</span>
+                                                <span class="avg-text">Average</span>
+                                            </td>
                                             <td
                                                 v-for="type in orderedEffortTypes"
                                                 :key="type"

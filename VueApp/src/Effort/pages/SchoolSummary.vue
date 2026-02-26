@@ -221,27 +221,6 @@ const {
     font-weight: 500;
 }
 
-.faculty-row td {
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.faculty-label {
-    display: inline-block;
-    min-width: 11rem;
-}
-
-.faculty-count {
-    display: inline-block;
-    min-width: 2rem;
-    text-align: right;
-}
-
-.avg-text {
-    margin-left: 1.5rem;
-    font-style: italic;
-}
-
 .avg-value {
     font-weight: 600;
     font-style: italic;

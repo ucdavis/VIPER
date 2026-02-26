@@ -1,6 +1,6 @@
 <template>
     <div class="row q-col-gutter-sm items-end q-mb-sm">
-        <div :class="showField('department') ? 'col-12 col-sm-6' : 'col-12'">
+        <div class="col-12 col-sm-6">
             <q-select
                 v-model="selectedTermValue"
                 :options="termDropdownOptions"
@@ -237,17 +237,7 @@ const termDropdownOptions = computed<TermDropdownOption[]>(() => {
     return options
 })
 
-// Static department list matching legacy system
-const departmentOptions = [
-    { label: "All Departments", value: null as string | null },
-    { label: "APC", value: "APC" },
-    { label: "OTH", value: "OTH" },
-    { label: "PHR", value: "PHR" },
-    { label: "PMI", value: "PMI" },
-    { label: "VMB", value: "VMB" },
-    { label: "VME", value: "VME" },
-    { label: "VSR", value: "VSR" },
-]
+const departmentOptions = ref<{ label: string; value: string | null }[]>([])
 
 // Role options matching legacy (1=Course Leader, 2=Teacher)
 const roleOptions = [
@@ -277,6 +267,20 @@ const displayedTitleOptions = ref<{ label: string; value: string | null }[]>([al
 
 async function loadTerms() {
     allTerms.value = await termService.getTerms()
+}
+
+async function loadDepartments() {
+    if (!showField("department")) return
+    const depts = await instructorService.getInstructorDepartments()
+    const options = depts.map((d) => ({ label: d.code, value: d.code as string | null }))
+    if (options.length === 1) {
+        departmentOptions.value = options
+        if (selectedDepartment.value === null) {
+            selectedDepartment.value = options[0]!.value
+        }
+    } else {
+        departmentOptions.value = [{ label: "All Departments", value: null }, ...options]
+    }
 }
 
 async function loadInstructors() {
@@ -403,7 +407,7 @@ watch(selectedDepartment, () => {
 })
 
 onMounted(async () => {
-    await loadTerms()
+    await Promise.all([loadTerms(), loadDepartments()])
     await Promise.all([loadInstructors(), loadJobGroups()])
 
     // Auto-generate report when URL query params provided initial filters

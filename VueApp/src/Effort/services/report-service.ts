@@ -6,6 +6,9 @@ import type {
     SchoolSummaryReport,
     MeritDetailReport,
     MeritAverageReport,
+    MeritSummaryReport,
+    ClinicalEffortReport,
+    ScheduledCliWeeksReport,
     ZeroEffortReport,
 } from "../types"
 
@@ -87,6 +90,45 @@ class ReportService {
             return null
         }
         return response.result as MeritAverageReport
+    }
+
+    /**
+     * Get the merit summary report.
+     */
+    async getMeritSummary(params: ReportFilterParams): Promise<MeritSummaryReport | null> {
+        const url = this.buildUrl("merit/summary", params)
+        const response = await get(url)
+        if (!response.success || !response.result) {
+            return null
+        }
+        return response.result as MeritSummaryReport
+    }
+
+    /**
+     * Get the clinical effort report.
+     */
+    async getClinicalEffort(academicYear: string, clinicalType: number): Promise<ClinicalEffortReport | null> {
+        const searchParams = new URLSearchParams()
+        searchParams.set("academicYear", academicYear)
+        searchParams.set("clinicalType", clinicalType.toString())
+        const url = `${this.baseUrl}/merit/clinical?${searchParams.toString()}`
+        const response = await get(url)
+        if (!response.success || !response.result) {
+            return null
+        }
+        return response.result as ClinicalEffortReport
+    }
+
+    /**
+     * Get the scheduled CLI weeks report.
+     */
+    async getScheduledCliWeeks(params: ReportFilterParams): Promise<ScheduledCliWeeksReport | null> {
+        const url = this.buildUrl("clinical-schedule", params)
+        const response = await get(url)
+        if (!response.success || !response.result) {
+            return null
+        }
+        return response.result as ScheduledCliWeeksReport
     }
 
     /**

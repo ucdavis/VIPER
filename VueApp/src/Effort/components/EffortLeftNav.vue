@@ -266,6 +266,39 @@
                         <q-item-label lines="1">Detail</q-item-label>
                     </q-item-section>
                 </q-item>
+                <q-item
+                    v-if="canViewReports && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'MeritSummary', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink q-pl-xl"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Summary</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'ClinicalEffort', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink q-pl-xl"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Clinical Effort</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewScheduledCliWeeks && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'ScheduledCliWeeks', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink q-pl-xl"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Scheduled CLI Weeks</q-item-label>
+                    </q-item-section>
+                </q-item>
                 <!-- Teaching Activity sub-header -->
                 <q-item
                     v-if="canViewReports && currentTerm"
@@ -396,6 +429,9 @@ const canViewCourses = computed(
 
 // Reports visible to ViewDept, ViewAllDepartments, or Reports users (matches legacy Nav.cfm)
 const canViewReports = computed(() => hasViewDept.value || isAdmin.value || hasReports.value)
+
+// Scheduled CLI Weeks requires full access — clinical schedule data lacks department info
+const canViewScheduledCliWeeks = computed(() => isAdmin.value)
 
 // Users who can add/edit/delete instructors or have view access should see the Instructors link
 const canViewInstructors = computed(

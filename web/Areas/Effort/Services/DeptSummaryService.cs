@@ -268,13 +268,22 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
                         }
 
                         // Number Faculty row
-                        var totalColumns = (uint)(1 + orderedTypes.Count);
-                        table.Cell().ColumnSpan(totalColumns).PaddingVertical(cellPadV)
-                            .Text($"Number Faculty: {dept.FacultyCount}");
+                        table.Cell().PaddingVertical(cellPadV).PaddingRight(8).Row(row =>
+                        {
+                            row.RelativeItem().AlignRight().Text("Number Faculty:").SemiBold();
+                            row.ConstantItem(30).AlignRight().Text(dept.FacultyCount.ToString()).SemiBold();
+                            row.ConstantItem(55);
+                        });
+                        foreach (var _ in orderedTypes)
+                            table.Cell().PaddingVertical(cellPadV);
 
                         // Faculty w/ CLI assigned + averages row
-                        table.Cell().Background("#E0E0E0").PaddingVertical(cellPadV)
-                            .Text($"Faculty w/ CLI assigned: {dept.FacultyWithCliCount}    Average").Italic().Bold();
+                        table.Cell().Background("#E0E0E0").PaddingVertical(cellPadV).PaddingRight(8).Row(row =>
+                        {
+                            row.RelativeItem().AlignRight().Text("Faculty w/ CLI assigned:").SemiBold().Italic();
+                            row.ConstantItem(30).AlignRight().Text(dept.FacultyWithCliCount.ToString()).SemiBold().Italic();
+                            row.ConstantItem(55).AlignRight().Text("Average").SemiBold().Italic();
+                        });
                         foreach (var type in orderedTypes)
                         {
                             var val = dept.DepartmentAverages.GetValueOrDefault(type, 0);

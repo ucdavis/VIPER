@@ -18,6 +18,9 @@ public sealed class ReportsControllerTests
     private readonly Mock<IDeptSummaryService> _deptSummaryServiceMock;
     private readonly Mock<ISchoolSummaryService> _schoolSummaryServiceMock;
     private readonly Mock<IMeritReportService> _meritReportServiceMock;
+    private readonly Mock<IMeritSummaryService> _meritSummaryServiceMock;
+    private readonly Mock<IClinicalEffortService> _clinicalEffortServiceMock;
+    private readonly Mock<IClinicalScheduleService> _clinicalScheduleServiceMock;
     private readonly Mock<IZeroEffortService> _zeroEffortServiceMock;
     private readonly Mock<IEffortPermissionService> _permissionServiceMock;
     private readonly Mock<ILogger<ReportsController>> _loggerMock;
@@ -29,6 +32,9 @@ public sealed class ReportsControllerTests
         _deptSummaryServiceMock = new Mock<IDeptSummaryService>();
         _schoolSummaryServiceMock = new Mock<ISchoolSummaryService>();
         _meritReportServiceMock = new Mock<IMeritReportService>();
+        _meritSummaryServiceMock = new Mock<IMeritSummaryService>();
+        _clinicalEffortServiceMock = new Mock<IClinicalEffortService>();
+        _clinicalScheduleServiceMock = new Mock<IClinicalScheduleService>();
         _zeroEffortServiceMock = new Mock<IZeroEffortService>();
         _permissionServiceMock = new Mock<IEffortPermissionService>();
         _loggerMock = new Mock<ILogger<ReportsController>>();
@@ -38,6 +44,9 @@ public sealed class ReportsControllerTests
             _deptSummaryServiceMock.Object,
             _schoolSummaryServiceMock.Object,
             _meritReportServiceMock.Object,
+            _meritSummaryServiceMock.Object,
+            _clinicalEffortServiceMock.Object,
+            _clinicalScheduleServiceMock.Object,
             _zeroEffortServiceMock.Object,
             _permissionServiceMock.Object,
             _loggerMock.Object);

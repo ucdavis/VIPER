@@ -19,6 +19,9 @@ public partial class ReportsController : BaseEffortController
     private readonly IDeptSummaryService _deptSummaryService;
     private readonly ISchoolSummaryService _schoolSummaryService;
     private readonly IMeritReportService _meritReportService;
+    private readonly IMeritSummaryService _meritSummaryService;
+    private readonly IClinicalEffortService _clinicalEffortService;
+    private readonly IClinicalScheduleService _clinicalScheduleService;
     private readonly IZeroEffortService _zeroEffortService;
     private readonly IEffortPermissionService _permissionService;
 
@@ -30,6 +33,9 @@ public partial class ReportsController : BaseEffortController
         IDeptSummaryService deptSummaryService,
         ISchoolSummaryService schoolSummaryService,
         IMeritReportService meritReportService,
+        IMeritSummaryService meritSummaryService,
+        IClinicalEffortService clinicalEffortService,
+        IClinicalScheduleService clinicalScheduleService,
         IZeroEffortService zeroEffortService,
         IEffortPermissionService permissionService,
         ILogger<ReportsController> logger) : base(logger)
@@ -38,6 +44,9 @@ public partial class ReportsController : BaseEffortController
         _deptSummaryService = deptSummaryService;
         _schoolSummaryService = schoolSummaryService;
         _meritReportService = meritReportService;
+        _meritSummaryService = meritSummaryService;
+        _clinicalEffortService = clinicalEffortService;
+        _clinicalScheduleService = clinicalScheduleService;
         _zeroEffortService = zeroEffortService;
         _permissionService = permissionService;
     }
@@ -407,6 +416,44 @@ public partial class ReportsController : BaseEffortController
 
         report.Instructors = report.Instructors
             .Where(i => authorizedDepartments.Contains(i.Department, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private static void FilterReportByAuthorizedDepartments(MeritSummaryReport report, List<string>? authorizedDepartments)
+    {
+        if (authorizedDepartments == null)
+        {
+            return;
+        }
+
+        foreach (var jobGroup in report.JobGroups)
+        {
+            jobGroup.Departments = jobGroup.Departments
+                .Where(d => authorizedDepartments.Contains(d.Department, StringComparer.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        report.JobGroups = report.JobGroups
+            .Where(jg => jg.Departments.Count > 0)
+            .ToList();
+    }
+
+    private static void FilterReportByAuthorizedDepartments(ClinicalEffortReport report, List<string>? authorizedDepartments)
+    {
+        if (authorizedDepartments == null)
+        {
+            return;
+        }
+
+        foreach (var jobGroup in report.JobGroups)
+        {
+            jobGroup.Instructors = jobGroup.Instructors
+                .Where(i => authorizedDepartments.Contains(i.Department, StringComparer.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        report.JobGroups = report.JobGroups
+            .Where(jg => jg.Instructors.Count > 0)
             .ToList();
     }
 
@@ -829,6 +876,286 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _meritReportService.GenerateMeritAveragePdfAsync(report);
         var filename = $"MeritAverage_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
+        return File(pdfBytes, "application/pdf", filename);
+    }
+
+    // ============================================
+    // Merit & Promotion Summary Endpoints
+    // ============================================
+
+    /// <summary>
+    /// Get merit summary report. Shows department totals and averages grouped by job group.
+    /// </summary>
+    [HttpGet("merit/summary")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult<MeritSummaryReport>> GetMeritSummary(
+        [FromQuery] int termCode = 0,
+        [FromQuery] string? academicYear = null,
+        [FromQuery] string? department = null,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(termCode, academicYear)
+            ?? ValidateReportParams(department);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        var effectiveDepartments = ResolveEffectiveDepartments(department, authorizedDepartments);
+
+        MeritSummaryReport report;
+        if (!string.IsNullOrEmpty(academicYear))
+        {
+            SetExceptionContext("academicYear", academicYear);
+            _logger.LogInformation("Merit summary report requested: year={AcademicYear}, dept={Department}",
+                LogSanitizer.SanitizeString(academicYear),
+                LogSanitizer.SanitizeString(department));
+
+            report = await _meritSummaryService.GetMeritSummaryReportByYearAsync(
+                academicYear, effectiveDepartments, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", termCode);
+            _logger.LogInformation("Merit summary report requested: term={TermCode}, dept={Department}",
+                termCode,
+                LogSanitizer.SanitizeString(department));
+
+            report = await _meritSummaryService.GetMeritSummaryReportAsync(
+                termCode, effectiveDepartments, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+        return Ok(report);
+    }
+
+    /// <summary>
+    /// Export merit summary report as PDF.
+    /// </summary>
+    [HttpPost("merit/summary/pdf")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportMeritSummaryPdf(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
+            ?? ValidateReportParams(request.Department);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        var effectiveDepartments = ResolveEffectiveDepartments(request.Department, authorizedDepartments);
+
+        MeritSummaryReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _meritSummaryService.GetMeritSummaryReportByYearAsync(
+                request.AcademicYear, effectiveDepartments, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _meritSummaryService.GetMeritSummaryReportAsync(
+                request.TermCode, effectiveDepartments, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+
+        if (report.JobGroups.Count == 0)
+        {
+            return NoContent();
+        }
+
+        var pdfBytes = await _meritSummaryService.GenerateReportPdfAsync(report);
+        var filename = $"MeritSummary_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
+        return File(pdfBytes, "application/pdf", filename);
+    }
+
+    // ============================================
+    // Clinical Effort Endpoints
+    // ============================================
+
+    /// <summary>
+    /// Get clinical effort report. Shows instructors with clinical percent assignments
+    /// and their effort data for a given academic year and clinical type (VMTH/CAHFS).
+    /// </summary>
+    [HttpGet("merit/clinical")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult<ClinicalEffortReport>> GetClinicalEffort(
+        [FromQuery] string? academicYear = null,
+        [FromQuery] int clinicalType = 0,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(academicYear))
+        {
+            return BadRequest("academicYear is required.");
+        }
+
+        if (!AcademicYearFormatRegex().IsMatch(academicYear))
+        {
+            return BadRequest("academicYear must be in format YYYY-YYYY (e.g., 2024-2025).");
+        }
+
+        if (clinicalType is not (1 or 25))
+        {
+            return BadRequest("clinicalType must be 1 (VMTH) or 25 (CAHFS).");
+        }
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        SetExceptionContext("academicYear", academicYear);
+        _logger.LogInformation("Clinical effort report requested: year={AcademicYear}, type={ClinicalType}",
+            LogSanitizer.SanitizeString(academicYear),
+            clinicalType);
+
+        var report = await _clinicalEffortService.GetClinicalEffortReportAsync(
+            academicYear, clinicalType, ct);
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+        return Ok(report);
+    }
+
+    /// <summary>
+    /// Export clinical effort report as PDF.
+    /// </summary>
+    [HttpPost("merit/clinical/pdf")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportClinicalEffortPdf(
+        [FromBody] ClinicalEffortPdfRequest request,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(request.AcademicYear))
+        {
+            return BadRequest("academicYear is required.");
+        }
+
+        if (!AcademicYearFormatRegex().IsMatch(request.AcademicYear))
+        {
+            return BadRequest("academicYear must be in format YYYY-YYYY (e.g., 2024-2025).");
+        }
+
+        if (request.ClinicalType is not (1 or 25))
+        {
+            return BadRequest("clinicalType must be 1 (VMTH) or 25 (CAHFS).");
+        }
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        SetExceptionContext("academicYear", request.AcademicYear);
+
+        var report = await _clinicalEffortService.GetClinicalEffortReportAsync(
+            request.AcademicYear, request.ClinicalType, ct);
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+
+        if (report.JobGroups.Count == 0)
+        {
+            return NoContent();
+        }
+
+        var pdfBytes = await _clinicalEffortService.GenerateReportPdfAsync(report);
+        var filename = $"ClinicalEffort_{report.ClinicalTypeName}_{report.AcademicYear}_{DateTime.Now:yyyyMMdd}.pdf";
+        return File(pdfBytes, "application/pdf", filename);
+    }
+
+    // ============================================
+    // Scheduled CLI Weeks Endpoints
+    // ============================================
+
+    /// <summary>
+    /// Get scheduled clinical weeks report from Clinical Scheduler.
+    /// Shows weeks scheduled per instructor from live scheduler data.
+    /// </summary>
+    [HttpGet("clinical-schedule")]
+    [Permission(Allow = EffortPermissions.ViewAllDepartments)]
+    public async Task<ActionResult<ScheduledCliWeeksReport>> GetScheduledCliWeeks(
+        [FromQuery] int termCode = 0,
+        [FromQuery] string? academicYear = null,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(termCode, academicYear);
+        if (validationResult != null) return validationResult;
+
+        // Clinical schedule data lacks department info — restrict to full-access users
+        if (!await _permissionService.HasFullAccessAsync(ct))
+        {
+            return Forbid();
+        }
+
+        ScheduledCliWeeksReport report;
+        if (!string.IsNullOrEmpty(academicYear))
+        {
+            SetExceptionContext("academicYear", academicYear);
+            _logger.LogInformation("Scheduled CLI weeks report requested: year={AcademicYear}",
+                LogSanitizer.SanitizeString(academicYear));
+
+            report = await _clinicalScheduleService.GetScheduledCliWeeksReportByYearAsync(
+                academicYear, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", termCode);
+            _logger.LogInformation("Scheduled CLI weeks report requested: term={TermCode}", termCode);
+
+            report = await _clinicalScheduleService.GetScheduledCliWeeksReportAsync(
+                termCode, ct);
+        }
+
+        return Ok(report);
+    }
+
+    /// <summary>
+    /// Export scheduled clinical weeks report as PDF.
+    /// </summary>
+    [HttpPost("clinical-schedule/pdf")]
+    [Permission(Allow = EffortPermissions.ViewAllDepartments)]
+    public async Task<ActionResult> ExportScheduledCliWeeksPdf(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear);
+        if (validationResult != null) return validationResult;
+
+        if (!await _permissionService.HasFullAccessAsync(ct))
+        {
+            return Forbid();
+        }
+
+        ScheduledCliWeeksReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _clinicalScheduleService.GetScheduledCliWeeksReportByYearAsync(
+                request.AcademicYear, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _clinicalScheduleService.GetScheduledCliWeeksReportAsync(
+                request.TermCode, ct);
+        }
+
+        if (report.Instructors.Count == 0)
+        {
+            return NoContent();
+        }
+
+        var pdfBytes = await _clinicalScheduleService.GenerateReportPdfAsync(report);
+        var filename = $"ScheduledClinicalWeeks_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
         return File(pdfBytes, "application/pdf", filename);
     }
 

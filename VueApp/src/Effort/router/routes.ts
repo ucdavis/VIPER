@@ -271,6 +271,41 @@ const routes = [
         name: "MeritAverage",
     },
     {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/reports/merit/summary`,
+        meta: {
+            layout: EffortLayout,
+            permissions: [
+                "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
+                "SVMSecure.Effort.Reports",
+            ],
+        },
+        component: () => import("@/Effort/pages/MeritSummary.vue"),
+        name: "MeritSummary",
+    },
+    {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/reports/merit/clinical`,
+        meta: {
+            layout: EffortLayout,
+            permissions: [
+                "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
+                "SVMSecure.Effort.Reports",
+            ],
+        },
+        component: () => import("@/Effort/pages/ClinicalEffort.vue"),
+        name: "ClinicalEffort",
+    },
+    {
+        path: `/Effort/:termCode(${TERM_CODE_PATTERN})/reports/clinical-schedule`,
+        meta: {
+            layout: EffortLayout,
+            permissions: ["SVMSecure.Effort.ViewAllDepartments"],
+        },
+        component: () => import("@/Effort/pages/ScheduledCliWeeks.vue"),
+        name: "ScheduledCliWeeks",
+    },
+    {
         path: `/Effort/:termCode(${TERM_CODE_PATTERN})/reports/zero-effort`,
         meta: {
             layout: EffortLayout,

@@ -91,6 +91,13 @@ public record ReportPdfRequest(
     string? Role = null,
     string? Title = null);
 
+/// <summary>
+/// Request body for clinical effort PDF export.
+/// </summary>
+public record ClinicalEffortPdfRequest(
+    string? AcademicYear = null,
+    int ClinicalType = 0);
+
 // ============================================
 // Department Summary Report DTOs
 // ============================================
@@ -297,6 +304,127 @@ public class MeritAverageTermRow
     public int TermCode { get; set; }
     public string TermName { get; set; } = string.Empty;
     public Dictionary<string, decimal> EffortByType { get; set; } = new();
+}
+
+// ============================================
+// Merit & Promotion Summary Report DTOs
+// ============================================
+
+/// <summary>
+/// Merit summary report grouped by job group description, then department.
+/// Shows department totals and averages (CLI averaged over CLI-assigned faculty only).
+/// </summary>
+public class MeritSummaryReport
+{
+    public int TermCode { get; set; }
+    public string TermName { get; set; } = string.Empty;
+    public string? AcademicYear { get; set; }
+    public string? FilterDepartment { get; set; }
+    public List<string> EffortTypes { get; set; } = [];
+    public List<MeritSummaryJobGroup> JobGroups { get; set; } = [];
+}
+
+/// <summary>
+/// Job group level grouping in merit summary report.
+/// </summary>
+public class MeritSummaryJobGroup
+{
+    public string JobGroupDescription { get; set; } = string.Empty;
+    public List<MeritSummaryDepartmentGroup> Departments { get; set; } = [];
+}
+
+/// <summary>
+/// Department-level grouping in merit summary with totals and averages.
+/// </summary>
+public class MeritSummaryDepartmentGroup
+{
+    public string Department { get; set; } = string.Empty;
+    public Dictionary<string, decimal> DepartmentTotals { get; set; } = new();
+    public Dictionary<string, decimal> DepartmentAverages { get; set; } = new();
+    public int FacultyCount { get; set; }
+    public int FacultyWithCliCount { get; set; }
+}
+
+// ============================================
+// Clinical Effort Report DTOs
+// ============================================
+
+/// <summary>
+/// Clinical effort report showing instructors with clinical percent assignments
+/// and their effort data. Filtered by clinical type (VMTH=1, CAHFS=25).
+/// </summary>
+public class ClinicalEffortReport
+{
+    public string TermName { get; set; } = string.Empty;
+    public string? AcademicYear { get; set; }
+    public int ClinicalType { get; set; }
+    public string ClinicalTypeName { get; set; } = string.Empty;
+    public List<string> EffortTypes { get; set; } = [];
+    public List<ClinicalEffortJobGroup> JobGroups { get; set; } = [];
+}
+
+/// <summary>
+/// Job group level grouping in clinical effort report.
+/// </summary>
+public class ClinicalEffortJobGroup
+{
+    public string JobGroupDescription { get; set; } = string.Empty;
+    public List<ClinicalEffortInstructorRow> Instructors { get; set; } = [];
+}
+
+/// <summary>
+/// Instructor row in clinical effort report with percent assignment and CLI ratio.
+/// </summary>
+public class ClinicalEffortInstructorRow
+{
+    public string MothraId { get; set; } = string.Empty;
+    public string Instructor { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
+    public decimal ClinicalPercent { get; set; }
+    public Dictionary<string, decimal> EffortByType { get; set; } = new();
+    /// <summary>
+    /// CLI effort / ClinicalPercent ratio. Null if ClinicalPercent is 0.
+    /// </summary>
+    public decimal? CliRatio { get; set; }
+}
+
+// ============================================
+// Scheduled CLI Weeks Report DTOs
+// ============================================
+
+/// <summary>
+/// Scheduled clinical weeks report from Clinical Scheduler database.
+/// Shows weeks scheduled per instructor, term, and service.
+/// </summary>
+public class ScheduledCliWeeksReport
+{
+    public string TermName { get; set; } = string.Empty;
+    public string? AcademicYear { get; set; }
+    public List<string> TermNames { get; set; } = [];
+    public List<string> Services { get; set; } = [];
+    public List<ScheduledCliWeeksInstructorRow> Instructors { get; set; } = [];
+}
+
+/// <summary>
+/// Instructor row in scheduled CLI weeks report.
+/// </summary>
+public class ScheduledCliWeeksInstructorRow
+{
+    public string MothraId { get; set; } = string.Empty;
+    public string Instructor { get; set; } = string.Empty;
+    public List<ScheduledCliWeeksTermRow> Terms { get; set; } = [];
+    public int TotalWeeks { get; set; }
+}
+
+/// <summary>
+/// Per-term breakdown of scheduled weeks by service.
+/// </summary>
+public class ScheduledCliWeeksTermRow
+{
+    public int TermCode { get; set; }
+    public string TermName { get; set; } = string.Empty;
+    public Dictionary<string, int> WeeksByService { get; set; } = new();
+    public int TermTotal { get; set; }
 }
 
 // ============================================
