@@ -28,7 +28,7 @@ const routes = [
     {
         path: "/:catchAll(.*)*",
         meta: { layout: ViperLayout },
-        //component: () => import('@/pages/Error404.vue')
+        //Component: () => import('@/pages/Error404.vue')
         component: () => import("@/CAHFS/pages/CAHFSHome.vue"),
     },
 ]

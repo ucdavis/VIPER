@@ -140,7 +140,7 @@ function extractZip(zipPath, extractPath) {
                 return
             }
 
-            let extractedFiles = []
+            const extractedFiles = []
 
             zipfile.readEntry()
 

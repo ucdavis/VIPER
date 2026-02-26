@@ -89,9 +89,6 @@ export default defineConfig(({ mode }) => {
                 }),
             // @quasar/plugin-vite options list:
             // https://github.com/quasarframework/quasar/blob/dev/vite-plugin/index.d.ts
-            //quasar({
-            //   sassVariables: 'src/quasar-variables.sass'
-            //})
             quasar(),
             // Set ANALYZE=true to generate bundle-stats.html
             // PowerShell: $env:ANALYZE='true'; npm run build-only-dev
@@ -110,7 +107,7 @@ export default defineConfig(({ mode }) => {
         ].filter(Boolean),
         resolve: {
             alias: {
-                "@": fileURLToPath(new URL("./src", import.meta.url)),
+                "@": fileURLToPath(new URL("src", import.meta.url)),
             },
         },
         server: {
@@ -168,14 +165,14 @@ export default defineConfig(({ mode }) => {
             emptyOutDir: true,
             rollupOptions: {
                 input: {
-                    main: resolve(__dirname, "index.html"),
-                    cts: resolve(__dirname, "src/CTS/index.html"),
-                    computing: resolve(__dirname, "src/Computing/index.html"),
-                    students: resolve(__dirname, "src/Students/index.html"),
-                    cms: resolve(__dirname, "src/CMS/index.html"),
-                    cahfs: resolve(__dirname, "src/CAHFS/index.html"),
-                    clinicalscheduler: resolve(__dirname, "src/ClinicalScheduler/index.html"),
-                    effort: resolve(__dirname, "src/Effort/index.html"),
+                    main: resolve(import.meta.dirname, "index.html"),
+                    cts: resolve(import.meta.dirname, "src/CTS/index.html"),
+                    computing: resolve(import.meta.dirname, "src/Computing/index.html"),
+                    students: resolve(import.meta.dirname, "src/Students/index.html"),
+                    cms: resolve(import.meta.dirname, "src/CMS/index.html"),
+                    cahfs: resolve(import.meta.dirname, "src/CAHFS/index.html"),
+                    clinicalscheduler: resolve(import.meta.dirname, "src/ClinicalScheduler/index.html"),
+                    effort: resolve(import.meta.dirname, "src/Effort/index.html"),
                 },
                 output: {
                     manualChunks(id) {

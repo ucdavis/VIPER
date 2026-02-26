@@ -199,7 +199,10 @@ function runOxfmtCheckBatch(files) {
 
     if (result.status !== 0) {
         const output = (result.stdout || "") + (result.stderr || "")
-        const failedFiles = files.filter((f) => output.includes(f) || output.includes(f.replaceAll("/", "\\")))
+        const failedFiles = files.filter((f) => {
+            const fwd = f.replaceAll("\\", "/")
+            return output.includes(f) || output.includes(fwd)
+        })
         return { passed: false, failed: failedFiles.length > 0 ? failedFiles : files }
     }
 

@@ -25,12 +25,10 @@ async function getDomains() {
 }
 async function save() {
     const { put, post } = useFetch()
-    let r = { success: false }
-    if (domain.value.domainId > 0) {
-        r = await put(baseUrl + "/" + domain.value.domainId, domain.value)
-    } else {
-        r = await post(baseUrl, domain.value)
-    }
+    const r =
+        domain.value.domainId > 0
+            ? await put(baseUrl + "/" + domain.value.domainId, domain.value)
+            : await post(baseUrl, domain.value)
 
     if (r.success) {
         clearDomain()

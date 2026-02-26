@@ -1,5 +1,5 @@
 import { ref } from "vue"
-import { permissionService } from "../services/permission-service"
+import { PermissionService } from "../services/permission-service"
 import type {
     UserPermissions,
     ServicePermissionCheck,
@@ -61,7 +61,7 @@ export function createPermissionActions(state: PermissionsState) {
     function fetchUserPermissions(): Promise<UserPermissions | null> {
         return executePermissionAction(
             async () => {
-                const permissions = await permissionService.getUserPermissions()
+                const permissions = await PermissionService.getUserPermissions()
                 userPermissions.value = permissions
                 return permissions
             },
@@ -78,7 +78,7 @@ export function createPermissionActions(state: PermissionsState) {
      */
     function checkServicePermission(serviceId: number): Promise<ServicePermissionCheck | null> {
         return executePermissionAction(
-            () => permissionService.canEditService(serviceId),
+            () => PermissionService.canEditService(serviceId),
             `Failed to check service ${serviceId} permissions`,
             state,
         )
@@ -92,7 +92,7 @@ export function createPermissionActions(state: PermissionsState) {
      */
     function checkRotationPermission(rotationId: number): Promise<RotationPermissionCheck | null> {
         return executePermissionAction(
-            () => permissionService.canEditRotation(rotationId),
+            () => PermissionService.canEditRotation(rotationId),
             `Failed to check rotation ${rotationId} permissions`,
             state,
         )
@@ -108,7 +108,7 @@ export function createPermissionActions(state: PermissionsState) {
         instructorScheduleId: number,
     ): Promise<InstructorSchedulePermissionCheck | null> {
         return executePermissionAction(
-            () => permissionService.canEditOwnSchedule(instructorScheduleId),
+            () => PermissionService.canEditOwnSchedule(instructorScheduleId),
             `Failed to check own schedule ${instructorScheduleId} permissions`,
             state,
         )

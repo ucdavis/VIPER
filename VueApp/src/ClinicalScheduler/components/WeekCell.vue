@@ -253,11 +253,11 @@ watch(
 )
 
 // Long press timer for mobile (auto-cleanup on unmount via useTimeoutFn)
-const { start: startLongPress, stop: stopLongPress, isPending: isLongPressing } = useTimeoutFn(
-    () => emit("click", props.week),
-    500,
-    { immediate: false },
-)
+const {
+    start: startLongPress,
+    stop: stopLongPress,
+    isPending: isLongPressing,
+} = useTimeoutFn(() => emit("click", props.week), 500, { immediate: false })
 
 // Methods
 function handleClick(event?: MouseEvent) {

@@ -155,13 +155,13 @@ async function killProcess(name) {
         return true
     } catch (error) {
         // If the process doesn't exist, an error is thrown. We can ignore it.
-        // pkill exits with code 1 when no processes match, kill exits with an error
-        // taskkill includes "not found" in its error message
+        // Pkill exits with code 1 when no processes match, kill exits with an error
+        // Taskkill includes "not found" in its error message
         if (
             error.message.includes("not found") ||
             error.message.includes("No such process") ||
             error.message.includes("ERROR: The process") ||
-            error.code === 1 // pkill returns exit code 1 when no processes match
+            error.code === 1 // Pkill returns exit code 1 when no processes match
         ) {
             return false
         }
@@ -206,7 +206,7 @@ const MAX_PORT_NUMBER = 65_535
 async function killProcessOnPort(port) {
     const n = Number(port)
     if (!Number.isInteger(n) || n < 1 || n > MAX_PORT_NUMBER) {
-        return false // invalid port
+        return false // Invalid port
     }
 
     try {
@@ -237,7 +237,7 @@ async function killProcessOnPort(port) {
                     await waitForProcessTermination(pid, KILL_TERMINATION_WAIT_MS)
                     return true
                 } catch (error) {
-                    // taskkill throws an error if the process doesn't exist, which is fine.
+                    // Taskkill throws an error if the process doesn't exist, which is fine.
                     if (!error.message.includes("not found") && !error.message.includes("ERROR: The process")) {
                         throw error // Re-throw unexpected errors
                     }

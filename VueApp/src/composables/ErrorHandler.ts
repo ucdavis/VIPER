@@ -15,10 +15,10 @@ export function useGenericErrorHandler() {
 
     function handleAuthError(errorMessage: string | null | undefined, status: number) {
         const errorStore = useErrorStore()
-        if (!errorMessage) {
-            errorStore.setError(status === HTTP_STATUS_UNAUTHORIZED ? "You are not logged in." : "Access denied.")
-        } else {
+        if (errorMessage) {
             errorStore.setError(errorMessage)
+        } else {
+            errorStore.setError(status === HTTP_STATUS_UNAUTHORIZED ? "You are not logged in." : "Access denied.")
         }
         errorStore.setStatus(status)
     }

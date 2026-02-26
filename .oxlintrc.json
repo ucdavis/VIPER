@@ -104,6 +104,7 @@
                 "no-console": "off",
                 "no-magic-numbers": "off",
                 "import/max-dependencies": "off",
+                "import/unambiguous": "off", // Vitest always runs test files as modules
                 "max-lines-per-function": [
                     "warn",
                     {
@@ -115,7 +116,9 @@
                     {
                         "max": 500
                     }
-                ]
+                ],
+                "vitest/prefer-called-times": "off", // Conflicts with prefer-called-once; toHaveBeenCalledOnce() is more readable
+                "vitest/prefer-import-in-mock": "off" // import() form in vi.mock causes TS errors with partial class mocks
             }
         },
         {
@@ -132,7 +135,8 @@
                 "import/max-dependencies": "off", // Build scripts may need multiple dependencies
                 "max-lines-per-function": "off", // Build scripts may have longer functions
                 "promise/prefer-await-to-callbacks": "off", // Callback pattern needed for tree-kill integration
-                "import/unambiguous": "off" // Node.js scripts don't need module indicators
+                "import/unambiguous": "off", // Node.js scripts don't need module indicators
+                "import/no-nodejs-modules": "off" // Config files run in Node, not the browser
             }
         },
         {

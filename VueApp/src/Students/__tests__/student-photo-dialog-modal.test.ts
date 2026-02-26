@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach } from "vitest"
 import { createPinia, setActivePinia } from "pinia"
 import { ref, computed } from "vue"
 
@@ -166,11 +165,9 @@ describe("StudentPhotoDialog - Modal Navigation Logic", () => {
 
             // Simulate watcher that checks flag
             function dialogWatcher() {
-                if (isUpdatingUrlProgrammatically.value) {
-                    // Skip updates - don't close dialog
-                    return
+                if (!isUpdatingUrlProgrammatically.value) {
+                    // Normal dialog close logic would go here
                 }
-                // Normal dialog close logic would go here
             }
 
             updateUrl()
@@ -208,7 +205,7 @@ describe("StudentPhotoDialog - Modal Navigation Logic", () => {
                 dialogIndex.value += 1
 
                 // Intentionally NOT updating URL during navigation
-                // because router.replace() would close the dialog
+                // Because router.replace() would close the dialog
                 urlUpdateCalled = false
             }
 
@@ -285,7 +282,7 @@ describe("StudentPhotoDialog - Modal Navigation Logic", () => {
 
         it("should document that Playwright tests validate actual component behavior", () => {
             // This test documents that component mounting and DOM interactions
-            // are tested via Playwright MCP tools (see SMOKETEST.md Test 10a)
+            // Are tested via Playwright MCP tools (see SMOKETEST.md Test 10a)
             const playwrightTestsValidate = [
                 "Modal opens when clicking student photo",
                 "Modal stays open (no immediate close)",

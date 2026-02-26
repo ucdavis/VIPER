@@ -177,7 +177,7 @@ class PhotoGalleryService {
 
 const photoGalleryService = new PhotoGalleryService()
 
-export { photoGalleryService }
+export { photoGalleryService, PhotoGalleryService }
 export type {
     StudentPhoto,
     PhotoGalleryViewModel,

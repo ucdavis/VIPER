@@ -1,10 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest"
 import { ref } from "vue"
 import { setActivePinia, createPinia } from "pinia"
 import { usePhotoGalleryGroups } from "../composables/use-photo-gallery-groups"
 import { usePhotoGalleryStore } from "../stores/photo-gallery-store"
 
-describe("usePhotoGalleryGroups", () => {
+describe(usePhotoGalleryGroups, () => {
     beforeEach(() => {
         // Create a fresh pinia instance for each test
         setActivePinia(createPinia())

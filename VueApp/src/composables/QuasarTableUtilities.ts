@@ -5,7 +5,7 @@ function exportTable(columns: QTableProps["columns"], rows: any[], excludeFromEx
     if (columns === undefined) {
         return
     }
-    // naive encoding to csv format
+    // Naive encoding to csv format
     const columnsMinusExcludes = columns.filter(
         (c) => excludeFromExport === null || !excludeFromExport.some((e) => e === c.name),
     )
@@ -26,7 +26,7 @@ function exportTable(columns: QTableProps["columns"], rows: any[], excludeFromEx
         ),
     ].join("\r\n")
 
-    //const { useQuasar, exportFile } = Quasar
+    //Const { useQuasar, exportFile } = Quasar
     const $q = useQuasar()
 
     const status = exportFile("table-export.csv", content, "text/csv")

@@ -80,7 +80,7 @@ function filterComps(val: any, update: any) {
 
 async function submitSessionComp() {
     var postOrPut = compAddUpdate.value.sessionCompetencyId === null ? post : put
-    var success = false
+    var success
     if (multiRole.value) {
         success = true
         //submit levels for each role

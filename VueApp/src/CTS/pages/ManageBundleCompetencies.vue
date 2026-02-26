@@ -167,14 +167,10 @@ function editComp(comp: BundleCompetency) {
 //add/update/delete a bundle competency group
 async function saveBundleCompetencyGroup() {
     var u = apiUrl + "cts/bundles/" + bundleId + "/groups"
-    let success = false
-    if (bundleCompetencyGroup.value?.bundleCompetencyGroupId !== null) {
-        success = (
-            await put(u + "/" + bundleCompetencyGroup.value.bundleCompetencyGroupId, bundleCompetencyGroup.value)
-        ).success
-    } else {
-        success = (await post(u, bundleCompetencyGroup.value)).success
-    }
+    const { success } =
+        bundleCompetencyGroup.value?.bundleCompetencyGroupId !== null
+            ? await put(u + "/" + bundleCompetencyGroup.value.bundleCompetencyGroupId, bundleCompetencyGroup.value)
+            : await post(u, bundleCompetencyGroup.value)
 
     if (success) {
         loadBundleComps()

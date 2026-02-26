@@ -1,5 +1,5 @@
 import ViperLayout from "@/layouts/ViperLayout.vue"
-//import ViperLayoutSimple from '@/layouts/ViperLayoutSimple.vue'
+//Import ViperLayoutSimple from '@/layouts/ViperLayoutSimple.vue'
 
 const routes = [
     {

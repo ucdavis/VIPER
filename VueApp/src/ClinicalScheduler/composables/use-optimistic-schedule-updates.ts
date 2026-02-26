@@ -21,7 +21,7 @@ import type {
 interface OptimisticUpdateOptions {
     // Called after operation completes successfully. Receives
     // (wasPrimary?: boolean, instructorName?: string) so callers
-    // can present contextual notifications (e.g. primary evaluator removed).
+    // Can present contextual notifications (e.g. primary evaluator removed).
     onSuccess?: (wasPrimary?: boolean, instructorName?: string) => void
     onError?: (error: string) => void
 }
@@ -241,7 +241,7 @@ export function useScheduleUpdatesWithRollback() {
                 } catch {
                     // Error already handled in the operation
                     // The error has been processed and user has been notified
-                    // through the error handling in the operation itself
+                    // Through the error handling in the operation itself
                 }
             }
         }
