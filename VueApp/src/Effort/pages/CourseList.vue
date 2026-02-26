@@ -348,6 +348,11 @@ const canAddCourse = computed(() => hasImportCourse.value || hasEditCourse.value
 const selectedTermName = computed(() => terms.value.find((t) => t.termCode === selectedTermCode.value)?.termName ?? "")
 
 const deptOptions = computed(() => {
+    // Use the authorized departments from the API (not just those with courses)
+    // so ViewDept users see their department even when it has no courses for the term
+    if (departments.value.length > 0) {
+        return [...departments.value].sort()
+    }
     return [...new Set(courses.value.map((c) => c.custDept).filter(Boolean))].sort()
 })
 

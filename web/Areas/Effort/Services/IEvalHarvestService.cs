@@ -5,7 +5,7 @@ namespace Viper.Areas.Effort.Services;
 
 /// <summary>
 /// Service for managing evaluation data from the evalHarvest database.
-/// Handles CERE-imported evaluations and ad-hoc (manual) evaluations.
+/// Handles harvested evaluations and ad-hoc (manual) evaluations.
 /// </summary>
 public interface IEvalHarvestService
 {
@@ -17,20 +17,20 @@ public interface IEvalHarvestService
         int courseId, CancellationToken ct = default);
 
     /// <summary>
-    /// Create an ad-hoc evaluation record. Blocked if CERE data exists for the course.
+    /// Create an ad-hoc evaluation record. Blocked if harvested eval data exists for the course.
     /// </summary>
     Task<AdHocEvalResultDto> CreateAdHocEvaluationAsync(
         CreateAdHocEvalRequest request, CancellationToken ct = default);
 
     /// <summary>
-    /// Update an ad-hoc evaluation record. Blocked if CERE data exists for the course.
+    /// Update an ad-hoc evaluation record. Blocked if harvested eval data exists for the course.
     /// Verifies the quant belongs to the specified course.
     /// </summary>
     Task<AdHocEvalResultDto> UpdateAdHocEvaluationAsync(
         int courseId, int quantId, UpdateAdHocEvalRequest request, CancellationToken ct = default);
 
     /// <summary>
-    /// Delete an ad-hoc evaluation record. Blocked if CERE data exists for the course.
+    /// Delete an ad-hoc evaluation record. Blocked if harvested eval data exists for the course.
     /// Verifies the quant belongs to the specified course.
     /// </summary>
     Task<bool> DeleteAdHocEvaluationAsync(int courseId, int quantId, CancellationToken ct = default);

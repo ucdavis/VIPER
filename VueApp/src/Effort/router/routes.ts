@@ -84,6 +84,7 @@ const routes = [
             layout: EffortLayout,
             permissions: [
                 "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
                 "SVMSecure.Effort.ImportCourse",
                 "SVMSecure.Effort.EditCourse",
                 "SVMSecure.Effort.DeleteCourse",
@@ -99,6 +100,7 @@ const routes = [
             layout: EffortLayout,
             permissions: [
                 "SVMSecure.Effort.ViewAllDepartments",
+                "SVMSecure.Effort.ViewDept",
                 "SVMSecure.Effort.ImportCourse",
                 "SVMSecure.Effort.EditCourse",
                 "SVMSecure.Effort.DeleteCourse",

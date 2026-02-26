@@ -18,7 +18,7 @@ type EvalCourseInfoDto = {
 type CourseEvalEntryDto = {
     courseId: number
     crn: string
-    status: "CERE" | "AdHoc" | "None"
+    status: "HarvestedEval" | "AdHoc" | "None"
     canEdit: boolean
     quantId: number | null
     mean: number | null

@@ -122,8 +122,8 @@ public class EvalHarvestService : IEvalHarvestService
                 g => g.First().MailId,
                 StringComparer.OrdinalIgnoreCase);
 
-        // Determine if any course has CERE data (course_adhoc = false/null)
-        var hasCereData = ehCourses.Any(c => c.IsAdHoc != true);
+        // Determine if any course has harvested eval data (course_adhoc = false/null)
+        var hasHarvestedEvalData = ehCourses.Any(c => c.IsAdHoc != true);
 
         var viperPersonById = viperPersons.ToDictionary(p => p.PersonId);
         var effortPersonById = effortPersons.ToDictionary(p => p.PersonId);
@@ -173,13 +173,13 @@ public class EvalHarvestService : IEvalHarvestService
                 bool canEdit;
                 if (instructorEval != null)
                 {
-                    status = ehCourse?.IsAdHoc == true ? "AdHoc" : "CERE";
+                    status = ehCourse?.IsAdHoc == true ? "AdHoc" : "HarvestedEval";
                     canEdit = ehCourse?.IsAdHoc == true;
                 }
                 else
                 {
                     status = "None";
-                    canEdit = !hasCereData;
+                    canEdit = !hasHarvestedEvalData;
                 }
 
                 evaluations.Add(new CourseEvalEntryDto
@@ -211,7 +211,7 @@ public class EvalHarvestService : IEvalHarvestService
 
         return new CourseEvaluationStatusDto
         {
-            CanEditAdHoc = !hasCereData,
+            CanEditAdHoc = !hasHarvestedEvalData,
             MaxRatingCount = UpdateAdHocEvalRequest.MaxRatingCount,
             Instructors = instructors,
             Courses = courseInfos
@@ -241,19 +241,19 @@ public class EvalHarvestService : IEvalHarvestService
             return new AdHocEvalResultDto { Success = false, Error = "Invalid CRN" };
         }
 
-        // Check CERE blocking — query without AsNoTracking because the entity is
+        // Check for harvested eval data — query without AsNoTracking because the entity is
         // used for upsert below (setting IsAdHoc = true on an existing record)
         var ehCourse = await _evalContext.Courses
             .FirstOrDefaultAsync(c => c.Crn == crn
                 && c.TermCode == course.TermCode
                 && c.FacilitatorEvalId == 0, ct);
 
-        if (IsCereBlocked(ehCourse))
+        if (IsHarvestedEvalBlocked(ehCourse))
         {
             return new AdHocEvalResultDto
             {
                 Success = false,
-                Error = "Cannot create ad-hoc evaluation: CERE data exists for this course"
+                Error = "Cannot create ad-hoc evaluation: harvested eval data exists for this course"
             };
         }
 
@@ -511,7 +511,7 @@ public class EvalHarvestService : IEvalHarvestService
         return request.Count1 + request.Count2 + request.Count3 + request.Count4 + request.Count5 > 0;
     }
 
-    internal static bool IsCereBlocked(EhCourse? ehCourse)
+    internal static bool IsHarvestedEvalBlocked(EhCourse? ehCourse)
     {
         return ehCourse != null && ehCourse.IsAdHoc != true;
     }
