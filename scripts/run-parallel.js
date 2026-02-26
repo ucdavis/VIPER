@@ -51,7 +51,7 @@ function runTask(task, colorIndex) {
         const startTime = Date.now()
         let output = ""
 
-        const child = spawn(task.command, [], {
+        const child = spawn(task.command, {
             shell: true,
             env: { ...env, FORCE_COLOR: "1" },
         })
