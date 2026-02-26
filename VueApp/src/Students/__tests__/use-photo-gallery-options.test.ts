@@ -150,9 +150,9 @@ describe(usePhotoGalleryOptions, () => {
 
             // Should have: default, term header, two courses
             expect(classLevelOptions.value).toHaveLength(4)
-            expect(classLevelOptions.value[1].label).toBe("Fall Semester 2025")
-            expect(classLevelOptions.value[2].label).toBe("VMD101 - Intro Course")
-            expect(classLevelOptions.value[3].label).toBe("VMD201 - Advanced Course")
+            expect(classLevelOptions.value[1]!.label).toBe("Fall Semester 2025")
+            expect(classLevelOptions.value[2]!.label).toBe("VMD101 - Intro Course")
+            expect(classLevelOptions.value[3]!.label).toBe("VMD201 - Advanced Course")
         })
 
         it("should skip when no courses available", () => {
@@ -182,14 +182,16 @@ describe(usePhotoGalleryOptions, () => {
 
             // Should have: default, class header, class option, term header, course option
             expect(classLevelOptions.value).toHaveLength(5)
-            expect(classLevelOptions.value[0].label).toBe("Select Class Year or Course")
-            expect(classLevelOptions.value[1].label).toBe("Class Level")
-            expect(classLevelOptions.value[2].label).toBe("2025 (V4)")
-            expect(classLevelOptions.value[3].label).toBe("Fall Semester 2025")
-            expect(classLevelOptions.value[4].label).toBe("VMD101 - Test Course")
+            expect(classLevelOptions.value[0]!.label).toBe("Select Class Year or Course")
+            expect(classLevelOptions.value[1]!.label).toBe("Class Level")
+            expect(classLevelOptions.value[2]!.label).toBe("2025 (V4)")
+            expect(classLevelOptions.value[3]!.label).toBe("Fall Semester 2025")
+            expect(classLevelOptions.value[4]!.label).toBe("VMD101 - Test Course")
         })
     })
+})
 
+describe("usePhotoGalleryOptions - studentListYearOptions", () => {
     describe("studentListYearOptions", () => {
         it("should create options with year as value", () => {
             const classYears = ref<ClassYear[]>([

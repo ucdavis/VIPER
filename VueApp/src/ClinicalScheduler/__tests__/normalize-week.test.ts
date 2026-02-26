@@ -37,7 +37,7 @@ describe(normalizeWeek, () => {
         const week = {
             weekId: 1,
             someOtherProp: "value",
-        }
+        } as any
 
         const result = normalizeWeek(week)
 

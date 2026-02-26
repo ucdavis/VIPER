@@ -28,7 +28,7 @@ describe("ClinicalSchedulerHome Component - Core Functionality", () => {
     beforeEach(() => {
         const { mockStore } = setupTest()
         mockPermissionsStore = mockStore
-        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore)
+        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore as any)
     })
 
     describe("Access Control", () => {
@@ -75,7 +75,7 @@ describe("ClinicalSchedulerHome Component - View Visibility", () => {
     beforeEach(() => {
         const { mockStore } = setupTest()
         mockPermissionsStore = mockStore
-        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore)
+        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore as any)
     })
 
     describe("View Card Visibility", () => {
@@ -172,7 +172,7 @@ describe("ClinicalSchedulerHome Component - Navigation", () => {
         const { mockStore, router: testRouter } = setupTest()
         mockPermissionsStore = mockStore
         router = testRouter
-        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore)
+        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore as any)
     })
 
     describe("Navigation", () => {
@@ -204,7 +204,7 @@ describe("ClinicalSchedulerHome Component - Navigation", () => {
             // Find the clinician card (second view card)
             const viewCards = wrapper.findAll(".view-card-custom:not(.bg-grey-1)")
             const [, clinicianCard] = viewCards
-            await clinicianCard.trigger("click")
+            await clinicianCard!.trigger("click")
 
             expect(routerPush).toHaveBeenCalledWith("/ClinicalScheduler/clinician")
         })
@@ -267,7 +267,7 @@ describe("ClinicalSchedulerHome Component - Accessibility & Error Handling", () 
         const { mockStore, router: testRouter } = setupTest()
         mockPermissionsStore = mockStore
         router = testRouter
-        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore)
+        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore as any)
     })
 
     describe("Accessibility Features", () => {
@@ -327,8 +327,8 @@ describe("ClinicalSchedulerHome Component - Accessibility & Error Handling", () 
                 isLoading: false,
                 editableServiceCount: 0,
                 getEditableServicesDisplay: vi.fn().mockReturnValue("None"),
-                initialize: vi.fn().mockResolvedValue(),
-            })
+                initialize: vi.fn().mockResolvedValue(undefined),
+            } as any)
 
             // Should not throw error
             expect(() => createWrapper(router)).not.toThrow()

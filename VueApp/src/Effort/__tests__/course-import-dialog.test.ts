@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { ref } from "vue"
 import { setActivePinia, createPinia } from "pinia"
 
@@ -68,7 +67,7 @@ describe("CourseImportDialog - Error Handling", () => {
             const importError = ref<string | null>(null)
 
             // Simulate handling a non-Error value (e.g., from external code)
-            const nonErrorValue: string = "string error"
+            const nonErrorValue: unknown = "string error"
             importError.value = nonErrorValue instanceof Error ? nonErrorValue.message : "Failed to import course"
 
             expect(importError.value).toBe("Failed to import course")
@@ -92,7 +91,7 @@ describe("CourseImportDialog - Error Handling", () => {
             const searchError = ref("")
 
             // Simulate handling a non-Error value (e.g., from external code)
-            const nonErrorValue: string = "unknown error"
+            const nonErrorValue: unknown = "unknown error"
             searchError.value = nonErrorValue instanceof Error ? nonErrorValue.message : "Error searching for courses"
 
             expect(searchError.value).toBe("Error searching for courses")

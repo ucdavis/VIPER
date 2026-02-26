@@ -61,27 +61,27 @@ describe("ClinicianSelector - Basic Functionality", () => {
                 })
             } else {
                 // Manual trigger for tests without year
-                await wrapper.vm.fetchClinicians()
+                await (wrapper.vm as any).fetchClinicians()
                 expect(ClinicianService.getClinicians).toHaveBeenCalledWith(expected)
             }
         })
 
         it("loads and displays clinicians", async () => {
             const wrapper = createWrapper({ isOwnScheduleOnly: false })
-            await wrapper.vm.fetchClinicians()
+            await (wrapper.vm as any).fetchClinicians()
 
             expect(ClinicianService.getClinicians).toHaveBeenCalled()
-            expect(wrapper.vm.clinicians).toHaveLength(3)
+            expect((wrapper.vm as any).clinicians).toHaveLength(3)
         })
 
         it("emits selection changes", async () => {
             const wrapper = createWrapper({ isOwnScheduleOnly: false })
-            await wrapper.vm.fetchClinicians()
+            await (wrapper.vm as any).fetchClinicians()
 
-            wrapper.vm.selectedClinician = "12345"
+            ;(wrapper.vm as any).selectedClinician = "12345"
             await wrapper.vm.$nextTick()
 
-            const emitted = wrapper.emitted("update:modelValue")?.[0]?.[0]
+            const emitted = wrapper.emitted("update:modelValue")?.[0]?.[0] as any
             expect(emitted?.mothraId).toBe("12345")
             expect(emitted?.fullName).toBe("Smith, John")
         })
@@ -92,15 +92,15 @@ describe("ClinicianSelector - Basic Functionality", () => {
             // Test error state
             mockErrorResponse("Network error")
             const wrapper = createWrapper({ isOwnScheduleOnly: false })
-            await wrapper.vm.fetchClinicians()
+            await (wrapper.vm as any).fetchClinicians()
 
-            expect(wrapper.vm.error).toBe("Network error")
+            expect((wrapper.vm as any).error).toBe("Network error")
             expect(wrapper.find(".q-select").classes()).toContain("q-field--error")
 
             // Test recovery
             mockSuccessResponse([])
-            await wrapper.vm.fetchClinicians()
-            expect(wrapper.vm.error).toBe(null)
+            await (wrapper.vm as any).fetchClinicians()
+            expect((wrapper.vm as any).error).toBe(null)
         })
     })
 

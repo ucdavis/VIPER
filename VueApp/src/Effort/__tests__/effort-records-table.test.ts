@@ -1,5 +1,3 @@
-import { describe, it, expect } from "vitest"
-
 /**
  * Tests for EffortRecordsTable component logic.
  *
@@ -99,7 +97,7 @@ describe("EffortRecordsTable - Effort Type Legend", () => {
             const result = getUniqueEffortTypes(records)
 
             expect(result).toHaveLength(1)
-            expect(result[0].description).toBe("Lecture")
+            expect(result[0]!.description).toBe("Lecture")
         })
 
         it("handles single record", () => {
@@ -251,8 +249,8 @@ describe("EffortRecordsTable - Integration Scenarios", () => {
         const zeroEffortIds = records.filter((r) => r.effortValue === 0).map((r) => r.id)
 
         expect(zeroEffortIds).toEqual([2])
-        expect(isZeroEffort(records[0], zeroEffortIds)).toBeFalsy()
-        expect(isZeroEffort(records[1], zeroEffortIds)).toBeTruthy()
-        expect(isZeroEffort(records[2], zeroEffortIds)).toBeFalsy()
+        expect(isZeroEffort(records[0]!, zeroEffortIds)).toBeFalsy()
+        expect(isZeroEffort(records[1]!, zeroEffortIds)).toBeTruthy()
+        expect(isZeroEffort(records[2]!, zeroEffortIds)).toBeFalsy()
     })
 })

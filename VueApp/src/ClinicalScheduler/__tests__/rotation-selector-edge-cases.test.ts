@@ -86,7 +86,7 @@ describe("RotationSelector - Null Handling", () => {
 
         // Should match by name containing "service"
         expect(filtered).toHaveLength(1)
-        expect(filtered[0].name).toBe("Null Service Rotation")
+        expect(filtered[0]!.name).toBe("Null Service Rotation")
     })
 
     it("handles undefined abbreviation when filtering", () => {
@@ -105,6 +105,6 @@ describe("RotationSelector - Null Handling", () => {
 
         // Should match by name containing "abbreviation"
         expect(filtered).toHaveLength(1)
-        expect(filtered[0].name).toBe("No Abbreviation")
+        expect(filtered[0]!.name).toBe("No Abbreviation")
     })
 })

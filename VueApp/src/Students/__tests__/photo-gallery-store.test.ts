@@ -289,9 +289,9 @@ describe("photo-gallery-store", () => {
 
             await store.fetchClassPhotos("V4")
 
-            expect(store.groupCounts.eighths["1A1"]).toBe(2)
-            expect(store.groupCounts.twentieths["T1"]).toBe(1)
-            expect(store.groupCounts.twentieths["T2"]).toBe(1)
+            expect(store.groupCounts.eighths!["1A1"]).toBe(2)
+            expect(store.groupCounts.twentieths!["T1"]).toBe(1)
+            expect(store.groupCounts.twentieths!["T2"]).toBe(1)
         })
 
         it("should include Ross students when flag is enabled", async () => {
@@ -424,9 +424,9 @@ describe("photo-gallery-store", () => {
 
             await store.fetchCoursePhotos("202501", "12345")
 
-            expect(store.groupCounts.eighths["1A1"]).toBe(1)
-            expect(store.groupCounts.teams["Team 1"]).toBe(1)
-            expect(store.groupCounts.v3specialty["Companion Animal"]).toBe(1)
+            expect(store.groupCounts.eighths!["1A1"]).toBe(1)
+            expect(store.groupCounts.teams!["Team 1"]).toBe(1)
+            expect(store.groupCounts.v3specialty!["Companion Animal"]).toBe(1)
         })
     })
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref, PropType } from "vue"
-import { ref, watch, defineProps, defineEmits } from "vue"
+import { ref, watch } from "vue"
 import type { Student } from "@/CTS/types"
 import { useFetch } from "@/composables/ViperFetch"
 

@@ -118,14 +118,14 @@ describe("useScheduleUpdatesWithRollback - Operation Queue", () => {
             })
         })
 
-        vi.mocked(InstructorScheduleService.removeInstructor).mockImplementation(() => {
+        vi.mocked(InstructorScheduleService.removeInstructor).mockImplementation((() => {
             operationLog.push("remove")
             return Promise.resolve({
                 success: true,
                 result: null,
                 errors: [],
             })
-        })
+        }) as any)
 
         // Queue mixed operations
         addScheduleWithRollback({

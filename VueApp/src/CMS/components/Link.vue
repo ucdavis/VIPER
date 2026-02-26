@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, watch } from "vue"
+import { watch } from "vue"
 import type { Link, LinkCollection } from "@/CMS/types"
 const props = defineProps({
     link: {

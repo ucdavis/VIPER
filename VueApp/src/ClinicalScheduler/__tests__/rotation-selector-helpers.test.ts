@@ -2,7 +2,7 @@ import type { RotationWithService } from "../types/rotation-types"
 
 // Helper function for rotation display name
 const getRotationDisplayName = (rotation: RotationWithService): string => {
-    const beforeParenthesis = rotation.name.split("(")[0].trim()
+    const beforeParenthesis = rotation.name.split("(")[0]!.trim()
     return beforeParenthesis || rotation.name
 }
 
@@ -88,12 +88,12 @@ describe("RotationSelector Helper Functions", () => {
     describe("Rotation Display Name Formatting", () => {
         it("formats rotation names correctly by removing text after parentheses", () => {
             const [rotation] = componentLogic.mockRotationsResponse // 'Anatomic Pathology (Advanced)'
-            expect(componentLogic.getRotationDisplayName(rotation)).toBe("Anatomic Pathology")
+            expect(componentLogic.getRotationDisplayName(rotation!)).toBe("Anatomic Pathology")
         })
 
         it("handles rotation names without parentheses", () => {
             const [, rotation] = componentLogic.mockRotationsResponse // 'Cardiology'
-            expect(componentLogic.getRotationDisplayName(rotation)).toBe("Cardiology")
+            expect(componentLogic.getRotationDisplayName(rotation!)).toBe("Cardiology")
         })
 
         it("handles empty string after parentheses removal", () => {
@@ -137,21 +137,21 @@ describe("RotationSelector Helper Functions", () => {
             const filtered = componentLogic.filterRotations(componentLogic.mockRotationsResponse, "card")
 
             expect(filtered).toHaveLength(1)
-            expect(filtered[0].abbreviation).toBe("Card")
+            expect(filtered[0]!.abbreviation).toBe("Card")
         })
 
         it("filters rotations by service name", () => {
             const filtered = componentLogic.filterRotations(componentLogic.mockRotationsResponse, "cardiology")
 
             expect(filtered).toHaveLength(1)
-            expect(filtered[0].service?.serviceName).toBe("Cardiology")
+            expect(filtered[0]!.service?.serviceName).toBe("Cardiology")
         })
 
         it("is case insensitive when filtering", () => {
             const filtered = componentLogic.filterRotations(componentLogic.mockRotationsResponse, "BEHAVIOR")
 
             expect(filtered).toHaveLength(1)
-            expect(componentLogic.getRotationDisplayName(filtered[0])).toBe("Behavior")
+            expect(componentLogic.getRotationDisplayName(filtered[0]!)).toBe("Behavior")
         })
 
         it("returns empty array when no matches found", () => {

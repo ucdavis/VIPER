@@ -26,7 +26,7 @@ describe("StudentPhotoDialog - Modal Navigation Logic", () => {
             dialogIndex.value += 1
 
             expect(dialogIndex.value).toBe(1)
-            expect(students[dialogIndex.value].mailId).toBe("2")
+            expect(students[dialogIndex.value]!.mailId).toBe("2")
         })
 
         it("should navigate to previous student when index is decremented", () => {
@@ -36,7 +36,7 @@ describe("StudentPhotoDialog - Modal Navigation Logic", () => {
             dialogIndex.value -= 1
 
             expect(dialogIndex.value).toBe(0)
-            expect(students[dialogIndex.value].mailId).toBe("1")
+            expect(students[dialogIndex.value]!.mailId).toBe("1")
         })
 
         it("should prevent navigation past last student", () => {
@@ -148,6 +148,12 @@ describe("StudentPhotoDialog - Modal Navigation Logic", () => {
             expect(showDialog.value).toBeTruthy()
             expect(dialogIndex.value).toBe(1)
         })
+    })
+})
+
+describe("StudentPhotoDialog - State & Regression", () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
     })
 
     describe("VPR-29 Regression: Circular dependency fix", () => {

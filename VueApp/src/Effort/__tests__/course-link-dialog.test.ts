@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { ref } from "vue"
 import { setActivePinia, createPinia } from "pinia"
 
@@ -131,28 +130,28 @@ describe("CourseLinkDialog - Filter Logic", () => {
         const result = filterCourses(sampleCourses, "DVM")
 
         expect(result).toHaveLength(1)
-        expect(result[0].courseCode).toBe("DVM 443")
+        expect(result[0]!.courseCode).toBe("DVM 443")
     })
 
     it("should filter by course code case-insensitively", () => {
         const result = filterCourses(sampleCourses, "dvm")
 
         expect(result).toHaveLength(1)
-        expect(result[0].courseCode).toBe("DVM 443")
+        expect(result[0]!.courseCode).toBe("DVM 443")
     })
 
     it("should filter by CRN", () => {
         const result = filterCourses(sampleCourses, "99999")
 
         expect(result).toHaveLength(1)
-        expect(result[0].crn).toBe("99999")
+        expect(result[0]!.crn).toBe("99999")
     })
 
     it("should filter by sequence number", () => {
         const result = filterCourses(sampleCourses, "002")
 
         expect(result).toHaveLength(1)
-        expect(result[0].seqNumb).toBe("002")
+        expect(result[0]!.seqNumb).toBe("002")
     })
 
     it("should return empty array when no matches", () => {
