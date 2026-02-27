@@ -244,13 +244,6 @@ const {
     margin-bottom: 0.5rem;
 }
 
-.dept-subheader {
-    font-weight: 500;
-    font-size: 0.9rem;
-    padding: 0.25rem 0.5rem;
-    margin-bottom: 0.25rem;
-}
-
 .dept-section {
     margin-bottom: 1.5rem;
 }

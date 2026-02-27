@@ -70,3 +70,33 @@
     font-size: 0.85em;
     color: var(--ucdavis-black-60);
 }
+
+.dept-subheader {
+    font-weight: 500;
+    font-size: 0.9rem;
+    padding: 0.25rem 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.faculty-row td,
+.faculty-row th {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.faculty-label {
+    display: inline-block;
+    min-width: 12rem;
+    text-align: right;
+}
+
+.faculty-count {
+    display: inline-block;
+    min-width: 2rem;
+    text-align: right;
+}
+
+.avg-text {
+    margin-left: 1.5rem;
+    font-style: italic;
+}

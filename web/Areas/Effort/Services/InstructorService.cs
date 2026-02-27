@@ -93,8 +93,13 @@ public class InstructorService : IInstructorService
     public async Task<List<PersonDto>> GetInstructorsAsync(int termCode, string? department = null, bool meritOnly = false, CancellationToken ct = default)
     {
         var baseQuery = _context.Persons
-            .AsNoTracking()
-            .Where(p => p.TermCode == termCode);
+            .AsNoTracking();
+
+        // termCode == 0 means all terms (used by Multi-Year report, matching legacy behavior)
+        if (termCode > 0)
+        {
+            baseQuery = baseQuery.Where(p => p.TermCode == termCode);
+        }
 
         if (!string.IsNullOrWhiteSpace(department))
         {
@@ -104,6 +109,22 @@ public class InstructorService : IInstructorService
         if (meritOnly)
         {
             baseQuery = ApplyMeritJobGroupFilter(baseQuery);
+        }
+
+        // All-terms mode: deduplicate to one record per person (most recent term wins).
+        if (termCode == 0)
+        {
+            var allRecords = await baseQuery
+                .Include(p => p.ViperPerson)
+                .OrderByDescending(p => p.TermCode)
+                .ToListAsync(ct);
+
+            var allPersons = allRecords
+                .DistinctBy(p => p.PersonId)
+                .OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
+                .ToList();
+
+            return _mapper.Map<List<PersonDto>>(allPersons);
         }
 
         var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct);
@@ -127,11 +148,32 @@ public class InstructorService : IInstructorService
 
         var baseQuery = _context.Persons
             .AsNoTracking()
-            .Where(p => p.TermCode == termCode && departments.Contains(p.EffortDept));
+            .Where(p => departments.Contains(p.EffortDept));
+
+        if (termCode > 0)
+        {
+            baseQuery = baseQuery.Where(p => p.TermCode == termCode);
+        }
 
         if (meritOnly)
         {
             baseQuery = ApplyMeritJobGroupFilter(baseQuery);
+        }
+
+        // All-terms mode: return deduplicated name list only
+        if (termCode == 0)
+        {
+            var allRecords = await baseQuery
+                .Include(p => p.ViperPerson)
+                .OrderByDescending(p => p.TermCode)
+                .ToListAsync(ct);
+
+            var allPersons = allRecords
+                .DistinctBy(p => p.PersonId)
+                .OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
+                .ToList();
+
+            return _mapper.Map<List<PersonDto>>(allPersons);
         }
 
         var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct);
@@ -402,6 +444,13 @@ public class InstructorService : IInstructorService
         var dept = await DetermineDepartmentAsync(person.MothraId, request.TermCode, employee, deptSimpleNameLookup, ct) ?? "UNK";
         var titleCode = employee?.EmpEffortTitleCode?.Trim() ?? employee?.EmpTeachingTitleCode?.Trim() ?? "";
 
+        string? jobGroupId = null;
+        if (!string.IsNullOrEmpty(titleCode))
+        {
+            var titleCodes = await GetTitleCodesAsync(ct);
+            jobGroupId = titleCodes.FirstOrDefault(t => string.Equals(t.Code, titleCode, StringComparison.OrdinalIgnoreCase))?.JobGroupId;
+        }
+
         var instructor = new EffortPerson
         {
             PersonId = request.PersonId,
@@ -411,7 +460,7 @@ public class InstructorService : IInstructorService
             MiddleInitial = person.MiddleName?.Length > 0 ? person.MiddleName.Substring(0, 1) : null,
             EffortDept = dept,
             EffortTitleCode = titleCode,
-            JobGroupId = null,
+            JobGroupId = jobGroupId,
             PercentAdmin = 0,
             PercentClinical = null,
             VolunteerWos = null,
@@ -1276,7 +1325,7 @@ public class InstructorService : IInstructorService
             var titles = await _dictionaryContext.Titles
                 .AsNoTracking()
                 .Where(t => t.Code != null)
-                .Select(t => new { Code = t.Code!.Trim(), Name = t.Name ?? "" })
+                .Select(t => new { Code = t.Code!.Trim(), Name = t.Name ?? "", t.JobGroupId })
                 .Distinct()
                 .OrderBy(t => t.Name)
                 .ThenBy(t => t.Code)
@@ -1287,7 +1336,8 @@ public class InstructorService : IInstructorService
                 .Select(t => new TitleCodeDto
                 {
                     Code = t.Code,
-                    Name = t.Name.Trim()
+                    Name = t.Name.Trim(),
+                    JobGroupId = t.JobGroupId?.Trim()
                 })
                 .ToList();
 

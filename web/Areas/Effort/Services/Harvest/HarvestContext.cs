@@ -43,6 +43,12 @@ public sealed class HarvestContext
     public Dictionary<string, string>? TitleLookup { get; set; }
 
     /// <summary>
+    /// Title code to job group ID lookup from dictionary.dbo.dvtTitle.
+    /// Used to populate EffortPerson.JobGroupId during import (matching legacy harvest behavior).
+    /// </summary>
+    public Dictionary<string, string?>? JobGroupLookup { get; set; }
+
+    /// <summary>
     /// Department code to simple name lookup.
     /// </summary>
     public Dictionary<string, string>? DeptSimpleNameLookup { get; set; }

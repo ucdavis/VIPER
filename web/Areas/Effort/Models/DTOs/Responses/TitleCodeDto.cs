@@ -7,4 +7,5 @@ public class TitleCodeDto
 {
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public string? JobGroupId { get; set; }
 }

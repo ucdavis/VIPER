@@ -1,4 +1,5 @@
 import EffortLayout from "@/Effort/layouts/EffortLayout.vue"
+import { reportRoutes } from "./report-routes"
 
 // Term code format: YYYYXX where XX is 01-10 (valid semester/quarter codes)
 // Vue Router's path-to-regexp doesn't support alternation (|) in custom patterns.
@@ -196,6 +197,7 @@ const routes = [
         component: () => import("@/Effort/pages/MyEffort.vue"),
         name: "MyEffort",
     },
+    ...reportRoutes,
     {
         path: `/Effort/:termCode(${TERM_CODE_PATTERN})/reports/teaching/grouped`,
         meta: {

@@ -213,22 +213,28 @@ type MeritAverageReport = {
     jobGroups: MeritAverageJobGroup[]
 }
 
-// Zero Effort types
+// Merit Summary types
 
-type ZeroEffortInstructorRow = {
-    mothraId: string
-    instructor: string
+type MeritSummaryDepartmentGroup = {
     department: string
-    jobGroupId: string
-    verified: boolean
+    departmentTotals: EffortByType
+    departmentAverages: EffortByType
+    facultyCount: number
+    facultyWithCliCount: number
 }
 
-type ZeroEffortReport = {
+type MeritSummaryJobGroup = {
+    jobGroupDescription: string
+    departments: MeritSummaryDepartmentGroup[]
+}
+
+type MeritSummaryReport = {
     termCode: number
     termName: string
     academicYear: string | null
     filterDepartment: string | null
-    instructors: ZeroEffortInstructorRow[]
+    effortTypes: string[]
+    jobGroups: MeritSummaryJobGroup[]
 }
 
 export type {
@@ -254,6 +260,7 @@ export type {
     MeritAverageDepartmentGroup,
     MeritAverageJobGroup,
     MeritAverageReport,
-    ZeroEffortInstructorRow,
-    ZeroEffortReport,
+    MeritSummaryDepartmentGroup,
+    MeritSummaryJobGroup,
+    MeritSummaryReport,
 }

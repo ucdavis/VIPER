@@ -17,7 +17,6 @@ using NLog.Web;
 using Polly;
 using Polly.Extensions.Http;
 using Polly.Timeout;
-using Quartz;
 using System.Net;
 using System.Security.Claims;
 using System.Xml.Linq;
@@ -189,17 +188,13 @@ try
         }
     }
 
-    builder.Services.AddDbContext<VIPERContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<AAUDContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<CoursesContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<CrestContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<DictionaryContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<RAPSContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<VIPERContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<ClinicalSchedulerContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<EquipmentLoanContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<PPSContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<IDCardsContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<KeysContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<SISContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<Viper.Areas.Effort.EffortDbContext>(ConfigureDbContextOptions);
     builder.Services.AddDbContext<Viper.Areas.Effort.Data.EvalHarvestDbContext>(ConfigureDbContextOptions);
@@ -222,9 +217,6 @@ try
 
     // Register UserHelper service
     builder.Services.AddScoped<Viper.IUserHelper, Viper.UserHelper>();
-
-    // Add HttpClient support
-    builder.Services.AddHttpClient();
 
     // Photo Gallery services
     builder.Services.AddScoped<Viper.Areas.Students.Services.IPhotoService, Viper.Areas.Students.Services.PhotoService>();
@@ -255,7 +247,14 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IDeptSummaryService, Viper.Areas.Effort.Services.DeptSummaryService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.ISchoolSummaryService, Viper.Areas.Effort.Services.SchoolSummaryService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritReportService, Viper.Areas.Effort.Services.MeritReportService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritSummaryService, Viper.Areas.Effort.Services.MeritSummaryService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalEffortService, Viper.Areas.Effort.Services.ClinicalEffortService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalScheduleService, Viper.Areas.Effort.Services.ClinicalScheduleService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IZeroEffortService, Viper.Areas.Effort.Services.ZeroEffortService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEvaluationReportService, Viper.Areas.Effort.Services.EvaluationReportService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IYearStatisticsService, Viper.Areas.Effort.Services.YearStatisticsService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritMultiYearService, Viper.Areas.Effort.Services.MeritMultiYearService>();
+    builder.Services.AddScoped<Viper.Areas.Effort.Services.ISabbaticalService, Viper.Areas.Effort.Services.SabbaticalService>();
     builder.Services.Configure<Viper.Areas.Effort.EffortSettings>(builder.Configuration.GetSection("EffortSettings"));
 
     // In development, derive BaseUrl from ASPNETCORE_HTTPS_PORT if not explicitly configured
@@ -295,26 +294,6 @@ try
     // Add automapper
     builder.Services.AddAutoMapper(typeof(Program));
 
-    // Quartz setup
-    builder.Services.AddQuartz(q =>
-    {
-        q.Properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
-        q.UseDefaultThreadPool(x => x.MaxConcurrency = 5);
-        q.MisfireThreshold = TimeSpan.FromSeconds(5);
-        q.UsePersistentStore(storeOptions =>
-        {
-            storeOptions.UseProperties = true;
-            storeOptions.UseSqlServer(builder.Configuration.GetConnectionString("VIPER") ?? "");
-            storeOptions.UseSystemTextJsonSerializer();
-            storeOptions.PerformSchemaValidation = true;
-        });
-    });
-    builder.Services.AddQuartzHostedService(q =>
-    {
-        q.AwaitApplicationStarted = true;
-        q.WaitForJobsToComplete = true;
-    });
-
     // Add email services
     builder.Services.Configure<Viper.Services.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
     builder.Services.Configure<Viper.Services.EmailNotificationSettings>(builder.Configuration.GetSection("EmailNotifications"));
@@ -342,10 +321,6 @@ try
 
 
     var app = builder.Build();
-
-    var scheduler = await app.Services
-        .GetRequiredService<ISchedulerFactory>()
-        .GetScheduler();
 
     // Add Content Security Policy
     app.UseCsp(csp =>
